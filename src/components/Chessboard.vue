@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { reactive } from 'vue';
 import Chess from './Chess.vue';
 // Enum for move permission
