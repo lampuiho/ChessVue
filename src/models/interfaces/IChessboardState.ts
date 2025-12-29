@@ -3,6 +3,7 @@ import type { MovePermission } from "../enums/MovePermission";
 
 interface IChessPiece {
   chess: ChessPiece;
+  /** True for white side, false for black side */
   side: boolean;
 }
 export default interface IChessboardState {
