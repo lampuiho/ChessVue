@@ -12,10 +12,9 @@ The system follows a **layered architecture** with **four tiers** and **strictly
 - No dependencies on layers above
 
 **LAYER 2: Domain Logic**
-- Chess engine (move validation, board state, piece logic)
+- Game rule (move validation, board state, piece logic)
 - Time control engine (countdown, increment logic, variant support)
 - Move tree and branching logic
-- Game rule enforcement (takeback handling, mainline tracking)
 - Serialization/deserialization (FEN, PGN, JSON)
 - *No UI dependencies; pure game logic*
 
@@ -38,11 +37,10 @@ The system follows a **layered architecture** with **four tiers** and **strictly
 **MODULE SUMMARIES:**
 
 **Domain Logic Modules:**
-1. **Chess Engine** — validates moves, updates board state, detects game end (checkmate, stalemate). Exposes: valid move checking, board/piece state, game status.
-2. **Move Tree** — tree structure for branching move history. Exposes: add move, navigate to node, query mainline path.
-3. **Time Control** — manages per-player time, applies increments/delays per variant. Exposes: tick (decrement), apply increment, query remaining time, variant configuration.
-4. **Game Rules** — enforces takeback logic: if allowed, branch; if not, analysis-only. Exposes: is takeback allowed, commit move, branch analysis line.
-5. **Serialization** — convert game state ↔ FEN/PGN/JSON. Exposes: serialize game, deserialize from format, migrate old formats.
+1. **Game Rules** — validates moves, updates board state (and analysis mode for making moves without progressing game), detects game end (checkmate, stalemate). Exposes: valid move checking, board/piece state, game status.
+2. **Move Tree** — tree structure for branching move history (and the time the move is made since game start). Exposes: add move as main branch (for navigate to old move as take back and continuing game from there), add move without changing branch (as analysis mid game when take back is not allowed), navigate to last node, navigate to node, query mainline path, prune moves (for deleting future moves made in analysis mode and making real move).
+3. **Time Control** — manages per-player time, applies increments/delays per variant. Exposes: tick (update game time, time is stored as relative time, on game load a reference time is created to continue calculation with current time), apply increment, query remaining time, variant configuration.
+4. **Serialization** — convert game state ↔ FEN/PGN/JSON. Exposes: serialize game, deserialize from format, migrate old formats.
 
 **State Management Modules:**
 6. **Games Store** — list of active games, CRUD operations. Exposes: create game, load game, get game by ID, delete game, update game.
@@ -58,12 +56,14 @@ The system follows a **layered architecture** with **four tiers** and **strictly
 
 **Presentation Modules:**
 14. **Router** — maps game IDs and routes to views. Setup: /game/:id, /settings, /analysis, /home.
-15. **GameView** — layout: board (center), player panels (top/bottom), analysis panel (right). Exposes: game ID prop, move event, takeback event.
+15. **GameView** — layout: board (center), player panels (top/bottom), analysis/history/control panel (right). Exposes: game ID prop, move event, takeback event.
 16. **Chessboard Component** — renders 64 squares, pieces, highlights, drag-drop. Exposes: board state prop, move event, flipped prop.
 17. **PlayerPanel Component** — shows player name, time remaining, captured pieces, avatar. Exposes: player data prop.
-18. **HistoryPanel Component** — tree visualization of moves, mainline highlighted, click to navigate. Exposes: move history prop, navigate event.
-19. **MenuBar Component** — new game, load game, settings, quit. Exposes: action events.
-20. **SettingsView** — controls for time presets, piece/board style, engine config. Exposes: update setting event.
+18. **AnalysisPanel Component**  — list best engine moves, 1 line of thoughts per row, can fold per engine
+19. **HistoryPanel Component** — tree visualization of moves, mainline highlighted, click to navigate. Exposes: move history prop, navigate event.
+20. **GameControlPanel Component** — resign, take back, pause, enter analysis mode
+21. **MenuBar Component** — new game, load game, settings, quit. Exposes: action events.
+22. **SettingsView** — controls for time presets, piece/board style, engine config. Exposes: update setting event.
 
 ---
 
