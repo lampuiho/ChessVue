@@ -90,3 +90,8 @@ Presentation (14, 15, 16, 17, 18, 19, 20) ← uses State Management + Domain Log
 5. Settings store triggers auto-persist via Storage Adapter (Platform)
 6. Analysis store (if engines running) queues position for analysis
 7. GameView reactively updates (Chessboard, HistoryPanel, PlayerPanel re-render)
+
+** comments for next prompt **
+I adjusted the "chess engine" to be game rules. Takeback logic can be just handled by calling the correct method on move tree.
+
+For process manager, it seems that it needs a better name, also I feel that it could also be used for remote player because communication with engine should be similar to player just minus the lines suggestions. Please suggest how to make it clear that it is for handling moves. Not sure how we can have it share also interface with moves made locally. so that all players share the same interface to control domain logic layer
