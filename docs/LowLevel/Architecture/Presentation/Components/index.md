@@ -1,0 +1,1 @@
+Components are vue modules used by views or components
