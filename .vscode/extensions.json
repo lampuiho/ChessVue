@@ -1,7 +1,8 @@
 {
   "recommendations": [
-    "Vue.volar",
     "vitest.explorer",
-    "EditorConfig.EditorConfig"
+    "EditorConfig.EditorConfig",
+    "bierner.markdown-emoji",
+    "github.copilot-chat"
   ]
 }

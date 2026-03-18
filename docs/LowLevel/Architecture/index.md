@@ -35,7 +35,7 @@ This folder contains low-level module design documents with function signatures,
 
 ### Domain -> Platform
 - `GamesStore` uses `Serialization` and `StorageAdapter`.
-- `FileIOAdapter` uses `Serialization`.
+- `FileIoAdapter` uses `Serialization`.
 - `EnginesStore` uses `ProcessManager`.
 
 ### Domain -> Domain
