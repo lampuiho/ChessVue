@@ -8,12 +8,11 @@ Display move tree and allow navigation across branches.
 - IMoveTree (from DataInterface/Move.md)
 
 ## Component Methods
-- IMoveTree
-enderMoveNodes(moveTree: MoveTree): VNode
+- renderMoveNodes(moveTree: IMoveTree): VNode
 - onNavigateNode(nodeId: string): void
 
 ## Calls
 - MoveUpdateService.navigateToNode
-- MoveUpdateService.getMainline
+- MoveUpdateService.getMainlineMoves
 - GamesStore.getGameById
 

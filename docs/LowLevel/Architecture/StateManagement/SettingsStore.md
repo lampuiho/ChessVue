@@ -2,17 +2,21 @@
 # SettingsStore Module (State Management)
 
 ## Purpose
-Load, update, and store persistent user preferences.
+Manage persistent application settings.
 
 ## Data Interfaces
 - SettingsSchema (from DataInterface/Settings.md)
 
 ## Module Functions
-- loadSettings(): SettingsSchema
-- saveSettings(settings: SettingsSchema): void
+- loadSettings(): Promise<SettingsSchema>
+- saveSettings(settings: SettingsSchema): Promise<void>
 - getSetting<T extends keyof SettingsSchema>(key: T): SettingsSchema[T]
-- updateSetting<T extends keyof SettingsSchema>(key: T, value: SettingsSchema[T]): void
-- esetSettings(): SettingsSchema
+- updateSetting<T extends keyof SettingsSchema>(key: T, value: SettingsSchema[T]): Promise<void>
+- resetSettings(): Promise<SettingsSchema>
+
+## Private Helpers
+- applyTheme(settings: SettingsSchema): void
+- getDefaultSettings(): SettingsSchema
 
 ## Calls
 - StorageAdapter.getItem

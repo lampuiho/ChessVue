@@ -8,8 +8,8 @@ Render engine analysis experiences and line selection.
 - IAnalysisResult (from DataInterface/Analysis.md)
 
 ## Component Methods
-- enderAnalysisLines(analysis: IAnalysisResult[]): VNode
-- onLineClick(move: Move): void
+- renderAnalysisLines(analysis: IAnalysisResult[]): VNode
+- onLineClick(move: IMove): void
 
 ## Calls
 - AnalysisStore.listEvaluations

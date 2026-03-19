@@ -2,7 +2,7 @@
 # EnginesStore Module (State Management)
 
 ## Purpose
-Manage engine configurations and process lifecycle for analysis.
+Manage engine configs, process state, and protocol lifecycle.
 
 ## Data Interfaces
 - IEngine, IEngineConfig (from DataInterface/Engine.md)
@@ -10,14 +10,17 @@ Manage engine configurations and process lifecycle for analysis.
 ## Module Functions
 - listEngines(): IEngine[]
 - addEngine(config: IEngineConfig): void
-- 
-emoveEngine(engineId: string): void
+- removeEngine(engineId: string): void
 - updateEngine(engineId: string, config: Partial<IEngineConfig>): void
 - startEngine(engineId: string): Promise<EngineProcessHandle>
 - stopEngine(engineId: string): Promise<void>
 - getEngineById(engineId: string): IEngine | null
 
+## Private Helpers
+- buildEngineCommand(config: IEngineConfig): string[]
+- normalizeEngineConfig(config: IEngineConfig): IEngineConfig
+
 ## Calls
-- ProcessManager.spawnEngine
-- ProcessManager.sendUCICommand
-- ProcessManager.stopEngine
+- EngineAdapter.initializeEngine
+- EngineAdapter.shutdownEngine
+- EngineAdapter.sendCommand

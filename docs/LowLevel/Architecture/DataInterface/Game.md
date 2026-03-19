@@ -13,8 +13,9 @@ Define the game container, player profiles, and persistent game metadata.
 - `interface IPlayer {
   id: string
   name: string
-  type: "human" | "engine"
+  type: "human" | "remote" | "engine"
   color: "white" | "black"
+  profileId?: string
   rating?: number
 }
 

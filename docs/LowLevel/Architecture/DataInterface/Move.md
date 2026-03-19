@@ -1,16 +1,16 @@
-# Move / MoveNotation / IMoveNode
+# Move / MoveNode / MoveTree
 
 ## Purpose
 Define move payloads and history node structures for branchable move trees.
 
 ## Interfaces
-- `Move`
 - `MoveType` (`"normal" | "castle" | "en_passant" | "promotion"`)
+- `IMove`
 - `IMoveNode`
 - `IMoveTree`
 
 ## Data Structures
-- `interface Move {
+- `interface IMove {
   from: string
   to: string
   promotion?: PieceType
@@ -24,7 +24,7 @@ Define move payloads and history node structures for branchable move trees.
 
 - `interface IMoveNode {
   id: string
-  move: Move | null
+  move: IMove | null
   parentId: string | null
   children: string[]
   fen: string

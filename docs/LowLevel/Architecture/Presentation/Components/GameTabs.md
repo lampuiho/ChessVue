@@ -9,7 +9,7 @@ Render tabs for open games and manage switching between games.
 - IUiState (from DataInterface/UiState.md)
 
 ## Component Methods
-- enderTabs(gameIds: string[]): VNode
+- renderTabs(gameIds: string[]): VNode
 - onSelectTab(gameId: string): void
 - onCloseTab(gameId: string): void
 

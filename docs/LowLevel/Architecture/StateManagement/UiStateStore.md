@@ -2,7 +2,7 @@
 # UiStateStore Module (State Management)
 
 ## Purpose
-Track UI session state and persistence for route and panel state.
+Track UI session state and persistence.
 
 ## Data Interfaces
 - IUiState (from DataInterface/UiState.md)
@@ -12,11 +12,14 @@ Track UI session state and persistence for route and panel state.
 - setCurrentGameId(gameId: string): void
 - showModal(modalName: string): void
 - hideModal(modalName: string): void
-- 	ogglePanel(panelName: string): void
-- persistState(): void
-- loadState(): IUiState
+- togglePanel(panelName: string): void
+- persistState(): Promise<void>
+- loadState(): Promise<IUiState>
 - openTab(gameId: string): void
 - closeTab(gameId: string): void
+
+## Private Helpers
+- validateUiState(state: IUiState): IUiState
 
 ## Calls
 - StorageAdapter.getItem

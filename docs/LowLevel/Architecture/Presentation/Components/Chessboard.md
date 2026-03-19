@@ -9,7 +9,7 @@ Render chessboard, pieces, highlighting, and move input.
 - IChessPiece (from DataInterface/ChessPiece.md)
 
 ## Component Methods
-- enderBoard(board: IChessboardState): VNode
+- renderBoard(board: IChessboardState): VNode
 - onSquareClick(square: string): void
 - onPieceDrag(start: string, end: string): void
 - highlightLegalMoves(piece: IChessPiece): string[]

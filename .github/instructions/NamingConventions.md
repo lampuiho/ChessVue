@@ -7,3 +7,4 @@ description: naming conventions - always apply when designing names
 - singular form if there is suffix
 - private fields use underscore prefix
 - interfaces should start with I
+- UK spelling

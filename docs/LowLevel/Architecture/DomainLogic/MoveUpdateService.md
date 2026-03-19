@@ -2,22 +2,27 @@
 # MoveUpdateService Module (Domain Logic)
 
 ## Purpose
-Manage the branchable move tree and navigate game history. This module is pure data transformation and does not depend on other domain modules.
+Manage branchable move tree history and current navigation state.
 
 ## Data Interfaces
-- IMove and IMoveNode, IMoveTree (from DataInterface/Move.md)
+- Move, IMoveNode, IMoveTree (from DataInterface/Move.md)
 - IGame (from DataInterface/Game.md)
 
 ## Module Functions
 - createMoveTree(initialPosition: IChessboardState): IMoveTree
-- addMainlineMove(hist: IMoveTree, move: IMove): IMoveTree
-- addBranchMove(hist: IMoveTree, move: IMove, parentNodeId: string): IMoveTree
-- navigateToNode(hist: IMoveTree, nodeId: string): IMoveTree
-- getCurrentPosition(hist: IMoveTree): IChessboardState
-- getMainline(hist: IMoveTree): IMove[]
-- takeBack(hist: IMoveTree, count: number): IMoveTree
-- pruneFutureNodes(hist: IMoveTree, nodeId: string): IMoveTree
-- replaceCurrentLine(hist: IMoveTree, moveSequence: IMove[]): IMoveTree
+- addMoveToMainline(tree: IMoveTree, move: IMove): IMoveTree
+- addMoveBranch(tree: IMoveTree, move: IMove, parentId: string): IMoveTree
+- navigateToNode(tree: IMoveTree, nodeId: string): IMoveTree
+- getCurrentPosition(tree: IMoveTree): IChessboardState
+- getMainlineMoves(tree: IMoveTree): IMove[]
+- takeBack(tree: IMoveTree, count: number, allowAnalysisBranch?: boolean): IMoveTree
+- pruneFutureNodes(tree: IMoveTree, fromNodeId: string): IMoveTree
+- convertMoveTreeToPgn(tree: IMoveTree): string
+
+## Private Helpers
+- createMoveNode(move: IMove | null, parentId: string | null, fen: string): IMoveNode
+- getNodeById(tree: IMoveTree, nodeId: string): IMoveNode | null
+- resolvePathToRoot(tree: IMoveTree, nodeId: string): string[]
 
 ## Calls
 - none

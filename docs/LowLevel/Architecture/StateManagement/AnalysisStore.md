@@ -2,18 +2,23 @@
 # AnalysisStore Module (State Management)
 
 ## Purpose
-Cache and query engine analysis results by game and position.
+Store engine analysis and coordinate evaluation requests.
 
 ## Data Interfaces
-- IAnalysisResult, AnalysisKey (from DataInterface/Analysis.md)
+- IAnalysisResult (from DataInterface/Analysis.md)
 
 ## Module Functions
 - storeEvaluation(gameId: string, engineId: string, fen: string, eval: IAnalysisResult): void
 - getEvaluation(gameId: string, engineId: string, fen: string): IAnalysisResult | null
 - clearEvaluations(gameId: string): void
 - listEvaluations(gameId: string, engineId?: string): IAnalysisResult[]
+- requestEvaluation(gameId: string, engineId: string, fen: string, depth: number): Promise<IAnalysisResult>
+
+## Private Helpers
+- buildAnalysisKey(gameId: string, engineId: string, fen: string): string
+- parseEngineOutput(raw: string): IAnalysisResult
 
 ## Calls
 - EnginesStore.getEngineById
-- ProcessManager.sendUCICommand
-- ProcessManager.readEngineOutput
+- EngineAdapter.sendCommand
+- EngineAdapter.readLine

@@ -9,8 +9,8 @@ Render player info and clocks.
 - ClockState (from DataInterface/TimeControl.md)
 
 ## Component Methods
-- enderPlayerInfo(player: IPlayer): VNode
-- ormatClock(ms: number): string
+- renderPlayerInfo(player: IPlayer): VNode
+- formatClock(ms: number): string
 
 ## Calls
 - TimeControlService.getRemainingTime
