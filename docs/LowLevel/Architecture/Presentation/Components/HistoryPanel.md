@@ -1,19 +1,19 @@
+﻿# Presentation/Components/HistoryPanel.md
 # HistoryPanel Component (Presentation)
 
 ## Purpose
-Display move tree with mainline and branch navigation.
+Display move tree and allow navigation across branches.
 
-## Interfaces
-- `HistoryPanelProps`
+## Data Interfaces
+- IMoveTree (from DataInterface/Move.md)
 
 ## Component Methods
-- `renderMoveNodes(moveTree: MoveTree): VNode`
-- `onNavigateNode(nodeId: string): void`
-
-## Called By
-- `GameView`
+- IMoveTree
+enderMoveNodes(moveTree: MoveTree): VNode
+- onNavigateNode(nodeId: string): void
 
 ## Calls
-- `MoveUpdateService.navigateToNode`
-- `MoveUpdateService.getMainline`
-- `GamesStore.getGameById`
+- MoveUpdateService.navigateToNode
+- MoveUpdateService.getMainline
+- GamesStore.getGameById
+

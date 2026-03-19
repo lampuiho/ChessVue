@@ -1,23 +1,19 @@
+﻿# StateManagement/AnalysisStore.md
 # AnalysisStore Module (State Management)
 
 ## Purpose
-Store and query engine analysis results keyed by game position and engine.
+Cache and query engine analysis results by game and position.
 
-## Interfaces
-- `IAnalysisResult`
-- `AnalysisKey`
+## Data Interfaces
+- IAnalysisResult, AnalysisKey (from DataInterface/Analysis.md)
 
 ## Module Functions
-- `storeEvaluation(gameId: string, engineId: string, fen: string, eval: AnalysisResult): void`
-- `getEvaluation(gameId: string, engineId: string, fen: string): AnalysisResult | null`
-- `clearEvaluations(gameId: string): void`
-- `listEvaluations(gameId: string, engineId?: string): AnalysisResult[]`
-
-## Called By
-- `GameView.showAnalysis`
-- `AnalysisPanelComponent.render`
+- storeEvaluation(gameId: string, engineId: string, fen: string, eval: IAnalysisResult): void
+- getEvaluation(gameId: string, engineId: string, fen: string): IAnalysisResult | null
+- clearEvaluations(gameId: string): void
+- listEvaluations(gameId: string, engineId?: string): IAnalysisResult[]
 
 ## Calls
-- `EnginesStore.getEngineById`
-- `ProcessManager.sendUCICommand`
-- `ProcessManager.readEngineOutput`
+- EnginesStore.getEngineById
+- ProcessManager.sendUCICommand
+- ProcessManager.readEngineOutput

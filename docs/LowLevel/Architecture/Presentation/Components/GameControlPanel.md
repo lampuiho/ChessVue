@@ -1,22 +1,21 @@
+﻿# Presentation/Components/GameControlPanel.md
 # GameControlPanel Component (Presentation)
 
 ## Purpose
-Buttons for resign, draw offer, takeback, pause, and analysis mode.
+User controls for resigning, taking back moves, toggling analysis mode, and clock control.
 
-## Interfaces
-- `GameControlPanelProps`
+## Data Interfaces
+- IGame (from DataInterface/Game.md)
 
 ## Component Methods
-- `onResign(): void`
-- `onOfferDraw(): void`
-- `onTakeBack(): void`
-- `onPause(): void`
-- `onEnterAnalysisMode(): void`
-
-## Called By
-- `GameView`
+- onResign(): void
+- onOfferDraw(): void
+- onTakeBack(): void
+- onPause(): void
+- onEnterAnalysisMode(): void
 
 ## Calls
-- `GamesStore.takeBack`
-- `UiStateStore.showModal`
-- `GamesStore.makeMove`
+- GamesStore.takeBack
+- UiStateStore.showModal
+- GamesStore.makeMove
+

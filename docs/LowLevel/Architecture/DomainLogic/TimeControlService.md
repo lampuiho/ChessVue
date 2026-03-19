@@ -1,25 +1,20 @@
-# TimeControl Module (Domain Logic)
+﻿# DomainLogic/TimeControlService.md
+# TimeControlService Module (Domain Logic)
 
 ## Purpose
-Manage per-player clocks, increments, delays, and remaining time calculations.
+Update clocks, apply increments/delays, and detect flag fall. Independent domain clock logic with no cross-module dependencies in this layer.
 
-## Interfaces
-- `TimeControlConfig`
-- `ClockState`
-- `IGame`
+## Data Interfaces
+- ITimeControlConfig, ClockState, PlayerClockState (from DataInterface/TimeControl.md)
+- IGame (from DataInterface/Game.md)
 
 ## Module Functions
-- `initializeClocks(config: TimeControlConfig): ClockState`
-- `tickClock(game: IGame, deltaMs: number): IGame`
-- `applyIncrement(game: IGame, player: PlayerType): IGame`
-- `getRemainingTime(game: IGame, player: PlayerType): number`
-- `isFlagFall(game: IGame): { flagged: boolean; player?: PlayerType }`
-- `updateClockAfterMove(game: IGame, move: Move): IGame`
-
-## Called By
-- `GamesStore.makeMove`
-- `GameView.onTimerTick`
-- `PlayerPanelComponent.render`
+- initializeClockState(config: ITimeControlConfig): ClockState
+- tickClock(clock: ClockState, deltaMs: number): ClockState
+- applyIncrement(clock: ClockState, player: PlayerColour, config: ITimeControlConfig): ClockState
+- getRemainingTime(clock: ClockState, player: PlayerColour): number
+- isFlagFall(clock: ClockState): { flagged: boolean; player?: PlayerColour }
+- updateClockAfterMove(clock: ClockState, player: PlayerColour, config: ITimeControlConfig): ClockState
 
 ## Calls
-- `Serialization.serializeGame`
+- none

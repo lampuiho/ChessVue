@@ -6,3 +6,4 @@ description: naming conventions - always apply when designing names
 - Pascal case for classes, interfaces, types, and enums, and vue module names
 - singular form if there is suffix
 - private fields use underscore prefix
+- interfaces should start with I

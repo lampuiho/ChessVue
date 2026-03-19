@@ -1,24 +1,20 @@
+﻿# PlatformAbstraction/StorageAdapter.md
 # StorageAdapter Module (Platform Abstraction)
 
 ## Purpose
-Abstract key/value persistence for settings, games, and UI state.
+Abstract key/value persistence for settings, games, UI state, and analysis cache.
 
-## Interfaces
-- `IStorageAdapter`
-- `StorageEntry<T>`
+## Data Interfaces
+- StorageEntry<T>
+- IUiState (from DataInterface/UiState.md)
+- SettingsSchema (from DataInterface/Settings.md)
+- IGame (from DataInterface/Game.md)
 
 ## Module Functions
-- `getItem<T>(key: string): Promise<T | null>`
-- `setItem<T>(key: string, value: T): Promise<void>`
-- `removeItem(key: string): Promise<void>`
-- `clear(): Promise<void>`
-
-## Called By
-- `SettingsStore.loadSettings`
-- `SettingsStore.saveSettings`
-- `GamesStore.loadGames`
-- `GamesStore.saveGame`
-- `UiStateStore.persistState`
+- getItem<T>(key: string): Promise<T | null>
+- setItem<T>(key: string, value: T): Promise<void>
+- emoveItem(key: string): Promise<void>
+- clear(): Promise<void>
 
 ## Calls
-- Underlying platform storage implementation (e.g. `localStorage` or file store)
+- underlying platform storage APIs (localStorage, IndexedDB, file store)

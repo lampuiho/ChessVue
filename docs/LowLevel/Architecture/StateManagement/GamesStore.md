@@ -1,35 +1,31 @@
+﻿# StateManagement/GamesStore.md
 # GamesStore Module (State Management)
 
 ## Purpose
-Manage active games, create/load/delete games, and dispatch game updates.
+Manage game instances, apply domain-driven updates, and persist games.
 
-## Interfaces
-- `IGamesStore`
-- `IGame`
+## Data Interfaces
+- IGame, NewGameOptions (from DataInterface/Game.md)
+- Move (from DataInterface/Move.md)
+- IChessboardState (from DataInterface/ChessboardState.md)
 
 ## Module Functions
-- `createGame(options: NewGameOptions): IGame`
-- `loadGame(gameId: string): IGame | null`
-- `saveGame(game: IGame): void`
-- `deleteGame(gameId: string): void`
-- `makeMove(gameId: string, move: Move): boolean`
-- `takeBack(gameId: string, count: number): void`
-- `getGameById(gameId: string): IGame | undefined`
-- `listGames(): IGame[]`
-
-## Called By
-- `GameView.getCurrentGame`
-- `GameView.onMove`
-- `MenuBarComponent.onNewGame`
-- `Router.beforeRouteEnter`
+- createGame(options: NewGameOptions): IGame
+- loadGame(gameId: string): IGame | null
+- saveGame(game: IGame): void
+- deleteGame(gameId: string): void
+- makeMove(gameId: string, move: Move): boolean
+- 	akeBack(gameId: string, count: number): boolean
+- getGameById(gameId: string): IGame | undefined
+- listGames(): IGame[]
+- eplaceGame(game: IGame): void
 
 ## Calls
-- `MoveUpdateService.addMainlineMove`
-- `MoveUpdateService.addAnalysisMove`
-- `MoveUpdateService.takeback`
-- `GameRules.isMoveLegal`
-- `TimeControl.updateClockAfterMove`
-- `Serialization.serializeGameToJSON`
-- `Serialization.deserializeGameFromJSON`
-- `StorageAdapter.setItem`
-- `StorageAdapter.getItem`
+- GameRuleService.isMoveLegal
+- MoveUpdateService.addMoveToMainline
+- MoveUpdateService.navigateToNode
+- TimeControlService.updateClockAfterMove
+- SerializationService.serializeGameToJSON
+- SerializationService.deserializeGameFromJSON
+- StorageAdapter.setItem
+- StorageAdapter.getItem

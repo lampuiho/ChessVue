@@ -1,18 +1,17 @@
+﻿# Presentation/Components/PlayerPanel.md
 # PlayerPanel Component (Presentation)
 
 ## Purpose
-Show player name, clock, captured pieces, and status.
+Render player info and clocks.
 
-## Interfaces
-- `PlayerPanelProps`
+## Data Interfaces
+- IPlayer (from DataInterface/Game.md)
+- ClockState (from DataInterface/TimeControl.md)
 
 ## Component Methods
-- `renderPlayerInfo(player: IPlayer): VNode`
-- `formatClock(ms: number): string`
-
-## Called By
-- `GameView`
+- enderPlayerInfo(player: IPlayer): VNode
+- ormatClock(ms: number): string
 
 ## Calls
-- `TimeControl.getRemainingTime`
-- `GamesStore.getGameById`
+- TimeControlService.getRemainingTime
+- GamesStore.getGameById

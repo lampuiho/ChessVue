@@ -1,26 +1,22 @@
+﻿# DomainLogic/GameRuleService.md
 # GameRuleService Module (Domain Logic)
 
 ## Purpose
-Validate chess moves, and determine game end state.
+Validate chess moves and board state according to game rules and variant constraints. This module is pure domain logic and does not depend on state management or presentation.
 
-## Interfaces
-- `IChessboardState`
-- `IChessPiece`
-- `IGame`
-- `IPlayer`
+## Data Interfaces
+- IChessboardState (from DataInterface/ChessboardState.md)
+- IChessPiece (from DataInterface/ChessPiece.md)
+- Move (from DataInterface/Move.md)
 
 ## Module Functions
-- `isMoveLegal(gameState: IChessboardState, move: Move): boolean`
-- `isCheck(position: IChessboardState, player: PlayerColor): boolean`
-- `isCheckmate(position: IChessboardState, player: PlayerColor): boolean`
-- `isStalemate(position: IChessboardState, player: PlayerColor): boolean`
-- `generateLegalMoves(position: IChessboardState, player: PlayerColor): Move[]`
-- `getPieceLegalDestinations(piece: IChessPiece, position: IChessboardState): Square[]`
+- isMoveLegal(position: IChessboardState, move: Move): boolean
+- generateLegalMoves(position: IChessboardState, player: PlayerColour): Move[]
+- applyMove(position: IChessboardState, move: Move): IChessboardState
+- isCheck(position: IChessboardState, player: PlayerColour): boolean
+- isCheckmate(position: IChessboardState, player: PlayerColour): boolean
+- isStalemate(position: IChessboardState, player: PlayerColour): boolean
+- evaluateGameStatus(position: IChessboardState): GameStatus
 
-## Called By
-- `MoveUpdateService.addMainlineMove`
-- `MoveUpdateService.addAnalysisMove`
-- `GamesStore.makeMove`
-- `GamesStore.validateMove`
-- `GameView.onPlayerMove`
-
+## Calls
+- none

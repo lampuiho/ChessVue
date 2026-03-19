@@ -1,18 +1,16 @@
+﻿# Presentation/Components/AnalysisPanel.md
 # AnalysisPanel Component (Presentation)
 
 ## Purpose
-Render engine analysis lines, best moves, and evaluation.
+Render engine analysis experiences and line selection.
 
-## Interfaces
-- `AnalysisPanelProps`
+## Data Interfaces
+- IAnalysisResult (from DataInterface/Analysis.md)
 
 ## Component Methods
-- `renderAnalysisLines(analysis: AnalysisResult[]): VNode`
-- `onLineClick(move: Move): void`
-
-## Called By
-- `GameView`
+- enderAnalysisLines(analysis: IAnalysisResult[]): VNode
+- onLineClick(move: Move): void
 
 ## Calls
-- `AnalysisStore.listEvaluations`
-- `GamesStore.getGameById`
+- AnalysisStore.listEvaluations
+- GamesStore.getGameById

@@ -1,25 +1,19 @@
+﻿# StateManagement/SettingsStore.md
 # SettingsStore Module (State Management)
 
 ## Purpose
-Persist and apply user preferences for UI, board style, time presets, and engine defaults.
+Load, update, and store persistent user preferences.
 
-## Interfaces
-- `ISettingsStore`
-- `SettingsSchema`
+## Data Interfaces
+- SettingsSchema (from DataInterface/Settings.md)
 
 ## Module Functions
-- `loadSettings(): SettingsSchema`
-- `saveSettings(settings: SettingsSchema): void`
-- `getSetting<T extends keyof SettingsSchema>(key: T): SettingsSchema[T]`
-- `updateSetting<T extends keyof SettingsSchema>(key: T, value: SettingsSchema[T]): void`
-- `resetSettings(): SettingsSchema`
-
-## Called By
-- `SettingsView.init`
-- `App.vue.onBeforeMount`
-- `GameView.applyTheme`
+- loadSettings(): SettingsSchema
+- saveSettings(settings: SettingsSchema): void
+- getSetting<T extends keyof SettingsSchema>(key: T): SettingsSchema[T]
+- updateSetting<T extends keyof SettingsSchema>(key: T, value: SettingsSchema[T]): void
+- esetSettings(): SettingsSchema
 
 ## Calls
-- `StorageAdapter.getItem`
-- `StorageAdapter.setItem`
-- `UiStateStore.persistState` (for theme/UI toggles)
+- StorageAdapter.getItem
+- StorageAdapter.setItem

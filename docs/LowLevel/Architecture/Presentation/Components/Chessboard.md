@@ -1,25 +1,23 @@
+﻿# Presentation/Components/Chessboard.md
 # Chessboard Component (Presentation)
 
 ## Purpose
-Render squares, pieces, highlights; handle user move input and drag/drop.
+Render chessboard, pieces, highlighting, and move input.
 
-## Interfaces
-- `ChessboardProps`
-- `ChessboardEmitEvents`
+## Data Interfaces
+- IChessboardState (from DataInterface/ChessboardState.md)
+- IChessPiece (from DataInterface/ChessPiece.md)
 
 ## Component Methods
-- `renderBoard(board: IChessboardState): VNode`
-- `onSquareClick(square: Square): void`
-- `onPieceDrag(start: Square, end: Square): void`
-- `highlightLegalMoves(piece: IChessPiece): Square[]`
-
-## Called By
-- `GameView`
+- enderBoard(board: IChessboardState): VNode
+- onSquareClick(square: string): void
+- onPieceDrag(start: string, end: string): void
+- highlightLegalMoves(piece: IChessPiece): string[]
 
 ## Emits
-- `moveAttempt({from, to}): void`
-- `pieceSelected(square): void`
+- moveAttempt({from, to}): void
+- pieceSelected(square): void
 
 ## Calls
-- `GameRules.generateLegalMoves`
-- `GameRules.isMoveLegal`
+- GameRuleService.generateLegalMoves
+- GameRuleService.isMoveLegal

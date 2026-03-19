@@ -1,27 +1,24 @@
+﻿# DomainLogic/SerializationService.md
 # SerializationService Module (Domain Logic)
 
 ## Purpose
-Serialize and deserialize game state to/from FEN, PGN, and JSON.
+Serialize and deserialize chess game state to/from JSON/FEN/PGN and migrate legacy formats.
 
-## Interfaces
-- `IGamePersisted`
-- `FENString`
-- `PGNString`
+## Data Interfaces
+- IGame, IChessboardState, IMoveTree (from DataInterface/Game.md, DataInterface/ChessboardState.md, DataInterface/Move.md)
 
 ## Module Functions
-- `serializeGameToJSON(game: IGame): string`
-- `deserializeGameFromJSON(json: string): IGame`
-- `serializeGameToFEN(game: IGame): FENString`
-- `deserializeGameFromFEN(fen: FENString): IChessboardState`
-- `serializeGameToPGN(game: IGame): PGNString`
-- `migrateSavedGame(oldData: any): IGame`
+- serializeGameToJSON(game: IGame): string
+- serializeGameToFEN(position: IChessboardState): string
+- serializeGameToPGN(game: IGame): string
+- deserializeGame(game: IGame): string
+- migrateSavedGame(oldData: any): IGame
 
-## Called By
-- `GamesStore.loadGame`
-- `GamesStore.saveGame`
-- `FileIOAdapter.saveGameToFile`
-- `FileIOAdapter.loadGameFromFile`
+## Private Functions
+- deserializeGameFromJSON(json: string): IGame
+- deserializeGameFromFEN(fen: string): IChessboardState
+- deserializeGameFromPGN(pgn: string): IGame
+- determineGameFormat(game: string): GameFormat
 
 ## Calls
-- `MoveUpdateService.getCurrentPosition`
-- `GameRules.generateLegalMoves` (for PGN validation)
+- none

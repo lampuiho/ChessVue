@@ -1,1 +1,10 @@
-Components are vue modules used by views or components
+﻿# Presentation/Components/index.md
+## Presentation Components
+- Chessboard
+- PlayerPanel
+- AnalysisPanel
+- HistoryPanel
+- GameControlPanel
+- MenuBar
+- NewGameModal
+- GameTabs

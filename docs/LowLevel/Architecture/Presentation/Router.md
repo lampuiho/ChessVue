@@ -1,20 +1,18 @@
+﻿# Presentation/Router.md
 # Router Module (Presentation)
 
 ## Purpose
-Define routes and navigation guards for game pages and settings.
+Define app routes and navigation guards for game pages and settings.
 
-## Interfaces
-- `RouteConfig`
+## Data Interfaces
+- IUiState (from DataInterface/UiState.md)
 
 ## Module Functions
-- `createRouterInstance(): Router`
-- `setupRoutes(): RouteRecordRaw[]`
-- `beforeRouteEnterGuard(to, from, next): void`
-- `beforeEachRouteGuard(to, from, next): void`
-
-## Called By
-- `main.ts` during app initialization
+- createRouterInstance(): Router
+- setupRoutes(): RouteRecordRaw[]
+- eforeEachRouteGuard(to, from, next): void
+- eforeRouteEnterGuard(to, from, next): void
 
 ## Calls
-- `GamesStore.getGameById`
-- `UiStateStore.setCurrentGameId`
+- GamesStore.getGameById
+- UiStateStore.setCurrentGameId

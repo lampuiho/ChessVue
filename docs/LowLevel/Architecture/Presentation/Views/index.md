@@ -1,3 +1,5 @@
-Views are vue modules rendered by RouterView compoent.
-
-They maybe inside RouterView of the tab component through a child route or the main route.
+﻿# Presentation/Views/index.md
+# Presentation Views
+- GameView
+- HomeView
+- SettingsView
