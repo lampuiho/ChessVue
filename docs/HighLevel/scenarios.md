@@ -14,6 +14,9 @@ This is a design artifact only. It introduces no runtime code/API changes.
   - `Current`: expected in baseline core flows.
   - `Planned`: documented target behavior for later implementation.
   - `Idea`: speculative flow for review, not committed scope.
+- **Analysis Contexts**:
+  - `Free analysis / setup`: no live game progression, board editing allowed, can transition into a started game.
+  - `In-game analysis mode`: entered from an active game, board editing not allowed, user can explore moves without progressing the live game.
 - **Function Touchpoints** reference low-level modules/functions to guide implementation interfaces.
 
 ## Scenario Template
@@ -45,7 +48,7 @@ Each scenario in this document uses the same structure:
   4. App shows home/default game area with actions (new game, load game, settings).
 - **Branch Paths**:
   - `BR-SESSION-01-INIT-FAIL`: If any persisted read fails unexpectedly, app falls back to safe defaults and logs recoverable error.
-  - `BR-SESSION-01-AUTO-GAME`: If product policy requires always-open game, app auto-creates a default game and routes to it.
+  - `BR-SESSION-01-HOME-FALLBACK`: If the preferred home screen cannot be restored, app still shows a neutral landing state without auto-creating a game.
 - **Postconditions**: User can start a new game, load a game, or open settings without restart.
 - **Function Touchpoints**:
   - `Router.createRouterInstance`
@@ -53,7 +56,6 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.loadSettings`
   - `UiStateStore.loadState`
   - `StorageAdapter.getItem`
-  - `GamesStore.createGame` (auto-game branch)
 
 ### SCN-SESSION-02 - Restore Previous Session
 - **Status**: Planned
@@ -131,13 +133,13 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User opens new-game dialog.
   2. User edits options (players, time control preset/custom, sides, engine assignment).
-  3. User may assign no player to either side, which means the game starts in analysis mode and the app user controls both sides.
+  3. User may assign no player to either side, which means the flow starts in `free analysis / setup` context instead of a live game.
   4. User confirms creation.
   5. App validates options and creates configured game.
 - **Branch Paths**:
   - `BR-GAME-02-INVALID-TIME`: Invalid time settings (negative/empty) -> inline validation, block submit.
-  - `BR-GAME-02-ENGINE-MISSING`: Selected engine unavailable -> allow fallback to human/default engine or block with guidance.
-  - `BR-GAME-02-ANALYSIS-START`: If no player is assigned to either side, initialize analysis-mode permissions and enable engine analysis on moves when engines were configured at game creation.
+  - `BR-GAME-02-ENGINE-MISSING`: Selected required engine unavailable -> block creation until the setup is corrected.
+  - `BR-GAME-02-FREE-ANALYSIS-START`: If no player is assigned to either side, initialize free analysis/setup permissions and enable engine analysis on moves when engines were configured at creation.
 - **Postconditions**: Game starts with validated custom settings.
 - **Function Touchpoints**:
   - `GamesStore.createGame`
@@ -179,6 +181,7 @@ Each scenario in this document uses the same structure:
   3. App loads current settings and engine list.
   4. User saves or resets settings.
   5. User navigates back to prior game route.
+  6. If the pause came from this auto-pause flow, app auto-resumes on return.
 - **Branch Paths**:
   - `BR-NAV-01-DIRTY-LEAVE`: Unsaved form edits + navigation -> prompt save/discard.
   - `BR-NAV-01-NO-GAME-RETURN`: No active game available on return -> route to home/default.
@@ -309,11 +312,12 @@ Each scenario in this document uses the same structure:
   1. User navigates to old node.
   2. User makes legal move from old node.
   3. App treats action as mainline continuation.
-  4. Future moves ahead of node are replaced/pruned per policy.
+  4. App promotes the new continuation to the main branch.
+  5. The old future line remains in the move tree as a visible variation.
 - **Branch Paths**:
-  - `BR-HIST-02-CONFIRM-REWRITE`: Require confirmation before rewriting future mainline.
+  - `BR-HIST-02-CONFIRM-REWRITE`: Require confirmation before changing which continuation is marked as mainline.
   - `BR-HIST-02-DECLINE-REWRITE`: User declines rewrite -> move canceled, remain in review.
-- **Postconditions**: Mainline pointer and future history are consistent with new continuation.
+- **Postconditions**: Mainline pointer changes to the new continuation, while the old continuation remains visible as a variation.
 - **Function Touchpoints**:
   - `MoveUpdateService.takeback`
   - `MoveUpdateService.addMainlineMove`
@@ -360,13 +364,82 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
 
 ---
+## Free Analysis / Setup
+
+### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
+- **Status**: Planned
+- **Goal**: Open a non-live chess workspace where the user can explore positions before starting a real game.
+- **Preconditions**: User creates a flow with no player assigned to either side, or opens a dedicated setup path.
+- **Entry Points**: Custom new-game flow with no players assigned.
+- **Main Steps**:
+  1. User enters free analysis / setup context.
+  2. App gives the user move control for both colors.
+  3. If engines were configured at creation, app refreshes analysis after each committed move.
+  4. User explores legal moves without progressing a live game.
+- **Branch Paths**:
+  - `BR-FREE-ANALYSIS-01-ENGINE-NOT-RUNNING`: Engine start fails -> keep the setup context usable and show actionable error.
+  - `BR-FREE-ANALYSIS-01-NO-ENGINES`: If no engines were configured, free analysis remains available without evaluation lines.
+- **Postconditions**: User can explore, analyze, and prepare a starting position before a real game begins.
+- **Function Touchpoints**:
+  - `GamesStore.createGame`
+  - `GamesStore.makeMove`
+  - `AnalysisStore.listEvaluations`
+  - `EnginesStore.startEngine`
+
+### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
+- **Status**: Planned
+- **Goal**: Let the user directly edit the board position and clear move history while in free analysis / setup.
+- **Preconditions**: Free analysis / setup context is active.
+- **Entry Points**: Setup board edit action.
+- **Main Steps**:
+  1. User enters board-editing mode from free analysis / setup.
+  2. User adds, removes, or relocates pieces to define a new position.
+  3. User confirms the edited position.
+  4. App replaces the current board state with the edited position.
+  5. App clears existing move history and treats the edited board as the new root position.
+  6. If engines were configured at creation, app requests analysis for the edited position.
+- **Branch Paths**:
+  - `BR-FREE-ANALYSIS-02-CANCEL`: User cancels board editing -> restore prior position and history unchanged.
+  - `BR-FREE-ANALYSIS-02-CLEAR-CONFIRM`: If history exists, app asks for confirmation before clearing it.
+  - `BR-FREE-ANALYSIS-02-ENGINE-REFRESH-FAIL`: If engines cannot refresh on the edited position, keep the edited board and show evaluation as unavailable.
+- **Postconditions**: The edited position becomes the current free-analysis root and old move history is removed when confirmed.
+- **Function Touchpoints**:
+  - `UiStateStore.showModal`
+  - `UiStateStore.hideModal`
+  - `MoveUpdateService.createMoveTree`
+  - `GamesStore.saveGame`
+  - `AnalysisStore.listEvaluations`
+  - `AnalysisStore.clearEvaluations`
+
+### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
+- **Status**: Planned
+- **Goal**: Turn the current free-analysis position into the starting point of a real game.
+- **Preconditions**: Free analysis / setup context is active.
+- **Entry Points**: Start-game action from free analysis / setup.
+- **Main Steps**:
+  1. User finishes preparing a position in free analysis / setup.
+  2. User selects time control and players to start a real game.
+  3. App keeps the current board position as the starting position of the new game.
+  4. App preserves the prior analysis history in the move tree.
+  5. App transitions into normal live-game behavior for the started game.
+- **Branch Paths**:
+  - `BR-FREE-ANALYSIS-03-INVALID-ENGINE`: If a required engine for the started game is unavailable, block the transition until setup is corrected.
+  - `BR-FREE-ANALYSIS-03-CANCEL`: User cancels start-game flow -> remain in free analysis / setup.
+- **Postconditions**: A real game begins from the prepared position, and the earlier free-analysis history remains available.
+- **Function Touchpoints**:
+  - `GamesStore.createGame`
+  - `TimeControl.initializeClocks`
+  - `EnginesStore.getEngineById`
+  - `UiStateStore.showModal`
+
+---
 ## Analysis and Engine Interaction
 
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
 - **Status**: Current
 - **Goal**: Start evaluation for current position with one engine.
 - **Preconditions**: Engine configured and available.
-- **Entry Points**: Game view analysis start action, or automatic trigger after a move in a game that started with engines configured.
+- **Entry Points**: Analysis start action in a game context, or automatic trigger after a move when engines were configured at creation.
 - **Main Steps**:
   1. User starts analysis manually, or analysis is auto-triggered after a move.
   2. App ensures engine process is running.
@@ -377,7 +450,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-ANALYSIS-01-ENGINE-NOT-RUNNING`: Engine start fails -> show actionable error and keep UI responsive.
   - `BR-ANALYSIS-01-PARSE-FAIL`: Output parse fails -> skip bad line and continue listening.
-  - `BR-ANALYSIS-01-AUTO-ON-MOVE`: If engines were configured at game start, refresh analysis automatically after each committed move, including moves made by the user while controlling both sides in analysis mode.
+  - `BR-ANALYSIS-01-AUTO-ON-MOVE`: If engines were configured at creation, refresh analysis automatically after each committed move in either free analysis / setup or in-game analysis mode.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
 - **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching.
 - **Function Touchpoints**:
@@ -540,20 +613,20 @@ Each scenario in this document uses the same structure:
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
 - **Status**: Planned
-- **Goal**: Prevent clocks from continuing to run while the user is saving or changing settings through menu actions.
-- **Preconditions**: Timed game is active; a menu action such as save or settings is triggered.
-- **Entry Points**: Menu `Save Game`, menu `Settings`, and similar menu-driven interruptions.
+- **Goal**: Prevent clocks from continuing to run while the user opens interrupting menus or modals from a timed game.
+- **Preconditions**: Timed game is active; an interrupting menu or modal is triggered from the game screen.
+- **Entry Points**: Menu `Save Game`, menu `Settings`, and any other interrupting menu/modal opened from the game screen.
 - **Main Steps**:
-  1. User opens a menu action that can interrupt active play.
+  1. User opens an interrupting menu or modal from active play.
   2. App checks whether auto-pause-on-menu is enabled for timed games.
   3. If enabled, app pauses the game before opening the interrupted flow.
-  4. User completes or cancels the menu action.
-  5. App leaves the game paused until the user explicitly resumes, unless product policy later changes this.
+  4. User completes or cancels the menu/modal flow.
+  5. When the user returns to the game screen, app auto-resumes the clock if the pause came from this auto-pause flow.
 - **Branch Paths**:
   - `BR-TIME-05-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, the menu action proceeds without changing the clock state.
   - `BR-TIME-05-NON-TIMED-GAME`: If the game has no active clock, no pause action is required.
   - `BR-TIME-05-ALREADY-PAUSED`: If the game is already paused, menu flow continues without changing pause state.
-- **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled.
+- **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled, and normal play resumes automatically on return.
 - **Function Touchpoints**:
   - `MenuBar.onSaveGame`
   - `MenuBar.onOpenSettings`
@@ -617,23 +690,21 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
   - `GamesStore.saveGame`
 
-### SCN-CTRL-04 - Enter/Exit Analysis Mode
+### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Planned
-- **Goal**: Enter a mode where the app user controls both sides, can inspect and alter the position freely, and can return to normal play rules if supported.
-- **Preconditions**: Active game open, or game created with no assigned player on either side.
-- **Entry Points**: Control panel `Analysis Mode`.
+- **Goal**: Enter a mode from an active game where the user controls both sides for exploration without progressing the live game.
+- **Preconditions**: Active game is open.
+- **Entry Points**: Control panel `Analysis Mode` from a live game.
 - **Main Steps**:
-  1. User enters analysis mode.
+  1. User enters in-game analysis mode.
   2. App gives the user move control for both colors.
   3. If engines were configured when the game was created, app refreshes analysis after each committed move.
-  4. User explores positions, including lines that would not be legal in the live game flow.
-  5. User may switch into board-editing tools at any time.
-  6. User exits analysis mode to return to the live node or current edited position, depending on product policy.
+  4. User explores positions without progressing the live game.
+  5. User exits in-game analysis mode and app returns to the live node by default.
 - **Branch Paths**:
-  - `BR-CTRL-04-START-AS-ANALYSIS`: If no player is assigned to either side at game creation, game opens directly in analysis mode.
   - `BR-CTRL-04-EXIT-DIRTY`: Unsaved analysis branch exists -> keep/discard prompt.
   - `BR-CTRL-04-LIVE-CONFLICT`: Attempt to submit live move while in analysis mode -> block or force exit.
-- **Postconditions**: Mode boundaries are explicit; the user can control both colors and use analysis-only tools without ambiguity.
+- **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode returns the screen to the live game position.
 - **Function Touchpoints**:
   - `GameControlPanel.onEnterAnalysisMode`
   - `UiStateStore.togglePanel`
@@ -641,30 +712,23 @@ Each scenario in this document uses the same structure:
   - `MoveUpdateService.navigateToNode`
   - `GamesStore.makeMove`
 
-### SCN-CTRL-05 - Board Editing Inside Analysis Mode
+### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
 - **Status**: Planned
-- **Goal**: Let the user directly edit the board position and clear move history while in analysis mode.
-- **Preconditions**: Analysis mode is active.
-- **Entry Points**: Analysis-mode board edit action.
+- **Goal**: Prevent board editing tools from being used inside in-game analysis mode.
+- **Preconditions**: In-game analysis mode is active.
+- **Entry Points**: Board-edit action attempted from in-game analysis mode.
 - **Main Steps**:
-  1. User enters board-editing mode from analysis mode.
-  2. User adds, removes, or relocates pieces to define a new position.
-  3. User confirms the edited position.
-  4. App replaces the current board state with the edited position.
-  5. App clears existing move history and treats the edited board as the new root position.
-  6. If engines were configured at game creation, app requests analysis for the edited position.
+  1. User attempts to enter board editing while inside in-game analysis mode.
+  2. App blocks the action.
+  3. App explains that board editing is only available in free analysis / setup.
 - **Branch Paths**:
-  - `BR-CTRL-05-CANCEL`: User cancels board editing -> restore prior position and history unchanged.
-  - `BR-CTRL-05-INVALID-POSITION`: Edited board is invalid -> block apply and explain why.
-  - `BR-CTRL-05-CLEAR-CONFIRM`: If history exists, app asks for confirmation before clearing it.
-- **Postconditions**: The edited position becomes the current analysis root and old move history is removed when confirmed.
+  - `BR-CTRL-05-GO-TO-SETUP`: If the product offers a shortcut, user may leave the live game context and open free analysis / setup instead.
+  - `BR-CTRL-05-CANCEL`: User dismisses the explanation and remains in in-game analysis mode.
+- **Postconditions**: Live-game analysis remains move-based only; board editing stays isolated to free analysis / setup.
 - **Function Touchpoints**:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
-  - `MoveUpdateService.createMoveTree`
-  - `GamesStore.saveGame`
-  - `AnalysisStore.listEvaluations`
-  - `AnalysisStore.clearEvaluations`
+  - `UiStateStore.togglePanel`
 
 ---
 ## Persistence, File I/O, Settings, and Engine Management
@@ -704,6 +768,7 @@ Each scenario in this document uses the same structure:
   4. App opens file dialog.
   5. User selects destination/name.
   6. App serializes and writes file.
+  7. When the user returns to the game screen, app auto-resumes if the pause came from this save flow.
 - **Branch Paths**:
   - `BR-SAVE-02-CANCEL`: User cancels file dialog -> no write.
   - `BR-SAVE-02-IO-ERROR`: File write fails (permission/path) -> show retry guidance.
@@ -727,19 +792,21 @@ Each scenario in this document uses the same structure:
   1. User chooses load action.
   2. User selects file.
   3. App deserializes/migrates payload.
-  4. App restores the saved game screen state, including current position/history node, panel state, and the saved displayed analysis lines/top lines.
+  4. App restores the saved game screen state immediately, including current position/history node, panel state, and the saved displayed analysis lines/top lines.
   5. Game is inserted into store and opened.
+  6. If engines are available for the restored context, app resumes live analysis for the restored position after the saved snapshot is shown.
 - **Branch Paths**:
   - `BR-LOAD-01-DUPLICATE-ID`: Imported game ID collides -> remap ID before insert.
   - `BR-LOAD-01-MIGRATION`: Older schema detected -> migrate then persist upgraded format.
   - `BR-LOAD-01-CACHED-ANALYSIS-ONLY`: If saved analysis lines exist but engines are unavailable, still show the saved lines so the restored screen matches the saved view.
-- **Postconditions**: Imported game is available and routable, and the user sees the same screen state that was visible at the point of save.
+- **Postconditions**: Imported game is available and routable, the user first sees the same screen state that was visible at the point of save, and live analysis resumes afterwards when engines are available.
 - **Function Touchpoints**:
   - `MenuBar.onLoadGame`
   - `FileIOAdapter.loadGameFromFile`
   - `Serialization.deserializeGameFromJSON`
   - `Serialization.migrateSavedGame`
   - `AnalysisStore.storeEvaluation`
+  - `AnalysisStore.listEvaluations`
   - `GamesStore.createGame` (or insert flow)
   - `UiStateStore.setCurrentGameId`
   - `UiStateStore.loadState`
