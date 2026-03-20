@@ -1,22 +1,43 @@
-the goal of the app is to allow player to play chess against a chess engine while having multiple different chess engines analysing the board and suggest an evaluation score (who is at advantage and by how much, this will expand later hopefully with explanation of the score)
+# ChessVue High-Level Docs
 
-first step I need a high level design of the app. On this page, I will list unorganised ideas to be organised into a software architecture that can be implemented in parts. Architecture should detail the connection of all these components (UI/global state store/composable/external software). with this architecture, we can design the interfaces for these components to connect them together with individual documents and implemented.
+## Purpose
+This folder contains the high-level product and architecture documents for ChessVue.
 
-this will be the frontend, implemented with vue app, to be incorporated into nwjs or electron.js or capacitor.js to interface with chess engines, on different platforms like windows, android, iOS, web, MacOS, etc
+These files describe the app from a planning and design perspective before implementation details are fully defined in the low-level architecture docs.
 
-game state, positions, analysis and settings,etc are to be data driven, serialisible and restored from any state.
+## Folder Summary
+- [plan.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/plan.md): the original high-level plan, scope, major architectural directions, and phased implementation ideas.
+- [architecture.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/architecture.md): the main structural overview of the system, including layers, module responsibilities, and dependency boundaries.
+- [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md): detailed user and system scenarios that translate features into concrete flows, branches, and function touchpoints.
+- [settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings.md): overview page that explains the split between user settings and build/runtime settings.
+- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md): summary of user-facing preferences, defaults, and persisted app behavior.
+- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md): summary of build-time and runtime configuration such as platform targets, adapters, persistence backends, and engine integration strategy.
 
-Window should have a top menu for loading game, starting new game, and configuring settings and potentially other things. 
+## Recommended Reading Order
+1. Start with [plan.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/plan.md) to understand the product goals and intended scope.
+2. Read [architecture.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/architecture.md) to see the proposed module and layer structure.
+3. Read [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md) to understand expected user flows and edge cases.
+4. Use [settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings.md), [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md), and [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md) when defining settings models and configuration boundaries.
 
-tabs for various games (hide tab if it's the only game1)
+## How This Folder Fits With Low-Level Docs
+The high-level docs answer questions like:
 
-use router to navigate to different games and views (like settings)
+- what the app is trying to do
+- what major modules and workflows exist
+- what settings and configuration areas need to be represented
 
-Game view should have a top row and a bottom row to display the player (or the engine) and captured pieces. For engines, can also display top lines of thoughts (probably something for the future for now). right panel for time other engine's ananlysis, 
+The low-level docs should then define:
 
-Will think about design of mobile aspect ratio later but leave that option open.
+- concrete interfaces
+- store APIs
+- module contracts
+- serialized data shapes
+- implementation responsibilities
 
-should be responsive so use rem for every size styling
+## Summary
+In short, this folder is the design-level map for ChessVue:
 
-visual customisation like chess pieces and board colour should also be left possible
-
+- `plan.md` explains the direction
+- `architecture.md` explains the structure
+- `scenarios.md` explains the behavior
+- the settings docs explain configuration boundaries
