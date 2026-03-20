@@ -1,0 +1,1088 @@
+﻿# ChessVue User Scenarios
+
+## Purpose
+This document translates high-level product features into actionable user scenarios.
+
+The goal is to map **user actions -> branch paths -> low-level function implications** so low-level design can define concrete function contracts with fewer gaps.
+
+This is a design artifact only. It introduces no runtime code/API changes.
+
+## Conventions
+- **Scenario ID**: stable identifier, e.g. `SCN-GAME-01`.
+- **Branch ID**: stable identifier, e.g. `BR-GAME-01-CANCEL`.
+- **Status**:
+  - `Current`: expected in baseline core flows.
+  - `Planned`: documented target behavior for later implementation.
+  - `Idea`: speculative flow for review, not committed scope.
+- **Function Touchpoints** reference low-level modules/functions to guide implementation interfaces.
+
+## Scenario Template
+Each scenario in this document uses the same structure:
+
+- `Scenario ID`
+- `Status (Current/Planned/Idea)`
+- `Goal`
+- `Preconditions`
+- `Entry Points`
+- `Main Steps`
+- `Branch Paths`
+- `Postconditions`
+- `Function Touchpoints`
+
+---
+
+## App and Session Start
+
+### SCN-SESSION-01 - Fresh Launch with No Saved State
+- **Status**: Current
+- **Goal**: Start app from a clean state and reach a usable first screen.
+- **Preconditions**: No persisted games/UI/settings state exists.
+- **Entry Points**: App startup.
+- **Main Steps**:
+  1. User launches app.
+  2. App initializes router and stores.
+  3. App loads default settings.
+  4. App shows home/default game area with actions (new game, load game, settings).
+- **Branch Paths**:
+  - `BR-SESSION-01-INIT-FAIL`: If any persisted read fails unexpectedly, app falls back to safe defaults and logs recoverable error.
+  - `BR-SESSION-01-AUTO-GAME`: If product policy requires always-open game, app auto-creates a default game and routes to it.
+- **Postconditions**: User can start a new game, load a game, or open settings without restart.
+- **Function Touchpoints**:
+  - `Router.createRouterInstance`
+  - `Router.setupRoutes`
+  - `SettingsStore.loadSettings`
+  - `UiStateStore.loadState`
+  - `StorageAdapter.getItem`
+  - `GamesStore.createGame` (auto-game branch)
+
+### SCN-SESSION-02 - Restore Previous Session
+- **Status**: Planned
+- **Goal**: Resume prior UI/game context after restart.
+- **Preconditions**: Persisted `currentGameId`, game list, and UI preferences exist.
+- **Entry Points**: App startup.
+- **Main Steps**:
+  1. User launches app.
+  2. App loads persisted settings and UI state.
+  3. App restores game collection.
+  4. App routes to persisted active game if valid.
+- **Branch Paths**:
+  - `BR-SESSION-02-MISSING-GAME`: Persisted `currentGameId` not found -> route to first valid game or home.
+  - `BR-SESSION-02-PARTIAL-STATE`: UI state exists but games do not -> keep UI preferences, reset active game.
+- **Postconditions**: Prior session context is restored where valid; invalid pieces are safely repaired.
+- **Function Touchpoints**:
+  - `UiStateStore.loadState`
+  - `GamesStore.loadGame`
+  - `GamesStore.listGames`
+  - `UiStateStore.setCurrentGameId`
+  - `Router.beforeEachRouteGuard`
+  - `StorageAdapter.getItem`
+
+### SCN-SESSION-03 - Startup with Corrupt Persisted Data
+- **Status**: Planned
+- **Goal**: Prevent startup crash when stored JSON/state is corrupt.
+- **Preconditions**: At least one persisted payload is malformed.
+- **Entry Points**: App startup.
+- **Main Steps**:
+  1. User launches app.
+  2. App attempts to deserialize persisted state.
+  3. Corrupt payload is rejected and isolated.
+  4. App continues with defaults and displays recoverable warning.
+- **Branch Paths**:
+  - `BR-SESSION-03-SETTINGS-CORRUPT`: Settings payload invalid -> `resetSettings` fallback.
+  - `BR-SESSION-03-GAME-MIGRATE`: Legacy game shape detected -> migrate before load.
+- **Postconditions**: App remains usable; bad persistence does not block launch.
+- **Function Touchpoints**:
+  - `Serialization.deserializeGameFromJSON`
+  - `Serialization.migrateSavedGame`
+  - `SettingsStore.resetSettings`
+  - `StorageAdapter.getItem`
+  - `StorageAdapter.setItem`
+
+---
+
+## Game Creation and Navigation
+
+### SCN-GAME-01 - Quick New Game from Menu
+- **Status**: Current
+- **Goal**: Start a game quickly with default options.
+- **Preconditions**: App is open; menu is accessible.
+- **Entry Points**: Menu `New Game`.
+- **Main Steps**:
+  1. User clicks `New Game`.
+  2. App uses default `NewGameOptions`.
+  3. Game is created and persisted.
+  4. App routes to new game and sets active tab.
+- **Branch Paths**:
+  - `BR-GAME-01-CANCEL`: If confirmation modal exists and user cancels, no game is created.
+  - `BR-GAME-01-PERSIST-FAIL`: If save-on-create fails, game remains in memory and user is warned.
+- **Postconditions**: New game context becomes active unless canceled.
+- **Function Touchpoints**:
+  - `MenuBar.onNewGame`
+  - `GamesStore.createGame`
+  - `UiStateStore.setCurrentGameId`
+  - `GamesStore.saveGame`
+  - `StorageAdapter.setItem`
+
+### SCN-GAME-02 - Custom New Game with User Options
+- **Status**: Planned
+- **Goal**: Create game with custom time control and player/engine settings.
+- **Preconditions**: New-game dialog/form is available.
+- **Entry Points**: Menu `New Game` -> custom configuration flow.
+- **Main Steps**:
+  1. User opens new-game dialog.
+  2. User edits options (players, time control preset/custom, sides, engine assignment).
+  3. User may assign no player to either side, which means the game starts in analysis mode and the app user controls both sides.
+  4. User confirms creation.
+  5. App validates options and creates configured game.
+- **Branch Paths**:
+  - `BR-GAME-02-INVALID-TIME`: Invalid time settings (negative/empty) -> inline validation, block submit.
+  - `BR-GAME-02-ENGINE-MISSING`: Selected engine unavailable -> allow fallback to human/default engine or block with guidance.
+  - `BR-GAME-02-ANALYSIS-START`: If no player is assigned to either side, initialize analysis-mode permissions and enable engine analysis on moves when engines were configured at game creation.
+- **Postconditions**: Game starts with validated custom settings.
+- **Function Touchpoints**:
+  - `GamesStore.createGame`
+  - `TimeControl.initializeClocks`
+  - `EnginesStore.getEngineById`
+  - `UiStateStore.showModal`
+  - `UiStateStore.hideModal`
+
+### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
+- **Status**: Current
+- **Goal**: Switch between game contexts while keeping route and active game state in sync.
+- **Preconditions**: Two or more active games exist.
+- **Entry Points**: Tab click, route change, recent game action.
+- **Main Steps**:
+  1. User opens/creates multiple games.
+  2. User switches game via tab.
+  3. App updates active route and current game ID.
+  4. Game view rebinds board/history/analysis to selected game.
+- **Branch Paths**:
+  - `BR-GAME-03-ONE-TAB`: If only one game remains, tab bar hides.
+  - `BR-GAME-03-INVALID-TARGET`: If selected game no longer exists, fallback to first valid game/home.
+- **Postconditions**: Navigation remains deterministic; hidden-tab rule is respected.
+- **Function Touchpoints**:
+  - `UiStateStore.setCurrentGameId`
+  - `UiStateStore.getCurrentGameId`
+  - `Router.beforeRouteEnterGuard`
+  - `Router.beforeEachRouteGuard`
+  - `GamesStore.getGameById`
+  - `GamesStore.listGames`
+
+### SCN-NAV-01 - Route to Settings and Back to Active Game
+- **Status**: Current
+- **Goal**: Let user configure preferences and return to gameplay context.
+- **Preconditions**: At least one game may be active.
+- **Entry Points**: Menu `Settings`, `/settings` route.
+- **Main Steps**:
+  1. User navigates to settings.
+  2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before leaving the game screen.
+  3. App loads current settings and engine list.
+  4. User saves or resets settings.
+  5. User navigates back to prior game route.
+- **Branch Paths**:
+  - `BR-NAV-01-DIRTY-LEAVE`: Unsaved form edits + navigation -> prompt save/discard.
+  - `BR-NAV-01-NO-GAME-RETURN`: No active game available on return -> route to home/default.
+  - `BR-NAV-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, settings open without pausing the clock.
+- **Postconditions**: Settings are persisted or intentionally discarded; navigation context remains clear.
+- **Function Touchpoints**:
+  - `MenuBar.onOpenSettings`
+  - `GameControlPanel.onPause`
+  - `SettingsStore.loadSettings`
+  - `SettingsStore.saveSettings`
+  - `SettingsStore.resetSettings`
+  - `EnginesStore.listEngines`
+  - `UiStateStore.persistState`
+
+### SCN-NAV-02 - Invalid Game Route Handling
+- **Status**: Planned
+- **Goal**: Gracefully handle `/game/:id` when `id` is unknown.
+- **Preconditions**: User deep-links to invalid game ID.
+- **Entry Points**: URL route or internal navigate call.
+- **Main Steps**:
+  1. User opens invalid game route.
+  2. Route guard validates game ID.
+  3. App redirects to valid fallback route.
+- **Branch Paths**:
+  - `BR-NAV-02-HAS-GAMES`: Redirect to first available game.
+  - `BR-NAV-02-NO-GAMES`: Redirect to home/new-game prompt.
+- **Postconditions**: User never lands in broken game view.
+- **Function Touchpoints**:
+  - `Router.beforeRouteEnterGuard`
+  - `Router.beforeEachRouteGuard`
+  - `GamesStore.getGameById`
+  - `GamesStore.listGames`
+
+---
+## Move Execution and History Branching
+
+### SCN-MOVE-01 - Legal Move on Board
+- **Status**: Current
+- **Goal**: Execute a legal player move and update all dependent state.
+- **Preconditions**: Active game in playable state; user turn.
+- **Entry Points**: Chessboard click-click or drag-drop.
+- **Main Steps**:
+  1. User selects piece.
+  2. UI highlights legal destinations.
+  3. User submits destination square.
+  4. Move legality is validated.
+  5. Game state, history, and clocks update.
+  6. Analysis is queued/refreshed for resulting position.
+- **Branch Paths**:
+  - `BR-MOVE-01-STALE-POS`: If position changed before submission (race), reject move and refresh legal map.
+  - `BR-MOVE-01-GAME-OVER`: If move ends game, transition to game-over state and stop further moves.
+- **Postconditions**: Move is committed once, reflected across board/history/clock/analysis.
+- **Function Touchpoints**:
+  - `Chessboard.moveAttempt`
+  - `GameRules.generateLegalMoves`
+  - `GameRules.isMoveLegal`
+  - `GamesStore.makeMove`
+  - `MoveUpdateService.addMainlineMove`
+  - `TimeControl.updateClockAfterMove`
+  - `AnalysisStore.storeEvaluation` (subsequent engine response)
+
+### SCN-MOVE-02 - Illegal Move Attempt
+- **Status**: Current
+- **Goal**: Reject illegal input without mutating game state.
+- **Preconditions**: Active game; user attempts non-legal move.
+- **Entry Points**: Chessboard move attempt.
+- **Main Steps**:
+  1. User attempts invalid target.
+  2. Legality check fails.
+  3. UI signals invalid move.
+  4. Board/history/clocks remain unchanged.
+- **Branch Paths**:
+  - `BR-MOVE-02-SAME-SQUARE`: Click source again -> cancel selection.
+  - `BR-MOVE-02-OUT-OF-TURN`: Attempt while not player turn -> no-op + warning.
+- **Postconditions**: No state mutation on invalid move.
+- **Function Touchpoints**:
+  - `Chessboard.onSquareClick`
+  - `GameRules.isMoveLegal`
+  - `GamesStore.makeMove`
+
+### SCN-MOVE-03 - Pawn Promotion Resolution
+- **Status**: Planned
+- **Goal**: Resolve promotion piece selection before finalizing move.
+- **Preconditions**: Legal pawn move reaches final rank.
+- **Entry Points**: Chessboard move attempt resulting in promotion.
+- **Main Steps**:
+  1. User moves pawn to promotion rank.
+  2. App opens promotion selection UI.
+  3. User selects piece type.
+  4. App finalizes move and updates history/clock.
+- **Branch Paths**:
+  - `BR-MOVE-03-CANCEL`: User closes promotion UI -> move not committed.
+  - `BR-MOVE-03-TIMEOUT-DEFAULT`: If UI timeout policy exists, auto-promote to queen.
+- **Postconditions**: Promotion move is explicit and deterministic.
+- **Function Touchpoints**:
+  - `Chessboard.moveAttempt`
+  - `GameRules.isMoveLegal`
+  - `GameRules.applyMove`
+  - `GamesStore.makeMove`
+  - `UiStateStore.showModal`
+
+### SCN-HIST-01 - Navigate Move History Node
+- **Status**: Current
+- **Goal**: Review any prior position from move tree.
+- **Preconditions**: Game has at least one move.
+- **Entry Points**: History panel node click.
+- **Main Steps**:
+  1. User clicks node in history tree.
+  2. App navigates board state to selected node.
+  3. Analysis panel switches to selected FEN context.
+- **Branch Paths**:
+  - `BR-HIST-01-NODE-MISSING`: Node ID invalid -> ignore and refresh tree.
+  - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
+- **Postconditions**: Board and analysis context match selected history node.
+- **Function Touchpoints**:
+  - `HistoryPanel.onNavigateNode`
+  - `MoveUpdateService.navigateToNode`
+  - `MoveUpdateService.getCurrentPosition`
+  - `AnalysisStore.getEvaluation`
+  - `GamesStore.getGameById`
+
+### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
+- **Status**: Planned
+- **Goal**: Convert review position into new active mainline when rules allow takeback.
+- **Preconditions**: User is on prior node; takeback policy enabled.
+- **Entry Points**: Move made from a non-terminal historical node.
+- **Main Steps**:
+  1. User navigates to old node.
+  2. User makes legal move from old node.
+  3. App treats action as mainline continuation.
+  4. Future moves ahead of node are replaced/pruned per policy.
+- **Branch Paths**:
+  - `BR-HIST-02-CONFIRM-REWRITE`: Require confirmation before rewriting future mainline.
+  - `BR-HIST-02-DECLINE-REWRITE`: User declines rewrite -> move canceled, remain in review.
+- **Postconditions**: Mainline pointer and future history are consistent with new continuation.
+- **Function Touchpoints**:
+  - `MoveUpdateService.takeback`
+  - `MoveUpdateService.addMainlineMove`
+  - `MoveUpdateService.pruneFutureMoves`
+  - `GamesStore.makeMove`
+
+### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
+- **Status**: Planned
+- **Goal**: Allow history exploration without altering live game progression.
+- **Preconditions**: User on prior node; takeback disabled.
+- **Entry Points**: Move made while browsing history.
+- **Main Steps**:
+  1. User navigates to old node.
+  2. User makes legal move.
+  3. App records move as analysis branch only.
+  4. User can return to live game node.
+- **Branch Paths**:
+  - `BR-HIST-03-AUTO-RETURN`: App auto-returns to live node after analysis move.
+  - `BR-HIST-03-STAY-BRANCH`: App remains on branch until user explicitly returns.
+- **Postconditions**: Live game line preserved; analysis branch captured separately.
+- **Function Touchpoints**:
+  - `MoveUpdateService.addAnalysisMove`
+  - `MoveUpdateService.navigateToNode`
+  - `GamesStore.makeMove`
+  - `UiStateStore.togglePanel` (analysis visibility policy)
+
+### SCN-HIST-04 - Prune Future Moves from Selected Node
+- **Status**: Planned
+- **Goal**: Cleanly delete continuation moves when user chooses to prune.
+- **Preconditions**: Selected node has descendants.
+- **Entry Points**: History panel action `Prune future`.
+- **Main Steps**:
+  1. User selects node.
+  2. User triggers prune action.
+  3. App confirms irreversible operation.
+  4. App deletes descendants and updates mainline markers.
+- **Branch Paths**:
+  - `BR-HIST-04-CANCEL`: User cancels confirmation -> no mutation.
+  - `BR-HIST-04-ROOT-GUARD`: Root prune attempt rejected if policy forbids deleting full game line.
+- **Postconditions**: Move tree contains only retained line(s).
+- **Function Touchpoints**:
+  - `MoveUpdateService.pruneFutureMoves`
+  - `GamesStore.saveGame`
+  - `UiStateStore.showModal`
+
+---
+## Analysis and Engine Interaction
+
+### SCN-ANALYSIS-01 - Start Single Engine Analysis
+- **Status**: Current
+- **Goal**: Start evaluation for current position with one engine.
+- **Preconditions**: Engine configured and available.
+- **Entry Points**: Game view analysis start action, or automatic trigger after a move in a game that started with engines configured.
+- **Main Steps**:
+  1. User starts analysis manually, or analysis is auto-triggered after a move.
+  2. App ensures engine process is running.
+  3. App sends UCI commands for current FEN and starts an ongoing search.
+  4. App reads engine output continuously as the engine refines its evaluation.
+  5. App stores updated best lines and scores each time the engine reports an improvement or deeper search result.
+  6. Analysis panel refreshes over time to show the latest best line, score, and search progress until analysis is stopped or the position changes.
+- **Branch Paths**:
+  - `BR-ANALYSIS-01-ENGINE-NOT-RUNNING`: Engine start fails -> show actionable error and keep UI responsive.
+  - `BR-ANALYSIS-01-PARSE-FAIL`: Output parse fails -> skip bad line and continue listening.
+  - `BR-ANALYSIS-01-AUTO-ON-MOVE`: If engines were configured at game start, refresh analysis automatically after each committed move, including moves made by the user while controlling both sides in analysis mode.
+  - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
+- **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching.
+- **Function Touchpoints**:
+  - `GameView.onStartAnalysis`
+  - `EnginesStore.startEngine`
+  - `ProcessManager.spawnEngine`
+  - `ProcessManager.sendUCICommand`
+  - `ProcessManager.readEngineOutput`
+  - `AnalysisStore.storeEvaluation`
+  - `AnalysisStore.listEvaluations`
+
+### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
+- **Status**: Planned
+- **Goal**: Compare multiple engines on same position concurrently.
+- **Preconditions**: Two or more engines configured.
+- **Entry Points**: Multi-engine analysis enable action.
+- **Main Steps**:
+  1. User enables selected engines.
+  2. App starts each selected engine process.
+  3. App dispatches position to all selected engines.
+  4. Each engine continues searching and emits updated best lines over time.
+  5. App aggregates evaluations keyed by `gameId + engineId + fen`, replacing older lines with newer best results from the same engine.
+  6. Analysis panel renders one row/group per engine and updates each row independently as new output arrives.
+- **Branch Paths**:
+  - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.
+  - `BR-ANALYSIS-02-TOO-MANY`: Resource limit reached -> throttle, queue, or reject additional engines.
+  - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
+- **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
+- **Function Touchpoints**:
+  - `EnginesStore.listEngines`
+  - `EnginesStore.startEngine`
+  - `AnalysisStore.storeEvaluation`
+  - `AnalysisStore.listEvaluations`
+  - `ProcessManager.sendUCICommand`
+  - `ProcessManager.readEngineOutput`
+
+### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
+- **Status**: Planned
+- **Goal**: Handle runtime engine interruptions safely.
+- **Preconditions**: Active analysis session exists.
+- **Entry Points**: Unexpected process exit or user stop command.
+- **Main Steps**:
+  1. Engine exits or user stops it.
+  2. App marks engine as unavailable/stopped.
+  3. Existing cached evaluations remain visible as the last known result for that engine.
+  4. User can retry start.
+- **Branch Paths**:
+  - `BR-ANALYSIS-03-RETRY-SUCCESS`: Restart succeeds and analysis resumes.
+  - `BR-ANALYSIS-03-RETRY-FAIL`: Restart fails repeatedly -> suggest settings edit/remove.
+- **Postconditions**: Engine failures are isolated and recoverable, and the last streamed best line remains visible until replaced by a new search.
+- **Function Touchpoints**:
+  - `EnginesStore.stopEngine`
+  - `ProcessManager.stopEngine`
+  - `EnginesStore.startEngine`
+  - `AnalysisStore.listEvaluations`
+  - `UiStateStore.showModal`
+
+### SCN-ANALYSIS-04 - Click Suggested Line to Inspect Move
+- **Status**: Planned
+- **Goal**: Let user explore suggested continuation from analysis panel.
+- **Preconditions**: At least one analysis line is available.
+- **Entry Points**: Analysis line click.
+- **Main Steps**:
+  1. User clicks a suggested move/line.
+  2. App applies line in analysis context.
+  3. Board and history preview update.
+  4. User returns to mainline/live position.
+- **Branch Paths**:
+  - `BR-ANALYSIS-04-LINE-STALE`: Line no longer legal in current node -> reject and refresh eval list.
+  - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: If enabled, save inspected line as analysis branch.
+- **Postconditions**: Suggested lines become interactive, without corrupting live game state.
+- **Function Touchpoints**:
+  - `AnalysisPanel.onLineClick`
+  - `GameRules.isMoveLegal`
+  - `MoveUpdateService.addAnalysisMove`
+  - `MoveUpdateService.navigateToNode`
+  - `GamesStore.getGameById`
+
+---
+
+## Time Control and Game Controls
+
+### SCN-TIME-01 - Clock Ticks During Play
+- **Status**: Current
+- **Goal**: Decrease active side clock in real time.
+- **Preconditions**: Time control enabled; game not paused/ended.
+- **Entry Points**: Game in progress.
+- **Main Steps**:
+  1. Turn begins for active side.
+  2. Timer ticks on UI intervals.
+  3. Remaining time is recalculated/rendered.
+  4. Move submission transfers active timer.
+- **Branch Paths**:
+  - `BR-TIME-01-BACKGROUND-THROTTLE`: App tab inactive -> recompute from timestamps on resume.
+  - `BR-TIME-01-SYNC-DRIFT`: Drift detected -> normalize to authoritative relative time model.
+- **Postconditions**: Clock remains consistent through normal and throttled runtime conditions.
+- **Function Touchpoints**:
+  - `GameView.onTimerTick`
+  - `TimeControl.getRemainingTime`
+  - `TimeControl.updateClockAfterMove`
+  - `PlayerPanel.formatClock`
+
+### SCN-TIME-02 - Pause and Resume Clocks
+- **Status**: Planned
+- **Goal**: Temporarily stop game timing and resume safely.
+- **Preconditions**: Game in progress with clocks.
+- **Entry Points**: Game control `Pause`.
+- **Main Steps**:
+  1. User clicks `Pause`.
+  2. App suspends timer updates and marks paused state.
+  3. User clicks `Resume`.
+  4. App restores active timer without losing elapsed data.
+- **Branch Paths**:
+  - `BR-TIME-02-DOUBLE-PAUSE`: Pause clicked while already paused -> no-op.
+  - `BR-TIME-02-RESUME-GAME-OVER`: Resume attempt after game end -> blocked.
+- **Postconditions**: Pause state is explicit and non-destructive.
+- **Function Touchpoints**:
+  - `GameControlPanel.onPause`
+  - `UiStateStore.togglePanel` (or paused UI state)
+  - `TimeControl.getRemainingTime`
+
+### SCN-TIME-03 - Increment Applied After Move
+- **Status**: Planned
+- **Goal**: Apply configured increment/delay rules correctly.
+- **Preconditions**: Incremental time control configured.
+- **Entry Points**: Successful move commit.
+- **Main Steps**:
+  1. User completes legal move.
+  2. App calculates elapsed time for mover.
+  3. App applies increment/delay policy.
+  4. UI updates both clocks.
+- **Branch Paths**:
+  - `BR-TIME-03-NO-INCREMENT`: Preset has zero increment -> skip add step.
+  - `BR-TIME-03-INVALID-CONFIG`: Invalid increment config -> fallback to preset default.
+- **Postconditions**: Clock math follows selected time-control policy.
+- **Function Touchpoints**:
+  - `TimeControl.updateClockAfterMove`
+  - `TimeControl.initializeClocks`
+  - `GamesStore.makeMove`
+
+### SCN-TIME-04 - Timeout Ends Game
+- **Status**: Planned
+- **Goal**: Finish game automatically when a player runs out of time.
+- **Preconditions**: Clock reaches zero for active side.
+- **Entry Points**: Timer tick or move processing.
+- **Main Steps**:
+  1. Active clock reaches timeout threshold.
+  2. App marks game result by time.
+  3. Move input is disabled.
+  4. History and result metadata are persisted.
+- **Branch Paths**:
+  - `BR-TIME-04-LAG-COMPENSATE`: Negative time due to render lag -> clamp to zero and finalize once.
+  - `BR-TIME-04-ANALYSIS-ONLY`: Analysis mode still allowed after timeout while game result remains fixed.
+- **Postconditions**: Timeout result is deterministic and prevents further live play.
+- **Function Touchpoints**:
+  - `GameView.onTimerTick`
+  - `TimeControl.getRemainingTime`
+  - `GamesStore.saveGame`
+  - `UiStateStore.showModal`
+
+### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
+- **Status**: Planned
+- **Goal**: Prevent clocks from continuing to run while the user is saving or changing settings through menu actions.
+- **Preconditions**: Timed game is active; a menu action such as save or settings is triggered.
+- **Entry Points**: Menu `Save Game`, menu `Settings`, and similar menu-driven interruptions.
+- **Main Steps**:
+  1. User opens a menu action that can interrupt active play.
+  2. App checks whether auto-pause-on-menu is enabled for timed games.
+  3. If enabled, app pauses the game before opening the interrupted flow.
+  4. User completes or cancels the menu action.
+  5. App leaves the game paused until the user explicitly resumes, unless product policy later changes this.
+- **Branch Paths**:
+  - `BR-TIME-05-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, the menu action proceeds without changing the clock state.
+  - `BR-TIME-05-NON-TIMED-GAME`: If the game has no active clock, no pause action is required.
+  - `BR-TIME-05-ALREADY-PAUSED`: If the game is already paused, menu flow continues without changing pause state.
+- **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled.
+- **Function Touchpoints**:
+  - `MenuBar.onSaveGame`
+  - `MenuBar.onOpenSettings`
+  - `GameControlPanel.onPause`
+  - `TimeControl.getRemainingTime`
+  - `UiStateStore.persistState`
+
+### SCN-CTRL-01 - Takeback Action
+- **Status**: Current
+- **Goal**: Rewind one or more moves.
+- **Preconditions**: At least one reversible move exists.
+- **Entry Points**: Control panel `Takeback`.
+- **Main Steps**:
+  1. User clicks `Takeback`.
+  2. App applies takeback count policy.
+  3. Board/history/clocks move back to target node.
+- **Branch Paths**:
+  - `BR-CTRL-01-NO-MOVES`: No moves available -> disable button/no-op.
+  - `BR-CTRL-01-POLICY-BLOCK`: Takeback disabled by mode/rules -> show blocked reason.
+- **Postconditions**: Game state matches selected rewind point.
+- **Function Touchpoints**:
+  - `GameControlPanel.onTakeBack`
+  - `GamesStore.takeBack`
+  - `MoveUpdateService.takeback`
+  - `TimeControl.updateClockAfterMove` (recompute policy)
+
+### SCN-CTRL-02 - Resign Game
+- **Status**: Planned
+- **Goal**: End game by resignation with confirmation.
+- **Preconditions**: Active non-ended game.
+- **Entry Points**: Control panel `Resign`.
+- **Main Steps**:
+  1. User clicks `Resign`.
+  2. App requests confirmation.
+  3. On confirm, game result set to resignation.
+  4. App disables live moves and persists result.
+- **Branch Paths**:
+  - `BR-CTRL-02-CANCEL`: User cancels confirmation -> game continues.
+  - `BR-CTRL-02-ALREADY-ENDED`: Resign action blocked if game already ended.
+- **Postconditions**: Result is final and clearly visible.
+- **Function Touchpoints**:
+  - `GameControlPanel.onResign`
+  - `UiStateStore.showModal`
+  - `GamesStore.saveGame`
+
+### SCN-CTRL-03 - Draw Offer Flow
+- **Status**: Planned
+- **Goal**: Support offering and resolving draw outcomes.
+- **Preconditions**: Active non-ended game.
+- **Entry Points**: Control panel `Offer Draw`.
+- **Main Steps**:
+  1. User offers draw.
+  2. Opponent/engine decision path resolves accept/decline.
+  3. If accepted, game result set to draw.
+- **Branch Paths**:
+  - `BR-CTRL-03-DECLINED`: Draw declined -> game continues.
+  - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
+- **Postconditions**: Draw resolution is explicit and persisted.
+- **Function Touchpoints**:
+  - `GameControlPanel.onOfferDraw`
+  - `UiStateStore.showModal`
+  - `GamesStore.saveGame`
+
+### SCN-CTRL-04 - Enter/Exit Analysis Mode
+- **Status**: Planned
+- **Goal**: Enter a mode where the app user controls both sides, can inspect and alter the position freely, and can return to normal play rules if supported.
+- **Preconditions**: Active game open, or game created with no assigned player on either side.
+- **Entry Points**: Control panel `Analysis Mode`.
+- **Main Steps**:
+  1. User enters analysis mode.
+  2. App gives the user move control for both colors.
+  3. If engines were configured when the game was created, app refreshes analysis after each committed move.
+  4. User explores positions, including lines that would not be legal in the live game flow.
+  5. User may switch into board-editing tools at any time.
+  6. User exits analysis mode to return to the live node or current edited position, depending on product policy.
+- **Branch Paths**:
+  - `BR-CTRL-04-START-AS-ANALYSIS`: If no player is assigned to either side at game creation, game opens directly in analysis mode.
+  - `BR-CTRL-04-EXIT-DIRTY`: Unsaved analysis branch exists -> keep/discard prompt.
+  - `BR-CTRL-04-LIVE-CONFLICT`: Attempt to submit live move while in analysis mode -> block or force exit.
+- **Postconditions**: Mode boundaries are explicit; the user can control both colors and use analysis-only tools without ambiguity.
+- **Function Touchpoints**:
+  - `GameControlPanel.onEnterAnalysisMode`
+  - `UiStateStore.togglePanel`
+  - `MoveUpdateService.addAnalysisMove`
+  - `MoveUpdateService.navigateToNode`
+  - `GamesStore.makeMove`
+
+### SCN-CTRL-05 - Board Editing Inside Analysis Mode
+- **Status**: Planned
+- **Goal**: Let the user directly edit the board position and clear move history while in analysis mode.
+- **Preconditions**: Analysis mode is active.
+- **Entry Points**: Analysis-mode board edit action.
+- **Main Steps**:
+  1. User enters board-editing mode from analysis mode.
+  2. User adds, removes, or relocates pieces to define a new position.
+  3. User confirms the edited position.
+  4. App replaces the current board state with the edited position.
+  5. App clears existing move history and treats the edited board as the new root position.
+  6. If engines were configured at game creation, app requests analysis for the edited position.
+- **Branch Paths**:
+  - `BR-CTRL-05-CANCEL`: User cancels board editing -> restore prior position and history unchanged.
+  - `BR-CTRL-05-INVALID-POSITION`: Edited board is invalid -> block apply and explain why.
+  - `BR-CTRL-05-CLEAR-CONFIRM`: If history exists, app asks for confirmation before clearing it.
+- **Postconditions**: The edited position becomes the current analysis root and old move history is removed when confirmed.
+- **Function Touchpoints**:
+  - `UiStateStore.showModal`
+  - `UiStateStore.hideModal`
+  - `MoveUpdateService.createMoveTree`
+  - `GamesStore.saveGame`
+  - `AnalysisStore.listEvaluations`
+  - `AnalysisStore.clearEvaluations`
+
+---
+## Persistence, File I/O, Settings, and Engine Management
+
+### SCN-SAVE-01 - Autosave on State Mutation
+- **Status**: Current
+- **Goal**: Persist games/settings after meaningful state changes.
+- **Preconditions**: Auto-persist enabled.
+- **Entry Points**: Move committed, setting updated, active game changed.
+- **Main Steps**:
+  1. User performs state-changing action.
+  2. App snapshots the current game screen state, including active position/history node, visible UI state, and the latest displayed analysis lines/top lines for that position.
+  3. App serializes changed state.
+  4. App writes to storage adapter.
+- **Branch Paths**:
+  - `BR-SAVE-01-WRITE-FAIL`: Storage write fails -> keep in-memory state and mark dirty for retry.
+  - `BR-SAVE-01-THROTTLE`: Rapid changes are batched/debounced to avoid excessive writes.
+  - `BR-SAVE-01-ANALYSIS-IN-FLIGHT`: If analysis is still streaming, save the most recently displayed lines at the moment the snapshot is taken.
+- **Postconditions**: Persistence is eventually consistent without blocking UX, and a later restore can reproduce the same visible game screen rather than only the raw game state.
+- **Function Touchpoints**:
+  - `GamesStore.saveGame`
+  - `SettingsStore.saveSettings`
+  - `Serialization.serializeGameToJSON`
+  - `AnalysisStore.listEvaluations`
+  - `StorageAdapter.setItem`
+  - `UiStateStore.persistState`
+
+### SCN-SAVE-02 - Manual Save Game to File
+- **Status**: Current
+- **Goal**: Export active game to user-selected file.
+- **Preconditions**: Active game exists.
+- **Entry Points**: Menu `Save Game`.
+- **Main Steps**:
+  1. User chooses save action.
+  2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before entering the save flow.
+  3. App snapshots the exact visible game screen, including current position, selected node, panel state, and displayed analysis lines/top lines.
+  4. App opens file dialog.
+  5. User selects destination/name.
+  6. App serializes and writes file.
+- **Branch Paths**:
+  - `BR-SAVE-02-CANCEL`: User cancels file dialog -> no write.
+  - `BR-SAVE-02-IO-ERROR`: File write fails (permission/path) -> show retry guidance.
+  - `BR-SAVE-02-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, save proceeds without pausing the clock.
+- **Postconditions**: Export either succeeds once or fails with clear recovery path, and a later load can restore the same visible screen at the point of save.
+- **Function Touchpoints**:
+  - `MenuBar.onSaveGame`
+  - `GameControlPanel.onPause`
+  - `FileIOAdapter.saveGameToFile`
+  - `Serialization.serializeGameToJSON`
+  - `AnalysisStore.listEvaluations`
+  - `GamesStore.getGameById`
+  - `UiStateStore.persistState`
+
+### SCN-LOAD-01 - Load Valid Game from File
+- **Status**: Current
+- **Goal**: Import saved game and open it as active context.
+- **Preconditions**: Valid supported game file available.
+- **Entry Points**: Menu `Load Game`.
+- **Main Steps**:
+  1. User chooses load action.
+  2. User selects file.
+  3. App deserializes/migrates payload.
+  4. App restores the saved game screen state, including current position/history node, panel state, and the saved displayed analysis lines/top lines.
+  5. Game is inserted into store and opened.
+- **Branch Paths**:
+  - `BR-LOAD-01-DUPLICATE-ID`: Imported game ID collides -> remap ID before insert.
+  - `BR-LOAD-01-MIGRATION`: Older schema detected -> migrate then persist upgraded format.
+  - `BR-LOAD-01-CACHED-ANALYSIS-ONLY`: If saved analysis lines exist but engines are unavailable, still show the saved lines so the restored screen matches the saved view.
+- **Postconditions**: Imported game is available and routable, and the user sees the same screen state that was visible at the point of save.
+- **Function Touchpoints**:
+  - `MenuBar.onLoadGame`
+  - `FileIOAdapter.loadGameFromFile`
+  - `Serialization.deserializeGameFromJSON`
+  - `Serialization.migrateSavedGame`
+  - `AnalysisStore.storeEvaluation`
+  - `GamesStore.createGame` (or insert flow)
+  - `UiStateStore.setCurrentGameId`
+  - `UiStateStore.loadState`
+
+### SCN-LOAD-02 - Load Invalid/Corrupt Game File
+- **Status**: Planned
+- **Goal**: Reject unsupported/corrupt import safely.
+- **Preconditions**: User selected malformed or unsupported file.
+- **Entry Points**: Menu `Load Game`.
+- **Main Steps**:
+  1. User selects file.
+  2. Deserialization/validation fails.
+  3. App displays precise error and keeps current session intact.
+- **Branch Paths**:
+  - `BR-LOAD-02-UNSUPPORTED`: Unsupported format -> suggest accepted file types.
+  - `BR-LOAD-02-PARTIAL-RECOVER`: Recoverable subset parsed -> user chooses continue/cancel import.
+- **Postconditions**: No existing game data is overwritten by bad import.
+- **Function Touchpoints**:
+  - `FileIOAdapter.loadGameFromFile`
+  - `Serialization.deserializeGameFromJSON`
+  - `UiStateStore.showModal`
+
+### SCN-SETTINGS-01 - Update Visual/UI Preferences
+- **Status**: Current
+- **Goal**: Change piece style, board colors, and UI scaling preferences.
+- **Preconditions**: User on settings view.
+- **Entry Points**: `/settings`.
+- **Main Steps**:
+  1. User edits one or more settings fields.
+  2. User saves settings.
+  3. App persists settings and applies theme/UI updates.
+- **Branch Paths**:
+  - `BR-SETTINGS-01-INVALID-VALUE`: Value fails schema validation -> block save and show field errors.
+  - `BR-SETTINGS-01-APPLY-FAIL`: Apply-on-save fails partially -> persist known-good subset.
+- **Postconditions**: Approved preferences are applied and persisted.
+- **Function Touchpoints**:
+  - `SettingsView.onSave`
+  - `SettingsStore.updateSetting`
+  - `SettingsStore.saveSettings`
+  - `GameView.applyTheme`
+  - `StorageAdapter.setItem`
+
+### SCN-SETTINGS-02 - Reset Settings to Defaults
+- **Status**: Current
+- **Goal**: Restore default settings quickly.
+- **Preconditions**: User has modified settings.
+- **Entry Points**: Settings view `Reset`.
+- **Main Steps**:
+  1. User clicks reset.
+  2. App asks for confirmation.
+  3. On confirm, defaults are restored and persisted.
+- **Branch Paths**:
+  - `BR-SETTINGS-02-CANCEL`: User cancels reset -> no change.
+  - `BR-SETTINGS-02-PERSIST-FAIL`: Reset applied in memory but persistence fails -> surface retry.
+- **Postconditions**: Settings match defined default schema unless canceled.
+- **Function Touchpoints**:
+  - `SettingsView.onReset`
+  - `SettingsStore.resetSettings`
+  - `SettingsStore.saveSettings`
+  - `UiStateStore.showModal`
+
+### SCN-ENGINE-01 - Add Engine Configuration
+- **Status**: Planned
+- **Goal**: Register a new engine for analysis/gameplay.
+- **Preconditions**: Settings engine section is available.
+- **Entry Points**: Add engine action in settings.
+- **Main Steps**:
+  1. User opens add-engine form.
+  2. User enters engine metadata/path/options.
+  3. User saves.
+  4. Engine appears in available list.
+- **Branch Paths**:
+  - `BR-ENGINE-01-INVALID-PATH`: Path not executable/unreachable -> reject with validation message.
+  - `BR-ENGINE-01-DUPLICATE`: Duplicate engine ID/name -> request rename or merge.
+- **Postconditions**: Engine list contains only valid, unique entries.
+- **Function Touchpoints**:
+  - `EnginesStore.addEngine`
+  - `EnginesStore.listEngines`
+  - `SettingsStore.saveSettings`
+  - `UiStateStore.showModal`
+
+### SCN-ENGINE-02 - Update or Remove Engine Configuration
+- **Status**: Planned
+- **Goal**: Maintain engine inventory as setups change.
+- **Preconditions**: At least one engine exists.
+- **Entry Points**: Engine edit/remove action in settings.
+- **Main Steps**:
+  1. User edits engine config or chooses remove.
+  2. App validates operation.
+  3. App persists updated engine list.
+- **Branch Paths**:
+  - `BR-ENGINE-02-REMOVE-ACTIVE`: Removing active analyzing engine -> stop process then remove.
+  - `BR-ENGINE-02-UPDATE-RUNNING`: Updating running engine requires restart to apply options.
+- **Postconditions**: Engine state and process lifecycle remain consistent after edit/remove.
+- **Function Touchpoints**:
+  - `EnginesStore.updateEngine`
+  - `EnginesStore.removeEngine`
+  - `EnginesStore.stopEngine`
+  - `ProcessManager.stopEngine`
+  - `SettingsStore.saveSettings`
+
+---
+
+## Game Lifecycle Cleanup
+
+### SCN-LIFECYCLE-01 - Delete Inactive Game
+- **Status**: Planned
+- **Goal**: Remove stale game from collection.
+- **Preconditions**: More than one game exists; target game is not active.
+- **Entry Points**: Tab context menu or game list action.
+- **Main Steps**:
+  1. User triggers delete on inactive game.
+  2. App confirms deletion.
+  3. Game is removed from store and persistence.
+- **Branch Paths**:
+  - `BR-LIFECYCLE-01-CANCEL`: User cancels deletion.
+  - `BR-LIFECYCLE-01-NOT-FOUND`: Target missing at commit time -> no-op with refresh.
+- **Postconditions**: Deleted game is no longer listed/routable.
+- **Function Touchpoints**:
+  - `GamesStore.deleteGame`
+  - `GamesStore.listGames`
+  - `StorageAdapter.setItem`
+  - `UiStateStore.showModal`
+
+### SCN-LIFECYCLE-02 - Delete Active Game and Switch Context
+- **Status**: Planned
+- **Goal**: Remove current game without leaving invalid route/state.
+- **Preconditions**: Active game selected; at least one additional game may exist.
+- **Entry Points**: Delete action on active game.
+- **Main Steps**:
+  1. User confirms delete active game.
+  2. App removes game.
+  3. App selects fallback game or home.
+  4. Router and UI state update.
+- **Branch Paths**:
+  - `BR-LIFECYCLE-02-HAS-FALLBACK`: Another game exists -> switch to neighbor/first game.
+  - `BR-LIFECYCLE-02-LAST-GAME`: No games remain -> route to home/new-game prompt.
+- **Postconditions**: No dangling `currentGameId` or invalid game route remains.
+- **Function Touchpoints**:
+  - `GamesStore.deleteGame`
+  - `GamesStore.listGames`
+  - `UiStateStore.setCurrentGameId`
+  - `Router.beforeEachRouteGuard`
+
+---
+## Additional User-Idea Scenarios (For Review)
+
+> All scenarios in this section are `Idea` status and should be reviewed before entering implementation scope.
+
+### SCN-IDEA-01 - Quick Game Preset from Home
+- **Status**: Idea
+- **Goal**: One-click start using named presets (Bullet/Blitz/Rapid/Classical).
+- **Preconditions**: Home view available.
+- **Entry Points**: Home quick-start button.
+- **Main Steps**:
+  1. User selects preset.
+  2. App creates game with preset config.
+  3. App routes directly to game.
+- **Branch Paths**:
+  - `BR-IDEA-01-MISSING-PRESET`: Preset missing -> fallback to default quick game.
+- **Postconditions**: Faster entry into common play modes.
+- **Function Touchpoints**:
+  - `GamesStore.createGame`
+  - `TimeControl.initializeClocks`
+  - `UiStateStore.setCurrentGameId`
+
+### SCN-IDEA-02 - Reopen Recent Games List
+- **Status**: Idea
+- **Goal**: Reopen recently accessed files/games from menu.
+- **Preconditions**: Recent file metadata exists.
+- **Entry Points**: Menu `Recent Games`.
+- **Main Steps**:
+  1. User opens recent list.
+  2. User selects entry.
+  3. App loads game and routes to it.
+- **Branch Paths**:
+  - `BR-IDEA-02-MISSING-FILE`: File missing -> remove stale recent entry.
+- **Postconditions**: Recent workflows reduce repeated manual file navigation.
+- **Function Touchpoints**:
+  - `FileIOAdapter.listRecentFiles`
+  - `FileIOAdapter.loadGameFromFile`
+  - `GamesStore.loadGame`
+
+### SCN-IDEA-03 - Engine vs Engine Match
+- **Status**: Idea
+- **Goal**: Run autonomous game between two configured engines.
+- **Preconditions**: Two runnable engines configured.
+- **Entry Points**: New game advanced mode.
+- **Main Steps**:
+  1. User selects engine-vs-engine mode.
+  2. App starts both engines.
+  3. Engines alternate move decisions.
+  4. Game progresses automatically with clocks and history.
+- **Branch Paths**:
+  - `BR-IDEA-03-ONE-ENGINE-FAIL`: One side fails to start -> abort setup with diagnostics.
+- **Postconditions**: Fully automated match with normal recording/analysis.
+- **Function Touchpoints**:
+  - `EnginesStore.startEngine`
+  - `ProcessManager.sendUCICommand`
+  - `GamesStore.makeMove`
+  - `TimeControl.updateClockAfterMove`
+
+### SCN-IDEA-04 - Analysis Snapshot/Bookmark
+- **Status**: Idea
+- **Goal**: Save notable analysis positions for later revisit.
+- **Preconditions**: Active game position with optional eval.
+- **Entry Points**: Analysis panel bookmark action.
+- **Main Steps**:
+  1. User bookmarks current node/FEN.
+  2. App saves snapshot metadata.
+  3. User jumps back to bookmark from list.
+- **Branch Paths**:
+  - `BR-IDEA-04-DUPLICATE-BOOKMARK`: Same FEN already bookmarked -> merge or increment counter.
+- **Postconditions**: Users can curate study points during play/analysis.
+- **Function Touchpoints**:
+  - `MoveUpdateService.getCurrentPosition`
+  - `AnalysisStore.getEvaluation`
+  - `StorageAdapter.setItem`
+
+### SCN-IDEA-05 - Explain Evaluation Panel
+- **Status**: Idea
+- **Goal**: Augment numeric eval with plain-language rationale.
+- **Preconditions**: Evaluation line available.
+- **Entry Points**: Analysis row expand action.
+- **Main Steps**:
+  1. User expands eval row.
+  2. App renders explanation text linked to line features.
+  3. User collapses/compares explanations.
+- **Branch Paths**:
+  - `BR-IDEA-05-NO-EXPLANATION`: Engine lacks explain mode -> show score-only fallback.
+- **Postconditions**: Better interpretability for non-expert users.
+- **Function Touchpoints**:
+  - `AnalysisStore.listEvaluations`
+  - `AnalysisPanel.renderAnalysisLines`
+
+### SCN-IDEA-06 - Undo/Redo Stack in Analysis Mode
+- **Status**: Idea
+- **Goal**: Rapidly traverse exploratory lines.
+- **Preconditions**: Analysis mode active with local move sequence.
+- **Entry Points**: Analysis toolbar undo/redo.
+- **Main Steps**:
+  1. User makes exploratory moves.
+  2. User triggers undo/redo repeatedly.
+  3. Board/history follow analysis stack pointer.
+- **Branch Paths**:
+  - `BR-IDEA-06-STACK-EMPTY`: Undo/redo unavailable at stack bounds.
+- **Postconditions**: Exploration becomes faster than manual node clicking.
+- **Function Touchpoints**:
+  - `MoveUpdateService.navigateToNode`
+  - `MoveUpdateService.addAnalysisMove`
+  - `UiStateStore.togglePanel`
+
+### SCN-IDEA-07 - Auto-Reconnect Engine After Crash
+- **Status**: Idea
+- **Goal**: Reduce manual recovery after transient engine failure.
+- **Preconditions**: Engine crash detected; reconnect policy enabled.
+- **Entry Points**: Engine process exit event.
+- **Main Steps**:
+  1. App detects crash.
+  2. App retries start with backoff.
+  3. On success, app resumes analysis queue.
+- **Branch Paths**:
+  - `BR-IDEA-07-MAX-RETRY`: Retry limit reached -> disable engine and notify user.
+- **Postconditions**: Better resilience for unstable engine binaries.
+- **Function Touchpoints**:
+  - `ProcessManager.isEngineRunning`
+  - `EnginesStore.startEngine`
+  - `AnalysisStore.listEvaluations`
+
+### SCN-IDEA-08 - Variant Rules Toggle
+- **Status**: Idea
+- **Goal**: Allow non-standard rule sets (e.g., Chess960).
+- **Preconditions**: Variant settings surfaced in new game/setup.
+- **Entry Points**: New game variant selector.
+- **Main Steps**:
+  1. User selects variant.
+  2. App initializes variant position/rules.
+  3. Move validation and notation adapt to variant.
+- **Branch Paths**:
+  - `BR-IDEA-08-UNSUPPORTED-ENGINE`: Selected engine cannot handle variant -> warn and continue without engine.
+- **Postconditions**: Variant choice consistently affects rules, setup, and engine compatibility.
+- **Function Touchpoints**:
+  - `GameRules.isMoveLegal`
+  - `GameRules.generateLegalMoves`
+  - `Serialization.serializeGameToJSON`
+  - `EnginesStore.getEngineById`
+
+### SCN-IDEA-09 - Mobile Layout Panel Switching
+- **Status**: Idea
+- **Goal**: Make history/analysis/controls usable on small screens.
+- **Preconditions**: App running in compact viewport.
+- **Entry Points**: Responsive layout mode.
+- **Main Steps**:
+  1. User opens panel switcher.
+  2. App swaps visible right-panel modules.
+  3. User returns to board-focused layout.
+- **Branch Paths**:
+  - `BR-IDEA-09-PERSIST-PREF`: Panel preference save fails -> use session-only state.
+- **Postconditions**: Core tasks remain usable on mobile aspect ratios.
+- **Function Touchpoints**:
+  - `UiStateStore.togglePanel`
+  - `UiStateStore.persistState`
+  - `SettingsStore.getSetting`
+
+### SCN-IDEA-10 - Batch Import/Export Games
+- **Status**: Idea
+- **Goal**: Handle multiple game files in one operation.
+- **Preconditions**: File system adapter supports multi-select/packaging.
+- **Entry Points**: File menu batch action.
+- **Main Steps**:
+  1. User selects multiple files (import) or games (export).
+  2. App processes each item with progress feedback.
+  3. Summary report shows successes/failures.
+- **Branch Paths**:
+  - `BR-IDEA-10-PARTIAL-BATCH-FAIL`: Some items fail; successful items still committed.
+- **Postconditions**: Power users can migrate larger game sets efficiently.
+- **Function Touchpoints**:
+  - `FileIOAdapter.loadGameFromFile`
+  - `FileIOAdapter.saveGameToFile`
+  - `GamesStore.createGame`
+  - `GamesStore.listGames`
+
+### SCN-IDEA-11 - Tab Switching Auto-Pause
+- **Status**: Idea
+- **Goal**: Extend auto-pause behavior to tab switching in timed games.
+- **Preconditions**: Multiple game tabs exist; timed game is active.
+- **Entry Points**: User switches away from active game tab.
+- **Main Steps**:
+  1. User changes tabs during a timed game.
+  2. App checks tab-switch auto-pause policy.
+  3. If enabled, app pauses the game before completing the tab change.
+- **Branch Paths**:
+  - `BR-IDEA-11-DISABLED`: If tab-switch auto-pause is disabled, tab change does not affect the clock.
+- **Postconditions**: Tab navigation can be reviewed later as an extension of menu auto-pause behavior.
+- **Function Touchpoints**:
+  - `UiStateStore.setCurrentGameId`
+  - `GameControlPanel.onPause`
+  - `TimeControl.getRemainingTime`
+
+---
+
+## Coverage Notes
+- All major high-level features from `docs/HighLevel/plan.md` are represented by at least one scenario.
+- Every scenario includes at least one explicit non-happy-path branch.
+- All branch paths are tied to module-level function touchpoints for low-level design traceability.
+- `Idea` scenarios are isolated in a dedicated review section and are not implied implementation commitments.
