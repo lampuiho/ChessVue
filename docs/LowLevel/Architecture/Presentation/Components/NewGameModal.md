@@ -6,6 +6,7 @@ Collect quick or custom new-game input before forwarding a validated create requ
 ## Consumes
 - defaults from `SettingsStore`
 - engine inventory choices from `SettingsStore`
+- `ModalDialog` and `ActionButton` for shared dialog and action presentation
 
 ## Emits
 - `createRequested`

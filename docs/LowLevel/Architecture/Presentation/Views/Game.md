@@ -24,3 +24,4 @@ Render the integrated gameplay workspace for one active game.
 
 ## Notes
 - `GameView` hosts baseline analysis inside the game screen rather than through a dedicated analysis route.
+- Game-tab selection is resolved through route updates, with `GameTabs` delegating shared child-route tab logic to `TabbedView`.

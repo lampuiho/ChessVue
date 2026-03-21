@@ -7,6 +7,7 @@ Render player slots, clock state, engine status, and side-specific actions.
 - player-slot data
 - clock snapshot
 - engine availability for assigned engines
+- `PanelSurface` for shared panel layout
 
 ## Emits
 - `pauseRequested`

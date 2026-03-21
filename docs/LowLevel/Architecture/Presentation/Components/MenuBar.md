@@ -6,6 +6,7 @@ Expose shell-level actions for new game, save, load, settings, and game lifecycl
 ## Consumes
 - active game availability
 - current route
+- `ActionButton` for consistent menu action rendering
 
 ## Emits
 - `newGameRequested`
@@ -16,3 +17,4 @@ Expose shell-level actions for new game, save, load, settings, and game lifecycl
 
 ## Notes
 - Save and load orchestration happens in stores and adapters, not in the component.
+- Reusable action-button behaviour stays in the common component layer.

@@ -8,6 +8,7 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 - result state
 - clock state
 - settings-derived policy hints
+- `PanelSurface` and `ActionButton` for shared panel and action presentation
 
 ## Emits
 - `enterInGameAnalysisRequested`
