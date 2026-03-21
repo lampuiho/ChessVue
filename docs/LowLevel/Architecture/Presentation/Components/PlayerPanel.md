@@ -1,17 +1,15 @@
-﻿# Presentation/Components/PlayerPanel.md
-# PlayerPanel Component (Presentation)
+# PlayerPanel
 
 ## Purpose
-Render player info and clocks.
+Render player slots, clock state, engine status, and side-specific actions.
 
-## Data Interfaces
-- IPlayer (from DataInterface/Game.md)
-- ClockState (from DataInterface/TimeControl.md)
+## Consumes
+- player-slot data
+- clock snapshot
+- engine availability for assigned engines
 
-## Component Methods
-- renderPlayerInfo(player: IPlayer): VNode
-- formatClock(ms: number): string
-
-## Calls
-- TimeControlService.getRemainingTime
-- GamesStore.getGameById
+## Emits
+- `pauseRequested`
+- `resumeRequested`
+- `resignRequested`
+- `drawOffered`

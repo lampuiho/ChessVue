@@ -1,21 +1,21 @@
-﻿# Presentation/Components/GameControlPanel.md
-# GameControlPanel Component (Presentation)
+# GameControlPanel
 
 ## Purpose
-User controls for resigning, taking back moves, toggling analysis mode, and clock control.
+Render context-sensitive controls for live play, analysis transitions, setup, and lifecycle actions.
 
-## Data Interfaces
-- IGame (from DataInterface/Game.md)
+## Consumes
+- workspace context
+- result state
+- clock state
+- settings-derived policy hints
 
-## Component Methods
-- onResign(): void
-- onOfferDraw(): void
-- onTakeBack(): void
-- onPause(): void
-- onEnterAnalysisMode(): void
-
-## Calls
-- GamesStore.takeBack
-- UiStateStore.showModal
-- GamesStore.makeMove
-
+## Emits
+- `enterInGameAnalysisRequested`
+- `exitInGameAnalysisRequested`
+- `enterBoardEditRequested`
+- `confirmBoardEditRequested`
+- `cancelBoardEditRequested`
+- `pauseRequested`
+- `resumeRequested`
+- `resignRequested`
+- `drawRequested`

@@ -141,7 +141,7 @@ The app must isolate bad payloads instead of failing the whole launch or import 
 
 ## Baseline File Format Scope
 - The baseline import and export contract is one canonical internal JSON document.
-- Broader external formats are deferred to [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+- Broader external formats are deferred to [ideas.md](ideas.md).
 
 ## Non-Baseline Exclusions
 This contract does not commit to:

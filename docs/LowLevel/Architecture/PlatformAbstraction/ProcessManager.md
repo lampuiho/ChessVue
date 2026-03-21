@@ -1,18 +1,26 @@
-﻿# PlatformAbstraction/ProcessManager.md
-# ProcessManager Module (Platform Abstraction)
+# ProcessManager
 
 ## Purpose
-Manage external engine processes, I/O stream connectivity, and process lifecycle.
+Own local UCI child-process lifecycle and raw process I/O for engine sessions.
 
-## Data Interfaces
-- EngineProcessHandle (from DataInterface/Engine.md)
+## Public Interface
+```ts
+startProcess(session: IEngineRuntimeSession, engine: IEngineRecord): Promise<void>
+sendCommand(sessionId: string, command: string): Promise<void>
+subscribeToOutput(sessionId: string, onLine: (line: string) => void): () => void
+stopProcess(sessionId: string): Promise<void>
+restartProcess(session: IEngineRuntimeSession, engine: IEngineRecord): Promise<void>
+```
 
-## Module Functions
-- spawnEngine(enginePath: string, options: IEngineConfig): Promise<EngineProcessHandle>
-- sendUCICommand(handle: EngineProcessHandle, command: string): Promise<void>
-- eadEngineOutput(handle: EngineProcessHandle): Promise<string>
-- stopEngine(handle: EngineProcessHandle): Promise<void>
-- isEngineRunning(handle: EngineProcessHandle): boolean
+## Responsibilities
+- start and stop engine processes on demand
+- route raw UCI output lines to store-owned parsers
+- isolate failures to the affected session
+- stop related processes when games close or engine assignments change
 
-## Calls
-- OS process APIs (child_process, NW.js process APIs, Capacitor process APIs)
+## Dependencies
+- desktop child-process APIs
+
+## Notes
+- `ProcessManager` owns process mechanics only; it does not interpret chess or UI state.
+- Unexpected exit marks the session unavailable until the user retries.

@@ -1,36 +1,26 @@
-﻿# Presentation/Views/Game.md
-# GameView Component (Presentation)
+# GameView
 
 ## Purpose
-Orchestrate the game screen: board, panels, move history, and game controls.
+Render the integrated gameplay workspace for one active game.
 
-## Data Interfaces
-- IGame (from DataInterface/Game.md)
-- IChessboardState (from DataInterface/ChessboardState.md)
+## Inputs
+- active game workspace from `GamesStore`
+- visible analysis from `AnalysisStore`
+- per-game runtime availability from `EnginesStore`
+- shell layout state from `UiStateStore`
 
-## Component Methods
-- setup()
-- onMoveAttempt(move: IMove): void
-- onTakeBack(): void
-- onResign(): void
-- onEnterAnalysis(): void
-- onExitAnalysis(): void
-- onTimerTick(deltaMs: number): void
-- onGameOver(): void
+## Child Components
+- `MenuBar`
+- `GameTabs`
+- `Chessboard`
+- `PlayerPanel`
+- `HistoryPanel`
+- `AnalysisPanel`
+- `GameControlPanel`
 
-## Calls
-- GamesStore.makeMove
-- GamesStore.requestMoveFromCurrentPlayer
-- GamesStore.enterAnalysisMode
-- GamesStore.exitAnalysisMode
-- GamesStore.takeBack
-- GamesStore.resignGame
-- GamesStore.enterFreeBoardSetupMode
-- GamesStore.applyFreeBoardSetup
-- GamesStore.clearHistory
-- GamesStore.startGameFromSetupPosition
-- GamesStore.switchPlayer
-- UiStateStore.setCurrentGameId
-- AnalysisStore.listEvaluations
-- GameRuleService.generateLegalMoves
-- ChessboardComponent.emitMove
+## Outputs
+- forwards user intents to stores
+- does not call domain services directly
+
+## Notes
+- `GameView` hosts baseline analysis inside the game screen rather than through a dedicated analysis route.

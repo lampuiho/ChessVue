@@ -19,16 +19,16 @@ This means:
 ## Authoritative Inputs
 The low-level rewrite may depend on:
 
-- [architecture.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/architecture.md)
-- [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md) for `Current` and `Planned`
-- [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md)
-- [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md)
-- [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md)
-- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md)
-- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md)
-- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md)
+- [architecture.md](architecture.md)
+- [scenarios.md](scenarios.md) for `Current` and `Planned`
+- [state_model.md](state_model.md)
+- [persistence_contract.md](persistence_contract.md)
+- [engine_runtime.md](engine_runtime.md)
+- [settings_contract.md](settings_contract.md)
+- [build_settings.md](build_settings.md)
+- [user_settings.md](user_settings.md)
 
-The low-level rewrite must not use [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) as a source of committed behaviour.
+The low-level rewrite must not use [ideas.md](ideas.md) as a source of committed behaviour.
 
 ## Key Design Decisions
 - The app shell is desktop-first and must support local file dialogs and local child-process UCI engines.
@@ -41,13 +41,13 @@ The low-level rewrite must not use [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighL
 ## Documentation Deliverables
 Before or during the low-level rewrite, the following high-level contracts are the decision-complete source for their areas:
 
-1. [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md)
-2. [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md)
-3. [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md)
-4. [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md)
+1. [state_model.md](state_model.md)
+2. [persistence_contract.md](persistence_contract.md)
+3. [engine_runtime.md](engine_runtime.md)
+4. [settings_contract.md](settings_contract.md)
 
 ## Non-Baseline Ideas
-Deferred or speculative concepts must be collected in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md), not left mixed into baseline architecture.
+Deferred or speculative concepts must be collected in [ideas.md](ideas.md), not left mixed into baseline architecture.
 
 That includes, for example:
 

@@ -1,31 +1,33 @@
-# IChessboardState / Square / Color Interfaces
+# Board Position Types
 
 ## Purpose
-Define core chessboard data structures for board state and spatial references.
+Define the serialisable board state used by rules, move application, persistence, and restore.
 
 ## Interfaces
-- `Square` (e.g. from "e2" to "e4")
-- `BoardColor` (`"white" | "black"`)
-- `IChessboardState`
-- `BoardLayout`
+- `interface ICastlingAvailability`
+- `interface IBoardPosition`
 
 ## Data Structures
-- `type Square = string` (algebraic position)
-- `type BoardColor = "white" | "black"`
-- `interface BoardLayout { [square: string]: string | null }` (FEN-style mapping)
-- `interface IChessboardState {
-  board: BoardLayout
-  activeColor: BoardColor
-  castlingRights: {
-    whiteKingSide: boolean
-    whiteQueenSide: boolean
-    blackKingSide: boolean
-    blackQueenSide: boolean
-  }
-  enPassantTarget: Square | null
-  halfMoveClock: number
-  fullMoveNumber: number
+```ts
+interface ICastlingAvailability {
+  whiteKingSide: boolean
+  whiteQueenSide: boolean
+  blackKingSide: boolean
+  blackQueenSide: boolean
 }
 
-## Notes
-This interface is shared across Domain Logic, State Management, and Presentation.
+interface IBoardPosition {
+  piecesBySquare: Record<SquareId, IChessPiece>
+  sideToMove: PlayerColour
+  castlingAvailability: ICastlingAvailability
+  enPassantTarget: SquareId | null
+  halfMoveClock: number
+  fullMoveNumber: number
+  fen: string
+}
+```
+
+## Ownership
+- `GameRuleService` validates and mutates `IBoardPosition`.
+- `SerializationService` persists `IBoardPosition` inside `IGameDocument`.
+- `AnalysisStore` keys engine output by position identity, typically `fen`.

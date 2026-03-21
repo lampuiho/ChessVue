@@ -1,14 +1,26 @@
 # Data Interfaces
 
-This folder contains data structure interface definitions used by Domain Logic, State Management, and Presentation modules.
+## Purpose
+This folder defines the shared low-level types used across the platform, domain, state, and presentation layers.
 
-Files:
-- ChessboardState.md
-- ChessPiece.md
-- Game.md
-- Move.md
-- TimeControl.md
-- Engine.md
-- Analysis.md
-- Settings.md
-- UiState.md
+The types in this folder are the contract-level shapes that state stores and services coordinate around. They are not inferred from the current starter code.
+
+## Core Runtime Types
+- [ChessPiece](ChessPiece.md): piece, colour, square, and notation primitives.
+- [ChessboardState](ChessboardState.md): serialisable board-position state.
+- [Game](Game.md): workspace, player-slot, and state-axis types.
+- [Move](Move.md): move payloads, nodes, and move-tree structure.
+- [TimeControl](TimeControl.md): time-control config and live clock snapshots.
+- [Engine](Engine.md): configured engines, per-game assignment, and runtime sessions.
+- [Analysis](Analysis.md): streamed engine output and visible analysis snapshots.
+
+## Persisted Artefacts
+- [Settings](Settings.md): authoritative user settings snapshot.
+- [SessionSnapshot](SessionSnapshot.md): shell/session restore payload.
+- [GameDocument](GameDocument.md): canonical saved game document and exact-screen snapshot.
+
+## Design Rules
+- Interface names use `I` prefixes.
+- Types include only committed baseline fields.
+- Ownership is documented once and cross-referenced elsewhere rather than duplicated.
+- Persisted artefacts include explicit schema versions.

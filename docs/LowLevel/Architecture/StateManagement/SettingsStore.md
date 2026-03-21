@@ -1,23 +1,30 @@
-﻿# StateManagement/SettingsStore.md
-# SettingsStore Module (State Management)
+# SettingsStore
 
 ## Purpose
-Manage persistent application settings.
+Own the authoritative user settings snapshot, defaults, validation, and persistence.
 
-## Data Interfaces
-- SettingsSchema (from DataInterface/Settings.md)
+## Public Interface
+```ts
+loadSettings(): Promise<ISettingsSnapshot>
+getSettings(): ISettingsSnapshot
+updateSettings(patch: Partial<ISettingsSnapshot>): void
+saveSettings(): Promise<void>
+resetSettings(): Promise<void>
+```
 
-## Module Functions
-- loadSettings(): Promise<SettingsSchema>
-- saveSettings(settings: SettingsSchema): Promise<void>
-- getSetting<T extends keyof SettingsSchema>(key: T): SettingsSchema[T]
-- updateSetting<T extends keyof SettingsSchema>(key: T, value: SettingsSchema[T]): Promise<void>
-- resetSettings(): Promise<SettingsSchema>
+## Responsibilities
+- expose only committed settings from the settings contract
+- validate engine inventory and gameplay policy values
+- provide defaults when no valid snapshot exists
+- persist settings independently from session and game data
 
-## Private Helpers
-- applyTheme(settings: SettingsSchema): void
-- getDefaultSettings(): SettingsSchema
+## Dependencies
+- `StorageAdapter`
+- `SerializationService`
 
-## Calls
-- StorageAdapter.getItem
-- StorageAdapter.setItem
+## Scenario Coverage
+- `SCN-SESSION-01`
+- `SCN-SETTINGS-01`
+- `SCN-SETTINGS-02`
+- `SCN-ENGINE-01`
+- `SCN-ENGINE-02`

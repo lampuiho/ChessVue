@@ -1,21 +1,18 @@
-﻿# Presentation/Components/MenuBar.md
-# MenuBar Component (Presentation)
+# MenuBar
 
 ## Purpose
-Render top-level app actions, new game, load, save, and settings navigation.
+Expose shell-level actions for new game, save, load, settings, and game lifecycle flows.
 
-## Data Interfaces
-- IGame (from DataInterface/Game.md)
+## Consumes
+- active game availability
+- current route
 
-## Component Methods
-- onNewGame(): void
-- onLoadGame(): void
-- onSaveGame(): void
-- onOpenSettings(): void
+## Emits
+- `newGameRequested`
+- `loadGameRequested`
+- `saveGameRequested`
+- `settingsRequested`
+- `deleteGameRequested`
 
-## Calls
-- GamesStore.createGame
-- GamesStore.loadGame
-- FileIOAdapter.saveGameToFile
-- UiStateStore.setCurrentGameId
-
+## Notes
+- Save and load orchestration happens in stores and adapters, not in the component.

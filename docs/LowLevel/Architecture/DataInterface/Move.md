@@ -1,39 +1,47 @@
-# Move / MoveNode / MoveTree
+# Move Tree Types
 
 ## Purpose
-Define move payloads and history node structures for branchable move trees.
+Define move payloads and tree structures for live play, history review, and analysis branches.
+
+## Types
+- `type MoveKind = "normal" | "castle" | "enPassant" | "promotion"`
+- `type MoveBranchKind = "mainline" | "variation" | "analysis"`
 
 ## Interfaces
-- `MoveType` (`"normal" | "castle" | "en_passant" | "promotion"`)
-- `IMove`
-- `IMoveNode`
-- `IMoveTree`
+- `interface IMove`
+- `interface IMoveNode`
+- `interface IMoveTree`
 
 ## Data Structures
-- `interface IMove {
-  from: string
-  to: string
-  promotion?: PieceType
-  san?: string
-  uci?: string
-  capturedPiece?: PieceType
-  moveNumber: number
-  player: PlayerColour
-  flags?: string
+```ts
+interface IMove {
+  from: SquareId
+  to: SquareId
+  kind: MoveKind
+  movingColour: PlayerColour
+  promotionPiece: PieceKind | null
+  san: string
+  uci: string
 }
 
-- `interface IMoveNode {
+interface IMoveNode {
   id: string
-  move: IMove | null
   parentId: string | null
-  children: string[]
-  fen: string
-  evaluation?: number
+  childIds: string[]
+  branchKind: MoveBranchKind
+  move: IMove | null
+  position: IBoardPosition
+  plyIndex: number
+  mainlineChildId: string | null
 }
 
-- `interface IMoveTree {
-  nodes: Record<string, IMoveNode>
+interface IMoveTree {
   rootId: string
-  currentNodeId: string
-  mainlineIds: string[]
+  nodeById: Record<string, IMoveNode>
 }
+```
+
+## Notes
+- `rootId` represents the starting board root for the workspace.
+- `mainlineChildId` lets `MoveUpdateService` rewrite the main continuation without deleting sibling variations.
+- Analysis-only branches remain in the tree even when the visible screen returns to the live node.

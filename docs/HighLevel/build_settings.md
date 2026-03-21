@@ -11,7 +11,7 @@ Unlike earlier notes, this is not a catalogue of all possible future targets. It
 - local child-process engine runtime
 - canonical internal JSON persistence
 
-Deferred runtime options are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+Deferred runtime options are tracked in [ideas.md](ideas.md).
 
 ## Platform Runtime
 | Setting Area | Baseline Decision |
@@ -31,7 +31,7 @@ Deferred runtime options are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/
 | Failure behaviour | Isolate failure per engine and allow manual retry |
 | Auto-reconnect | Deferred |
 
-The detailed behaviour lives in [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md).
+The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 
 ## Persistence Runtime
 | Setting Area | Baseline Decision |
@@ -44,7 +44,7 @@ The detailed behaviour lives in [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs
 | Migration strategy | Migrate on read, resave on next normal save cycle |
 | Corrupt payload handling | Isolate bad payloads and fall back safely |
 
-The detailed behaviour lives in [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md).
+The detailed behaviour lives in [persistence_contract.md](persistence_contract.md).
 
 ## Routing and Shell Baseline
 | Setting Area | Baseline Decision |

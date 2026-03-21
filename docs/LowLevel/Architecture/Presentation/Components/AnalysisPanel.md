@@ -1,16 +1,17 @@
-﻿# Presentation/Components/AnalysisPanel.md
-# AnalysisPanel Component (Presentation)
+# AnalysisPanel
 
 ## Purpose
-Render engine analysis experiences and line selection.
+Render the latest visible analysis snapshot for the active position.
 
-## Data Interfaces
-- IAnalysisResult (from DataInterface/Analysis.md)
+## Consumes
+- visible analysis snapshot from `AnalysisStore`
+- per-engine availability and failure state
 
-## Component Methods
-- renderAnalysisLines(analysis: IAnalysisResult[]): VNode
-- onLineClick(move: IMove): void
+## Emits
+- `refreshRequested`
+- `engineRetryRequested`
+- `engineSelectionRequested`
 
-## Calls
-- AnalysisStore.listEvaluations
-- GamesStore.getGameById
+## Notes
+- Each engine row updates independently.
+- Saved analysis may remain visible when live engines are unavailable.

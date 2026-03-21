@@ -1,26 +1,33 @@
-﻿# StateManagement/EnginesStore.md
-# EnginesStore Module (State Management)
+# EnginesStore
 
 ## Purpose
-Manage engine configs, process state, and protocol lifecycle.
+Coordinate configured engines, per-game assignment, runtime availability, and process-session lifecycle.
 
-## Data Interfaces
-- IEngine, IEngineConfig (from DataInterface/Engine.md)
+## Public Interface
+```ts
+listConfiguredEngines(): IEngineRecord[]
+getEngine(engineId: string): IEngineRecord | null
+validateAnalysisSelection(engineIds: string[]): void
+createAnalysisSessions(gameId: string, engineIds: string[], positionFen: string): Promise<IEngineRuntimeSession[]>
+createPlayerSession(gameId: string, colour: PlayerColour, engineId: string, positionFen: string): Promise<IEngineRuntimeSession>
+restartSession(sessionId: string): Promise<void>
+stopGameSessions(gameId: string): Promise<void>
+removeSessionsForEngine(engineId: string): Promise<void>
+```
 
-## Module Functions
-- listEngines(): IEngine[]
-- addEngine(config: IEngineConfig): void
-- removeEngine(engineId: string): void
-- updateEngine(engineId: string, config: Partial<IEngineConfig>): void
-- startEngine(engineId: string): Promise<EngineProcessHandle>
-- stopEngine(engineId: string): Promise<void>
-- getEngineById(engineId: string): IEngine | null
+## Responsibilities
+- read engine inventory from `SettingsStore`
+- enforce the four-engine analysis cap
+- keep sessions isolated by game and role
+- mark unavailable or failed engines without stopping unrelated sessions
+- restart running sessions when engine configuration changes
 
-## Private Helpers
-- buildEngineCommand(config: IEngineConfig): string[]
-- normalizeEngineConfig(config: IEngineConfig): IEngineConfig
+## Dependencies
+- `SettingsStore`
+- `ProcessManager`
 
-## Calls
-- EngineAdapter.initializeEngine
-- EngineAdapter.shutdownEngine
-- EngineAdapter.sendCommand
+## Scenario Coverage
+- `SCN-GAME-02`
+- `SCN-ANALYSIS-01` to `SCN-ANALYSIS-04`
+- `SCN-ENGINE-01`
+- `SCN-ENGINE-02`

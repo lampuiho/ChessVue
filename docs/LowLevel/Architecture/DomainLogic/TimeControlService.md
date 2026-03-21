@@ -1,26 +1,27 @@
-﻿# DomainLogic/TimeControlService.md
-# TimeControlService Module (Domain Logic)
+# TimeControlService
 
 ## Purpose
-Manage per-player clocks and flag detection for time control.
+Calculate timed and untimed clock behaviour independently of UI tick loops.
 
-## Data Interfaces
-- TimeControlConfig, ClockState, PlayerClockState (from DataInterface/TimeControl.md)
-- IGame (from DataInterface/Game.md)
+## Public Interface
+```ts
+createClockSnapshot(timeControl: ITimeControl): IClockSnapshot
+startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: string): IClockSnapshot
+pauseClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot
+resumeClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot
+applyMove(snapshot: IClockSnapshot, mover: PlayerColour, nowUtc: string, timeControl: ITimeControl): IClockSnapshot
+hasExpired(snapshot: IClockSnapshot, nowUtc: string): boolean
+```
 
-## Module Functions
-- initializeClockState(config: TimeControlConfig): ClockState
-- tickClock(clock: ClockState, deltaMs: number): ClockState
-- applyIncrement(clock: ClockState, player: PlayerColor, config: TimeControlConfig): ClockState
-- getRemainingTime(clock: ClockState, player: PlayerColor): number
-- isFlagFall(clock: ClockState): { flagged: boolean; player?: PlayerColor }
-- updateClockAfterMove(clock: ClockState, player: PlayerColor, config: TimeControlConfig): ClockState
-- pauseClock(clock: ClockState): ClockState
+## Responsibilities
+- initialise untimed and timed games correctly
+- pause and resume without drift
+- finalise timeout once
+- keep free analysis, history review, and in-game analysis from consuming live time
 
-## Private Helpers
-- 
-ormalizeClockValue(value: number): number
-- switchActiveClock(clock: ClockState, activePlayer: PlayerColor): ClockState
-
-## Calls
-- none
+## Scenario Coverage
+- `SCN-TIME-01`
+- `SCN-TIME-02`
+- `SCN-TIME-03`
+- `SCN-TIME-04`
+- `SCN-TIME-05`

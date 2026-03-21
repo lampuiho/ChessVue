@@ -1,29 +1,39 @@
-# Analysis Result and Storage Key
+# Analysis Types
 
 ## Purpose
-Define how engine analysis reports are keyed and stored.
+Define the streamed analysis payloads stored for a game, engine, and position.
 
 ## Interfaces
-- `IAnalysisResult`
-- `AnalysisKey`
+- `interface IAnalysisLine`
+- `interface IAnalysisSnapshot`
+- `interface IVisibleAnalysisSnapshot`
 
 ## Data Structures
-- `interface IAnalysisLine {
-  move: string
-  score: number
+```ts
+interface IAnalysisLine {
   depth: number
-  nodes: number
+  scoreCp: number | null
+  scoreMate: number | null
   pv: string[]
 }
 
-- `interface IAnalysisResult {
+interface IAnalysisSnapshot {
+  gameId: string
   engineId: string
-  fen: string
-  timestamp: number
-  bestMove: string
-  scoreCp: number | null
-  scoreMate: number | null
+  positionFen: string
+  updatedAt: string
+  bestMoveUci: string | null
   lines: IAnalysisLine[]
+  isComplete: boolean
 }
 
-- `type AnalysisKey = `${string}:${string}:${string}`` // gameId:engineId:fen
+interface IVisibleAnalysisSnapshot {
+  positionFen: string
+  engineSnapshots: IAnalysisSnapshot[]
+}
+```
+
+## Rules
+- `AnalysisStore` keeps the latest valid snapshot independently for each engine.
+- Parse failures discard only the bad message.
+- Saved visible analysis is persisted only for the visible node, not as a full historical cache requirement.

@@ -1,29 +1,30 @@
-﻿# DomainLogic/SerializationService.md
-# SerializationService Module (Domain Logic)
+# SerializationService
 
 ## Purpose
-Serialize and deserialize game state across JSON/FEN/PGN for persistence and interchange.
+Own canonical JSON serialisation, deserialisation, and migration for all persisted artefacts.
 
-## Data Interfaces
-- IGame, IChessboardState, IMoveTree (from DataInterface/Game.md, DataInterface/ChessboardState.md, DataInterface/Move.md)
+## Public Interface
+```ts
+serialiseSettings(snapshot: ISettingsSnapshot): string
+deserialiseSettings(raw: string): ISettingsSnapshot
+serialiseSession(snapshot: ISessionSnapshot): string
+deserialiseSession(raw: string): ISessionSnapshot
+serialiseGameDocument(document: IGameDocument): string
+deserialiseGameDocument(raw: string): IGameDocument
+migrateSettingsSnapshot(input: unknown): ISettingsSnapshot
+migrateSessionSnapshot(input: unknown): ISessionSnapshot
+migrateGameDocument(input: unknown): IGameDocument
+```
 
-## Module Functions
-- serializeGameToJSON(game: IGame): string
-- deserializeGameFromJSON(json: string): IGame
-- serializePositionToFEN(position: IChessboardState): string
-- deserializePositionFromFEN(fen: string): IChessboardState
-- serializeGameToPGN(game: IGame): string
-- deserializeGameFromPGN(pgn: string): IGame
-- migrateSavedGame(oldData: any): IGame
-- parseMoveSAN(san: string, position: IChessboardState): IMove
+## Responsibilities
+- keep one canonical JSON wire shape per persisted artefact
+- migrate older schema versions on read
+- reject corrupt core payloads
+- downgrade only optional game-document sections to safe defaults when partial corruption is recoverable
 
-## Private Helpers
-- alidateFEN(fen: string): boolean
-- parseFEN(fen: string): IChessboardState
-- uildFEN(position: IChessboardState): string
-- parsePGNHeaders(pgn: string): Record<string, string>
-- parsePGNMoves(pgn: string): string[]
-- 	oSAN(move: IMove, position: IChessboardState): string
-
-## Calls
-- none
+## Scenario Coverage
+- `SCN-SESSION-03`
+- `SCN-SAVE-01`
+- `SCN-SAVE-02`
+- `SCN-LOAD-01`
+- `SCN-LOAD-02`

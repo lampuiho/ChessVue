@@ -1,18 +1,22 @@
-﻿# Presentation/Router.md
-# Router Module (Presentation)
+# Router
 
 ## Purpose
-Define app routes and navigation guards for game pages and settings.
+Define the baseline route map and route-guard responsibilities for the desktop shell.
 
-## Data Interfaces
-- IUiState (from DataInterface/UiState.md)
+## Routes
+- `/home`
+- `/game/:id`
+- `/settings`
 
-## Module Functions
-- createRouterInstance(): Router
-- setupRoutes(): RouteRecordRaw[]
-- eforeEachRouteGuard(to, from, next): void
-- eforeRouteEnterGuard(to, from, next): void
+## Responsibilities
+- route startup to home or restored session target
+- reject invalid `/game/:id` routes and redirect to a valid fallback
+- preserve the active game route when leaving and returning from settings
 
-## Calls
-- GamesStore.getGameById
-- UiStateStore.setCurrentGameId
+## Dependencies
+- `UiStateStore`
+- `GamesStore`
+
+## Notes
+- The router does not load or mutate game data directly.
+- `GameView` is the only baseline game workspace screen.

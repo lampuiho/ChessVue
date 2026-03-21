@@ -9,21 +9,21 @@ The rewrite baseline is:
 - `desktop-first`
 - `multi-engine now`
 
-`Idea` items are intentionally excluded from this document and are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+`Idea` items are intentionally excluded from this document and are tracked in [ideas.md](ideas.md).
 
 ## Architectural Rule
 The low-level rewrite may depend only on:
 
 - this document
-- [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md) for `Current` and `Planned` behaviour
-- [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md)
-- [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md)
-- [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md)
-- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md)
-- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md)
-- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md)
+- [scenarios.md](scenarios.md) for `Current` and `Planned` behaviour
+- [state_model.md](state_model.md)
+- [persistence_contract.md](persistence_contract.md)
+- [engine_runtime.md](engine_runtime.md)
+- [settings_contract.md](settings_contract.md)
+- [build_settings.md](build_settings.md)
+- [user_settings.md](user_settings.md)
 
-The low-level rewrite must not promote anything from [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) without a separate high-level decision.
+The low-level rewrite must not promote anything from [ideas.md](ideas.md) without a separate high-level decision.
 
 ## Layer Model
 ChessVue uses a layered architecture with acyclic dependencies.
@@ -96,8 +96,8 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ## Module Responsibilities
 ### Platform Abstraction
 - `StorageAdapter` persists settings, session state, and autosaved game documents.
-- `FileIoAdapter` imports and exports the canonical saved game document defined in [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md).
-- `ProcessManager` starts, communicates with, and stops local UCI engine processes as defined in [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md).
+- `FileIoAdapter` imports and exports the canonical saved game document defined in [persistence_contract.md](persistence_contract.md).
+- `ProcessManager` starts, communicates with, and stops local UCI engine processes as defined in [engine_runtime.md](engine_runtime.md).
 
 ### Domain Logic
 - `GameRuleService` validates and applies moves, resolves promotion choices, and detects terminal game results.
@@ -106,10 +106,10 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `SerializationService` owns the canonical saved game document shape, schema versioning hooks, and migration entry points.
 
 ### State Management
-- `GamesStore` owns live game instances and enforces the interaction rules in [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md).
+- `GamesStore` owns live game instances and enforces the interaction rules in [state_model.md](state_model.md).
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
 - `EnginesStore` owns configured engine inventory, engine assignment, and runtime availability state.
-- `SettingsStore` owns persisted user settings defined in [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md).
+- `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
 - `UiStateStore` owns session-level shell state such as active game, open tabs, and non-modal UI layout state.
 
 ### Presentation
@@ -138,10 +138,10 @@ Additional rules:
 ## Baseline Behaviour Ownership
 The high-level contracts divide behaviour ownership as follows:
 
-- [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md): game contexts, allowed actions, and transitions
-- [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md): saved artefacts, schema expectations, restore guarantees
-- [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md): desktop UCI runtime, process lifetime, multi-engine rules
-- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md): authoritative user-editable settings
+- [state_model.md](state_model.md): game contexts, allowed actions, and transitions
+- [persistence_contract.md](persistence_contract.md): saved artefacts, schema expectations, restore guarantees
+- [engine_runtime.md](engine_runtime.md): desktop UCI runtime, process lifetime, multi-engine rules
+- [settings_contract.md](settings_contract.md): authoritative user-editable settings
 
 ## Representative Data Flows
 ### Live Move
@@ -166,7 +166,7 @@ The high-level contracts divide behaviour ownership as follows:
 4. Restore first recreates the saved visible screen, then resumes live analysis if engines are available.
 
 ## Explicitly Deferred
-The following concepts are not part of the baseline architecture and are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md):
+The following concepts are not part of the baseline architecture and are tracked in [ideas.md](ideas.md):
 
 - browser, mobile, and remote runtime targets
 - standalone analysis routes or views

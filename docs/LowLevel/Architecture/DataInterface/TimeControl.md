@@ -1,32 +1,40 @@
-# TimeControl Config and ClockState
+# Time Control Types
 
 ## Purpose
-Define time control structures and per-player clock state.
+Define the baseline time-control schema and the live timing snapshot used for drift-safe clock handling.
+
+## Types
+- `type TimeControlPreset = "bullet" | "blitz" | "rapid" | "classical" | "untimed"`
 
 ## Interfaces
-- `TimeControlVariant` (`"bullet" | "blitz" | "rapid" | "classical"`)
-- `ITimeControlConfig`
-- `ClockState`
+- `interface ITimeControl`
+- `interface IPlayerClock`
+- `interface IClockSnapshot`
 
 ## Data Structures
-- `interface ITimeControlConfig {
-  initialMs: number
+```ts
+interface ITimeControl {
+  preset: TimeControlPreset | null
+  initialMs: number | null
   incrementMs: number
-  delayMs?: number
-  incrementType: "simple" | "bronstein" | "fischer"
-  maxTimeMs?: number
-  variant?: TimeControlVariant
 }
 
-- `interface PlayerClockState {
-  remainingMs: number
-  lastTickAt: number
+interface IPlayerClock {
+  remainingMs: number | null
   isRunning: boolean
-  hasFlagged: boolean
 }
 
-- `interface ClockState {
-  white: PlayerClockState
-  black: PlayerClockState
-  activeColor: PlayerColour
+interface IClockSnapshot {
+  white: IPlayerClock
+  black: IPlayerClock
+  activeColour: PlayerColour | null
+  startedAtUtc: string | null
+  pausedAtUtc: string | null
+  lastMoveAtUtc: string | null
 }
+```
+
+## Rules
+- `null` timing values represent untimed play.
+- Relative timestamps, not UI tick counters, are the source of truth for remaining time.
+- `clockState` on `IGameWorkspace` tells consumers whether a snapshot is running, paused, expired, or inactive.

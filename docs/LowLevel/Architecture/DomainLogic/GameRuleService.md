@@ -1,31 +1,25 @@
-﻿# DomainLogic/GameRuleService.md
-# GameRuleService Module (Domain Logic)
+# GameRuleService
 
 ## Purpose
-Validate chess moves and board state according to rules and variant constraints.
+Validate and apply legal chess moves for the baseline standard game flow.
 
-## Data Interfaces
-- IChessboardState (from DataInterface/ChessboardState.md)
-- IChessPiece (from DataInterface/ChessPiece.md)
-- Move (from DataInterface/Move.md)
+## Public Interface
+```ts
+generateLegalMoves(position: IBoardPosition): IMove[]
+isMoveLegal(position: IBoardPosition, move: IMove): boolean
+requiresPromotionSelection(position: IBoardPosition, move: IMove): boolean
+applyMove(position: IBoardPosition, move: IMove): IBoardPosition
+resolveResultState(position: IBoardPosition): ResultState
+```
 
-## Module Functions
-- isMoveLegal(position: IChessboardState, move: IMove): boolean
-- generateLegalMoves(position: IChessboardState, player: PlayerColor): IMove[]
-- applyMove(position: IChessboardState, move: IMove): IChessboardState
-- isCheck(position: IChessboardState, player: PlayerColor): boolean
-- isCheckmate(position: IChessboardState, player: PlayerColor): boolean
-- isStalemate(position: IChessboardState, player: PlayerColor): boolean
-- evaluateGameStatus(position: IChessboardState): GameStatus
-- getPositionFEN(position: IChessboardState): string
-- loadPositionFromFEN(fen: string): IChessboardState
+## Responsibilities
+- derive legal moves for the visible position
+- block illegal and out-of-context moves
+- enforce explicit promotion selection
+- detect terminal states such as draw or win
 
-## Private Helpers
-- computePieceLegalMoves(piece: IChessPiece, position: IChessboardState): IMove[]
-- isPathClear(from: string, to: string, board: IChessboardState): boolean
-- pplyCastleMove(position: IChessboardState, move: IMove): IChessboardState
-- pplyEnPassantMove(position: IChessboardState, move: IMove): IChessboardState
-- pplyPromotion(position: IChessboardState, move: IMove): IChessboardState
-
-## Calls
-- none
+## Scenario Coverage
+- `SCN-MOVE-01`
+- `SCN-MOVE-02`
+- `SCN-MOVE-03`
+- `SCN-CTRL-03`

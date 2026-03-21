@@ -1,23 +1,19 @@
-﻿# Presentation/Components/Chessboard.md
-# Chessboard Component (Presentation)
+# Chessboard
 
 ## Purpose
-Render chessboard, pieces, highlighting, and move input.
+Render the visible board state and collect move or board-edit input.
 
-## Data Interfaces
-- IChessboardState (from DataInterface/ChessboardState.md)
-- IChessPiece (from DataInterface/ChessPiece.md)
-
-## Component Methods
-- renderBoard(board: IChessboardState): VNode
-- onSquareClick(square: string): void
-- onPieceDrag(start: string, end: string): void
-- highlightLegalMoves(piece: IChessPiece): string[]
+## Consumes
+- visible board position
+- orientation and appearance settings
+- current legal-move highlights supplied by the owning view/store layer
 
 ## Emits
-- moveAttempt({from, to}): void
-- pieceSelected(square): void
+- `moveAttempted`
+- `promotionRequested`
+- `boardEditConfirmed`
+- `selectionCleared`
 
-## Calls
-- GameRuleService.generateLegalMoves
-- GameRuleService.isMoveLegal
+## Notes
+- The component does not run move-legality rules itself.
+- Board editing is enabled only when the workspace context allows it.

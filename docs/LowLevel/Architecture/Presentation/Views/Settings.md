@@ -1,19 +1,16 @@
-﻿# Presentation/Views/Settings.md
-# SettingsView Component (Presentation)
+# SettingsView
 
 ## Purpose
-Render app settings and dispatch updates to settings state.
+Render user-editable settings and engine inventory management.
 
-## Data Interfaces
-- SettingsSchema (from DataInterface/Settings.md)
+## Inputs
+- settings snapshot from `SettingsStore`
+- configured engine records from `SettingsStore` or `EnginesStore`
 
-## Component Methods
-- setupSettingsForm(): void
-- onSave(): void
-- onReset(): void
+## Outputs
+- save settings
+- reset settings
+- add, edit, and remove engine records
 
-## Calls
-- SettingsStore.loadSettings
-- SettingsStore.saveSettings
-- EnginesStore.listEngines
-- UiStateStore.persistState
+## Notes
+- Opening settings may trigger menu-driven auto-pause through store coordination, not view logic.

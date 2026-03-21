@@ -1,43 +1,67 @@
-# IGame / IPlayer / NewGameOptions
+# Game Workspace Types
 
 ## Purpose
-Define the game container, player profiles, and persistent game metadata.
+Define the canonical in-memory workspace model used by `GamesStore` and related services.
+
+## Types
+- `type WorkspaceKind = "liveGame" | "freeAnalysisSetup"`
+- `type InteractionContext = "currentPosition" | "historyReview" | "inGameAnalysis" | "boardEdit"`
+- `type ClockStateKind = "none" | "running" | "paused" | "expired"`
+- `type ResultState = "ongoing" | "drawn" | "whiteWon" | "blackWon" | "resigned" | "abandoned"`
+- `type PlayerType = "human" | "engine"`
 
 ## Interfaces
-- `IGame`
-- `IPlayer`
-- `NewGameOptions`
-- `GameStatus` (`"playing" | "paused" | "drawn" | "white_won" | "black_won" | "resigned" | "abandoned"`)
+- `interface IPlayerSlot`
+- `interface IGameMetadata`
+- `interface IGameWorkspace`
+- `interface ICreateGameRequest`
 
 ## Data Structures
-- `interface IPlayer {
-  id: string
-  name: string
-  type: "human" | "remote" | "engine"
-  color: "white" | "black"
-  profileId?: string
-  rating?: number
+```ts
+interface IPlayerSlot {
+  colour: PlayerColour
+  type: PlayerType
+  displayName: string
+  engineId: string | null
 }
 
-- `interface IGame {
+interface IGameMetadata {
   id: string
+  name: string
   createdAt: string
   updatedAt: string
-  name: string
-  status: GameStatus
-  white: IPlayer
-  black: IPlayer
-  board: IChessboardState
-  moveTree: IMoveTree
-  clock: ClockState
-  variant: "standard" | "chess960" | "kingOfTheHill" | "custom"
-  metadata: Record<string, unknown>
 }
 
-- `interface NewGameOptions {
-  name: string
-  whitePlayer: IPlayer
-  blackPlayer: IPlayer
-  timeControl: ITimeControlConfig
-  variant: "standard" | "chess960"
+interface IGameWorkspace {
+  metadata: IGameMetadata
+  workspaceKind: WorkspaceKind
+  interactionContext: InteractionContext
+  clockState: ClockStateKind
+  resultState: ResultState
+  whitePlayer: IPlayerSlot | null
+  blackPlayer: IPlayerSlot | null
+  boardRoot: IBoardPosition
+  moveTree: IMoveTree
+  liveNodeId: string | null
+  visibleNodeId: string
+  timeControl: ITimeControl
+  clockSnapshot: IClockSnapshot
+  analysisAssignment: IAnalysisAssignment
 }
+
+interface ICreateGameRequest {
+  name: string
+  whitePlayerType: PlayerType | null
+  blackPlayerType: PlayerType | null
+  whiteEngineId: string | null
+  blackEngineId: string | null
+  analysisEngineIds: string[]
+  timeControl: ITimeControl
+  boardRoot?: IBoardPosition
+}
+```
+
+## Rules
+- `freeAnalysisSetup` is created only when neither side is assigned a player.
+- `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
+- `boardEdit` is valid only inside `freeAnalysisSetup`.

@@ -1,19 +1,16 @@
-﻿# Presentation/Components/NewGameModal.md
-# NewGameModal Component (Presentation)
+# NewGameModal
 
 ## Purpose
-Modal form to initiate new game options and quick presets.
+Collect quick or custom new-game input before forwarding a validated create request.
 
-## Data Interfaces
-- NewGameOptions (from DataInterface/Game.md)
-- ITimeControlConfig (from DataInterface/TimeControl.md)
+## Consumes
+- defaults from `SettingsStore`
+- engine inventory choices from `SettingsStore`
 
-## Component Methods
-- open(): void
-- close(): void
-- submit(options: NewGameOptions): void
+## Emits
+- `createRequested`
+- `cancelRequested`
 
-## Calls
-- GamesStore.createGame
-- UiStateStore.openTab
-
+## Notes
+- Inline validation covers time control, player selection, and analysis-engine selection.
+- The modal does not decide whether the result is a live game or free-analysis workspace; `GamesStore` does.

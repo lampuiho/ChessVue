@@ -1,19 +1,17 @@
-﻿# Presentation/Views/Home.md
-# HomeView Component (Presentation)
+# HomeView
 
 ## Purpose
-Show quick actions: new game, resume games, and saved game shortcuts.
+Render the neutral landing screen for launch, no-active-game fallback, and first-use actions.
 
-## Data Interfaces
-- IGame (from DataInterface/Game.md)
+## Inputs
+- session restore outcome from `UiStateStore`
+- available actions from `GamesStore`
 
-## Component Methods
-- setupHomeActions(): void
-- onCreateQuickGame(): void
-- onResumeGame(gameId: string): void
+## Outputs
+- quick new game action
+- open custom new game modal
+- load game action
+- open settings action
 
-## Calls
-- GamesStore.listGames
-- GamesStore.createGame
-- UiStateStore.setCurrentGameId
-
+## Notes
+- `HomeView` does not auto-create a game on its own.

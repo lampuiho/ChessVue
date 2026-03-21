@@ -1,19 +1,24 @@
-﻿# PlatformAbstraction/FileIoAdapter.md
-# FileIOAdapter Module (Platform Abstraction)
+# FileIoAdapter
 
 ## Purpose
-Provide file import/export abstractions for game data using browser and desktop file APIs.
+Handle user-driven desktop import/export of the canonical game document.
 
-## Data Interfaces
-- IGame (from DataInterface/Game.md)
-- GameFileMeta
+## Public Interface
+```ts
+saveGameDocument(document: IGameDocument): Promise<void>
+loadGameDocument(): Promise<IGameDocument>
+```
 
-## Module Functions
-- saveGameToFile(game: IGame, filename: string): Promise<void>
-- loadGameFromFile(file: File): Promise<IGame>
-- listRecentFiles(): Promise<GameFileMeta[]>
+## Responsibilities
+- open desktop file dialogs for save/load flows
+- write and read the canonical JSON document only
+- preserve exact-screen restore fidelity in exported files
+- surface actionable errors for cancel, permission, and invalid-file failures
 
-## Calls
-- Platform file APIs
-- SerializationService.deserializeGameFromJSON
-- SerializationService.serializeGameToJSON
+## Dependencies
+- desktop file APIs
+- `SerializationService` for serialise/parse and migration
+
+## Notes
+- Duplicate imported IDs are handled after load, before insertion into stores.
+- Broader external formats and batch workflows are not baseline.

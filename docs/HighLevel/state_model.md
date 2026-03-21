@@ -73,7 +73,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 ### History Review
 - Navigating to an earlier node enters `historyReview`.
 - Returning to the latest committed node exits `historyReview` and restores `currentPosition`.
-- From `historyReview`, making a move follows the takeback and branch rules defined in [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md).
+- From `historyReview`, making a move follows the takeback and branch rules defined in [settings_contract.md](settings_contract.md).
 
 ### In-Game Analysis
 - Entering in-game analysis is allowed only from a `liveGame`.
@@ -90,7 +90,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Cancelling a board edit restores the previous free-analysis position unchanged.
 
 ### Pausing and Interruptions
-- Menu-driven interruptions in timed games follow the auto-pause behaviour from [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md).
+- Menu-driven interruptions in timed games follow the auto-pause behaviour from [settings_contract.md](settings_contract.md).
 - Auto-resume is allowed only when the same interruption flow caused the pause.
 - Manual pause remains paused until the user explicitly resumes.
 
@@ -113,7 +113,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Modal visibility is transient UI behaviour and is not part of the canonical game state contract.
 
 ## Non-Baseline Exclusions
-The following are not part of this contract and are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md):
+The following are not part of this contract and are tracked in [ideas.md](ideas.md):
 
 - variant-specific state rules
 - engine-vs-engine autonomous move loops

@@ -1,55 +1,53 @@
-﻿# StateManagement/GamesStore.md
-# GamesStore Module (State Management)
+# GamesStore
 
 ## Purpose
-Manage games, apply moves, and persist to storage.
+Own live game workspaces and coordinate game-state mutations across domain logic, persistence, and engine/runtime stores.
 
-## Data Interfaces
-- IGame, NewGameOptions (from DataInterface/Game.md)
-- IMove (from DataInterface/Move.md)
+## Public Interface
+```ts
+createGame(request: ICreateGameRequest): Promise<IGameWorkspace>
+insertGame(document: IGameDocument): Promise<IGameWorkspace>
+deleteGame(gameId: string): Promise<void>
+getGame(gameId: string): IGameWorkspace | null
+listGames(): IGameWorkspace[]
+makeMove(gameId: string, move: IMove): Promise<void>
+navigateToNode(gameId: string, nodeId: string): void
+enterInGameAnalysis(gameId: string): Promise<void>
+exitInGameAnalysis(gameId: string): void
+enterBoardEdit(gameId: string): void
+confirmBoardEdit(gameId: string, boardRoot: IBoardPosition): Promise<void>
+cancelBoardEdit(gameId: string): void
+resignGame(gameId: string, colour: PlayerColour): Promise<void>
+offerDraw(gameId: string): Promise<void>
+pruneFuture(gameId: string, nodeId: string): Promise<void>
+saveGame(gameId: string): Promise<void>
+exportGame(gameId: string): Promise<void>
+importGame(): Promise<IGameWorkspace>
+```
 
-## Module Functions
-- createGame(options: NewGameOptions): IGame
-- loadGame(gameId: string): Promise<IGame | null>
-- saveGame(game: IGame): Promise<void>
-- deleteGame(gameId: string): Promise<void>
-- makeMove(gameId: string, move: IMove): boolean
-- enterAnalysisMode(gameId: string): void
-- exitAnalysisMode(gameId: string): void
-- enterFreeBoardSetupMode(gameId: string): void
-- applyFreeBoardSetup(gameId: string, position: IChessboardState): IGame
-- clearHistory(gameId: string): IGame
-- startGameFromSetupPosition(gameId: string, options: Partial<NewGameOptions>): IGame
-- switchPlayer(gameId: string, playerColour: playerColour, player: IPlayer): IGame
-- takeBack(gameId: string, count: number): boolean
-- getGameById(gameId: string): IGame | undefined
-- listGames(): IGame[]
-- replaceGame(game: IGame): void
-- importGameFromFile(file: File): Promise<IGame>
-- exportGameToFile(gameId: string, filename: string): Promise<void>
-- requestMoveFromCurrentPlayer(gameId: string): Promise<IMove | null>
+## Responsibilities
+- create live games or free-analysis workspaces from setup input
+- enforce allowed actions from the state axes and settings policies
+- coordinate legal move application, move-tree updates, and clock changes
+- build the canonical game document and exact-screen snapshot for autosave and export
+- trigger analysis refreshes when the visible or live position changes
 
-## Private Helpers
-- persistGameList(): Promise<void>
-- hydrateGame(game: IGame): IGame
-- validateGameForMove(game: IGame, move: IMove): boolean
-- updateClocksAfterMove(game: IGame, move: IMove): IGame
-- applyResign(game: IGame, player: PlayerColor): IGame
-- setAnalysisMode(game: IGame, enabled: boolean): IGame
-- addMoveBranchInternal(game: IGame, move: IMove, parentNodeId: string): IGame
-- setGameStatusInternal(game: IGame, status: GameStatus): IGame
-- enterFreeBoardSetupModeInternal(game: IGame): IGame
-- applySetupBoard(game: IGame, position: IChessboardState): IGame
-- clearHistoryInternal(game: IGame): IGame
-- switchPlayerTypeInternal(game: IGame, playerColour: PlayerColor, type: "human" | "remote" | "engine"): IGame
-- isGameOver(game: IGame): boolean
-- requestPlayerMove(game: IGame): Promise<IMove | null>
-## Calls
-- GameRuleService.isMoveLegal
-- MoveUpdateService.addMoveToMainline
-- MoveUpdateService.getCurrentPosition
-- TimeControlService.updateClockAfterMove
-- SerializationService.serializeGameToJSON
-- SerializationService.deserializeGameFromJSON
-- StorageAdapter.setItem
-- StorageAdapter.getItem
+## Dependencies
+- `GameRuleService`
+- `MoveUpdateService`
+- `TimeControlService`
+- `SerializationService`
+- `StorageAdapter`
+- `FileIoAdapter`
+- `AnalysisStore`
+- `EnginesStore`
+
+## Scenario Coverage
+- `SCN-GAME-01` to `SCN-GAME-03`
+- `SCN-MOVE-01` to `SCN-MOVE-03`
+- `SCN-HIST-01` to `SCN-HIST-04`
+- `SCN-FREE-ANALYSIS-01` to `SCN-FREE-ANALYSIS-03`
+- `SCN-ANALYSIS-01`
+- `SCN-CTRL-01` to `SCN-CTRL-05`
+- `SCN-SAVE-01` to `SCN-LOAD-02`
+- `SCN-LIFECYCLE-01` and `SCN-LIFECYCLE-02`

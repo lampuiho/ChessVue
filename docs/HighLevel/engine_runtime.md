@@ -10,7 +10,7 @@ The baseline is desktop-first and multi-engine now. Engine behaviour must follow
 - Engine transport: local child process
 - Engine host capability: desktop shell with process and filesystem access
 
-The baseline does not commit to browser, WASM, network, or remote-engine transports. Those options are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+The baseline does not commit to browser, WASM, network, or remote-engine transports. Those options are tracked in [ideas.md](ideas.md).
 
 ## Engine Roles
 ChessVue supports two committed engine roles.
@@ -74,7 +74,7 @@ If the user selects more than the supported concurrent analysis engines, the app
 - Engine start failure must be isolated to the affected engine.
 - Unexpected engine stop marks that engine as unavailable for the current session.
 - The user may retry engine start manually.
-- Automatic reconnect or backoff retry is not part of the baseline and is deferred to [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+- Automatic reconnect or backoff retry is not part of the baseline and is deferred to [ideas.md](ideas.md).
 
 ## Restore Behaviour
 - When a saved game is loaded, the saved analysis snapshot for the visible position is shown first.

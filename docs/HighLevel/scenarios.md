@@ -22,15 +22,15 @@ This is a design artifact only. It introduces no runtime code/API changes.
 ## Rewrite Baseline
 - `Current` and `Planned` scenarios are rewrite input.
 - `Idea` scenarios are not rewrite input.
-- Deferred concepts referenced by `Idea` scenarios are also catalogued in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+- Deferred concepts referenced by `Idea` scenarios are also catalogued in [ideas.md](ideas.md).
 
 ## Contract Traceability
 The high-level contracts used by this document are:
 
-- `STATE`: [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md)
-- `PERSIST`: [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md)
-- `ENGINE`: [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md)
-- `SETTINGS`: [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md)
+- `STATE`: [state_model.md](state_model.md)
+- `PERSIST`: [persistence_contract.md](persistence_contract.md)
+- `ENGINE`: [engine_runtime.md](engine_runtime.md)
+- `SETTINGS`: [settings_contract.md](settings_contract.md)
 
 ## Current and Planned Scenario Contract Map
 This matrix is the authoritative trace from each committed scenario to the contracts that define its implementation-shaping behaviour.
@@ -1015,7 +1015,7 @@ Each scenario in this document uses the same structure:
 ---
 ## Additional User-Idea Scenarios (For Review)
 
-> All scenarios in this section are `Idea` status, are outside the rewrite baseline, and should be read together with [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+> All scenarios in this section are `Idea` status, are outside the rewrite baseline, and should be read together with [ideas.md](ideas.md).
 
 ### SCN-IDEA-01 - Quick Game Preset from Home
 - **Status**: Idea

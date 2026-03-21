@@ -1,24 +1,32 @@
-﻿# StateManagement/AnalysisStore.md
-# AnalysisStore Module (State Management)
+# AnalysisStore
 
 ## Purpose
-Store engine analysis and coordinate evaluation requests.
+Store per-game, per-engine, per-position analysis snapshots and coordinate live analysis refreshes.
 
-## Data Interfaces
-- IAnalysisResult (from DataInterface/Analysis.md)
+## Public Interface
+```ts
+getVisibleAnalysis(gameId: string, positionFen: string): IVisibleAnalysisSnapshot | null
+storeEngineOutput(gameId: string, engineId: string, positionFen: string, line: string): void
+loadSavedVisibleAnalysis(gameId: string, snapshot: IVisibleAnalysisSnapshot | null): void
+refreshAnalysis(gameId: string, positionFen: string): Promise<void>
+stopAnalysis(gameId: string): Promise<void>
+clearGameAnalysis(gameId: string): void
+```
 
-## Module Functions
-- storeEvaluation(gameId: string, engineId: string, fen: string, eval: IAnalysisResult): void
-- getEvaluation(gameId: string, engineId: string, fen: string): IAnalysisResult | null
-- clearEvaluations(gameId: string): void
-- listEvaluations(gameId: string, engineId?: string): IAnalysisResult[]
-- requestEvaluation(gameId: string, engineId: string, fen: string, depth: number): Promise<IAnalysisResult>
+## Responsibilities
+- parse streamed UCI output into stable `IAnalysisSnapshot` values
+- keep each engine row independent
+- expose the latest visible analysis snapshot for persistence and restore
+- preserve saved analysis on restore before live analysis resumes
 
-## Private Helpers
-- buildAnalysisKey(gameId: string, engineId: string, fen: string): string
-- parseEngineOutput(raw: string): IAnalysisResult
+## Dependencies
+- `EnginesStore`
+- `ProcessManager`
 
-## Calls
-- EnginesStore.getEngineById
-- EngineAdapter.sendCommand
-- EngineAdapter.readLine
+## Scenario Coverage
+- `SCN-ANALYSIS-01`
+- `SCN-ANALYSIS-02`
+- `SCN-ANALYSIS-03`
+- `SCN-ANALYSIS-04`
+- `SCN-FREE-ANALYSIS-01`
+- `SCN-LOAD-01`

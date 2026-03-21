@@ -1,37 +1,50 @@
-# Engine Configuration and Process Interfaces
+# Engine Types
 
 ## Purpose
-Define engine metadata, options, and process handles used by engine and analysis components.
+Define configured engine records, per-game engine assignment, and runtime-session state.
+
+## Types
+- `type EngineProtocol = "uci"`
+- `type EngineRole = "player" | "analysis"`
+- `type EngineAvailability = "ready" | "starting" | "running" | "unavailable" | "failed"`
 
 ## Interfaces
-- `EngineProtocol` (`"uci" | "xboard"`)
-- `IEngineConfig`
-- `IEngine`
-- `EngineProcessHandle`
+- `interface IEngineRecord`
+- `interface IEngineOptionMap`
+- `interface IAnalysisAssignment`
+- `interface IEngineRuntimeSession`
 
 ## Data Structures
-- `interface IEngineConfig {
+```ts
+interface IEngineOptionMap {
+  [optionName: string]: string | number | boolean
+}
+
+interface IEngineRecord {
   id: string
-  name: string
+  displayName: string
   executablePath: string
   protocol: EngineProtocol
-  options: Record<string, string | number | boolean>
-  defaultThreads?: number
-  defaultHash?: number
-  autoStart?: boolean
+  options: IEngineOptionMap
 }
 
-- `interface IEngine {
-  id: string
-  config: IEngineConfig
-  isRunning: boolean
-  handle?: EngineProcessHandle
+interface IAnalysisAssignment {
+  analysisEngineIds: string[]
 }
 
-- `interface EngineProcessHandle {
-  pid: number
-  stdin: any
-  stdout: any
-  stderr?: any
-  isAlive: boolean
+interface IEngineRuntimeSession {
+  sessionId: string
+  gameId: string
+  engineId: string
+  role: EngineRole
+  availability: EngineAvailability
+  targetPositionFen: string | null
+  lastError: string | null
 }
+```
+
+## Rules
+- Engine inventory lives in settings data.
+- Analysis assignment is per game.
+- A running session is isolated by game, engine, and role.
+- The baseline permits at most four concurrent analysis engines per game.

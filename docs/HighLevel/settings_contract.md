@@ -65,7 +65,7 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - `analysis.resumeLiveAnalysisAfterRestore` applies only after exact-screen restore completes.
 
 ## Explicit Non-Baseline Settings
-The following are intentionally excluded from the baseline settings contract and are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) if needed:
+The following are intentionally excluded from the baseline settings contract and are tracked in [ideas.md](ideas.md) if needed:
 
 - dark mode
 - sound enablement
@@ -75,6 +75,6 @@ The following are intentionally excluded from the baseline settings contract and
 - variant preferences
 
 ## Ownership Notes
-- Settings are stored in the user settings snapshot defined in [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md).
+- Settings are stored in the user settings snapshot defined in [persistence_contract.md](persistence_contract.md).
 - Per-game engine assignment belongs to the game document, not to the global settings schema.
 - Session shell restoration belongs to session persistence, even when the behaviour is controlled by settings.

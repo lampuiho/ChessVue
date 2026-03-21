@@ -53,5 +53,5 @@ Anything in this document is excluded from that baseline unless it is later prom
 | Extra inferred board-display toggles beyond the committed baseline | previous `user_settings.md` inferred rows | Only the settings promoted into `settings_contract.md` should shape the rewrite. |
 
 ## Notes
-- `Idea` scenarios remain in [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md) for traceability, but this document is the main catalogue of deferred concepts.
+- `Idea` scenarios remain in [scenarios.md](scenarios.md) for traceability, but this document is the main catalogue of deferred concepts.
 - When an idea is promoted, update the relevant baseline document first and then remove or revise the entry here.

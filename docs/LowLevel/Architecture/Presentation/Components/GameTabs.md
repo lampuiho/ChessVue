@@ -1,20 +1,15 @@
-﻿# Presentation/Components/GameTabs.md
-# GameTabs Component (Presentation)
+# GameTabs
 
 ## Purpose
-Render tabs for open games and manage switching between games.
+Render open game tabs and allow deterministic switching between workspaces.
 
-## Data Interfaces
-- IGame (from DataInterface/Game.md)
-- IUiState (from DataInterface/UiState.md)
+## Consumes
+- ordered open games from `UiStateStore`
+- active game identity
 
-## Component Methods
-- renderTabs(gameIds: string[]): VNode
-- onSelectTab(gameId: string): void
-- onCloseTab(gameId: string): void
+## Emits
+- `tabSelected`
+- `tabClosed`
 
-## Calls
-- UiStateStore.openTab
-- UiStateStore.closeTab
-- GamesStore.getGameById
-
+## Notes
+- The tab bar hides when only one game is open.

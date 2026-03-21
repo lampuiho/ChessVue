@@ -1,21 +1,24 @@
-# IChessPiece / PieceType / PlayerColour
+# Chess Piece Types
 
 ## Purpose
-Define a standardized chess piece model used by rules, board rendering, and serialization.
+Define the smallest chess-specific value objects shared by board, move, and game-document types.
+
+## Types
+- `type PlayerColour = "white" | "black"`
+- `type PieceKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn"`
+- `type SquareId = string`
 
 ## Interfaces
-- `PieceType` (`"king" | "queen" | "rook" | "bishop" | "knight" | "pawn"`)
-- `PlayerColour` (`"white" | "black"`)
-- `IChessPiece`
+- `interface IChessPiece`
 
 ## Data Structures
-- `interface IChessPiece {
-  id: string
-  type: PieceType
-  color: PlayerColour
-  square: string
-  hasMoved: boolean
-  captured: boolean
+```ts
+interface IChessPiece {
+  kind: PieceKind
+  colour: PlayerColour
 }
+```
 
-- `type PieceSymbol = "K" | "Q" | "R" | "B" | "N" | "P" | "k" | "q" | "r" | "b" | "n" | "p"`
+## Notes
+- `SquareId` is the serialisable board coordinate token used across board, move, and analysis payloads.
+- Only standard chess pieces are baseline.

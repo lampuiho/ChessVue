@@ -3,18 +3,18 @@
 ## Purpose
 This page explains how ChessVue configuration is split across three related high-level documents:
 
-- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md): the authoritative user-editable settings contract
-- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md): reader-friendly summary of committed user settings
-- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md): committed desktop-first runtime and build assumptions
+- [settings_contract.md](settings_contract.md): the authoritative user-editable settings contract
+- [user_settings.md](user_settings.md): reader-friendly summary of committed user settings
+- [build_settings.md](build_settings.md): committed desktop-first runtime and build assumptions
 
 ## Boundary
-Use [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md) when the value is:
+Use [settings_contract.md](settings_contract.md) when the value is:
 
 - editable by the user
 - persisted as a preference
 - allowed to shape low-level settings schema design
 
-Use [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md) when the value controls:
+Use [build_settings.md](build_settings.md) when the value controls:
 
 - platform capabilities
 - engine transport/runtime implementation
@@ -22,7 +22,7 @@ Use [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md
 - route and shell exposure defaults
 - serialisation/runtime integration choices
 
-Use [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) when a configuration topic is:
+Use [ideas.md](ideas.md) when a configuration topic is:
 
 - speculative
 - deferred
@@ -37,5 +37,5 @@ Use [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) when a configura
 
 ## Notes
 - Per-game engine assignment belongs to the game model, not to the global settings schema.
-- Session restore behaviour is partly controlled by settings but is persisted through the session snapshot defined in [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md).
+- Session restore behaviour is partly controlled by settings but is persisted through the session snapshot defined in [persistence_contract.md](persistence_contract.md).
 - If a setting or runtime option is not present in the baseline contract docs, the low-level rewrite should not invent it.

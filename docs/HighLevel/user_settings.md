@@ -3,12 +3,12 @@
 ## Purpose
 This document summarises the committed user-editable settings for the rewrite baseline.
 
-The authoritative schema lives in [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md). This document is the reader-friendly overview.
+The authoritative schema lives in [settings_contract.md](settings_contract.md). This document is the reader-friendly overview.
 
 ## Baseline Rule
 Only committed user-editable settings appear here.
 
-Capabilities, restore guarantees, and deferred ideas are not treated as settings unless they are explicitly included in [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md).
+Capabilities, restore guarantees, and deferred ideas are not treated as settings unless they are explicitly included in [settings_contract.md](settings_contract.md).
 
 ## 1. Session Behaviour
 | Setting | Baseline Notes |
@@ -66,4 +66,4 @@ The following items are not committed baseline settings and should not appear in
 - mobile panel preference
 - variant preferences
 
-These remain deferred in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+These remain deferred in [ideas.md](ideas.md).
