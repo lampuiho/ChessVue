@@ -20,10 +20,13 @@ restartProcess(sessionId: string, executablePath: string, args?: string[]): Prom
 
 ## Dependencies
 - desktop child-process APIs
+- shared platform failure contract from `DataInterface/PlatformError`
 
 ## Notes
 - `ProcessManager` owns process mechanics only; it does not interpret chess, protocol semantics, or UI state.
-- Unexpected exit marks the session unavailable until the user retries.
+- `spawnProcess` and `restartProcess` reject with `IPlatformError` of kind `processStartFailed` when the host cannot create the process.
+- Post-start termination is treated separately as `unexpectedExit` so callers can distinguish launch failure from runtime failure.
+- The rewrite-phase mock must support scripted stdout, scripted unexpected exit, and per-session isolation so `EngineClient`, `EnginesStore`, and analysis-flow tests do not depend on real engine binaries.
 
 ## Raw I/O Example
 `ProcessManager` only sees process spawning, stdin writes, and stdout lines.

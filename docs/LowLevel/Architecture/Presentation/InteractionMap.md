@@ -11,6 +11,12 @@ Under the template-ownership rule:
 - feature components contain no HTML or template markup
 - only common components own render markup
 
+Read-side rule:
+
+- views and feature adapters consume store state directly
+- small pure local selectors or mapping functions may shape store state for render components
+- no separate presentation query-helper subsystem is part of the baseline
+
 ## Interaction Coverage
 ### Startup And Home Actions
 - Fresh launch and no-active-game fallback render in `HomeView`.

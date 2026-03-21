@@ -10,8 +10,18 @@ Unlike earlier notes, this is not a catalogue of all possible future targets. It
 - local filesystem access
 - local child-process engine runtime
 - canonical internal JSON persistence
+- adapter-backed mocked `NW.js` host services during the rewrite phase
 
 Deferred runtime options are tracked in [ideas.md](ideas.md).
+
+## Rewrite-Phase Host Assumption
+The first rewrite implementation should behave as if the desktop host were `NW.js`, but the Vue app must only see platform adapters.
+
+That means:
+
+- `StorageAdapter`, `FileIoAdapter`, and `ProcessManager` are wired through one bootstrap seam
+- the initial concrete implementations are mocked `NW.js`-style services behind those adapters
+- real host wiring may replace the mocks later without changing store or presentation contracts
 
 ## Platform Runtime
 | Setting Area | Baseline Decision |
@@ -19,6 +29,8 @@ Deferred runtime options are tracked in [ideas.md](ideas.md).
 | Host capability | Desktop shell with filesystem and process access |
 | Supported runtime family | Desktop only for the current rewrite baseline |
 | Environment detection | Minimal desktop-capability bootstrap only |
+| Rewrite-phase host fiction | Mocked `NW.js`-style services behind platform adapters |
+| Adapter bootstrap seam | `createPlatformServices() -> { storageAdapter, fileIoAdapter, processManager }` |
 | Responsive target | Desktop layout first; compact and mobile-specific behaviour is deferred |
 
 ## Engine Runtime

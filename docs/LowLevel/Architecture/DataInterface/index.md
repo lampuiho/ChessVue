@@ -13,6 +13,7 @@ The types in this folder are the contract-level shapes that state stores and ser
 - [TimeControl](TimeControl.md): time-control config and live clock snapshots.
 - [Engine](Engine.md): configured engines, per-game assignment, and runtime sessions.
 - [Analysis](Analysis.md): streamed engine output and visible analysis snapshots.
+- [PlatformError](PlatformError.md): shared typed platform-layer failure contract.
 
 ## Persisted Artefacts
 - [Settings](Settings.md): authoritative user settings snapshot.

@@ -33,9 +33,12 @@ Purpose: isolate desktop-specific capabilities behind interfaces.
 
 Committed platform modules:
 
+- `createPlatformServices` as the bootstrap seam for concrete platform adapters
 - `StorageAdapter` for app-local persistence
 - `FileIoAdapter` for save/load file workflows
 - `ProcessManager` for local child-process lifecycle and UCI communication
+
+During the rewrite phase, these adapters are backed by mocked `NW.js`-style host services rather than final real host bindings.
 
 This layer does not depend on domain, state, or presentation modules.
 
@@ -82,7 +85,7 @@ Committed presentation modules:
 - `AnalysisPanel`
 - `GameControlPanel`
 
-This layer depends on state management and presentation-safe domain helpers.
+This layer depends on state management. Views and feature components read store state directly and may use small pure local mapping or selector functions for rendering.
 
 ## Baseline Route Shape
 The committed baseline route map is:
@@ -95,9 +98,11 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 
 ## Module Responsibilities
 ### Platform Abstraction
+- `createPlatformServices` is the only baseline bootstrap seam for wiring concrete platform adapters into the app.
 - `StorageAdapter` persists settings, session state, and autosaved game documents.
 - `FileIoAdapter` imports and exports the canonical saved game document defined in [persistence_contract.md](persistence_contract.md).
 - `ProcessManager` starts, communicates with, and stops local UCI engine processes as defined in [engine_runtime.md](engine_runtime.md).
+- The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
 
 ### Domain Logic
 - `GameRuleService` validates and applies moves, resolves promotion choices, and detects terminal game results.
@@ -127,7 +132,7 @@ The dependency direction is fixed:
 Platform Abstraction
 Domain Logic
 State Management -> Domain Logic + Platform Abstraction
-Presentation -> State Management + selected Domain Logic helpers
+Presentation -> State Management
 ```
 
 Additional rules:
@@ -135,6 +140,8 @@ Additional rules:
 - Domain logic must remain serialisable and testable without desktop APIs.
 - Presentation must not implement business rules that belong to the four contracts.
 - State stores are the coordination boundary for persistence, engine runtime, and UI-triggered game mutations.
+- Views and feature adapters consume store state directly and may shape it with pure local selectors only.
+- Narrow domain reads such as `TimeControlService.getRemainingTime` remain allowed when the composing view or store needs an authoritative calculation, but they do not form a separate presentation-helper layer.
 
 ## Baseline Behaviour Ownership
 The high-level contracts divide behaviour ownership as follows:

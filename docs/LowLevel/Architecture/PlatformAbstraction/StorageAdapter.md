@@ -23,7 +23,13 @@ removeGameDocument(gameId: string): Promise<void>
 
 ## Dependencies
 - underlying desktop persistence mechanism
+- shared platform failure contract from `DataInterface/PlatformError`
 
-## Notes
-- `StorageAdapter` does not perform schema migration; `SerializationService` does that on read.
-- Optional corrupted sections inside a game document may be replaced with safe defaults after migration.
+## Failure Semantics
+- `getSettingsSnapshot`, `getSessionSnapshot`, and `getGameDocument` return `null` when the artefact is absent.
+- `listGameDocumentIds`, all `set...`, and `removeGameDocument` reject with `IPlatformError` when the host storage boundary fails.
+- Readable-but-invalid payloads are not silently repaired here; stores still pass loaded artefacts through `SerializationService` for migration and corruption decisions.
+
+## Rewrite-Phase Mock Note
+- The first implementation pretends to run on `NW.js` but uses an adapter-backed in-memory mock.
+- The mock keeps settings, session, and per-game documents separated so corruption and recovery can be tested independently.

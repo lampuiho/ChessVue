@@ -19,6 +19,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 
 ## Layer Map
 ### 1. Platform Abstraction
+- [PlatformServices](PlatformAbstraction/PlatformServices.md)
 - [StorageAdapter](PlatformAbstraction/StorageAdapter.md)
 - [FileIoAdapter](PlatformAbstraction/FileIoAdapter.md)
 - [ProcessManager](PlatformAbstraction/ProcessManager.md)
@@ -56,7 +57,7 @@ The dependency direction is fixed:
 Platform Abstraction
 Domain Logic
 State Management -> Domain Logic + Platform Abstraction
-Presentation -> State Management + presentation-safe read helpers
+Presentation -> State Management
 ```
 
 Additional rules:
@@ -65,6 +66,10 @@ Additional rules:
 - State stores are the coordination boundary for UI-triggered mutations.
 - Domain logic remains serialisable and platform-independent.
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
+- `createPlatformServices()` is the only baseline bootstrap seam for injecting concrete platform adapters into the app.
+- The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `FileIoAdapter`, and `ProcessManager`.
+- Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
+- Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
 - Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
 - Only common presentation components may own HTML or template markup. Views and feature components are template-free coordinators that connect state, events, and common render building blocks.
 
@@ -85,6 +90,7 @@ The data-interface section defines the shared low-level types for:
 - time control and clock snapshots
 - engine inventory, assignment, and runtime sessions
 - analysis snapshots
+- shared platform failure contracts
 - persisted artefacts:
   - settings snapshot
   - session snapshot
