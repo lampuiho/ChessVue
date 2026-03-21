@@ -19,6 +19,67 @@ This is a design artifact only. It introduces no runtime code/API changes.
   - `In-game analysis mode`: entered from an active game, board editing not allowed, user can explore moves without progressing the live game.
 - **Function Touchpoints** reference low-level modules/functions to guide implementation interfaces.
 
+## Rewrite Baseline
+- `Current` and `Planned` scenarios are rewrite input.
+- `Idea` scenarios are not rewrite input.
+- Deferred concepts referenced by `Idea` scenarios are also catalogued in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
+
+## Contract Traceability
+The high-level contracts used by this document are:
+
+- `STATE`: [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md)
+- `PERSIST`: [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md)
+- `ENGINE`: [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md)
+- `SETTINGS`: [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md)
+
+## Current and Planned Scenario Contract Map
+This matrix is the authoritative trace from each committed scenario to the contracts that define its implementation-shaping behaviour.
+
+| Scenario | Contracts |
+| --- | --- |
+| `SCN-SESSION-01` | `PERSIST`, `SETTINGS` |
+| `SCN-SESSION-02` | `STATE`, `PERSIST`, `SETTINGS` |
+| `SCN-SESSION-03` | `PERSIST` |
+| `SCN-GAME-01` | `STATE`, `PERSIST`, `SETTINGS` |
+| `SCN-GAME-02` | `STATE`, `ENGINE`, `SETTINGS` |
+| `SCN-GAME-03` | `STATE`, `PERSIST` |
+| `SCN-NAV-01` | `STATE`, `SETTINGS` |
+| `SCN-NAV-02` | `STATE` |
+| `SCN-MOVE-01` | `STATE`, `ENGINE` |
+| `SCN-MOVE-02` | `STATE` |
+| `SCN-MOVE-03` | `STATE`, `SETTINGS` |
+| `SCN-HIST-01` | `STATE`, `ENGINE` |
+| `SCN-HIST-02` | `STATE`, `SETTINGS` |
+| `SCN-HIST-03` | `STATE`, `SETTINGS` |
+| `SCN-HIST-04` | `STATE`, `PERSIST`, `SETTINGS` |
+| `SCN-FREE-ANALYSIS-01` | `STATE`, `ENGINE` |
+| `SCN-FREE-ANALYSIS-02` | `STATE`, `ENGINE`, `SETTINGS` |
+| `SCN-FREE-ANALYSIS-03` | `STATE`, `ENGINE`, `SETTINGS` |
+| `SCN-ANALYSIS-01` | `STATE`, `ENGINE` |
+| `SCN-ANALYSIS-02` | `ENGINE` |
+| `SCN-ANALYSIS-03` | `ENGINE` |
+| `SCN-ANALYSIS-04` | `STATE`, `ENGINE`, `SETTINGS` |
+| `SCN-TIME-01` | `STATE` |
+| `SCN-TIME-02` | `STATE` |
+| `SCN-TIME-03` | `STATE`, `SETTINGS` |
+| `SCN-TIME-04` | `STATE` |
+| `SCN-TIME-05` | `STATE`, `SETTINGS` |
+| `SCN-CTRL-01` | `STATE`, `SETTINGS` |
+| `SCN-CTRL-02` | `STATE`, `PERSIST` |
+| `SCN-CTRL-03` | `STATE`, `ENGINE` |
+| `SCN-CTRL-04` | `STATE`, `ENGINE` |
+| `SCN-CTRL-05` | `STATE` |
+| `SCN-SAVE-01` | `PERSIST` |
+| `SCN-SAVE-02` | `PERSIST`, `SETTINGS` |
+| `SCN-LOAD-01` | `PERSIST`, `ENGINE` |
+| `SCN-LOAD-02` | `PERSIST` |
+| `SCN-SETTINGS-01` | `SETTINGS`, `PERSIST` |
+| `SCN-SETTINGS-02` | `SETTINGS`, `PERSIST` |
+| `SCN-ENGINE-01` | `ENGINE`, `SETTINGS` |
+| `SCN-ENGINE-02` | `ENGINE`, `SETTINGS` |
+| `SCN-LIFECYCLE-01` | `STATE`, `PERSIST` |
+| `SCN-LIFECYCLE-02` | `STATE`, `PERSIST` |
+
 ## Scenario Template
 Each scenario in this document uses the same structure:
 
@@ -954,7 +1015,7 @@ Each scenario in this document uses the same structure:
 ---
 ## Additional User-Idea Scenarios (For Review)
 
-> All scenarios in this section are `Idea` status and should be reviewed before entering implementation scope.
+> All scenarios in this section are `Idea` status, are outside the rewrite baseline, and should be read together with [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
 
 ### SCN-IDEA-01 - Quick Game Preset from Home
 - **Status**: Idea
@@ -1152,4 +1213,5 @@ Each scenario in this document uses the same structure:
 - All major high-level features from `docs/HighLevel/plan.md` are represented by at least one scenario.
 - Every scenario includes at least one explicit non-happy-path branch.
 - All branch paths are tied to module-level function touchpoints for low-level design traceability.
-- `Idea` scenarios are isolated in a dedicated review section and are not implied implementation commitments.
+- The contract map above provides the baseline trace from each `Current` and `Planned` scenario to the four implementation-shaping contracts.
+- `Idea` scenarios are isolated in a dedicated review section, are catalogued in `ideas.md`, and are not implied implementation commitments.

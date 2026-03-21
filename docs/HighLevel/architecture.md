@@ -1,100 +1,175 @@
-**Architecture Overview for ChessVue**
+﻿# ChessVue Baseline Architecture
 
-This high level architecture shows what is required in the app to achieve goal set out in the [plan](plan.md).
+## Purpose
+This document defines the committed high-level architecture for the next implementation wave.
 
-Here the information is brief and does not contain every single feature of the modules or even every single modules.
+The rewrite baseline is:
 
-It merely serves as a reference for what layers are need to be designed and implemented
+- `All Planned`
+- `desktop-first`
+- `multi-engine now`
 
-The system follows a **layered architecture** with **four tiers** and **strictly acyclic dependencies**
-each module in each layer must be completely independent of each other:
+`Idea` items are intentionally excluded from this document and are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md).
 
----
+## Architectural Rule
+The low-level rewrite may depend only on:
 
-**LAYER 1: Platform Abstraction (Bottom)**
-- Interfaces for file I/O, process management, environment detection
-- Implementations per platform (Browser/localStorage, NW.js/filesystem, Capacitor/native)
-- No dependencies on layers above
+- this document
+- [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md) for `Current` and `Planned` behaviour
+- [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md)
+- [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md)
+- [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md)
+- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md)
+- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md)
+- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md)
 
-**LAYER 2: Domain Logic**
-- Game rule (move validation, board state, piece logic)
-- Time control engine (countdown, increment logic, variant support)
-- Move tree and branching logic
-- Serialization/deserialization (FEN, PGN, JSON)
-- *No UI dependencies; pure game logic*
+The low-level rewrite must not promote anything from [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) without a separate high-level decision.
 
-**LAYER 3: State Management (Pinia Stores)**
-- Games store (manage game instances, CRUD)
-- Settings store (persisted user preferences)
-- Analysis store (engine results, keyed by gameId + engineId)
-- Engines store (available engines, their configs)
-- UI state store (routing, modal states)
-- *Depends on: Domain Logic, Platform Abstraction*
+## Layer Model
+ChessVue uses a layered architecture with acyclic dependencies.
 
-**LAYER 4: Presentation (Vue Components + Router)**
-- Views (GameView, SettingsView, etc.)
-- Components (Chessboard, PlayerPanel, HistoryPanel, MenuBar, TabBar)
-- Router setup (game routes, settings route)
-- *Depends on: State Management, Domain Logic*
+### Layer 1: Platform Abstraction
+Purpose: isolate desktop-specific capabilities behind interfaces.
 
----
+Committed platform modules:
 
-**MODULE SUMMARIES:**
+- `StorageAdapter` for app-local persistence
+- `FileIoAdapter` for save/load file workflows
+- `ProcessManager` for local child-process lifecycle and UCI communication
 
-**Domain Logic Modules:**
-1. **Game Rules** — validates moves, updates board state (and analysis mode for making moves without progressing game), detects game end (checkmate, stalemate). Exposes: valid move checking, board/piece state, game status.
-2. **Move Update** — tree structure for branching move history (and the time the move is made since game start). Exposes: add move as main branch (for navigate to old move as take back and continuing game from there), add move without changing branch (as analysis mid game when take back is not allowed), navigate to last node, navigate to node, query mainline path, prune moves (for deleting future moves made in analysis mode and making real move).
-3. **Time Control** — manages per-player time, applies increments/delays per variant. Exposes: tick (update game time, time is stored as relative time, on game load a reference time is created to continue calculation with current time), apply increment, query remaining time, variant configuration.
-4. **Serialization** — convert game state ↔ FEN/PGN/JSON. Exposes: serialize game, deserialize from format, migrate old formats.
+This layer does not depend on domain, state, or presentation modules.
 
-**State Management Modules:**
-1. **Games Store** — list of active games, CRUD operations. Exposes: create game, load game, get game by ID, delete game, update game.
-7. **Settings Store** — user preferences (piece style, board color, time presets, engine options, UI scale). Exposes: get/set setting, apply theme, reset to defaults, persist settings.
-8. **Analysis Store** — engine evaluations per position. Exposes: store evaluation, query by gameId + engineId + position, clear outdated results.
-9. **Engines Store** — available UCI engines, their paths and options. Exposes: list engines, add engine, configure engine, remove engine.
-10. **UI State Store** — routing state, modal visibility, selected game/engine. Exposes: set current game, set modal state, toggle panel visibility.
+### Layer 2: Domain Logic
+Purpose: hold chess rules and serialisable game logic with no UI or platform assumptions.
 
-**Platform Abstraction Modules:**
-1. **File I/O Adapter** — abstract interface for save/load. Exposes: load game from file, save game to file, list recent games.
-2. **Process Manager** — abstract interface for communication with executable processed on the OS platform (or browser), in particularly the engine processes (spawn, communicate, terminate). Exposes: spawn engine, send UCI command, listen for output, stop engine.
-3. **Storage Adapter** — abstract interface for persistence (localStorage vs. filesystem). Exposes: get item, set item, remove item.
+Committed domain modules:
 
-**Presentation Modules:**
-1. **Router** — maps game IDs and routes to views. Setup: /game/:id, /settings, /analysis, /home.
-15. **GameView** — layout: board (center), player panels (top/bottom), analysis/history/control panel (right). Exposes: game ID prop, move event, takeback event.
-16. **Chessboard Component** — renders 64 squares, pieces, highlights, drag-drop. Exposes: board state prop, move event, flipped prop.
-17. **PlayerPanel Component** — shows player name, time remaining, captured pieces, avatar. Exposes: player data prop.
-18. **AnalysisPanel Component**  — list best engine moves, 1 line of thoughts per row, can fold per engine
-19. **HistoryPanel Component** — tree visualization of moves, mainline highlighted, click to navigate. Exposes: move history prop, navigate event.
-20. **GameControlPanel Component** — resign, take back, pause, enter analysis mode
-21. **MenuBar Component** — new game, load game, settings, quit. Exposes: action events.
-22. **SettingsView** — controls for time presets, piece/board style, engine config. Exposes: update setting event.
-23. **NewGame Popup** — a prompt for settings for the new game like time control, choosing players (if engine, able to pick preset profile maybe)
-24. **GameTab View** — hosting the game view and for switching to different games/analysis with tabs. when there are more than 1 game views otherwise act invisible to the user eye like there is only the game tab
-25. **Home View** — show large buttons for most common actions, like starting new game, loading game, quick game with presets, list of previous games
-26. Other common components for basic window management such as tabs, popups, buttons, etc.
+- `GameRuleService`
+- `MoveUpdateService`
+- `TimeControlService`
+- `SerializationService`
 
----
+This layer owns legal move handling, move-tree rules, clock calculation rules, and serialisation rules.
 
-**DEPENDENCY SUMMARY (no cycles):**
+### Layer 3: State Management
+Purpose: coordinate app state, domain logic, persistence, and engine runtime.
 
+Committed state modules:
+
+- `GamesStore`
+- `AnalysisStore`
+- `EnginesStore`
+- `SettingsStore`
+- `UiStateStore`
+
+This layer depends on domain logic and platform abstractions.
+
+### Layer 4: Presentation
+Purpose: render the app shell, views, and interactive UI.
+
+Committed presentation modules:
+
+- `Router`
+- `HomeView`
+- `GameView`
+- `SettingsView`
+- `MenuBar`
+- `GameTabs`
+- `NewGameModal`
+- `Chessboard`
+- `PlayerPanel`
+- `HistoryPanel`
+- `AnalysisPanel`
+- `GameControlPanel`
+
+This layer depends on state management and presentation-safe domain helpers.
+
+## Baseline Route Shape
+The committed baseline route map is:
+
+- `/home`
+- `/game/:id`
+- `/settings`
+
+Analysis is part of `GameView` in the baseline architecture. A standalone analysis route or dedicated analysis view is not part of the rewrite baseline.
+
+## Module Responsibilities
+### Platform Abstraction
+- `StorageAdapter` persists settings, session state, and autosaved game documents.
+- `FileIoAdapter` imports and exports the canonical saved game document defined in [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md).
+- `ProcessManager` starts, communicates with, and stops local UCI engine processes as defined in [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md).
+
+### Domain Logic
+- `GameRuleService` validates and applies moves, resolves promotion choices, and detects terminal game results.
+- `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
+- `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
+- `SerializationService` owns the canonical saved game document shape, schema versioning hooks, and migration entry points.
+
+### State Management
+- `GamesStore` owns live game instances and enforces the interaction rules in [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md).
+- `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
+- `EnginesStore` owns configured engine inventory, engine assignment, and runtime availability state.
+- `SettingsStore` owns persisted user settings defined in [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md).
+- `UiStateStore` owns session-level shell state such as active game, open tabs, and non-modal UI layout state.
+
+### Presentation
+- `HomeView` is the neutral landing screen for launch and no-active-game fallback.
+- `GameView` is the main gameplay workspace and hosts board, players, history, analysis, and controls.
+- `SettingsView` edits committed user settings and engine inventory.
+- `MenuBar`, `GameTabs`, and `NewGameModal` provide shell-level actions and navigation.
+- `Chessboard`, `PlayerPanel`, `HistoryPanel`, `AnalysisPanel`, and `GameControlPanel` render committed game interactions only.
+
+## Dependency Rules
+The dependency direction is fixed:
+
+```text
+Platform Abstraction
+Domain Logic
+State Management -> Domain Logic + Platform Abstraction
+Presentation -> State Management + selected Domain Logic helpers
 ```
-Platform Layer
-    ↑
-Domain Logic ← uses Platform for any I/O
-    ↑
-State Management ← uses Domain Logic + Platform
-    ↑
-Presentation ← uses State Management + Domain Logic
-```
----
 
-**DATA FLOW EXAMPLE (Player Makes Move):**
+Additional rules:
 
-1. ChessboardComponent emits move event (from square, to square)
-2. GameView catches event → calls `gamesStore.makeMove(gameId, move)`
-3. gamesStore validates via Chess Engine (Domain)
-4. If valid: updates game state (Move Tree, Time Control), marks game dirty
-5. Settings store triggers auto-persist via Storage Adapter (Platform)
-6. Analysis store (if engines running) queues position for analysis
-7. GameView reactively updates (Chessboard, HistoryPanel, PlayerPanel re-render)
+- Domain logic must remain serialisable and testable without desktop APIs.
+- Presentation must not implement business rules that belong to the four contracts.
+- State stores are the coordination boundary for persistence, engine runtime, and UI-triggered game mutations.
+
+## Baseline Behaviour Ownership
+The high-level contracts divide behaviour ownership as follows:
+
+- [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md): game contexts, allowed actions, and transitions
+- [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md): saved artefacts, schema expectations, restore guarantees
+- [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md): desktop UCI runtime, process lifetime, multi-engine rules
+- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md): authoritative user-editable settings
+
+## Representative Data Flows
+### Live Move
+1. `Chessboard` emits a move attempt.
+2. `GameView` forwards the attempt to `GamesStore`.
+3. `GamesStore` validates the action against the active state context.
+4. Domain services update move tree, board state, and clocks.
+5. `AnalysisStore` refreshes assigned analysis engines when required.
+6. Autosave persists the updated game document and relevant session state.
+
+### Analysis Refresh
+1. A committed move or explicit analysis action requests evaluation.
+2. `EnginesStore` ensures assigned engines are available.
+3. `ProcessManager` runs UCI commands for the selected position.
+4. `AnalysisStore` keeps the latest valid result for each engine independently.
+5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth.
+
+### Save and Restore
+1. `GamesStore` and `UiStateStore` produce a canonical saved game document and session snapshot.
+2. `StorageAdapter` persists autosaved state.
+3. `FileIoAdapter` imports or exports the same canonical game document.
+4. Restore first recreates the saved visible screen, then resumes live analysis if engines are available.
+
+## Explicitly Deferred
+The following concepts are not part of the baseline architecture and are tracked in [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md):
+
+- browser, mobile, and remote runtime targets
+- standalone analysis routes or views
+- extra chess variants
+- recent games, bookmarks, and batch workflows
+- engine-vs-engine and other speculative study extensions

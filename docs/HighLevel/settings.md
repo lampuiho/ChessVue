@@ -1,32 +1,41 @@
-# ChessVue Settings Overview
+﻿# ChessVue Settings Overview
 
 ## Purpose
-This page splits ChessVue configuration into two different buckets:
+This page explains how ChessVue configuration is split across three related high-level documents:
 
-- [User Settings](user_settings.md): preferences and defaults a user can change in the app.
-- [Build Settings](build_settings.md): platform/runtime configuration chosen by the app build, shell, or implementation.
-
-This split is based on:
-
-- `docs/HighLevel/scenarios.md`
-- `docs/HighLevel/plan.md`
-- supporting context from `docs/HighLevel/architecture.md`
+- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md): the authoritative user-editable settings contract
+- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md): reader-friendly summary of committed user settings
+- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md): committed desktop-first runtime and build assumptions
 
 ## Boundary
-Use `User Settings` when the value is part of the product experience and should be persisted as a user preference.
+Use [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md) when the value is:
 
-Use `Build Settings` when the value controls how ChessVue is packaged, hosted, integrated with the platform, or backed by specific infrastructure.
+- editable by the user
+- persisted as a preference
+- allowed to shape low-level settings schema design
+
+Use [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md) when the value controls:
+
+- platform capabilities
+- engine transport/runtime implementation
+- persistence backend behaviour
+- route and shell exposure defaults
+- serialisation/runtime integration choices
+
+Use [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) when a configuration topic is:
+
+- speculative
+- deferred
+- intentionally excluded from the current rewrite baseline
 
 ## Quick Rule of Thumb
 - `piece theme` -> user setting
-- `default time preset` -> user setting
-- `engine executable path` -> user setting for advanced users
-- `localStorage vs filesystem adapter` -> build setting
-- `browser/WASM vs desktop child-process engine integration` -> build setting
-- `supported import/export formats` -> mostly build setting
+- `auto-pause on menu interruption` -> user setting
+- `engine executable path` -> user-managed settings data
+- `local child-process UCI runtime` -> build/runtime baseline
+- `browser or WASM engine support` -> deferred idea
 
 ## Notes
-- Some areas overlap. For example, engine configuration is user-facing, but the underlying engine transport implementation is a build/runtime concern.
-- If ChessVue later needs stricter naming, a good split would be:
-  - `SettingsSchema` for user-editable settings
-  - `RuntimeConfig` or `BuildConfig` for environment/platform configuration
+- Per-game engine assignment belongs to the game model, not to the global settings schema.
+- Session restore behaviour is partly controlled by settings but is persisted through the session snapshot defined in [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md).
+- If a setting or runtime option is not present in the baseline contract docs, the low-level rewrite should not invent it.

@@ -1,43 +1,51 @@
-# ChessVue High-Level Docs
+﻿# ChessVue High-Level Docs
 
 ## Purpose
 This folder contains the high-level product and architecture documents for ChessVue.
 
-These files describe the app from a planning and design perspective before implementation details are fully defined in the low-level architecture docs.
+These files define the committed implementation baseline that should be settled before the low-level design is rewritten.
 
 ## Folder Summary
-- [plan.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/plan.md): the original high-level plan, scope, major architectural directions, and phased implementation ideas.
-- [architecture.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/architecture.md): the main structural overview of the system, including layers, module responsibilities, and dependency boundaries.
-- [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md): detailed user and system scenarios that translate features into concrete flows, branches, and function touchpoints.
-- [settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings.md): overview page that explains the split between user settings and build/runtime settings.
-- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md): summary of user-facing preferences, defaults, and persisted app behavior.
-- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md): summary of build-time and runtime configuration such as platform targets, adapters, persistence backends, and engine integration strategy.
+- [plan.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/plan.md): rewrite baseline, authoritative inputs, and verification goals.
+- [architecture.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/architecture.md): committed system structure, layers, baseline modules, and route shape.
+- [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md): `Current`, `Planned`, and `Idea` behaviour catalogue with contract traceability.
+- [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md): authoritative game and UI state model.
+- [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md): persisted artefacts, restore rules, and schema boundaries.
+- [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md): desktop-first UCI engine runtime and multi-engine rules.
+- [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md): authoritative user-editable settings contract.
+- [settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings.md): overview of the split between user settings and runtime/build configuration.
+- [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md): reader-friendly summary of committed user settings.
+- [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md): committed desktop-first build and runtime baseline.
+- [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md): deferred or speculative concepts that are intentionally outside the low-level rewrite baseline.
 
 ## Recommended Reading Order
-1. Start with [plan.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/plan.md) to understand the product goals and intended scope.
-2. Read [architecture.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/architecture.md) to see the proposed module and layer structure.
-3. Read [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md) to understand expected user flows and edge cases.
-4. Use [settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings.md), [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md), and [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md) when defining settings models and configuration boundaries.
+1. Start with [plan.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/plan.md) to understand the rewrite baseline.
+2. Read [architecture.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/architecture.md) for the committed structure and module boundaries.
+3. Read [state_model.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/state_model.md), [persistence_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/persistence_contract.md), [engine_runtime.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/engine_runtime.md), and [settings_contract.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings_contract.md) as the four implementation-shaping contracts.
+4. Read [scenarios.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/scenarios.md) to map committed behaviour to those contracts.
+5. Use [user_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/user_settings.md), [build_settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/build_settings.md), and [settings.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/settings.md) as companion summaries.
+6. Read [ideas.md](/d:/CodeFiddle/ChessVue/docs/HighLevel/ideas.md) only for deferred concepts, not for baseline implementation decisions.
 
 ## How This Folder Fits With Low-Level Docs
 The high-level docs answer questions like:
 
-- what the app is trying to do
-- what major modules and workflows exist
-- what settings and configuration areas need to be represented
+- what the rewrite baseline is
+- what major modules and workflows are committed
+- what state, persistence, engine, and settings contracts the low-level docs must follow
 
 The low-level docs should then define:
 
 - concrete interfaces
 - store APIs
 - module contracts
-- serialized data shapes
+- serialised data shapes
 - implementation responsibilities
 
 ## Summary
 In short, this folder is the design-level map for ChessVue:
 
-- `plan.md` explains the direction
-- `architecture.md` explains the structure
-- `scenarios.md` explains the behavior
-- the settings docs explain configuration boundaries
+- `plan.md` sets the rewrite baseline
+- `architecture.md` sets the structure
+- `scenarios.md` sets the behaviour
+- the four contract docs remove implementation-shaping ambiguity
+- `ideas.md` keeps deferred concepts out of the committed baseline
