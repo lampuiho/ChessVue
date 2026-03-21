@@ -17,3 +17,4 @@ Render one engine's availability state, summary row, and analysis lines.
 ## Notes
 - `AnalysisPanel` composes one `AnalysisEngineSection` per engine.
 - This keeps per-engine line rendering and controls self-contained.
+- `AnalysisEngineSection` contains no HTML or template markup and adapts engine analysis state into common status and list components.

@@ -15,4 +15,4 @@ Provide the high-level region layout for the game workspace.
 
 ## Notes
 - `GameView` uses `GameWorkspaceShell` to avoid large nested layout markup in the view itself.
-- This component owns layout regions only, not game behaviour.
+- This component contains no HTML or template markup and adapts game-specific regions into the common `WorkspaceShell`.

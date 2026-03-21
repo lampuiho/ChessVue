@@ -26,3 +26,4 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 ## Notes
 - `GameControlPanel` is the primary source of committed gameplay actions from the scenarios.
 - Centralising these actions in one component keeps control logic discoverable and avoids duplicating buttons across panels.
+- `GameControlPanel` contains no HTML or template markup and binds control groups into `PanelSurface`, `ButtonGroup`, and `SidePanelButton`.

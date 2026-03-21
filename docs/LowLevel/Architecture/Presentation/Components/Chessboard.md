@@ -23,3 +23,4 @@ Render the visible board state and collect move or board-edit input.
 - `Chessboard` composes square rendering, drag/select interactions, and `ChessPiece` presentation.
 - Piece-choice overlays for promotion or setup flows may use `AnalysisChessPieceButton`.
 - Board editing is enabled only when the workspace context allows it.
+- `Chessboard` contains no HTML or template markup and binds board view models into `BoardGrid`, `BoardSquare`, and `PiecePalette`.

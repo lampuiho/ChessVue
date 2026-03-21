@@ -5,29 +5,38 @@ Map committed user interactions from the baseline scenarios to concrete view, co
 
 This document verifies that presentation coverage is complete and that templates can stay shallow by delegating behaviour to named subcomponents.
 
+Under the template-ownership rule:
+
+- views contain no HTML or template markup
+- feature components contain no HTML or template markup
+- only common components own render markup
+
 ## Interaction Coverage
 ### Startup And Home Actions
 - Fresh launch and no-active-game fallback render in `HomeView`.
-- `HomeView` uses `HomeMenuButton` for quick new game, custom new game, load game, and settings actions.
+- `HomeView` uses `WorkspaceShell`, `HomeMenuButton`, and `EmptyState` for its render surface.
 - Custom new game opens `NewGameModal`, which owns form composition but not game-creation decisions.
 
 ### Shell Navigation
 - `MenuBar` owns shell-level actions for quick new, custom new, load, save, settings, and delete.
+- `ToolbarStrip`, `MenuToolbarButton`, `TabbedView`, and `TabButton` own the actual shell markup.
 - `GameTabs` owns open-game switching and close actions, with `TabbedView` and `TabButton` handling route-driven tab interaction.
 - `Router` and `UiStateStore` validate and persist route-level navigation state.
 
 ### Board And Move Input
 - `Chessboard` owns board interaction entry points such as click-click move input, drag-drop, selection clearing, and board-edit confirmation.
-- `BoardSquare`, `ChessPiece`, and `PiecePalette` keep board templates flat and isolate square, piece, and piece-choice rendering.
+- `BoardGrid`, `SquareSurface`, `ChessPiece`, `AnalysisChessPieceButton`, and `ButtonGroup` own the board and piece render surfaces.
 - `GameView` forwards board events to `GamesStore`, which remains the mutation boundary.
 
 ### History Navigation
 - `HistoryPanel` owns node selection, prune entry, and return-to-live-node actions.
-- `HistoryTree` renders nested move structure so `HistoryPanel` stays focused on panel state and emitted actions.
+- `PanelSurface`, `TreeView`, `SidePanelButton`, and `EmptyState` own the history render surface.
+- `HistoryTree` is a template-free adapter that prepares move-tree view models for `TreeView`.
 
 ### Analysis Interaction
 - `AnalysisPanel` owns refresh, retry, stop, engine-selection, and analysis-line selection actions.
-- `AnalysisEngineSection` isolates per-engine status and line rendering so the panel does not become a deeply nested engine-and-lines template.
+- `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
+- `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
 
 ### Game Control Interaction
 - `GameControlPanel` is the single source for live-game and setup controls:
@@ -37,18 +46,31 @@ This document verifies that presentation coverage is complete and that templates
   - enter and exit in-game analysis
   - enter, confirm, and cancel board edit
   - start game from setup
+- `PanelSurface`, `ButtonGroup`, and `SidePanelButton` own control markup.
 - `PlayerPanel` remains display-focused for players, clocks, and engine status rather than duplicating the same actions.
+- `StatusCard` and `ClockDisplay` own player readout markup.
 
 ### Settings And Engine Management
 - `SettingsView` owns settings and engine-inventory workflows.
-- `FormSection`, `FieldRow`, `SettingsSection`, and `EngineInventoryEditor` keep settings templates shallow and separate generic form layout from engine-specific editing behaviour.
+- `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`, `SettingsActionButton`, `ItemList`, `InlineMessage`, and `EmptyState` provide the required settings and inventory render building blocks.
+- `SettingsSection` and `EngineInventoryEditor` are template-free adapters over those common form and list components.
 
 ### Modal And Confirmation Flows
-- `ModalDialog` and `DialogButton` own shared confirmation and submit/cancel structure.
+- `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
 - Concrete flows such as new game, prune confirmation, invalid-load errors, and reset-settings prompts stay in their owning feature components or views.
 
+## Building Block Verification
+The common layer is complete for the current baseline when it can render:
+
+- shell layout and navigation: `WorkspaceShell`, `ToolbarStrip`, `TabbedView`, `TabButton`
+- button families: menu, dialog, home, side-panel, tab, settings, and piece-choice buttons
+- board UI: `BoardGrid`, `SquareSurface`, `ChessPiece`, `AnalysisChessPieceButton`, `ButtonGroup`
+- panel and list UI: `PanelSurface`, `ButtonGroup`, `ItemList`, `TreeView`, `StatusCard`, `ClockDisplay`, `EmptyState`, `InlineMessage`
+- forms: `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`
+- modal flows: `ModalDialog`, `DialogButton`
+
 ## Abstraction Rules
-- Views compose screen regions and connect them to stores; they should not contain large inline control trees.
-- Feature components own one interaction surface each and may delegate rendering-heavy subsections to named child components.
-- Common components handle generic layout, form, tab, dialog, and button behaviour.
-- Repeated domain-specific structures should be extracted into feature subcomponents before large nested templates form.
+- Views compose screen regions and connect them to stores; they contain no template markup.
+- Feature components own one interaction surface each and contain no template markup.
+- Common components handle all render markup, layout, form, tab, dialog, and button behaviour.
+- Repeated structures should be extracted into common render building blocks before large nested templates form.

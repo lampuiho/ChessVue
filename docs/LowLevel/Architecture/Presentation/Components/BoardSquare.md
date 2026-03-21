@@ -15,4 +15,4 @@ Render one board square with selection, highlight, target, and drag/drop state.
 
 ## Notes
 - `Chessboard` composes `BoardSquare` instances in a flat grid.
-- Keeping square logic local avoids deeply nested square markup inside `Chessboard`.
+- `BoardSquare` contains no HTML or template markup and adapts square state into common board-render primitives.

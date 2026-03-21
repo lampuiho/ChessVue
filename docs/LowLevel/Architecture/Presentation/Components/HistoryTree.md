@@ -15,3 +15,4 @@ Render nested move-tree rows for mainline and variations.
 ## Notes
 - `HistoryPanel` owns panel actions and toolbar state, while `HistoryTree` owns recursive move-tree rendering.
 - This split keeps tree-specific nesting out of the panel shell.
+- `HistoryTree` contains no HTML or template markup and adapts move-tree data into the common `TreeView`.

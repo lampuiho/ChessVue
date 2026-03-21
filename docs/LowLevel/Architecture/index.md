@@ -62,6 +62,7 @@ Additional rules:
 - Domain logic remains serialisable and platform-independent.
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
 - Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
+- Only common presentation components may own HTML or template markup. Views and feature components are template-free coordinators that connect state, events, and common render building blocks.
 
 ## Baseline Route Shape
 The low-level design assumes only these routes:

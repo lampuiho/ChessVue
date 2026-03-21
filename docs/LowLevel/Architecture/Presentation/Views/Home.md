@@ -16,3 +16,4 @@ Render the neutral landing screen for launch, no-active-game fallback, and first
 
 ## Notes
 - `HomeView` does not auto-create a game on its own.
+- `HomeView` contains no HTML or template markup and delegates rendering to common components.

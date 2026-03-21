@@ -20,3 +20,4 @@ Expose shell-level actions for new game, save, load, settings, and game lifecycl
 - Save and load orchestration happens in stores and adapters, not in the component.
 - Reusable menu-toolbar button behaviour stays in the common component layer.
 - Distinguishing quick-new from custom-new keeps the menu aligned with the committed scenario entry points.
+- `MenuBar` contains no HTML or template markup and binds menu actions into `ToolbarStrip` and `MenuToolbarButton`.

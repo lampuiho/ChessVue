@@ -17,4 +17,4 @@ Render user-editable settings and engine inventory management.
 
 ## Notes
 - Opening settings may trigger menu-driven auto-pause through store coordination, not view logic.
-- Settings templates should be split into named sections instead of long nested form trees.
+- `SettingsView` contains no HTML or template markup and delegates rendering to common form and list components.

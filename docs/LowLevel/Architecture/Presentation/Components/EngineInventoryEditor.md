@@ -17,3 +17,4 @@ Render the engine-inventory list and edit surface inside settings.
 ## Notes
 - `SettingsView` delegates engine-specific list and edit markup to this component.
 - `EngineInventoryEditor` can compose `SettingsSection`, `ItemList`, `FieldRow`, and `SettingsActionButton`.
+- `EngineInventoryEditor` contains no HTML or template markup and adapts engine-inventory workflows into common form, list, and message components.
