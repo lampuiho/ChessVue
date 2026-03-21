@@ -6,6 +6,7 @@ Render user-editable settings and engine inventory management.
 ## Inputs
 - settings snapshot from `SettingsStore`
 - configured engine records from `SettingsStore` or `EnginesStore`
+- `SettingsActionButton` for settings and engine-inventory actions
 
 ## Outputs
 - save settings

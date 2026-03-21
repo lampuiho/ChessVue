@@ -8,6 +8,7 @@ Provide a reusable tab-strip wrapper for deterministic child-route navigation wi
 - active tab identity
 - closable and disabled state per tab
 - current route base for the active router-view level
+- `TabButton` for tab interaction rendering
 - tab label and panel slots
 
 ## Emits

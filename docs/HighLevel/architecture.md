@@ -118,6 +118,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `SettingsView` edits committed user settings and engine inventory.
 - `MenuBar`, `GameTabs`, and `NewGameModal` provide shell-level actions and navigation.
 - `Chessboard`, `PlayerPanel`, `HistoryPanel`, `AnalysisPanel`, and `GameControlPanel` render committed game interactions only.
+- Presentation may use specialised button families matched to their screen context rather than a single generic button primitive. Baseline contexts include menu toolbar, dialog, home menu, side panel, tab, settings action, and piece-choice buttons.
 
 ## Dependency Rules
 The dependency direction is fixed:

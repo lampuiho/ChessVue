@@ -18,4 +18,5 @@ Render the visible board state and collect move or board-edit input.
 ## Notes
 - The component does not run move-legality rules itself.
 - `Chessboard` composes square rendering, drag/select interactions, and `ChessPiece` presentation.
+- Piece-choice overlays for promotion or setup flows may use `AnalysisChessPieceButton`.
 - Board editing is enabled only when the workspace context allows it.

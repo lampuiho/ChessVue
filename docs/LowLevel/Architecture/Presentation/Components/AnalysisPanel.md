@@ -7,6 +7,8 @@ Render the latest visible analysis snapshot for the active position.
 - visible analysis snapshot from `AnalysisStore`
 - per-engine availability and failure state
 - `PanelSurface` and `ItemList` for shared panel and row behaviour
+- `SidePanelButton` for panel actions
+- `AnalysisChessPieceButton` where piece-choice interactions are exposed for analysis or setup helpers
 
 ## Emits
 - `refreshRequested`

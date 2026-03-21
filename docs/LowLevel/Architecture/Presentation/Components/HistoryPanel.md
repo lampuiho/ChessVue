@@ -9,6 +9,7 @@ Render the move tree and expose history navigation and prune actions.
 - live node identity
 - settings-derived prune and rewrite affordances
 - `PanelSurface` and `ItemList` for shared panel and row behaviour
+- `SidePanelButton` for panel actions
 
 ## Emits
 - `nodeSelected`

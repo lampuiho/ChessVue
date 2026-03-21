@@ -6,6 +6,7 @@ Render the neutral landing screen for launch, no-active-game fallback, and first
 ## Inputs
 - session restore outcome from `UiStateStore`
 - available actions from `GamesStore`
+- `HomeMenuButton` for landing-page actions
 
 ## Outputs
 - quick new game action
