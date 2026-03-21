@@ -10,6 +10,7 @@ Render the move tree and expose history navigation and prune actions.
 - settings-derived prune and rewrite affordances
 - `PanelSurface` and `ItemList` for shared panel and row behaviour
 - `SidePanelButton` for panel actions
+- `HistoryTree` for nested move rendering
 
 ## Emits
 - `nodeSelected`

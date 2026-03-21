@@ -8,11 +8,14 @@ Render the visible board state and collect move or board-edit input.
 - orientation and appearance settings
 - current legal-move highlights supplied by the owning view/store layer
 - `ChessPiece` for piece rendering inside squares
+- `BoardSquare` for square-level interaction and highlight rendering
+- `PiecePalette` for promotion and setup piece-choice flows
 
 ## Emits
 - `moveAttempted`
 - `promotionRequested`
 - `boardEditConfirmed`
+- `boardEditCancelled`
 - `selectionCleared`
 
 ## Notes

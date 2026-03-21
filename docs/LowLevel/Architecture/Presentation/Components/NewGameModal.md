@@ -7,6 +7,7 @@ Collect quick or custom new-game input before forwarding a validated create requ
 - defaults from `SettingsStore`
 - engine inventory choices from `SettingsStore`
 - `ModalDialog` and `DialogButton` for shared dialog and action presentation
+- `FormSection` and `FieldRow` for shallow form structure
 
 ## Emits
 - `createRequested`
@@ -15,3 +16,4 @@ Collect quick or custom new-game input before forwarding a validated create requ
 ## Notes
 - Inline validation covers time control, player selection, and analysis-engine selection.
 - The modal does not decide whether the result is a live game or free-analysis workspace; `GamesStore` does.
+- New-game form fields should be grouped into named sections instead of one long modal template.

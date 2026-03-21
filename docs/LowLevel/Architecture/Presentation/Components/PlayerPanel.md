@@ -1,17 +1,17 @@
 # PlayerPanel
 
 ## Purpose
-Render player slots, clock state, engine status, and side-specific actions.
+Render player slots, clock state, and engine status for both sides.
 
 ## Consumes
 - player-slot data
 - clock snapshot
 - engine availability for assigned engines
 - `PanelSurface` for shared panel layout
-- `SidePanelButton` for panel actions
 
 ## Emits
-- `pauseRequested`
-- `resumeRequested`
-- `resignRequested`
-- `drawOffered`
+- none directly
+
+## Notes
+- Gameplay actions such as pause, resign, draw, and takeback are centralised in `GameControlPanel`.
+- Keeping `PlayerPanel` display-focused reduces duplicated controls and unnecessary template depth.

@@ -180,7 +180,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-01-PERSIST-FAIL`: If save-on-create fails, game remains in memory and user is warned.
 - **Postconditions**: New game context becomes active unless canceled.
 - **Function Touchpoints**:
-  - `MenuBar.onNewGame`
+  - `MenuBar.quickNewGameRequested`
   - `GamesStore.createGame`
   - `UiStateStore.setCurrentGameId`
   - `GamesStore.saveGame`
@@ -203,6 +203,8 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-02-FREE-ANALYSIS-START`: If no player is assigned to either side, initialize free analysis/setup permissions and enable engine analysis on moves when engines were configured at creation.
 - **Postconditions**: Game starts with validated custom settings.
 - **Function Touchpoints**:
+  - `MenuBar.customNewGameRequested`
+  - `NewGameModal.createRequested`
   - `GamesStore.createGame`
   - `TimeControl.initializeClocks`
   - `EnginesStore.getEngineById`
@@ -224,6 +226,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-03-INVALID-TARGET`: If selected game no longer exists, fallback to first valid game/home.
 - **Postconditions**: Navigation remains deterministic; hidden-tab rule is respected.
 - **Function Touchpoints**:
+  - `GameTabs.tabSelected`
   - `UiStateStore.setCurrentGameId`
   - `UiStateStore.getCurrentGameId`
   - `Router.beforeRouteEnterGuard`
@@ -249,8 +252,8 @@ Each scenario in this document uses the same structure:
   - `BR-NAV-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, settings open without pausing the clock.
 - **Postconditions**: Settings are persisted or intentionally discarded; navigation context remains clear.
 - **Function Touchpoints**:
-  - `MenuBar.onOpenSettings`
-  - `GameControlPanel.onPause`
+  - `MenuBar.settingsRequested`
+  - `GameControlPanel.pauseRequested`
   - `SettingsStore.loadSettings`
   - `SettingsStore.saveSettings`
   - `SettingsStore.resetSettings`
@@ -584,7 +587,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: If enabled, save inspected line as analysis branch.
 - **Postconditions**: Suggested lines become interactive, without corrupting live game state.
 - **Function Touchpoints**:
-  - `AnalysisPanel.onLineClick`
+  - `AnalysisPanel.lineSelected`
   - `GameRules.isMoveLegal`
   - `MoveUpdateService.addAnalysisMove`
   - `MoveUpdateService.navigateToNode`
@@ -629,7 +632,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-02-RESUME-GAME-OVER`: Resume attempt after game end -> blocked.
 - **Postconditions**: Pause state is explicit and non-destructive.
 - **Function Touchpoints**:
-  - `GameControlPanel.onPause`
+  - `GameControlPanel.pauseRequested`
   - `UiStateStore.togglePanel` (or paused UI state)
   - `TimeControl.getRemainingTime`
 
@@ -689,9 +692,9 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-05-ALREADY-PAUSED`: If the game is already paused, menu flow continues without changing pause state.
 - **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled, and normal play resumes automatically on return.
 - **Function Touchpoints**:
-  - `MenuBar.onSaveGame`
-  - `MenuBar.onOpenSettings`
-  - `GameControlPanel.onPause`
+  - `MenuBar.saveGameRequested`
+  - `MenuBar.settingsRequested`
+  - `GameControlPanel.pauseRequested`
   - `TimeControl.getRemainingTime`
   - `UiStateStore.persistState`
 
@@ -709,7 +712,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-01-POLICY-BLOCK`: Takeback disabled by mode/rules -> show blocked reason.
 - **Postconditions**: Game state matches selected rewind point.
 - **Function Touchpoints**:
-  - `GameControlPanel.onTakeBack`
+  - `GameControlPanel.takeBackRequested`
   - `GamesStore.takeBack`
   - `MoveUpdateService.takeback`
   - `TimeControl.updateClockAfterMove` (recompute policy)
@@ -729,7 +732,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-02-ALREADY-ENDED`: Resign action blocked if game already ended.
 - **Postconditions**: Result is final and clearly visible.
 - **Function Touchpoints**:
-  - `GameControlPanel.onResign`
+  - `GameControlPanel.resignRequested`
   - `UiStateStore.showModal`
   - `GamesStore.saveGame`
 
@@ -747,7 +750,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Function Touchpoints**:
-  - `GameControlPanel.onOfferDraw`
+  - `GameControlPanel.drawRequested`
   - `UiStateStore.showModal`
   - `GamesStore.saveGame`
 
@@ -767,7 +770,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-04-LIVE-CONFLICT`: Attempt to submit live move while in analysis mode -> block or force exit.
 - **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode returns the screen to the live game position.
 - **Function Touchpoints**:
-  - `GameControlPanel.onEnterAnalysisMode`
+  - `GameControlPanel.enterInGameAnalysisRequested`
   - `UiStateStore.togglePanel`
   - `MoveUpdateService.addAnalysisMove`
   - `MoveUpdateService.navigateToNode`
@@ -836,8 +839,8 @@ Each scenario in this document uses the same structure:
   - `BR-SAVE-02-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, save proceeds without pausing the clock.
 - **Postconditions**: Export either succeeds once or fails with clear recovery path, and a later load can restore the same visible screen at the point of save.
 - **Function Touchpoints**:
-  - `MenuBar.onSaveGame`
-  - `GameControlPanel.onPause`
+  - `MenuBar.saveGameRequested`
+  - `GameControlPanel.pauseRequested`
   - `FileIOAdapter.saveGameToFile`
   - `Serialization.serializeGameToJSON`
   - `AnalysisStore.listEvaluations`
@@ -862,7 +865,7 @@ Each scenario in this document uses the same structure:
   - `BR-LOAD-01-CACHED-ANALYSIS-ONLY`: If saved analysis lines exist but engines are unavailable, still show the saved lines so the restored screen matches the saved view.
 - **Postconditions**: Imported game is available and routable, the user first sees the same screen state that was visible at the point of save, and live analysis resumes afterwards when engines are available.
 - **Function Touchpoints**:
-  - `MenuBar.onLoadGame`
+  - `MenuBar.loadGameRequested`
   - `FileIOAdapter.loadGameFromFile`
   - `Serialization.deserializeGameFromJSON`
   - `Serialization.migrateSavedGame`
@@ -1204,7 +1207,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Tab navigation can be reviewed later as an extension of menu auto-pause behavior.
 - **Function Touchpoints**:
   - `UiStateStore.setCurrentGameId`
-  - `GameControlPanel.onPause`
+  - `GameControlPanel.pauseRequested`
   - `TimeControl.getRemainingTime`
 
 ---

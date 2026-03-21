@@ -38,6 +38,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 
 ### 4. Presentation
 - [Router](Presentation/Router.md)
+- [Interaction Map](Presentation/InteractionMap.md)
 - [Views](Presentation/Views/index.md)
 - [Components](Presentation/Components/index.md)
 
@@ -60,6 +61,7 @@ Additional rules:
 - State stores are the coordination boundary for UI-triggered mutations.
 - Domain logic remains serialisable and platform-independent.
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
+- Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
 
 ## Baseline Route Shape
 The low-level design assumes only these routes:

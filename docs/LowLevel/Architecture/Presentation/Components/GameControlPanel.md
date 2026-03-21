@@ -11,8 +11,10 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 - `PanelSurface` and `SidePanelButton` for shared panel and action presentation
 
 ## Emits
+- `takeBackRequested`
 - `enterInGameAnalysisRequested`
 - `exitInGameAnalysisRequested`
+- `startGameFromSetupRequested`
 - `enterBoardEditRequested`
 - `confirmBoardEditRequested`
 - `cancelBoardEditRequested`
@@ -20,3 +22,7 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 - `resumeRequested`
 - `resignRequested`
 - `drawRequested`
+
+## Notes
+- `GameControlPanel` is the primary source of committed gameplay actions from the scenarios.
+- Centralising these actions in one component keeps control logic discoverable and avoids duplicating buttons across panels.

@@ -12,7 +12,10 @@ Define reusable presentation primitives and functional UI wrappers shared across
 - [TabButton](TabButton.md)
 - [SettingsActionButton](SettingsActionButton.md)
 - [ItemList](ItemList.md)
+- [FormSection](FormSection.md)
+- [FieldRow](FieldRow.md)
 - [PanelSurface](PanelSurface.md)
+- [WorkspaceShell](WorkspaceShell.md)
 - [TabbedView](TabbedView.md)
 - [ModalDialog](ModalDialog.md)
 

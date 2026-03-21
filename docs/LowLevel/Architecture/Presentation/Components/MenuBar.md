@@ -9,7 +9,8 @@ Expose shell-level actions for new game, save, load, settings, and game lifecycl
 - `MenuToolbarButton` for consistent menu action rendering
 
 ## Emits
-- `newGameRequested`
+- `quickNewGameRequested`
+- `customNewGameRequested`
 - `loadGameRequested`
 - `saveGameRequested`
 - `settingsRequested`
@@ -18,3 +19,4 @@ Expose shell-level actions for new game, save, load, settings, and game lifecycl
 ## Notes
 - Save and load orchestration happens in stores and adapters, not in the component.
 - Reusable menu-toolbar button behaviour stays in the common component layer.
+- Distinguishing quick-new from custom-new keeps the menu aligned with the committed scenario entry points.
