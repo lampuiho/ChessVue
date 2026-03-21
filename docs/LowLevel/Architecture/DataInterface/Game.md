@@ -15,6 +15,7 @@ Define the canonical in-memory workspace model used by `GamesStore` and related 
 - `interface IGameMetadata`
 - `interface IGameWorkspace`
 - `interface ICreateGameRequest`
+- `interface IStartGameFromSetupRequest`
 
 ## Data Structures
 ```ts
@@ -59,9 +60,20 @@ interface ICreateGameRequest {
   timeControl: ITimeControl
   boardRoot?: IBoardPosition
 }
+
+interface IStartGameFromSetupRequest {
+  name?: string
+  whitePlayerType: PlayerType
+  blackPlayerType: PlayerType
+  whiteEngineId: string | null
+  blackEngineId: string | null
+  analysisEngineIds: string[]
+  timeControl: ITimeControl
+}
 ```
 
 ## Rules
 - `freeAnalysisSetup` is created only when neither side is assigned a player.
 - `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
 - `boardEdit` is valid only inside `freeAnalysisSetup`.
+- `IStartGameFromSetupRequest` must assign at least one live-game player side so the workspace can leave `freeAnalysisSetup`.

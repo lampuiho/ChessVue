@@ -13,6 +13,8 @@ Define configured engine records, per-game engine assignment, and runtime-sessio
 - `interface IEngineOptionMap`
 - `interface IAnalysisAssignment`
 - `interface IEngineRuntimeSession`
+- `interface IEngineAnalysisRequest`
+- `interface IEngineAnalysisUpdate`
 
 ## Data Structures
 ```ts
@@ -38,8 +40,20 @@ interface IEngineRuntimeSession {
   engineId: string
   role: EngineRole
   availability: EngineAvailability
-  targetPositionFen: string | null
+  targetPosition: IBoardPosition | null
   lastError: string | null
+}
+
+interface IEngineAnalysisRequest {
+  multiPv: number
+  searchMode: "infinite"
+}
+
+interface IEngineAnalysisUpdate {
+  position: IBoardPosition
+  bestMove: IMove | null
+  lines: IAnalysisLine[]
+  isFinal: boolean
 }
 ```
 
@@ -48,3 +62,4 @@ interface IEngineRuntimeSession {
 - Analysis assignment is per game.
 - A running session is isolated by game, engine, and role.
 - The baseline permits at most four concurrent analysis engines per game.
+- Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.

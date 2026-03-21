@@ -14,7 +14,7 @@ interface IAnalysisLine {
   depth: number
   scoreCp: number | null
   scoreMate: number | null
-  pv: string[]
+  pv: IMove[]
 }
 
 interface IAnalysisSnapshot {
@@ -22,7 +22,7 @@ interface IAnalysisSnapshot {
   engineId: string
   positionFen: string
   updatedAt: string
-  bestMoveUci: string | null
+  bestMove: IMove | null
   lines: IAnalysisLine[]
   isComplete: boolean
 }
@@ -37,3 +37,4 @@ interface IVisibleAnalysisSnapshot {
 - `AnalysisStore` keeps the latest valid snapshot independently for each engine.
 - Parse failures discard only the bad message.
 - Saved visible analysis is persisted only for the visible node, not as a full historical cache requirement.
+- Engine-facing updates are normalised into ChessVue move structures before they are stored here.

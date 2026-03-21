@@ -22,6 +22,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [StorageAdapter](PlatformAbstraction/StorageAdapter.md)
 - [FileIoAdapter](PlatformAbstraction/FileIoAdapter.md)
 - [ProcessManager](PlatformAbstraction/ProcessManager.md)
+- [EngineClient](PlatformAbstraction/EngineClient.md)
 
 ### 2. Domain Logic
 - [GameRuleService](DomainLogic/GameRuleService.md)
@@ -41,6 +42,9 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [Interaction Map](Presentation/InteractionMap.md)
 - [Views](Presentation/Views/index.md)
 - [Components](Presentation/Components/index.md)
+
+### 5. Process Flows
+- [Process Flow Index](../ProcessFlows/index.md)
 
 ### Shared Data Interfaces
 - [DataInterface Index](DataInterface/index.md)
@@ -89,7 +93,7 @@ The data-interface section defines the shared low-level types for:
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
-- `AnalysisStore`, `EnginesStore`, and `ProcessManager` own analysis and engine-runtime scenarios.
+- `AnalysisStore`, `EnginesStore`, `EngineClient`, and `ProcessManager` own analysis and engine-runtime scenarios.
 - `SettingsStore`, `UiStateStore`, `StorageAdapter`, `FileIoAdapter`, and `SerializationService` own persistence, restore, load, and settings scenarios.
 - `Router`, `HomeView`, `GameView`, `SettingsView`, and shell components own route and screen composition only.
 
