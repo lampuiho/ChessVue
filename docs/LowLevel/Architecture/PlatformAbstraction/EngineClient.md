@@ -7,10 +7,12 @@ Expose concrete engine-session operations to stores while hiding protocol-specif
 ```ts
 startSession(session: IEngineRuntimeSession, engine: IEngineRecord): Promise<void>
 configureSession(sessionId: string, options: IEngineOptionMap): Promise<void>
-setPosition(sessionId: string, position: IBoardPosition): Promise<void>
+registerSession(sessionId: string, request: IEngineRegistrationRequest): Promise<void>
+syncPosition(sessionId: string, positionState: IEnginePositionState): Promise<void>
 startAnalysis(sessionId: string, request: IEngineAnalysisRequest): Promise<void>
 stopAnalysis(sessionId: string): Promise<void>
 subscribeToAnalysis(sessionId: string, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void
+subscribeToSessionEvents(sessionId: string, onEvent: (event: IEngineSessionEvent) => void): () => void
 restartSession(session: IEngineRuntimeSession, engine: IEngineRecord): Promise<void>
 stopSession(sessionId: string): Promise<void>
 ```
@@ -19,6 +21,7 @@ stopSession(sessionId: string): Promise<void>
 - provide protocol-hidden engine operations for analysis and engine-controlled play
 - translate ChessVue board and move structures into the active engine protocol implementation
 - parse raw process output into typed engine updates before stores consume them
+- own protocol setup, ready synchronisation, optional registration, and lifecycle callbacks
 - isolate protocol-specific handshakes, options, and search commands from the rest of the architecture
 
 ## Dependencies
@@ -29,6 +32,7 @@ stopSession(sessionId: string): Promise<void>
 - If another protocol is ever introduced later, the protocol switch belongs inside `EngineClient`, not in stores or views.
 - `subscribeToAnalysis` delivers typed updates so store logic can use normal references instead of string parsing.
 - `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires.
+- `syncPosition` receives ChessVue root-and-moves state, and the client decides whether it can continue the same game line or must establish a fresh game boundary.
 
 Example internal helper responsibilities:
 
@@ -36,16 +40,20 @@ Example internal helper responsibilities:
 _mapBoardPositionToProtocolPosition
 _mapProtocolMoveToMove
 _mapProtocolPrincipalVariationToMoves
+_shouldReuseCurrentGameLine
+_emitSessionEvent
 ```
 
 ## Baseline UCI Mapping
 The baseline implementation is expected to map its concrete methods roughly like this:
 
 ```text
-startSession -> spawn process, run protocol handshake, apply initial options
+startSession -> spawn process, send `uci`, receive `id` / `option` / `uciok`, then send `isready` and wait for `readyok`
 configureSession -> set engine options
-setPosition -> map `IBoardPosition` into UCI position state and load it into the engine session
+registerSession -> send `register later` or `register name ... code ...` and emit registration callbacks from engine responses
+syncPosition -> map `IEnginePositionState` into `position startpos moves ...` or `position fen ... moves ...`; send `ucinewgame` plus `isready` only when the next search is from a different game or branch boundary
 startAnalysis -> begin search for the current request
 stopAnalysis -> stop the active search
 subscribeToAnalysis -> parse `info` and `bestmove` output into `IMove` and `IAnalysisLine` values
+subscribeToSessionEvents -> surface handshake, ready, copy-protection, and registration callbacks
 ```

@@ -6,8 +6,9 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 ## Move Execution
 
 ### SCN-MOVE-01 - Legal Move on Board
-- Public flow: `GamesStore.makeMove` -> `GameRuleService.isMoveLegal` -> `GameRuleService.applyMove` -> `MoveUpdateService.addMainlineMove` -> `TimeControlService.applyMove` -> `AnalysisStore.refreshAnalysis`.
+- Public flow: `GamesStore.makeMove` -> `GameRuleService.isMoveLegal` -> `GameRuleService.applyMove` -> `MoveUpdateService.addMainlineMove` -> `TimeControlService.applyMove` -> `EnginesStore.startAnalysis`.
 - Private design: `GamesStore._assertMoveAllowed` -> `_resolveMoveContext` -> `_commitLiveMove` -> `_updateClockAfterMove` -> `_refreshVisibleAnalysis` -> `_persistWorkspaceIfNeeded`.
+- Continuous analysis update loop: `EngineClient.subscribeToAnalysis` -> `EnginesStore._forwardAnalysisUpdate` -> `AnalysisStore.applyAnalysisUpdate` -> `AnalysisStore.getVisibleAnalysis` -> `AnalysisPanel` rerender for the affected engine row.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
 ### SCN-MOVE-02 - Illegal Move Attempt
@@ -19,6 +20,14 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Public flow: `GamesStore.makeMove` -> `GameRuleService.requiresPromotionSelection` -> `UiStateStore.showModal("promotion")` -> `GamesStore.makeMove` with the selected promotion piece.
 - Private design: `GamesStore._stagePendingPromotion` -> `_commitPromotionMove` -> `_clearPendingPromotion`; cancel uses `UiStateStore.hideModal`.
 - Requirement verification: `Pass`. Promotion remains an explicit store-owned mutation instead of a UI-side special case.
+
+## Engine-Controlled Turn
+
+### Live Engine Player Move Generation
+- Public flow: `GamesStore.makeMove` or `GamesStore.resumeGame` -> `EnginesStore.startPlayerTurn` -> `EngineClient.startSession` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> final move callback -> `GamesStore.makeMove`.
+- Private design: `GamesStore._maybeRequestEngineTurn` -> `EnginesStore._startPlayerTurnSearch` -> `_bindPlayerTurnCallbacks`; on the final callback `GamesStore` validates and commits the move through the normal mutation path.
+- Runtime distinction: analysis search keeps streaming updates into `AnalysisStore`, while a player-engine turn waits only for the final move callback and then ends that turn-scoped search.
+- Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, paused live games, and finished games.
 
 ## History And Branching
 

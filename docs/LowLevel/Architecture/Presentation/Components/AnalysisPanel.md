@@ -21,4 +21,5 @@ Render the latest visible analysis snapshot for the active position.
 ## Notes
 - Each engine row updates independently.
 - Saved analysis may remain visible when live engines are unavailable.
+- The panel rerenders when `AnalysisStore` publishes a newer visible snapshot for the same engine and position, so stronger scores replace weaker ones during an active search.
 - `AnalysisPanel` contains no HTML or template markup and binds engine view models into common panel, status, list, and message components.

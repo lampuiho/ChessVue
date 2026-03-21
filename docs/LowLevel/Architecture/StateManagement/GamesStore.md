@@ -40,7 +40,7 @@ importGame(): Promise<IGameWorkspace>
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
 - coordinate pause and resume flows for manual controls, menu interruptions, and analysis-mode entry
 - build the canonical game document and exact-screen snapshot for autosave and export
-- trigger analysis refreshes when the visible or live position changes
+- ask `EnginesStore` to start analysis or run an engine-controlled turn when the visible or live position changes
 
 ## Dependencies
 - `GameRuleService`

@@ -11,8 +11,12 @@ addEngine(engine: IEngineRecord): Promise<void>
 updateEngine(engine: IEngineRecord): Promise<void>
 removeEngine(engineId: string): Promise<void>
 validateAnalysisSelection(engineIds: string[]): void
-ensureAnalysisSessions(gameId: string, engineIds: string[], position: IBoardPosition): Promise<IEngineRuntimeSession[]>
-createPlayerSession(gameId: string, colour: PlayerColour, engineId: string, position: IBoardPosition): Promise<IEngineRuntimeSession>
+ensureAnalysisSessions(gameId: string, engineIds: string[], positionState: IEnginePositionState): Promise<IEngineRuntimeSession[]>
+startAnalysis(gameId: string, engineIds: string[], positionState: IEnginePositionState): Promise<void>
+retryAnalysis(gameId: string, engineId: string, positionState: IEnginePositionState): Promise<void>
+stopAnalysis(gameId: string, engineId?: string): Promise<void>
+createPlayerSession(gameId: string, colour: PlayerColour, engineId: string, positionState: IEnginePositionState): Promise<IEngineRuntimeSession>
+startPlayerTurn(gameId: string, colour: PlayerColour, engineId: string, positionState: IEnginePositionState): Promise<void>
 restartSession(sessionId: string): Promise<void>
 stopEngine(gameId: string, engineId: string, role?: EngineRole): Promise<void>
 stopGameSessions(gameId: string): Promise<void>
@@ -27,9 +31,14 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - mark unavailable or failed engines without stopping unrelated sessions
 - restart running sessions when engine configuration changes
 - expose concrete runtime sessions without leaking protocol-specific command composition
+- own all analysis start, retry, and stop orchestration through `EngineClient`
+- forward analysis callbacks into `AnalysisStore`, which remains callback-only state
+- retain enough position-state context for the engine client to reuse the same game line instead of forcing a new-game reset on every search
+- distinguish continuous analysis searches from turn-scoped player-engine move generation
 
 ## Dependencies
 - `SettingsStore`
+- `AnalysisStore`
 - `EngineClient`
 
 ## Scenario Coverage

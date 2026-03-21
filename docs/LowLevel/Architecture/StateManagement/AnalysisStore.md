@@ -1,30 +1,29 @@
 # AnalysisStore
 
 ## Purpose
-Store per-game, per-engine, per-position analysis snapshots and coordinate live analysis refreshes.
+Store per-game, per-engine, per-position analysis snapshots and publish visible analysis state from engine callbacks.
 
 ## Public Interface
 ```ts
 getVisibleAnalysis(gameId: string, position: IBoardPosition): IVisibleAnalysisSnapshot | null
-storeEngineUpdate(gameId: string, engineId: string, update: IEngineAnalysisUpdate): void
+beginAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void
+applyAnalysisUpdate(gameId: string, engineId: string, update: IEngineAnalysisUpdate): void
+completeAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void
+markAnalysisUnavailable(gameId: string, engineId: string, position: IBoardPosition, reason: string): void
 loadSavedVisibleAnalysis(gameId: string, snapshot: IVisibleAnalysisSnapshot | null): void
-refreshAnalysis(gameId: string, position: IBoardPosition, engineIds?: string[]): Promise<void>
-retryEngine(gameId: string, engineId: string, position: IBoardPosition): Promise<void>
-stopAnalysis(gameId: string, engineId?: string): Promise<void>
 clearGameAnalysis(gameId: string): void
 ```
 
 ## Responsibilities
-- merge typed engine analysis updates into stable `IAnalysisSnapshot` values
+- merge typed engine callbacks into stable `IAnalysisSnapshot` values
 - keep each engine row independent
 - expose the latest visible analysis snapshot for persistence and restore
 - preserve saved analysis on restore before live analysis resumes
-- support retry and stop actions at either per-engine or whole-game scope
-- drive concrete engine-analysis operations for the requested board position without composing protocol strings directly
+- track whether an engine stream is active, complete, or unavailable for the visible position
+- publish updated visible snapshots without owning engine runtime control
 
 ## Dependencies
-- `EnginesStore`
-- `EngineClient`
+- none beyond in-memory analysis state
 
 ## Scenario Coverage
 - `SCN-ANALYSIS-01`
@@ -36,38 +35,41 @@ clearGameAnalysis(gameId: string): void
 - `SCN-FREE-ANALYSIS-03`
 - `SCN-LOAD-01`
 
-## Refresh Analysis Flow
-`refreshAnalysis` is an active runtime flow rather than a cache lookup.
+## Callback Sink Flow
+`AnalysisStore` does not start, stop, retry, or synchronise engine analysis.
 
-For each selected engine session, the intended sequence is:
+Instead, runtime owners call it like this:
 
-1. Ensure a live runtime session exists through `EnginesStore`.
-2. Ensure the concrete engine session is started through `EngineClient`.
-3. Stop any superseded search for the same session.
-4. Set the target position through a concrete engine operation using `IBoardPosition`.
-5. Start or restart analysis with a typed search request.
-6. Merge each typed update into `IAnalysisLine` entries.
-7. Replace the visible snapshot for that `gameId + engineId + position.fen`.
-8. Mark the snapshot complete only when the search is explicitly stopped or the update is final.
+1. `EnginesStore` decides that an engine should start or restart analysis.
+2. `EnginesStore` calls `beginAnalysisStream(...)` before the first update for that engine and position.
+3. `EngineClient` emits typed callbacks over time.
+4. `EnginesStore` forwards each callback to `applyAnalysisUpdate(...)`.
+5. `EnginesStore` calls `completeAnalysisStream(...)` when the continuous search is intentionally ended or a final state is reached.
+6. `EnginesStore` calls `markAnalysisUnavailable(...)` when the session fails or becomes unavailable.
 
 Example implementation shape:
 
 ```ts
-async function refreshAnalysis(gameId: string, position: IBoardPosition, engineIds?: string[]): Promise<void> {
-  const sessions = await _ensureSessionsForPosition(gameId, position, engineIds)
-
-  for (const session of sessions) {
-    await _ensureAnalysisSubscription(session)
-    await engineClient.stopAnalysis(session.sessionId)
-    await engineClient.setPosition(session.sessionId, position)
-    await engineClient.startAnalysis(session.sessionId, {
-      multiPv: _resolveMultiPv(session),
-      searchMode: "infinite",
-    })
-  }
+function beginAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void {
+  _markStreamActive(gameId, engineId, position.fen)
 }
 
-function storeEngineUpdate(gameId: string, engineId: string, update: IEngineAnalysisUpdate): void {
+function applyAnalysisUpdate(gameId: string, engineId: string, update: IEngineAnalysisUpdate): void {
   _mergeEngineSnapshot(gameId, engineId, update.position.fen, update)
 }
+
+function completeAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void {
+  _markStreamComplete(gameId, engineId, position.fen)
+}
 ```
+
+## Continuous Update Loop
+After a runtime owner starts analysis, live updates continue like this:
+
+1. `EngineClient.subscribeToAnalysis` emits a new `IEngineAnalysisUpdate` whenever the engine reports a deeper or otherwise newer principal variation.
+2. `EnginesStore` forwards that callback to `AnalysisStore.applyAnalysisUpdate`.
+3. `_mergeEngineSnapshot` replaces the stored line set for that `gameId + engineId + position.fen` when the new update is more recent, final, or deeper than the current one.
+4. `getVisibleAnalysis` returns a new visible snapshot reference for the active position.
+5. `AnalysisPanel` rerenders the affected engine row, so the user sees the stronger score or line without manually refreshing.
+
+This means runtime control belongs outside `AnalysisStore`, while `applyAnalysisUpdate` is the function that keeps improving the panel contents over time.

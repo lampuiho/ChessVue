@@ -93,7 +93,8 @@ The data-interface section defines the shared low-level types for:
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
-- `AnalysisStore`, `EnginesStore`, `EngineClient`, and `ProcessManager` own analysis and engine-runtime scenarios.
+- `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
+- `EnginesStore`, `EngineClient`, and `ProcessManager` own analysis and player-engine runtime control.
 - `SettingsStore`, `UiStateStore`, `StorageAdapter`, `FileIoAdapter`, and `SerializationService` own persistence, restore, load, and settings scenarios.
 - `Router`, `HomeView`, `GameView`, `SettingsView`, and shell components own route and screen composition only.
 

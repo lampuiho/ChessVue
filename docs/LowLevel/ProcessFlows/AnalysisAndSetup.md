@@ -6,7 +6,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-04`.
 ## Free Analysis / Setup
 
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
-- Public flow: `GamesStore.createGame` -> `GamesStore.makeMove` -> conditional `AnalysisStore.refreshAnalysis`.
+- Public flow: `GamesStore.createGame` -> `GamesStore.makeMove` -> conditional `EnginesStore.startAnalysis`.
 - Private design: `GamesStore._resolveWorkspaceKind` -> `_createWorkspace` -> `_allowBothColoursForSetupMoves`; post-move refresh uses `_refreshVisibleAnalysis`.
 - Requirement verification: `Pass`. A no-player creation request yields a non-live workspace while preserving engine-driven analysis when configured.
 
@@ -23,26 +23,27 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-04`.
 ## Analysis And Engine Runtime
 
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
-- Public flow: `AnalysisStore.refreshAnalysis` -> `EnginesStore.ensureAnalysisSessions` -> `EngineClient.startSession` -> `EngineClient.setPosition` -> `EngineClient.startAnalysis` -> `EngineClient.subscribeToAnalysis` -> `AnalysisStore.storeEngineUpdate`.
-- Private design: `AnalysisStore._ensureSessionsForPosition` -> `_ensureAnalysisSubscription` -> `_dispatchAnalysisRequest` -> `_mergeEngineSnapshot`.
-- Requirement verification: `Pass`. Engine startup, streaming updates, and position supersession are owned by the engine runtime boundary rather than the view.
+- Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.ensureAnalysisSessions` -> `EngineClient.startSession` -> `AnalysisStore.beginAnalysisStream` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> `EngineClient.subscribeToAnalysis` -> `AnalysisStore.applyAnalysisUpdate`.
+- Private design: `EnginesStore._startAnalysisSessions` -> `_bindAnalysisCallbacks` -> `_forwardAnalysisUpdate`; `AnalysisStore` only marks the stream active and merges updates.
+- Requirement verification: `Pass`. Engine startup, streaming updates, ready/registration callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
 Example concrete session calls:
 
 ```ts
 await engineClient.startSession(session, engine)
-await engineClient.setPosition(session.sessionId, position)
+analysisStore.beginAnalysisStream(gameId, session.engineId, positionState.currentPosition)
+await engineClient.syncPosition(session.sessionId, positionState)
 await engineClient.startAnalysis(session.sessionId, {
   multiPv: 3,
   searchMode: "infinite",
 })
 ```
 
-Example typed update handled by `AnalysisStore.storeEngineUpdate`:
+Example typed update handled by `AnalysisStore.applyAnalysisUpdate`:
 
 ```ts
 {
-  position,
+  position: positionState.currentPosition,
   bestMove: moveE2E4,
   lines: [
     {
@@ -59,19 +60,30 @@ Example typed update handled by `AnalysisStore.storeEngineUpdate`:
 Example implementation shape:
 
 ```ts
-async function refreshAnalysis(gameId: string, position: IBoardPosition, engineIds?: string[]): Promise<void> {
+async function startAnalysis(gameId: string, engineIds: string[], positionState: IEnginePositionState): Promise<void> {
   const targetEngineIds = engineIds ?? _getDefaultAnalysisEngineIds(gameId)
-  const sessions = await enginesStore.ensureAnalysisSessions(gameId, targetEngineIds, position)
+  const sessions = await ensureAnalysisSessions(gameId, targetEngineIds, positionState)
 
   for (const session of sessions) {
     await engineClient.startSession(session, _getEngine(session.engineId))
-    const unsubscribe = engineClient.subscribeToAnalysis(session.sessionId, (update) => {
-      analysisStore.storeEngineUpdate(gameId, session.engineId, update)
-    })
+    analysisStore.beginAnalysisStream(gameId, session.engineId, positionState.currentPosition)
 
-    _trackSubscription(session.sessionId, unsubscribe)
+    _trackSubscription(
+      session.sessionId,
+      engineClient.subscribeToAnalysis(session.sessionId, (update) => {
+        analysisStore.applyAnalysisUpdate(gameId, session.engineId, update)
+      }),
+    )
+
+    _trackSessionEvents(
+      session.sessionId,
+      engineClient.subscribeToSessionEvents(session.sessionId, (event) => {
+        _handleEngineSessionEvent(gameId, session.engineId, event)
+      }),
+    )
+
     await engineClient.stopAnalysis(session.sessionId)
-    await engineClient.setPosition(session.sessionId, position)
+    await engineClient.syncPosition(session.sessionId, positionState)
     await engineClient.startAnalysis(session.sessionId, {
       multiPv: _resolveMultiPv(session),
       searchMode: "infinite",
@@ -80,17 +92,17 @@ async function refreshAnalysis(gameId: string, position: IBoardPosition, engineI
 }
 ```
 
-For the baseline UCI implementation, `EngineClient` translates `IBoardPosition` and `IMove` values into protocol messages internally, but the rest of the architecture does not depend on those strings.
+For the baseline UCI implementation, `EngineClient` internally sends `uci`, waits for `id` / `option` / `uciok`, then sends `isready` and waits for `readyok`. It only emits a new-game boundary internally when the search switches to a different game or an unrelated branch. When the user simply continues forward on the same line, the client reuses the current game context and synchronises the move path instead of forcing a full reset.
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
-- Public flow: `AnalysisStore.refreshAnalysis(..., engineIds)` -> `EnginesStore.validateAnalysisSelection` -> `EnginesStore.ensureAnalysisSessions`.
-- Private design: `EnginesStore._assertAnalysisSelectionLimit` -> `_buildSessionPerEngine`; each session runs `EngineClient.setPosition` and `EngineClient.startAnalysis` independently; `AnalysisStore._mergeEngineSnapshot` keeps each engine row independent.
+- Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.validateAnalysisSelection` -> `EnginesStore.ensureAnalysisSessions`.
+- Private design: `EnginesStore._assertAnalysisSelectionLimit` -> `_buildSessionPerEngine`; each session runs `EngineClient.syncPosition` and `EngineClient.startAnalysis` independently; `AnalysisStore._mergeEngineSnapshot` keeps each engine row independent.
 - Requirement verification: `Pass`. The four-engine cap is enforced before processes start, and partial failure does not block healthy engines.
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
-- Public flow: `AnalysisStore.stopAnalysis` or `AnalysisStore.retryEngine` -> `EnginesStore.stopEngine` or `EnginesStore.restartSession` -> `EngineClient.stopAnalysis` or `EngineClient.restartSession`.
-- Private design: `AnalysisStore._markEngineUnavailable` -> `_retainLastVisibleSnapshot`; retry uses `_restartSingleEngine` -> `_resubscribeSessionOutput`.
-- Requirement verification: `Pass`. Stop, crash, and retry behaviour is explicit at the public API level and preserves last-known visible output.
+- Public flow: `EnginesStore.stopAnalysis` or `EnginesStore.retryAnalysis` -> `EngineClient.stopAnalysis` or `EngineClient.restartSession` -> `AnalysisStore.markAnalysisUnavailable` or `AnalysisStore.beginAnalysisStream`.
+- Private design: `EnginesStore._stopMatchingSessions` -> `_markEngineUnavailableInAnalysisStore`; retry uses `_restartSingleEngine` -> `_bindAnalysisCallbacks`.
+- Requirement verification: `Pass`. Stop, crash, and retry behaviour is explicit at the runtime-owner boundary and preserves last-known visible output.
 
 ### SCN-ANALYSIS-04 - Click Suggested Line to Inspect Move
 - Public flow: `AnalysisPanel.lineSelected` -> `GamesStore.getGame` -> `GameRuleService.isMoveLegal` -> `GamesStore.makeMove`.

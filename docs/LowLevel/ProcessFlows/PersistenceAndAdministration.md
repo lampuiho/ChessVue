@@ -16,8 +16,8 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 - Requirement verification: `Pass`. Export writes the same canonical document shape used by autosave and honours menu auto-pause policy.
 
 ### SCN-LOAD-01 - Load Valid Game from File
-- Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` -> `GamesStore.insertGame` -> `AnalysisStore.loadSavedVisibleAnalysis` -> conditional `AnalysisStore.refreshAnalysis`.
-- Private design: `FileIoAdapter._openLoadDialog` -> `_readGameDocument`; `GamesStore._remapDuplicateIdIfNeeded` -> `_hydrateWorkspace`; `AnalysisStore._retainSavedVisibleAnalysis` -> `_ensureSessionsForPosition`.
+- Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` -> `GamesStore.insertGame` -> `AnalysisStore.loadSavedVisibleAnalysis` -> conditional `EnginesStore.startAnalysis`.
+- Private design: `FileIoAdapter._openLoadDialog` -> `_readGameDocument`; `GamesStore._remapDuplicateIdIfNeeded` -> `_hydrateWorkspace`; `AnalysisStore._retainSavedVisibleAnalysis` -> `EnginesStore._startAnalysisSessions`.
 - Requirement verification: `Pass`. Exact-screen restore happens before live analysis resumes, and duplicate IDs are repaired before insertion.
 
 ### SCN-LOAD-02 - Load Invalid/Corrupt Game File

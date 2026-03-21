@@ -18,7 +18,7 @@ Only `Current` and `Planned` scenarios from [../../HighLevel/scenarios.md](../..
 
 ## Folder Summary
 - [StartupAndNavigation.md](StartupAndNavigation.md): startup, restore, game creation, tabbing, and route flows.
-- [GameplayAndControl.md](GameplayAndControl.md): move input, history, clocks, and control-panel flows.
+- [GameplayAndControl.md](GameplayAndControl.md): move input, history, clocks, control-panel flows, and engine-controlled live turns.
 - [AnalysisAndSetup.md](AnalysisAndSetup.md): free analysis/setup, board editing, engine analysis, and analysis-line inspection.
 - [PersistenceAndAdministration.md](PersistenceAndAdministration.md): autosave, import/export, settings, engine inventory, and deletion flows.
 
@@ -29,8 +29,8 @@ The architecture docs were tightened alongside this folder so every committed sc
 - `MoveUpdateService` now exposes navigation, position lookup, takeback, and prune operations with scenario-aligned names.
 - `TimeControlService` now exposes `getRemainingTime` so UI clock reads stay authoritative.
 - `UiStateStore` now covers transient modal and panel flows without persisting them.
-- `EnginesStore` now covers engine inventory maintenance as well as runtime session control.
-- `AnalysisStore` now covers per-engine retry and stop flows explicitly.
+- `EnginesStore` now covers engine inventory maintenance, analysis runtime control, and player-engine turn control.
+- `AnalysisStore` now acts as callback-only analysis state rather than an engine runtime controller.
 - `EngineClient` now hides protocol strings behind concrete engine-session operations and typed analysis updates.
 
 ## Private Helper Catalogue
@@ -45,20 +45,24 @@ These helper families are the intended internal structure behind the public APIs
 - `_finaliseResult`
 - `_buildGameDocument`
 - `_persistWorkspace`
+- `_maybeRequestEngineTurn`
 
 ### AnalysisStore
-- `_ensureSessionsForPosition`
-- `_ensureAnalysisSubscription`
-- `_dispatchAnalysisRequest`
+- `_markStreamActive`
 - `_mergeEngineSnapshot`
+- `_markStreamComplete`
+- `_markStreamUnavailable`
 - `_retainSavedVisibleAnalysis`
-- `_markEngineUnavailable`
 
 ### EnginesStore
 - `_getConfiguredInventory`
 - `_validateEngineRecord`
 - `_assertAnalysisSelectionLimit`
 - `_buildSession`
+- `_startAnalysisSessions`
+- `_bindAnalysisCallbacks`
+- `_forwardAnalysisUpdate`
+- `_startPlayerTurnSearch`
 - `_restartAffectedSessions`
 - `_stopMatchingSessions`
 
@@ -111,6 +115,6 @@ These helper families are the intended internal structure behind the public APIs
 
 ## Reading Order
 1. Read [StartupAndNavigation.md](StartupAndNavigation.md) first.
-2. Continue with [GameplayAndControl.md](GameplayAndControl.md) for the core move loop.
-3. Read [AnalysisAndSetup.md](AnalysisAndSetup.md) for engine and setup-specific branching.
+2. Continue with [GameplayAndControl.md](GameplayAndControl.md) for the core move loop and player-engine turn flow.
+3. Read [AnalysisAndSetup.md](AnalysisAndSetup.md) for engine analysis and setup-specific branching.
 4. Finish with [PersistenceAndAdministration.md](PersistenceAndAdministration.md) for save/load and maintenance workflows.
