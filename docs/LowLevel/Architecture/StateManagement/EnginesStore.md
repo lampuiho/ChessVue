@@ -36,6 +36,12 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - retain enough position-state context for the engine client to reuse the same game line instead of forcing a new-game reset on every search
 - distinguish continuous analysis searches from turn-scoped player-engine move generation
 
+## Runtime Gating Notes
+- `startAnalysis` supports `liveGame`, `historyReview`, `inGameAnalysis`, `freeAnalysisSetup`, paused live review, and finished-game review because analysis is read-only with respect to live progression.
+- `startAnalysis` is blocked when the workspace is actively in `boardEdit`.
+- `startPlayerTurn` is a strict preconditioned call for `liveGame + currentPosition + ongoing + not paused` only. It must reject or no-op for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused games, expired clocks, and final result states.
+- Analysis-runtime restart after restore follows the caller's `analysis.resumeLiveAnalysisAfterRestore` decision; `EnginesStore` does not override that policy.
+
 ## Dependencies
 - `SettingsStore`
 - `AnalysisStore`

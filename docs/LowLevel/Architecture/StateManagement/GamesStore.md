@@ -42,6 +42,13 @@ importGame(): Promise<IGameWorkspace>
 - build the canonical game document and exact-screen snapshot for autosave and export
 - ask `EnginesStore` to start analysis or run an engine-controlled turn when the visible or live position changes
 
+## State And Settings Notes
+- `makeMove` is the context dispatcher for live current-position play, history rewrite, analysis-only history branching, in-game analysis moves, and free-analysis exploration. Blocked states are rejected before domain mutation.
+- `pauseGame` and `resumeGame` apply only to timed `liveGame + currentPosition + ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
+- `enterInGameAnalysis` is valid only for ongoing live games and suppresses engine-turn generation until the live node is restored.
+- `startGameFromSetup` validates that baseline live-game creation does not use both sides as `engine`; engine-vs-engine autonomous play remains out of scope.
+- `importGame` and session restore rebuild the saved visible screen first, then may request continuous analysis and a player-engine turn only when the restored state is playable live current-position ongoing state.
+
 ## Dependencies
 - `GameRuleService`
 - `MoveUpdateService`
@@ -66,3 +73,4 @@ importGame(): Promise<IGameWorkspace>
 
 ## Notes
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
+- `_maybeRequestEngineTurn` is the internal gate for player-engine move generation and must remain a strict state check rather than a best-effort hint.

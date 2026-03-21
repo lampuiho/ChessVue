@@ -13,12 +13,14 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-SAVE-02 - Manual Save Game to File
 - Public flow: conditional `GamesStore.pauseGame(..., "menu")` -> `GamesStore.exportGame` -> `FileIoAdapter.saveGameDocument` -> conditional `GamesStore.resumeGame(..., "menu")`.
 - Private design: `GamesStore._buildGameDocument` -> `_captureSavedScreen` -> `_exportGameDocument`; `FileIoAdapter._openSaveDialog` -> `_writeGameDocument`.
+- Settings coverage: `session.autoPauseOnMenu` decides whether timed live games are paused for export. The menu pause owner is preserved so export return cannot auto-resume a manually paused game.
 - Requirement verification: `Pass`. Export writes the same canonical document shape used by autosave and honours menu auto-pause policy.
 
 ### SCN-LOAD-01 - Load Valid Game from File
-- Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` -> `GamesStore.insertGame` -> `AnalysisStore.loadSavedVisibleAnalysis` -> conditional `EnginesStore.startAnalysis`.
-- Private design: `FileIoAdapter._openLoadDialog` -> `_readGameDocument`; `GamesStore._remapDuplicateIdIfNeeded` -> `_hydrateWorkspace`; `AnalysisStore._retainSavedVisibleAnalysis` -> `EnginesStore._startAnalysisSessions`.
-- Requirement verification: `Pass`. Exact-screen restore happens before live analysis resumes, and duplicate IDs are repaired before insertion.
+- Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` -> `GamesStore.insertGame` -> `AnalysisStore.loadSavedVisibleAnalysis` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn`.
+- Private design: `FileIoAdapter._openLoadDialog` -> `_readGameDocument`; `GamesStore._remapDuplicateIdIfNeeded` -> `_hydrateWorkspace` -> `_restoreSavedVisibleState`; `AnalysisStore._retainSavedVisibleAnalysis` -> `EnginesStore._startAnalysisSessions`.
+- State/settings coverage: the saved screen is restored first, including a restored `historyReview`, paused state, or finished result. `analysis.resumeLiveAnalysisAfterRestore` decides whether continuous analysis restarts after the saved visible snapshot is shown. `_maybeRequestEngineTurn` is considered only after the workspace is fully restored and only when the restored state is `liveGame + currentPosition + ongoing + not paused` with an engine-controlled side to move.
+- Requirement verification: `Pass`. Exact-screen restore happens before live analysis resumes, duplicate IDs are repaired before insertion, and engine-turn restart stays aligned with the restored live state.
 
 ### SCN-LOAD-02 - Load Invalid/Corrupt Game File
 - Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` failure -> `UiStateStore.showModal("importError")`.

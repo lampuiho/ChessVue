@@ -33,6 +33,21 @@ The architecture docs were tightened alongside this folder so every committed sc
 - `AnalysisStore` now acts as callback-only analysis state rather than an engine runtime controller.
 - `EngineClient` now hides protocol strings behind concrete engine-session operations and typed analysis updates.
 
+## State And Settings Coverage Matrix
+This matrix is the compact cross-check for the public entry points that decide whether play continues, switches to analysis-only behaviour, or becomes a no-op.
+
+| Entry point | Accepted workspace kinds | Accepted interaction contexts | Clock/result gate | Settings that alter branch | Outcome |
+| --- | --- | --- | --- | --- | --- |
+| `GamesStore.makeMove` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | blocks live progression when paused or final | `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, `gameplay.analysisBranchExitBehaviour`, `gameplay.promotionPolicy` | live move, analysis move, history rewrite, or blocked action |
+| `GamesStore.pauseGame` | `liveGame` | `currentPosition` | timed + ongoing only | none | explicit pause with stored owner |
+| `GamesStore.resumeGame` | `liveGame` | `currentPosition` | timed + paused + ongoing only | none | explicit resume when the same owner is allowed to resume |
+| `GamesStore.enterInGameAnalysis` | `liveGame` | `currentPosition` | ongoing only | none | switch to analysis-only live-game exploration |
+| `GamesStore.startGameFromSetup` | `freeAnalysisSetup` | `currentPosition` | result must remain `ongoing` | none beyond engine validation rules | transition to `liveGame` or reject unsupported setup |
+| `GamesStore.importGame` | imported document decides | restored `currentPosition` or `historyReview` | restored paused/final state is preserved | `analysis.resumeLiveAnalysisAfterRestore` | exact-screen restore first, then optional live analysis and optional engine turn |
+| `GamesStore._maybeRequestEngineTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | request one engine-controlled live turn or no-op |
+| `EnginesStore.startAnalysis` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | allowed during paused and finished review, blocked during `boardEdit` | `analysis.resumeLiveAnalysisAfterRestore` affects restore flows only | continuous analysis callbacks until stopped or completed |
+| `EnginesStore.startPlayerTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | one turn-scoped engine move search or strict rejection |
+
 ## Private Helper Catalogue
 These helper families are the intended internal structure behind the public APIs.
 

@@ -6,8 +6,9 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 ## Move Execution
 
 ### SCN-MOVE-01 - Legal Move on Board
-- Public flow: `GamesStore.makeMove` -> `GameRuleService.isMoveLegal` -> `GameRuleService.applyMove` -> `MoveUpdateService.addMainlineMove` -> `TimeControlService.applyMove` -> `EnginesStore.startAnalysis`.
-- Private design: `GamesStore._assertMoveAllowed` -> `_resolveMoveContext` -> `_commitLiveMove` -> `_updateClockAfterMove` -> `_refreshVisibleAnalysis` -> `_persistWorkspaceIfNeeded`.
+- Public flow: `GamesStore.makeMove` -> `GameRuleService.isMoveLegal` -> context dispatch to `GameRuleService.applyMove` and `MoveUpdateService` -> `TimeControlService.applyMove` when live clocks apply -> `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn`.
+- Private design: `GamesStore._assertMoveAllowed` -> `_resolveMoveContext` -> `_applyMoveByContext` -> `_commitLiveMove` or `_commitAnalysisMove` -> `_updateClockAfterMove` -> `_refreshVisibleAnalysis` -> `_persistWorkspaceIfNeeded` -> `_maybeRequestEngineTurn`.
+- State/settings coverage: `makeMove` accepts `liveGame` and `freeAnalysisSetup`, but dispatches by context. `liveGame + currentPosition + ongoing + not paused` commits a live move and may trigger a player-engine reply. `historyReview` routes through takeback-policy handling. `inGameAnalysis` and `freeAnalysisSetup` create analysis-only continuations and never trigger a live engine turn. `boardEdit`, paused live play, and final result states block live move progression.
 - Continuous analysis update loop: `EngineClient.subscribeToAnalysis` -> `EnginesStore._forwardAnalysisUpdate` -> `AnalysisStore.applyAnalysisUpdate` -> `AnalysisStore.getVisibleAnalysis` -> `AnalysisPanel` rerender for the affected engine row.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
@@ -19,36 +20,42 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 ### SCN-MOVE-03 - Pawn Promotion Resolution
 - Public flow: `GamesStore.makeMove` -> `GameRuleService.requiresPromotionSelection` -> `UiStateStore.showModal("promotion")` -> `GamesStore.makeMove` with the selected promotion piece.
 - Private design: `GamesStore._stagePendingPromotion` -> `_commitPromotionMove` -> `_clearPendingPromotion`; cancel uses `UiStateStore.hideModal`.
+- Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received. No implicit timeout or default-queen branch is part of the committed flow.
 - Requirement verification: `Pass`. Promotion remains an explicit store-owned mutation instead of a UI-side special case.
 
 ## Engine-Controlled Turn
 
 ### Live Engine Player Move Generation
-- Public flow: `GamesStore.makeMove` or `GamesStore.resumeGame` -> `EnginesStore.startPlayerTurn` -> `EngineClient.startSession` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> final move callback -> `GamesStore.makeMove`.
-- Private design: `GamesStore._maybeRequestEngineTurn` -> `EnginesStore._startPlayerTurnSearch` -> `_bindPlayerTurnCallbacks`; on the final callback `GamesStore` validates and commits the move through the normal mutation path.
+- Public flow: `GamesStore.createGame`, `GamesStore.startGameFromSetup`, `GamesStore.makeMove`, `GamesStore.resumeGame`, `GamesStore.navigateToNode` returning to the live node, or `GamesStore.importGame` restore completion -> `GamesStore._maybeRequestEngineTurn` -> `EnginesStore.startPlayerTurn` -> `EngineClient.startSession` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> final move callback -> `GamesStore.makeMove`.
+- Private design: `GamesStore._maybeRequestEngineTurn` -> `_isEngineTurnPlayable` -> `EnginesStore._startPlayerTurnSearch` -> `_bindPlayerTurnCallbacks`; on the final callback `GamesStore` validates and commits the move through the normal mutation path.
 - Runtime distinction: analysis search keeps streaming updates into `AnalysisStore`, while a player-engine turn waits only for the final move callback and then ends that turn-scoped search.
-- Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, paused live games, and finished games.
+- State gate: `EnginesStore.startPlayerTurn` is valid only for `liveGame + currentPosition + ongoing + not paused` when the side to move is assigned to an engine. It is a strict no-op-or-reject boundary for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused live games, expired clocks, and all final result states.
+- Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, board edit, paused live games, and finished games. Engine turns are also not used to implement engine-vs-engine autonomous loops because that mode remains outside the baseline scope.
 
 ## History And Branching
 
 ### SCN-HIST-01 - Navigate Move History Node
 - Public flow: `GamesStore.navigateToNode` -> `MoveUpdateService.navigateToNode` -> `MoveUpdateService.getPosition` -> `AnalysisStore.getVisibleAnalysis`.
 - Private design: `GamesStore._setVisibleNode` -> `_deriveInteractionContext` -> `_refreshVisibleAnalysisIfNeeded`.
+- State coverage: entering an earlier node moves the workspace into `historyReview` and suppresses `_maybeRequestEngineTurn`; returning to the live node restores `currentPosition`, after which `_maybeRequestEngineTurn` may run again if the live side to move is engine-controlled.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the same visible node.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
 - Public flow: `GamesStore.makeMove` -> `SettingsStore.getSettings` -> `MoveUpdateService.addMainlineMove` -> `MoveUpdateService.rewriteMainline`.
-- Private design: `GamesStore._applyHistoryRewritePolicy` -> `_confirmMainlineRewriteIfNeeded` -> `_promoteNewContinuation`.
+- Private design: `GamesStore._applyHistoryRewritePolicy` -> `_confirmMainlineRewriteIfNeeded` -> `_promoteNewContinuation` -> `_restoreCurrentPositionAfterRewrite` -> `_maybeRequestEngineTurn`.
+- Settings coverage: `gameplay.takebackPolicy = rewriteMainline` routes this flow into live mainline mutation. `gameplay.confirmMainlineRewrite` decides whether `_confirmMainlineRewriteIfNeeded` is a no-op or a blocking prompt. Once the new continuation is promoted and the workspace returns to `currentPosition`, a live engine turn may be requested if the side to move is engine-controlled.
 - Requirement verification: `Pass`. The public surface can keep the old future as a variation while promoting the new continuation.
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
 - Public flow: `GamesStore.makeMove` -> `SettingsStore.getSettings` -> `MoveUpdateService.addAnalysisMove` -> optional `MoveUpdateService.navigateToNode`.
-- Private design: `GamesStore._applyAnalysisOnlyHistoryPolicy` -> `_handleAnalysisBranchExitBehaviour`.
+- Private design: `GamesStore._applyAnalysisOnlyHistoryPolicy` -> `_handleAnalysisBranchExitBehaviour` -> optional `_restoreLiveNodeAfterAnalysisBranch`.
+- Settings coverage: `gameplay.takebackPolicy = analysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour = returnToLiveNode` restores `currentPosition` immediately after the analysis move, while `stayOnBranch` keeps the workspace off the live node in analysis review. `_maybeRequestEngineTurn` stays suppressed for both branches until the workspace is back on the live current node.
 - Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
 
 ### SCN-HIST-04 - Prune Future Moves from Selected Node
 - Public flow: `UiStateStore.showModal("pruneFuture")` -> `GamesStore.pruneFuture` -> `MoveUpdateService.pruneFutureMoves` -> `GamesStore.saveGame`.
-- Private design: `GamesStore._confirmPruneIfNeeded` -> `_pruneTreeFromNode` -> `_reconcileLiveAndVisibleNodes` -> `_persistWorkspace`.
+- Private design: `GamesStore._confirmPruneIfNeeded` -> `_assertRootPruneAllowed` -> `_pruneTreeFromNode` -> `_reconcileLiveAndVisibleNodes` -> `_persistWorkspace`.
+- Settings coverage: `gameplay.confirmPruneFutureMoves` decides whether the prune confirmation modal is required. `gameplay.allowRootPrune` decides whether pruning from the root node is allowed or rejected before mutation.
 - Requirement verification: `Pass`. Root-prune policy and irreversible confirmation both sit behind the store boundary.
 
 ## Time Control
@@ -60,7 +67,8 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 
 ### SCN-TIME-02 - Pause and Resume Clocks
 - Public flow: `GamesStore.pauseGame` -> `GamesStore.resumeGame`.
-- Private design: `GamesStore._assertPausable` -> `_pauseClock` -> `_markPauseOwner`; resume uses `_assertResumable` -> `_resumeClock`.
+- Private design: `GamesStore._assertPausable` -> `_pauseClock` -> `_markPauseOwner`; resume uses `_assertResumable` -> `_resumeClock` -> `_maybeRequestEngineTurn`.
+- State coverage: pause and resume are valid only for timed `liveGame + currentPosition + ongoing` states. `resumeGame` restores clock progression but only requests an engine turn after resume when the resumed context is playable live current-position state and the side to move is engine-controlled.
 - Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally.
 
 ### SCN-TIME-03 - Increment Applied After Move
@@ -76,6 +84,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
 - Public flow: menu intent -> conditional `GamesStore.pauseGame(..., "menu")` -> external flow -> conditional `GamesStore.resumeGame(..., "menu")`.
 - Private design: `GamesStore._maybeAutoPauseForMenu` -> `_rememberPauseOwner`; return uses `_resumeIfMenuOwnedPause`.
+- Settings coverage: `session.autoPauseOnMenu` controls whether timed live games are paused for save/settings and similar interrupting flows. Pause ownership prevents an unrelated return path from auto-resuming a manually paused game or a game paused for analysis-mode entry.
 - Requirement verification: `Pass`. Auto-pause is gated by settings, active clock state, and pause ownership.
 
 ## Game Controls
@@ -97,7 +106,8 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - Public flow: `GamesStore.enterInGameAnalysis` -> analysis moves continue through `GamesStore.makeMove` -> `GamesStore.exitInGameAnalysis`.
-- Private design: entry uses `_pauseForAnalysisEntry` -> `_cloneAnalysisContext`; exit uses `_promptForDirtyAnalysisExitIfNeeded` -> `_restoreLiveNode` -> `_resumeAfterAnalysisIfOwned`.
+- Private design: entry uses `_assertInGameAnalysisAllowed` -> `_pauseForAnalysisEntry` -> `_cloneAnalysisContext`; exit uses `_promptForDirtyAnalysisExitIfNeeded` -> `_restoreLiveNode` -> `_resumeAfterAnalysisIfOwned`.
+- State coverage: in-game analysis is a `liveGame + ongoing` mode only. Entry is blocked for `freeAnalysisSetup`, `boardEdit`, paused states that cannot be analysis-owned, and finished games. While active, analysis moves are legal for both colours, clocks do not progress, the live node does not advance, and `_maybeRequestEngineTurn` remains suppressed until the mode exits back to the live node.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode

@@ -11,20 +11,23 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-04`.
 - Requirement verification: `Pass`. A no-player creation request yields a non-live workspace while preserving engine-driven analysis when configured.
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
-- Public flow: `GamesStore.enterBoardEdit` -> `GamesStore.confirmBoardEdit` or `GamesStore.cancelBoardEdit`; confirm uses `MoveUpdateService.replaceBoardRoot` and `AnalysisStore.clearGameAnalysis`.
-- Private design: `GamesStore._assertBoardEditAllowed` -> `_snapshotPreEditState`; confirm uses `_confirmHistoryClearIfNeeded` -> `_replaceWorkspaceRoot` -> `_refreshVisibleAnalysis`; cancel uses `_restorePreEditState`.
-- Requirement verification: `Pass`. The public surface covers edit entry, confirm, cancel, history clearing, and analysis refresh.
+- Public flow: `GamesStore.enterBoardEdit` -> `EnginesStore.stopAnalysis` for the workspace if analysis is active -> `GamesStore.confirmBoardEdit` or `GamesStore.cancelBoardEdit`; confirm uses `MoveUpdateService.replaceBoardRoot` and `AnalysisStore.clearGameAnalysis`, then conditional `EnginesStore.startAnalysis`.
+- Private design: `GamesStore._assertBoardEditAllowed` -> `_snapshotPreEditState` -> `_suspendAnalysisForBoardEdit`; confirm uses `_confirmHistoryClearIfNeeded` -> `_replaceWorkspaceRoot` -> `_refreshVisibleAnalysis`; cancel uses `_restorePreEditState` -> `_resumeAnalysisAfterBoardEditIfNeeded`.
+- State coverage: `boardEdit` is valid only inside `freeAnalysisSetup`. While active, engine analysis is suspended and `EnginesStore.startAnalysis` is blocked for that workspace. Analysis may resume only after confirm or cancel returns the workspace to a non-`boardEdit` context.
+- Requirement verification: `Pass`. The public surface covers edit entry, confirm, cancel, history clearing, analysis suspension during edit, and analysis refresh afterwards.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
-- Public flow: `UiStateStore.showModal("startGameFromSetup")` -> `GamesStore.startGameFromSetup` -> `UiStateStore.hideModal`.
-- Private design: `GamesStore._validateSetupTransition` -> `_validateAssignedEngines` -> `_retainPreparedMoveTree` -> `_initialiseLiveClock` -> `_switchWorkspaceKindToLiveGame`.
-- Requirement verification: `Pass`. Starting from setup preserves the prepared root and move tree while moving the workspace into live-game rules.
+- Public flow: `UiStateStore.showModal("startGameFromSetup")` -> `GamesStore.startGameFromSetup` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
+- Private design: `GamesStore._validateSetupTransition` -> `_rejectUnsupportedPlayerCombination` -> `_validateAssignedEngines` -> `_retainPreparedMoveTree` -> `_initialiseLiveClock` -> `_switchWorkspaceKindToLiveGame`.
+- State/settings coverage: the workspace must leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing`. Starting a baseline live game with both sides assigned to `engine` is rejected because engine-vs-engine autonomous play is not committed scope. After the transition, `_maybeRequestEngineTurn` runs only if the resulting live side to move is engine-controlled.
+- Requirement verification: `Pass`. Starting from setup preserves the prepared root and move tree while moving the workspace into live-game rules without implying unsupported engine-vs-engine play.
 
 ## Analysis And Engine Runtime
 
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
 - Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.ensureAnalysisSessions` -> `EngineClient.startSession` -> `AnalysisStore.beginAnalysisStream` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> `EngineClient.subscribeToAnalysis` -> `AnalysisStore.applyAnalysisUpdate`.
 - Private design: `EnginesStore._startAnalysisSessions` -> `_bindAnalysisCallbacks` -> `_forwardAnalysisUpdate`; `AnalysisStore` only marks the stream active and merges updates.
+- State gate: `EnginesStore.startAnalysis` accepts `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. It remains valid for paused live games and finished-game review because analysis does not advance the live state. It is blocked while `interactionContext = boardEdit`.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready/registration callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
 Example concrete session calls:
