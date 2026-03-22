@@ -43,9 +43,9 @@ Within the main content row:
 | MenuBar                                                                                          |
 +--------------------------------------------------------------------------------------------------+
 | GameTabs                                                     |                                   |
-+--------------------------------------------------------------|                                   |
++--------------------------------------------------------------+                                   |
 | Top Player Strip                                             |                                   |
-| ------------------------------------------------------------ |                                   |
++ ------------------------------------------------------------ +                                   |
 |                                                              |                                   |
 |                                                              |                                   |
 |                                                              |                                   |
@@ -56,10 +56,30 @@ Within the main content row:
 |                                                              |                                   |
 |                                                              |                                   |
 |                                                              |                                   |
-| ------------------------------------------------------------ |                                   |
++ ------------------------------------------------------------ +                                   |
 | Bottom Player Strip                                          |                                   |
 +--------------------------------------------------------------+-----------------------------------+
 ```
+
+## Sidebar Panel Design
+The sidebar is arranged in this order:
+
+```text
++-------------------------------+
+| ⌵ HistoryPanel                |
++-------------------------------+
+| ⌵ AnalysisPanel               |
++-------------------------------+
+| GameControlPanel              |
++-------------------------------+
+```
+
+The sidebar panel contents are:
+
+- `HistoryPanel`: history tree and history-specific actions
+- `AnalysisPanel`: analysis engines, visible lines, and analysis-specific actions, show top 3 per engine, foldable per engine
+- `GameControlPanel`: committed gameplay actions such as takeback, pause, resign, draw, analysis mode actions, and setup actions
+
 ## Sidebar Behaviour
 The baseline desktop sidebar behaviour is:
 
@@ -69,39 +89,28 @@ The baseline desktop sidebar behaviour is:
 - collapsing one panel must not move the sidebar into a different column arrangement
 - `GameControlPanel` remains the bottom region of the sidebar and is the main location for committed gameplay actions
 
-Example collapsed state:
+Example collapsed analysis state:
 
 ```text
 +-----------------------------------+
-| HistoryPanel                      |
+| ⌵ History                        |
+| *HistoryPanel*                    |
 +-----------------------------------+
-| AnalysisPanel >                   |
+| > Analysis                        |
 +-----------------------------------+
-| GameControlPanel                  |
+| *GameControlPanel*                |
 +-----------------------------------+
 ```
-
-## Sidebar Panel Design
-The sidebar is arranged in this order:
-
-```text
-+-------------------------------+
-| HistoryPanel                  |
-+-------------------------------+
-| AnalysisPanel                 |
-+-------------------------------+
-| GameControlPanel              |
-+-------------------------------+
-```
-
-The sidebar panel contents are:
-
-- `HistoryPanel`: history tree and history-specific actions
-- `AnalysisPanel`: analysis engines, visible lines, and analysis-specific actions
-- `GameControlPanel`: committed gameplay actions such as takeback, pause, resign, draw, analysis mode actions, and setup actions
 
 ## Player Strip Design
-TBD
+``` text
++---------------------------------+
+|  Name / engine status      Time |
+|  pieces taken              panel|
++---------------------------------+
+```
+
+Pieces taken are rendered as icons. Grouped together by type to reduce space taken. Grouping is done by reduce spacing of the pieces so they overlap 70% of the icon.
 
 ## Button Placement Rules
 Button placement follows screen ownership rather than ad hoc local placement.
@@ -126,6 +135,42 @@ Panel and button legend:
 [AnalysisPanel]    analysis-specific actions only
 [GameControlPanel] committed gameplay actions only
 ```
+
+## Settings View Layout
+The settings surface uses a tab-style category switcher similar in spirit to `GameTabs`, but for settings categories rather than open games.
+
+The baseline settings categories are:
+
+- `Session`
+- `Gameplay`
+- `Appearance`
+- `Layout`
+- `Engines`
+
+Settings layout sketch:
+
+```text
++------------------------------------------------------------------------------+
+| Settings Title                                                               |
++------------------------------------------------------------------------------+
+| [Session] [Gameplay] [Appearance] [Layout] [Engines]                         |
++------------------------------------------------------------------------------+
+|                                                                              |
+| Selected settings category content                                           |
+|                                                                              |
+|                                                                              |
++------------------------------------------------------------------------------+
+|                                                     [Cancel] [Save] [Apply]  |
++------------------------------------------------------------------------------+
+```
+
+Settings layout rules:
+
+- category switching uses a shared tab-like control rather than a long single scrolling page
+- only one settings category is active in the main settings content area at a time
+- `Cancel`, `Save`, and `Apply` stay in the bottom-right action area
+- the bottom action area remains in a fixed bottom corner position relative to the settings surface
+- category content owns its internal fields, but not the outer action-row placement
 
 ## Layout Ownership Rules
 This document defines the parent-child positioning contract that the later low-level design must preserve.
