@@ -10,6 +10,7 @@ Render the latest visible analysis snapshot for the active position.
 - `SidePanelButton` for panel actions
 - `AnalysisChessPieceButton` where piece-choice interactions are exposed for analysis or setup helpers
 - `AnalysisEngineSection` for per-engine line rendering and actions
+- per-engine folded or expanded state
 
 ## Emits
 - `refreshRequested`
@@ -20,6 +21,8 @@ Render the latest visible analysis snapshot for the active position.
 
 ## Notes
 - Each engine row updates independently.
+- Each engine group may show up to `3` visible lines for the active position.
+- Each engine group may be folded independently without affecting the other engine groups.
 - Saved analysis may remain visible when live engines are unavailable.
 - The panel rerenders when `AnalysisStore` publishes a newer visible snapshot for the same engine and position, so stronger scores replace weaker ones during an active search.
 - `AnalysisPanel` contains no HTML or template markup and binds engine view models into common panel, status, list, and message components.

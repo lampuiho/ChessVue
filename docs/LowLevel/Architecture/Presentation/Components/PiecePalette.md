@@ -16,4 +16,5 @@ Render a small piece-choice control surface for promotion and setup/edit flows.
 ## Notes
 - `PiecePalette` uses `AnalysisChessPieceButton` for individual piece choices.
 - `Chessboard` or a dialog wrapper may host this component depending on the interaction flow.
+- Promotion selection and free-analysis board editing share this same piece-choice surface.
 - `PiecePalette` contains no HTML or template markup and binds piece-choice state into common button renderers.

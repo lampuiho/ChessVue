@@ -243,7 +243,7 @@ Each scenario in this document uses the same structure:
   1. User navigates to settings.
   2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before leaving the game screen.
   3. App loads current settings and engine list.
-  4. User saves or resets settings.
+  4. User applies, saves, or resets settings.
   5. User navigates back to prior game route.
   6. If the pause came from this auto-pause flow, app auto-resumes on return.
 - **Branch Paths**:
@@ -510,12 +510,13 @@ Each scenario in this document uses the same structure:
   3. App sends UCI commands for current FEN and starts an ongoing search.
   4. App reads engine output continuously as the engine refines its evaluation.
   5. App stores updated best lines and scores each time the engine reports an improvement or deeper search result.
-  6. Analysis panel refreshes over time to show the latest best line, score, and search progress until analysis is stopped or the position changes.
+  6. Analysis panel refreshes over time to show the latest best line, up to `3` visible lines for that engine, score, and search progress until analysis is stopped or the position changes.
 - **Branch Paths**:
   - `BR-ANALYSIS-01-ENGINE-NOT-RUNNING`: Engine start fails -> show actionable error and keep UI responsive.
   - `BR-ANALYSIS-01-PARSE-FAIL`: Output parse fails -> skip bad line and continue listening.
   - `BR-ANALYSIS-01-AUTO-ON-MOVE`: If engines were configured at creation, refresh analysis automatically after each committed move in either free analysis / setup or in-game analysis mode.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
+  - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
 - **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching.
 - **Function Touchpoints**:
   - `GameView.onStartAnalysis`
@@ -537,11 +538,12 @@ Each scenario in this document uses the same structure:
   3. App dispatches position to all selected engines.
   4. Each engine continues searching and emits updated best lines over time.
   5. App aggregates evaluations keyed by `gameId + engineId + fen`, replacing older lines with newer best results from the same engine.
-  6. Analysis panel renders one row/group per engine and updates each row independently as new output arrives.
+  6. Analysis panel renders one row/group per engine, shows up to `3` visible lines per engine, and updates each row independently as new output arrives.
 - **Branch Paths**:
   - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.
   - `BR-ANALYSIS-02-TOO-MANY`: Resource limit reached -> throttle, queue, or reject additional engines.
   - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
+  - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
 - **Function Touchpoints**:
   - `EnginesStore.listEngines`
@@ -900,13 +902,14 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: `/settings`.
 - **Main Steps**:
   1. User edits one or more settings fields.
-  2. User saves settings.
-  3. App persists settings and applies theme/UI updates.
+  2. User applies settings to preview or commit the pending changes without leaving the settings view, or saves settings to commit and finish the flow.
+  3. App persists settings and applies theme/UI updates for the accepted changes.
 - **Branch Paths**:
   - `BR-SETTINGS-01-INVALID-VALUE`: Value fails schema validation -> block save and show field errors.
   - `BR-SETTINGS-01-APPLY-FAIL`: Apply-on-save fails partially -> persist known-good subset.
 - **Postconditions**: Approved preferences are applied and persisted.
 - **Function Touchpoints**:
+  - `SettingsView.onApply`
   - `SettingsView.onSave`
   - `SettingsStore.updateSetting`
   - `SettingsStore.saveSettings`

@@ -22,6 +22,7 @@ Read-side rule:
 - Fresh launch and no-active-game fallback render in `HomeView`.
 - `HomeView` uses `WorkspaceShell`, `HomeMenuButton`, and `EmptyState` for its render surface.
 - Custom new game opens `NewGameModal`, which owns form composition but not game-creation decisions.
+- The same landing surface also owns direct actions for quick new, load, and settings.
 
 ### Shell Navigation
 - `MenuBar` owns shell-level actions for quick new, custom new, load, save, settings, and delete.
@@ -43,6 +44,7 @@ Read-side rule:
 - `AnalysisPanel` owns refresh, retry, stop, engine-selection, and analysis-line selection actions.
 - `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
 - `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
+- Each engine group may expose up to `3` visible lines and may be folded independently without changing the other engine groups.
 
 ### Game Control Interaction
 - `GameControlPanel` is the single source for live-game and setup controls:
@@ -60,10 +62,12 @@ Read-side rule:
 - `SettingsView` owns settings and engine-inventory workflows.
 - `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`, `SettingsActionButton`, `ItemList`, `InlineMessage`, and `EmptyState` provide the required settings and inventory render building blocks.
 - `SettingsSection` and `EngineInventoryEditor` are template-free adapters over those common form and list components.
+- `TabbedView` and `TabButton` also support top-level settings category switching.
+- `SettingsView` keeps `Cancel`, `Save`, and `Apply` in the primary bottom-right action row, while `Reset` stays in a separate secondary settings action area.
 
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
-- Concrete flows such as new game, prune confirmation, invalid-load errors, and reset-settings prompts stay in their owning feature components or views.
+- Concrete flows such as new game, promotion selection when hosted as a dialog, prune confirmation, invalid-load errors, reset-settings prompts, and blocked board-edit explanations stay in their owning feature components or views.
 
 ## Building Block Verification
 The common layer is complete for the current baseline when it can render:
@@ -74,6 +78,7 @@ The common layer is complete for the current baseline when it can render:
 - panel and list UI: `PanelSurface`, `ButtonGroup`, `ItemList`, `TreeView`, `StatusCard`, `ClockDisplay`, `EmptyState`, `InlineMessage`
 - forms: `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`
 - modal flows: `ModalDialog`, `DialogButton`
+- piece-choice flows: `AnalysisChessPieceButton`, `PiecePalette`
 
 ## Abstraction Rules
 - Views compose screen regions and connect them to stores; they contain no template markup.

@@ -16,4 +16,5 @@ Render the neutral landing screen for launch, no-active-game fallback, and first
 
 ## Notes
 - `HomeView` does not auto-create a game on its own.
+- The landing surface groups quick new, custom new, load, and settings as the primary first-use and no-active-game actions.
 - `HomeView` contains no HTML or template markup and delegates rendering to common components.

@@ -6,6 +6,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-02`.
 ### SCN-SESSION-01 - Fresh Launch with No Saved State
 - Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadSession` -> `GamesStore.restorePersistedGames` -> router startup resolution.
 - Private design: `SettingsStore._loadStoredSnapshot` -> `_migrateSnapshotOrDefault`; `UiStateStore._loadStoredSession` -> `_coerceActiveRoute`; `GamesStore._loadRequestedDocuments` -> `_hydrateWorkspaceCollection`; `Router._resolveStartupTarget`.
+- UI surface coverage: startup lands on `HomeView`, which exposes grouped first-use actions for quick new, custom new, load, and settings without auto-creating a workspace.
 - Requirement verification: `Pass`. Defaults load independently, bad absence is not treated as corruption, and startup lands on a neutral route instead of auto-creating a game.
 
 ### SCN-SESSION-02 - Restore Previous Session
@@ -27,6 +28,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-02`.
 ### SCN-GAME-02 - Custom New Game with User Options
 - Public flow: `UiStateStore.showModal("newGame")` -> `GamesStore.createGame` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
 - Private design: `GamesStore._validateCreateRequest` -> `_resolveWorkspaceKind` -> `_rejectUnsupportedPlayerCombination` -> `_validateAssignedEngines` -> `_initialiseClockSnapshot` -> `_seedAnalysisAssignment`.
+- UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections and shared dialog-row create or cancel actions.
 - State/settings coverage: at least one human side is required for a baseline `liveGame`; a request with neither side assigned becomes `freeAnalysisSetup`, while a request with both sides assigned to `engine` is rejected because engine-vs-engine autonomous play is out of baseline scope. `_maybeRequestEngineTurn` is evaluated immediately after creation when the resulting live game starts on an engine-controlled side to move.
 - Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, a no-player request resolves into `freeAnalysisSetup`, and unsupported engine-vs-engine live creation is rejected centrally.
 
@@ -38,6 +40,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-02`.
 ### SCN-NAV-01 - Route to Settings and Back to Active Game
 - Public flow: conditional `GamesStore.pauseGame` -> `UiStateStore.setActiveRoute("/settings")` -> `SettingsStore.loadSettings`; return path uses `UiStateStore.setActiveRoute` and conditional `GamesStore.resumeGame`.
 - Private design: `GamesStore._maybeAutoPauseForMenu` -> `UiStateStore._rememberReturnRoute` -> `SettingsStore._loadStoredSnapshot`; return uses `Router._restoreReturnRoute` -> `GamesStore._resumeIfMenuOwnedPause`.
+- UI surface coverage: `SettingsView` keeps category switching in a tab-style top strip, a secondary reset action area, and a primary bottom-right action row for `Cancel`, `Save`, and `Apply`.
 - State/settings coverage: `session.autoPauseOnMenu` applies only to timed `liveGame + currentPosition + ongoing` contexts. The stored pause owner prevents settings return from auto-resuming a manually paused game or a game paused for another reason such as in-game analysis.
 - Requirement verification: `Pass`. Auto-pause remains policy-driven, dirty-form prompts stay in `UiStateStore`, and return routing does not depend on a still-valid game always existing.
 

@@ -15,6 +15,6 @@ Provide a reusable dialog shell for confirmation, form, and interruption flows.
 - `dismissed`
 
 ## Notes
-- `NewGameModal` and confirmation prompts should use the same dialog shell.
+- `NewGameModal`, confirmation prompts, invalid-load errors, and blocked board-edit explanations should use the same dialog shell.
 - Dialog actions inside the shell use `DialogButton`.
 - Modal visibility remains transient UI state owned outside the dialog component.

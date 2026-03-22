@@ -13,6 +13,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-04`.
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
 - Public flow: `GamesStore.enterBoardEdit` -> `EnginesStore.stopAnalysis` for the workspace if analysis is active -> `GamesStore.confirmBoardEdit` or `GamesStore.cancelBoardEdit`; confirm uses `MoveUpdateService.replaceBoardRoot` and `AnalysisStore.clearGameAnalysis`, then conditional `EnginesStore.startAnalysis`.
 - Private design: `GamesStore._assertBoardEditAllowed` -> `_snapshotPreEditState` -> `_suspendAnalysisForBoardEdit`; confirm uses `_confirmHistoryClearIfNeeded` -> `_replaceWorkspaceRoot` -> `_refreshVisibleAnalysis`; cancel uses `_restorePreEditState` -> `_resumeAnalysisAfterBoardEditIfNeeded`.
+- UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `boardEdit` is valid only inside `freeAnalysisSetup`. While active, engine analysis is suspended and `EnginesStore.startAnalysis` is blocked for that workspace. Analysis may resume only after confirm or cancel returns the workspace to a non-`boardEdit` context.
 - Requirement verification: `Pass`. The public surface covers edit entry, confirm, cancel, history clearing, analysis suspension during edit, and analysis refresh afterwards.
 
@@ -27,6 +28,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-04`.
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
 - Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.ensureAnalysisSessions` -> `EngineClient.startSession` -> `AnalysisStore.beginAnalysisStream` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> `EngineClient.subscribeToAnalysis` -> `AnalysisStore.applyAnalysisUpdate`.
 - Private design: `EnginesStore._startAnalysisSessions` -> `_bindAnalysisCallbacks` -> `_forwardAnalysisUpdate`; `AnalysisStore` only marks the stream active and merges updates.
+- UI surface coverage: one engine group may show up to `3` visible lines, and folding that engine group hides its rendered lines without stopping the underlying engine session or update stream.
 - State gate: `EnginesStore.startAnalysis` accepts `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. It remains valid for paused live games and finished-game review because analysis does not advance the live state. It is blocked while `interactionContext = boardEdit`.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready/registration callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
@@ -100,6 +102,7 @@ For the baseline UCI implementation, `EngineClient` internally sends `uci`, wait
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
 - Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.validateAnalysisSelection` -> `EnginesStore.ensureAnalysisSessions`.
 - Private design: `EnginesStore._assertAnalysisSelectionLimit` -> `_buildSessionPerEngine`; each session runs `EngineClient.syncPosition` and `EngineClient.startAnalysis` independently; `AnalysisStore._mergeEngineSnapshot` keeps each engine row independent.
+- UI surface coverage: the panel renders one independently foldable engine group per selected engine, with up to `3` visible lines per engine group while background updates continue even when one group is folded.
 - Requirement verification: `Pass`. The four-engine cap is enforced before processes start, and partial failure does not block healthy engines.
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis

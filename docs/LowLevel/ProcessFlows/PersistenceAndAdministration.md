@@ -25,18 +25,21 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-LOAD-02 - Load Invalid/Corrupt Game File
 - Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` failure -> `UiStateStore.showModal("importError")`.
 - Private design: `FileIoAdapter._mapFileIoError`; `SerializationService._parseJson` and `_migrateBySchemaVersion` distinguish unsupported, corrupt, and partially recoverable files.
+- UI surface coverage: import failure uses the shared dialog shell; partial-recovery cases may expose continue or cancel actions, while unrecoverable cases reduce to acknowledge-and-close behaviour.
 - Requirement verification: `Pass`. Failed import does not mutate the current session state.
 
 ## Settings And Engine Inventory
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
-- Public flow: `SettingsStore.updateSettings` -> `SettingsStore.saveSettings`.
-- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_persistSnapshot`; appearance refresh uses `GameView._applyAppearanceProjection`.
-- Requirement verification: `Pass`. Validation happens before persistence, and only committed settings fields are writable.
+- Public flow: `SettingsStore.updateSettings` -> `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
+- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettingsProjection`; save uses `_persistSnapshot`; appearance refresh uses `GameView._applyAppearanceProjection`.
+- UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
+- Requirement verification: `Pass`. Validation happens before apply or persistence, and only committed settings fields are writable.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 - Public flow: `UiStateStore.showModal("resetSettings")` -> `SettingsStore.resetSettings`.
 - Private design: `SettingsStore._defaultSettings` -> `_persistSnapshot`; cancel uses `UiStateStore.hideModal`.
+- UI surface coverage: reset is triggered from the secondary settings action area and always routes through the shared confirmation dialog before the default snapshot is applied.
 - Requirement verification: `Pass`. Reset restores the authoritative default schema and persists it atomically.
 
 ### SCN-ENGINE-01 - Add Engine Configuration

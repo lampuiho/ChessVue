@@ -20,6 +20,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 ### SCN-MOVE-03 - Pawn Promotion Resolution
 - Public flow: `GamesStore.makeMove` -> `GameRuleService.requiresPromotionSelection` -> `UiStateStore.showModal("promotion")` -> `GamesStore.makeMove` with the selected promotion piece.
 - Private design: `GamesStore._stagePendingPromotion` -> `_commitPromotionMove` -> `_clearPendingPromotion`; cancel uses `UiStateStore.hideModal`.
+- UI surface coverage: promotion uses the shared `PiecePalette` surface, hosted either as a board-local overlay or inside the shared dialog shell, and stays local to the current move attempt.
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received. No implicit timeout or default-queen branch is part of the committed flow.
 - Requirement verification: `Pass`. Promotion remains an explicit store-owned mutation instead of a UI-side special case.
 
@@ -55,6 +56,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 ### SCN-HIST-04 - Prune Future Moves from Selected Node
 - Public flow: `UiStateStore.showModal("pruneFuture")` -> `GamesStore.pruneFuture` -> `MoveUpdateService.pruneFutureMoves` -> `GamesStore.saveGame`.
 - Private design: `GamesStore._confirmPruneIfNeeded` -> `_assertRootPruneAllowed` -> `_pruneTreeFromNode` -> `_reconcileLiveAndVisibleNodes` -> `_persistWorkspace`.
+- UI surface coverage: prune confirmation uses the shared dialog shell with a danger-focused confirmation row before irreversible mutation is allowed through.
 - Settings coverage: `gameplay.confirmPruneFutureMoves` decides whether the prune confirmation modal is required. `gameplay.allowRootPrune` decides whether pruning from the root node is allowed or rejected before mutation.
 - Requirement verification: `Pass`. Root-prune policy and irreversible confirmation both sit behind the store boundary.
 
@@ -113,4 +115,5 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
 - Public flow: blocked board-edit intent -> `UiStateStore.showModal("boardEditBlocked")`; allowed cases continue to `GamesStore.enterBoardEdit`.
 - Private design: `GamesStore._assertBoardEditAllowed` returns a reason token; `UiStateStore` owns the explanatory prompt.
+- UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.

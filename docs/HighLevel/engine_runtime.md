@@ -54,6 +54,8 @@ Duplicate IDs or invalid executable paths are rejected.
 - Multiple assigned analysis engines may evaluate the same position concurrently.
 - Each engine updates its own row or group in the analysis UI independently.
 - The app stores the latest valid result from each engine for a given game and position.
+- Each engine group may expose up to `3` visible lines for the active position.
+- Each engine group may be folded or expanded independently without affecting the other engine groups.
 - Partial failure of one engine must not stop the remaining engines.
 
 ## Resource Limit Policy

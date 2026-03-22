@@ -23,4 +23,5 @@ Render user-editable settings and engine inventory management.
 - Opening settings may trigger menu-driven auto-pause through store coordination, not view logic.
 - `SettingsView` switches between settings categories through a tab-style control rather than presenting all categories in one long page.
 - The primary settings action row sits at the bottom-right of the settings surface and contains `Cancel`, `Save`, and `Apply`.
+- `Reset` stays outside that primary row in a separate secondary settings action area and always routes through a confirmation dialog before defaults are restored.
 - `SettingsView` contains no HTML or template markup and delegates rendering to common form and list components.

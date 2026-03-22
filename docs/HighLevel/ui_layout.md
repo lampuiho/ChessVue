@@ -15,6 +15,7 @@ This is a high-level layout contract only. It does not define final styling, spa
 
 The baseline layout must accommodate:
 
+- `HomeView`
 - `MenuBar`
 - `GameTabs`
 - `PlayerPanel`
@@ -22,6 +23,32 @@ The baseline layout must accommodate:
 - `HistoryPanel`
 - `AnalysisPanel`
 - `GameControlPanel`
+- `SettingsView`
+- shared modal and piece-choice surfaces
+
+## Home View Layout
+The neutral landing screen is the first-use and no-active-game fallback surface.
+
+Home layout sketch:
+
+```text
++------------------------------------------------------------------------------+
+| Home Title / Empty State                                                     |
+| Short guidance text                                                          |
++------------------------------------------------------------------------------+
+| [Quick New Game]                                                             |
+| [Custom New Game]                                                            |
+| [Load Game]                                                                  |
+| [Settings]                                                                   |
++------------------------------------------------------------------------------+
+```
+
+Home layout rules:
+
+- `HomeView` remains a route-level screen, not a modal
+- first-use and no-active-game fallback use the same basic action layout
+- primary landing actions stay grouped together instead of being scattered across the page
+- `Custom New Game` opens the shared dialog family rather than navigating away from `HomeView`
 
 ## Workspace Regions
 The baseline game workspace is arranged in four vertical layers:
@@ -45,7 +72,7 @@ Within the main content row:
 | GameTabs                                                     |                                   |
 +--------------------------------------------------------------+                                   |
 | Top Player Strip                                             |                                   |
-+ ------------------------------------------------------------ +                                   |
++--------------------------------------------------------------+                                   |
 |                                                              |                                   |
 |                                                              |                                   |
 |                                                              |                                   |
@@ -56,7 +83,7 @@ Within the main content row:
 |                                                              |                                   |
 |                                                              |                                   |
 |                                                              |                                   |
-+ ------------------------------------------------------------ +                                   |
++--------------------------------------------------------------+                                   |
 | Bottom Player Strip                                          |                                   |
 +--------------------------------------------------------------+-----------------------------------+
 ```
@@ -66,9 +93,9 @@ The sidebar is arranged in this order:
 
 ```text
 +-------------------------------+
-| ⌵ HistoryPanel                |
+| > HistoryPanel                |
 +-------------------------------+
-| ⌵ AnalysisPanel               |
+| > AnalysisPanel               |
 +-------------------------------+
 | GameControlPanel              |
 +-------------------------------+
@@ -77,7 +104,7 @@ The sidebar is arranged in this order:
 The sidebar panel contents are:
 
 - `HistoryPanel`: history tree and history-specific actions
-- `AnalysisPanel`: analysis engines, visible lines, and analysis-specific actions, show top 3 per engine, foldable per engine
+- `AnalysisPanel`: analysis engines, visible lines, and analysis-specific actions, show up to `3` visible lines per engine, foldable per engine
 - `GameControlPanel`: committed gameplay actions such as takeback, pause, resign, draw, analysis mode actions, and setup actions
 
 ## Sidebar Behaviour
@@ -93,7 +120,7 @@ Example collapsed analysis state:
 
 ```text
 +-----------------------------------+
-| ⌵ History                        |
+| > History                         |
 | *HistoryPanel*                    |
 +-----------------------------------+
 | > Analysis                        |
@@ -103,14 +130,36 @@ Example collapsed analysis state:
 ```
 
 ## Player Strip Design
-``` text
+```text
 +---------------------------------+
 |  Name / engine status      Time |
 |  pieces taken              panel|
 +---------------------------------+
 ```
 
-Pieces taken are rendered as icons. Grouped together by type to reduce space taken. Grouping is done by reduce spacing of the pieces so they overlap 70% of the icon.
+Pieces taken are rendered as icons. Grouped together by type to reduce space taken. Grouping is done by reduced spacing of the pieces so they overlap 70% of the icon.
+
+## Piece Choice Surface
+`PiecePalette` is the shared small-format piece-choice surface for promotion and free-analysis board editing.
+
+Piece-choice sketch:
+
+```text
++----------------------------------+
+| Piece Choice                     |
++----------------------------------+
+| [Q] [R] [B] [N]                  |
++----------------------------------+
+|                         [Cancel] |
++----------------------------------+
+```
+
+Piece-choice rules:
+
+- promotion selection may host `PiecePalette` as a board-local overlay or inside the shared dialog shell
+- free-analysis board editing may host `PiecePalette` close to the board-edit controls
+- piece-choice actions stay local to the current promotion or board-edit flow
+- `PiecePalette` is not part of the persistent right sidebar layout
 
 ## Button Placement Rules
 Button placement follows screen ownership rather than ad hoc local placement.
@@ -160,7 +209,7 @@ Settings layout sketch:
 |                                                                              |
 |                                                                              |
 +------------------------------------------------------------------------------+
-|                                                     [Cancel] [Save] [Apply]  |
+| [Reset To Defaults]                                 [Cancel] [Save] [Apply]  |
 +------------------------------------------------------------------------------+
 ```
 
@@ -169,8 +218,43 @@ Settings layout rules:
 - category switching uses a shared tab-like control rather than a long single scrolling page
 - only one settings category is active in the main settings content area at a time
 - `Cancel`, `Save`, and `Apply` stay in the bottom-right action area
+- `Reset` stays in a separate secondary settings action area rather than in the primary bottom-right row
+- `Reset` always requires confirmation through the shared dialog family before defaults are restored
 - the bottom action area remains in a fixed bottom corner position relative to the settings surface
 - category content owns its internal fields, but not the outer action-row placement
+
+## Shared Dialog Family
+The baseline uses one reusable dialog shell for confirmation, form, and interruption flows.
+
+Shared dialog sketch:
+
+```text
++------------------------------------------------------------------+
+| Dialog Title                                                     |
++------------------------------------------------------------------+
+| Dialog body or form content                                      |
+|                                                                  |
+|                                                                  |
++------------------------------------------------------------------+
+|                                [Secondary] [Primary] [Danger]    |
++------------------------------------------------------------------+
+```
+
+Dialog family rules:
+
+- shared dialogs stay modal and transient; they do not replace route-level views
+- the content area changes by flow, but the shell and action-row placement stay consistent
+- confirmation and error flows may use fewer actions, but they still use the same shell
+- forms inside dialogs use the same shallow section and field structure as other baseline forms
+
+Named baseline uses:
+
+- `NewGameModal`: custom new game form with named sections and create or cancel actions
+- promotion selection: shared dialog shell or board-local overlay hosting `PiecePalette`
+- prune confirmation: danger-focused confirmation dialog
+- reset-settings confirmation: confirm or cancel reset from the settings secondary action area
+- invalid-load error or recover prompt: error dialog with continue or cancel when partial recovery is allowed
+- blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
 
 ## Layout Ownership Rules
 This document defines the parent-child positioning contract that the later low-level design must preserve.
