@@ -115,11 +115,11 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
 - `EnginesStore` owns configured engine inventory, engine assignment, and runtime availability state.
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
-- `UiStateStore` owns session-level shell state such as active game, open tabs, and non-modal UI layout state.
+- `UiStateStore` owns session-level shell state such as active game, open tabs, recent game references for home launch, and non-modal UI layout state.
 - State stores obtain platform interfaces from `usePlatformServicesStore` rather than constructing platform objects directly.
 
 ### Presentation
-- `HomeView` is the neutral landing screen for launch and no-active-game fallback.
+- `HomeView` is the neutral landing screen for launch, no-active-game fallback, and recent-game reopening when recent entries exist.
 - `GameView` is the main gameplay workspace and hosts board, players, history, analysis, and controls.
 - `SettingsView` edits committed user settings and engine inventory.
 - `MenuBar`, `GameTabs`, and `NewGameModal` provide shell-level actions and navigation.
@@ -180,5 +180,5 @@ The following concepts are not part of the baseline architecture and are tracked
 - browser, mobile, and remote runtime targets
 - standalone analysis routes or views
 - extra chess variants
-- recent games, bookmarks, and batch workflows
+- bookmarks and batch workflows
 - engine-vs-engine and other speculative study extensions

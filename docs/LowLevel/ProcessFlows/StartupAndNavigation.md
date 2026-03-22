@@ -1,12 +1,12 @@
 # Startup And Navigation Flows
 
 ## Scope
-This document covers `SCN-SESSION-01` to `SCN-NAV-02`.
+This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 ### SCN-SESSION-01 - Fresh Launch with No Saved State
 - Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadSession` -> `GamesStore.restorePersistedGames` -> router startup resolution.
 - Private design: `SettingsStore._loadStoredSnapshot` -> `_migrateSnapshotOrDefault`; `UiStateStore._loadStoredSession` -> `_coerceActiveRoute`; `GamesStore._loadRequestedDocuments` -> `_hydrateWorkspaceCollection`; `Router._resolveStartupTarget`.
-- UI surface coverage: startup lands on `HomeView`, which exposes grouped first-use actions for quick new, custom new, load, and settings without auto-creating a workspace.
+- UI surface coverage: startup lands on a centred `HomeView`, which exposes one single-row group of large square action buttons for quick new, custom new, load, and settings without auto-creating a workspace. Because this scenario starts with no persisted state, the recent games list remains hidden.
 - Requirement verification: `Pass`. Defaults load independently, bad absence is not treated as corruption, and startup lands on a neutral route instead of auto-creating a game.
 
 ### SCN-SESSION-02 - Restore Previous Session
@@ -48,3 +48,9 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-02`.
 - Public flow: router guard -> `GamesStore.getGame` -> `GamesStore.listGames` -> `UiStateStore.setActiveGame`.
 - Private design: `Router._validateGameRoute` -> `_selectFallbackRoute`; `UiStateStore._coerceActiveRoute`.
 - Requirement verification: `Pass`. Unknown `/game/:id` routes are rejected before `GameView` binds to missing state.
+
+### SCN-NAV-03 - Reopen Recent Game from Home
+- Public flow: `UiStateStore.loadSession` -> `HomeView` recent selection -> `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` -> `UiStateStore.setActiveGame`.
+- Private design: `UiStateStore._coerceRecentGameReferences` -> `GamesStore._hydrateWorkspace` -> `_restoreSavedVisibleState`; stale-entry cleanup uses `UiStateStore._dropMissingRecentEntry`.
+- UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal import and open flow instead of inventing a separate load path.
+- Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, and stale references can be removed without breaking the centred home layout.

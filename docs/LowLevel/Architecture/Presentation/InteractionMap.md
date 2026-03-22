@@ -20,9 +20,10 @@ Read-side rule:
 ## Interaction Coverage
 ### Startup And Home Actions
 - Fresh launch and no-active-game fallback render in `HomeView`.
-- `HomeView` uses `WorkspaceShell`, `HomeMenuButton`, and `EmptyState` for its render surface.
+- `HomeView` uses `WorkspaceShell`, `HomeMenuButton`, `ItemList`, and `EmptyState` for its render surface.
 - Custom new game opens `NewGameModal`, which owns form composition but not game-creation decisions.
 - The same landing surface also owns direct actions for quick new, load, and settings.
+- When recent entries exist, the same landing surface also owns recent-game reopening from a list positioned below the primary action row.
 
 ### Shell Navigation
 - `MenuBar` owns shell-level actions for quick new, custom new, load, save, settings, and delete.

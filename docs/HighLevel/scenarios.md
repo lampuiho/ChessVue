@@ -45,6 +45,7 @@ This matrix is the authoritative trace from each committed scenario to the contr
 | `SCN-GAME-03` | `STATE`, `PERSIST` |
 | `SCN-NAV-01` | `STATE`, `SETTINGS` |
 | `SCN-NAV-02` | `STATE` |
+| `SCN-NAV-03` | `PERSIST` |
 | `SCN-MOVE-01` | `STATE`, `ENGINE` |
 | `SCN-MOVE-02` | `STATE` |
 | `SCN-MOVE-03` | `STATE`, `SETTINGS` |
@@ -106,7 +107,8 @@ Each scenario in this document uses the same structure:
   1. User launches app.
   2. App initializes router and stores.
   3. App loads default settings.
-  4. App shows home/default game area with actions (new game, load game, settings).
+  4. App shows a centred home/default game area with a single-row action button group for quick new game, custom new game, load game, and settings.
+  5. Because no recent metadata exists yet, the recent games list stays hidden.
 - **Branch Paths**:
   - `BR-SESSION-01-INIT-FAIL`: If any persisted read fails unexpectedly, app falls back to safe defaults and logs recoverable error.
   - `BR-SESSION-01-HOME-FALLBACK`: If the preferred home screen cannot be restored, app still shows a neutral landing state without auto-creating a game.
@@ -278,6 +280,27 @@ Each scenario in this document uses the same structure:
   - `Router.beforeEachRouteGuard`
   - `GamesStore.getGameById`
   - `GamesStore.listGames`
+
+### SCN-NAV-03 - Reopen Recent Game from Home
+- **Status**: Planned
+- **Goal**: Reopen a recently accessed game from the centred `HomeView` recent games list.
+- **Preconditions**: One or more recent game references exist for the home screen.
+- **Entry Points**: `HomeView` recent games list.
+- **Main Steps**:
+  1. User lands on `HomeView`.
+  2. App shows the centred single-row action buttons and a recent games list below them.
+  3. User selects a recent game entry.
+  4. App resolves the stored recent reference and loads the referenced game.
+  5. App opens the loaded game as the active context and routes to it.
+- **Branch Paths**:
+  - `BR-NAV-03-MISSING-ENTRY`: Recent reference no longer resolves -> remove stale entry and keep the user on `HomeView`.
+  - `BR-NAV-03-LOAD-FAIL`: Referenced game file is invalid or unreadable -> route through the normal invalid-load error flow.
+- **Postconditions**: A valid recent entry opens as the active game; invalid recent entries are removed without breaking the home screen.
+- **Function Touchpoints**:
+  - `UiStateStore.loadState`
+  - `FileIOAdapter.loadGameFromFile`
+  - `GamesStore.createGame`
+  - `UiStateStore.setCurrentGameId`
 
 ---
 ## Move Execution and History Branching
@@ -1039,23 +1062,6 @@ Each scenario in this document uses the same structure:
   - `GamesStore.createGame`
   - `TimeControl.initializeClocks`
   - `UiStateStore.setCurrentGameId`
-
-### SCN-IDEA-02 - Reopen Recent Games List
-- **Status**: Idea
-- **Goal**: Reopen recently accessed files/games from menu.
-- **Preconditions**: Recent file metadata exists.
-- **Entry Points**: Menu `Recent Games`.
-- **Main Steps**:
-  1. User opens recent list.
-  2. User selects entry.
-  3. App loads game and routes to it.
-- **Branch Paths**:
-  - `BR-IDEA-02-MISSING-FILE`: File missing -> remove stale recent entry.
-- **Postconditions**: Recent workflows reduce repeated manual file navigation.
-- **Function Touchpoints**:
-  - `FileIOAdapter.listRecentFiles`
-  - `FileIOAdapter.loadGameFromFile`
-  - `GamesStore.loadGame`
 
 ### SCN-IDEA-03 - Engine vs Engine Match
 - **Status**: Idea

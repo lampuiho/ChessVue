@@ -33,21 +33,31 @@ Home layout sketch:
 
 ```text
 +------------------------------------------------------------------------------+
-| Home Title / Empty State                                                     |
-| Short guidance text                                                          |
-+------------------------------------------------------------------------------+
-| [Quick New Game]                                                             |
-| [Custom New Game]                                                            |
-| [Load Game]                                                                  |
-| [Settings]                                                                   |
+|                                                                              |
+|                         Home Title / Empty State                             |
+|                         Short guidance text                                  |
+|                                                                              |
+|      [ New ]   [ Custom ]   [ Load ]   [ Settings ]                          |
+|                                                                              |
+|                        Recent Games (if any)                                 |
+|                  recent game 1                                               |
+|                  recent game 2                                               |
+|                  recent game 3                                               |
+|                                                                              |
 +------------------------------------------------------------------------------+
 ```
 
 Home layout rules:
 
 - `HomeView` remains a route-level screen, not a modal
-- first-use and no-active-game fallback use the same basic action layout
+- first-use and no-active-game fallback use the same centred layout
 - primary landing actions stay grouped together instead of being scattered across the page
+- the primary action group is horizontally centred
+- the primary action group uses one single row of large square buttons with prominent icons
+- button targets should be easy to click so the same design direction remains workable when responsive behaviour is added later
+- the recent games list sits below the primary action row
+- the recent games list is hidden when there are no recent games to show
+- when the recent games list is hidden, the primary action row shifts so the overall home composition remains as centred as possible
 - `Custom New Game` opens the shared dialog family rather than navigating away from `HomeView`
 
 ## Workspace Regions

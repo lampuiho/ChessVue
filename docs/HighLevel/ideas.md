@@ -26,7 +26,6 @@ Anything in this document is excluded from that baseline unless it is later prom
 | Idea | Source | Why Deferred |
 | --- | --- | --- |
 | Standalone `/analysis` route or dedicated analysis view | previous `architecture.md`, previous `build_settings.md` | Baseline analysis is integrated into `GameView`; a separate shell should not shape the low-level rewrite. |
-| Recent games or recent files menu | `scenarios.md` idea scenario `SCN-IDEA-02`, previous `user_settings.md` | Useful later, but not required for the current save/load baseline. |
 | Mobile panel-switching shell behaviour | `scenarios.md` idea scenario `SCN-IDEA-09`, previous `plan.md` | Responsive desktop layout is enough for now; compact-mode UX is a separate design task. |
 
 ## Gameplay and Study Ideas

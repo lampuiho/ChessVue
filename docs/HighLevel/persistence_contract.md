@@ -29,6 +29,7 @@ Contains:
 - open game IDs and tab order
 - active game ID
 - last active route among baseline routes
+- recent game references for `HomeView`
 - non-modal shell state needed to reopen the same workspace
 
 Does not contain:
@@ -82,6 +83,7 @@ Only after that visible state is restored may live analysis resume.
 ### Session Snapshot Owns
 - which games are currently open in the shell
 - which game is active
+- recent game references shown on `HomeView`
 - route-level shell restoration
 
 ### Settings Snapshot Owns

@@ -53,7 +53,6 @@ That includes, for example:
 
 - browser or WASM runtimes
 - standalone analysis routes
-- recent games workflows
 - extra rule variants
 - engine-vs-engine mode
 - study extensions such as bookmarks or analysis undo/redo
