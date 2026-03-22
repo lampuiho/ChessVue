@@ -287,16 +287,8 @@ This layout contract is consistent with the existing high-level baseline:
 
 - desktop-first layout from [build_settings.md](build_settings.md)
 - integrated `GameView` analysis workspace from [architecture.md](architecture.md)
-- persisted panel visibility and exact-screen restore from [persistence_contract.md](persistence_contract.md)
-- default panel visibility settings from [settings_contract.md](settings_contract.md)
-
-The baseline settings that affect visibility, but not placement, are:
-
-- `layout.showHistoryPanel`
-- `layout.showAnalysisPanel`
-- `layout.showGameControlPanel`
-
-These settings may hide or show the relevant panels by default, but they do not redefine the baseline parent layout regions described here.
+- remembered panel visibility and section folding from [persistence_contract.md](persistence_contract.md)
+Remembered UI state may hide, show, or fold panels without redefining the baseline parent layout regions described here.
 
 ## Non-Goals
 This document does not define:

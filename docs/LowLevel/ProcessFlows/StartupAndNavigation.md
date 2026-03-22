@@ -4,24 +4,24 @@
 This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 ### SCN-SESSION-01 - Fresh Launch with No Saved State
-- Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadSession` -> `GamesStore.restorePersistedGames` -> router startup resolution.
-- Private design: `SettingsStore._loadStoredSnapshot` -> `_migrateSnapshotOrDefault`; `UiStateStore._loadStoredSession` -> `_coerceActiveRoute`; `GamesStore._loadRequestedDocuments` -> `_hydrateWorkspaceCollection`; `Router._resolveStartupTarget`.
+- Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadLayoutState` -> conditional `UiStateStore.loadGameSession` -> `GamesStore.restorePersistedGames` -> `RecentGameStore.loadRecentGames` -> router startup resolution.
+- Private design: `SettingsStore._loadStoredSnapshot` -> `_migrateSnapshotOrDefault`; `UiStateStore._loadStoredLayoutState` -> `_coerceLayoutState`; conditional `UiStateStore._loadStoredGameSession` -> `_coerceActiveRoute`; `GamesStore._loadRequestedDocuments` -> `_hydrateWorkspaceCollection`; `RecentGameStore._loadStoredSnapshot` -> `_sortMostRecentFirst`; `Router._resolveStartupTarget`.
 - UI surface coverage: startup lands on a centred `HomeView`, which exposes one single-row group of large square action buttons for quick new, custom new, load, and settings without auto-creating a workspace. Because this scenario starts with no persisted state, the recent games list remains hidden.
 - Requirement verification: `Pass`. Defaults load independently, bad absence is not treated as corruption, and startup lands on a neutral route instead of auto-creating a game.
 
 ### SCN-SESSION-02 - Restore Previous Session
-- Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadSession` -> `GamesStore.restorePersistedGames(session.openGameIds)` -> `UiStateStore.setActiveGame` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> router restore.
-- Private design: `UiStateStore._coerceOpenTabs` -> `GamesStore._loadRequestedDocuments` -> `_hydrateWorkspace` -> `_repairMissingActiveGame` -> `_restoreSavedVisibleState`; `Router._restoreReturnRoute`.
-- State/settings coverage: restore keeps the saved `workspaceKind`, `interactionContext`, `clockState`, and `resultState` intact before any engine runtime resumes. `analysis.resumeLiveAnalysisAfterRestore` gates whether continuous analysis restarts after the saved visible snapshot is shown. `_maybeRequestEngineTurn` runs only when the restored context lands on `liveGame + currentPosition + ongoing + not paused` and the side to move is engine-controlled.
-- Requirement verification: `Pass`. Session restore is isolated from settings restore and repairs invalid `activeGameId` values before routing.
+- Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadLayoutState` -> conditional `UiStateStore.loadGameSession` -> `GamesStore.restorePersistedGames(session.openGameIds)` -> `UiStateStore.setActiveGame` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> router restore.
+- Private design: `UiStateStore._loadStoredLayoutState` -> `_coerceLayoutState`; conditional `UiStateStore._loadStoredGameSession` -> `_coerceOpenTabs` -> `_coerceActiveRoute`; `GamesStore._loadRequestedDocuments` -> `_hydrateWorkspace` -> `_repairMissingActiveGame`; `Router._restoreReturnRoute`.
+- State/settings coverage: `session.restorePreviousSession` gates whether the stored game-session snapshot is used to reopen tabs and the active route. `UiStateStore.loadLayoutState` still runs independently so panel visibility and fold state can be restored even when the prior game session is skipped. When a game is restored, `analysis.resumeLiveAnalysisAfterRestore` gates whether continuous analysis restarts after the persisted game state is shown.
+- Requirement verification: `Pass`. Game-session restore is isolated from settings and layout restore, respects the restore setting, and repairs invalid `activeGameId` values before routing.
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
-- Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadSession` -> `GamesStore.restorePersistedGames`.
-- Private design: `SerializationService._parseJson` -> `_migrateBySchemaVersion`; `SettingsStore._migrateSnapshotOrDefault`; `GamesStore._skipCorruptDocument`; `StorageAdapter.removeGameDocument` or repaired rewrite on the next save cycle.
-- Requirement verification: `Pass`. Corrupt session or settings payloads fall back independently, and corrupt core game payloads are isolated instead of crashing startup.
+- Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadLayoutState` -> conditional `UiStateStore.loadGameSession` -> `RecentGameStore.loadRecentGames` -> `GamesStore.restorePersistedGames`.
+- Private design: `SerializationService._parseJson` -> `_migrateBySchemaVersion`; `SettingsStore._migrateSnapshotOrDefault`; `UiStateStore._loadStoredLayoutState` -> `_resetInvalidLayoutState`; conditional `UiStateStore._loadStoredGameSession` -> `_resetInvalidGameSession`; `RecentGameStore._loadStoredSnapshot` -> `_resetCorruptSnapshot`; `GamesStore._skipCorruptDocument`; `StorageAdapter.removeGame` or repaired rewrite on the next save cycle.
+- Requirement verification: `Pass`. Corrupt settings, game-session, UI-layout, recent-games, or game payloads fall back independently, and corrupt core game payloads are isolated instead of crashing startup.
 
 ### SCN-GAME-01 - Quick New Game from Menu
-- Public flow: `GamesStore.createGame` -> `UiStateStore.openTab` -> `UiStateStore.setActiveGame` -> `UiStateStore.saveSession`.
+- Public flow: `GamesStore.createGame` -> `UiStateStore.openTab` -> `UiStateStore.setActiveGame` -> `UiStateStore.saveGameSession`.
 - Private design: `GamesStore._buildDefaultCreateRequest` -> `_validateCreateRequest` -> `_createWorkspace` -> `_persistWorkspace`; `UiStateStore._coerceOpenTabs`.
 - Requirement verification: `Pass`. The game becomes active immediately, and persistence failure can be surfaced without discarding the in-memory workspace.
 
@@ -50,7 +50,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - Requirement verification: `Pass`. Unknown `/game/:id` routes are rejected before `GameView` binds to missing state.
 
 ### SCN-NAV-03 - Reopen Recent Game from Home
-- Public flow: `UiStateStore.loadSession` -> `HomeView` recent selection -> `GamesStore.importGame` -> `FileIoAdapter.loadGameDocument` -> `UiStateStore.setActiveGame`.
-- Private design: `UiStateStore._coerceRecentGameReferences` -> `GamesStore._hydrateWorkspace` -> `_restoreSavedVisibleState`; stale-entry cleanup uses `UiStateStore._dropMissingRecentEntry`.
-- UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal import and open flow instead of inventing a separate load path.
-- Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, and stale references can be removed without breaking the centred home layout.
+- Public flow: `RecentGameStore.loadRecentGames` -> `HomeView` recent selection -> `RecentGameStore.openRecentGame` -> `UiStateStore.openTab` -> `UiStateStore.setActiveGame`.
+- Private design: `RecentGameStore._loadStoredSnapshot` -> `_sortMostRecentFirst`; `RecentGameStore._openAutosavedGame` uses `StorageAdapter.getGame` -> `GamesStore.insertGame`, while `RecentGameStore._openManualFileGame` uses `FileIoAdapter.loadGameFromPath` -> `GamesStore.insertGame`; stale-entry cleanup uses `RecentGameStore._dropStaleEntry`.
+- UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
+- Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references can be removed without breaking the centred home layout.

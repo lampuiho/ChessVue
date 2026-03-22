@@ -12,4 +12,4 @@ Provide a reusable boolean toggle control.
 - `valueChanged`
 
 ## Notes
-- Settings booleans such as autosave or panel visibility use `ToggleField`.
+- Settings booleans such as autosave use `ToggleField`.

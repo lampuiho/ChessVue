@@ -1,30 +1,37 @@
-# Session Snapshot Types
+# Session State Types
 
 ## Purpose
-Define the persisted shell/session payload used to restore the app workspace across launches.
+Define the persisted game-session and UI-layout payloads used to restore the app workspace across launches.
 
 ## Interfaces
-- `interface ISessionLayoutState`
-- `interface ISessionSnapshot`
+- `interface IGameSessionSnapshot`
+- `interface IUiLayoutState`
 
 ## Data Structures
 ```ts
-interface ISessionLayoutState {
+interface IUiLayoutState {
+  schemaVersion: number
   showHistoryPanel: boolean
   showAnalysisPanel: boolean
   showGameControlPanel: boolean
+  historyCollapsed: boolean
+  analysisCollapsed: boolean
 }
 
-interface ISessionSnapshot {
+interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
   activeGameId: string | null
   activeRoute: "/home" | `/game/${string}` | "/settings"
-  activeGameLayoutById: Record<string, ISessionLayoutState>
 }
 ```
 
 ## Rules
-- Session snapshot stores shell restoration only.
+- `IGameSessionSnapshot` stores reopenable shell state only.
+- `IUiLayoutState` stores remembered non-modal UI state only.
+- `IUiLayoutState` is one global layout snapshot for the app shell and is not keyed by `gameId`.
+- `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
+- Recent-game history lives in `IRecentGamesSnapshot`, not in either of these payloads.
+- Conscious user preferences live in `ISettingsSnapshot`, not in either of these payloads.
 - Modal visibility is transient and is not persisted here.
-- Invalid or corrupt session payloads are discarded without affecting valid settings or valid game documents.
+- Invalid or corrupt session-state payloads are discarded without affecting valid settings, valid recent-game history, or valid saved-game payloads.

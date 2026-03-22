@@ -7,7 +7,7 @@ Render the integrated gameplay workspace for one active game.
 - active game workspace from `GamesStore`
 - visible analysis from `AnalysisStore`
 - per-game runtime availability from `EnginesStore`
-- shell layout state from `UiStateStore`
+- remembered global layout state from `UiStateStore`
 - local pure mapping of store state into board, panel, and control props
 - `GameWorkspaceShell` for shallow screen-region composition
 

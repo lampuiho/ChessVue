@@ -1,49 +1,24 @@
-# Game Document Types
+# Saved Game Payload
 
 ## Purpose
-Define the canonical persisted game payload used for autosave and manual import/export.
+Define the canonical persisted saved-game payload used for autosave and manual import/export.
 
-## Interfaces
-- `interface IGamePanelLayoutState`
-- `interface IGameScreenSnapshot`
-- `interface IGameDocument`
+## Canonical Shape
+The baseline does not define a separate persisted `IGameDocument` interface.
 
-## Data Structures
-```ts
-interface IGamePanelLayoutState {
-  showHistoryPanel: boolean
-  showAnalysisPanel: boolean
-  showGameControlPanel: boolean
-}
+The canonical saved-game payload is `IGameWorkspace` from [Game.md](Game.md).
 
-interface IGameScreenSnapshot {
-  visibleNodeId: string
-  visiblePositionFen: string
-  panelLayout: IGamePanelLayoutState
-  visibleAnalysis: IVisibleAnalysisSnapshot | null
-}
-
-interface IGameDocument {
-  schemaVersion: number
-  metadata: IGameMetadata
-  workspaceKind: WorkspaceKind
-  interactionContext: InteractionContext
-  resultState: ResultState
-  whitePlayer: IPlayerSlot | null
-  blackPlayer: IPlayerSlot | null
-  boardRoot: IBoardPosition
-  moveTree: IMoveTree
-  liveNodeId: string | null
-  visibleNodeId: string
-  timeControl: ITimeControl
-  clockState: ClockStateKind
-  clockSnapshot: IClockSnapshot
-  analysisAssignment: IAnalysisAssignment
-  savedScreen: IGameScreenSnapshot | null
-}
-```
+## Included In The Persisted Game
+- game identity and timestamps from `metadata`
+- workspace kind and interaction context
+- result state
+- player slots and engine assignment
+- board root and move tree
+- live and visible node identity
+- time control and clock snapshot
 
 ## Rules
-- This is the canonical payload for both autosave storage and manual file export.
-- Restore shows `savedScreen` first, then resumes live analysis when available.
-- Optional sections may be reset to safe defaults if partially corrupt while the core game payload remains valid.
+- `IGameWorkspace` is the canonical payload for both autosave storage and manual file export.
+- Restore rebuilds the saved game workspace from that payload, then may resume live analysis when available.
+- Panel visibility, panel positioning, and other layout concerns are not stored inside the saved game payload.
+- Analysis output is runtime state and is not part of the baseline saved-game payload.

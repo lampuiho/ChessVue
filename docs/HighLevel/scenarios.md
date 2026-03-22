@@ -117,7 +117,9 @@ Each scenario in this document uses the same structure:
   - `Router.createRouterInstance`
   - `Router.setupRoutes`
   - `SettingsStore.loadSettings`
-  - `UiStateStore.loadState`
+  - `UiStateStore.loadLayoutState`
+  - `UiStateStore.loadGameSession`
+  - `RecentGameStore.loadRecentGames`
   - `StorageAdapter.getItem`
 
 ### SCN-SESSION-02 - Restore Previous Session
@@ -135,10 +137,11 @@ Each scenario in this document uses the same structure:
   - `BR-SESSION-02-PARTIAL-STATE`: UI state exists but games do not -> keep UI preferences, reset active game.
 - **Postconditions**: Prior session context is restored where valid; invalid pieces are safely repaired.
 - **Function Touchpoints**:
-  - `UiStateStore.loadState`
+  - `UiStateStore.loadLayoutState`
+  - `UiStateStore.loadGameSession`
   - `GamesStore.loadGame`
   - `GamesStore.listGames`
-  - `UiStateStore.setCurrentGameId`
+  - `UiStateStore.setActiveGame`
   - `Router.beforeEachRouteGuard`
   - `StorageAdapter.getItem`
 
@@ -260,7 +263,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.saveSettings`
   - `SettingsStore.resetSettings`
   - `EnginesStore.listEngines`
-  - `UiStateStore.persistState`
+  - `UiStateStore.saveGameSession`
 
 ### SCN-NAV-02 - Invalid Game Route Handling
 - **Status**: Planned
@@ -284,23 +287,26 @@ Each scenario in this document uses the same structure:
 ### SCN-NAV-03 - Reopen Recent Game from Home
 - **Status**: Planned
 - **Goal**: Reopen a recently accessed game from the centred `HomeView` recent games list.
-- **Preconditions**: One or more recent game references exist for the home screen.
+- **Preconditions**: One or more recent game entries exist for the home screen.
 - **Entry Points**: `HomeView` recent games list.
 - **Main Steps**:
   1. User lands on `HomeView`.
   2. App shows the centred single-row action buttons and a recent games list below them.
   3. User selects a recent game entry.
-  4. App resolves the stored recent reference and loads the referenced game.
+  4. App resolves the stored recent reference and loads the referenced game from either autosave storage or a manual file path.
   5. App opens the loaded game as the active context and routes to it.
 - **Branch Paths**:
   - `BR-NAV-03-MISSING-ENTRY`: Recent reference no longer resolves -> remove stale entry and keep the user on `HomeView`.
   - `BR-NAV-03-LOAD-FAIL`: Referenced game file is invalid or unreadable -> route through the normal invalid-load error flow.
 - **Postconditions**: A valid recent entry opens as the active game; invalid recent entries are removed without breaking the home screen.
 - **Function Touchpoints**:
-  - `UiStateStore.loadState`
-  - `FileIOAdapter.loadGameFromFile`
-  - `GamesStore.createGame`
-  - `UiStateStore.setCurrentGameId`
+  - `RecentGameStore.loadRecentGames`
+  - `RecentGameStore.openRecentGame`
+  - `RecentGameStore.removeRecentGame`
+  - `StorageAdapter.getGame`
+  - `FileIoAdapter.loadGameFromPath`
+  - `GamesStore.insertGame`
+  - `UiStateStore.setActiveGame`
 
 ---
 ## Move Execution and History Branching
@@ -658,7 +664,6 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Pause state is explicit and non-destructive.
 - **Function Touchpoints**:
   - `GameControlPanel.pauseRequested`
-  - `UiStateStore.togglePanel` (or paused UI state)
   - `TimeControl.getRemainingTime`
 
 ### SCN-TIME-03 - Increment Applied After Move
@@ -721,7 +726,7 @@ Each scenario in this document uses the same structure:
   - `MenuBar.settingsRequested`
   - `GameControlPanel.pauseRequested`
   - `TimeControl.getRemainingTime`
-  - `UiStateStore.persistState`
+  - `UiStateStore.saveGameSession`
 
 ### SCN-CTRL-01 - Takeback Action
 - **Status**: Current
@@ -817,7 +822,6 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
-  - `UiStateStore.togglePanel`
 
 ---
 ## Persistence, File I/O, Settings, and Engine Management
@@ -829,21 +833,21 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Move committed, setting updated, active game changed.
 - **Main Steps**:
   1. User performs state-changing action.
-  2. App snapshots the current game screen state, including active position/history node, visible UI state, and the latest displayed analysis lines/top lines for that position.
+  2. App snapshots the current game workspace state, including active position/history node, clocks, and result state.
   3. App serializes changed state.
   4. App writes to storage adapter.
 - **Branch Paths**:
   - `BR-SAVE-01-WRITE-FAIL`: Storage write fails -> keep in-memory state and mark dirty for retry.
   - `BR-SAVE-01-THROTTLE`: Rapid changes are batched/debounced to avoid excessive writes.
-  - `BR-SAVE-01-ANALYSIS-IN-FLIGHT`: If analysis is still streaming, save the most recently displayed lines at the moment the snapshot is taken.
-- **Postconditions**: Persistence is eventually consistent without blocking UX, and a later restore can reproduce the same visible game screen rather than only the raw game state.
+-- **Postconditions**: Persistence is eventually consistent without blocking UX, and a later restore can reproduce the same game workspace state without blocking on UI or engine snapshots.
 - **Function Touchpoints**:
   - `GamesStore.saveGame`
+  - `RecentGameStore.recordAutosavedGame`
   - `SettingsStore.saveSettings`
   - `Serialization.serializeGameToJSON`
-  - `AnalysisStore.listEvaluations`
   - `StorageAdapter.setItem`
-  - `UiStateStore.persistState`
+  - `UiStateStore.saveGameSession`
+  - `UiStateStore.saveLayoutState`
 
 ### SCN-SAVE-02 - Manual Save Game to File
 - **Status**: Current
@@ -853,7 +857,7 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User chooses save action.
   2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before entering the save flow.
-  3. App snapshots the exact visible game screen, including current position, selected node, panel state, and displayed analysis lines/top lines.
+  3. App snapshots the current game workspace state.
   4. App opens file dialog.
   5. User selects destination/name.
   6. App serializes and writes file.
@@ -862,15 +866,16 @@ Each scenario in this document uses the same structure:
   - `BR-SAVE-02-CANCEL`: User cancels file dialog -> no write.
   - `BR-SAVE-02-IO-ERROR`: File write fails (permission/path) -> show retry guidance.
   - `BR-SAVE-02-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, save proceeds without pausing the clock.
-- **Postconditions**: Export either succeeds once or fails with clear recovery path, and a later load can restore the same visible screen at the point of save.
+- **Postconditions**: Export either succeeds once or fails with clear recovery path, and a later load can restore the same saved game state.
 - **Function Touchpoints**:
   - `MenuBar.saveGameRequested`
   - `GameControlPanel.pauseRequested`
-  - `FileIOAdapter.saveGameToFile`
+  - `FileIoAdapter.saveGame`
+  - `RecentGameStore.recordManuallySavedGame`
   - `Serialization.serializeGameToJSON`
-  - `AnalysisStore.listEvaluations`
   - `GamesStore.getGameById`
-  - `UiStateStore.persistState`
+  - `UiStateStore.saveGameSession`
+  - `UiStateStore.saveLayoutState`
 
 ### SCN-LOAD-01 - Load Valid Game from File
 - **Status**: Current
@@ -881,24 +886,22 @@ Each scenario in this document uses the same structure:
   1. User chooses load action.
   2. User selects file.
   3. App deserializes/migrates payload.
-  4. App restores the saved game screen state immediately, including current position/history node, panel state, and the saved displayed analysis lines/top lines.
+  4. App restores the saved game workspace state immediately, including current position/history node, clock state, and result state.
   5. Game is inserted into store and opened.
-  6. If engines are available for the restored context, app resumes live analysis for the restored position after the saved snapshot is shown.
+  6. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
 - **Branch Paths**:
   - `BR-LOAD-01-DUPLICATE-ID`: Imported game ID collides -> remap ID before insert.
   - `BR-LOAD-01-MIGRATION`: Older schema detected -> migrate then persist upgraded format.
-  - `BR-LOAD-01-CACHED-ANALYSIS-ONLY`: If saved analysis lines exist but engines are unavailable, still show the saved lines so the restored screen matches the saved view.
-- **Postconditions**: Imported game is available and routable, the user first sees the same screen state that was visible at the point of save, and live analysis resumes afterwards when engines are available.
+- **Postconditions**: Imported game is available and routable, the user first sees the restored game state from the saved payload, and live analysis resumes afterwards when engines are available.
 - **Function Touchpoints**:
   - `MenuBar.loadGameRequested`
-  - `FileIOAdapter.loadGameFromFile`
+  - `FileIoAdapter.loadGame`
   - `Serialization.deserializeGameFromJSON`
   - `Serialization.migrateSavedGame`
-  - `AnalysisStore.storeEvaluation`
-  - `AnalysisStore.listEvaluations`
+  - `RecentGameStore.recordManuallySavedGame`
   - `GamesStore.createGame` (or insert flow)
-  - `UiStateStore.setCurrentGameId`
-  - `UiStateStore.loadState`
+  - `UiStateStore.setActiveGame`
+  - `UiStateStore.saveGameSession`
 
 ### SCN-LOAD-02 - Load Invalid/Corrupt Game File
 - **Status**: Planned
@@ -1130,7 +1133,6 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MoveUpdateService.navigateToNode`
   - `MoveUpdateService.addAnalysisMove`
-  - `UiStateStore.togglePanel`
 
 ### SCN-IDEA-07 - Auto-Reconnect Engine After Crash
 - **Status**: Idea
@@ -1177,12 +1179,11 @@ Each scenario in this document uses the same structure:
   2. App swaps visible right-panel modules.
   3. User returns to board-focused layout.
 - **Branch Paths**:
-  - `BR-IDEA-09-PERSIST-PREF`: Panel preference save fails -> use session-only state.
+  - `BR-IDEA-09-PERSIST-PREF`: Panel preference save fails -> use in-memory-only layout state.
 - **Postconditions**: Core tasks remain usable on mobile aspect ratios.
 - **Function Touchpoints**:
   - `UiStateStore.togglePanel`
-  - `UiStateStore.persistState`
-  - `SettingsStore.getSetting`
+  - `UiStateStore.saveLayoutState`
 
 ### SCN-IDEA-10 - Batch Import/Export Games
 - **Status**: Idea

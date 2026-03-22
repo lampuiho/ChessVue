@@ -29,5 +29,5 @@ interface IBoardPosition {
 
 ## Ownership
 - `GameRuleService` validates and mutates `IBoardPosition`.
-- `SerializationService` persists `IBoardPosition` inside `IGameDocument`.
+- `SerializationService` persists `IBoardPosition` inside `IGameWorkspace`.
 - `AnalysisStore` keys engine output by position identity, typically `fen`.

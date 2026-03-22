@@ -79,14 +79,14 @@ If the user selects more than the supported concurrent analysis engines, the app
 - Automatic reconnect or backoff retry is not part of the baseline and is deferred to [ideas.md](ideas.md).
 
 ## Restore Behaviour
-- When a saved game is loaded, the saved analysis snapshot for the visible position is shown first.
+- When a saved game is loaded, the restored workspace position becomes the new analysis target.
 - Only after that may live analysis restart for available engines.
-- If an assigned engine is unavailable, the saved analysis snapshot remains visible and the user gets actionable feedback.
+- If an assigned engine is unavailable, analysis remains empty or unavailable for that engine and the user gets actionable feedback.
 
 ## Ownership Boundaries
 - `SettingsStore` owns configured engine inventory.
 - `EnginesStore` owns assignment, availability state, and lifecycle coordination.
-- `AnalysisStore` owns streamed evaluation state and saved visible-node analysis snapshots.
+- `AnalysisStore` owns streamed evaluation state for the current runtime session.
 - `ProcessManager` owns child-process mechanics.
 
 ## Non-Baseline Exclusions

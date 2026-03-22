@@ -1,7 +1,7 @@
 # Game Workspace Types
 
 ## Purpose
-Define the canonical in-memory workspace model used by `GamesStore` and related services.
+Define the canonical workspace model used by `GamesStore`, related services, and persisted saved-game payloads.
 
 ## Types
 - `type WorkspaceKind = "liveGame" | "freeAnalysisSetup"`
@@ -34,6 +34,7 @@ interface IGameMetadata {
 }
 
 interface IGameWorkspace {
+  schemaVersion: number
   metadata: IGameMetadata
   workspaceKind: WorkspaceKind
   interactionContext: InteractionContext
@@ -77,3 +78,5 @@ interface IStartGameFromSetupRequest {
 - `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
 - `boardEdit` is valid only inside `freeAnalysisSetup`.
 - `IStartGameFromSetupRequest` must assign at least one live-game player side so the workspace can leave `freeAnalysisSetup`.
+- The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
+- `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.

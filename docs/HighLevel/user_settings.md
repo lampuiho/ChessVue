@@ -40,7 +40,7 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 ## 4. Analysis and Engine Settings
 | Setting | Baseline Notes |
 | --- | --- |
-| Resume live analysis after restore | Restarts live analysis only after exact-screen restore is complete. |
+| Resume live analysis after restore | Restarts live analysis only after saved-game restore is complete. |
 | Engine inventory | User-managed registry of available UCI engines. |
 
 ## 5. Appearance and Layout

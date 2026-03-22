@@ -36,6 +36,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [AnalysisStore](StateManagement/AnalysisStore.md)
 - [EnginesStore](StateManagement/EnginesStore.md)
 - [SettingsStore](StateManagement/SettingsStore.md)
+- [RecentGameStore](StateManagement/RecentGameStore.md)
 - [UiStateStore](StateManagement/UiStateStore.md)
 
 ### 4. Presentation
@@ -94,15 +95,17 @@ The data-interface section defines the shared low-level types for:
 - shared platform failure contracts
 - persisted artefacts:
   - settings snapshot
-  - session snapshot
-  - canonical game document
+  - game-session snapshot
+  - UI-layout state
+  - recent-games snapshot
+  - canonical saved-game payload based on `IGameWorkspace`
 
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
 - `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
 - `EnginesStore`, `EngineClient`, and `ProcessManager` own analysis and player-engine runtime control.
-- `SettingsStore`, `UiStateStore`, `StorageAdapter`, `FileIoAdapter`, and `SerializationService` own persistence, restore, load, and settings scenarios.
+- `SettingsStore`, `RecentGameStore`, `UiStateStore`, `StorageAdapter`, `FileIoAdapter`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios.
 - `Router`, `HomeView`, `GameView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions
@@ -120,6 +123,6 @@ The low-level docs do not introduce:
 The doc set is aligned only when all of the following are true:
 
 - every `Current` and `Planned` scenario has an owning module
-- persisted artefacts match the exact-screen restore contract
+- persisted artefacts match the saved-game and settings ownership contracts
 - multi-engine analysis is baseline, capped at four concurrent analysis engines per game
 - terminology for routes, state axes, result states, and persistence artefacts matches the high-level docs

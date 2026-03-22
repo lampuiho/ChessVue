@@ -37,5 +37,5 @@ Use [ideas.md](ideas.md) when a configuration topic is:
 
 ## Notes
 - Per-game engine assignment belongs to the game model, not to the global settings schema.
-- Session restore behaviour is partly controlled by settings but is persisted through the session snapshot defined in [persistence_contract.md](persistence_contract.md).
+- Session restore behaviour is partly controlled by settings, but the reopenable game session and remembered UI layout state are persisted separately as defined in [persistence_contract.md](persistence_contract.md).
 - If a setting or runtime option is not present in the baseline contract docs, the low-level rewrite should not invent it.

@@ -50,8 +50,8 @@ The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 | --- | --- |
 | Autosave backend | App-local desktop persistence via `StorageAdapter` |
 | File save/load | User-selected desktop file paths via `FileIoAdapter` |
-| Canonical game format | One internal JSON saved game document |
-| Session restore | Persisted separately from settings and per-game documents |
+| Canonical game format | One internal JSON saved game payload |
+| Session restore | Persisted separately from settings and per-game saved-game payloads |
 | Schema versioning | Required on every persisted artefact type |
 | Migration strategy | Migrate on read, resave on next normal save cycle |
 | Corrupt payload handling | Isolate bad payloads and fall back safely |
@@ -72,7 +72,7 @@ The detailed behaviour lives in [persistence_contract.md](persistence_contract.m
 | Internal format | Canonical JSON document |
 | Migration support | Required |
 | External formats | Deferred |
-| Analysis persistence | Persist saved visible-node analysis snapshot, not a full historical cache requirement |
+| Analysis persistence | No persisted streamed-analysis snapshot requirement in the baseline |
 
 ## Explicitly Deferred
 The following are outside the current build/runtime baseline:

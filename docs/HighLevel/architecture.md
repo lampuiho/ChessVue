@@ -63,6 +63,7 @@ Committed state modules:
 - `AnalysisStore`
 - `EnginesStore`
 - `SettingsStore`
+- `RecentGameStore`
 - `UiStateStore`
 
 This layer depends on domain logic and platform abstractions.
@@ -99,8 +100,8 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ## Module Responsibilities
 ### Platform Abstraction
 - `usePlatformServicesStore` is the only baseline bootstrap seam for wiring concrete platform adapters into the app.
-- `StorageAdapter` persists settings, session state, and autosaved game documents.
-- `FileIoAdapter` imports and exports the canonical saved game document defined in [persistence_contract.md](persistence_contract.md).
+- `StorageAdapter` persists settings, recent-game history, game-session state, UI-layout state, and autosaved saved-game payloads.
+- `FileIoAdapter` imports, exports, and reopens the canonical saved game payload defined in [persistence_contract.md](persistence_contract.md).
 - `ProcessManager` starts, communicates with, and stops local UCI engine processes as defined in [engine_runtime.md](engine_runtime.md).
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
 
@@ -108,14 +109,15 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `GameRuleService` validates and applies moves, resolves promotion choices, and detects terminal game results.
 - `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
-- `SerializationService` owns the canonical saved game document shape, schema versioning hooks, and migration entry points.
+- `SerializationService` owns the canonical saved game payload shape, schema versioning hooks, and migration entry points.
 
 ### State Management
 - `GamesStore` owns live game instances and enforces the interaction rules in [state_model.md](state_model.md).
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
 - `EnginesStore` owns configured engine inventory, engine assignment, and runtime availability state.
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
-- `UiStateStore` owns session-level shell state such as active game, open tabs, recent game references for home launch, and non-modal UI layout state.
+- `RecentGameStore` owns persisted recent-game metadata for `HomeView`, deduped by canonical game identity and refreshed by the latest autosave or manual save target.
+- `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and section folding.
 - State stores obtain platform interfaces from `usePlatformServicesStore` rather than constructing platform objects directly.
 
 ### Presentation
@@ -159,7 +161,7 @@ The high-level contracts divide behaviour ownership as follows:
 3. `GamesStore` validates the action against the active state context.
 4. Domain services update move tree, board state, and clocks.
 5. `AnalysisStore` refreshes assigned analysis engines when required.
-6. Autosave persists the updated game document and relevant session state.
+6. Autosave persists the updated game workspace, relevant session state, and refreshed recent-game metadata when the saved target for that game changed.
 
 ### Analysis Refresh
 1. A committed move or explicit analysis action requests evaluation.
@@ -169,10 +171,10 @@ The high-level contracts divide behaviour ownership as follows:
 5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth.
 
 ### Save and Restore
-1. `GamesStore` and `UiStateStore` produce a canonical saved game document and session snapshot.
-2. `StorageAdapter` persists autosaved state.
-3. `FileIoAdapter` imports or exports the same canonical game document.
-4. Restore first recreates the saved visible screen, then resumes live analysis if engines are available.
+1. `GamesStore`, `RecentGameStore`, and `UiStateStore` produce a canonical saved game payload, recent-games snapshot entry, game-session snapshot, and UI-layout state.
+2. `StorageAdapter` persists autosaved state, recent-game metadata, game-session state, and UI-layout state, while `FileIoAdapter` imports, exports, or reopens the same canonical game payload for manual-file flows.
+3. `RecentGameStore` keeps at most one recent entry per canonical `gameId`, pointing to the newest autosave or manual-file target.
+4. Startup may restore UI-layout state even when settings disable reopening the previous game session. When a game is restored, the app rebuilds the persisted workspace state, then resumes live analysis if engines are available.
 
 ## Explicitly Deferred
 The following concepts are not part of the baseline architecture and are tracked in [ideas.md](ideas.md):

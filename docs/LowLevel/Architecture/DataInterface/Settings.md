@@ -9,7 +9,6 @@ Define the authoritative persisted settings schema from the baseline settings co
 - `interface ISettingsGameplay`
 - `interface ISettingsAnalysis`
 - `interface ISettingsAppearance`
-- `interface ISettingsLayout`
 - `interface ISettingsSnapshot`
 
 ## Data Structures
@@ -52,12 +51,6 @@ interface ISettingsAppearance {
   highlightLastMove: boolean
 }
 
-interface ISettingsLayout {
-  showHistoryPanel: boolean
-  showAnalysisPanel: boolean
-  showGameControlPanel: boolean
-}
-
 interface ISettingsSnapshot {
   schemaVersion: number
   session: ISettingsSession
@@ -65,9 +58,8 @@ interface ISettingsSnapshot {
   gameplay: ISettingsGameplay
   analysis: ISettingsAnalysis
   appearance: ISettingsAppearance
-  layout: ISettingsLayout
 }
 ```
 
 ## Exclusions
-The baseline schema does not include dark mode, sound settings, variant preferences, recent-game preferences, or mobile layout preferences.
+The baseline schema does not include dark mode, sound settings, panel visibility or fold preferences, variant preferences, recent-game preferences, or mobile layout preferences.

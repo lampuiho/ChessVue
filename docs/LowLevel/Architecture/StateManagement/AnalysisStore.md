@@ -10,15 +10,13 @@ beginAnalysisStream(gameId: string, engineId: string, position: IBoardPosition):
 applyAnalysisUpdate(gameId: string, engineId: string, update: IEngineAnalysisUpdate): void
 completeAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void
 markAnalysisUnavailable(gameId: string, engineId: string, position: IBoardPosition, reason: string): void
-loadSavedVisibleAnalysis(gameId: string, snapshot: IVisibleAnalysisSnapshot | null): void
 clearGameAnalysis(gameId: string): void
 ```
 
 ## Responsibilities
 - merge typed engine callbacks into stable `IAnalysisSnapshot` values
 - keep each engine row independent
-- expose the latest visible analysis snapshot for persistence and restore
-- preserve saved analysis on restore before live analysis resumes
+- expose the latest visible analysis snapshot for rendering while analysis is active
 - track whether an engine stream is active, complete, or unavailable for the visible position
 - publish updated visible snapshots without owning engine runtime control
 
@@ -33,7 +31,6 @@ clearGameAnalysis(gameId: string): void
 - `SCN-FREE-ANALYSIS-01`
 - `SCN-FREE-ANALYSIS-02`
 - `SCN-FREE-ANALYSIS-03`
-- `SCN-LOAD-01`
 
 ## Callback Sink Flow
 `AnalysisStore` does not start, stop, retry, or synchronise engine analysis.

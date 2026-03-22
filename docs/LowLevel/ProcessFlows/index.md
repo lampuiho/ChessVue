@@ -28,7 +28,8 @@ The architecture docs were tightened alongside this folder so every committed sc
 - `GamesStore` now covers startup restore, setup-to-live transition, takeback, clock reconciliation, and pause/resume flows.
 - `MoveUpdateService` now exposes navigation, position lookup, takeback, and prune operations with scenario-aligned names.
 - `TimeControlService` now exposes `getRemainingTime` so UI clock reads stay authoritative.
-- `UiStateStore` now covers transient modal and panel flows without persisting them.
+- `UiStateStore` now covers transient modal flows plus independently persisted game-session and layout state.
+- `RecentGameStore` now owns home recent-history loading, deduped recent-entry persistence, and reopen routing across autosave and manual-file targets.
 - `EnginesStore` now covers engine inventory maintenance, analysis runtime control, and player-engine turn control.
 - `AnalysisStore` now acts as callback-only analysis state rather than an engine runtime controller.
 - `EngineClient` now hides protocol strings behind concrete engine-session operations and typed analysis updates.
@@ -43,7 +44,7 @@ This matrix is the compact cross-check for the public entry points that decide w
 | `GamesStore.resumeGame` | `liveGame` | `currentPosition` | timed + paused + ongoing only | none | explicit resume when the same owner is allowed to resume |
 | `GamesStore.enterInGameAnalysis` | `liveGame` | `currentPosition` | ongoing only | none | switch to analysis-only live-game exploration |
 | `GamesStore.startGameFromSetup` | `freeAnalysisSetup` | `currentPosition` | result must remain `ongoing` | none beyond engine validation rules | transition to `liveGame` or reject unsupported setup |
-| `GamesStore.importGame` | imported document decides | restored `currentPosition` or `historyReview` | restored paused/final state is preserved | `analysis.resumeLiveAnalysisAfterRestore` | exact-screen restore first, then optional live analysis and optional engine turn |
+| `GamesStore.importGame` | imported payload decides | restored `currentPosition` or `historyReview` | restored paused/final state is preserved | `analysis.resumeLiveAnalysisAfterRestore` | restore persisted game state first, then optional live analysis and optional engine turn |
 | `GamesStore._maybeRequestEngineTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | request one engine-controlled live turn or no-op |
 | `EnginesStore.startAnalysis` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | allowed during paused and finished review, blocked during `boardEdit` | `analysis.resumeLiveAnalysisAfterRestore` affects restore flows only | continuous analysis callbacks until stopped or completed |
 | `EnginesStore.startPlayerTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | one turn-scoped engine move search or strict rejection |
@@ -58,7 +59,7 @@ These helper families are the intended internal structure behind the public APIs
 - `_applyMoveByContext`
 - `_rebuildClockFromHistory`
 - `_finaliseResult`
-- `_buildGameDocument`
+- `_buildPersistedWorkspace`
 - `_persistWorkspace`
 - `_maybeRequestEngineTurn`
 
@@ -67,7 +68,6 @@ These helper families are the intended internal structure behind the public APIs
 - `_mergeEngineSnapshot`
 - `_markStreamComplete`
 - `_markStreamUnavailable`
-- `_retainSavedVisibleAnalysis`
 
 ### EnginesStore
 - `_getConfiguredInventory`
@@ -95,11 +95,25 @@ These helper families are the intended internal structure behind the public APIs
 - `_normaliseEngineInventory`
 - `_persistSnapshot`
 
+### RecentGameStore
+- `_loadStoredSnapshot`
+- `_resetCorruptSnapshot`
+- `_upsertRecentEntry`
+- `_sortMostRecentFirst`
+- `_dropStaleEntry`
+- `_openAutosavedGame`
+- `_openManualFileGame`
+
 ### UiStateStore
-- `_loadStoredSession`
+- `_loadStoredGameSession`
+- `_loadStoredLayoutState`
+- `_resetInvalidGameSession`
+- `_resetInvalidLayoutState`
+- `_saveGameSessionSnapshot`
+- `_saveLayoutState`
 - `_coerceActiveRoute`
 - `_coerceOpenTabs`
-- `_upsertGameLayout`
+- `_coerceLayoutState`
 - `_showModalState`
 - `_clearModalState`
 
@@ -121,11 +135,9 @@ These helper families are the intended internal structure behind the public APIs
 ### SerializationService
 - `_parseJson`
 - `_migrateBySchemaVersion`
-- `_sanitiseSavedScreen`
-- `_sanitiseVisibleAnalysis`
 
 ### FileIoAdapter And ProcessManager
-- `FileIoAdapter`: `_openSaveDialog`, `_writeGameDocument`, `_openLoadDialog`, `_readGameDocument`
+- `FileIoAdapter`: `_openSaveDialog`, `_writeGame`, `_openLoadDialog`, `_readGame`
 - `ProcessManager`: `_spawnChildProcess`, `_writeToStdin`, `_bindStdout`, `_bindExitHandler`, `_disposeProcess`
 
 ## Reading Order

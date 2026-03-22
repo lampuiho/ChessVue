@@ -24,6 +24,7 @@ Read-side rule:
 - Custom new game opens `NewGameModal`, which owns form composition but not game-creation decisions.
 - The same landing surface also owns direct actions for quick new, load, and settings.
 - When recent entries exist, the same landing surface also owns recent-game reopening from a list positioned below the primary action row.
+- `RecentGameStore` owns recent-entry loading, latest-save deduping, and reopen resolution; `HomeView` only triggers the load and selection interactions.
 
 ### Shell Navigation
 - `MenuBar` owns shell-level actions for quick new, custom new, load, save, settings, and delete.

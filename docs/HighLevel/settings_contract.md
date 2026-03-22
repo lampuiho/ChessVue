@@ -12,8 +12,7 @@ Examples of baseline capabilities that are not themselves settings:
 
 - free analysis/setup exists
 - in-game analysis exists
-- exact-screen restore exists
-- saved analysis lines remain visible when an engine is unavailable
+- saved-game restore exists
 
 Only the user-editable choices listed below belong in the committed settings schema.
 
@@ -35,7 +34,7 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `gameplay.promotionPolicy` | Decide how promotion is resolved | `requireExplicitSelection` | `requireExplicitSelection` only in baseline | Settings snapshot |
 | `gameplay.confirmPruneFutureMoves` | Confirm irreversible pruning | `true` | Boolean | Settings snapshot |
 | `gameplay.allowRootPrune` | Allow prune action from the root node | `false` | Boolean | Settings snapshot |
-| `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after exact-screen restore when engines are available | `true` | Boolean | Settings snapshot |
+| `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
 | `analysis.engineInventory` | User-managed engine registry | `[]` | Unique IDs, valid executable paths, UCI protocol, valid options map | Settings snapshot |
 | `appearance.boardTheme` | Board colours or theme selection | `classic` | Non-empty theme key | Settings snapshot |
 | `appearance.pieceTheme` | Piece style selection | `classic` | Non-empty theme key | Settings snapshot |
@@ -43,9 +42,6 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `appearance.boardOrientation` | Default board orientation | `white` | `white` or `black` | Settings snapshot |
 | `appearance.showCoordinates` | Show board coordinates | `true` | Boolean | Settings snapshot |
 | `appearance.highlightLastMove` | Highlight the most recent move on the board | `true` | Boolean | Settings snapshot |
-| `layout.showHistoryPanel` | Show history panel by default | `true` | Boolean | Settings snapshot |
-| `layout.showAnalysisPanel` | Show analysis panel by default | `true` | Boolean | Settings snapshot |
-| `layout.showGameControlPanel` | Show game controls by default | `true` | Boolean | Settings snapshot |
 
 ## Built-In Defaults
 The baseline built-in time presets are:
@@ -62,13 +58,14 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - `session.autoPauseOnMenu` controls timed-game auto-pause for settings, save flows, and other interrupting menu flows.
 - Auto-resume after menu interruption is paired behaviour of `session.autoPauseOnMenu`; it is not a separate stored setting.
 - `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, and `gameplay.analysisBranchExitBehaviour` define the behaviour of historical-node move actions.
-- `analysis.resumeLiveAnalysisAfterRestore` applies only after exact-screen restore completes.
+- `analysis.resumeLiveAnalysisAfterRestore` applies only after saved-game restore completes.
 
 ## Explicit Non-Baseline Settings
 The following are intentionally excluded from the baseline settings contract and are tracked in [ideas.md](ideas.md) if needed:
 
 - dark mode
 - sound enablement
+- panel visibility or fold preferences
 - recent games preferences
 - tab-switch auto-pause
 - mobile panel preference
@@ -76,5 +73,6 @@ The following are intentionally excluded from the baseline settings contract and
 
 ## Ownership Notes
 - Settings are stored in the user settings snapshot defined in [persistence_contract.md](persistence_contract.md).
-- Per-game engine assignment belongs to the game document, not to the global settings schema.
+- Per-game engine assignment belongs to the saved game payload, not to the global settings schema.
 - Session shell restoration belongs to session persistence, even when the behaviour is controlled by settings.
+- Remembered panel visibility and section folding belong to persisted UI/session state, not to the consciously saved settings schema.
