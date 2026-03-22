@@ -19,7 +19,7 @@ The first rewrite implementation should behave as if the desktop host were `NW.j
 
 That means:
 
-- `StorageAdapter`, `FileIoAdapter`, and `ProcessManager` are wired through one bootstrap seam
+- `StorageAdapter`, `FileIoAdapter`, and `ProcessManager` are wired through one Pinia-backed platform-services store
 - the initial concrete implementations are mocked `NW.js`-style services behind those adapters
 - real host wiring may replace the mocks later without changing store or presentation contracts
 
@@ -30,7 +30,7 @@ That means:
 | Supported runtime family | Desktop only for the current rewrite baseline |
 | Environment detection | Minimal desktop-capability bootstrap only |
 | Rewrite-phase host fiction | Mocked `NW.js`-style services behind platform adapters |
-| Adapter bootstrap seam | `createPlatformServices() -> { storageAdapter, fileIoAdapter, processManager }` |
+| Adapter bootstrap seam | `usePlatformServicesStore().initialiseFromBuildConfig()` |
 | Responsive target | Desktop layout first; compact and mobile-specific behaviour is deferred |
 
 ## Engine Runtime

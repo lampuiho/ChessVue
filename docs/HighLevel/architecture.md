@@ -33,7 +33,7 @@ Purpose: isolate desktop-specific capabilities behind interfaces.
 
 Committed platform modules:
 
-- `createPlatformServices` as the bootstrap seam for concrete platform adapters
+- `usePlatformServicesStore` as the bootstrap seam for concrete platform adapters
 - `StorageAdapter` for app-local persistence
 - `FileIoAdapter` for save/load file workflows
 - `ProcessManager` for local child-process lifecycle and UCI communication
@@ -98,7 +98,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 
 ## Module Responsibilities
 ### Platform Abstraction
-- `createPlatformServices` is the only baseline bootstrap seam for wiring concrete platform adapters into the app.
+- `usePlatformServicesStore` is the only baseline bootstrap seam for wiring concrete platform adapters into the app.
 - `StorageAdapter` persists settings, session state, and autosaved game documents.
 - `FileIoAdapter` imports and exports the canonical saved game document defined in [persistence_contract.md](persistence_contract.md).
 - `ProcessManager` starts, communicates with, and stops local UCI engine processes as defined in [engine_runtime.md](engine_runtime.md).
@@ -116,6 +116,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `EnginesStore` owns configured engine inventory, engine assignment, and runtime availability state.
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
 - `UiStateStore` owns session-level shell state such as active game, open tabs, and non-modal UI layout state.
+- State stores obtain platform interfaces from `usePlatformServicesStore` rather than constructing platform objects directly.
 
 ### Presentation
 - `HomeView` is the neutral landing screen for launch and no-active-game fallback.

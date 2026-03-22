@@ -19,7 +19,7 @@ resetSettings(): Promise<void>
 - persist settings independently from session and game data
 
 ## Dependencies
-- `StorageAdapter`
+- `PlatformServices`
 - `SerializationService`
 
 ## Scenario Coverage
@@ -28,3 +28,6 @@ resetSettings(): Promise<void>
 - `SCN-SETTINGS-02`
 - `SCN-ENGINE-01`
 - `SCN-ENGINE-02`
+
+## Notes
+- `SettingsStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.

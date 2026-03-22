@@ -45,6 +45,7 @@ removeSessionsForEngine(engineId: string): Promise<void>
 ## Dependencies
 - `SettingsStore`
 - `AnalysisStore`
+- `PlatformServices`
 - `EngineClient`
 
 ## Scenario Coverage
@@ -54,3 +55,6 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - `SCN-LOAD-01`
 - `SCN-ENGINE-01`
 - `SCN-ENGINE-02`
+
+## Notes
+- `EnginesStore` resolves the active `ProcessManager` through `usePlatformServicesStore()` and supplies it to the concrete `EngineClient` wiring for the selected platform.

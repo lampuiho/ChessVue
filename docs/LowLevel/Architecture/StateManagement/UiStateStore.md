@@ -25,7 +25,7 @@ saveSession(): Promise<void>
 - exclude modal visibility and other transient UI prompts from persistence
 
 ## Dependencies
-- `StorageAdapter`
+- `PlatformServices`
 - `SerializationService`
 
 ## Scenario Coverage
@@ -41,3 +41,6 @@ saveSession(): Promise<void>
 - `SCN-TIME-05`
 - `SCN-CTRL-02` to `SCN-CTRL-05`
 - `SCN-LOAD-02`
+
+## Notes
+- `UiStateStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.

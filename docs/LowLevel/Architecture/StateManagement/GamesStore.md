@@ -54,8 +54,7 @@ importGame(): Promise<IGameWorkspace>
 - `MoveUpdateService`
 - `TimeControlService`
 - `SerializationService`
-- `StorageAdapter`
-- `FileIoAdapter`
+- `PlatformServices`
 - `AnalysisStore`
 - `EnginesStore`
 
@@ -74,3 +73,4 @@ importGame(): Promise<IGameWorkspace>
 ## Notes
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `_maybeRequestEngineTurn` is the internal gate for player-engine move generation and must remain a strict state check rather than a best-effort hint.
+- `GamesStore` resolves `StorageAdapter` and `FileIoAdapter` through `usePlatformServicesStore()`.

@@ -66,8 +66,9 @@ Additional rules:
 - State stores are the coordination boundary for UI-triggered mutations.
 - Domain logic remains serialisable and platform-independent.
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
-- `createPlatformServices()` is the only baseline bootstrap seam for injecting concrete platform adapters into the app.
+- `usePlatformServicesStore()` is the only baseline bootstrap seam for injecting concrete platform adapters into the app.
 - The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `FileIoAdapter`, and `ProcessManager`.
+- The StateManagement layer obtains platform interfaces from `PlatformServices` rather than constructing them directly.
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
 - Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
 - Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
