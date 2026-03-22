@@ -8,6 +8,7 @@ These files define the committed implementation baseline that should be settled 
 ## Folder Summary
 - [plan.md](plan.md): rewrite baseline, authoritative inputs, and verification goals.
 - [architecture.md](architecture.md): committed system structure, layers, baseline modules, and route shape.
+- [ui_layout.md](ui_layout.md): baseline desktop workspace placement and parent-child layout ownership.
 - [scenarios.md](scenarios.md): `Current`, `Planned`, and `Idea` behaviour catalogue with contract traceability.
 - [state_model.md](state_model.md): authoritative game and UI state model.
 - [persistence_contract.md](persistence_contract.md): persisted artefacts, restore rules, and schema boundaries.
@@ -21,16 +22,18 @@ These files define the committed implementation baseline that should be settled 
 ## Recommended Reading Order
 1. Start with [plan.md](plan.md) to understand the rewrite baseline.
 2. Read [architecture.md](architecture.md) for the committed structure and module boundaries.
-3. Read [state_model.md](state_model.md), [persistence_contract.md](persistence_contract.md), [engine_runtime.md](engine_runtime.md), and [settings_contract.md](settings_contract.md) as the four implementation-shaping contracts.
-4. Read [scenarios.md](scenarios.md) to map committed behaviour to those contracts.
-5. Use [user_settings.md](user_settings.md), [build_settings.md](build_settings.md), and [settings.md](settings.md) as companion summaries.
-6. Read [ideas.md](ideas.md) only for deferred concepts, not for baseline implementation decisions.
+3. Read [ui_layout.md](ui_layout.md) for the baseline desktop workspace placement rules before low-level presentation design.
+4. Read [state_model.md](state_model.md), [persistence_contract.md](persistence_contract.md), [engine_runtime.md](engine_runtime.md), and [settings_contract.md](settings_contract.md) as the four implementation-shaping contracts.
+5. Read [scenarios.md](scenarios.md) to map committed behaviour to those contracts.
+6. Use [user_settings.md](user_settings.md), [build_settings.md](build_settings.md), and [settings.md](settings.md) as companion summaries.
+7. Read [ideas.md](ideas.md) only for deferred concepts, not for baseline implementation decisions.
 
 ## How This Folder Fits With Low-Level Docs
 The high-level docs answer questions like:
 
 - what the rewrite baseline is
 - what major modules and workflows are committed
+- where the baseline desktop workspace regions sit and who owns layout positioning
 - what state, persistence, engine, and settings contracts the low-level docs must follow
 
 The low-level docs should then define:
@@ -46,6 +49,7 @@ In short, this folder is the design-level map for ChessVue:
 
 - `plan.md` sets the rewrite baseline
 - `architecture.md` sets the structure
+- `ui_layout.md` sets the baseline workspace placement rules
 - `scenarios.md` sets the behaviour
 - the four contract docs remove implementation-shaping ambiguity
 - `ideas.md` keeps deferred concepts out of the committed baseline
