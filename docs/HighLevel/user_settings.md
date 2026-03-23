@@ -37,7 +37,7 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Setting | Baseline Notes |
 | --- | --- |
 | Resume live analysis after restore | Engine-category preference that restarts live analysis only after saved-game restore is complete. |
-| Engine inventory | User-managed registry of available UCI engines. |
+| Engine inventory | User-managed registry of reusable UCI engine profiles. Profile names must be unique. Editing a profile affects future assignments, not already seated engine participants. |
 
 ## 4. Appearance
 | Setting | Baseline Notes |

@@ -30,7 +30,7 @@ The architecture docs were tightened alongside this folder so every committed sc
 - `TimeControlService` now exposes `getRemainingTime` so UI clock reads stay authoritative.
 - `UiStateStore` now covers transient modal flows plus independently persisted game-session and layout state.
 - `RecentGameStore` now owns home recent-history loading, deduped recent-entry persistence, and reopen routing across autosave and manual-file targets.
-- `EnginesStore` now covers analysis runtime control, player-engine turn control, and reconciliation of accepted engine-inventory changes from settings.
+- `EnginesStore` now covers analysis runtime control and player-engine turn control for already assigned engine participants.
 - `AnalysisStore` now acts as callback-only analysis state rather than an engine runtime controller.
 - `EngineClient` now hides protocol strings behind concrete engine-session operations and typed analysis updates.
 
@@ -77,7 +77,6 @@ These helper families are the intended internal structure behind the public APIs
 - `_bindAnalysisCallbacks`
 - `_forwardAnalysisUpdate`
 - `_startPlayerTurnSearch`
-- `_reconcileAcceptedInventory`
 - `_restartAffectedSessions`
 - `_stopMatchingSessions`
 
@@ -150,4 +149,5 @@ These helper families are the intended internal structure behind the public APIs
 2. Continue with [GameplayAndControl.md](GameplayAndControl.md) for the core move loop and player-engine turn flow.
 3. Read [AnalysisAndSetup.md](AnalysisAndSetup.md) for engine analysis and setup-specific branching.
 4. Finish with [PersistenceAndAdministration.md](PersistenceAndAdministration.md) for save/load and maintenance workflows.
+
 

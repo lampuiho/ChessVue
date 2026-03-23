@@ -32,7 +32,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - Public flow: `SettingsStore.updateSettings` -> `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
-- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettings` -> `_resolveThemeMode` -> `_buildAppearanceProjection`; save uses `_persistSnapshot`; accepted appearance refresh is consumed by the root app-shell appearance host, and accepted engine-inventory changes are then reconciled by `EnginesStore._reconcileAcceptedInventory`.
+- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettings` -> `_resolveThemeMode` -> `_buildAppearanceProjection`; save uses `_persistSnapshot`; accepted appearance refresh is consumed by the root app-shell appearance host.
 - UI surface coverage: category tabs switch the active settings section, Cancel, Save, and Apply stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
 - Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
 - Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows `SystemThemeAdapter`, while `light` and `dark` force built-in app themes. The appearance category also contains layout-related presentation preferences such as `uiScalePercent`, board orientation, coordinate visibility, and last-move highlighting. The engines category contains both `analysis.resumeLiveAnalysisAfterRestore` and engine inventory. The accepted appearance projection includes a reactive semantic CSS-variable map so shared UI chrome updates immediately without a restart.
@@ -46,13 +46,13 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 ### SCN-ENGINE-01 - Add Engine Configuration
 - Public flow: `SettingsStore.updateSettings` -> optional `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
-- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; accepted inventory changes then flow into `EnginesStore._reconcileAcceptedInventory`.
+- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`.
 - Requirement verification: `Pass`. Path and identity validation happen before the engine record becomes part of the accepted settings snapshot, so add-engine changes honour the same draft/apply/save model as the rest of settings.
 
 ### SCN-ENGINE-02 - Update or Remove Engine Configuration
 - Public flow: `SettingsStore.updateSettings` -> optional `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
-- Private design: accepted inventory edits flow through `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; on apply or save, `EnginesStore._reconcileAcceptedInventory` stops or restarts affected sessions as needed.
-- Requirement verification: `Pass`. Running sessions are reconciled only after the edited inventory becomes part of the accepted settings snapshot, so edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`.
+- Private design: accepted inventory edits flow through `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`.
+- Requirement verification: `Pass`. Edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`, and profile edits affect future assignments rather than mutating already seated engine participants.
 
 ## Lifecycle Cleanup
 
@@ -65,6 +65,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 - Public flow: `UiStateStore.showModal({ kind: "deleteGame" })` -> `GamesStore.deleteGame` -> `GamesStore.listGames` -> `UiStateStore.setActiveGame`.
 - Private design: `GamesStore._selectFallbackGameId` -> `UiStateStore._coerceActiveRoute`; router return uses `_selectFallbackRoute`.
 - Requirement verification: `Pass`. Active-game deletion cannot leave a dangling route or session pointer.
+
 
 
 

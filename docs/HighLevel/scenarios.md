@@ -1,4 +1,4 @@
-﻿# ChessVue User Scenarios
+# ChessVue User Scenarios
 
 ## Purpose
 This document translates high-level product features into actionable user scenarios.
@@ -975,14 +975,14 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Add engine action in settings.
 - **Main Steps**:
   1. User opens add-engine form.
-  2. User enters engine metadata/path/options.
-  3. App stages the new engine inside the pending settings draft.
-  4. User applies or saves the settings flow.
-  5. Engine appears in the available list.
+  2. User enters profile name and other engine profile values.
+  3. User may edit supported engine options through a name/value table inside the profile editor.
+  4. App stages the new engine inside the pending settings draft.
+  5. User applies or saves the settings flow.
+  6. Engine appears in the available list.
 - **Branch Paths**:
-  - `BR-ENGINE-01-INVALID-PATH`: Path not executable/unreachable -> reject with validation message.
-  - `BR-ENGINE-01-DUPLICATE`: Duplicate engine ID/name -> request rename or merge.
-- **Postconditions**: Engine list contains only valid, unique entries.
+  - `BR-ENGINE-01-DUPLICATE`: Duplicate engine profile name -> block save until the name is made unique.
+- **Postconditions**: Engine list contains only valid, unique entries. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Function Touchpoints**:
   - `SettingsStore.updateSettings`
   - `SettingsStore.applySettings`
@@ -995,18 +995,20 @@ Each scenario in this document uses the same structure:
 - **Preconditions**: At least one engine exists.
 - **Entry Points**: Engine edit/remove action in settings.
 - **Main Steps**:
-  1. User edits engine config or chooses remove.
-  2. App validates the edited inventory inside the pending settings draft.
-  3. User applies or saves the settings flow.
-  4. App persists the updated engine list and reconciles affected runtime sessions.
+  1. User chooses copy, edit, or delete from an engine profile row.
+  2. If editing, the app opens the engine-profile editor and lets the user change general fields and option-table rows.
+  3. If copying, the app duplicates the selected profile into the draft.
+  4. If deleting, the app removes the selected profile from the draft list.
+  5. App validates the edited inventory inside the pending settings draft.
+  6. User applies or saves the settings flow.
+  7. App persists the updated engine profile list for future assignments.
 - **Branch Paths**:
-  - `BR-ENGINE-02-REMOVE-ACTIVE`: Removing active analyzing engine -> stop process then remove.
-  - `BR-ENGINE-02-UPDATE-RUNNING`: Updating running engine requires restart to apply options.
-- **Postconditions**: Engine state and process lifecycle remain consistent after edit/remove.
+  - `BR-ENGINE-02-DUPLICATE-COPY`: Copied profile keeps a colliding name -> block save until renamed.
+  - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged but removes that profile from future assignment choices.
+- **Postconditions**: The saved engine profile list is updated for future assignments. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Function Touchpoints**:
   - `SettingsStore.updateSettings`
   - `SettingsStore.applySettings`
-  - `EnginesStore.stopAnalysis`
   - `SettingsStore.saveSettings`
 
 ---
@@ -1217,3 +1219,4 @@ Each scenario in this document uses the same structure:
 - All branch paths are tied to module-level function touchpoints for low-level design traceability.
 - The contract map above provides the baseline trace from each `Current` and `Planned` scenario to the four implementation-shaping contracts.
 - `Idea` scenarios are isolated in a dedicated review section, are catalogued in `ideas.md`, and are not implied implementation commitments.
+

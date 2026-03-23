@@ -35,7 +35,7 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `gameplay.confirmPruneFutureMoves` | Confirm irreversible pruning | `true` | Boolean | Settings snapshot |
 | `gameplay.allowRootPrune` | Allow prune action from the root node | `false` | Boolean | Settings snapshot |
 | `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
-| `analysis.engineInventory` | User-managed engine registry | `[]` | Unique IDs, valid executable paths, UCI protocol, valid options map | Settings snapshot |
+| `analysis.engineInventory` | User-managed engine profile registry | `[]` | Unique profile names only; remaining profile fields are user-managed values | Settings snapshot |
 | `appearance.themeMode` | Decide whether app chrome follows the OS theme or uses an explicit built-in theme | `system` | `system`, `light`, or `dark` | Settings snapshot |
 | `appearance.boardTheme` | Board colours or theme selection | `classic` | Non-empty theme key | Settings snapshot |
 | `appearance.pieceTheme` | Piece style selection | `classic` | Non-empty theme key | Settings snapshot |
@@ -60,6 +60,7 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - Auto-resume after menu interruption is paired behaviour of `session.autoPauseOnMenu`; it is not a separate stored setting.
 - `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, and `gameplay.analysisBranchExitBehaviour` define the behaviour of historical-node move actions.
 - `analysis.resumeLiveAnalysisAfterRestore` applies only after saved-game restore completes.
+- `analysis.engineInventory` validates only that profile names are unique within the saved profile list. Executable path and option values are stored as entered and are consumed later when a profile is used to create an engine participant.
 - `appearance.themeMode = system` follows the active OS theme, while `light` and `dark` force the corresponding built-in UI theme.
 - `appearance.themeMode` applies to app chrome only; board and piece themes remain separate appearance settings.
 

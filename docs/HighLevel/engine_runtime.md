@@ -27,23 +27,28 @@ ChessVue supports two committed engine roles.
 - Multiple analysis engines may run concurrently for the same game.
 
 ## Engine Inventory
-Configured engines are user-managed records stored through settings.
+Configured engines are user-managed profiles stored through settings.
 
-Each committed engine record must include:
+Each committed engine profile must include:
 
-- stable ID
 - display name
 - executable path
 - protocol, which is `UCI` in the baseline
 - engine options
 
-Duplicate IDs or invalid executable paths are rejected.
+Only profile names must be unique.
+
+All other profile fields are user-managed values. The app stores them as entered and uses them when creating a new engine participant or runtime session.
+
+Profile edits change the reusable engine profile only. They do not mutate already assigned player-engine or analysis-engine sessions inside an existing game.
 
 ## Per-Game Assignment Rules
 - Live games may assign human or engine control to either or both sides.
 - Free analysis/setup is created only when neither side is assigned a player.
 - Analysis engine assignment is per game, not global to the whole app.
 - The same configured engine may be used by more than one game, but each active runtime session must be isolated by game and role.
+- Assigning an engine to a side or analysis slot captures a player or session identity for that game. That identity remains stable until the user explicitly unseats and reseats the engine.
+- Editing the source engine profile later does not rename or retarget an already assigned in-game engine participant.
 
 ## Process Lifetime
 - Engine processes start on demand when analysis or engine-controlled play needs them.
@@ -51,6 +56,7 @@ Duplicate IDs or invalid executable paths are rejected.
 - Removing an assigned engine, deleting a game, or closing the app stops the related engine processes.
 - Updating the configuration of a running engine requires a restart before the new options apply.
 - After a committed engine-controlled live move, the normal live-state gate decides whether the next side should immediately receive an engine turn; this is the same rule for `human/engine` and `engine/engine` games.
+- In the baseline, profile edits do not force that restart automatically. Updated profile values apply only when a new engine participant is created or an existing one is explicitly unseated and reseated.
 
 ## Multi-Engine Analysis Contract
 - Multiple assigned analysis engines may evaluate the same position concurrently.
@@ -87,7 +93,7 @@ If the user selects more than the supported concurrent analysis engines, the app
 
 ## Ownership Boundaries
 - `SettingsStore` owns configured engine inventory.
-- `EnginesStore` owns assignment, availability state, and lifecycle coordination.
+- `EnginesStore` owns assignment, availability state, and lifecycle coordination for already assigned engine participants.
 - `AnalysisStore` owns streamed evaluation state for the current runtime session.
 - `EngineClient` owns protocol-specific engine-session mechanics and translates between ChessVue engine operations and raw process I/O.
 - `ProcessManager` owns child-process mechanics only.

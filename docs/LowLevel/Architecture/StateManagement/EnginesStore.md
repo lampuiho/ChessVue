@@ -21,12 +21,11 @@ removeSessionsForEngine(engineId: string): Promise<void>
 ```
 
 ## Responsibilities
-- read configured engine inventory from the accepted `SettingsStore` snapshot
-- reconcile accepted engine-inventory changes from `SettingsStore` while keeping runtime sessions coherent
+- read configured engine profiles when creating or validating assigned engine participants
 - enforce the four-engine analysis cap
 - keep sessions isolated by game and role
 - mark unavailable or failed engines without stopping unrelated sessions
-- restart running sessions when engine configuration changes
+- preserve assigned player-engine and analysis-engine identity for the lifetime of that assignment unless the user explicitly unseats and reseats the engine
 - expose concrete runtime sessions without leaking protocol-specific command composition
 - own all analysis start, retry, and stop orchestration through `EngineClient`
 - forward analysis callbacks into `AnalysisStore`, which remains callback-only state
@@ -39,7 +38,8 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - `startPlayerTurn` is a strict preconditioned call for `liveGame + currentPosition + ongoing + not paused` only. It must reject or no-op for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused games, expired clocks, and final result states.
 - `startPlayerTurn` does not distinguish `human/engine` from `engine/engine`; it only checks the live-state gate and the side-to-move assignment.
 - Analysis-runtime restart after restore follows the caller's `analysis.resumeLiveAnalysisAfterRestore` decision; `EnginesStore` does not override that policy.
-- Engine-inventory editing is owned by `SettingsStore`; `EnginesStore` reacts only after accepted settings change.
+- Engine-profile editing is owned by `SettingsStore`; `EnginesStore` does not react automatically to profile edits because same-layer stores do not subscribe to each other in the baseline design.
+- If the user wants a different in-game engine identity or launch configuration, the engine must be explicitly unseated and reseated so a new participant/session can be created from the updated profile.
 
 ## Dependencies
 - `SettingsStore`
