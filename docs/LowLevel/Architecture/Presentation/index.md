@@ -27,3 +27,21 @@ This section defines the low-level app-theme contract that presentation componen
 - Common components may define local aliases over the semantic variables, but they must not fork separate light/dark palettes internally.
 - The CSS-variable map is configuration-reactive so accepted settings changes and system-theme changes can restyle app chrome without component remounts.
 - `themeMode` styles app chrome only. `boardTheme` and `pieceTheme` remain separate appearance paths owned by their respective presentation surfaces.
+
+## Spacing Variable Rules
+This section defines the low-level spacing contract that presentation components must preserve.
+
+- Spacing must also be expressed through CSS variables rather than hardcoded literal values.
+- Spacing variables must use `rem` units so root-size changes can scale the whole app consistently.
+- Spacing variables are named by usage or owning surface, not by abstract sequence numbers.
+- Prefer names such as `--workspace-gap`, `--panel-padding`, `--dialog-padding`, `--toolbar-gap`, or `--field-row-gap`.
+- Avoid abstract names such as `--space-1`, `--space-2`, or similar scale-only labels at the contract level.
+- Components may create local aliases over shared spacing variables, but those aliases must still resolve to `rem`-based variables.
+
+## Layout Scaling Rules
+This section defines the baseline layout-scaling expectations for presentation components.
+
+- Fixed sizes should be avoided when the layout can scale automatically through flexbox, grid, intrinsic sizing, percentage sizing, or similar responsive layout techniques.
+- Parent shells and layout components should prefer flexible growth and shrink behaviour over hardcoded widths and heights.
+- Fixed dimensions are reserved only for genuine invariants such as square board geometry, icon glyph boxes, or minimum hit targets.
+- Even when an invariant requires a fixed dimension, prefer `rem` or other relative units over raw pixel values where practical.

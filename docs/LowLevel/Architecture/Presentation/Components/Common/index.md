@@ -40,3 +40,5 @@ Define reusable presentation primitives and functional UI wrappers shared across
 - Feature components compose these primitives rather than reimplementing tab, list, panel, dialog, and context-specific button behaviour ad hoc.
 - Common components that style shared app chrome consume the semantic CSS-variable contract from the root appearance projection rather than hardcoded light/dark palette values.
 - Local component CSS may alias semantic variables for readability, but the source of truth remains the root reactive variable map.
+- Common components that own shared spacing consume usage-named `rem`-based spacing variables rather than hardcoded gaps and padding values.
+- Common components should prefer flexbox, grid, and intrinsic layout behaviour over fixed sizes when the surface can scale automatically.
