@@ -43,5 +43,5 @@ interface IAnalysisEngineViewState {
 - `AnalysisStore` keeps the latest valid snapshot independently for each engine.
 - Parse failures discard only the bad message.
 - Visible analysis is runtime state only and is not persisted inside the saved game payload.
-- `IAnalysisEngineViewState` is transient UI state for per-engine fold behaviour and is not part of persisted layout state.
+- `IAnalysisEngineViewState` is UI-owned state for per-engine fold behaviour and is persisted through `IUiLayoutState` rather than through the saved game payload.
 - Engine-facing updates are normalised into ChessVue move structures before they are stored here.

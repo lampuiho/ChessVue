@@ -18,6 +18,7 @@ interface IUiLayoutState {
   showAnalysisPanel: boolean
   historyCollapsed: boolean
   analysisCollapsed: boolean
+  analysisEngineViewStateByGame: Record<string, Record<string, IAnalysisEngineViewState>>
 }
 
 interface IGameSessionSnapshot {
@@ -31,8 +32,8 @@ interface IGameSessionSnapshot {
 ## Rules
 - `IGameSessionSnapshot` stores reopenable shell state only.
 - `IUiLayoutState` stores remembered non-modal UI state only.
-- `IUiLayoutState` is one global layout snapshot for the app shell and is not keyed by `gameId`.
-- `IUiLayoutState` persists only shared history-panel and analysis-panel visibility and collapse state; per-game analysis-engine fold state remains transient runtime UI state.
+- `IUiLayoutState` is one global layout snapshot for the app shell. It is stored once for the app even when some fold-state entries inside it are keyed by `gameId` and engine.
+- `IUiLayoutState` persists visibility plus fold state for all committed foldable sections, including shared history-panel and analysis-panel collapse state and per-game analysis-engine groups.
 - `IGameSessionSnapshot.activeRoute` stores canonical routed settings categories rather than the redirecting `/settings` alias.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
 - Recent-game history lives in `IRecentGamesSnapshot`, not in either of these payloads.

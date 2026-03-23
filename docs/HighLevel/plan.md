@@ -35,6 +35,7 @@ The low-level rewrite must not use [ideas.md](ideas.md) as a source of committed
 - Multi-engine concurrent analysis is part of the baseline, not a future enhancement.
 - Analysis is integrated into `GameView`; it is not a standalone route or view in the baseline.
 - The canonical persisted game format is one internal JSON document used for both autosave and file export.
+- Engine-controlled non-local interactions are the baseline implementation of a more general non-local participant boundary, so a future remote adapter should hook into the same store contracts and control surfaces rather than requiring new gameplay flows.
 - The rewrite must distinguish committed user settings from capabilities and from deferred ideas.
 - The rewrite must derive low-level types from the four contracts instead of from earlier inferred notes.
 
@@ -62,4 +63,4 @@ The documentation is only ready for low-level rewrite when:
 - a reader can derive low-level types and store boundaries without making product decisions
 - `Current` and `Planned` scenarios map cleanly to the four contracts where relevant
 - deferred ideas are separated from baseline commitments
-- no baseline document relies on speculative fields such as non-UCI protocols, remote players, or uncommitted settings
+- no baseline document relies on speculative runtime types such as non-UCI protocols, committed remote-player seats, or uncommitted settings

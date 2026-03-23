@@ -28,9 +28,9 @@ setAnalysisEngineCollapsed(gameId: string, engineId: string, isCollapsed?: boole
 ## Responsibilities
 - restore game-session shell state across launches when that behaviour is enabled by settings
 - restore remembered UI layout state independently from game-session restore
-- persist remembered panel visibility and fold state as one app-level layout snapshot, not as per-game state
+- persist remembered panel visibility and fold state as one app-level layout snapshot, including per-game analysis-engine fold groups inside that shared UI-layout payload
 - own typed transient modal and confirmation prompts without persisting them
-- own transient per-game analysis engine fold state without persisting it in the shared layout snapshot
+- own remembered per-game analysis engine fold state inside the shared layout snapshot
 - exclude recent-game history from UI/session ownership
 - exclude conscious user settings from session ownership
 - exclude modal visibility and other transient UI prompts from persistence
@@ -57,4 +57,4 @@ setAnalysisEngineCollapsed(gameId: string, engineId: string, isCollapsed?: boole
 - `UiStateStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.
 - `loadLayoutState()` still runs when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
-- `setAnalysisEngineCollapsed(...)` is transient per-game UI state for the current runtime session and is not written into `IUiLayoutState`.
+- `setAnalysisEngineCollapsed(...)` writes per-game analysis-engine fold state into `IUiLayoutState`, which remains UI-owned even though parts of the fold map are keyed by game.

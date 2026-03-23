@@ -810,13 +810,13 @@ Each scenario in this document uses the same structure:
   1. User clicks `Offer Draw`.
   2. If the current game is local player versus local player, app opens a shared confirmation dialog for the offer intent.
   3. After a confirmed local-local offer, the store records the offer and app opens a shared draw-resolution dialog for the opposing local side.
-  4. If the opponent is engine-controlled or is a future remote seat, app records the offer without using a dialog-hosted response step.
-  5. When a non-local side later presents an incoming draw offer, the draw control shows a pending-offer indicator light.
+  4. If the opponent is non-local, app records the offer without using a dialog-hosted response step.
+  5. When an incoming non-local draw offer is pending, the draw control shows a pending-offer indicator light.
   6. If the user presses `Draw` while that incoming-offer indicator is lit, app accepts immediately and the game is drawn.
 - **Branch Paths**:
   - `BR-CTRL-03-CANCEL`: User cancels the local-local offer confirmation -> no draw offer is recorded.
   - `BR-CTRL-03-DECLINED`: Local opponent declines in the draw-resolution dialog -> game continues.
-  - `BR-CTRL-03-ENGINE-UNAVAILABLE`: Engine-controlled opponent cannot signal a response -> keep game ongoing and leave the external-response API unused.
+  - `BR-CTRL-03-NON-LOCAL-NO-RESPONSE`: The current non-local adapter exposes no draw-response callback -> keep game ongoing until the indicator-driven accept path or another result path resolves it.
   - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Function Touchpoints**:
@@ -1050,7 +1050,7 @@ Each scenario in this document uses the same structure:
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 - **Status**: Planned
 - **Goal**: Explicitly reassign one side to `none`, `local`, or a configured engine profile from the player strip.
-- **Preconditions**: The current game has a non-remote player seat.
+- **Preconditions**: The current game has a baseline reassignable seat.
 - **Entry Points**: Click the displayed player label in the player strip.
 - **Main Steps**:
   1. User clicks the displayed player label for one side in the player strip.
@@ -1064,7 +1064,6 @@ Each scenario in this document uses the same structure:
   - `BR-ENGINE-03-SAME-SELECTION`: User selects the already assigned value -> keep the current seat unchanged and close the dialog.
   - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session before the reassignment is committed.
   - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start for a newly due live turn -> keep the new assignment with unavailable feedback and allow a later retry or another reassignment.
-  - `BR-ENGINE-03-REMOTE-DISABLED`: If a future remote-player seat is present, reassignment is disabled for that seat.
 - **Postconditions**: Player reassignment updates only the current game. Live games preserve their existing time control and clock state when they stay live, while transitions to `free analysis / setup` preserve board and move-tree history for any later `start game from setup` flow.
 - **Function Touchpoints**:
   - `PlayerPanel.playerSelectionRequested`

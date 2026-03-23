@@ -26,8 +26,8 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 ## Mode Matrix
 | Context | Control surface |
 | --- | --- |
-| Live play | Show `Takeback`, timed `Pause` when applicable, `Resign`, and `Draw`. In local-local games the draw action opens the offer dialog; against engine or future remote opponents the same control sends an offer directly and may later show a pending-offer indicator light for incoming offers. Hide setup-only actions. |
-| Paused live play | Keep `Takeback`, replace `Pause` with `Resume`, keep `Resign` and `Draw`, and disable `Analysis Mode` entry until the playable live state is restored. The draw control still renders any pending incoming-offer indicator. |
+| Live play | Show `Takeback`, timed `Pause` when applicable, `Resign`, and `Draw`. In local-local games the draw action opens the offer dialog. Against a non-local opponent, `Draw` sends an offer while no incoming offer is pending; when the pending-offer indicator is lit, the same `Draw` control accepts immediately. Hide setup-only actions. |
+| Paused live play | Keep `Takeback`, replace `Pause` with `Resume`, keep `Resign` and `Draw`, and disable `Analysis Mode` entry until the playable live state is restored. The draw control still renders any pending incoming-offer indicator, and a lit indicator still means the next `Draw` press accepts immediately. |
 | In-game analysis | Keep `Takeback` for exploratory navigation, replace `Analysis Mode` entry with `Exit Analysis`, and hide `Pause`, `Resume`, `Resign`, `Draw`, and setup-only actions. |
 | Free analysis/setup | Show `Takeback`, `Enter Board Edit`, and `Start Game From Setup`. Hide live-game-only actions such as `Pause`, `Resume`, `Resign`, `Draw`, and in-game analysis entry. |
 | Free analysis board edit | Replace normal setup actions with `Confirm Board Edit` and `Cancel Board Edit`. Hide live-game-only actions and `Start Game From Setup` until board edit finishes. |
@@ -38,5 +38,6 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 - `GameControlPanel` is the primary source of committed gameplay actions from the scenarios.
 - Centralising these actions in one component keeps control logic discoverable and avoids duplicating buttons across panels.
 - The panel stays panel-neutral: entering analysis mode, resolving draw flow, and dirty-exit handling do not implicitly change sidebar visibility.
-- Local-local draw negotiation is dialog-driven, while engine-controlled and future remote draw negotiation uses the control's pending-offer indicator instead of a dialog-hosted response step.
+- Local-local draw negotiation is dialog-driven, while non-local draw negotiation uses the control's pending-offer indicator instead of a dialog-hosted response step.
+- For non-local opponents, the unlit `Draw` control means offer draw, while the lit state means accept the pending incoming offer.
 - `GameControlPanel` contains no HTML or template markup and binds control groups into `PanelSurface`, `ButtonGroup`, and `SidePanelButton`.

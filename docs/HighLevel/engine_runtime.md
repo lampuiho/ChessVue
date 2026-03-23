@@ -51,7 +51,7 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - Assigning an engine to a side or analysis slot captures a player or session identity for that game. That identity remains stable until the user explicitly unseats and reseats the engine.
 - Editing the source engine profile later does not rename or retarget an already assigned in-game engine participant.
 - The player-strip player label acts as the explicit player-reassignment affordance. The baseline choices are `none`, `local`, or one configured engine profile.
-- A future remote-player seat would disable reassignment while remote control remains out of baseline scope.
+- Engine-controlled interaction contracts are written as the baseline implementation of a more general non-local participant boundary so a future remote adapter can reuse the same draw and seat-control surfaces without rewriting gameplay flows.
 
 ## Process Lifetime
 - Engine processes start on demand when analysis or engine-controlled play needs them.

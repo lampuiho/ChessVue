@@ -39,18 +39,17 @@ Does not contain:
 - transient modal visibility
 
 ### 3. UI Layout State
-Purpose: remember non-modal UI state such as panel visibility and section folding.
+Purpose: remember non-modal UI state such as panel visibility and foldable-section state.
 
 Contains:
 - history and analysis panel visibility
-- shared history-panel and analysis-panel collapse state
+- fold state for all committed foldable sections, including shared history and analysis panels plus per-game analysis-engine groups
 - one shared app-shell layout snapshot that is reused across games
 - version metadata for migration
 
 Does not contain:
 - open game IDs or active route shell state
-- per-game layout variants or layout keyed by game ID
-- per-game analysis-engine fold state
+- full per-game layout variants outside the committed fold-state maps
 - canonical game records
 - recent-game history metadata
 - user settings values
@@ -123,7 +122,7 @@ Only after that game state is restored may live analysis resume.
 - route-level shell restoration
 
 ### UI Layout State Owns
-- remembered non-modal UI state such as history/analysis panel visibility and shared panel collapse state
+- remembered non-modal UI state such as history/analysis panel visibility and fold state for all committed foldable sections
 - layout restoration that remains useful even when prior open games are not restored
 
 ### Recent Games Snapshot Owns

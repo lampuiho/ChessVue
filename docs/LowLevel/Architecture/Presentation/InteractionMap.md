@@ -57,7 +57,7 @@ Read-side rule:
   - enter, confirm, and cancel board edit
   - start game from setup
 - `PanelSurface`, `ButtonGroup`, and `SidePanelButton` own control markup.
-- `PlayerPanel` remains display-focused for players, clocks, and engine status, with the explicit exception that clicking a non-remote seat's displayed player label opens the player-selection flow for that side.
+- `PlayerPanel` remains display-focused for players, clocks, and engine status, with the explicit exception that clicking a displayed player label for a baseline reassignable seat opens the player-selection flow for that side.
 - `GameView` derives captured-material groups from the visible position and passes them to `PlayerPanel`, which stays display-focused for the player strips.
 - `StatusCard` and `ClockDisplay` own player readout markup.
 
@@ -72,7 +72,7 @@ Read-side rule:
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
 - [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, local-local draw offer, local-local draw resolve, timeout, dirty-exit, delete, reset, import-error, prune, and blocked board-edit coverage.
-- Engine-controlled and future remote draw responses stay on the `GameControlPanel` control surface through its pending-offer indicator instead of opening a shared dialog.
+- Non-local draw responses stay on the `GameControlPanel` control surface through its pending-offer indicator instead of opening a shared dialog.
 - `NewGameModal` remains the dedicated form component for `newGame` instead of being folded into the generic shared-dialog flow table.
 
 ## Building Block Verification

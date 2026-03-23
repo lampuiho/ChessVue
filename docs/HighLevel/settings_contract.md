@@ -79,5 +79,5 @@ The following are intentionally excluded from the baseline settings contract and
 - Settings are stored in the user settings snapshot defined in [persistence_contract.md](persistence_contract.md).
 - Per-game engine assignment belongs to the saved game payload, not to the global settings schema.
 - Session shell restoration belongs to session persistence, even when the behaviour is controlled by settings.
-- Remembered panel visibility and section folding belong to persisted UI/session state, not to the consciously saved settings schema.
+- Remembered panel visibility and foldable-section state belong to persisted UI/session state, not to the consciously saved settings schema.
 

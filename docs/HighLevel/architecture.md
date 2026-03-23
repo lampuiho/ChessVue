@@ -120,7 +120,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `EnginesStore` owns per-game engine assignment, runtime availability state, and engine-session lifecycle coordination.
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
 - `RecentGameStore` owns persisted recent-game metadata for `HomeView`, deduped by canonical game identity and refreshed by the latest autosave or manual save target.
-- `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and section folding.
+- `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and foldable-section state.
 - State stores obtain platform interfaces from `usePlatformServicesStore` rather than constructing platform objects directly.
 
 ### Presentation
