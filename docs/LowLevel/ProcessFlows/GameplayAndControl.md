@@ -35,10 +35,10 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 - Public flow: `PlayerPanel.playerSelectionRequested` -> `UiStateStore.showModal({ kind: "playerSelection" })` -> `GamesStore.reassignPlayer` -> conditional `GamesStore._maybeRequestEngineTurn`.
-- Private design: `GamesStore._assertPlayerReassignmentAllowed` -> `_applyPlayerReassignment` -> conditional `EnginesStore.stopEngine(gameId, previousEngineId, "player")` -> `_clearPendingTurnRequestIfNeeded` -> conditional `_switchWorkspaceToFreeAnalysisSetup` -> `_persistWorkspaceIfNeeded` -> conditional `_maybeRequestEngineTurn`.
-- State coverage: player reassignment is valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`, except that future remote-player seats would remain disabled. If a live game reassignment leaves either side unassigned, the workspace converts to `freeAnalysisSetup` while preserving board and history. If reassignment keeps the workspace as a live game with both sides assigned, the same live game continues with the current time control and clock state. If reassignment happens while already in `freeAnalysisSetup`, the workspace remains in setup until the separate `startGameFromSetup` flow is used.
+- Private design: `GamesStore._assertPlayerReassignmentAllowed` -> `_captureVisibleSetupAnchor` -> `_applyPlayerReassignment` -> conditional `EnginesStore.stopEngine(gameId, previousEngineId, "player")` -> `_clearPendingTurnRequestIfNeeded` -> conditional `_switchWorkspaceToFreeAnalysisSetup` -> `_clearLiveResultAndClockStateForSetup` -> `_persistWorkspaceIfNeeded` -> conditional `_maybeRequestEngineTurn`.
+- State coverage: player reassignment is valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`, except that future remote-player seats would remain disabled. If a live game reassignment leaves either side unassigned, the workspace converts to `freeAnalysisSetup` from the currently visible position and branch context while preserving the visible board and move tree. If reassignment keeps the workspace as a live game with both sides assigned, the same live game continues with the current time control and clock state. If reassignment happens while already in `freeAnalysisSetup`, the workspace remains in setup until the separate `startGameFromSetup` flow is used.
 - Runtime guardrails: if the replaced seat already had a turn-scoped engine search in flight, that search is stopped before the reassignment is committed. When reassignment keeps the workspace as a playable live game, `_maybeRequestEngineTurn` may request at most one new turn for the side to move only when that side is now engine-controlled and there is no still-valid request already in flight for that seat and turn.
-- Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate without merging in the separate start-from-setup flow.
+- Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate without merging in the separate start-from-setup flow.
 
 ## History And Branching
 
@@ -72,6 +72,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-TIME-01 - Clock Ticks During Play
 - Public flow: `GamesStore.getGame` + `TimeControlService.getRemainingTime` through a presentation-safe clock read helper.
 - Private design: `GameView._buildClockReadModel` -> `TimeControlService._applyElapsedTime`; `PlayerPanel._formatRemainingTime`.
+- UI timing rule: render loops and timer callbacks are cadence only. They request authoritative remaining-time reads but do not mutate stored clock state directly.
 - Requirement verification: `Pass`. Time reads stay authoritative without moving mutation logic into the view.
 
 ### SCN-TIME-02 - Pause and Resume Clocks
@@ -86,8 +87,9 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Requirement verification: `Pass`. Increment logic remains coupled to successful move commit rather than UI ticks.
 
 ### SCN-TIME-04 - Timeout Ends Game
-- Public flow: `GamesStore.syncClock` -> `TimeControlService.getRemainingTime` -> `TimeControlService.hasExpired` -> `GamesStore.saveGame`.
+- Public flow: cadence read or move-boundary check -> `GamesStore.syncClock` -> `TimeControlService.getRemainingTime` -> `TimeControlService.hasExpired` -> `GamesStore.saveGame`.
 - Private design: `GamesStore._reconcileClock` -> `_finaliseTimeoutIfNeeded(resultState, "timeout")` -> `_lockLiveMoves` -> `_persistWorkspace` -> `UiStateStore.showModal({ kind: "timeout" })`.
+- Timing rule: timeout finalisation is triggered from an authoritative clock read. View timer ticks may request `syncClock`, but they do not decide timeout independently.
 - Requirement verification: `Pass`. Timeout finalisation stays in the store and cannot be duplicated by the view, while post-timeout analysis can still remain read-only against the stored result.
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
@@ -109,14 +111,16 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Requirement verification: `Pass`. Confirmation and final result persistence are both covered.
 
 ### SCN-CTRL-03 - Draw Offer Flow
-- Public flow: `GamesStore.offerDraw`.
-- Private design: `GamesStore._assertResultMutable` -> `_resolveDrawDecision` -> optional `_finaliseResult("drawn", "drawAgreement")` -> `_persistWorkspace`.
-- Requirement verification: `Pass`. Decline and throttle branches stay internal to the store flow.
+- Public flow: `GameControlPanel.drawRequested` -> `UiStateStore.showModal({ kind: "drawOffer" })` -> `GamesStore.offerDraw` -> local-opponent branch `UiStateStore.showModal({ kind: "drawResolve" })` -> `GamesStore.resolveDrawOffer` -> conditional `GamesStore.saveGame`.
+- Private design: `GamesStore._assertResultMutable` -> `_captureDrawOfferContext` -> `_throttleRepeatedDrawOffer` -> `_resolveLocalDrawOffer` or `_resolveEngineDrawOffer` -> optional `_finaliseResult("drawn", "drawAgreement")` -> `_persistWorkspace`.
+- UI surface coverage: both the offer confirmation and the local-opponent accept-or-decline step use the shared dialog shell. Engine-controlled response stays store-owned and only reports the resulting accepted, declined, or unavailable outcome back to the UI.
+- Requirement verification: `Pass`. The baseline keeps the offer step and response step explicit while still allowing engine-controlled resolution to remain store-owned.
 
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - Public flow: `GamesStore.enterInGameAnalysis` -> analysis moves continue through `GamesStore.makeMove` -> `GamesStore.exitInGameAnalysis`.
 - Private design: entry uses `_assertInGameAnalysisAllowed` -> `_pauseForAnalysisEntry` -> `_cloneAnalysisContext`; exit uses `_promptForDirtyAnalysisExitIfNeeded` -> `UiStateStore.showModal({ kind: "analysisExitDirty", payload: { gameId } })` -> `_restoreLiveNode` -> `_resumeAfterAnalysisIfOwned`.
 - State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Entry is blocked for `freeAnalysisSetup`, `boardEdit`, paused states that cannot be analysis-owned, and non-timeout final results. While active, analysis moves are legal for both colours, clocks do not progress, the live node does not advance, and `_maybeRequestEngineTurn` remains suppressed until the mode exits back to the live node.
+- UI surface coverage: entering or leaving in-game analysis does not imply any panel-visibility side effect. Dirty-exit handling is explicit through the shared dialog shell instead of a hidden `UiStateStore.togglePanel` policy.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
@@ -124,10 +128,3 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Private design: `GamesStore._assertBoardEditAllowed` returns a reason token; `UiStateStore` owns the explanatory prompt.
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
-
-
-
-
-
-
-

@@ -71,7 +71,8 @@ Read-side rule:
 
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
-- Concrete flows such as new game, promotion selection when hosted as a dialog, prune confirmation, invalid-load errors, reset-settings prompts, blocked board-edit explanations, player-selection, and analysis-engine selection stay in their owning feature components or views.
+- [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, draw offer, draw resolve, timeout, dirty-exit, delete, reset, import-error, prune, and blocked board-edit coverage.
+- `NewGameModal` remains the dedicated form component for `newGame` instead of being folded into the generic shared-dialog flow table.
 
 ## Building Block Verification
 The common layer is complete for the current baseline when it can render:

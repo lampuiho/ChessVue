@@ -142,11 +142,11 @@ The baseline desktop sidebar behaviour is:
 
 - `HistoryPanel` and `AnalysisPanel` are both visible by default
 - each panel is independently foldable or collapsible
+- only the shared history-panel and analysis-panel collapse state belongs to remembered app-level layout persistence
 - the foldable behaviour should feel closer to a desktop explorer or debug sidebar than to full-screen tab switching
 - collapsing one panel must not move the sidebar into a different column arrangement
 - `GameControlPanel` remains the bottom region of the sidebar and is the main location for committed gameplay actions
 - Collapsing will change the left fold chevron from down-pointing to right-pointing
-
 Example collapsed analysis state:
 
 ```text
@@ -178,6 +178,7 @@ Example collapsed analysis state:
 - show up to `3` visible lines per engine, foldable per engine
 - per-engine-title `-` action on the right for removing that engine from the current game
 - Each engine can be folded by clicking the chevron to the left of the engine name
+- Per-engine fold state is transient per-game runtime UI state and is not part of the shared persisted app-shell layout snapshot
 
 
 ## Player Strip Design
@@ -328,20 +329,30 @@ Named baseline uses:
 
 - `NewGameModal`: custom new game form with named sections and create or cancel actions
 - promotion selection: shared dialog shell or board-local overlay hosting `PiecePalette`
+- start game from setup: shared dialog shell for choosing the live-game start details from a prepared setup workspace
+- player selection: shared dialog shell for changing one seat to `none`, `local`, or a configured engine profile
+- analysis-engine selection: shared dialog shell for choosing an unassigned engine profile for the current game
 - prune confirmation: danger-focused confirmation dialog
+- resign confirmation: danger-focused confirmation dialog
+- draw offer: shared confirmation dialog before the offer is recorded
+- draw resolve: shared accept or decline dialog when the opponent is local
+- timeout notification: acknowledge dialog after timeout finalisation
 - reset-settings confirmation: confirm or cancel reset from the settings secondary action area
 - invalid-load error or recover prompt: error dialog with continue or cancel when partial recovery is allowed
+- settings dirty leave: shared confirm or discard dialog before leaving with unsaved settings edits
+- analysis dirty exit: shared keep or discard dialog before leaving in-game analysis with retained exploratory work
+- delete-game confirmation: shared danger-focused confirmation dialog before removal
 - blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
 
-## Contract Alignment
+## Contract Alignment## Contract Alignment
 This layout contract is consistent with the existing high-level baseline:
 
 - desktop-first layout from [build_settings.md](build_settings.md)
 - integrated `GameView` analysis workspace from [architecture.md](architecture.md)
-- remembered panel visibility and section folding from [persistence_contract.md](persistence_contract.md)
-Remembered UI state may hide, show, or fold panels without redefining the baseline parent layout regions described here.
+- remembered app-level panel visibility and shared panel collapse state from [persistence_contract.md](persistence_contract.md)
+Remembered UI state may hide, show, or collapse the shared history and analysis panels without redefining the baseline parent layout regions described here. Per-engine analysis-group folding remains transient runtime state.
 
-## Non-Goals
+## Non-Goals## Non-Goals
 This document does not define:
 
 - final padding or gap values
@@ -351,5 +362,3 @@ This document does not define:
 - internal markup structure for shared render components
 
 Those details belong to the later low-level design and implementation work.
-
-

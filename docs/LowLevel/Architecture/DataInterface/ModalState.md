@@ -4,7 +4,7 @@
 Define the typed transient modal states owned by `UiStateStore`.
 
 ## Types
-- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty" | "playerSelection" | "analysisEngineSelection"`
+- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "drawOffer" | "drawResolve" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty" | "playerSelection" | "analysisEngineSelection"`
 - `type IAppModalState`
 
 ## Data Structures
@@ -15,6 +15,8 @@ type AppModalKind =
   | "pruneFuture"
   | "startGameFromSetup"
   | "resign"
+  | "drawOffer"
+  | "drawResolve"
   | "timeout"
   | "importError"
   | "resetSettings"
@@ -52,6 +54,21 @@ type IAppModalState =
       payload: {
         gameId: string
         colour: PlayerColour
+      }
+    }
+  | {
+      kind: "drawOffer"
+      payload: {
+        gameId: string
+        offeringColour: PlayerColour
+      }
+    }
+  | {
+      kind: "drawResolve"
+      payload: {
+        gameId: string
+        offeringColour: PlayerColour
+        respondingColour: PlayerColour
       }
     }
   | {
@@ -118,4 +135,5 @@ type IAppModalState =
 - The modal contract exists to replace untyped string IDs and generic payload bags at the store boundary.
 - Dirty-settings-leave and dirty-analysis-exit prompts are part of the committed baseline modal contract because those branches already exist in the high-level scenarios.
 - Player-selection and analysis-engine selection are part of the committed baseline modal contract because both flows are explicitly routed through shared dialog surfaces.
+- `drawOffer` and `drawResolve` remain separate modal kinds so the baseline offer step and local-opponent response step stay explicit instead of being hidden inside one store call.
 - `playerSelection` only captures the new seat assignment target. Fresh game settings for a later live restart remain part of `startGameFromSetup`.

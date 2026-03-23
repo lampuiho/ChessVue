@@ -28,6 +28,7 @@ confirmBoardEdit(gameId: string, boardRoot: IBoardPosition): Promise<void>
 cancelBoardEdit(gameId: string): void
 resignGame(gameId: string, colour: PlayerColour): Promise<void>
 offerDraw(gameId: string): Promise<void>
+resolveDrawOffer(gameId: string, decision: "accept" | "decline"): Promise<void>
 pruneFuture(gameId: string, nodeId: string): Promise<void>
 saveGame(gameId: string): Promise<void>
 exportGame(gameId: string): Promise<void>
@@ -43,6 +44,7 @@ importGame(): Promise<IGameWorkspace>
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
 - coordinate pause and resume flows for manual controls, menu interruptions, and analysis-mode entry
 - change one side's player assignment from the player strip, including transitions from live play into `freeAnalysisSetup` and seat updates while already in setup
+- record a draw offer and resolve the response path through an explicit store boundary instead of hiding both phases inside one opaque control-panel action
 - add or remove per-game analysis-engine assignments during a game
 - persist the canonical `IGameWorkspace` payload for autosave and export
 - notify `RecentGameStore` after successful autosave, manual save, and manual import flows so recent history reflects the latest saved target for each game
@@ -51,7 +53,8 @@ importGame(): Promise<IGameWorkspace>
 ## State And Settings Notes
 - `makeMove` is the context dispatcher for live current-position play, history rewrite, analysis-only history branching, in-game analysis moves, and free-analysis exploration. Blocked states are rejected before domain mutation.
 - `pauseGame` and `resumeGame` apply only to timed `liveGame + currentPosition + ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
-- `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `none`, `local`, or an engine profile, stops any obsolete seat-specific engine runtime, transitions a live game to `freeAnalysisSetup` when either side becomes unassigned, and otherwise preserves the same live game with the current time control and clock state.
+- `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `none`, `local`, or an engine profile, stops any obsolete seat-specific engine runtime, transitions a live game to `freeAnalysisSetup` when either side becomes unassigned, anchors that setup transition to the currently visible position and branch context, and otherwise preserves the same live game with the current time control and clock state.
+- `offerDraw` records the outgoing draw offer after confirmation, while `resolveDrawOffer` owns the accept or decline branch so local-opponent response and engine-controlled response stay visible in the low-level design.
 - `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's analysis-engine roster only. Add validates against duplicates and the engine-count limit, while remove stops that engine's analysis runtime and clears its visible analysis row for the game.
 - `enterInGameAnalysis` is valid for ongoing live games and for timeout-finalised live games where `resultReason = timeout`; in both cases it suppresses engine-turn generation until the live node is restored.
 - `createGame` and `startGameFromSetup` create a `liveGame` only when both sides are assigned; `freeAnalysisSetup` is used whenever either side is unassigned.
@@ -89,4 +92,3 @@ importGame(): Promise<IGameWorkspace>
 - `_maybeRequestEngineTurn` is the internal gate for player-engine move generation and must remain a strict state check rather than a best-effort hint.
 - `GamesStore` resolves `StorageAdapter` and `FileIoAdapter` through `usePlatformServicesStore()`.
 - `saveGame`, `exportGame`, and `importGame` remain the owning public mutations, but they refresh recent-game metadata through `RecentGameStore` only after the relevant autosave write, file write, or duplicate-ID repair has succeeded.
-

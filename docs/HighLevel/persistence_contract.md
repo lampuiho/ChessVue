@@ -1,4 +1,4 @@
-﻿# ChessVue Persistence Contract
+# ChessVue Persistence Contract
 
 ## Purpose
 This document defines what ChessVue persists, how persisted artefacts are separated, and what restore guarantees the low-level rewrite must honour.
@@ -43,13 +43,14 @@ Purpose: remember non-modal UI state such as panel visibility and section foldin
 
 Contains:
 - history and analysis panel visibility
-- section fold or collapse state
+- shared history-panel and analysis-panel collapse state
 - one shared app-shell layout snapshot that is reused across games
 - version metadata for migration
 
 Does not contain:
 - open game IDs or active route shell state
 - per-game layout variants or layout keyed by game ID
+- per-game analysis-engine fold state
 - canonical game records
 - recent-game history metadata
 - user settings values
@@ -122,7 +123,7 @@ Only after that game state is restored may live analysis resume.
 - route-level shell restoration
 
 ### UI Layout State Owns
-- remembered non-modal UI state such as history/analysis panel visibility and section folding
+- remembered non-modal UI state such as history/analysis panel visibility and shared panel collapse state
 - layout restoration that remains useful even when prior open games are not restored
 
 ### Recent Games Snapshot Owns

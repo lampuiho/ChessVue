@@ -439,7 +439,6 @@ Each scenario in this document uses the same structure:
   - `MoveUpdateService.addAnalysisMove`
   - `MoveUpdateService.navigateToNode`
   - `GamesStore.makeMove`
-  - `UiStateStore.togglePanel` (analysis visibility policy)
 
 ### SCN-HIST-04 - Prune Future Moves from Selected Node
 - **Status**: Planned
@@ -668,9 +667,10 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Game in progress.
 - **Main Steps**:
   1. Turn begins for active side.
-  2. Timer ticks on UI intervals.
-  3. Remaining time is recalculated/rendered.
-  4. Move submission transfers active timer.
+  2. UI timer ticks act only as render cadence and request an authoritative remaining-time read.
+  3. `TimeControlService` recalculates the remaining time from the stored clock snapshot and current timestamp.
+  4. The UI renders that authoritative remaining-time read.
+  5. Move submission transfers active timer ownership through the normal move-commit path.
 - **Branch Paths**:
   - `BR-TIME-01-BACKGROUND-THROTTLE`: App tab inactive -> recompute from timestamps on resume.
   - `BR-TIME-01-SYNC-DRIFT`: Drift detected -> normalize to authoritative relative time model.
@@ -680,7 +680,6 @@ Each scenario in this document uses the same structure:
   - `TimeControlService.getRemainingTime`
   - `TimeControlService.applyMove`
   - `PlayerPanel.formatClock`
-
 ### SCN-TIME-02 - Pause and Resume Clocks
 - **Status**: Planned
 - **Goal**: Temporarily stop game timing and resume safely.
@@ -724,10 +723,11 @@ Each scenario in this document uses the same structure:
 - **Preconditions**: Clock reaches zero for active side.
 - **Entry Points**: Timer tick or move processing.
 - **Main Steps**:
-  1. Active clock reaches timeout threshold.
-  2. App marks game result by time.
-  3. Move input is disabled.
-  4. History and result metadata are persisted.
+  1. A UI timer tick or move-processing boundary asks for an authoritative remaining-time read.
+  2. If the time-control service reports expiry, the store finalises timeout once.
+  3. App marks game result by time.
+  4. Move input is disabled.
+  5. History and result metadata are persisted.
 - **Branch Paths**:
   - `BR-TIME-04-LAG-COMPENSATE`: Negative time due to render lag -> clamp to zero and finalize once.
   - `BR-TIME-04-ANALYSIS-ONLY`: Analysis mode still allowed after timeout while game result remains fixed.
@@ -735,8 +735,10 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GameView.onTimerTick`
   - `TimeControlService.getRemainingTime`
+  - `GamesStore.syncClock`
   - `GamesStore.saveGame`
   - `UiStateStore.showModal`
+
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
 - **Status**: Planned
@@ -805,17 +807,25 @@ Each scenario in this document uses the same structure:
 - **Preconditions**: Active non-ended game.
 - **Entry Points**: Control panel `Offer Draw`.
 - **Main Steps**:
-  1. User offers draw.
-  2. Opponent/engine decision path resolves accept/decline.
-  3. If accepted, game result set to draw.
+  1. User clicks `Offer Draw`.
+  2. App opens a shared confirmation dialog for the offer intent.
+  3. If the user confirms, the store records the draw offer.
+  4. If the opponent is local, app opens a shared draw-resolution dialog with `Accept` and `Decline`.
+  5. If the opponent is engine-controlled, the store resolves the response path without a second local-player dialog and reports the outcome back to the UI.
+  6. If accepted, the game result is set to draw and persisted.
 - **Branch Paths**:
+  - `BR-CTRL-03-CANCEL`: User cancels the offer confirmation -> no draw offer is recorded.
   - `BR-CTRL-03-DECLINED`: Draw declined -> game continues.
+  - `BR-CTRL-03-ENGINE-UNAVAILABLE`: Engine-controlled opponent cannot resolve immediately -> keep game ongoing and show unavailable feedback.
   - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Function Touchpoints**:
   - `GameControlPanel.drawRequested`
   - `UiStateStore.showModal`
+  - `GamesStore.offerDraw`
+  - `GamesStore.resolveDrawOffer`
   - `GamesStore.saveGame`
+
 
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Planned
@@ -834,7 +844,6 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode returns the screen to the live game position.
 - **Function Touchpoints**:
   - `GameControlPanel.enterInGameAnalysisRequested`
-  - `UiStateStore.togglePanel`
   - `MoveUpdateService.addAnalysisMove`
   - `MoveUpdateService.navigateToNode`
   - `GamesStore.makeMove`
@@ -1049,9 +1058,10 @@ Each scenario in this document uses the same structure:
   1. User clicks the displayed player label for one side in the player strip.
   2. App opens a player-selection dialog scoped to that game and colour.
   3. User chooses `none`, `local`, or one configured engine profile.
-  4. If the resulting player setup leaves either side as `none`, app ends the current live game and converts the workspace into `free analysis / setup` while preserving the move tree/history.
-  5. If the resulting player setup keeps both sides assigned inside the same live game, app preserves the current time control and clock state and continues play with the new seat assignment.
-  6. If that preserved live game is now on an engine-controlled side with no valid in-flight request already active for that seat and turn, the normal live engine-turn loop starts from that side.
+  4. If the resulting player setup leaves either side as `none`, app ends the current live game and converts the workspace into `free analysis / setup` from the currently visible position and branch context while preserving the visible move tree/history.
+  5. That transition clears live-only result and clock progression so the resulting setup workspace is no longer carrying active live-game timing or finality state.
+  6. If the resulting player setup keeps both sides assigned inside the same live game, app preserves the current time control and clock state and continues play with the new seat assignment.
+  7. If that preserved live game is now on an engine-controlled side with no valid in-flight request already active for that seat and turn, the normal live engine-turn loop starts from that side.
 - **Branch Paths**:
   - `BR-ENGINE-03-SAME-SELECTION`: User selects the already assigned value -> keep the current seat unchanged and close the dialog.
   - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session before the reassignment is committed.
@@ -1226,7 +1236,6 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-09-PERSIST-PREF`: Panel preference save fails -> use in-memory-only layout state.
 - **Postconditions**: Core tasks remain usable on mobile aspect ratios.
 - **Function Touchpoints**:
-  - `UiStateStore.togglePanel`
   - `UiStateStore.saveLayoutState`
 
 ### SCN-IDEA-10 - Batch Import/Export Games
@@ -1272,4 +1281,3 @@ Each scenario in this document uses the same structure:
 - All branch paths are tied to module-level function touchpoints for low-level design traceability.
 - The contract map above provides the baseline trace from each `Current` and `Planned` scenario to the four implementation-shaping contracts.
 - `Idea` scenarios are isolated in a dedicated review section, are catalogued in `ideas.md`, and are not implied implementation commitments.
-

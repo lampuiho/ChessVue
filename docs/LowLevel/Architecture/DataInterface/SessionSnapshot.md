@@ -32,6 +32,7 @@ interface IGameSessionSnapshot {
 - `IGameSessionSnapshot` stores reopenable shell state only.
 - `IUiLayoutState` stores remembered non-modal UI state only.
 - `IUiLayoutState` is one global layout snapshot for the app shell and is not keyed by `gameId`.
+- `IUiLayoutState` persists only shared history-panel and analysis-panel visibility and collapse state; per-game analysis-engine fold state remains transient runtime UI state.
 - `IGameSessionSnapshot.activeRoute` stores canonical routed settings categories rather than the redirecting `/settings` alias.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
 - Recent-game history lives in `IRecentGamesSnapshot`, not in either of these payloads.

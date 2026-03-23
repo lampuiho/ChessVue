@@ -1,4 +1,4 @@
-﻿# ChessVue State Model Contract
+# ChessVue State Model Contract
 
 ## Purpose
 This document defines the authoritative state model for games and game-facing UI contexts.
@@ -71,10 +71,11 @@ The UI and stores may expose convenient derived contexts, but they must map back
 ### Player Reassignment
 - Reassigning a player seat from the player strip may choose `none`, `local`, or a configured engine profile.
 - If either side becomes `none`, the current live game ends and the workspace becomes `freeAnalysisSetup`.
+- If that transition is triggered from `historyReview` or `inGameAnalysis`, the currently visible position and visible branch context become the setup anchor rather than the hidden live node.
 - That transition keeps the prepared board and move-tree history, but clears the live result and active live-clock progression.
 - If both sides are assigned again from `freeAnalysisSetup`, the next committed start uses a newly chosen time control and fresh clock state.
 
-## Allowed Actions By Context
+## Allowed Actions By Context## Allowed Actions By Context
 | Action | Live play | Paused live play | History review | In-game analysis | Free analysis/setup | Free analysis board edit | Finished game |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Make live move | Yes | No | Policy-driven from history | No | No | No | No |
@@ -105,9 +106,9 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Board editing is only available inside `freeAnalysisSetup`.
 - Confirming a board edit replaces the current board root and clears prior move history for that workspace.
 - Cancelling a board edit restores the previous free-analysis position unchanged.
-- Reaching `freeAnalysisSetup` from player reassignment keeps the prior move tree available for review and later restart.
+- Reaching `freeAnalysisSetup` from player reassignment keeps the visible board context and prior move tree available for review and later restart.
 
-### Pausing and Interruptions
+### Pausing and Interruptions### Pausing and Interruptions
 - Menu-driven interruptions in timed games follow the auto-pause behaviour from [settings_contract.md](settings_contract.md).
 - Auto-resume is allowed only when the same interruption flow caused the pause.
 - Manual pause remains paused until the user explicitly resumes.
@@ -122,10 +123,11 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Clocks apply only to `liveGame`.
 - `freeAnalysisSetup`, `historyReview`, and `boardEdit` never consume live clock time.
 - `inGameAnalysis` never consumes live clock time.
+- UI timer loops are render cadence only; authoritative remaining-time reads come from relative timing data through the time-control service.
 - Clock drift must be corrected from relative timing data rather than UI tick counts.
 - Timeout sets `clockState` to `expired` and finalises the game once.
 
-## Ownership Boundaries
+## Ownership Boundaries## Ownership Boundaries
 - `workspaceKind`, interaction context, clock state, result state, and result reason are game-related and must be represented in the game model or state derived directly from it.
 - Session shell state such as active route and open tabs belongs to the session/UI state model, not to the game model.
 - Modal visibility is transient UI behaviour and is not part of the canonical game state contract.
