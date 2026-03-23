@@ -57,14 +57,22 @@ The UI and stores may expose convenient derived contexts, but they must map back
 ## Entry Rules
 ### New Game Creation
 - Quick new game creates a `liveGame`.
-- Custom new game creates a `liveGame` if at least one side is assigned.
-- Custom new game creates `freeAnalysisSetup` when neither side is assigned a player.
+- Custom new game creates a `liveGame` only when both sides are assigned.
+- Custom new game creates `freeAnalysisSetup` when either side is assigned `none`.
 
 ### Start Game From Setup
 - Starting a real game from `freeAnalysisSetup` changes `workspaceKind` to `liveGame`.
 - The prepared board becomes the starting position of the live game.
 - The move tree created in setup remains available as the starting history of that game.
 - Board editing is no longer available after the transition.
+- Both sides must be assigned before the transition can start.
+- Starting from setup applies a newly chosen time control and resets live clock state from that fresh start point.
+
+### Player Reassignment
+- Reassigning a player seat from the player strip may choose `none`, `local`, or a configured engine profile.
+- If either side becomes `none`, the current live game ends and the workspace becomes `freeAnalysisSetup`.
+- That transition keeps the prepared board and move-tree history, but clears the live result and active live-clock progression.
+- If both sides are assigned again from `freeAnalysisSetup`, the next committed start uses a newly chosen time control and fresh clock state.
 
 ## Allowed Actions By Context
 | Action | Live play | Paused live play | History review | In-game analysis | Free analysis/setup | Free analysis board edit | Finished game |
@@ -97,6 +105,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Board editing is only available inside `freeAnalysisSetup`.
 - Confirming a board edit replaces the current board root and clears prior move history for that workspace.
 - Cancelling a board edit restores the previous free-analysis position unchanged.
+- Reaching `freeAnalysisSetup` from player reassignment keeps the prior move tree available for review and later restart.
 
 ### Pausing and Interruptions
 - Menu-driven interruptions in timed games follow the auto-pause behaviour from [settings_contract.md](settings_contract.md).

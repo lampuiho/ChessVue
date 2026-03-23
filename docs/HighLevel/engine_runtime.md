@@ -1,4 +1,4 @@
-﻿# ChessVue Engine Runtime Contract
+# ChessVue Engine Runtime Contract
 
 ## Purpose
 This document defines the committed engine runtime model for the rewrite baseline.
@@ -16,7 +16,7 @@ The baseline does not commit to browser, WASM, network, or remote-engine transpo
 ChessVue supports two committed engine roles.
 
 ### 1. Player Engine
-- A side in a live game may be assigned an engine instead of a human.
+- A side in a live game may be assigned an engine instead of a local player.
 - At most one player engine may control each side.
 - Player-engine behaviour is part of the live game flow, not the analysis flow.
 - When both sides are engine-controlled, the same live-game player-turn loop continues turn by turn without a separate engine-vs-engine mode.
@@ -43,23 +43,26 @@ All other profile fields are user-managed values. The app stores them as entered
 Profile edits change the reusable engine profile only. They do not mutate already assigned player-engine or analysis-engine sessions inside an existing game.
 
 ## Per-Game Assignment Rules
-- Live games may assign human or engine control to either or both sides.
-- Free analysis/setup is created only when neither side is assigned a player.
+- Live games require both sides to be assigned, using either a local player or an engine profile.
+- Free analysis/setup is used whenever either side is assigned `none`.
 - Analysis engine assignment is per game, not global to the whole app.
 - Analysis engines may be assigned when a game is created and may also be added or removed later from that same game's analysis panel.
 - The same configured engine may be used by more than one game, but each active runtime session must be isolated by game and role.
 - Assigning an engine to a side or analysis slot captures a player or session identity for that game. That identity remains stable until the user explicitly unseats and reseats the engine.
 - Editing the source engine profile later does not rename or retarget an already assigned in-game engine participant.
-- For an engine-controlled player seat, the player-strip engine name acts as the explicit reseat affordance. Changing that seated engine is a manual per-game action rather than a side effect of profile editing.
+- The player-strip player label acts as the explicit player-reassignment affordance. The baseline choices are `none`, `local`, or one configured engine profile.
+- A future remote-player seat would disable reassignment while remote control remains out of baseline scope.
 
 ## Process Lifetime
 - Engine processes start on demand when analysis or engine-controlled play needs them.
 - If a position changes while analysis is running, the previous search is superseded and the engine is redirected to the new position.
 - Removing an assigned engine, deleting a game, or closing the app stops the related engine processes.
 - Updating the configuration of a running engine requires a restart before the new options apply.
-- After a committed engine-controlled live move, the normal live-state gate decides whether the next side should immediately receive an engine turn; this is the same rule for `human/engine` and `engine/engine` games.
+- After a committed engine-controlled live move, the normal live-state gate decides whether the next side should immediately receive an engine turn; this is the same rule for `local/engine` and `engine/engine` games.
 - In the baseline, profile edits do not force that restart automatically. Updated profile values apply only when a new engine participant is created or an existing one is explicitly unseated and reseated.
-- If the user explicitly reseats an engine-controlled side during a playable live turn, the previous seat-specific runtime is stopped, the new participant is created from the selected profile, and the app requests that side's engine turn immediately when it has not already been fulfilled for the current turn.
+- If player reassignment changes a side to `none`, the previous live game ends, live player-engine sessions stop, and the workspace continues as `freeAnalysisSetup` while preserving the move tree.
+- If player reassignment results in both sides being assigned again, live play restarts from the preserved setup/history with a newly chosen time control and fresh live clock state.
+- After that restarted live game is created, the normal live-state gate decides whether the side to move should immediately receive an engine turn.
 
 ## Multi-Engine Analysis Contract
 - Multiple assigned analysis engines may evaluate the same position concurrently.
@@ -108,3 +111,4 @@ The following are explicitly out of scope for the rewrite baseline:
 - remote engines
 - browser or WASM engines
 - automatic crash recovery
+

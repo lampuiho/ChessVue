@@ -134,7 +134,7 @@ The sidebar is arranged in this order:
 The sidebar panel contents are:
 
 - `HistoryPanel`: history tree and history-specific actions
-- `AnalysisPanel`: analysis engines, visible lines, and analysis-specific actions, show up to `3` visible lines per engine, foldable per engine, with a title-row `+` action on the right for adding an analysis engine to the current game
+- `AnalysisPanel`: panel-title `+` action on the right for adding an analysis engine to the current game. See analysis panel section 
 - `GameControlPanel`: committed gameplay actions such as takeback, pause, resign, draw, analysis mode actions, and setup actions
 
 ## Sidebar Behaviour
@@ -145,6 +145,7 @@ The baseline desktop sidebar behaviour is:
 - the foldable behaviour should feel closer to a desktop explorer or debug sidebar than to full-screen tab switching
 - collapsing one panel must not move the sidebar into a different column arrangement
 - `GameControlPanel` remains the bottom region of the sidebar and is the main location for committed gameplay actions
+- Collapsing will change the down chevron to right chevron
 
 Example collapsed analysis state:
 
@@ -158,6 +159,26 @@ Example collapsed analysis state:
 | *GameControlPanel*                |
 +-----------------------------------+
 ```
+## Analysis Panel Design
+
+```text
++-------------------------------+
+| ⌄ Engine A                 [-]|
+| best line / score  moves...   |
+| 2nd line / score  moves...    |
+| 3rd line / score  moves...    |
++-------------------------------+
+| ⌄ Engine B                 [-]|
+| best line / score  moves...   |
+| 2nd line / score  moves...    |
+| 3rd line / score  moves...    |
++-------------------------------+
+```
+
+- show up to `3` visible lines per engine, foldable per engine
+- per-engine-title `-` action on the right for removing that engine from the current game
+- Each engine can be folded by clicking the chevron to the right of the engine name
+
 
 ## Player Strip Design
 ```text
@@ -169,7 +190,7 @@ Example collapsed analysis state:
 
 Pieces taken are rendered as icons. Grouped together by type to reduce space taken. Grouping is done by reduced spacing of the pieces so they overlap 70% of the icon.
 
-If a seat is engine-controlled, the displayed engine profile name is clickable and opens the profile-selection dialog for explicitly changing that seated engine for the current game.
+The displayed player label is clickable and opens the player-selection dialog for explicitly changing that side for the current game. The baseline choices are `none`, `local`, or one configured engine profile.
 
 ## Piece Choice Surface
 `PiecePalette` is the shared small-format piece-choice surface for promotion and free-analysis board editing.
@@ -201,19 +222,19 @@ Button placement follows screen ownership rather than ad hoc local placement.
 - Game-switching actions stay in `GameTabs`.
   - examples: select tab, close tab
 - Panel-specific actions stay inside the panel they affect.
-  - examples: history prune, history return-to-live, analysis refresh, engine retry, engine stop
-- Per-seat engine swap stays on the engine-controlled player strip that owns that seat.
-  - example: clicking the seated engine name in `PlayerPanel` to open the profile-selection dialog for that side
+  - examples: history prune, history return-to-live, analysis refresh, analysis add `+`, analysis remove `-`, engine retry, engine stop
+- Per-seat player reassignment stays on the player strip that owns that seat.
+  - example: clicking the displayed player label in `PlayerPanel` to open the player-selection dialog for that side
 - Committed gameplay actions stay in `GameControlPanel` at the bottom-right of the workspace.
   - examples: takeback, pause, resume, resign, draw, enter in-game analysis, exit in-game analysis, board-edit flow actions
-- Display-oriented player information stays in the player strips rather than duplicating action groups there, except for the explicit seated-engine name click target.
+- Display-oriented player information stays in the player strips rather than duplicating action groups there, except for the explicit player-label click target.
 
 Panel and button legend:
 
 ```text
 [MenuBar]          shell-wide actions only
 [GameTabs]         open-game navigation only
-[PlayerPanel]      player, clock, engine readout, seated-engine swap entry
+[PlayerPanel]      player, clock, engine readout, player reassignment entry
 [HistoryPanel]     history-specific actions only
 [AnalysisPanel]    analysis-specific actions only
 [GameControlPanel] committed gameplay actions only
@@ -330,3 +351,5 @@ This document does not define:
 - internal markup structure for shared render components
 
 Those details belong to the later low-level design and implementation work.
+
+

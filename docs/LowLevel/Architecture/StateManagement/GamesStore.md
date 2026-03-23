@@ -18,7 +18,7 @@ navigateToNode(gameId: string, nodeId: string): void
 syncClock(gameId: string, nowUtc: string): Promise<void>
 pauseGame(gameId: string, reason: "manual" | "menu" | "analysis"): Promise<void>
 resumeGame(gameId: string, reason: "manual" | "menu" | "analysis"): Promise<void>
-reseatPlayerEngine(gameId: string, colour: PlayerColour, engineId: string): Promise<void>
+reassignPlayer(gameId: string, colour: PlayerColour, request: IReassignPlayerRequest): Promise<void>
 addAnalysisEngine(gameId: string, engineId: string): Promise<void>
 removeAnalysisEngine(gameId: string, engineId: string): Promise<void>
 enterInGameAnalysis(gameId: string): Promise<void>
@@ -42,7 +42,7 @@ importGame(): Promise<IGameWorkspace>
 - coordinate legal move application, move-tree updates, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
 - coordinate pause and resume flows for manual controls, menu interruptions, and analysis-mode entry
-- change the seated player-engine participant for a live-game side when the user explicitly swaps that seat from the player strip
+- change one side's player assignment from the player strip, including transitions into or out of `freeAnalysisSetup`
 - add or remove per-game analysis-engine assignments during a game
 - persist the canonical `IGameWorkspace` payload for autosave and export
 - notify `RecentGameStore` after successful autosave, manual save, and manual import flows so recent history reflects the latest saved target for each game
@@ -51,11 +51,11 @@ importGame(): Promise<IGameWorkspace>
 ## State And Settings Notes
 - `makeMove` is the context dispatcher for live current-position play, history rewrite, analysis-only history branching, in-game analysis moves, and free-analysis exploration. Blocked states are rejected before domain mutation.
 - `pauseGame` and `resumeGame` apply only to timed `liveGame + currentPosition + ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
-- `reseatPlayerEngine` is the explicit per-game player swap boundary. It stops the previous seat-specific player-engine runtime, updates the assigned participant for that seat, persists the workspace, and re-enters `_maybeRequestEngineTurn` only when the changed seat is still due to move in a playable live state.
+- `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `none`, `local`, or an engine profile, stops any obsolete seat-specific engine runtime, transitions to `freeAnalysisSetup` when either side becomes unassigned, or restarts live play with a newly chosen time control and fresh clock state when both sides remain assigned.
 - `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's analysis-engine roster only. Add validates against duplicates and the engine-count limit, while remove stops that engine's analysis runtime and clears its visible analysis row for the game.
 - `enterInGameAnalysis` is valid for ongoing live games and for timeout-finalised live games where `resultReason = timeout`; in both cases it suppresses engine-turn generation until the live node is restored.
-- `createGame` and `startGameFromSetup` create a `liveGame` whenever at least one side is assigned; `freeAnalysisSetup` is reserved for the no-player case only.
-- `_maybeRequestEngineTurn` is the generic live-game gate for `human/engine`, `engine/human`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
+- `createGame` and `startGameFromSetup` create a `liveGame` only when both sides are assigned; `freeAnalysisSetup` is used whenever either side is unassigned.
+- `_maybeRequestEngineTurn` is the generic live-game gate for `local/engine`, `engine/local`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
 - `importGame` and session restore rebuild the persisted workspace state first, then may request continuous analysis and a player-engine turn only when the restored state is playable live current-position ongoing state.
 
 ## Dependencies
@@ -87,3 +87,4 @@ importGame(): Promise<IGameWorkspace>
 - `_maybeRequestEngineTurn` is the internal gate for player-engine move generation and must remain a strict state check rather than a best-effort hint.
 - `GamesStore` resolves `StorageAdapter` and `FileIoAdapter` through `usePlatformServicesStore()`.
 - `saveGame`, `exportGame`, and `importGame` remain the owning public mutations, but they refresh recent-game metadata through `RecentGameStore` only after the relevant autosave write, file write, or duplicate-ID repair has succeeded.
+

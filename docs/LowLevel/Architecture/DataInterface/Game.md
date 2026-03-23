@@ -9,7 +9,7 @@ Define the canonical workspace model used by `GamesStore`, related services, and
 - `type ClockStateKind = "none" | "running" | "paused" | "expired"`
 - `type ResultState = "ongoing" | "drawn" | "whiteWon" | "blackWon" | "abandoned"`
 - `type ResultReason = "ruleResolved" | "timeout" | "resignation" | "drawAgreement" | "abandoned" | null`
-- `type PlayerType = "human" | "engine"`
+- `type PlayerType = "local" | "engine"`
 
 ## Interfaces
 - `interface IPlayerSlot`
@@ -18,6 +18,7 @@ Define the canonical workspace model used by `GamesStore`, related services, and
 - `interface IGameWorkspace`
 - `interface ICreateGameRequest`
 - `interface IStartGameFromSetupRequest`
+- `interface IReassignPlayerRequest`
 
 ## Data Structures
 ```ts
@@ -79,13 +80,20 @@ interface IStartGameFromSetupRequest {
   analysisEngineIds: string[]
   timeControl: ITimeControl
 }
+
+interface IReassignPlayerRequest {
+  playerType: PlayerType | null
+  engineId: string | null
+  restartTimeControl?: ITimeControl
+}
 ```
 
 ## Rules
-- `freeAnalysisSetup` is created only when neither side is assigned a player.
+- `freeAnalysisSetup` is created when either side is assigned no player.
 - `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
 - `boardEdit` is valid only inside `freeAnalysisSetup`.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGameWorkspace`.
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
+- `IReassignPlayerRequest.restartTimeControl` is required only when the resulting player assignment restarts live play with both sides assigned.

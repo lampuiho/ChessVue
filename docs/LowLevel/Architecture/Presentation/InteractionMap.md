@@ -43,7 +43,7 @@ Read-side rule:
 - `HistoryTree` is a template-free adapter that prepares move-tree view models for `TreeView`.
 
 ### Analysis Interaction
-- `AnalysisPanel` owns refresh, retry, stop, per-game analysis-engine add and remove, and analysis-line selection actions.
+- `AnalysisPanel` owns refresh, retry, stop, per-game analysis-engine add and remove, and analysis-line selection actions, with `+` on the panel title row and `-` on each engine title row.
 - `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
 - `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
 - Each engine group may expose up to `3` visible lines and may be folded independently through transient per-game UI state without changing the other engine groups.
@@ -57,7 +57,7 @@ Read-side rule:
   - enter, confirm, and cancel board edit
   - start game from setup
 - `PanelSurface`, `ButtonGroup`, and `SidePanelButton` own control markup.
-- `PlayerPanel` remains display-focused for players, clocks, and engine status, with the explicit exception that clicking an engine-controlled seat's displayed engine name opens the player-engine selection flow for that seat.
+- `PlayerPanel` remains display-focused for players, clocks, and engine status, with the explicit exception that clicking a non-remote seat's displayed player label opens the player-selection flow for that side.
 - `GameView` derives captured-material groups from the visible position and passes them to `PlayerPanel`, which stays display-focused for the player strips.
 - `StatusCard` and `ClockDisplay` own player readout markup.
 
@@ -71,7 +71,7 @@ Read-side rule:
 
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
-- Concrete flows such as new game, promotion selection when hosted as a dialog, prune confirmation, invalid-load errors, reset-settings prompts, blocked board-edit explanations, player-engine seat selection, and analysis-engine selection stay in their owning feature components or views.
+- Concrete flows such as new game, promotion selection when hosted as a dialog, prune confirmation, invalid-load errors, reset-settings prompts, blocked board-edit explanations, player-selection, and analysis-engine selection stay in their owning feature components or views.
 
 ## Building Block Verification
 The common layer is complete for the current baseline when it can render:

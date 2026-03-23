@@ -20,7 +20,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 - Public flow: `UiStateStore.showModal({ kind: "startGameFromSetup" })` -> `GamesStore.startGameFromSetup` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
 - Private design: `GamesStore._validateSetupTransition` -> `_validateAssignedPlayers` -> `_validateAssignedEngines` -> `_retainPreparedMoveTree` -> `_initialiseLiveClock` -> `_switchWorkspaceKindToLiveGame`.
-- State/settings coverage: the workspace must leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing`. After the transition, `_maybeRequestEngineTurn` runs whenever the resulting live side to move is engine-controlled, including `engine/engine`.
+- State/settings coverage: the workspace may leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing` only when both sides are assigned. That transition applies a newly chosen time control and fresh live clock state. After the transition, `_maybeRequestEngineTurn` runs whenever the resulting live side to move is engine-controlled, including `engine/engine`.
 - Requirement verification: `Pass`. Starting from setup preserves the prepared root and move tree while moving the workspace into live-game rules, and engine-controlled turns continue through the normal live-game gate.
 
 ## Analysis And Engine Runtime
@@ -118,8 +118,9 @@ For the baseline UCI implementation, `EngineClient` internally sends `uci`, wait
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 - Public flow: add uses `AnalysisPanel.analysisEngineAddRequested` -> `UiStateStore.showModal({ kind: "analysisEngineSelection" })` -> `GamesStore.addAnalysisEngine`; remove uses `AnalysisPanel.analysisEngineRemoveRequested` -> `GamesStore.removeAnalysisEngine`.
 - Private design: add uses `GamesStore._assertAnalysisRosterMutable` -> `_mutateAnalysisEngineRoster("add")` -> `EnginesStore.validateAnalysisSelection` -> `_persistWorkspaceIfNeeded` -> conditional `_refreshVisibleAnalysis`; remove uses `_mutateAnalysisEngineRoster("remove")` -> `EnginesStore.stopEngine(gameId, engineId, "analysis")` -> `AnalysisStore.clearEngineAnalysis(gameId, engineId)` -> `_persistWorkspaceIfNeeded`.
-- UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine group owns its own remove action so assignment is not one-way.
+- UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine so assignment is not one-way.
 - State gate: roster add and remove are valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. Adding an engine while `interactionContext = boardEdit` may update the stored roster, but `EnginesStore.startAnalysis` remains blocked until board editing ends.
 - Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to the engine store.
+
 
 

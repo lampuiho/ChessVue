@@ -203,14 +203,14 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User opens new-game dialog.
   2. User edits options (players, time control preset/custom, sides, and engine assignment).
-  3. User may assign no player to either side, which means the flow starts in `free analysis / setup` context instead of a live game.
+  3. User may assign either side to `none`, which means the flow starts in `free analysis / setup` context instead of a live game.
   4. User confirms creation.
   5. App validates options and creates configured game.
   6. If the created workspace is a live game and the side to move is engine-controlled, the normal live engine-turn loop starts from that side without a separate engine-vs-engine mode.
 - **Branch Paths**:
   - `BR-GAME-02-INVALID-TIME`: Invalid time settings (negative/empty) -> inline validation, block submit.
   - `BR-GAME-02-ENGINE-MISSING`: Selected required engine unavailable -> block creation until the setup is corrected.
-  - `BR-GAME-02-FREE-ANALYSIS-START`: If no player is assigned to either side, initialize free analysis/setup permissions and enable engine analysis on moves when engines were configured at creation.
+  - `BR-GAME-02-FREE-ANALYSIS-START`: If either side is assigned `none`, initialize free analysis/setup permissions and enable engine analysis on moves when engines were configured at creation.
 - **Postconditions**: Game starts with validated custom settings.
 - **Function Touchpoints**:
   - `MenuBar.customNewGameRequested`
@@ -641,7 +641,7 @@ Each scenario in this document uses the same structure:
   3. User selects an unassigned engine profile to add.
   4. App records the new per-game analysis-engine assignment.
   5. If the current interaction context allows analysis, app starts or refreshes analysis for that engine on the visible position.
-  6. User may later remove one assigned analysis engine from that engine group's own action area.
+  6. User may later click the `-` action on the right side of that engine group's title row to remove it.
   7. App stops that engine's active analysis session for the current game and removes that engine from the current game's analysis roster only.
 - **Branch Paths**:
   - `BR-ANALYSIS-05-DUPLICATE`: Selected engine is already assigned to this game -> reject duplicate add and keep current roster unchanged.
@@ -1042,29 +1042,32 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
 
-### SCN-ENGINE-03 - Change Seated Player Engine During Game
+### SCN-ENGINE-03 - Change Player Assignment During Game
 - **Status**: Planned
-- **Goal**: Explicitly swap the current game's seated engine participant for one side without mutating the reusable source profile.
-- **Preconditions**: The current game has an engine-controlled seat.
-- **Entry Points**: Click the seated engine profile name in the player strip.
+- **Goal**: Explicitly reassign one side to `none`, `local`, or a configured engine profile from the player strip.
+- **Preconditions**: The current game has a non-remote player seat.
+- **Entry Points**: Click the displayed player label in the player strip.
 - **Main Steps**:
-  1. User clicks the engine profile name shown for an engine-controlled seat in the player strip.
-  2. App opens a player-engine selection dialog scoped to that game and colour.
-  3. User selects a different configured engine profile.
-  4. App stops the previous seat-specific player-engine runtime for that side and records the newly seated engine participant for the current game.
-  5. If the changed seat is the side to move in a playable live position, app requests a move from the newly seated engine for that turn.
+  1. User clicks the displayed player label for one side in the player strip.
+  2. App opens a player-selection dialog scoped to that game and colour.
+  3. User chooses `none`, `local`, or one configured engine profile.
+  4. If the resulting player setup leaves either side as `none`, app ends the current live game and converts the workspace into `free analysis / setup` while preserving the move tree/history.
+  5. If the resulting player setup has both sides assigned, app collects a new time control setting, restarts live play from the preserved setup/history, and resets clock state from that fresh start.
+  6. If the restarted live game begins on an engine-controlled side, the normal live engine-turn loop starts from that side.
 - **Branch Paths**:
-  - `BR-ENGINE-03-SAME-PROFILE`: User selects the already seated engine profile -> keep the existing participant and close the dialog.
-  - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session first, then request at most one turn for the new seated engine.
-  - `BR-ENGINE-03-NOT-PLAYABLE`: Game is not in playable live current-position state -> update the seated engine identity only, with no immediate move request.
-  - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start -> keep the new seat assignment with unavailable feedback and allow a later retry or another swap.
-- **Postconditions**: The affected seat now belongs to the newly selected engine participant for that game only. Profile edits remain reusable-profile changes, while explicit seat swaps change the in-game participant.
+  - `BR-ENGINE-03-SAME-SELECTION`: User selects the already assigned value -> keep the current seat unchanged and close the dialog.
+  - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session before the reassignment is committed.
+  - `BR-ENGINE-03-NEEDS-TIME-CONTROL`: Both sides are assigned again but no new time control is confirmed -> keep the workspace in `free analysis / setup`.
+  - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start after restart -> keep the new assignment with unavailable feedback and allow a later retry or another reassignment.
+  - `BR-ENGINE-03-REMOTE-DISABLED`: If a future remote-player seat is present, reassignment is disabled for that seat.
+- **Postconditions**: Player reassignment updates only the current game. Any transition back to live play restarts with a new time control and fresh live clock state, while preserved move-tree history remains available.
 - **Function Touchpoints**:
-  - `PlayerPanel.playerEngineSelectionRequested`
+  - `PlayerPanel.playerSelectionRequested`
   - `UiStateStore.showModal`
-  - `GamesStore.reseatPlayerEngine`
+  - `GamesStore.reassignPlayer`
+  - `GamesStore.startGameFromSetup`
   - `EnginesStore.stopEngine`
-  - `EnginesStore.createPlayerSession`
+  - `TimeControlService.initialiseClockSnapshot`
   - `EnginesStore.startPlayerTurn`
 
 ---

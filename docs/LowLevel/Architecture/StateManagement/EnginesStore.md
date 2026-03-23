@@ -36,10 +36,10 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - `startAnalysis` supports `liveGame`, `historyReview`, `inGameAnalysis`, `freeAnalysisSetup`, paused live review, and finished-game review because analysis is read-only with respect to live progression.
 - `startAnalysis` is blocked when the workspace is actively in `boardEdit`.
 - `startPlayerTurn` is a strict preconditioned call for `liveGame + currentPosition + ongoing + not paused` only. It must reject or no-op for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused games, expired clocks, and final result states.
-- `startPlayerTurn` does not distinguish `human/engine` from `engine/engine`; it only checks the live-state gate and the side-to-move assignment.
+- `startPlayerTurn` does not distinguish `local/engine` from `engine/engine`; it only checks the live-state gate and the side-to-move assignment.
 - Analysis-runtime restart after restore follows the caller's `analysis.resumeLiveAnalysisAfterRestore` decision; `EnginesStore` does not override that policy.
 - Engine-profile editing is owned by `SettingsStore`; `EnginesStore` does not react automatically to profile edits because same-layer stores do not subscribe to each other in the baseline design.
-- If the user wants a different in-game engine identity or launch configuration, the engine must be explicitly unseated and reseated so a new participant/session can be created from the updated profile.
+- If player reassignment removes engine control from a side or changes that side to another engine profile, the obsolete player-engine runtime is stopped and a new runtime is created only if the reassigned seat is engine-controlled in the restarted live game.
 - When `GamesStore` changes a game's analysis-engine roster, `EnginesStore` starts or stops only the affected game-role sessions. Other games and roles are untouched.
 
 ## Dependencies
@@ -60,3 +60,4 @@ removeSessionsForEngine(engineId: string): Promise<void>
 
 ## Notes
 - `EnginesStore` resolves the active `ProcessManager` through `usePlatformServicesStore()` and supplies it to the concrete `EngineClient` wiring for the selected platform.
+

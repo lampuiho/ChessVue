@@ -1,4 +1,4 @@
-﻿# ChessVue Settings Contract
+# ChessVue Settings Contract
 
 ## Purpose
 This document defines the authoritative user-editable settings for the rewrite baseline.
@@ -26,8 +26,8 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `session.autoPauseOnMenu` | Pause timed live games during interrupting menu flows | `true` | Boolean | Settings snapshot |
 | `gameDefaults.quickNewGameName` | Default display name seed for quick new game | `New Game` | Non-empty string | Settings snapshot |
 | `gameDefaults.defaultTimeControl` | Default time control used by quick new game | `untimed` | Built-in preset or valid custom time control object | Settings snapshot |
-| `gameDefaults.defaultWhitePlayerType` | Default player type for white in new game setup | `human` | `human` or `engine` | Settings snapshot |
-| `gameDefaults.defaultBlackPlayerType` | Default player type for black in new game setup | `human` | `human` or `engine` | Settings snapshot |
+| `gameDefaults.defaultWhitePlayerType` | Default player type for white in new game setup | `local` | `local` or `engine` | Settings snapshot |
+| `gameDefaults.defaultBlackPlayerType` | Default player type for black in new game setup | `local` | `local` or `engine` | Settings snapshot |
 | `gameplay.takebackPolicy` | Decide whether moving from history rewrites live mainline or stays analysis-only | `rewriteMainline` | `rewriteMainline` or `analysisOnly` | Settings snapshot |
 | `gameplay.confirmMainlineRewrite` | Require confirmation before changing the main continuation | `true` | Boolean | Settings snapshot |
 | `gameplay.analysisBranchExitBehaviour` | Decide what happens after analysis-only branch creation from history | `returnToLiveNode` | `returnToLiveNode` or `stayOnBranch` | Settings snapshot |
@@ -80,3 +80,4 @@ The following are intentionally excluded from the baseline settings contract and
 - Per-game engine assignment belongs to the saved game payload, not to the global settings schema.
 - Session shell restoration belongs to session persistence, even when the behaviour is controlled by settings.
 - Remembered panel visibility and section folding belong to persisted UI/session state, not to the consciously saved settings schema.
+

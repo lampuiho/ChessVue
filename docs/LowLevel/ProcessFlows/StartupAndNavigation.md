@@ -30,8 +30,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - Public flow: `UiStateStore.showModal({ kind: "newGame" })` -> `GamesStore.createGame` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
 - Private design: `GamesStore._validateCreateRequest` -> `_resolveWorkspaceKind` -> `_validateAssignedPlayers` -> `_validateAssignedEngines` -> `_initialiseClockSnapshot` -> `_seedAnalysisAssignment`.
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections and shared dialog-row create or cancel actions.
-- State/settings coverage: any request with at least one assigned side becomes a baseline `liveGame`, while a request with neither side assigned becomes `freeAnalysisSetup`. `_maybeRequestEngineTurn` is evaluated immediately after creation whenever the resulting live game starts on an engine-controlled side to move, including `engine/engine`.
-- Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, a no-player request resolves into `freeAnalysisSetup`, and `engine/engine` reuses the same live engine-turn gate as any other engine-controlled start.
+- State/settings coverage: any request with both sides assigned becomes a baseline `liveGame`, while any request with either side assigned `none` becomes `freeAnalysisSetup`. `_maybeRequestEngineTurn` is evaluated immediately after creation whenever the resulting live game starts on an engine-controlled side to move, including `engine/engine`.
+- Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, any partially or fully unassigned player request resolves into `freeAnalysisSetup`, and `engine/engine` reuses the same live engine-turn gate as any other engine-controlled start.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
 - Public flow: `UiStateStore.setActiveGame` -> router tab navigation -> `GamesStore.getGame` -> `GamesStore.listGames`.
@@ -56,6 +56,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - Private design: `RecentGameStore._loadStoredSnapshot` -> `_sortMostRecentFirst`; `RecentGameStore._openAutosavedGame` uses `StorageAdapter.getGame` -> `GamesStore.insertGame`, while `RecentGameStore._openManualFileGame` uses `FileIoAdapter.loadGameFromPath` -> `GamesStore.insertGame`; stale-entry cleanup uses `RecentGameStore._dropStaleEntry`.
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
 - Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references can be removed without breaking the centred home layout.
+
 
 
 

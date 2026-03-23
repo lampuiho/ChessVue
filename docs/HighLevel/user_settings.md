@@ -1,4 +1,4 @@
-﻿# ChessVue User Settings Overview
+# ChessVue User Settings Overview
 
 ## Purpose
 This document summarises the committed user-editable settings for the rewrite baseline.
@@ -24,8 +24,8 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | --- | --- |
 | Quick new game name seed | Default label for quick-created games. |
 | Default time control | Default quick-new-game time control. |
-| Default white player type | `human` or `engine`. |
-| Default black player type | `human` or `engine`. |
+| Default white player type | `local` or `engine`. |
+| Default black player type | `local` or `engine`. |
 | Takeback policy | Decides whether moves made from history rewrite the live mainline or stay analysis-only. |
 | Confirm before mainline rewrite | Adds a confirmation gate before changing the main continuation. |
 | Analysis branch exit behaviour | Decides whether analysis-only history moves return to the live node or stay on the branch. |
@@ -61,3 +61,4 @@ The following items are not committed baseline settings and should not appear in
 - variant preferences
 
 These remain deferred in [ideas.md](ideas.md).
+

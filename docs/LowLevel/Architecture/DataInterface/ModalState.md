@@ -4,7 +4,7 @@
 Define the typed transient modal states owned by `UiStateStore`.
 
 ## Types
-- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty" | "playerEngineSelection" | "analysisEngineSelection"`
+- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty" | "playerSelection" | "analysisEngineSelection"`
 - `type IAppModalState`
 
 ## Data Structures
@@ -22,7 +22,7 @@ type AppModalKind =
   | "boardEditBlocked"
   | "settingsDirtyLeave"
   | "analysisExitDirty"
-  | "playerEngineSelection"
+  | "playerSelection"
   | "analysisEngineSelection"
 
 type IAppModalState =
@@ -96,11 +96,12 @@ type IAppModalState =
       }
     }
   | {
-      kind: "playerEngineSelection"
+      kind: "playerSelection"
       payload: {
         gameId: string
         colour: PlayerColour
-        currentEngineId: string
+        currentPlayerType: PlayerType | null
+        currentEngineId: string | null
       }
     }
   | {
@@ -116,4 +117,4 @@ type IAppModalState =
 - Modal state is transient UI state only and is never persisted in `IGameSessionSnapshot`, `IUiLayoutState`, or `IGameWorkspace`.
 - The modal contract exists to replace untyped string IDs and generic payload bags at the store boundary.
 - Dirty-settings-leave and dirty-analysis-exit prompts are part of the committed baseline modal contract because those branches already exist in the high-level scenarios.
-- Player-engine seat selection and analysis-engine selection are part of the committed baseline modal contract because both flows are explicitly routed through shared dialog surfaces.
+- Player-selection and analysis-engine selection are part of the committed baseline modal contract because both flows are explicitly routed through shared dialog surfaces.
