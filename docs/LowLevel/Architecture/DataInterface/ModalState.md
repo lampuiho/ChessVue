@@ -4,10 +4,8 @@
 Define the typed transient modal states owned by `UiStateStore`.
 
 ## Types
-- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked"`
-
-## Interfaces
-- `interface IAppModalState`
+- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty"`
+- `type IAppModalState`
 
 ## Data Structures
 ```ts
@@ -22,14 +20,82 @@ type AppModalKind =
   | "resetSettings"
   | "deleteGame"
   | "boardEditBlocked"
+  | "settingsDirtyLeave"
+  | "analysisExitDirty"
 
-interface IAppModalState {
-  kind: AppModalKind
-  payload?: Record<string, unknown>
-}
+type IAppModalState =
+  | { kind: "newGame" }
+  | {
+      kind: "promotion"
+      payload: {
+        gameId: string
+        move: IMove
+      }
+    }
+  | {
+      kind: "pruneFuture"
+      payload: {
+        gameId: string
+        nodeId: string
+      }
+    }
+  | {
+      kind: "startGameFromSetup"
+      payload: {
+        gameId: string
+      }
+    }
+  | {
+      kind: "resign"
+      payload: {
+        gameId: string
+        colour: PlayerColour
+      }
+    }
+  | {
+      kind: "timeout"
+      payload: {
+        gameId: string
+        resultState: Exclude<ResultState, "ongoing">
+        resultReason: "timeout"
+      }
+    }
+  | {
+      kind: "importError"
+      payload: {
+        message: string
+        isRecoverable: boolean
+      }
+    }
+  | { kind: "resetSettings" }
+  | {
+      kind: "deleteGame"
+      payload: {
+        gameId: string
+      }
+    }
+  | {
+      kind: "boardEditBlocked"
+      payload: {
+        gameId: string
+        reason: "inGameAnalysis"
+      }
+    }
+  | {
+      kind: "settingsDirtyLeave"
+      payload: {
+        targetRoute: IGameSessionSnapshot["activeRoute"]
+      }
+    }
+  | {
+      kind: "analysisExitDirty"
+      payload: {
+        gameId: string
+      }
+    }
 ```
 
 ## Rules
 - Modal state is transient UI state only and is never persisted in `IGameSessionSnapshot`, `IUiLayoutState`, or `IGameWorkspace`.
-- The modal contract exists to replace untyped string IDs and `unknown` payloads at the store boundary.
-- Concrete modal payload shapes may be refined later without changing the committed modal kind list.
+- The modal contract exists to replace untyped string IDs and generic payload bags at the store boundary.
+- Dirty-settings-leave and dirty-analysis-exit prompts are part of the committed baseline modal contract because those branches already exist in the high-level scenarios.

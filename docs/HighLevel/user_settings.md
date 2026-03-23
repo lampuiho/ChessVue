@@ -33,10 +33,10 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Confirm prune future moves | Guards irreversible prune actions. |
 | Allow root prune | Controls whether prune is allowed from the root. |
 
-## 3. Analysis and Engine Settings
+## 3. Engines
 | Setting | Baseline Notes |
 | --- | --- |
-| Resume live analysis after restore | Restarts live analysis only after saved-game restore is complete. |
+| Resume live analysis after restore | Engine-category preference that restarts live analysis only after saved-game restore is complete. |
 | Engine inventory | User-managed registry of available UCI engines. |
 
 ## 4. Appearance

@@ -19,7 +19,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-04`.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 - Public flow: `UiStateStore.showModal({ kind: "startGameFromSetup" })` -> `GamesStore.startGameFromSetup` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
-- Private design: `GamesStore._validateSetupTransition` -> `_rejectUnsupportedPlayerCombination` -> `_validateAssignedEngines` -> `_retainPreparedMoveTree` -> `_initialiseLiveClock` -> `_switchWorkspaceKindToLiveGame`.
+- Private design: `GamesStore._validateSetupTransition` -> `_validateAssignedPlayers` -> `_validateAssignedEngines` -> `_retainPreparedMoveTree` -> `_initialiseLiveClock` -> `_switchWorkspaceKindToLiveGame`.
 - State/settings coverage: the workspace must leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing`. After the transition, `_maybeRequestEngineTurn` runs whenever the resulting live side to move is engine-controlled, including `engine/engine`.
 - Requirement verification: `Pass`. Starting from setup preserves the prepared root and move tree while moving the workspace into live-game rules, and engine-controlled turns continue through the normal live-game gate.
 
@@ -114,4 +114,5 @@ For the baseline UCI implementation, `EngineClient` internally sends `uci`, wait
 - Public flow: `AnalysisPanel.lineSelected` -> `GamesStore.getGame` -> `GameRuleService.isMoveLegal` -> `GamesStore.makeMove`.
 - Private design: `GamesStore._applySelectedAnalysisLine` -> `_createOrReuseAnalysisBranch` -> `_refreshVisibleAnalysis`; optional branch retention uses `_honourAnalysisBranchPolicy`.
 - Requirement verification: `Pass`. Suggested lines become interactive without bypassing legality checks or corrupting the live node.
+
 

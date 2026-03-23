@@ -28,7 +28,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 ### SCN-GAME-02 - Custom New Game with User Options
 - Public flow: `UiStateStore.showModal({ kind: "newGame" })` -> `GamesStore.createGame` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
-- Private design: `GamesStore._validateCreateRequest` -> `_resolveWorkspaceKind` -> `_rejectUnsupportedPlayerCombination` -> `_validateAssignedEngines` -> `_initialiseClockSnapshot` -> `_seedAnalysisAssignment`.
+- Private design: `GamesStore._validateCreateRequest` -> `_resolveWorkspaceKind` -> `_validateAssignedPlayers` -> `_validateAssignedEngines` -> `_initialiseClockSnapshot` -> `_seedAnalysisAssignment`.
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections and shared dialog-row create or cancel actions.
 - State/settings coverage: any request with at least one assigned side becomes a baseline `liveGame`, while a request with neither side assigned becomes `freeAnalysisSetup`. `_maybeRequestEngineTurn` is evaluated immediately after creation whenever the resulting live game starts on an engine-controlled side to move, including `engine/engine`.
 - Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, a no-player request resolves into `freeAnalysisSetup`, and `engine/engine` reuses the same live engine-turn gate as any other engine-controlled start.
@@ -44,7 +44,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - UI surface coverage: `SettingsView` keeps category switching in a tab-style top strip, a secondary reset action area, and a primary bottom-right action row for `Cancel`, `Save`, and `Apply`.
 - Route coverage: settings category tabs map to `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, while invalid settings routes fall back to `/settings/session`.
 - State/settings coverage: `session.autoPauseOnMenu` applies only to timed `liveGame + currentPosition + ongoing` contexts. The stored pause owner prevents settings return from auto-resuming a manually paused game or a game paused for another reason such as in-game analysis. Accepted appearance updates reproject the root semantic CSS variables immediately, and system-theme subscription updates remain active only while `appearance.themeMode = system`.
-- Requirement verification: `Pass`. Auto-pause remains policy-driven, dirty-form prompts stay in `UiStateStore`, and return routing does not depend on a still-valid game always existing.
+- Requirement verification: `Pass`. Auto-pause remains policy-driven, dirty-form prompts stay in `UiStateStore` through the typed `settingsDirtyLeave` modal contract, and return routing does not depend on a still-valid game always existing.
 
 ### SCN-NAV-02 - Invalid Game Route Handling
 - Public flow: router guard -> `GamesStore.getGame` -> `GamesStore.listGames` -> `UiStateStore.setActiveGame`.
@@ -56,5 +56,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - Private design: `RecentGameStore._loadStoredSnapshot` -> `_sortMostRecentFirst`; `RecentGameStore._openAutosavedGame` uses `StorageAdapter.getGame` -> `GamesStore.insertGame`, while `RecentGameStore._openManualFileGame` uses `FileIoAdapter.loadGameFromPath` -> `GamesStore.insertGame`; stale-entry cleanup uses `RecentGameStore._dropStaleEntry`.
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
 - Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references can be removed without breaking the centred home layout.
+
 
 

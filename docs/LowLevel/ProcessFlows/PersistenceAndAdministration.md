@@ -32,11 +32,11 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - Public flow: `SettingsStore.updateSettings` -> `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
-- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettingsProjection` -> `_resolveThemeMode` -> `_buildAppearanceProjection`; save uses `_persistSnapshot`; accepted appearance refresh is consumed by the root app-shell appearance host.
+- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettings` -> `_resolveThemeMode` -> `_buildAppearanceProjection`; save uses `_persistSnapshot`; accepted appearance refresh is consumed by the root app-shell appearance host, and accepted engine-inventory changes are then reconciled by `EnginesStore._reconcileAcceptedInventory`.
 - UI surface coverage: category tabs switch the active settings section, Cancel, Save, and Apply stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
 - Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
-- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows `SystemThemeAdapter`, while `light` and `dark` force built-in app themes. The appearance category also contains layout-related presentation preferences such as `uiScalePercent`, board orientation, coordinate visibility, and last-move highlighting. The accepted appearance projection includes a reactive semantic CSS-variable map so shared UI chrome updates immediately without a restart.
-- Requirement verification: `Pass`. Validation happens before apply or persistence, only committed settings fields are writable, and accepted appearance changes refresh the shared app-theme variables immediately.
+- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows `SystemThemeAdapter`, while `light` and `dark` force built-in app themes. The appearance category also contains layout-related presentation preferences such as `uiScalePercent`, board orientation, coordinate visibility, and last-move highlighting. The engines category contains both `analysis.resumeLiveAnalysisAfterRestore` and engine inventory. The accepted appearance projection includes a reactive semantic CSS-variable map so shared UI chrome updates immediately without a restart.
+- Requirement verification: `Pass`. Validation happens before apply or persistence, only committed settings fields are writable, engine inventory stays inside the same settings draft model as the other fields, and accepted appearance changes refresh the shared app-theme variables immediately.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 - Public flow: `UiStateStore.showModal({ kind: "resetSettings" })` -> `SettingsStore.resetSettings`.
@@ -45,14 +45,14 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 - Requirement verification: `Pass`. Reset restores the authoritative default schema, reprojects the default appearance state, and persists it atomically.
 
 ### SCN-ENGINE-01 - Add Engine Configuration
-- Public flow: `EnginesStore.addEngine`.
-- Private design: `EnginesStore._validateEngineRecord` -> `_assertUniqueEngineId` -> `_persistInventoryThroughSettingsStore`.
-- Requirement verification: `Pass`. Path and identity validation are explicit before the inventory is persisted.
+- Public flow: `SettingsStore.updateSettings` -> optional `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
+- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; accepted inventory changes then flow into `EnginesStore._reconcileAcceptedInventory`.
+- Requirement verification: `Pass`. Path and identity validation happen before the engine record becomes part of the accepted settings snapshot, so add-engine changes honour the same draft/apply/save model as the rest of settings.
 
 ### SCN-ENGINE-02 - Update or Remove Engine Configuration
-- Public flow: `EnginesStore.updateEngine` or `EnginesStore.removeEngine`.
-- Private design: update uses `_validateEngineRecord` -> `_persistInventoryThroughSettingsStore` -> `_restartAffectedSessions`; remove uses `_stopMatchingSessions` -> `_removeInventoryRecord`.
-- Requirement verification: `Pass`. Running sessions are stopped or restarted before the inventory change is considered complete.
+- Public flow: `SettingsStore.updateSettings` -> optional `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
+- Private design: accepted inventory edits flow through `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; on apply or save, `EnginesStore._reconcileAcceptedInventory` stops or restarts affected sessions as needed.
+- Requirement verification: `Pass`. Running sessions are reconciled only after the edited inventory becomes part of the accepted settings snapshot, so edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`.
 
 ## Lifecycle Cleanup
 
@@ -65,5 +65,6 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 - Public flow: `UiStateStore.showModal({ kind: "deleteGame" })` -> `GamesStore.deleteGame` -> `GamesStore.listGames` -> `UiStateStore.setActiveGame`.
 - Private design: `GamesStore._selectFallbackGameId` -> `UiStateStore._coerceActiveRoute`; router return uses `_selectFallbackRoute`.
 - Requirement verification: `Pass`. Active-game deletion cannot leave a dangling route or session pointer.
+
 
 

@@ -108,7 +108,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - Public flow: `GamesStore.enterInGameAnalysis` -> analysis moves continue through `GamesStore.makeMove` -> `GamesStore.exitInGameAnalysis`.
-- Private design: entry uses `_assertInGameAnalysisAllowed` -> `_pauseForAnalysisEntry` -> `_cloneAnalysisContext`; exit uses `_promptForDirtyAnalysisExitIfNeeded` -> `_restoreLiveNode` -> `_resumeAfterAnalysisIfOwned`.
+- Private design: entry uses `_assertInGameAnalysisAllowed` -> `_pauseForAnalysisEntry` -> `_cloneAnalysisContext`; exit uses `_promptForDirtyAnalysisExitIfNeeded` -> `UiStateStore.showModal({ kind: "analysisExitDirty", payload: { gameId } })` -> `_restoreLiveNode` -> `_resumeAfterAnalysisIfOwned`.
 - State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Entry is blocked for `freeAnalysisSetup`, `boardEdit`, paused states that cannot be analysis-owned, and non-timeout final results. While active, analysis moves are legal for both colours, clocks do not progress, the live node does not advance, and `_maybeRequestEngineTurn` remains suppressed until the mode exits back to the live node.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 
@@ -117,5 +117,6 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Private design: `GamesStore._assertBoardEditAllowed` returns a reason token; `UiStateStore` owns the explanatory prompt.
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
+
 
 

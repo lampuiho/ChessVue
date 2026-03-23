@@ -7,9 +7,6 @@ Coordinate configured engines, per-game assignment, runtime availability, and pr
 ```ts
 listConfiguredEngines(): IEngineRecord[]
 getEngine(engineId: string): IEngineRecord | null
-addEngine(engine: IEngineRecord): Promise<void>
-updateEngine(engine: IEngineRecord): Promise<void>
-removeEngine(engineId: string): Promise<void>
 validateAnalysisSelection(engineIds: string[]): void
 ensureAnalysisSessions(gameId: string, engineIds: string[], positionState: IEnginePositionState): Promise<IEngineRuntimeSession[]>
 startAnalysis(gameId: string, engineIds: string[], positionState: IEnginePositionState): Promise<void>
@@ -24,8 +21,8 @@ removeSessionsForEngine(engineId: string): Promise<void>
 ```
 
 ## Responsibilities
-- read engine inventory from `SettingsStore`
-- validate and reconcile engine inventory changes through `SettingsStore` while keeping runtime sessions coherent
+- read configured engine inventory from the accepted `SettingsStore` snapshot
+- reconcile accepted engine-inventory changes from `SettingsStore` while keeping runtime sessions coherent
 - enforce the four-engine analysis cap
 - keep sessions isolated by game and role
 - mark unavailable or failed engines without stopping unrelated sessions
@@ -42,6 +39,7 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - `startPlayerTurn` is a strict preconditioned call for `liveGame + currentPosition + ongoing + not paused` only. It must reject or no-op for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused games, expired clocks, and final result states.
 - `startPlayerTurn` does not distinguish `human/engine` from `engine/engine`; it only checks the live-state gate and the side-to-move assignment.
 - Analysis-runtime restart after restore follows the caller's `analysis.resumeLiveAnalysisAfterRestore` decision; `EnginesStore` does not override that policy.
+- Engine-inventory editing is owned by `SettingsStore`; `EnginesStore` reacts only after accepted settings change.
 
 ## Dependencies
 - `SettingsStore`

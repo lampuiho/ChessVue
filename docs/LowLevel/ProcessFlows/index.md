@@ -30,7 +30,7 @@ The architecture docs were tightened alongside this folder so every committed sc
 - `TimeControlService` now exposes `getRemainingTime` so UI clock reads stay authoritative.
 - `UiStateStore` now covers transient modal flows plus independently persisted game-session and layout state.
 - `RecentGameStore` now owns home recent-history loading, deduped recent-entry persistence, and reopen routing across autosave and manual-file targets.
-- `EnginesStore` now covers engine inventory maintenance, analysis runtime control, and player-engine turn control.
+- `EnginesStore` now covers analysis runtime control, player-engine turn control, and reconciliation of accepted engine-inventory changes from settings.
 - `AnalysisStore` now acts as callback-only analysis state rather than an engine runtime controller.
 - `EngineClient` now hides protocol strings behind concrete engine-session operations and typed analysis updates.
 
@@ -42,7 +42,7 @@ This matrix is the compact cross-check for the public entry points that decide w
 | `GamesStore.makeMove` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | blocks live progression when paused or final | `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, `gameplay.analysisBranchExitBehaviour`, `gameplay.promotionPolicy` | live move, analysis move, history rewrite, or blocked action |
 | `GamesStore.pauseGame` | `liveGame` | `currentPosition` | timed + ongoing only | none | explicit pause with stored owner |
 | `GamesStore.resumeGame` | `liveGame` | `currentPosition` | timed + paused + ongoing only | none | explicit resume when the same owner is allowed to resume |
-| `GamesStore.enterInGameAnalysis` | `liveGame` | `currentPosition` | ongoing only | none | switch to analysis-only live-game exploration |
+| `GamesStore.enterInGameAnalysis` | `liveGame` | `currentPosition` | ongoing or timeout-final with `resultReason = timeout` | none | switch to analysis-only live-game exploration without reopening live progression |
 | `GamesStore.startGameFromSetup` | `freeAnalysisSetup` | `currentPosition` | result must remain `ongoing` | none beyond engine validation rules | transition to `liveGame` or reject unsupported setup |
 | `GamesStore.importGame` | imported payload decides | restored `currentPosition` or `historyReview` | restored paused/final state is preserved | `analysis.resumeLiveAnalysisAfterRestore` | restore persisted game state first, then optional live analysis and optional engine turn |
 | `GamesStore._maybeRequestEngineTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | request one engine-controlled live turn or no-op |
@@ -71,13 +71,13 @@ These helper families are the intended internal structure behind the public APIs
 
 ### EnginesStore
 - `_getConfiguredInventory`
-- `_validateEngineRecord`
 - `_assertAnalysisSelectionLimit`
 - `_buildSession`
 - `_startAnalysisSessions`
 - `_bindAnalysisCallbacks`
 - `_forwardAnalysisUpdate`
 - `_startPlayerTurnSearch`
+- `_reconcileAcceptedInventory`
 - `_restartAffectedSessions`
 - `_stopMatchingSessions`
 
@@ -96,6 +96,8 @@ These helper families are the intended internal structure behind the public APIs
 - `_subscribeToSystemThemeChanges`
 - `_validatePatch`
 - `_normaliseEngineInventory`
+- `_applyAcceptedSettings`
+- `_discardPendingSettings`
 - `_persistSnapshot`
 
 ### RecentGameStore
@@ -148,3 +150,4 @@ These helper families are the intended internal structure behind the public APIs
 2. Continue with [GameplayAndControl.md](GameplayAndControl.md) for the core move loop and player-engine turn flow.
 3. Read [AnalysisAndSetup.md](AnalysisAndSetup.md) for engine analysis and setup-specific branching.
 4. Finish with [PersistenceAndAdministration.md](PersistenceAndAdministration.md) for save/load and maintenance workflows.
+

@@ -58,7 +58,7 @@ Read-side rule:
   - start game from setup
 - `PanelSurface`, `ButtonGroup`, and `SidePanelButton` own control markup.
 - `PlayerPanel` remains display-focused for players, clocks, and engine status rather than duplicating the same actions.
-- `PlayerPanel` also renders derived captured-material groups for the player strips.
+- `GameView` derives captured-material groups from the visible position and passes them to `PlayerPanel`, which stays display-focused for the player strips.
 - `StatusCard` and `ClockDisplay` own player readout markup.
 
 ### Settings And Engine Management
@@ -66,6 +66,7 @@ Read-side rule:
 - `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`, `SettingsActionButton`, `ItemList`, `InlineMessage`, and `EmptyState` provide the required settings and inventory render building blocks.
 - `SettingsSection` and `EngineInventoryEditor` are template-free adapters over those common form and list components.
 - `TabbedView` and `TabButton` also support top-level settings category switching, with `SettingsView` mapping selection to `/settings/:category`.
+- Engine inventory edits stay in the same pending settings draft as the other categories until `Apply` or `Save` is chosen.
 - `SettingsView` keeps `Cancel`, `Save`, and `Apply` in the primary bottom-right action row, while `Reset` stays in a separate secondary settings action area.
 
 ### Modal And Confirmation Flows

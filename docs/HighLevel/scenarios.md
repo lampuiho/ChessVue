@@ -266,7 +266,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.loadSettings`
   - `SettingsStore.saveSettings`
   - `SettingsStore.resetSettings`
-  - `EnginesStore.listConfiguredEngines`
+  - `SettingsStore.updateSettings`
   - `UiStateStore.saveGameSession`
 
 ### SCN-NAV-02 - Invalid Game Route Handling
@@ -943,6 +943,7 @@ Each scenario in this document uses the same structure:
   - `SettingsView.onApply`
   - `SettingsView.onSave`
   - `SettingsStore.updateSettings`
+  - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
   - `AppShell.applyAppearanceProjection`
   - `PlatformServices.getSystemThemeAdapter`
@@ -975,15 +976,16 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User opens add-engine form.
   2. User enters engine metadata/path/options.
-  3. User saves.
-  4. Engine appears in available list.
+  3. App stages the new engine inside the pending settings draft.
+  4. User applies or saves the settings flow.
+  5. Engine appears in the available list.
 - **Branch Paths**:
   - `BR-ENGINE-01-INVALID-PATH`: Path not executable/unreachable -> reject with validation message.
   - `BR-ENGINE-01-DUPLICATE`: Duplicate engine ID/name -> request rename or merge.
 - **Postconditions**: Engine list contains only valid, unique entries.
 - **Function Touchpoints**:
-  - `EnginesStore.addEngine`
-  - `EnginesStore.listConfiguredEngines`
+  - `SettingsStore.updateSettings`
+  - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
   - `UiStateStore.showModal`
 
@@ -994,17 +996,17 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Engine edit/remove action in settings.
 - **Main Steps**:
   1. User edits engine config or chooses remove.
-  2. App validates operation.
-  3. App persists updated engine list.
+  2. App validates the edited inventory inside the pending settings draft.
+  3. User applies or saves the settings flow.
+  4. App persists the updated engine list and reconciles affected runtime sessions.
 - **Branch Paths**:
   - `BR-ENGINE-02-REMOVE-ACTIVE`: Removing active analyzing engine -> stop process then remove.
   - `BR-ENGINE-02-UPDATE-RUNNING`: Updating running engine requires restart to apply options.
 - **Postconditions**: Engine state and process lifecycle remain consistent after edit/remove.
 - **Function Touchpoints**:
-  - `EnginesStore.updateEngine`
-  - `EnginesStore.removeEngine`
+  - `SettingsStore.updateSettings`
+  - `SettingsStore.applySettings`
   - `EnginesStore.stopAnalysis`
-  - `ProcessManager.stopProcess`
   - `SettingsStore.saveSettings`
 
 ---

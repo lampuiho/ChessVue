@@ -46,7 +46,7 @@ importGame(): Promise<IGameWorkspace>
 ## State And Settings Notes
 - `makeMove` is the context dispatcher for live current-position play, history rewrite, analysis-only history branching, in-game analysis moves, and free-analysis exploration. Blocked states are rejected before domain mutation.
 - `pauseGame` and `resumeGame` apply only to timed `liveGame + currentPosition + ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
-- `enterInGameAnalysis` is valid only for ongoing live games and suppresses engine-turn generation until the live node is restored.
+- `enterInGameAnalysis` is valid for ongoing live games and for timeout-finalised live games where `resultReason = timeout`; in both cases it suppresses engine-turn generation until the live node is restored.
 - `createGame` and `startGameFromSetup` create a `liveGame` whenever at least one side is assigned; `freeAnalysisSetup` is reserved for the no-player case only.
 - `_maybeRequestEngineTurn` is the generic live-game gate for `human/engine`, `engine/human`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
 - `importGame` and session restore rebuild the persisted workspace state first, then may request continuous analysis and a player-engine turn only when the restored state is playable live current-position ongoing state.
