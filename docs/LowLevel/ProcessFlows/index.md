@@ -25,13 +25,13 @@ Only `Current` and `Planned` scenarios from [../../HighLevel/scenarios.md](../..
 ## Public Interface Verification
 The architecture docs were tightened alongside this folder so every committed scenario now has an owning public entry point:
 
-- `GamesStore` now covers startup restore, setup-to-live transition, takeback, clock reconciliation, and pause/resume flows.
+- `GamesStore` now covers startup restore, setup-to-live transition, takeback, clock reconciliation, pause/resume flows, explicit player-engine reseating, and per-game analysis-engine assignment changes.
 - `MoveUpdateService` now exposes navigation, position lookup, takeback, and prune operations with scenario-aligned names.
 - `TimeControlService` now exposes `getRemainingTime` so UI clock reads stay authoritative.
 - `UiStateStore` now covers transient modal flows plus independently persisted game-session and layout state.
 - `RecentGameStore` now owns home recent-history loading, deduped recent-entry persistence, and reopen routing across autosave and manual-file targets.
 - `EnginesStore` now covers analysis runtime control and player-engine turn control for already assigned engine participants.
-- `AnalysisStore` now acts as callback-only analysis state rather than an engine runtime controller.
+- `AnalysisStore` now acts as callback-only analysis state rather than an engine runtime controller, including clearing one engine row when that engine is removed from a game's analysis roster.
 - `EngineClient` now hides protocol strings behind concrete engine-session operations and typed analysis updates.
 
 ## State And Settings Coverage Matrix
@@ -45,6 +45,9 @@ This matrix is the compact cross-check for the public entry points that decide w
 | `GamesStore.enterInGameAnalysis` | `liveGame` | `currentPosition` | ongoing or timeout-final with `resultReason = timeout` | none | switch to analysis-only live-game exploration without reopening live progression |
 | `GamesStore.startGameFromSetup` | `freeAnalysisSetup` | `currentPosition` | result must remain `ongoing` | none beyond engine validation rules | transition to `liveGame` or reject unsupported setup |
 | `GamesStore.importGame` | imported payload decides | restored `currentPosition` or `historyReview` | restored paused/final state is preserved | `analysis.resumeLiveAnalysisAfterRestore` | restore persisted game state first, then optional live analysis and optional engine turn |
+| `GamesStore.reseatPlayerEngine` | `liveGame` | `currentPosition`, `historyReview`, `inGameAnalysis` | ongoing only; immediate turn request still requires playable live current-position state | none | replace one seated player-engine participant for the current game and optionally request its turn |
+| `GamesStore.addAnalysisEngine` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | analysis start is still blocked during `boardEdit` | four-engine cap | add one per-game analysis-engine assignment and start analysis when allowed |
+| `GamesStore.removeAnalysisEngine` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis`, `boardEdit` | no live-result gate because removal is assignment cleanup | none | remove one per-game analysis-engine assignment, stop that engine, and clear its row |
 | `GamesStore._maybeRequestEngineTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | request one engine-controlled live turn or no-op |
 | `EnginesStore.startAnalysis` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | allowed during paused and finished review, blocked during `boardEdit` | `analysis.resumeLiveAnalysisAfterRestore` affects restore flows only | continuous analysis callbacks until stopped or completed |
 | `EnginesStore.startPlayerTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | one turn-scoped engine move search or strict rejection |
@@ -61,6 +64,8 @@ These helper families are the intended internal structure behind the public APIs
 - `_finaliseResult`
 - `_buildPersistedWorkspace`
 - `_persistWorkspace`
+- `_replaceAssignedPlayerEngine`
+- `_mutateAnalysisEngineRoster`
 - `_maybeRequestEngineTurn`
 
 ### AnalysisStore
@@ -68,6 +73,7 @@ These helper families are the intended internal structure behind the public APIs
 - `_mergeEngineSnapshot`
 - `_markStreamComplete`
 - `_markStreamUnavailable`
+- `_clearEngineSnapshots`
 
 ### EnginesStore
 - `_getConfiguredInventory`
@@ -149,5 +155,6 @@ These helper families are the intended internal structure behind the public APIs
 2. Continue with [GameplayAndControl.md](GameplayAndControl.md) for the core move loop and player-engine turn flow.
 3. Read [AnalysisAndSetup.md](AnalysisAndSetup.md) for engine analysis and setup-specific branching.
 4. Finish with [PersistenceAndAdministration.md](PersistenceAndAdministration.md) for save/load and maintenance workflows.
+
 
 

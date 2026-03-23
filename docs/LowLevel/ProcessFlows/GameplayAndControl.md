@@ -1,7 +1,7 @@
 # Gameplay And Control Flows
 
 ## Scope
-This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
+This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 ## Move Execution
 
@@ -32,6 +32,13 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Runtime distinction: analysis search keeps streaming updates into `AnalysisStore`, while a player-engine turn waits only for the final move callback and then ends that turn-scoped search.
 - State gate: `EnginesStore.startPlayerTurn` is valid only for `liveGame + currentPosition + ongoing + not paused` when the side to move is assigned to an engine. It is a strict no-op-or-reject boundary for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused live games, expired clocks, and all final result states.
 - Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, board edit, paused live games, and finished games. The same side-to-move gate is reused for `human/engine`, `engine/human`, and `engine/engine`.
+
+### SCN-ENGINE-03 - Change Seated Player Engine During Game
+- Public flow: `PlayerPanel.playerEngineSelectionRequested` -> `UiStateStore.showModal({ kind: "playerEngineSelection" })` -> `GamesStore.reseatPlayerEngine` -> conditional `GamesStore._maybeRequestEngineTurn`.
+- Private design: `GamesStore._assertSeatReseatable` -> `_replaceAssignedPlayerEngine` -> `EnginesStore.stopEngine(gameId, previousEngineId, "player")` -> `_clearPendingTurnRequestIfNeeded` -> `EnginesStore.createPlayerSession` -> `_persistWorkspaceIfNeeded` -> `_maybeRequestEngineTurn`.
+- State coverage: reseating is valid for ongoing `liveGame` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. Immediate engine-turn generation still depends on returning to `liveGame + currentPosition + ongoing + not paused` with the changed seat to move.
+- Runtime guardrails: if the replaced seat already had a turn-scoped engine search in flight, that search is stopped before the new seat identity is committed. After the swap, `_maybeRequestEngineTurn` may request at most one new turn for the replacement engine when the live-state gate passes and that turn has not already been fulfilled.
+- Requirement verification: `Pass`. Seat swapping stays explicit at the store boundary and reuses the normal player-engine turn gate instead of inventing a second move-generation path.
 
 ## History And Branching
 
@@ -117,6 +124,8 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Private design: `GamesStore._assertBoardEditAllowed` returns a reason token; `UiStateStore` owns the explanatory prompt.
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
+
+
 
 
 

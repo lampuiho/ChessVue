@@ -11,10 +11,11 @@ Render player slots, clock state, and engine status for both sides.
 - `PanelSurface` for shared panel layout
 
 ## Emits
-- none directly
+- `playerEngineSelectionRequested`
 
 ## Notes
 - Gameplay actions such as pause, resign, draw, and takeback are centralised in `GameControlPanel`.
 - Captured material is rendered as grouped icons in the player strip rather than as a separate control surface.
-- Keeping `PlayerPanel` display-focused reduces duplicated controls and unnecessary template depth.
+- `PlayerPanel` stays read-heavy, but an engine-controlled seat exposes its displayed engine profile name as the explicit click target for changing that seated engine.
+- Keeping `PlayerPanel` display-focused outside that explicit seat-change affordance reduces duplicated controls and unnecessary template depth.
 - `PlayerPanel` contains no HTML or template markup and binds player state into `PanelSurface`, `StatusCard`, and `ClockDisplay`.

@@ -18,6 +18,9 @@ navigateToNode(gameId: string, nodeId: string): void
 syncClock(gameId: string, nowUtc: string): Promise<void>
 pauseGame(gameId: string, reason: "manual" | "menu" | "analysis"): Promise<void>
 resumeGame(gameId: string, reason: "manual" | "menu" | "analysis"): Promise<void>
+reseatPlayerEngine(gameId: string, colour: PlayerColour, engineId: string): Promise<void>
+addAnalysisEngine(gameId: string, engineId: string): Promise<void>
+removeAnalysisEngine(gameId: string, engineId: string): Promise<void>
 enterInGameAnalysis(gameId: string): Promise<void>
 exitInGameAnalysis(gameId: string): void
 enterBoardEdit(gameId: string): void
@@ -39,6 +42,8 @@ importGame(): Promise<IGameWorkspace>
 - coordinate legal move application, move-tree updates, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
 - coordinate pause and resume flows for manual controls, menu interruptions, and analysis-mode entry
+- change the seated player-engine participant for a live-game side when the user explicitly swaps that seat from the player strip
+- add or remove per-game analysis-engine assignments during a game
 - persist the canonical `IGameWorkspace` payload for autosave and export
 - notify `RecentGameStore` after successful autosave, manual save, and manual import flows so recent history reflects the latest saved target for each game
 - ask `EnginesStore` to start analysis or run an engine-controlled turn when the visible or live position changes
@@ -46,6 +51,8 @@ importGame(): Promise<IGameWorkspace>
 ## State And Settings Notes
 - `makeMove` is the context dispatcher for live current-position play, history rewrite, analysis-only history branching, in-game analysis moves, and free-analysis exploration. Blocked states are rejected before domain mutation.
 - `pauseGame` and `resumeGame` apply only to timed `liveGame + currentPosition + ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
+- `reseatPlayerEngine` is the explicit per-game player swap boundary. It stops the previous seat-specific player-engine runtime, updates the assigned participant for that seat, persists the workspace, and re-enters `_maybeRequestEngineTurn` only when the changed seat is still due to move in a playable live state.
+- `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's analysis-engine roster only. Add validates against duplicates and the engine-count limit, while remove stops that engine's analysis runtime and clears its visible analysis row for the game.
 - `enterInGameAnalysis` is valid for ongoing live games and for timeout-finalised live games where `resultReason = timeout`; in both cases it suppresses engine-turn generation until the live node is restored.
 - `createGame` and `startGameFromSetup` create a `liveGame` whenever at least one side is assigned; `freeAnalysisSetup` is reserved for the no-player case only.
 - `_maybeRequestEngineTurn` is the generic live-game gate for `human/engine`, `engine/human`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
@@ -68,8 +75,10 @@ importGame(): Promise<IGameWorkspace>
 - `SCN-HIST-01` to `SCN-HIST-04`
 - `SCN-FREE-ANALYSIS-01` to `SCN-FREE-ANALYSIS-03`
 - `SCN-ANALYSIS-01`
+- `SCN-ANALYSIS-05`
 - `SCN-TIME-01` to `SCN-TIME-05`
 - `SCN-CTRL-01` to `SCN-CTRL-05`
+- `SCN-ENGINE-03`
 - `SCN-SAVE-01` to `SCN-LOAD-02`
 - `SCN-LIFECYCLE-01` and `SCN-LIFECYCLE-02`
 

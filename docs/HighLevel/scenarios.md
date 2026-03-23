@@ -60,6 +60,7 @@ This matrix is the authoritative trace from each committed scenario to the contr
 | `SCN-ANALYSIS-02` | `ENGINE` |
 | `SCN-ANALYSIS-03` | `ENGINE` |
 | `SCN-ANALYSIS-04` | `STATE`, `ENGINE`, `SETTINGS` |
+| `SCN-ANALYSIS-05` | `STATE`, `ENGINE` |
 | `SCN-TIME-01` | `STATE` |
 | `SCN-TIME-02` | `STATE` |
 | `SCN-TIME-03` | `STATE`, `SETTINGS` |
@@ -78,6 +79,7 @@ This matrix is the authoritative trace from each committed scenario to the contr
 | `SCN-SETTINGS-02` | `SETTINGS`, `PERSIST` |
 | `SCN-ENGINE-01` | `ENGINE`, `SETTINGS` |
 | `SCN-ENGINE-02` | `ENGINE`, `SETTINGS` |
+| `SCN-ENGINE-03` | `STATE`, `ENGINE` |
 | `SCN-LIFECYCLE-01` | `STATE`, `PERSIST` |
 | `SCN-LIFECYCLE-02` | `STATE`, `PERSIST` |
 
@@ -628,6 +630,35 @@ Each scenario in this document uses the same structure:
   - `MoveUpdateService.navigateToNode`
   - `GamesStore.getGame`
 
+### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
+- **Status**: Planned
+- **Goal**: Manage the current game's analysis-engine roster from the analysis panel without changing other games.
+- **Preconditions**: Active game exists; at least one configured engine profile may be available.
+- **Entry Points**: Analysis panel title-row `+` action, per-engine remove action.
+- **Main Steps**:
+  1. User clicks the `+` button on the right side of the analysis panel title.
+  2. App opens an analysis-engine selection dialog scoped to the current game.
+  3. User selects an unassigned engine profile to add.
+  4. App records the new per-game analysis-engine assignment.
+  5. If the current interaction context allows analysis, app starts or refreshes analysis for that engine on the visible position.
+  6. User may later remove one assigned analysis engine from that engine group's own action area.
+  7. App stops that engine's active analysis session for the current game and removes that engine from the current game's analysis roster only.
+- **Branch Paths**:
+  - `BR-ANALYSIS-05-DUPLICATE`: Selected engine is already assigned to this game -> reject duplicate add and keep current roster unchanged.
+  - `BR-ANALYSIS-05-LIMIT`: Adding the engine would exceed the supported concurrent analysis-engine limit -> reject and explain the limit.
+  - `BR-ANALYSIS-05-START-FAIL`: Added engine cannot start for the current position -> keep the assignment with unavailable feedback and allow retry or removal.
+  - `BR-ANALYSIS-05-BOARD-EDIT`: Current workspace is in `boardEdit` -> block live analysis start until board editing ends.
+- **Postconditions**: The current game's analysis roster updates independently from other games, and assigned engines begin or end analysis accordingly.
+- **Function Touchpoints**:
+  - `AnalysisPanel.analysisEngineAddRequested`
+  - `AnalysisPanel.analysisEngineRemoveRequested`
+  - `UiStateStore.showModal`
+  - `GamesStore.addAnalysisEngine`
+  - `GamesStore.removeAnalysisEngine`
+  - `EnginesStore.validateAnalysisSelection`
+  - `EnginesStore.startAnalysis`
+  - `EnginesStore.stopEngine`
+
 ---
 
 ## Time Control and Game Controls
@@ -982,7 +1013,7 @@ Each scenario in this document uses the same structure:
   6. Engine appears in the available list.
 - **Branch Paths**:
   - `BR-ENGINE-01-DUPLICATE`: Duplicate engine profile name -> block save until the name is made unique.
-- **Postconditions**: Engine list contains only valid, unique entries. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
+- **Postconditions**: Engine list contains unique named profiles staged through the settings draft. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Function Touchpoints**:
   - `SettingsStore.updateSettings`
   - `SettingsStore.applySettings`
@@ -1010,6 +1041,31 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.updateSettings`
   - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
+
+### SCN-ENGINE-03 - Change Seated Player Engine During Game
+- **Status**: Planned
+- **Goal**: Explicitly swap the current game's seated engine participant for one side without mutating the reusable source profile.
+- **Preconditions**: The current game has an engine-controlled seat.
+- **Entry Points**: Click the seated engine profile name in the player strip.
+- **Main Steps**:
+  1. User clicks the engine profile name shown for an engine-controlled seat in the player strip.
+  2. App opens a player-engine selection dialog scoped to that game and colour.
+  3. User selects a different configured engine profile.
+  4. App stops the previous seat-specific player-engine runtime for that side and records the newly seated engine participant for the current game.
+  5. If the changed seat is the side to move in a playable live position, app requests a move from the newly seated engine for that turn.
+- **Branch Paths**:
+  - `BR-ENGINE-03-SAME-PROFILE`: User selects the already seated engine profile -> keep the existing participant and close the dialog.
+  - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session first, then request at most one turn for the new seated engine.
+  - `BR-ENGINE-03-NOT-PLAYABLE`: Game is not in playable live current-position state -> update the seated engine identity only, with no immediate move request.
+  - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start -> keep the new seat assignment with unavailable feedback and allow a later retry or another swap.
+- **Postconditions**: The affected seat now belongs to the newly selected engine participant for that game only. Profile edits remain reusable-profile changes, while explicit seat swaps change the in-game participant.
+- **Function Touchpoints**:
+  - `PlayerPanel.playerEngineSelectionRequested`
+  - `UiStateStore.showModal`
+  - `GamesStore.reseatPlayerEngine`
+  - `EnginesStore.stopEngine`
+  - `EnginesStore.createPlayerSession`
+  - `EnginesStore.startPlayerTurn`
 
 ---
 

@@ -16,13 +16,16 @@ Render the latest visible analysis snapshot for the active position.
 - `refreshRequested`
 - `engineRetryRequested`
 - `engineStopRequested`
-- `engineSelectionRequested`
+- `analysisEngineAddRequested`
+- `analysisEngineRemoveRequested`
 - `lineSelected`
 
 ## Notes
 - Each engine row updates independently.
 - Each engine group may show up to `3` visible lines for the active position.
 - Each engine group may be folded independently without affecting the other engine groups.
+- The panel title row exposes a right-aligned `+` button for adding an analysis engine to the current game.
+- Each assigned engine group keeps its own remove action separate from retry or stop runtime actions.
 - The last visible in-memory analysis snapshot may remain visible when live engines are unavailable, but it is not persisted as saved game data.
 - The panel rerenders when `AnalysisStore` publishes a newer visible snapshot for the same engine and position, so stronger scores replace weaker ones during an active search.
 - `AnalysisPanel` contains no HTML or template markup and binds engine view models into common panel, status, list, and message components.

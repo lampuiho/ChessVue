@@ -40,6 +40,7 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - Analysis-runtime restart after restore follows the caller's `analysis.resumeLiveAnalysisAfterRestore` decision; `EnginesStore` does not override that policy.
 - Engine-profile editing is owned by `SettingsStore`; `EnginesStore` does not react automatically to profile edits because same-layer stores do not subscribe to each other in the baseline design.
 - If the user wants a different in-game engine identity or launch configuration, the engine must be explicitly unseated and reseated so a new participant/session can be created from the updated profile.
+- When `GamesStore` changes a game's analysis-engine roster, `EnginesStore` starts or stops only the affected game-role sessions. Other games and roles are untouched.
 
 ## Dependencies
 - `SettingsStore`
@@ -51,9 +52,11 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - `SCN-GAME-02`
 - `SCN-FREE-ANALYSIS-01` to `SCN-FREE-ANALYSIS-03`
 - `SCN-ANALYSIS-01` to `SCN-ANALYSIS-04`
+- `SCN-ANALYSIS-05`
 - `SCN-LOAD-01`
 - `SCN-ENGINE-01`
 - `SCN-ENGINE-02`
+- `SCN-ENGINE-03`
 
 ## Notes
 - `EnginesStore` resolves the active `ProcessManager` through `usePlatformServicesStore()` and supplies it to the concrete `EngineClient` wiring for the selected platform.

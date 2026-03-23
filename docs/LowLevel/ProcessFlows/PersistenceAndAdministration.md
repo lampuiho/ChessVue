@@ -47,11 +47,13 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-ENGINE-01 - Add Engine Configuration
 - Public flow: `SettingsStore.updateSettings` -> optional `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
 - Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`.
-- Requirement verification: `Pass`. Path and identity validation happen before the engine record becomes part of the accepted settings snapshot, so add-engine changes honour the same draft/apply/save model as the rest of settings.
+- UI surface coverage: add opens the dedicated profile editor surface, where option rows may be added, edited, or removed before the draft is applied or saved.
+- Requirement verification: `Pass`. Unique profile-name validation happens before the engine record becomes part of the accepted settings snapshot, while all other profile values are stored as entered, so add-engine changes honour the same draft/apply/save model as the rest of settings.
 
 ### SCN-ENGINE-02 - Update or Remove Engine Configuration
 - Public flow: `SettingsStore.updateSettings` -> optional `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
 - Private design: accepted inventory edits flow through `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`.
+- UI surface coverage: copy, edit, and delete originate from the engine-profile row actions, with edit reopening the same dedicated profile editor surface and delete affecting the settings draft only.
 - Requirement verification: `Pass`. Edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`, and profile edits affect future assignments rather than mutating already seated engine participants.
 
 ## Lifecycle Cleanup
@@ -65,6 +67,8 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 - Public flow: `UiStateStore.showModal({ kind: "deleteGame" })` -> `GamesStore.deleteGame` -> `GamesStore.listGames` -> `UiStateStore.setActiveGame`.
 - Private design: `GamesStore._selectFallbackGameId` -> `UiStateStore._coerceActiveRoute`; router return uses `_selectFallbackRoute`.
 - Requirement verification: `Pass`. Active-game deletion cannot leave a dangling route or session pointer.
+
+
 
 
 

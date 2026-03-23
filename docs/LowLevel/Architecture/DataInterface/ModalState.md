@@ -4,7 +4,7 @@
 Define the typed transient modal states owned by `UiStateStore`.
 
 ## Types
-- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty"`
+- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty" | "playerEngineSelection" | "analysisEngineSelection"`
 - `type IAppModalState`
 
 ## Data Structures
@@ -22,6 +22,8 @@ type AppModalKind =
   | "boardEditBlocked"
   | "settingsDirtyLeave"
   | "analysisExitDirty"
+  | "playerEngineSelection"
+  | "analysisEngineSelection"
 
 type IAppModalState =
   | { kind: "newGame" }
@@ -93,9 +95,25 @@ type IAppModalState =
         gameId: string
       }
     }
+  | {
+      kind: "playerEngineSelection"
+      payload: {
+        gameId: string
+        colour: PlayerColour
+        currentEngineId: string
+      }
+    }
+  | {
+      kind: "analysisEngineSelection"
+      payload: {
+        gameId: string
+        assignedEngineIds: string[]
+      }
+    }
 ```
 
 ## Rules
 - Modal state is transient UI state only and is never persisted in `IGameSessionSnapshot`, `IUiLayoutState`, or `IGameWorkspace`.
 - The modal contract exists to replace untyped string IDs and generic payload bags at the store boundary.
 - Dirty-settings-leave and dirty-analysis-exit prompts are part of the committed baseline modal contract because those branches already exist in the high-level scenarios.
+- Player-engine seat selection and analysis-engine selection are part of the committed baseline modal contract because both flows are explicitly routed through shared dialog surfaces.

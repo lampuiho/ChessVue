@@ -11,6 +11,7 @@ applyAnalysisUpdate(gameId: string, engineId: string, update: IEngineAnalysisUpd
 completeAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void
 markAnalysisUnavailable(gameId: string, engineId: string, position: IBoardPosition, reason: string): void
 clearGameAnalysis(gameId: string): void
+clearEngineAnalysis(gameId: string, engineId: string): void
 ```
 
 ## Responsibilities
@@ -19,6 +20,7 @@ clearGameAnalysis(gameId: string): void
 - expose the latest visible analysis snapshot for rendering while analysis is active
 - track whether an engine stream is active, complete, or unavailable for the visible position
 - publish updated visible snapshots without owning engine runtime control
+- clear one assigned engine's snapshots when that engine is removed from a game's analysis roster
 
 ## Dependencies
 - none beyond in-memory analysis state

@@ -33,4 +33,6 @@ Render the integrated gameplay workspace for one active game.
 - When a committed flow needs an authoritative derived read such as remaining clock time, `GameView` may call the relevant domain service locally while still keeping mutation ownership in stores.
 - `GameView` consumes the effective app theme from the shared root app-shell appearance host rather than owning the root theme attachment itself.
 - `GameView` owns the local pure derivation of captured-piece groups from the visible position before passing them into `PlayerPanel`.
+- `GameView` wires player-strip engine-name clicks into the player-engine selection dialog flow and forwards confirmed seat changes to `GamesStore`.
+- `GameView` wires the analysis-panel title `+` action and per-engine remove actions into the per-game analysis-engine assignment flow.
 - `GameView` contains no HTML or template markup and wires feature adapters into common render surfaces only.

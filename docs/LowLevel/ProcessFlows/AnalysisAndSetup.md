@@ -1,7 +1,7 @@
 # Analysis And Setup Flows
 
 ## Scope
-This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-04`.
+This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 ## Free Analysis / Setup
 
@@ -114,5 +114,12 @@ For the baseline UCI implementation, `EngineClient` internally sends `uci`, wait
 - Public flow: `AnalysisPanel.lineSelected` -> `GamesStore.getGame` -> `GameRuleService.isMoveLegal` -> `GamesStore.makeMove`.
 - Private design: `GamesStore._applySelectedAnalysisLine` -> `_createOrReuseAnalysisBranch` -> `_refreshVisibleAnalysis`; optional branch retention uses `_honourAnalysisBranchPolicy`.
 - Requirement verification: `Pass`. Suggested lines become interactive without bypassing legality checks or corrupting the live node.
+
+### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
+- Public flow: add uses `AnalysisPanel.analysisEngineAddRequested` -> `UiStateStore.showModal({ kind: "analysisEngineSelection" })` -> `GamesStore.addAnalysisEngine`; remove uses `AnalysisPanel.analysisEngineRemoveRequested` -> `GamesStore.removeAnalysisEngine`.
+- Private design: add uses `GamesStore._assertAnalysisRosterMutable` -> `_mutateAnalysisEngineRoster("add")` -> `EnginesStore.validateAnalysisSelection` -> `_persistWorkspaceIfNeeded` -> conditional `_refreshVisibleAnalysis`; remove uses `_mutateAnalysisEngineRoster("remove")` -> `EnginesStore.stopEngine(gameId, engineId, "analysis")` -> `AnalysisStore.clearEngineAnalysis(gameId, engineId)` -> `_persistWorkspaceIfNeeded`.
+- UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine group owns its own remove action so assignment is not one-way.
+- State gate: roster add and remove are valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. Adding an engine while `interactionContext = boardEdit` may update the stored roster, but `EnginesStore.startAnalysis` remains blocked until board editing ends.
+- Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to the engine store.
 
 

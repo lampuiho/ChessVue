@@ -121,9 +121,11 @@ The sidebar is arranged in this order:
 
 ```text
 +-------------------------------+
-| > HistoryPanel                |
+| ⌄ History                     |
+| *HistoryPanel*                |
 +-------------------------------+
-| > AnalysisPanel               |
+| ⌄ Analysis                 [+]|
+| *AnalysisPanel*               |
 +-------------------------------+
 | GameControlPanel              |
 +-------------------------------+
@@ -132,7 +134,7 @@ The sidebar is arranged in this order:
 The sidebar panel contents are:
 
 - `HistoryPanel`: history tree and history-specific actions
-- `AnalysisPanel`: analysis engines, visible lines, and analysis-specific actions, show up to `3` visible lines per engine, foldable per engine
+- `AnalysisPanel`: analysis engines, visible lines, and analysis-specific actions, show up to `3` visible lines per engine, foldable per engine, with a title-row `+` action on the right for adding an analysis engine to the current game
 - `GameControlPanel`: committed gameplay actions such as takeback, pause, resign, draw, analysis mode actions, and setup actions
 
 ## Sidebar Behaviour
@@ -148,7 +150,7 @@ Example collapsed analysis state:
 
 ```text
 +-----------------------------------+
-| > History                         |
+| ⌄ History                         |
 | *HistoryPanel*                    |
 +-----------------------------------+
 | > Analysis                        |
@@ -166,6 +168,8 @@ Example collapsed analysis state:
 ```
 
 Pieces taken are rendered as icons. Grouped together by type to reduce space taken. Grouping is done by reduced spacing of the pieces so they overlap 70% of the icon.
+
+If a seat is engine-controlled, the displayed engine profile name is clickable and opens the profile-selection dialog for explicitly changing that seated engine for the current game.
 
 ## Piece Choice Surface
 `PiecePalette` is the shared small-format piece-choice surface for promotion and free-analysis board editing.
@@ -198,16 +202,18 @@ Button placement follows screen ownership rather than ad hoc local placement.
   - examples: select tab, close tab
 - Panel-specific actions stay inside the panel they affect.
   - examples: history prune, history return-to-live, analysis refresh, engine retry, engine stop
+- Per-seat engine swap stays on the engine-controlled player strip that owns that seat.
+  - example: clicking the seated engine name in `PlayerPanel` to open the profile-selection dialog for that side
 - Committed gameplay actions stay in `GameControlPanel` at the bottom-right of the workspace.
   - examples: takeback, pause, resume, resign, draw, enter in-game analysis, exit in-game analysis, board-edit flow actions
-- Display-oriented player information stays in the player strips rather than duplicating action groups there.
+- Display-oriented player information stays in the player strips rather than duplicating action groups there, except for the explicit seated-engine name click target.
 
 Panel and button legend:
 
 ```text
 [MenuBar]          shell-wide actions only
 [GameTabs]         open-game navigation only
-[PlayerPanel]      player, clock, engine readout only
+[PlayerPanel]      player, clock, engine readout, seated-engine swap entry
 [HistoryPanel]     history-specific actions only
 [AnalysisPanel]    analysis-specific actions only
 [GameControlPanel] committed gameplay actions only
