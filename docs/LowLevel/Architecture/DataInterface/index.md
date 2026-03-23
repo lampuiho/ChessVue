@@ -14,6 +14,7 @@ The types in this folder are the contract-level shapes that state stores and ser
 - [Engine](Engine.md): configured engines, per-game assignment, and runtime sessions.
 - [Analysis](Analysis.md): streamed engine output and visible analysis snapshots.
 - [PlatformError](PlatformError.md): shared typed platform-layer failure contract.
+- [Appearance](Appearance.md): app theme modes, resolved theme state, and semantic CSS-variable projection.
 
 ## Persisted Artefacts
 - [Settings](Settings.md): authoritative user settings snapshot.

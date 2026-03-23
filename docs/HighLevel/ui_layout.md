@@ -26,6 +26,24 @@ The baseline layout must accommodate:
 - `SettingsView`
 - shared modal and piece-choice surfaces
 
+## Theme Support
+The baseline desktop UI chrome supports built-in `light` and `dark` themes.
+
+The baseline also supports a `system` theme mode so the app can follow the active OS theme by default.
+
+This theme support applies to app-shell and shared UI chrome such as:
+
+- `HomeView`
+- `MenuBar`
+- `GameTabs`
+- sidebar panels
+- `SettingsView`
+- shared dialog surfaces
+
+Board appearance and piece appearance remain separate appearance concerns rather than being merged into app theme mode.
+
+Potential support for user-created themes is a deferred idea, not part of the baseline layout contract.
+
 ## Home View Layout
 The neutral landing screen is the first-use and no-active-game fallback surface.
 
@@ -266,22 +284,6 @@ Named baseline uses:
 - invalid-load error or recover prompt: error dialog with continue or cancel when partial recovery is allowed
 - blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
 
-## Layout Ownership Rules
-This document defines the parent-child positioning contract that the later low-level design must preserve.
-
-- Outer positioning belongs to the parent shell or parent layout component.
-- Child components must not create left or right drift through self-managed outer margins, offsets, or compensating transforms.
-- No component should introduce empty external spacing beyond its owned surface.
-- Panel width, column placement, vertical stacking, and inter-panel gaps are controlled by the parent region, not by the child panel CSS.
-- The square board sits inside the board column; the board component should not decide sidebar placement or player-strip placement.
-- Sidebar children should fill the width offered by the sidebar parent instead of shifting themselves within it.
-- Player strips should fill the width offered by the board-column parent.
-
-These rules exist so the later low-level CSS design can scope spacing cleanly:
-
-- parent components arrange regions
-- child components style only their own surface and internal content
-
 ## Contract Alignment
 This layout contract is consistent with the existing high-level baseline:
 
@@ -294,7 +296,7 @@ Remembered UI state may hide, show, or fold panels without redefining the baseli
 This document does not define:
 
 - final padding or gap values
-- typography, colour, or visual polish
+- exact colour tokens, palette values, or final visual polish
 - compact or mobile layout behaviour
 - detailed CSS scoping per component
 - internal markup structure for shared render components

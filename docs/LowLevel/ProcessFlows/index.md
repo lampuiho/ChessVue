@@ -91,6 +91,9 @@ These helper families are the intended internal structure behind the public APIs
 ### SettingsStore
 - `_loadStoredSnapshot`
 - `_migrateSnapshotOrDefault`
+- `_resolveThemeMode`
+- `_buildAppearanceProjection`
+- `_subscribeToSystemThemeChanges`
 - `_validatePatch`
 - `_normaliseEngineInventory`
 - `_persistSnapshot`

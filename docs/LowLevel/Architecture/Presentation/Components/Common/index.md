@@ -38,3 +38,5 @@ Define reusable presentation primitives and functional UI wrappers shared across
 - Common components own all HTML and template markup for the presentation layer.
 - They accept display data, slots, and emitted events, but they do not know about chess rules, stores, routes, or persistence.
 - Feature components compose these primitives rather than reimplementing tab, list, panel, dialog, and context-specific button behaviour ad hoc.
+- Common components that style shared app chrome consume the semantic CSS-variable contract from the root appearance projection rather than hardcoded light/dark palette values.
+- Local component CSS may alias semantic variables for readability, but the source of truth remains the root reactive variable map.

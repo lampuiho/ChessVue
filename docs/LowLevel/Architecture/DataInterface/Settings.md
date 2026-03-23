@@ -13,6 +13,8 @@ Define the authoritative persisted settings schema from the baseline settings co
 
 ## Data Structures
 ```ts
+type ThemeMode = "system" | "light" | "dark"
+
 interface ISettingsSession {
   restorePreviousSession: boolean
   startupBehaviour: "restoreOrHome" | "home"
@@ -43,6 +45,7 @@ interface ISettingsAnalysis {
 }
 
 interface ISettingsAppearance {
+  themeMode: ThemeMode
   boardTheme: string
   pieceTheme: string
   uiScalePercent: number
@@ -62,4 +65,4 @@ interface ISettingsSnapshot {
 ```
 
 ## Exclusions
-The baseline schema does not include dark mode, sound settings, panel visibility or fold preferences, variant preferences, recent-game preferences, or mobile layout preferences.
+The baseline schema does not include user-created custom themes, sound settings, panel visibility or fold preferences, variant preferences, recent-game preferences, or mobile layout preferences.

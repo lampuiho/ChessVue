@@ -107,8 +107,9 @@ Each scenario in this document uses the same structure:
   1. User launches app.
   2. App initializes router and stores.
   3. App loads default settings.
-  4. App shows a centred home/default game area with a single-row action button group for quick new game, custom new game, load game, and settings.
-  5. Because no recent metadata exists yet, the recent games list stays hidden.
+  4. App resolves the effective app theme from built-in defaults and the current system theme when the default mode is `system`.
+  5. App shows a centred home/default game area with a single-row action button group for quick new game, custom new game, load game, and settings.
+  6. Because no recent metadata exists yet, the recent games list stays hidden.
 - **Branch Paths**:
   - `BR-SESSION-01-INIT-FAIL`: If any persisted read fails unexpectedly, app falls back to safe defaults and logs recoverable error.
   - `BR-SESSION-01-HOME-FALLBACK`: If the preferred home screen cannot be restored, app still shows a neutral landing state without auto-creating a game.
@@ -130,8 +131,9 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User launches app.
   2. App loads persisted settings and UI state.
-  3. App restores game collection.
-  4. App routes to persisted active game if valid.
+  3. App resolves the effective app theme from `appearance.themeMode` and the current system theme when required.
+  4. App restores game collection.
+  5. App routes to persisted active game if valid.
 - **Branch Paths**:
   - `BR-SESSION-02-MISSING-GAME`: Persisted `currentGameId` not found -> route to first valid game or home.
   - `BR-SESSION-02-PARTIAL-STATE`: UI state exists but games do not -> keep UI preferences, reset active game.
@@ -248,9 +250,10 @@ Each scenario in this document uses the same structure:
   1. User navigates to settings.
   2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before leaving the game screen.
   3. App loads current settings and engine list.
-  4. User applies, saves, or resets settings.
-  5. User navigates back to prior game route.
-  6. If the pause came from this auto-pause flow, app auto-resumes on return.
+  4. User applies, saves, or resets settings, including appearance settings such as `themeMode`.
+  5. Accepted appearance changes update the active app theme without restart.
+  6. User navigates back to prior game route.
+  7. If the pause came from this auto-pause flow, app auto-resumes on return.
 - **Branch Paths**:
   - `BR-NAV-01-DIRTY-LEAVE`: Unsaved form edits + navigation -> prompt save/discard.
   - `BR-NAV-01-NO-GAME-RETURN`: No active game available on return -> route to home/default.
@@ -924,13 +927,14 @@ Each scenario in this document uses the same structure:
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - **Status**: Current
-- **Goal**: Change piece style, board colors, and UI scaling preferences.
+- **Goal**: Change app theme mode, piece style, board colors, and UI scaling preferences.
 - **Preconditions**: User on settings view.
 - **Entry Points**: `/settings`.
 - **Main Steps**:
   1. User edits one or more settings fields.
   2. User applies settings to preview or commit the pending changes without leaving the settings view, or saves settings to commit and finish the flow.
   3. App persists settings and applies theme/UI updates for the accepted changes.
+  4. When `themeMode = system`, later OS theme changes update app chrome without rewriting the persisted settings snapshot.
 - **Branch Paths**:
   - `BR-SETTINGS-01-INVALID-VALUE`: Value fails schema validation -> block save and show field errors.
   - `BR-SETTINGS-01-APPLY-FAIL`: Apply-on-save fails partially -> persist known-good subset.
@@ -941,6 +945,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.updateSettings`
   - `SettingsStore.saveSettings`
   - `GameView.applyTheme`
+  - `PlatformServices.getSystemThemeAdapter`
   - `StorageAdapter.setSettingsSnapshot`
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults

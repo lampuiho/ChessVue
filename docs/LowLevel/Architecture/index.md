@@ -23,6 +23,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [StorageAdapter](PlatformAbstraction/StorageAdapter.md)
 - [FileIoAdapter](PlatformAbstraction/FileIoAdapter.md)
 - [ProcessManager](PlatformAbstraction/ProcessManager.md)
+- [SystemThemeAdapter](PlatformAbstraction/SystemThemeAdapter.md)
 - [EngineClient](PlatformAbstraction/EngineClient.md)
 
 ### 2. Domain Logic
@@ -93,6 +94,7 @@ The data-interface section defines the shared low-level types for:
 - time control and clock snapshots
 - engine inventory, assignment, and runtime sessions
 - analysis snapshots
+- appearance projection and semantic app-theme variables
 - shared platform failure contracts
 - persisted artefacts:
   - settings snapshot
@@ -118,7 +120,7 @@ The low-level docs do not introduce:
 - standalone analysis views
 - engine-vs-engine dedicated modes
 - extra chess variants
-- dark mode, sound settings, recent-game settings, or mobile layout settings
+- user-created custom themes, sound settings, recent-game settings, or mobile layout settings
 
 ## Review Checklist
 The doc set is aligned only when all of the following are true:

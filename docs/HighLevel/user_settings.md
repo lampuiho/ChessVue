@@ -46,20 +46,18 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 ## 5. Appearance and Layout
 | Setting | Baseline Notes |
 | --- | --- |
+| Theme mode | Built-in `light` and `dark` app themes with `system` as the default mode. |
 | Board theme | Board colour and styling choice. |
 | Piece theme | Piece style selection. |
 | UI scale | Desktop UI scale percentage. |
 | Board orientation | Default orientation for the board. |
 | Show coordinates | Board coordinate visibility. |
 | Highlight last move | Whether the board highlights the most recent move. |
-| Show history panel | Default visibility of the history panel. |
-| Show analysis panel | Default visibility of the analysis panel. |
-| Show game controls | Default visibility of the game-control panel. |
 
 ## Not Baseline User Settings
 The following items are not committed baseline settings and should not appear in the low-level settings schema unless later promoted:
 
-- dark mode
+- user-created custom UI themes
 - sound enablement
 - recent games preferences
 - tab-switch auto-pause

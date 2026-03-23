@@ -7,7 +7,9 @@ Own the authoritative user settings snapshot, defaults, validation, and persiste
 ```ts
 loadSettings(): Promise<ISettingsSnapshot>
 getSettings(): ISettingsSnapshot
+getAppearanceProjection(): IAppearanceProjection
 updateSettings(patch: Partial<ISettingsSnapshot>): void
+applySettings(): void
 saveSettings(): Promise<void>
 resetSettings(): Promise<void>
 ```
@@ -16,6 +18,9 @@ resetSettings(): Promise<void>
 - expose only committed settings from the settings contract
 - validate engine inventory and gameplay policy values
 - provide defaults when no valid snapshot exists
+- resolve the effective app theme from `appearance.themeMode` and the active system theme
+- build the presentation-safe appearance projection, including the semantic CSS-variable map
+- keep the appearance projection reactive when accepted settings or system-theme events change
 - persist settings independently from session and game data
 
 ## Dependencies
@@ -31,3 +36,6 @@ resetSettings(): Promise<void>
 
 ## Notes
 - `SettingsStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.
+- `SettingsStore` also resolves `SystemThemeAdapter` through `usePlatformServicesStore()` so `themeMode = system` can be mapped to a current built-in theme.
+- `loadSettings()` must produce both the persisted settings snapshot and the initial `IAppearanceProjection` before the first routed screen binds to app chrome.
+- The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.

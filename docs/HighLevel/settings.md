@@ -30,9 +30,11 @@ Use [ideas.md](ideas.md) when a configuration topic is:
 
 ## Quick Rule of Thumb
 - `piece theme` -> user setting
+- `theme mode` -> user setting
 - `auto-pause on menu interruption` -> user setting
 - `engine executable path` -> user-managed settings data
 - `local child-process UCI runtime` -> build/runtime baseline
+- `user-created custom theme` -> deferred idea
 - `browser or WASM engine support` -> deferred idea
 
 ## Notes

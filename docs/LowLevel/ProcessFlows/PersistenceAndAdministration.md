@@ -32,15 +32,16 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - Public flow: `SettingsStore.updateSettings` -> `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
-- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettingsProjection`; save uses `_persistSnapshot`; appearance refresh uses `GameView._applyAppearanceProjection`.
+- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettingsProjection` -> `_resolveThemeMode` -> `_buildAppearanceProjection`; save uses `_persistSnapshot`; appearance refresh uses `GameView._applyAppearanceProjection`.
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
-- Requirement verification: `Pass`. Validation happens before apply or persistence, and only committed settings fields are writable.
+- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows `SystemThemeAdapter`, while `light` and `dark` force built-in app themes. The accepted appearance projection includes a reactive semantic CSS-variable map so shared UI chrome updates immediately without a restart.
+- Requirement verification: `Pass`. Validation happens before apply or persistence, only committed settings fields are writable, and accepted appearance changes refresh the shared app-theme variables immediately.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 - Public flow: `UiStateStore.showModal("resetSettings")` -> `SettingsStore.resetSettings`.
-- Private design: `SettingsStore._defaultSettings` -> `_persistSnapshot`; cancel uses `UiStateStore.hideModal`.
+- Private design: `SettingsStore._defaultSettings` -> `_resolveThemeMode` -> `_buildAppearanceProjection` -> `_persistSnapshot`; cancel uses `UiStateStore.hideModal`.
 - UI surface coverage: reset is triggered from the secondary settings action area and always routes through the shared confirmation dialog before the default snapshot is applied.
-- Requirement verification: `Pass`. Reset restores the authoritative default schema and persists it atomically.
+- Requirement verification: `Pass`. Reset restores the authoritative default schema, reprojects the default appearance state, and persists it atomically.
 
 ### SCN-ENGINE-01 - Add Engine Configuration
 - Public flow: `EnginesStore.addEngine`.

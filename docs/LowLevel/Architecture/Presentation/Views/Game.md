@@ -8,6 +8,7 @@ Render the integrated gameplay workspace for one active game.
 - visible analysis from `AnalysisStore`
 - per-game runtime availability from `EnginesStore`
 - remembered global layout state from `UiStateStore`
+- appearance projection from `SettingsStore`
 - local pure mapping of store state into board, panel, and control props
 - `GameWorkspaceShell` for shallow screen-region composition
 
@@ -30,4 +31,5 @@ Render the integrated gameplay workspace for one active game.
 - Game-tab selection is resolved through route updates, with `GameTabs` delegating shared child-route tab logic to `TabbedView`.
 - `GameView` reads store state directly; it does not depend on a separate query-helper subsystem.
 - When a committed flow needs an authoritative derived read such as remaining clock time, `GameView` may call the relevant domain service locally while still keeping mutation ownership in stores.
+- `GameView` applies the effective app theme once at the root workspace surface through a theme attribute and the reactive semantic CSS-variable map from `IAppearanceProjection`.
 - `GameView` contains no HTML or template markup and wires feature adapters into common render surfaces only.

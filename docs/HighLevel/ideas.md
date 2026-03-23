@@ -47,7 +47,7 @@ Anything in this document is excluded from that baseline unless it is later prom
 ## Settings and Schema Ideas
 | Idea | Source | Why Deferred |
 | --- | --- | --- |
-| Dark mode as a committed user setting | previous low-level drift, previous `user_settings.md` inferred area | Not required by current or planned scenarios. |
+| User-created or importable custom UI themes | appearance/theme extension path after baseline `light`, `dark`, and `system` support | Baseline built-in themes only need one stable semantic CSS-variable contract before user-authored theme data is introduced. |
 | Sound enablement as a committed user setting | previous low-level drift | Not required by current or planned scenarios. |
 | Extra inferred board-display toggles beyond the committed baseline | previous `user_settings.md` inferred rows | Only the settings promoted into `settings_contract.md` should shape the rewrite. |
 
