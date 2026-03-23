@@ -134,7 +134,7 @@ The sidebar is arranged in this order:
 The sidebar panel contents are:
 
 - `HistoryPanel`: history tree and history-specific actions
-- `AnalysisPanel`: panel-title `+` action on the right for adding an analysis engine to the current game. See analysis panel section 
+- `AnalysisPanel`: left chevron for fold, panel-title `+` action on the right for adding an analysis engine to the current game. See analysis panel section
 - `GameControlPanel`: committed gameplay actions such as takeback, pause, resign, draw, analysis mode actions, and setup actions
 
 ## Sidebar Behaviour
@@ -145,7 +145,7 @@ The baseline desktop sidebar behaviour is:
 - the foldable behaviour should feel closer to a desktop explorer or debug sidebar than to full-screen tab switching
 - collapsing one panel must not move the sidebar into a different column arrangement
 - `GameControlPanel` remains the bottom region of the sidebar and is the main location for committed gameplay actions
-- Collapsing will change the down chevron to right chevron
+- Collapsing will change the left fold chevron from down-pointing to right-pointing
 
 Example collapsed analysis state:
 
@@ -177,7 +177,7 @@ Example collapsed analysis state:
 
 - show up to `3` visible lines per engine, foldable per engine
 - per-engine-title `-` action on the right for removing that engine from the current game
-- Each engine can be folded by clicking the chevron to the right of the engine name
+- Each engine can be folded by clicking the chevron to the left of the engine name
 
 
 ## Player Strip Design

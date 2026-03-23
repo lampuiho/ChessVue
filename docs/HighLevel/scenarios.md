@@ -216,7 +216,6 @@ Each scenario in this document uses the same structure:
   - `MenuBar.customNewGameRequested`
   - `NewGameModal.createRequested`
   - `GamesStore.createGame`
-  - `TimeControlService.initialiseClockSnapshot`
   - `EnginesStore.getEngine`
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
@@ -467,8 +466,8 @@ Each scenario in this document uses the same structure:
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
 - **Status**: Planned
 - **Goal**: Open a non-live chess workspace where the user can explore positions before starting a real game.
-- **Preconditions**: User creates a flow with no player assigned to either side, or opens a dedicated setup path.
-- **Entry Points**: Custom new-game flow with no players assigned.
+- **Preconditions**: User creates a flow with at least one side unassigned, reassigns one side of an existing live game to `none`, or opens a dedicated setup path.
+- **Entry Points**: Custom new-game flow with an unassigned side, or player reassignment to `none` from a live game.
 - **Main Steps**:
   1. User enters free analysis / setup context.
   2. App gives the user move control for both colors.
@@ -480,6 +479,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: User can explore, analyze, and prepare a starting position before a real game begins.
 - **Function Touchpoints**:
   - `GamesStore.createGame`
+  - `GamesStore.reassignPlayer`
   - `GamesStore.makeMove`
   - `AnalysisStore.getVisibleAnalysis`
   - `EnginesStore.startAnalysis`
@@ -525,11 +525,9 @@ Each scenario in this document uses the same structure:
   - `BR-FREE-ANALYSIS-03-CANCEL`: User cancels start-game flow -> remain in free analysis / setup.
 - **Postconditions**: A real game begins from the prepared position, and the earlier free-analysis history remains available.
 - **Function Touchpoints**:
-  - `GamesStore.createGame`
-  - `TimeControlService.initialiseClockSnapshot`
+  - `GamesStore.startGameFromSetup`
   - `EnginesStore.getEngine`
   - `UiStateStore.showModal`
-
 ---
 ## Analysis and Engine Interaction
 
@@ -717,7 +715,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Clock math follows selected time-control policy.
 - **Function Touchpoints**:
   - `TimeControlService.applyMove`
-  - `TimeControlService.initialiseClockSnapshot`
+
   - `GamesStore.makeMove`
 
 ### SCN-TIME-04 - Timeout Ends Game
@@ -934,7 +932,7 @@ Each scenario in this document uses the same structure:
   - `SerializationService.deserialiseGame`
   - `SerializationService.migrateGame`
   - `RecentGameStore.recordManuallySavedGame`
-  - `GamesStore.createGame` (or insert flow)
+  - `GamesStore.insertGame`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.saveGameSession`
 
@@ -1052,22 +1050,19 @@ Each scenario in this document uses the same structure:
   2. App opens a player-selection dialog scoped to that game and colour.
   3. User chooses `none`, `local`, or one configured engine profile.
   4. If the resulting player setup leaves either side as `none`, app ends the current live game and converts the workspace into `free analysis / setup` while preserving the move tree/history.
-  5. If the resulting player setup has both sides assigned, app collects a new time control setting, restarts live play from the preserved setup/history, and resets clock state from that fresh start.
-  6. If the restarted live game begins on an engine-controlled side, the normal live engine-turn loop starts from that side.
+  5. If the resulting player setup keeps both sides assigned inside the same live game, app preserves the current time control and clock state and continues play with the new seat assignment.
+  6. If that preserved live game is now on an engine-controlled side with no valid in-flight request already active for that seat and turn, the normal live engine-turn loop starts from that side.
 - **Branch Paths**:
   - `BR-ENGINE-03-SAME-SELECTION`: User selects the already assigned value -> keep the current seat unchanged and close the dialog.
   - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session before the reassignment is committed.
-  - `BR-ENGINE-03-NEEDS-TIME-CONTROL`: Both sides are assigned again but no new time control is confirmed -> keep the workspace in `free analysis / setup`.
-  - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start after restart -> keep the new assignment with unavailable feedback and allow a later retry or another reassignment.
+  - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start for a newly due live turn -> keep the new assignment with unavailable feedback and allow a later retry or another reassignment.
   - `BR-ENGINE-03-REMOTE-DISABLED`: If a future remote-player seat is present, reassignment is disabled for that seat.
-- **Postconditions**: Player reassignment updates only the current game. Any transition back to live play restarts with a new time control and fresh live clock state, while preserved move-tree history remains available.
+- **Postconditions**: Player reassignment updates only the current game. Live games preserve their existing time control and clock state when they stay live, while transitions to `free analysis / setup` preserve board and move-tree history for any later `start game from setup` flow.
 - **Function Touchpoints**:
   - `PlayerPanel.playerSelectionRequested`
   - `UiStateStore.showModal`
   - `GamesStore.reassignPlayer`
-  - `GamesStore.startGameFromSetup`
   - `EnginesStore.stopEngine`
-  - `TimeControlService.initialiseClockSnapshot`
   - `EnginesStore.startPlayerTurn`
 
 ---
@@ -1132,7 +1127,6 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Faster entry into common play modes.
 - **Function Touchpoints**:
   - `GamesStore.createGame`
-  - `TimeControlService.initialiseClockSnapshot`
   - `UiStateStore.setActiveGame`
 
 ### SCN-IDEA-04 - Analysis Snapshot/Bookmark

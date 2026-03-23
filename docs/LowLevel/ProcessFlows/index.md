@@ -45,7 +45,7 @@ This matrix is the compact cross-check for the public entry points that decide w
 | `GamesStore.enterInGameAnalysis` | `liveGame` | `currentPosition` | ongoing or timeout-final with `resultReason = timeout` | none | switch to analysis-only live-game exploration without reopening live progression |
 | `GamesStore.startGameFromSetup` | `freeAnalysisSetup` | `currentPosition` | result must remain `ongoing` | none beyond engine validation rules | transition to `liveGame` with fresh clocks when both sides are assigned, or reject unsupported setup |
 | `GamesStore.importGame` | imported payload decides | restored `currentPosition` or `historyReview` | restored paused/final state is preserved | `analysis.resumeLiveAnalysisAfterRestore` | restore persisted game state first, then optional live analysis and optional engine turn |
-| `GamesStore.reassignPlayer` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | ongoing only for live-game-to-setup conversion; restarted live play still requires a fresh time control | none | reassign one side, optionally transition to `freeAnalysisSetup`, or restart live play with fresh clocks |
+| `GamesStore.reassignPlayer` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | ongoing only for live-game seat changes or live-game-to-setup conversion | none | reassign one side, optionally transition a live game to `freeAnalysisSetup`, or preserve the current live game with updated seat ownership |
 | `GamesStore.addAnalysisEngine` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | analysis start is still blocked during `boardEdit` | four-engine cap | add one per-game analysis-engine assignment and start analysis when allowed |
 | `GamesStore.removeAnalysisEngine` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis`, `boardEdit` | no live-result gate because removal is assignment cleanup | none | remove one per-game analysis-engine assignment, stop that engine, and clear its row |
 | `GamesStore._maybeRequestEngineTurn` | `liveGame` | `currentPosition` only | ongoing + not paused + not expired | none | request one engine-controlled live turn or no-op |
@@ -83,7 +83,6 @@ These helper families are the intended internal structure behind the public APIs
 - `_bindAnalysisCallbacks`
 - `_forwardAnalysisUpdate`
 - `_startPlayerTurnSearch`
-- `_restartAffectedSessions`
 - `_stopMatchingSessions`
 
 ### EngineClient

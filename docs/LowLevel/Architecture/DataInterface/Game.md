@@ -84,7 +84,6 @@ interface IStartGameFromSetupRequest {
 interface IReassignPlayerRequest {
   playerType: PlayerType | null
   engineId: string | null
-  restartTimeControl?: ITimeControl
 }
 ```
 
@@ -96,4 +95,4 @@ interface IReassignPlayerRequest {
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGameWorkspace`.
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
-- `IReassignPlayerRequest.restartTimeControl` is required only when the resulting player assignment restarts live play with both sides assigned.
+- `IReassignPlayerRequest` is seat-selection data only. Fresh live-game settings for restarting from setup belong to `IStartGameFromSetupRequest`.

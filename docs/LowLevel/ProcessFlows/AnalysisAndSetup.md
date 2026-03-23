@@ -6,9 +6,9 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 ## Free Analysis / Setup
 
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
-- Public flow: `GamesStore.createGame` -> `GamesStore.makeMove` -> conditional `EnginesStore.startAnalysis`.
-- Private design: `GamesStore._resolveWorkspaceKind` -> `_createWorkspace` -> `_allowBothColoursForSetupMoves`; post-move refresh uses `_refreshVisibleAnalysis`.
-- Requirement verification: `Pass`. A no-player creation request yields a non-live workspace while preserving engine-driven analysis when configured.
+- Public flow: `GamesStore.createGame` or `GamesStore.reassignPlayer` -> `GamesStore.makeMove` -> conditional `EnginesStore.startAnalysis`.
+- Private design: `GamesStore._resolveWorkspaceKind` -> `_createWorkspace` or `_switchWorkspaceToFreeAnalysisSetup` -> `_allowBothColoursForSetupMoves`; post-move refresh uses `_refreshVisibleAnalysis`.
+- Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to `none` yields a non-live workspace while preserving engine-driven analysis when configured.
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
 - Public flow: `GamesStore.enterBoardEdit` -> `EnginesStore.stopAnalysis` for the workspace if analysis is active -> `GamesStore.confirmBoardEdit` or `GamesStore.cancelBoardEdit`; confirm uses `MoveUpdateService.replaceBoardRoot` and `AnalysisStore.clearGameAnalysis`, then conditional `EnginesStore.startAnalysis`.

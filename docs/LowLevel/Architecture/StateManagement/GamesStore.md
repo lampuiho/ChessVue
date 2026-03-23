@@ -42,7 +42,7 @@ importGame(): Promise<IGameWorkspace>
 - coordinate legal move application, move-tree updates, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
 - coordinate pause and resume flows for manual controls, menu interruptions, and analysis-mode entry
-- change one side's player assignment from the player strip, including transitions into or out of `freeAnalysisSetup`
+- change one side's player assignment from the player strip, including transitions from live play into `freeAnalysisSetup` and seat updates while already in setup
 - add or remove per-game analysis-engine assignments during a game
 - persist the canonical `IGameWorkspace` payload for autosave and export
 - notify `RecentGameStore` after successful autosave, manual save, and manual import flows so recent history reflects the latest saved target for each game
@@ -51,11 +51,13 @@ importGame(): Promise<IGameWorkspace>
 ## State And Settings Notes
 - `makeMove` is the context dispatcher for live current-position play, history rewrite, analysis-only history branching, in-game analysis moves, and free-analysis exploration. Blocked states are rejected before domain mutation.
 - `pauseGame` and `resumeGame` apply only to timed `liveGame + currentPosition + ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
-- `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `none`, `local`, or an engine profile, stops any obsolete seat-specific engine runtime, transitions to `freeAnalysisSetup` when either side becomes unassigned, or restarts live play with a newly chosen time control and fresh clock state when both sides remain assigned.
+- `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `none`, `local`, or an engine profile, stops any obsolete seat-specific engine runtime, transitions a live game to `freeAnalysisSetup` when either side becomes unassigned, and otherwise preserves the same live game with the current time control and clock state.
 - `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's analysis-engine roster only. Add validates against duplicates and the engine-count limit, while remove stops that engine's analysis runtime and clears its visible analysis row for the game.
 - `enterInGameAnalysis` is valid for ongoing live games and for timeout-finalised live games where `resultReason = timeout`; in both cases it suppresses engine-turn generation until the live node is restored.
 - `createGame` and `startGameFromSetup` create a `liveGame` only when both sides are assigned; `freeAnalysisSetup` is used whenever either side is unassigned.
+- `reassignPlayer` never starts a fresh live game. Once a workspace is in `freeAnalysisSetup`, the separate `startGameFromSetup` flow owns collecting fresh settings and creating a new live clock state.
 - `_maybeRequestEngineTurn` is the generic live-game gate for `local/engine`, `engine/local`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
+- When `reassignPlayer` keeps the workspace as a live game, `_maybeRequestEngineTurn` may run only if the resulting side to move is engine-controlled and there is no still-valid in-flight request for that same seat and turn.
 - `importGame` and session restore rebuild the persisted workspace state first, then may request continuous analysis and a player-engine turn only when the restored state is playable live current-position ongoing state.
 
 ## Dependencies
