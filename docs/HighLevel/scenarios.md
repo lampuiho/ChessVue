@@ -160,11 +160,11 @@ Each scenario in this document uses the same structure:
   - `BR-SESSION-03-GAME-MIGRATE`: Legacy game shape detected -> migrate before load.
 - **Postconditions**: App remains usable; bad persistence does not block launch.
 - **Function Touchpoints**:
-  - `Serialization.deserializeGameFromJSON`
-  - `Serialization.migrateSavedGame`
+  - `SerializationService.deserialiseGame`
+  - `SerializationService.migrateGame`
   - `SettingsStore.resetSettings`
   - `StorageAdapter.getItem`
-  - `StorageAdapter.setItem`
+  - `StorageAdapter.setSettingsSnapshot`
 
 ---
 
@@ -187,9 +187,9 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MenuBar.quickNewGameRequested`
   - `GamesStore.createGame`
-  - `UiStateStore.setCurrentGameId`
+  - `UiStateStore.setActiveGame`
   - `GamesStore.saveGame`
-  - `StorageAdapter.setItem`
+  - `StorageAdapter.setGameSessionSnapshot`
 
 ### SCN-GAME-02 - Custom New Game with User Options
 - **Status**: Planned
@@ -211,8 +211,8 @@ Each scenario in this document uses the same structure:
   - `MenuBar.customNewGameRequested`
   - `NewGameModal.createRequested`
   - `GamesStore.createGame`
-  - `TimeControl.initializeClocks`
-  - `EnginesStore.getEngineById`
+  - `TimeControlService.initialiseClockSnapshot`
+  - `EnginesStore.getEngine`
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
 
@@ -232,11 +232,11 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Navigation remains deterministic; hidden-tab rule is respected.
 - **Function Touchpoints**:
   - `GameTabs.tabSelected`
-  - `UiStateStore.setCurrentGameId`
+  - `UiStateStore.setActiveGame`
   - `UiStateStore.getCurrentGameId`
   - `Router.beforeRouteEnterGuard`
   - `Router.beforeEachRouteGuard`
-  - `GamesStore.getGameById`
+  - `GamesStore.getGame`
   - `GamesStore.listGames`
 
 ### SCN-NAV-01 - Route to Settings and Back to Active Game
@@ -262,7 +262,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.loadSettings`
   - `SettingsStore.saveSettings`
   - `SettingsStore.resetSettings`
-  - `EnginesStore.listEngines`
+  - `EnginesStore.listConfiguredEngines`
   - `UiStateStore.saveGameSession`
 
 ### SCN-NAV-02 - Invalid Game Route Handling
@@ -281,7 +281,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `Router.beforeRouteEnterGuard`
   - `Router.beforeEachRouteGuard`
-  - `GamesStore.getGameById`
+  - `GamesStore.getGame`
   - `GamesStore.listGames`
 
 ### SCN-NAV-03 - Reopen Recent Game from Home
@@ -329,12 +329,12 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Move is committed once, reflected across board/history/clock/analysis.
 - **Function Touchpoints**:
   - `Chessboard.moveAttempt`
-  - `GameRules.generateLegalMoves`
-  - `GameRules.isMoveLegal`
+  - `GameRuleService.generateLegalMoves`
+  - `GameRuleService.isMoveLegal`
   - `GamesStore.makeMove`
   - `MoveUpdateService.addMainlineMove`
-  - `TimeControl.updateClockAfterMove`
-  - `AnalysisStore.storeEvaluation` (subsequent engine response)
+  - `TimeControlService.applyMove`
+  - `AnalysisStore.applyAnalysisUpdate` (subsequent engine response)
 
 ### SCN-MOVE-02 - Illegal Move Attempt
 - **Status**: Current
@@ -352,7 +352,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: No state mutation on invalid move.
 - **Function Touchpoints**:
   - `Chessboard.onSquareClick`
-  - `GameRules.isMoveLegal`
+  - `GameRuleService.isMoveLegal`
   - `GamesStore.makeMove`
 
 ### SCN-MOVE-03 - Pawn Promotion Resolution
@@ -371,8 +371,8 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Promotion move is explicit and deterministic.
 - **Function Touchpoints**:
   - `Chessboard.moveAttempt`
-  - `GameRules.isMoveLegal`
-  - `GameRules.applyMove`
+  - `GameRuleService.isMoveLegal`
+  - `GameRuleService.applyMove`
   - `GamesStore.makeMove`
   - `UiStateStore.showModal`
 
@@ -393,8 +393,8 @@ Each scenario in this document uses the same structure:
   - `HistoryPanel.onNavigateNode`
   - `MoveUpdateService.navigateToNode`
   - `MoveUpdateService.getCurrentPosition`
-  - `AnalysisStore.getEvaluation`
-  - `GamesStore.getGameById`
+  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.getGame`
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
 - **Status**: Planned
@@ -476,8 +476,8 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GamesStore.createGame`
   - `GamesStore.makeMove`
-  - `AnalysisStore.listEvaluations`
-  - `EnginesStore.startEngine`
+  - `AnalysisStore.getVisibleAnalysis`
+  - `EnginesStore.startAnalysis`
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
 - **Status**: Planned
@@ -501,8 +501,8 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.hideModal`
   - `MoveUpdateService.createMoveTree`
   - `GamesStore.saveGame`
-  - `AnalysisStore.listEvaluations`
-  - `AnalysisStore.clearEvaluations`
+  - `AnalysisStore.getVisibleAnalysis`
+  - `AnalysisStore.clearGameAnalysis`
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 - **Status**: Planned
@@ -521,8 +521,8 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: A real game begins from the prepared position, and the earlier free-analysis history remains available.
 - **Function Touchpoints**:
   - `GamesStore.createGame`
-  - `TimeControl.initializeClocks`
-  - `EnginesStore.getEngineById`
+  - `TimeControlService.initialiseClockSnapshot`
+  - `EnginesStore.getEngine`
   - `UiStateStore.showModal`
 
 ---
@@ -535,9 +535,9 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Analysis start action in a game context, or automatic trigger after a move when engines were configured at creation.
 - **Main Steps**:
   1. User starts analysis manually, or analysis is auto-triggered after a move.
-  2. App ensures engine process is running.
-  3. App sends UCI commands for current FEN and starts an ongoing search.
-  4. App reads engine output continuously as the engine refines its evaluation.
+  2. App ensures the engine session is running.
+  3. `EngineClient` starts an ongoing search for the current FEN and writes protocol commands through `ProcessManager`.
+  4. `ProcessManager` streams raw output to `EngineClient`, which turns it into typed updates.
   5. App stores updated best lines and scores each time the engine reports an improvement or deeper search result.
   6. Analysis panel refreshes over time to show the latest best line, up to `3` visible lines for that engine, score, and search progress until analysis is stopped or the position changes.
 - **Branch Paths**:
@@ -549,12 +549,13 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching.
 - **Function Touchpoints**:
   - `GameView.onStartAnalysis`
-  - `EnginesStore.startEngine`
-  - `ProcessManager.spawnEngine`
-  - `ProcessManager.sendUCICommand`
-  - `ProcessManager.readEngineOutput`
-  - `AnalysisStore.storeEvaluation`
-  - `AnalysisStore.listEvaluations`
+  - `EnginesStore.startAnalysis`
+  - `EngineClient.startSession`
+  - `ProcessManager.spawnProcess`
+  - `ProcessManager.writeInput`
+  - `ProcessManager.subscribeToStdout`
+  - `AnalysisStore.applyAnalysisUpdate`
+  - `AnalysisStore.getVisibleAnalysis`
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
 - **Status**: Planned
@@ -563,7 +564,7 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Multi-engine analysis enable action.
 - **Main Steps**:
   1. User enables selected engines.
-  2. App starts each selected engine process.
+  2. App starts each selected engine session.
   3. App dispatches position to all selected engines.
   4. Each engine continues searching and emits updated best lines over time.
   5. App aggregates evaluations keyed by `gameId + engineId + fen`, replacing older lines with newer best results from the same engine.
@@ -575,12 +576,12 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
 - **Function Touchpoints**:
-  - `EnginesStore.listEngines`
-  - `EnginesStore.startEngine`
-  - `AnalysisStore.storeEvaluation`
-  - `AnalysisStore.listEvaluations`
-  - `ProcessManager.sendUCICommand`
-  - `ProcessManager.readEngineOutput`
+  - `EnginesStore.listConfiguredEngines`
+  - `EnginesStore.startAnalysis`
+  - `AnalysisStore.applyAnalysisUpdate`
+  - `AnalysisStore.getVisibleAnalysis`
+  - `ProcessManager.writeInput`
+  - `ProcessManager.subscribeToStdout`
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
 - **Status**: Planned
@@ -597,10 +598,10 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-03-RETRY-FAIL`: Restart fails repeatedly -> suggest settings edit/remove.
 - **Postconditions**: Engine failures are isolated and recoverable, and the last streamed best line remains visible until replaced by a new search.
 - **Function Touchpoints**:
-  - `EnginesStore.stopEngine`
-  - `ProcessManager.stopEngine`
-  - `EnginesStore.startEngine`
-  - `AnalysisStore.listEvaluations`
+  - `EnginesStore.stopAnalysis`
+  - `ProcessManager.stopProcess`
+  - `EnginesStore.startAnalysis`
+  - `AnalysisStore.getVisibleAnalysis`
   - `UiStateStore.showModal`
 
 ### SCN-ANALYSIS-04 - Click Suggested Line to Inspect Move
@@ -619,10 +620,10 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Suggested lines become interactive, without corrupting live game state.
 - **Function Touchpoints**:
   - `AnalysisPanel.lineSelected`
-  - `GameRules.isMoveLegal`
+  - `GameRuleService.isMoveLegal`
   - `MoveUpdateService.addAnalysisMove`
   - `MoveUpdateService.navigateToNode`
-  - `GamesStore.getGameById`
+  - `GamesStore.getGame`
 
 ---
 
@@ -644,8 +645,8 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Clock remains consistent through normal and throttled runtime conditions.
 - **Function Touchpoints**:
   - `GameView.onTimerTick`
-  - `TimeControl.getRemainingTime`
-  - `TimeControl.updateClockAfterMove`
+  - `TimeControlService.getRemainingTime`
+  - `TimeControlService.applyMove`
   - `PlayerPanel.formatClock`
 
 ### SCN-TIME-02 - Pause and Resume Clocks
@@ -664,7 +665,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Pause state is explicit and non-destructive.
 - **Function Touchpoints**:
   - `GameControlPanel.pauseRequested`
-  - `TimeControl.getRemainingTime`
+  - `TimeControlService.getRemainingTime`
 
 ### SCN-TIME-03 - Increment Applied After Move
 - **Status**: Planned
@@ -681,8 +682,8 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-03-INVALID-CONFIG`: Invalid increment config -> fallback to preset default.
 - **Postconditions**: Clock math follows selected time-control policy.
 - **Function Touchpoints**:
-  - `TimeControl.updateClockAfterMove`
-  - `TimeControl.initializeClocks`
+  - `TimeControlService.applyMove`
+  - `TimeControlService.initialiseClockSnapshot`
   - `GamesStore.makeMove`
 
 ### SCN-TIME-04 - Timeout Ends Game
@@ -701,7 +702,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Timeout result is deterministic and prevents further live play.
 - **Function Touchpoints**:
   - `GameView.onTimerTick`
-  - `TimeControl.getRemainingTime`
+  - `TimeControlService.getRemainingTime`
   - `GamesStore.saveGame`
   - `UiStateStore.showModal`
 
@@ -725,7 +726,7 @@ Each scenario in this document uses the same structure:
   - `MenuBar.saveGameRequested`
   - `MenuBar.settingsRequested`
   - `GameControlPanel.pauseRequested`
-  - `TimeControl.getRemainingTime`
+  - `TimeControlService.getRemainingTime`
   - `UiStateStore.saveGameSession`
 
 ### SCN-CTRL-01 - Takeback Action
@@ -745,7 +746,7 @@ Each scenario in this document uses the same structure:
   - `GameControlPanel.takeBackRequested`
   - `GamesStore.takeBack`
   - `MoveUpdateService.takeback`
-  - `TimeControl.updateClockAfterMove` (recompute policy)
+  - `TimeControlService.applyMove` (recompute policy)
 
 ### SCN-CTRL-02 - Resign Game
 - **Status**: Planned
@@ -844,8 +845,8 @@ Each scenario in this document uses the same structure:
   - `GamesStore.saveGame`
   - `RecentGameStore.recordAutosavedGame`
   - `SettingsStore.saveSettings`
-  - `Serialization.serializeGameToJSON`
-  - `StorageAdapter.setItem`
+  - `SerializationService.serialiseGame`
+  - `StorageAdapter.setGameSessionSnapshot`
   - `UiStateStore.saveGameSession`
   - `UiStateStore.saveLayoutState`
 
@@ -872,8 +873,8 @@ Each scenario in this document uses the same structure:
   - `GameControlPanel.pauseRequested`
   - `FileIoAdapter.saveGame`
   - `RecentGameStore.recordManuallySavedGame`
-  - `Serialization.serializeGameToJSON`
-  - `GamesStore.getGameById`
+  - `SerializationService.serialiseGame`
+  - `GamesStore.getGame`
   - `UiStateStore.saveGameSession`
   - `UiStateStore.saveLayoutState`
 
@@ -896,8 +897,8 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MenuBar.loadGameRequested`
   - `FileIoAdapter.loadGame`
-  - `Serialization.deserializeGameFromJSON`
-  - `Serialization.migrateSavedGame`
+  - `SerializationService.deserialiseGame`
+  - `SerializationService.migrateGame`
   - `RecentGameStore.recordManuallySavedGame`
   - `GamesStore.createGame` (or insert flow)
   - `UiStateStore.setActiveGame`
@@ -917,8 +918,8 @@ Each scenario in this document uses the same structure:
   - `BR-LOAD-02-PARTIAL-RECOVER`: Recoverable subset parsed -> user chooses continue/cancel import.
 - **Postconditions**: No existing game data is overwritten by bad import.
 - **Function Touchpoints**:
-  - `FileIOAdapter.loadGameFromFile`
-  - `Serialization.deserializeGameFromJSON`
+  - `FileIoAdapter.loadGame`
+  - `SerializationService.deserialiseGame`
   - `UiStateStore.showModal`
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
@@ -937,10 +938,10 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `SettingsView.onApply`
   - `SettingsView.onSave`
-  - `SettingsStore.updateSetting`
+  - `SettingsStore.updateSettings`
   - `SettingsStore.saveSettings`
   - `GameView.applyTheme`
-  - `StorageAdapter.setItem`
+  - `StorageAdapter.setSettingsSnapshot`
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 - **Status**: Current
@@ -977,7 +978,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Engine list contains only valid, unique entries.
 - **Function Touchpoints**:
   - `EnginesStore.addEngine`
-  - `EnginesStore.listEngines`
+  - `EnginesStore.listConfiguredEngines`
   - `SettingsStore.saveSettings`
   - `UiStateStore.showModal`
 
@@ -997,8 +998,8 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `EnginesStore.updateEngine`
   - `EnginesStore.removeEngine`
-  - `EnginesStore.stopEngine`
-  - `ProcessManager.stopEngine`
+  - `EnginesStore.stopAnalysis`
+  - `ProcessManager.stopProcess`
   - `SettingsStore.saveSettings`
 
 ---
@@ -1021,7 +1022,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GamesStore.deleteGame`
   - `GamesStore.listGames`
-  - `StorageAdapter.setItem`
+  - `StorageAdapter.removeGame`
   - `UiStateStore.showModal`
 
 ### SCN-LIFECYCLE-02 - Delete Active Game and Switch Context
@@ -1041,7 +1042,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GamesStore.deleteGame`
   - `GamesStore.listGames`
-  - `UiStateStore.setCurrentGameId`
+  - `UiStateStore.setActiveGame`
   - `Router.beforeEachRouteGuard`
 
 ---
@@ -1063,8 +1064,8 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Faster entry into common play modes.
 - **Function Touchpoints**:
   - `GamesStore.createGame`
-  - `TimeControl.initializeClocks`
-  - `UiStateStore.setCurrentGameId`
+  - `TimeControlService.initialiseClockSnapshot`
+  - `UiStateStore.setActiveGame`
 
 ### SCN-IDEA-03 - Engine vs Engine Match
 - **Status**: Idea
@@ -1080,10 +1081,10 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-03-ONE-ENGINE-FAIL`: One side fails to start -> abort setup with diagnostics.
 - **Postconditions**: Fully automated match with normal recording/analysis.
 - **Function Touchpoints**:
-  - `EnginesStore.startEngine`
-  - `ProcessManager.sendUCICommand`
+  - `EnginesStore.createPlayerSession`
+  - `EngineClient.startSession`
   - `GamesStore.makeMove`
-  - `TimeControl.updateClockAfterMove`
+  - `TimeControlService.applyMove`
 
 ### SCN-IDEA-04 - Analysis Snapshot/Bookmark
 - **Status**: Idea
@@ -1099,8 +1100,8 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Users can curate study points during play/analysis.
 - **Function Touchpoints**:
   - `MoveUpdateService.getCurrentPosition`
-  - `AnalysisStore.getEvaluation`
-  - `StorageAdapter.setItem`
+  - `AnalysisStore.getVisibleAnalysis`
+  - `StorageAdapter.setGame`
 
 ### SCN-IDEA-05 - Explain Evaluation Panel
 - **Status**: Idea
@@ -1115,7 +1116,7 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-05-NO-EXPLANATION`: Engine lacks explain mode -> show score-only fallback.
 - **Postconditions**: Better interpretability for non-expert users.
 - **Function Touchpoints**:
-  - `AnalysisStore.listEvaluations`
+  - `AnalysisStore.getVisibleAnalysis`
   - `AnalysisPanel.renderAnalysisLines`
 
 ### SCN-IDEA-06 - Undo/Redo Stack in Analysis Mode
@@ -1147,9 +1148,9 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-07-MAX-RETRY`: Retry limit reached -> disable engine and notify user.
 - **Postconditions**: Better resilience for unstable engine binaries.
 - **Function Touchpoints**:
-  - `ProcessManager.isEngineRunning`
-  - `EnginesStore.startEngine`
-  - `AnalysisStore.listEvaluations`
+  - `EngineClient.subscribeToSessionEvents`
+  - `EnginesStore.startAnalysis`
+  - `AnalysisStore.getVisibleAnalysis`
 
 ### SCN-IDEA-08 - Variant Rules Toggle
 - **Status**: Idea
@@ -1164,10 +1165,10 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-08-UNSUPPORTED-ENGINE`: Selected engine cannot handle variant -> warn and continue without engine.
 - **Postconditions**: Variant choice consistently affects rules, setup, and engine compatibility.
 - **Function Touchpoints**:
-  - `GameRules.isMoveLegal`
-  - `GameRules.generateLegalMoves`
-  - `Serialization.serializeGameToJSON`
-  - `EnginesStore.getEngineById`
+  - `GameRuleService.isMoveLegal`
+  - `GameRuleService.generateLegalMoves`
+  - `SerializationService.serialiseGame`
+  - `EnginesStore.getEngine`
 
 ### SCN-IDEA-09 - Mobile Layout Panel Switching
 - **Status**: Idea
@@ -1198,8 +1199,8 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-10-PARTIAL-BATCH-FAIL`: Some items fail; successful items still committed.
 - **Postconditions**: Power users can migrate larger game sets efficiently.
 - **Function Touchpoints**:
-  - `FileIOAdapter.loadGameFromFile`
-  - `FileIOAdapter.saveGameToFile`
+  - `FileIoAdapter.loadGame`
+  - `FileIoAdapter.saveGame`
   - `GamesStore.createGame`
   - `GamesStore.listGames`
 
@@ -1216,9 +1217,9 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-11-DISABLED`: If tab-switch auto-pause is disabled, tab change does not affect the clock.
 - **Postconditions**: Tab navigation can be reviewed later as an extension of menu auto-pause behavior.
 - **Function Touchpoints**:
-  - `UiStateStore.setCurrentGameId`
+  - `UiStateStore.setActiveGame`
   - `GameControlPanel.pauseRequested`
-  - `TimeControl.getRemainingTime`
+  - `TimeControlService.getRemainingTime`
 
 ---
 

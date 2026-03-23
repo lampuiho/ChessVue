@@ -87,7 +87,8 @@ If the user selects more than the supported concurrent analysis engines, the app
 - `SettingsStore` owns configured engine inventory.
 - `EnginesStore` owns assignment, availability state, and lifecycle coordination.
 - `AnalysisStore` owns streamed evaluation state for the current runtime session.
-- `ProcessManager` owns child-process mechanics.
+- `EngineClient` owns protocol-specific engine-session mechanics and translates between ChessVue engine operations and raw process I/O.
+- `ProcessManager` owns child-process mechanics only.
 
 ## Non-Baseline Exclusions
 The following are explicitly out of scope for the rewrite baseline:

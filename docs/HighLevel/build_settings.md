@@ -38,7 +38,8 @@ That means:
 | --- | --- |
 | Engine protocol | `UCI` only |
 | Engine transport | Local child process |
-| Process ownership | Managed through `ProcessManager` |
+| Protocol/session ownership | Managed through `EngineClient` |
+| Raw process ownership | Managed through `ProcessManager` |
 | Concurrent analysis | Up to `4` analysis engines per game |
 | Failure behaviour | Isolate failure per engine and allow manual retry |
 | Auto-reconnect | Deferred |

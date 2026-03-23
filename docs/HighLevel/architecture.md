@@ -36,7 +36,8 @@ Committed platform modules:
 - `usePlatformServicesStore` as the bootstrap seam for concrete platform adapters
 - `StorageAdapter` for app-local persistence
 - `FileIoAdapter` for save/load file workflows
-- `ProcessManager` for local child-process lifecycle and UCI communication
+- `ProcessManager` for local child-process lifecycle and raw stdin/stdout transport
+- `EngineClient` for UCI protocol session management on top of `ProcessManager`
 
 During the rewrite phase, these adapters are backed by mocked `NW.js`-style host services rather than final real host bindings.
 
@@ -102,7 +103,8 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `usePlatformServicesStore` is the only baseline bootstrap seam for wiring concrete platform adapters into the app.
 - `StorageAdapter` persists settings, recent-game history, game-session state, UI-layout state, and autosaved saved-game payloads.
 - `FileIoAdapter` imports, exports, and reopens the canonical saved game payload defined in [persistence_contract.md](persistence_contract.md).
-- `ProcessManager` starts, communicates with, and stops local UCI engine processes as defined in [engine_runtime.md](engine_runtime.md).
+- `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
+- `EngineClient` translates ChessVue engine-session operations into the active protocol and uses `ProcessManager` for raw process I/O.
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
 
 ### Domain Logic
@@ -160,13 +162,13 @@ The high-level contracts divide behaviour ownership as follows:
 2. `GameView` forwards the attempt to `GamesStore`.
 3. `GamesStore` validates the action against the active state context.
 4. Domain services update move tree, board state, and clocks.
-5. `AnalysisStore` refreshes assigned analysis engines when required.
+5. `EnginesStore` and `EngineClient` refresh assigned analysis engines when required.
 6. Autosave persists the updated game workspace, relevant session state, and refreshed recent-game metadata when the saved target for that game changed.
 
 ### Analysis Refresh
 1. A committed move or explicit analysis action requests evaluation.
 2. `EnginesStore` ensures assigned engines are available.
-3. `ProcessManager` runs UCI commands for the selected position.
+3. `EngineClient` translates the selected position into the active engine protocol and uses `ProcessManager` for raw process I/O.
 4. `AnalysisStore` keeps the latest valid result for each engine independently.
 5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth.
 

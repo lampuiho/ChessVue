@@ -70,6 +70,7 @@ Additional rules:
 - `usePlatformServicesStore()` is the only baseline bootstrap seam for injecting concrete platform adapters into the app.
 - The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `FileIoAdapter`, and `ProcessManager`.
 - The StateManagement layer obtains platform interfaces from `PlatformServices` rather than constructing them directly.
+- `EngineClient` owns protocol translation and engine-session messaging on top of `ProcessManager`; stores do not compose raw UCI strings themselves.
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
 - Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
 - Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
@@ -104,7 +105,7 @@ The data-interface section defines the shared low-level types for:
 - `GamesStore`, `MoveUpdateService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
 - `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
-- `EnginesStore`, `EngineClient`, and `ProcessManager` own analysis and player-engine runtime control.
+- `EnginesStore` and `EngineClient` own analysis and player-engine runtime control, while `ProcessManager` owns raw process lifecycle and I/O.
 - `SettingsStore`, `RecentGameStore`, `UiStateStore`, `StorageAdapter`, `FileIoAdapter`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios.
 - `Router`, `HomeView`, `GameView`, `SettingsView`, and shell components own route and screen composition only.
 

@@ -17,6 +17,7 @@ restartProcess(sessionId: string, executablePath: string, args?: string[]): Prom
 - route raw stdout lines to protocol-specific clients
 - isolate failures to the affected session
 - stop related processes when games close or engine assignments change
+- stay at the process boundary only; protocol-specific UCI commands belong in `EngineClient`
 
 ## Dependencies
 - desktop child-process APIs
