@@ -4,16 +4,18 @@
 Define the persisted game-session and UI-layout payloads used to restore the app workspace across launches.
 
 ## Interfaces
+- `type SettingsCategory`
 - `interface IGameSessionSnapshot`
 - `interface IUiLayoutState`
 
 ## Data Structures
 ```ts
+type SettingsCategory = "session" | "gameplay" | "appearance" | "engines"
+
 interface IUiLayoutState {
   schemaVersion: number
   showHistoryPanel: boolean
   showAnalysisPanel: boolean
-  showGameControlPanel: boolean
   historyCollapsed: boolean
   analysisCollapsed: boolean
 }
@@ -22,7 +24,7 @@ interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
   activeGameId: string | null
-  activeRoute: "/home" | `/game/${string}` | "/settings"
+  activeRoute: "/home" | `/game/${string}` | `/settings/${SettingsCategory}`
 }
 ```
 
@@ -30,6 +32,7 @@ interface IGameSessionSnapshot {
 - `IGameSessionSnapshot` stores reopenable shell state only.
 - `IUiLayoutState` stores remembered non-modal UI state only.
 - `IUiLayoutState` is one global layout snapshot for the app shell and is not keyed by `gameId`.
+- `IGameSessionSnapshot.activeRoute` stores canonical routed settings categories rather than the redirecting `/settings` alias.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
 - Recent-game history lives in `IRecentGamesSnapshot`, not in either of these payloads.
 - Conscious user preferences live in `ISettingsSnapshot`, not in either of these payloads.

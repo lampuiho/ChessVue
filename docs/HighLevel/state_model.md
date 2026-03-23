@@ -25,11 +25,19 @@ ChessVue game behaviour is defined by four orthogonal state axes.
 - `expired`: timeout has produced a final result
 
 ### 4. Result State
+- outcome only; separate from the reason a final result was reached
 - `ongoing`
 - `drawn`
 - `whiteWon`
 - `blackWon`
-- `resigned`
+- `abandoned`
+
+### 5. Result Reason
+- `null` while the game is ongoing
+- `ruleResolved`
+- `timeout`
+- `resignation`
+- `drawAgreement`
 - `abandoned`
 
 ## Canonical Derived Contexts
@@ -41,6 +49,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 | Paused live play | `liveGame` + `currentPosition` + `paused` + `ongoing` |
 | History review | `historyReview` in either workspace kind |
 | In-game analysis mode | `liveGame` + `inGameAnalysis` + `ongoing` |
+| Post-timeout in-game analysis | `liveGame` + `inGameAnalysis` + final `resultState` + `resultReason = timeout` |
 | Free analysis/setup | `freeAnalysisSetup` + `currentPosition` |
 | Free analysis board edit | `freeAnalysisSetup` + `boardEdit` |
 | Finished game | `liveGame` + final `resultState` |
@@ -48,7 +57,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 ## Entry Rules
 ### New Game Creation
 - Quick new game creates a `liveGame`.
-- Custom new game creates a `liveGame` if at least one side is assigned a player.
+- Custom new game creates a `liveGame` if at least one side is assigned.
 - Custom new game creates `freeAnalysisSetup` when neither side is assigned a player.
 
 ### Start Game From Setup
@@ -95,10 +104,10 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Manual pause remains paused until the user explicitly resumes.
 
 ### Finished Games
-- Timeout, resignation, or accepted draw change `resultState` to final.
+- Timeout, resignation, or accepted draw change `resultState` to final and record the corresponding `resultReason`.
 - Final states block further live moves and all result-changing controls.
 - History navigation and non-mutating review remain available after the game ends.
-- In-game analysis may still be allowed after timeout if the scenario requires post-game exploration, but it must not change the stored result.
+- In-game analysis may still be allowed after timeout for post-game exploration, but it must not change the stored result.
 
 ## Clock Rules
 - Clocks apply only to `liveGame`.
@@ -108,7 +117,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Timeout sets `clockState` to `expired` and finalises the game once.
 
 ## Ownership Boundaries
-- `workspaceKind`, interaction context, clock state, and result state are game-related and must be represented in the game model or state derived directly from it.
+- `workspaceKind`, interaction context, clock state, result state, and result reason are game-related and must be represented in the game model or state derived directly from it.
 - Session shell state such as active route and open tabs belongs to the session/UI state model, not to the game model.
 - Modal visibility is transient UI behaviour and is not part of the canonical game state contract.
 
@@ -116,6 +125,5 @@ The UI and stores may expose convenient derived contexts, but they must map back
 The following are not part of this contract and are tracked in [ideas.md](ideas.md):
 
 - variant-specific state rules
-- engine-vs-engine autonomous move loops
 - network or remote player state
 - analysis undo/redo stacks

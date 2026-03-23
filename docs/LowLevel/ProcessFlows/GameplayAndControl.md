@@ -18,7 +18,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Requirement verification: `Pass`. Rejection happens before tree, clock, or persistence mutation.
 
 ### SCN-MOVE-03 - Pawn Promotion Resolution
-- Public flow: `GamesStore.makeMove` -> `GameRuleService.requiresPromotionSelection` -> `UiStateStore.showModal("promotion")` -> `GamesStore.makeMove` with the selected promotion piece.
+- Public flow: `GamesStore.makeMove` -> `GameRuleService.requiresPromotionSelection` -> `UiStateStore.showModal({ kind: "promotion" })` -> `GamesStore.makeMove` with the selected promotion piece.
 - Private design: `GamesStore._stagePendingPromotion` -> `_commitPromotionMove` -> `_clearPendingPromotion`; cancel uses `UiStateStore.hideModal`.
 - UI surface coverage: promotion uses the shared `PiecePalette` surface, hosted either as a board-local overlay or inside the shared dialog shell, and stays local to the current move attempt.
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received. No implicit timeout or default-queen branch is part of the committed flow.
@@ -31,7 +31,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Private design: `GamesStore._maybeRequestEngineTurn` -> `_isEngineTurnPlayable` -> `EnginesStore._startPlayerTurnSearch` -> `_bindPlayerTurnCallbacks`; on the final callback `GamesStore` validates and commits the move through the normal mutation path.
 - Runtime distinction: analysis search keeps streaming updates into `AnalysisStore`, while a player-engine turn waits only for the final move callback and then ends that turn-scoped search.
 - State gate: `EnginesStore.startPlayerTurn` is valid only for `liveGame + currentPosition + ongoing + not paused` when the side to move is assigned to an engine. It is a strict no-op-or-reject boundary for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused live games, expired clocks, and all final result states.
-- Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, board edit, paused live games, and finished games. Engine turns are also not used to implement engine-vs-engine autonomous loops because that mode remains outside the baseline scope.
+- Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, board edit, paused live games, and finished games. The same side-to-move gate is reused for `human/engine`, `engine/human`, and `engine/engine`.
 
 ## History And Branching
 
@@ -54,7 +54,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
 
 ### SCN-HIST-04 - Prune Future Moves from Selected Node
-- Public flow: `UiStateStore.showModal("pruneFuture")` -> `GamesStore.pruneFuture` -> `MoveUpdateService.pruneFutureMoves` -> `GamesStore.saveGame`.
+- Public flow: `UiStateStore.showModal({ kind: "pruneFuture" })` -> `GamesStore.pruneFuture` -> `MoveUpdateService.pruneFutureMoves` -> `GamesStore.saveGame`.
 - Private design: `GamesStore._confirmPruneIfNeeded` -> `_assertRootPruneAllowed` -> `_pruneTreeFromNode` -> `_reconcileLiveAndVisibleNodes` -> `_persistWorkspace`.
 - UI surface coverage: prune confirmation uses the shared dialog shell with a danger-focused confirmation row before irreversible mutation is allowed through.
 - Settings coverage: `gameplay.confirmPruneFutureMoves` decides whether the prune confirmation modal is required. `gameplay.allowRootPrune` decides whether pruning from the root node is allowed or rejected before mutation.
@@ -80,8 +80,8 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 
 ### SCN-TIME-04 - Timeout Ends Game
 - Public flow: `GamesStore.syncClock` -> `TimeControlService.getRemainingTime` -> `TimeControlService.hasExpired` -> `GamesStore.saveGame`.
-- Private design: `GamesStore._reconcileClock` -> `_finaliseTimeoutIfNeeded` -> `_lockLiveMoves` -> `_persistWorkspace` -> `UiStateStore.showModal("timeout")`.
-- Requirement verification: `Pass`. Timeout finalisation stays in the store and cannot be duplicated by the view.
+- Private design: `GamesStore._reconcileClock` -> `_finaliseTimeoutIfNeeded(resultState, "timeout")` -> `_lockLiveMoves` -> `_persistWorkspace` -> `UiStateStore.showModal({ kind: "timeout" })`.
+- Requirement verification: `Pass`. Timeout finalisation stays in the store and cannot be duplicated by the view, while post-timeout analysis can still remain read-only against the stored result.
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
 - Public flow: menu intent -> conditional `GamesStore.pauseGame(..., "menu")` -> external flow -> conditional `GamesStore.resumeGame(..., "menu")`.
@@ -97,23 +97,25 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05`.
 - Requirement verification: `Pass`. Takeback policy and clock recomputation remain inside one mutation boundary.
 
 ### SCN-CTRL-02 - Resign Game
-- Public flow: `UiStateStore.showModal("resign")` -> `GamesStore.resignGame` -> `GamesStore.saveGame`.
-- Private design: `GamesStore._assertResultMutable` -> `_finaliseResult("resigned")` -> `_persistWorkspace`.
+- Public flow: `UiStateStore.showModal({ kind: "resign" })` -> `GamesStore.resignGame` -> `GamesStore.saveGame`.
+- Private design: `GamesStore._assertResultMutable` -> `_finaliseResult(resultState, "resignation")` -> `_persistWorkspace`.
 - Requirement verification: `Pass`. Confirmation and final result persistence are both covered.
 
 ### SCN-CTRL-03 - Draw Offer Flow
 - Public flow: `GamesStore.offerDraw`.
-- Private design: `GamesStore._assertResultMutable` -> `_resolveDrawDecision` -> optional `_finaliseResult("drawn")` -> `_persistWorkspace`.
+- Private design: `GamesStore._assertResultMutable` -> `_resolveDrawDecision` -> optional `_finaliseResult("drawn", "drawAgreement")` -> `_persistWorkspace`.
 - Requirement verification: `Pass`. Decline and throttle branches stay internal to the store flow.
 
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - Public flow: `GamesStore.enterInGameAnalysis` -> analysis moves continue through `GamesStore.makeMove` -> `GamesStore.exitInGameAnalysis`.
 - Private design: entry uses `_assertInGameAnalysisAllowed` -> `_pauseForAnalysisEntry` -> `_cloneAnalysisContext`; exit uses `_promptForDirtyAnalysisExitIfNeeded` -> `_restoreLiveNode` -> `_resumeAfterAnalysisIfOwned`.
-- State coverage: in-game analysis is a `liveGame + ongoing` mode only. Entry is blocked for `freeAnalysisSetup`, `boardEdit`, paused states that cannot be analysis-owned, and finished games. While active, analysis moves are legal for both colours, clocks do not progress, the live node does not advance, and `_maybeRequestEngineTurn` remains suppressed until the mode exits back to the live node.
+- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Entry is blocked for `freeAnalysisSetup`, `boardEdit`, paused states that cannot be analysis-owned, and non-timeout final results. While active, analysis moves are legal for both colours, clocks do not progress, the live node does not advance, and `_maybeRequestEngineTurn` remains suppressed until the mode exits back to the live node.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
-- Public flow: blocked board-edit intent -> `UiStateStore.showModal("boardEditBlocked")`; allowed cases continue to `GamesStore.enterBoardEdit`.
+- Public flow: blocked board-edit intent -> `UiStateStore.showModal({ kind: "boardEditBlocked" })`; allowed cases continue to `GamesStore.enterBoardEdit`.
 - Private design: `GamesStore._assertBoardEditAllowed` returns a reason token; `UiStateStore` owns the explanatory prompt.
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
+
+

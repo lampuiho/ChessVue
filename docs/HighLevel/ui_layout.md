@@ -221,7 +221,6 @@ The baseline settings categories are:
 - `Session`
 - `Gameplay`
 - `Appearance`
-- `Layout`
 - `Engines`
 
 Settings layout sketch:
@@ -230,7 +229,7 @@ Settings layout sketch:
 +------------------------------------------------------------------------------+
 | Settings Title                                                               |
 +------------------------------------------------------------------------------+
-| [Session] [Gameplay] [Appearance] [Layout] [Engines]                         |
+| [Session] [Gameplay] [Appearance] [Engines]                                  |
 +------------------------------------------------------------------------------+
 |                                                                              |
 | Selected settings category content                                           |
@@ -244,12 +243,15 @@ Settings layout sketch:
 Settings layout rules:
 
 - category switching uses a shared tab-like control rather than a long single scrolling page
+- the settings routes are `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`
+- `/settings` redirects to `/settings/session`
 - only one settings category is active in the main settings content area at a time
 - `Cancel`, `Save`, and `Apply` stay in the bottom-right action area
 - `Reset` stays in a separate secondary settings action area rather than in the primary bottom-right row
 - `Reset` always requires confirmation through the shared dialog family before defaults are restored
 - the bottom action area remains in a fixed bottom corner position relative to the settings surface
 - category content owns its internal fields, but not the outer action-row placement
+- `Appearance` contains both visual theme settings and layout-related presentation preferences such as UI scale, board orientation, coordinate visibility, and last-move highlighting
 
 ## Shared Dialog Family
 The baseline uses one reusable dialog shell for confirmation, form, and interruption flows.

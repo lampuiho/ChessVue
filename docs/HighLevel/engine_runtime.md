@@ -19,6 +19,7 @@ ChessVue supports two committed engine roles.
 - A side in a live game may be assigned an engine instead of a human.
 - At most one player engine may control each side.
 - Player-engine behaviour is part of the live game flow, not the analysis flow.
+- When both sides are engine-controlled, the same live-game player-turn loop continues turn by turn without a separate engine-vs-engine mode.
 
 ### 2. Analysis Engine
 - A game may have zero or more analysis engines assigned.
@@ -39,7 +40,7 @@ Each committed engine record must include:
 Duplicate IDs or invalid executable paths are rejected.
 
 ## Per-Game Assignment Rules
-- Live games may assign human or engine control to either side.
+- Live games may assign human or engine control to either or both sides.
 - Free analysis/setup is created only when neither side is assigned a player.
 - Analysis engine assignment is per game, not global to the whole app.
 - The same configured engine may be used by more than one game, but each active runtime session must be isolated by game and role.
@@ -49,6 +50,7 @@ Duplicate IDs or invalid executable paths are rejected.
 - If a position changes while analysis is running, the previous search is superseded and the engine is redirected to the new position.
 - Removing an assigned engine, deleting a game, or closing the app stops the related engine processes.
 - Updating the configuration of a running engine requires a restart before the new options apply.
+- After a committed engine-controlled live move, the normal live-state gate decides whether the next side should immediately receive an engine turn; this is the same rule for `human/engine` and `engine/engine` games.
 
 ## Multi-Engine Analysis Contract
 - Multiple assigned analysis engines may evaluate the same position concurrently.
@@ -96,5 +98,4 @@ The following are explicitly out of scope for the rewrite baseline:
 - `xboard` or other non-UCI protocols
 - remote engines
 - browser or WASM engines
-- autonomous engine-vs-engine gameplay as a dedicated mode
 - automatic crash recovery

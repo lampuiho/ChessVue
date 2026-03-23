@@ -95,6 +95,7 @@ The committed baseline route map is:
 - `/home`
 - `/game/:id`
 - `/settings`
+- `/settings/:category`
 
 Analysis is part of `GameView` in the baseline architecture. A standalone analysis route or dedicated analysis view is not part of the rewrite baseline.
 
@@ -116,7 +117,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### State Management
 - `GamesStore` owns live game instances and enforces the interaction rules in [state_model.md](state_model.md).
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
-- `EnginesStore` owns configured engine inventory, engine assignment, and runtime availability state.
+- `EnginesStore` owns per-game engine assignment, runtime availability state, and engine-session lifecycle coordination.
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
 - `RecentGameStore` owns persisted recent-game metadata for `HomeView`, deduped by canonical game identity and refreshed by the latest autosave or manual save target.
 - `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and section folding.
@@ -162,7 +163,7 @@ The high-level contracts divide behaviour ownership as follows:
 2. `GameView` forwards the attempt to `GamesStore`.
 3. `GamesStore` validates the action against the active state context.
 4. Domain services update move tree, board state, and clocks.
-5. `EnginesStore` and `EngineClient` refresh assigned analysis engines when required.
+5. `EnginesStore` and `EngineClient` refresh assigned analysis engines when required, and `GamesStore` may request the next engine-controlled live turn when the side to move is assigned to an engine.
 6. Autosave persists the updated game workspace, relevant session state, and refreshed recent-game metadata when the saved target for that game changed.
 
 ### Analysis Refresh
@@ -185,4 +186,4 @@ The following concepts are not part of the baseline architecture and are tracked
 - standalone analysis routes or views
 - extra chess variants
 - bookmarks and batch workflows
-- engine-vs-engine and other speculative study extensions
+- other speculative study extensions

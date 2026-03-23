@@ -5,9 +5,10 @@ Render user-editable settings and engine inventory management.
 
 ## Inputs
 - settings snapshot from `SettingsStore`
+- settings draft snapshot from `SettingsStore`
 - appearance projection from `SettingsStore`
-- configured engine records from `SettingsStore` or `EnginesStore`
-- shared tab state for settings-category switching
+- configured engine records from `SettingsStore` and runtime availability from `EnginesStore` where needed
+- active routed settings category
 - `TabbedView` and `TabButton` for top-level settings categories
 - `SettingsActionButton` for settings and engine-inventory actions
 - `FormSection` and `FieldRow` for shallow form structure
@@ -22,8 +23,9 @@ Render user-editable settings and engine inventory management.
 
 ## Notes
 - Opening settings may trigger menu-driven auto-pause through store coordination, not view logic.
-- `SettingsView` switches between settings categories through a tab-style control rather than presenting all categories in one long page.
-- The appearance category includes `themeMode` alongside board, piece, and scale preferences.
+- `SettingsView` switches between settings categories through a tab-style control that maps to `/settings/:category` rather than presenting all categories in one long page.
+- The baseline settings categories are `session`, `gameplay`, `appearance`, and `engines`, with `/settings` redirecting to `/settings/session`.
+- The appearance category includes both visual theme settings and layout-related presentation preferences such as `uiScalePercent`, `boardOrientation`, `showCoordinates`, and `highlightLastMove`.
 - The primary settings action row sits at the bottom-right of the settings surface and contains `Cancel`, `Save`, and `Apply`.
 - `Reset` stays outside that primary row in a separate secondary settings action area and always routes through a confirmation dialog before defaults are restored.
 - `SettingsView` contains no HTML or template markup and delegates rendering to common form and list components.

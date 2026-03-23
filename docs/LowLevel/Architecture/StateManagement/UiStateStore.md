@@ -16,17 +16,21 @@ setActiveGame(gameId: string | null): void
 openTab(gameId: string): void
 closeTab(gameId: string): void
 setLayoutState(layout: IUiLayoutState): void
-togglePanel(panel: "history" | "analysis" | "gameControl", isVisible?: boolean): void
+togglePanel(panel: "history" | "analysis", isVisible?: boolean): void
 setSectionCollapsed(section: "history" | "analysis", isCollapsed?: boolean): void
-showModal(modalId: string, payload?: unknown): void
+getModalState(): IAppModalState | null
+showModal(modal: IAppModalState): void
 hideModal(): void
+getAnalysisEngineViewState(gameId: string): Record<string, IAnalysisEngineViewState>
+setAnalysisEngineCollapsed(gameId: string, engineId: string, isCollapsed?: boolean): void
 ```
 
 ## Responsibilities
 - restore game-session shell state across launches when that behaviour is enabled by settings
 - restore remembered UI layout state independently from game-session restore
 - persist remembered panel visibility and fold state as one app-level layout snapshot, not as per-game state
-- own transient modal and confirmation prompts without persisting them
+- own typed transient modal and confirmation prompts without persisting them
+- own transient per-game analysis engine fold state without persisting it in the shared layout snapshot
 - exclude recent-game history from UI/session ownership
 - exclude conscious user settings from session ownership
 - exclude modal visibility and other transient UI prompts from persistence
@@ -53,3 +57,4 @@ hideModal(): void
 - `UiStateStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.
 - `loadLayoutState()` still runs when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
+- `setAnalysisEngineCollapsed(...)` is transient per-game UI state for the current runtime session and is not written into `IUiLayoutState`.

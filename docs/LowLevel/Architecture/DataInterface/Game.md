@@ -7,11 +7,13 @@ Define the canonical workspace model used by `GamesStore`, related services, and
 - `type WorkspaceKind = "liveGame" | "freeAnalysisSetup"`
 - `type InteractionContext = "currentPosition" | "historyReview" | "inGameAnalysis" | "boardEdit"`
 - `type ClockStateKind = "none" | "running" | "paused" | "expired"`
-- `type ResultState = "ongoing" | "drawn" | "whiteWon" | "blackWon" | "resigned" | "abandoned"`
+- `type ResultState = "ongoing" | "drawn" | "whiteWon" | "blackWon" | "abandoned"`
+- `type ResultReason = "ruleResolved" | "timeout" | "resignation" | "drawAgreement" | "abandoned" | null`
 - `type PlayerType = "human" | "engine"`
 
 ## Interfaces
 - `interface IPlayerSlot`
+- `interface ICapturedPieceGroup`
 - `interface IGameMetadata`
 - `interface IGameWorkspace`
 - `interface ICreateGameRequest`
@@ -24,6 +26,11 @@ interface IPlayerSlot {
   type: PlayerType
   displayName: string
   engineId: string | null
+}
+
+interface ICapturedPieceGroup {
+  pieceKind: PieceKind
+  count: number
 }
 
 interface IGameMetadata {
@@ -40,6 +47,7 @@ interface IGameWorkspace {
   interactionContext: InteractionContext
   clockState: ClockStateKind
   resultState: ResultState
+  resultReason: ResultReason
   whitePlayer: IPlayerSlot | null
   blackPlayer: IPlayerSlot | null
   boardRoot: IBoardPosition
@@ -77,6 +85,7 @@ interface IStartGameFromSetupRequest {
 - `freeAnalysisSetup` is created only when neither side is assigned a player.
 - `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
 - `boardEdit` is valid only inside `freeAnalysisSetup`.
-- `IStartGameFromSetupRequest` must assign at least one live-game player side so the workspace can leave `freeAnalysisSetup`.
+- `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
+- `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGameWorkspace`.
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.

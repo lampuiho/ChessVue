@@ -200,10 +200,11 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Menu `New Game` -> custom configuration flow.
 - **Main Steps**:
   1. User opens new-game dialog.
-  2. User edits options (players, time control preset/custom, sides, engine assignment).
+  2. User edits options (players, time control preset/custom, sides, and engine assignment).
   3. User may assign no player to either side, which means the flow starts in `free analysis / setup` context instead of a live game.
   4. User confirms creation.
   5. App validates options and creates configured game.
+  6. If the created workspace is a live game and the side to move is engine-controlled, the normal live engine-turn loop starts from that side without a separate engine-vs-engine mode.
 - **Branch Paths**:
   - `BR-GAME-02-INVALID-TIME`: Invalid time settings (negative/empty) -> inline validation, block submit.
   - `BR-GAME-02-ENGINE-MISSING`: Selected required engine unavailable -> block creation until the setup is corrected.
@@ -245,7 +246,7 @@ Each scenario in this document uses the same structure:
 - **Status**: Current
 - **Goal**: Let user configure preferences and return to gameplay context.
 - **Preconditions**: At least one game may be active.
-- **Entry Points**: Menu `Settings`, `/settings` route.
+- **Entry Points**: Menu `Settings`, `/settings`, `/settings/:category`.
 - **Main Steps**:
   1. User navigates to settings.
   2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before leaving the game screen.
@@ -370,7 +371,6 @@ Each scenario in this document uses the same structure:
   4. App finalizes move and updates history/clock.
 - **Branch Paths**:
   - `BR-MOVE-03-CANCEL`: User closes promotion UI -> move not committed.
-  - `BR-MOVE-03-TIMEOUT-DEFAULT`: If UI timeout policy exists, auto-promote to queen.
 - **Postconditions**: Promotion move is explicit and deterministic.
 - **Function Touchpoints**:
   - `Chessboard.moveAttempt`
@@ -929,7 +929,7 @@ Each scenario in this document uses the same structure:
 - **Status**: Current
 - **Goal**: Change app theme mode, piece style, board colors, and UI scaling preferences.
 - **Preconditions**: User on settings view.
-- **Entry Points**: `/settings`.
+- **Entry Points**: `/settings`, `/settings/:category`.
 - **Main Steps**:
   1. User edits one or more settings fields.
   2. User applies settings to preview or commit the pending changes without leaving the settings view, or saves settings to commit and finish the flow.
@@ -944,7 +944,7 @@ Each scenario in this document uses the same structure:
   - `SettingsView.onSave`
   - `SettingsStore.updateSettings`
   - `SettingsStore.saveSettings`
-  - `GameView.applyTheme`
+  - `AppShell.applyAppearanceProjection`
   - `PlatformServices.getSystemThemeAdapter`
   - `StorageAdapter.setSettingsSnapshot`
 
@@ -1071,25 +1071,6 @@ Each scenario in this document uses the same structure:
   - `GamesStore.createGame`
   - `TimeControlService.initialiseClockSnapshot`
   - `UiStateStore.setActiveGame`
-
-### SCN-IDEA-03 - Engine vs Engine Match
-- **Status**: Idea
-- **Goal**: Run autonomous game between two configured engines.
-- **Preconditions**: Two runnable engines configured.
-- **Entry Points**: New game advanced mode.
-- **Main Steps**:
-  1. User selects engine-vs-engine mode.
-  2. App starts both engines.
-  3. Engines alternate move decisions.
-  4. Game progresses automatically with clocks and history.
-- **Branch Paths**:
-  - `BR-IDEA-03-ONE-ENGINE-FAIL`: One side fails to start -> abort setup with diagnostics.
-- **Postconditions**: Fully automated match with normal recording/analysis.
-- **Function Touchpoints**:
-  - `EnginesStore.createPlayerSession`
-  - `EngineClient.startSession`
-  - `GamesStore.makeMove`
-  - `TimeControlService.applyMove`
 
 ### SCN-IDEA-04 - Analysis Snapshot/Bookmark
 - **Status**: Idea

@@ -1,13 +1,14 @@
 # WorkspaceShell
 
 ## Purpose
-Provide a reusable layout shell for complex screens with named regions such as header, content, sidebars, and footer.
+Provide a reusable layout shell for complex screens with named regions such as header rows, primary content, secondary content, and a secondary bottom region.
 
 ## Consumes
 - header slot
+- subheader slot
 - primary-content slot
 - secondary-content slot
-- footer slot
+- secondary-footer slot
 
 ## Emits
 - none directly

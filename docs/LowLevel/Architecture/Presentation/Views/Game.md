@@ -31,5 +31,5 @@ Render the integrated gameplay workspace for one active game.
 - Game-tab selection is resolved through route updates, with `GameTabs` delegating shared child-route tab logic to `TabbedView`.
 - `GameView` reads store state directly; it does not depend on a separate query-helper subsystem.
 - When a committed flow needs an authoritative derived read such as remaining clock time, `GameView` may call the relevant domain service locally while still keeping mutation ownership in stores.
-- `GameView` applies the effective app theme once at the root workspace surface through a theme attribute and the reactive semantic CSS-variable map from `IAppearanceProjection`.
+- `GameView` consumes the effective app theme from the shared root app-shell appearance host rather than owning the root theme attachment itself.
 - `GameView` contains no HTML or template markup and wires feature adapters into common render surfaces only.

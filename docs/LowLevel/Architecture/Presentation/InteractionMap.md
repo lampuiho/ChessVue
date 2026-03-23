@@ -29,7 +29,7 @@ Read-side rule:
 ### Shell Navigation
 - `MenuBar` owns shell-level actions for quick new, custom new, load, save, settings, and delete.
 - `ToolbarStrip`, `MenuToolbarButton`, `TabbedView`, and `TabButton` own the actual shell markup.
-- `GameTabs` owns open-game switching and close actions, with `TabbedView` and `TabButton` handling route-driven tab interaction.
+- `GameTabs` owns open-game switching and close actions, with `TabbedView` and `TabButton` handling generic tab interaction while `GameTabs` maps selection to `/game/:id`.
 - `Router` and `UiStateStore` validate and persist route-level navigation state.
 
 ### Board And Move Input
@@ -46,7 +46,7 @@ Read-side rule:
 - `AnalysisPanel` owns refresh, retry, stop, engine-selection, and analysis-line selection actions.
 - `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
 - `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
-- Each engine group may expose up to `3` visible lines and may be folded independently without changing the other engine groups.
+- Each engine group may expose up to `3` visible lines and may be folded independently through transient per-game UI state without changing the other engine groups.
 
 ### Game Control Interaction
 - `GameControlPanel` is the single source for live-game and setup controls:
@@ -58,13 +58,14 @@ Read-side rule:
   - start game from setup
 - `PanelSurface`, `ButtonGroup`, and `SidePanelButton` own control markup.
 - `PlayerPanel` remains display-focused for players, clocks, and engine status rather than duplicating the same actions.
+- `PlayerPanel` also renders derived captured-material groups for the player strips.
 - `StatusCard` and `ClockDisplay` own player readout markup.
 
 ### Settings And Engine Management
 - `SettingsView` owns settings and engine-inventory workflows.
 - `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`, `SettingsActionButton`, `ItemList`, `InlineMessage`, and `EmptyState` provide the required settings and inventory render building blocks.
 - `SettingsSection` and `EngineInventoryEditor` are template-free adapters over those common form and list components.
-- `TabbedView` and `TabButton` also support top-level settings category switching.
+- `TabbedView` and `TabButton` also support top-level settings category switching, with `SettingsView` mapping selection to `/settings/:category`.
 - `SettingsView` keeps `Cancel`, `Save`, and `Apply` in the primary bottom-right action row, while `Reset` stays in a separate secondary settings action area.
 
 ### Modal And Confirmation Flows

@@ -62,7 +62,7 @@ The detailed behaviour lives in [persistence_contract.md](persistence_contract.m
 ## Routing and Shell Baseline
 | Setting Area | Baseline Decision |
 | --- | --- |
-| Route map | `/home`, `/game/:id`, `/settings` |
+| Route map | `/home`, `/game/:id`, `/settings`, `/settings/:category` |
 | Analysis presentation | Integrated into `GameView` |
 | Tab shell | Hide tab bar when only one game exists |
 | Feature exposure | Only baseline desktop features are assumed to exist |

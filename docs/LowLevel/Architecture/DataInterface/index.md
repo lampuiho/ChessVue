@@ -13,6 +13,7 @@ The types in this folder are the contract-level shapes that state stores and ser
 - [TimeControl](TimeControl.md): time-control config and live clock snapshots.
 - [Engine](Engine.md): configured engines, per-game assignment, and runtime sessions.
 - [Analysis](Analysis.md): streamed engine output and visible analysis snapshots.
+- [ModalState](ModalState.md): typed transient modal kinds and payloads.
 - [PlatformError](PlatformError.md): shared typed platform-layer failure contract.
 - [Appearance](Appearance.md): app theme modes, resolved theme state, and semantic CSS-variable projection.
 

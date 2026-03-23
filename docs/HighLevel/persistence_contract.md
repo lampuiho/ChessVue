@@ -42,7 +42,7 @@ Does not contain:
 Purpose: remember non-modal UI state such as panel visibility and section folding.
 
 Contains:
-- sidebar panel visibility
+- history and analysis panel visibility
 - section fold or collapse state
 - one shared app-shell layout snapshot that is reused across games
 - version metadata for migration
@@ -122,7 +122,7 @@ Only after that game state is restored may live analysis resume.
 - route-level shell restoration
 
 ### UI Layout State Owns
-- remembered non-modal UI state such as panel visibility and section folding
+- remembered non-modal UI state such as history/analysis panel visibility and section folding
 - layout restoration that remains useful even when prior open games are not restored
 
 ### Recent Games Snapshot Owns

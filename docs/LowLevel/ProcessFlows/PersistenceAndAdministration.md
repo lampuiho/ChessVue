@@ -23,7 +23,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 - Requirement verification: `Pass`. Game-state restore happens before live analysis resumes, duplicate IDs are repaired before the recent-entry write, and engine-turn restart stays aligned with the restored live state.
 
 ### SCN-LOAD-02 - Load Invalid/Corrupt Game File
-- Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGame` failure -> `UiStateStore.showModal("importError")`.
+- Public flow: `GamesStore.importGame` -> `FileIoAdapter.loadGame` failure -> `UiStateStore.showModal({ kind: "importError" })`.
 - Private design: `FileIoAdapter._mapFileIoError`; `SerializationService._parseJson` and `_migrateBySchemaVersion` distinguish unsupported and corrupt files.
 - UI surface coverage: import failure uses the shared dialog shell; partial-recovery cases may expose continue or cancel actions, while unrecoverable cases reduce to acknowledge-and-close behaviour.
 - Requirement verification: `Pass`. Failed import does not mutate the current session state.
@@ -32,13 +32,14 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - Public flow: `SettingsStore.updateSettings` -> `SettingsStore.applySettings` or `SettingsStore.saveSettings`.
-- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettingsProjection` -> `_resolveThemeMode` -> `_buildAppearanceProjection`; save uses `_persistSnapshot`; appearance refresh uses `GameView._applyAppearanceProjection`.
-- UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
-- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows `SystemThemeAdapter`, while `light` and `dark` force built-in app themes. The accepted appearance projection includes a reactive semantic CSS-variable map so shared UI chrome updates immediately without a restart.
+- Private design: `SettingsStore._validatePatch` -> `_normaliseEngineInventory` -> `_projectPendingSettings`; apply uses `_applyAcceptedSettingsProjection` -> `_resolveThemeMode` -> `_buildAppearanceProjection`; save uses `_persistSnapshot`; accepted appearance refresh is consumed by the root app-shell appearance host.
+- UI surface coverage: category tabs switch the active settings section, Cancel, Save, and Apply stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
+- Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
+- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows `SystemThemeAdapter`, while `light` and `dark` force built-in app themes. The appearance category also contains layout-related presentation preferences such as `uiScalePercent`, board orientation, coordinate visibility, and last-move highlighting. The accepted appearance projection includes a reactive semantic CSS-variable map so shared UI chrome updates immediately without a restart.
 - Requirement verification: `Pass`. Validation happens before apply or persistence, only committed settings fields are writable, and accepted appearance changes refresh the shared app-theme variables immediately.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
-- Public flow: `UiStateStore.showModal("resetSettings")` -> `SettingsStore.resetSettings`.
+- Public flow: `UiStateStore.showModal({ kind: "resetSettings" })` -> `SettingsStore.resetSettings`.
 - Private design: `SettingsStore._defaultSettings` -> `_resolveThemeMode` -> `_buildAppearanceProjection` -> `_persistSnapshot`; cancel uses `UiStateStore.hideModal`.
 - UI surface coverage: reset is triggered from the secondary settings action area and always routes through the shared confirmation dialog before the default snapshot is applied.
 - Requirement verification: `Pass`. Reset restores the authoritative default schema, reprojects the default appearance state, and persists it atomically.
@@ -56,11 +57,13 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ## Lifecycle Cleanup
 
 ### SCN-LIFECYCLE-01 - Delete Inactive Game
-- Public flow: `UiStateStore.showModal("deleteGame")` -> `GamesStore.deleteGame` -> `UiStateStore.closeTab` -> `UiStateStore.saveGameSession`.
+- Public flow: `UiStateStore.showModal({ kind: "deleteGame" })` -> `GamesStore.deleteGame` -> `UiStateStore.closeTab` -> `UiStateStore.saveGameSession`.
 - Private design: `GamesStore._assertGameExists` -> `_stopGameSessions` -> `_removePersistedDocument`; `UiStateStore._coerceOpenTabs`.
 - Requirement verification: `Pass`. Deletion removes runtime, persistence, and tab state together.
 
 ### SCN-LIFECYCLE-02 - Delete Active Game and Switch Context
-- Public flow: `UiStateStore.showModal("deleteGame")` -> `GamesStore.deleteGame` -> `GamesStore.listGames` -> `UiStateStore.setActiveGame`.
+- Public flow: `UiStateStore.showModal({ kind: "deleteGame" })` -> `GamesStore.deleteGame` -> `GamesStore.listGames` -> `UiStateStore.setActiveGame`.
 - Private design: `GamesStore._selectFallbackGameId` -> `UiStateStore._coerceActiveRoute`; router return uses `_selectFallbackRoute`.
 - Requirement verification: `Pass`. Active-game deletion cannot leave a dangling route or session pointer.
+
+

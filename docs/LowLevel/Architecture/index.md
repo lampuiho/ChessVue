@@ -83,6 +83,7 @@ The low-level design assumes only these routes:
 - `/home`
 - `/game/:id`
 - `/settings`
+- `/settings/:category`
 
 `GameView` hosts board, players, history, analysis, and game controls. A standalone analysis route or view is out of scope.
 
@@ -94,6 +95,7 @@ The data-interface section defines the shared low-level types for:
 - time control and clock snapshots
 - engine inventory, assignment, and runtime sessions
 - analysis snapshots
+- transient modal state
 - appearance projection and semantic app-theme variables
 - shared platform failure contracts
 - persisted artefacts:
@@ -118,7 +120,6 @@ The low-level docs do not introduce:
 - non-UCI protocols
 - browser, WASM, or remote engine transports
 - standalone analysis views
-- engine-vs-engine dedicated modes
 - extra chess variants
 - user-created custom themes, sound settings, recent-game settings, or mobile layout settings
 

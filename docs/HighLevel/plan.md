@@ -54,7 +54,6 @@ That includes, for example:
 - browser or WASM runtimes
 - standalone analysis routes
 - extra rule variants
-- engine-vs-engine mode
 - study extensions such as bookmarks or analysis undo/redo
 
 ## Verification Goals

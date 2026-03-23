@@ -13,6 +13,6 @@ Render one named block of settings controls with local heading, description, and
 - none directly
 
 ## Notes
-- `SettingsView` uses `SettingsSection` to separate session, gameplay, appearance, layout, and engine settings.
+- `SettingsView` uses `SettingsSection` to separate session, gameplay, appearance, and engine settings.
 - The section wrapper keeps settings markup readable without owning field behaviour.
 - `SettingsSection` contains no HTML or template markup and adapts one settings group into common form-section components.

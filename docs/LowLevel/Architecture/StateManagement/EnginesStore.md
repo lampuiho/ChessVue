@@ -25,7 +25,7 @@ removeSessionsForEngine(engineId: string): Promise<void>
 
 ## Responsibilities
 - read engine inventory from `SettingsStore`
-- mutate the engine inventory through `SettingsStore` while keeping runtime sessions coherent
+- validate and reconcile engine inventory changes through `SettingsStore` while keeping runtime sessions coherent
 - enforce the four-engine analysis cap
 - keep sessions isolated by game and role
 - mark unavailable or failed engines without stopping unrelated sessions
@@ -40,6 +40,7 @@ removeSessionsForEngine(engineId: string): Promise<void>
 - `startAnalysis` supports `liveGame`, `historyReview`, `inGameAnalysis`, `freeAnalysisSetup`, paused live review, and finished-game review because analysis is read-only with respect to live progression.
 - `startAnalysis` is blocked when the workspace is actively in `boardEdit`.
 - `startPlayerTurn` is a strict preconditioned call for `liveGame + currentPosition + ongoing + not paused` only. It must reject or no-op for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused games, expired clocks, and final result states.
+- `startPlayerTurn` does not distinguish `human/engine` from `engine/engine`; it only checks the live-state gate and the side-to-move assignment.
 - Analysis-runtime restart after restore follows the caller's `analysis.resumeLiveAnalysisAfterRestore` decision; `EnginesStore` does not override that policy.
 
 ## Dependencies
