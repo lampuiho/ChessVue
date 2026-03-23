@@ -21,16 +21,16 @@ setSectionCollapsed(section: "history" | "analysis", isCollapsed?: boolean): voi
 getModalState(): IAppModalState | null
 showModal(modal: IAppModalState): void
 hideModal(): void
-getAnalysisEngineViewState(gameId: string): Record<string, IAnalysisEngineViewState>
-setAnalysisEngineCollapsed(gameId: string, engineId: string, isCollapsed?: boolean): void
+getAnalysisEngineExpandedByIndex(): boolean[]
+setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 ```
 
 ## Responsibilities
 - restore game-session shell state across launches when that behaviour is enabled by settings
 - restore remembered UI layout state independently from game-session restore
-- persist remembered panel visibility and fold state as one app-level layout snapshot, including per-game analysis-engine fold groups inside that shared UI-layout payload
+- persist remembered panel visibility and fold state as one app-level layout snapshot, including analysis-engine fold state by global visible-row index
 - own typed transient modal and confirmation prompts without persisting them
-- own remembered per-game analysis engine fold state inside the shared layout snapshot
+- own remembered analysis-engine fold state inside the shared layout snapshot without introducing extra game-linked layout keys
 - exclude recent-game history from UI/session ownership
 - exclude conscious user settings from session ownership
 - exclude modal visibility and other transient UI prompts from persistence
@@ -57,4 +57,4 @@ setAnalysisEngineCollapsed(gameId: string, engineId: string, isCollapsed?: boole
 - `UiStateStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.
 - `loadLayoutState()` still runs when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
-- `setAnalysisEngineCollapsed(...)` writes per-game analysis-engine fold state into `IUiLayoutState`, which remains UI-owned even though parts of the fold map are keyed by game.
+- `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by global visible-row index, so layout persistence stays game-agnostic apart from tab/session ownership.

@@ -12,6 +12,7 @@ Define the canonical workspace model used by `GamesStore`, related services, and
 - `type PlayerType = "local" | "engine"`
 
 ## Interfaces
+- `interface IDrawOfferState`
 - `interface IPlayerSlot`
 - `interface ICapturedPieceGroup`
 - `interface IGameMetadata`
@@ -22,6 +23,12 @@ Define the canonical workspace model used by `GamesStore`, related services, and
 
 ## Data Structures
 ```ts
+interface IDrawOfferState {
+  offeringColour: PlayerColour
+  respondingColour: PlayerColour
+  direction: "incoming" | "outgoing"
+}
+
 interface IPlayerSlot {
   colour: PlayerColour
   type: PlayerType
@@ -49,6 +56,7 @@ interface IGameWorkspace {
   clockState: ClockStateKind
   resultState: ResultState
   resultReason: ResultReason
+  drawOfferState: IDrawOfferState | null
   whitePlayer: IPlayerSlot | null
   blackPlayer: IPlayerSlot | null
   boardRoot: IBoardPosition
@@ -92,7 +100,9 @@ interface IReassignPlayerRequest {
 - `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
 - `boardEdit` is valid only inside `freeAnalysisSetup`.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
+- `drawOfferState` records one unresolved draw offer for the current live workspace and is persisted with the workspace so non-local pending-offer UI can be restored accurately.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGameWorkspace`.
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
+- `drawOfferState` is cleared when the draw is accepted or declined, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
 - `IReassignPlayerRequest` is seat-selection data only. Fresh live-game settings for restarting from setup belong to `IStartGameFromSetupRequest`.

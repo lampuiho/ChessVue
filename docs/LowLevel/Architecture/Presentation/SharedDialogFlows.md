@@ -33,6 +33,6 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 
 ## Coverage Notes
 - Draw flow is intentionally split into `drawOffer` and `drawResolve` so the baseline local-versus-local response step is visible in design.
-- Non-local opponents skip the dialog-hosted response step and instead use the draw control's pending-offer indicator for incoming offers, where the lit state switches the next `Draw` press into an immediate accept action.
+- Non-local opponents skip the dialog-hosted response step and instead use the draw control's LED-like pending-offer indicator for incoming offers, where the lit state switches the next `Draw` press into an immediate accept action.
 - Timeout, dirty-exit, and blocked-action dialogs are notifications or confirmations only; they do not move business logic into presentation.
 - The same dialog shell keeps placement and action-row conventions consistent across gameplay, setup, settings, and lifecycle flows.

@@ -46,7 +46,7 @@ Read-side rule:
 - `AnalysisPanel` owns refresh, retry, stop, per-game analysis-engine add and remove, and analysis-line selection actions, with `+` on the panel title row and `-` on each engine title row.
 - `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
 - `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
-- Each engine group may expose up to `3` visible lines and may be folded independently through transient per-game UI state without changing the other engine groups.
+- Each engine group may expose up to `3` visible lines and may be folded independently through remembered UI state keyed by visible-row index without changing the other engine groups.
 
 ### Game Control Interaction
 - `GameControlPanel` is the single source for live-game and setup controls:
@@ -72,7 +72,7 @@ Read-side rule:
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
 - [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, local-local draw offer, local-local draw resolve, timeout, dirty-exit, delete, reset, import-error, prune, and blocked board-edit coverage.
-- Non-local draw responses stay on the `GameControlPanel` control surface through its pending-offer indicator instead of opening a shared dialog.
+- Non-local draw responses stay on the `GameControlPanel` control surface through its LED-like pending-offer indicator instead of opening a shared dialog.
 - `NewGameModal` remains the dedicated form component for `newGame` instead of being folded into the generic shared-dialog flow table.
 
 ## Building Block Verification

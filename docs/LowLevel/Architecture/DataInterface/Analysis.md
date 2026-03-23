@@ -7,7 +7,6 @@ Define the streamed analysis payloads stored for a game, engine, and position.
 - `interface IAnalysisLine`
 - `interface IAnalysisSnapshot`
 - `interface IVisibleAnalysisSnapshot`
-- `interface IAnalysisEngineViewState`
 
 ## Data Structures
 ```ts
@@ -33,15 +32,11 @@ interface IVisibleAnalysisSnapshot {
   engineSnapshots: IAnalysisSnapshot[]
 }
 
-interface IAnalysisEngineViewState {
-  engineId: string
-  isCollapsed: boolean
-}
 ```
 
 ## Rules
 - `AnalysisStore` keeps the latest valid snapshot independently for each engine.
 - Parse failures discard only the bad message.
 - Visible analysis is runtime state only and is not persisted inside the saved game payload.
-- `IAnalysisEngineViewState` is UI-owned state for per-engine fold behaviour and is persisted through `IUiLayoutState` rather than through the saved game payload.
+- Analysis-engine fold behaviour is UI-owned state persisted through `IUiLayoutState` by visible-row index rather than through the saved game payload.
 - Engine-facing updates are normalised into ChessVue move structures before they are stored here.

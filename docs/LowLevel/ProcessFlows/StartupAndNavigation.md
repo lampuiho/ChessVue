@@ -14,7 +14,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - Public flow: `SettingsStore.loadSettings` -> `SettingsStore.getAppearanceProjection` -> `UiStateStore.loadLayoutState` -> conditional `UiStateStore.loadGameSession` -> `GamesStore.restorePersistedGames(session.openGameIds)` -> `UiStateStore.setActiveGame` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> router restore.
 - Private design: `UiStateStore._loadStoredLayoutState` -> `_coerceLayoutState`; conditional `UiStateStore._loadStoredGameSession` -> `_coerceOpenTabs` -> `_coerceActiveRoute`; `GamesStore._loadRequestedDocuments` -> `_hydrateWorkspace` -> `_repairMissingActiveGame`; `Router._restoreReturnRoute`.
 - State/settings coverage: `session.restorePreviousSession` gates whether the stored game-session snapshot is used to reopen tabs and the active route. `UiStateStore.loadLayoutState` still runs independently so panel visibility and fold state can be restored even when the prior game session is skipped. When a game is restored, `analysis.resumeLiveAnalysisAfterRestore` gates whether continuous analysis restarts after the persisted game state is shown. The appearance projection is resolved before routed surfaces bind to app chrome, and later system-theme changes reproject appearance only when `appearance.themeMode = system`.
-- Requirement verification: `Pass`. Game-session restore is isolated from settings and layout restore, respects the restore setting, resolves theme state before routed chrome binds, and repairs invalid `activeGameId` values before routing.
+- Requirement verification: `Pass`. Game-session restore is isolated from settings and layout restore, respects the restore setting, resolves theme state before routed chrome binds, and repairs invalid `activeGameId` values for selected open tabs before routing.
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
 - Public flow: `SettingsStore.loadSettings` -> `UiStateStore.loadLayoutState` -> conditional `UiStateStore.loadGameSession` -> `RecentGameStore.loadRecentGames` -> `GamesStore.restorePersistedGames`.
@@ -56,7 +56,3 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - Private design: `RecentGameStore._loadStoredSnapshot` -> `_sortMostRecentFirst`; `RecentGameStore._openAutosavedGame` uses `StorageAdapter.getGame` -> `GamesStore.insertGame`, while `RecentGameStore._openManualFileGame` uses `FileIoAdapter.loadGameFromPath` -> `GamesStore.insertGame`; stale-entry cleanup uses `RecentGameStore._dropStaleEntry`.
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
 - Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references can be removed without breaking the centred home layout.
-
-
-
-

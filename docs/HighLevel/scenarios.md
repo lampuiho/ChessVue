@@ -811,7 +811,7 @@ Each scenario in this document uses the same structure:
   2. If the current game is local player versus local player, app opens a shared confirmation dialog for the offer intent.
   3. After a confirmed local-local offer, the store records the offer and app opens a shared draw-resolution dialog for the opposing local side.
   4. If the opponent is non-local, app records the offer without using a dialog-hosted response step.
-  5. When an incoming non-local draw offer is pending, the draw control shows a pending-offer indicator light.
+  5. When an incoming non-local draw offer is pending, the game workspace records that unresolved offer and the draw control shows a small LED-like pending-offer indicator light.
   6. If the user presses `Draw` while that incoming-offer indicator is lit, app accepts immediately and the game is drawn.
 - **Branch Paths**:
   - `BR-CTRL-03-CANCEL`: User cancels the local-local offer confirmation -> no draw offer is recorded.
@@ -879,7 +879,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-SAVE-01-WRITE-FAIL`: Storage write fails -> keep in-memory state and mark dirty for retry.
   - `BR-SAVE-01-THROTTLE`: Rapid changes are batched/debounced to avoid excessive writes.
--- **Postconditions**: Persistence is eventually consistent without blocking UX, and a later restore can reproduce the same game workspace state without blocking on UI or engine snapshots.
+- **Postconditions**: Persistence is eventually consistent without blocking UX, and a later restore can reproduce the same game workspace state without blocking on UI or engine snapshots.
 - **Function Touchpoints**:
   - `GamesStore.saveGame`
   - `RecentGameStore.recordAutosavedGame`

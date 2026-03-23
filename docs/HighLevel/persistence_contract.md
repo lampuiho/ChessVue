@@ -43,7 +43,7 @@ Purpose: remember non-modal UI state such as panel visibility and foldable-secti
 
 Contains:
 - history and analysis panel visibility
-- fold state for all committed foldable sections, including shared history and analysis panels plus per-game analysis-engine groups
+- fold state for all committed foldable sections, including shared history and analysis panels plus analysis-engine groups by global visible-row index
 - one shared app-shell layout snapshot that is reused across games
 - version metadata for migration
 
@@ -83,7 +83,7 @@ This is the canonical persisted game payload for both:
 Contains:
 - game identity and timestamps
 - player slots and per-game engine assignment
-- workspace kind and result state
+- workspace kind, result state, and unresolved draw-offer state when present
 - board root, move tree, current live node, and current visible node
 - clock configuration and current clock snapshot
 - schema version metadata
@@ -113,6 +113,7 @@ Only after that game state is restored may live analysis resume.
 - move tree and live/mainline markers
 - free-analysis versus live-game state
 - clock state and timing metadata
+- unresolved draw-offer state for the live workspace when one exists
 - per-game engine assignment
 - visible node and interaction context that are part of the game workspace
 

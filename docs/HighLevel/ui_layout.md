@@ -142,7 +142,7 @@ The baseline desktop sidebar behaviour is:
 
 - `HistoryPanel` and `AnalysisPanel` are both visible by default
 - each panel is independently foldable or collapsible
-- fold state for all committed foldable sections belongs to remembered app-level layout persistence, including shared panels and per-game analysis-engine groups
+- fold state for all committed foldable sections belongs to remembered app-level layout persistence, including shared panels and analysis-engine groups by global visible-row index
 - the foldable behaviour should feel closer to a desktop explorer or debug sidebar than to full-screen tab switching
 - collapsing one panel must not move the sidebar into a different column arrangement
 - `GameControlPanel` remains the bottom region of the sidebar and is the main location for committed gameplay actions
@@ -178,7 +178,7 @@ Example collapsed analysis state:
 - show up to `3` visible lines per engine, foldable per engine
 - per-engine-title `-` action on the right for removing that engine from the current game
 - Each engine can be folded by clicking the chevron to the left of the engine name
-- Per-engine fold state is remembered through the shared persisted app-shell layout snapshot as per-game analysis-engine group state
+- Per-engine fold state is remembered through the shared persisted app-shell layout snapshot by visible engine-row index; missing entries default to expanded
 
 
 ## Player Strip Design
@@ -343,7 +343,7 @@ Named baseline uses:
 - analysis dirty exit: shared keep or discard dialog before leaving in-game analysis with retained exploratory work
 - delete-game confirmation: shared danger-focused confirmation dialog before removal
 - blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
-- non-local draw offers do not use a dialog-hosted response step; the `GameControlPanel` draw control shows a small pending-offer indicator instead, and the lit state means the next `Draw` press accepts immediately
+- non-local draw offers do not use a dialog-hosted response step; the `GameControlPanel` draw control shows a small LED-like pending-offer indicator instead, and the lit state means the next `Draw` press accepts immediately
 
 ## Contract Alignment
 This layout contract is consistent with the existing high-level baseline:
@@ -351,7 +351,7 @@ This layout contract is consistent with the existing high-level baseline:
 - desktop-first layout from [build_settings.md](build_settings.md)
 - integrated `GameView` analysis workspace from [architecture.md](architecture.md)
 - remembered app-level panel visibility and foldable-section state from [persistence_contract.md](persistence_contract.md)
-Remembered UI state may hide, show, or collapse the shared history and analysis panels without redefining the baseline parent layout regions described here. Per-engine analysis-group folding is also remembered through that same UI-layout state.
+Remembered UI state may hide, show, or collapse the shared history and analysis panels without redefining the baseline parent layout regions described here. Per-engine analysis-group folding is also remembered through that same UI-layout state by visible-row index.
 
 ## Non-Goals
 This document does not define:
