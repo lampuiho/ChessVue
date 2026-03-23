@@ -135,5 +135,6 @@ type IAppModalState =
 - The modal contract exists to replace untyped string IDs and generic payload bags at the store boundary.
 - Dirty-settings-leave and dirty-analysis-exit prompts are part of the committed baseline modal contract because those branches already exist in the high-level scenarios.
 - Player-selection and analysis-engine selection are part of the committed baseline modal contract because both flows are explicitly routed through shared dialog surfaces.
-- `drawOffer` and `drawResolve` remain separate modal kinds so the baseline offer step and local-opponent response step stay explicit instead of being hidden inside one store call.
+- `drawOffer` and `drawResolve` remain separate modal kinds so the baseline local-versus-local offer step and response step stay explicit instead of being hidden inside one store call.
+- Non-local engine and future remote draw responses do not require a modal; they surface through the draw-control pending-offer indicator while still being allowed to call `resolveDrawOffer` if an external response channel ever exists.
 - `playerSelection` only captures the new seat assignment target. Fresh game settings for a later live restart remain part of `startGameFromSetup`.

@@ -334,8 +334,8 @@ Named baseline uses:
 - analysis-engine selection: shared dialog shell for choosing an unassigned engine profile for the current game
 - prune confirmation: danger-focused confirmation dialog
 - resign confirmation: danger-focused confirmation dialog
-- draw offer: shared confirmation dialog before the offer is recorded
-- draw resolve: shared accept or decline dialog when the opponent is local
+- draw offer: shared confirmation dialog before the offer is recorded for local player versus local player only
+- draw resolve: shared accept or decline dialog for the opposing local side in local player versus local player only
 - timeout notification: acknowledge dialog after timeout finalisation
 - reset-settings confirmation: confirm or cancel reset from the settings secondary action area
 - invalid-load error or recover prompt: error dialog with continue or cancel when partial recovery is allowed
@@ -343,8 +343,9 @@ Named baseline uses:
 - analysis dirty exit: shared keep or discard dialog before leaving in-game analysis with retained exploratory work
 - delete-game confirmation: shared danger-focused confirmation dialog before removal
 - blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
+- engine-controlled and future remote draw offers do not use a dialog-hosted response step; the `GameControlPanel` draw control shows a small pending-offer indicator instead
 
-## Contract Alignment## Contract Alignment
+## Contract Alignment
 This layout contract is consistent with the existing high-level baseline:
 
 - desktop-first layout from [build_settings.md](build_settings.md)
@@ -352,7 +353,7 @@ This layout contract is consistent with the existing high-level baseline:
 - remembered app-level panel visibility and shared panel collapse state from [persistence_contract.md](persistence_contract.md)
 Remembered UI state may hide, show, or collapse the shared history and analysis panels without redefining the baseline parent layout regions described here. Per-engine analysis-group folding remains transient runtime state.
 
-## Non-Goals## Non-Goals
+## Non-Goals
 This document does not define:
 
 - final padding or gap values
@@ -362,3 +363,6 @@ This document does not define:
 - internal markup structure for shared render components
 
 Those details belong to the later low-level design and implementation work.
+
+
+

@@ -808,15 +808,15 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Control panel `Offer Draw`.
 - **Main Steps**:
   1. User clicks `Offer Draw`.
-  2. App opens a shared confirmation dialog for the offer intent.
-  3. If the user confirms, the store records the draw offer.
-  4. If the opponent is local, app opens a shared draw-resolution dialog with `Accept` and `Decline`.
-  5. If the opponent is engine-controlled, the store resolves the response path without a second local-player dialog and reports the outcome back to the UI.
-  6. If accepted, the game result is set to draw and persisted.
+  2. If the current game is local player versus local player, app opens a shared confirmation dialog for the offer intent.
+  3. After a confirmed local-local offer, the store records the offer and app opens a shared draw-resolution dialog for the opposing local side.
+  4. If the opponent is engine-controlled or is a future remote seat, app records the offer without using a dialog-hosted response step.
+  5. When a non-local side later presents an incoming draw offer, the draw control shows a pending-offer indicator light.
+  6. If the user presses `Draw` while that incoming-offer indicator is lit, app accepts immediately and the game is drawn.
 - **Branch Paths**:
-  - `BR-CTRL-03-CANCEL`: User cancels the offer confirmation -> no draw offer is recorded.
-  - `BR-CTRL-03-DECLINED`: Draw declined -> game continues.
-  - `BR-CTRL-03-ENGINE-UNAVAILABLE`: Engine-controlled opponent cannot resolve immediately -> keep game ongoing and show unavailable feedback.
+  - `BR-CTRL-03-CANCEL`: User cancels the local-local offer confirmation -> no draw offer is recorded.
+  - `BR-CTRL-03-DECLINED`: Local opponent declines in the draw-resolution dialog -> game continues.
+  - `BR-CTRL-03-ENGINE-UNAVAILABLE`: Engine-controlled opponent cannot signal a response -> keep game ongoing and leave the external-response API unused.
   - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Function Touchpoints**:
@@ -825,8 +825,6 @@ Each scenario in this document uses the same structure:
   - `GamesStore.offerDraw`
   - `GamesStore.resolveDrawOffer`
   - `GamesStore.saveGame`
-
-
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Planned
 - **Goal**: Enter a mode from an active game where the user controls both sides for exploration without progressing the live game.

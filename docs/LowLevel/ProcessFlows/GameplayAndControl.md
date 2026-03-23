@@ -111,11 +111,11 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Requirement verification: `Pass`. Confirmation and final result persistence are both covered.
 
 ### SCN-CTRL-03 - Draw Offer Flow
-- Public flow: `GameControlPanel.drawRequested` -> `UiStateStore.showModal({ kind: "drawOffer" })` -> `GamesStore.offerDraw` -> local-opponent branch `UiStateStore.showModal({ kind: "drawResolve" })` -> `GamesStore.resolveDrawOffer` -> conditional `GamesStore.saveGame`.
-- Private design: `GamesStore._assertResultMutable` -> `_captureDrawOfferContext` -> `_throttleRepeatedDrawOffer` -> `_resolveLocalDrawOffer` or `_resolveEngineDrawOffer` -> optional `_finaliseResult("drawn", "drawAgreement")` -> `_persistWorkspace`.
-- UI surface coverage: both the offer confirmation and the local-opponent accept-or-decline step use the shared dialog shell. Engine-controlled response stays store-owned and only reports the resulting accepted, declined, or unavailable outcome back to the UI.
-- Requirement verification: `Pass`. The baseline keeps the offer step and response step explicit while still allowing engine-controlled resolution to remain store-owned.
-
+- Public flow: local-local branch `GameControlPanel.drawRequested` -> `UiStateStore.showModal({ kind: "drawOffer" })` -> `GamesStore.offerDraw` -> `UiStateStore.showModal({ kind: "drawResolve" })` -> `GamesStore.resolveDrawOffer` -> conditional `GamesStore.saveGame`; engine or future-remote branch `GameControlPanel.drawRequested` -> `GamesStore.offerDraw` -> pending incoming-offer indicator on `GameControlPanel` -> later `GameControlPanel.drawRequested` or external callback -> `GamesStore.resolveDrawOffer` -> conditional `GamesStore.saveGame`.
+- Private design: `GamesStore._assertResultMutable` -> `_captureDrawOfferContext` -> `_throttleRepeatedDrawOffer` -> local-local `_openDrawOfferPrompt` and `_openLocalDrawResolvePrompt` or non-local `_markPendingExternalDrawOffer` -> optional `_resolveExternalDrawOffer` -> optional `_finaliseResult("drawn", "drawAgreement")` -> `_persistWorkspace`.
+- UI surface coverage: local player versus local player uses the shared dialog shell for both the initial offer confirmation and the opposing local side's accept-or-decline step. Engine-controlled and future remote seats do not use a dialog-hosted response step; instead, the draw control shows a pending-offer indicator light when an incoming non-local draw offer is waiting and the next draw press accepts immediately.
+- Integration note: `resolveDrawOffer` remains a public store boundary for any future engine or remote callback even if the underlying adapter never emits that callback. If UCI exposes no draw-response message, the adapter may simply never call the boundary.
+- Requirement verification: `Pass`. The baseline keeps local-local resolution explicit while letting engine and future remote participants share the indicator-based offer model.
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - Public flow: `GamesStore.enterInGameAnalysis` -> analysis moves continue through `GamesStore.makeMove` -> `GamesStore.exitInGameAnalysis`.
 - Private design: entry uses `_assertInGameAnalysisAllowed` -> `_pauseForAnalysisEntry` -> `_cloneAnalysisContext`; exit uses `_promptForDirtyAnalysisExitIfNeeded` -> `UiStateStore.showModal({ kind: "analysisExitDirty", payload: { gameId } })` -> `_restoreLiveNode` -> `_resumeAfterAnalysisIfOwned`.
@@ -128,3 +128,5 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Private design: `GamesStore._assertBoardEditAllowed` returns a reason token; `UiStateStore` owns the explanatory prompt.
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
+
+

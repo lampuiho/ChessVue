@@ -71,7 +71,8 @@ Read-side rule:
 
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
-- [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, draw offer, draw resolve, timeout, dirty-exit, delete, reset, import-error, prune, and blocked board-edit coverage.
+- [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, local-local draw offer, local-local draw resolve, timeout, dirty-exit, delete, reset, import-error, prune, and blocked board-edit coverage.
+- Engine-controlled and future remote draw responses stay on the `GameControlPanel` control surface through its pending-offer indicator instead of opening a shared dialog.
 - `NewGameModal` remains the dedicated form component for `newGame` instead of being folded into the generic shared-dialog flow table.
 
 ## Building Block Verification
@@ -90,3 +91,4 @@ The common layer is complete for the current baseline when it can render:
 - Feature components own one interaction surface each and contain no template markup.
 - Common components handle all render markup, layout, form, tab, dialog, and button behaviour.
 - Repeated structures should be extracted into common render building blocks before large nested templates form.
+
