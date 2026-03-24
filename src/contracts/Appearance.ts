@@ -18,13 +18,11 @@ export interface IAppearanceCssVariableMap {
   '--danger': string
   '--focus-ring': string
 }
-
 export interface IAppearanceProjection {
   themeMode: ThemeMode
   resolvedThemeMode: ResolvedThemeMode
   cssVariables: IAppearanceCssVariableMap
 }
-
 export const resolvedThemeModeSchema = z.enum(resolvedThemeModes)
 export const appearanceCssVariableMapSchema = z.object({
   '--surface-app': z.string(),

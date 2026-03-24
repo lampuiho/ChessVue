@@ -7,7 +7,6 @@ export function parseUtc(utc: string): number {
 
   return parsed
 }
-
 export function getElapsedMs(startUtc: string, endUtc: string): number {
   return Math.max(0, parseUtc(endUtc) - parseUtc(startUtc))
 }

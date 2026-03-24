@@ -5,12 +5,10 @@ import { moveSchema, type IMove } from './Move'
 export const enum EngineProtocol {
   Uci = 'uci',
 }
-
 export const enum EngineRole {
   Player = 'player',
   Analysis = 'analysis',
 }
-
 export const enum EngineAvailability {
   Ready = 'ready',
   Starting = 'starting',
@@ -18,11 +16,9 @@ export const enum EngineAvailability {
   Unavailable = 'unavailable',
   Failed = 'failed',
 }
-
 export const enum EngineSearchMode {
   Infinite = 'infinite',
 }
-
 export const enum EngineSessionEventKind {
   HandshakeStarted = 'handshakeStarted',
   HandshakeCompleted = 'handshakeCompleted',
@@ -53,7 +49,6 @@ export const engineSessionEventKinds = [
 export interface IEngineOptionMap {
   [optionName: string]: string | number | boolean
 }
-
 export interface IEngineRecord {
   id: string
   displayName: string
@@ -61,7 +56,6 @@ export interface IEngineRecord {
   protocol: EngineProtocol
   options: IEngineOptionMap
 }
-
 export interface IAssignedEngine {
   assignedEngineId: string
   sourceProfileId: string | null
@@ -70,18 +64,15 @@ export interface IAssignedEngine {
   protocol: EngineProtocol
   options: IEngineOptionMap
 }
-
 export interface IAnalysisAssignment {
   assignedEngines: IAssignedEngine[]
 }
-
 export interface IEnginePositionState {
   rootPosition: IBoardPosition
   movesFromRoot: IMove[]
   currentPosition: IBoardPosition
   requiresNewGameBoundary: boolean
 }
-
 export interface IEngineRuntimeSession {
   sessionId: string
   gameId: string
@@ -91,23 +82,19 @@ export interface IEngineRuntimeSession {
   targetPositionState: IEnginePositionState | null
   lastError: string | null
 }
-
 export interface IEngineAnalysisRequest {
   multiPv: number
   searchMode: EngineSearchMode
 }
-
 export interface IEngineRegistrationRequest {
   name: string | null
   code: string | null
   registerLater: boolean
 }
-
 export interface IEngineSessionEvent {
   kind: EngineSessionEventKind
   detail: string | null
 }
-
 export const engineProtocolSchema = z.enum(engineProtocols)
 export const engineRoleSchema = z.enum(engineRoles)
 export const engineAvailabilitySchema = z.enum(engineAvailabilities)

@@ -1,1 +1,1 @@
-export * from './SerializationError'
+export * from '@/domain/errors/SerializationError';

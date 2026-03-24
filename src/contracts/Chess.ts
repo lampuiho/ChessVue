@@ -14,7 +14,6 @@ export const enum PlayerColour {
   White = 'white',
   Black = 'black',
 }
-
 export type SquareId = (typeof squareIds)[number]
 
 export const enum PieceKind {
@@ -39,7 +38,6 @@ export interface IChessPiece {
   kind: PieceKind
   colour: PlayerColour
 }
-
 export const playerColourSchema = z.enum(playerColours)
 export const pieceKindSchema = z.enum(pieceKinds)
 export const squareIdSchema = z.enum(squareIds)

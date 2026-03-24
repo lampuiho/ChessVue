@@ -1,6 +1,6 @@
-import { PlayerColour, TimeControlPreset, type IClockSnapshot, type ITimeControl } from '../Contracts'
+import { PlayerColour, TimeControlPreset, type IClockSnapshot, type ITimeControl } from '../../contracts'
 
-import { getElapsedMs } from '../Internal/Utc'
+import { getElapsedMs } from '../internal/Utc'
 
 function cloneClockSnapshot(snapshot: IClockSnapshot): IClockSnapshot {
   return {
@@ -37,7 +37,6 @@ function materialiseElapsed(snapshot: IClockSnapshot, nowUtc: string): IClockSna
 
   return nextSnapshot
 }
-
 export const TimeControlService = {
   initialiseClockSnapshot(timeControl: ITimeControl): IClockSnapshot {
     if (isUntimed(timeControl)) {

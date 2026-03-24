@@ -1,6 +1,6 @@
-import { MoveBranchKind, type IBoardPosition, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree } from '../Contracts'
+import { MoveBranchKind, type IBoardPosition, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree } from '../../contracts'
 
-import { createMoveTreeNodeId } from '../Internal/MoveTreeId'
+import { createMoveTreeNodeId } from '../internal/MoveTreeId'
 
 function cloneNode(node: IMoveNode): IMoveNode {
   return {
@@ -92,7 +92,6 @@ function getCurrentMainlineLeaf(tree: IMoveTree): IMoveNode {
 
   return currentNode
 }
-
 export const MoveUpdateService = {
   createMoveTree(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree {
     const rootId = createMoveTreeNodeId()

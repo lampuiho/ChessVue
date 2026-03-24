@@ -10,9 +10,9 @@ import {
   type IRecentGamesSnapshot,
   type ISettingsSnapshot,
   type IUiLayoutState,
-} from '../Contracts'
-import { SerializationError } from '../Errors/SerializationError'
-import { normaliseBoardPosition } from '../Internal/Board'
+} from '../../contracts'
+import { SerializationError } from '../errors/SerializationError'
+import { normaliseBoardPosition } from '../internal/Board'
 
 function parseJson(raw: string): unknown {
   try {
@@ -183,7 +183,6 @@ function migrateGame(input: unknown): IGameWorkspace {
   validateWorkspace(workspace)
   return workspace
 }
-
 export const SerializationService = {
   serialiseSettings(snapshot: ISettingsSnapshot): string {
     return JSON.stringify(parseWithSchema('Settings', (value) => settingsSnapshotSchema.parse(value), snapshot), null, 2)

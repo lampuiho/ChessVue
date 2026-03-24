@@ -8,7 +8,6 @@ export interface ICastlingAvailability {
   blackKingSide: boolean
   blackQueenSide: boolean
 }
-
 export interface IBoardPosition {
   piecesBySquare: Partial<Record<SquareId, IChessPiece>>
   sideToMove: PlayerColour
@@ -18,7 +17,6 @@ export interface IBoardPosition {
   fullMoveNumber: number
   fen: string
 }
-
 export const castlingAvailabilitySchema = z.object({
   whiteKingSide: z.boolean(),
   whiteQueenSide: z.boolean(),

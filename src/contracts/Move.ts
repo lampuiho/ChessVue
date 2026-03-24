@@ -25,7 +25,6 @@ export interface IMove {
   san: string
   uci: string
 }
-
 export interface IMoveNode {
   id: string
   parentId: string | null
@@ -37,12 +36,10 @@ export interface IMoveNode {
   plyIndex: number
   mainlineChildId: string | null
 }
-
 export interface IMoveTree {
   rootId: string
   nodeById: Record<string, IMoveNode>
 }
-
 export const moveKindSchema = z.enum(moveKinds)
 export const moveBranchKindSchema = z.enum(moveBranchKinds)
 

@@ -15,12 +15,10 @@ export interface ITimeControl {
   initialMs: number | null
   incrementMs: number
 }
-
 export interface IPlayerClock {
   remainingMs: number | null
   isRunning: boolean
 }
-
 export interface IClockSnapshot {
   white: IPlayerClock
   black: IPlayerClock
@@ -29,7 +27,6 @@ export interface IClockSnapshot {
   pausedAtUtc: string | null
   lastMoveAtUtc: string | null
 }
-
 export const timeControlPresetSchema = z.enum(timeControlPresets)
 export const timeControlSchema = z.object({
   preset: timeControlPresetSchema.nullable(),

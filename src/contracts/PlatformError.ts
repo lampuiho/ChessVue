@@ -16,7 +16,6 @@ export interface IPlatformError {
   message: string
   detail: string | null
 }
-
 export const platformErrorKindSchema = z.enum(platformErrorKinds)
 
 export const platformErrorSchema = z.object({

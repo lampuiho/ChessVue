@@ -25,7 +25,6 @@ export interface IGameSessionSnapshot {
   activeGameId: string | null
   activeRoute: '/home' | `/game/${string}` | `/settings/${SettingsCategory}`
 }
-
 export const settingsCategorySchema = z.enum(settingsCategories)
 export const activeRouteSchema = z.string().regex(/^\/home$|^\/game\/.+$|^\/settings\/(session|gameplay|appearance|engines)$/)
 

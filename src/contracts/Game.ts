@@ -9,21 +9,18 @@ export const enum WorkspaceKind {
   LiveGame = 'liveGame',
   FreeAnalysisSetup = 'freeAnalysisSetup',
 }
-
 export const enum InteractionContext {
   CurrentPosition = 'currentPosition',
   HistoryReview = 'historyReview',
   InGameAnalysis = 'inGameAnalysis',
   BoardEdit = 'boardEdit',
 }
-
 export const enum ClockStateKind {
   None = 'none',
   Running = 'running',
   Paused = 'paused',
   Expired = 'expired',
 }
-
 export const enum ResultState {
   Ongoing = 'ongoing',
   Drawn = 'drawn',
@@ -31,7 +28,6 @@ export const enum ResultState {
   BlackWon = 'blackWon',
   Abandoned = 'abandoned',
 }
-
 export const enum ResultReason {
   RuleResolved = 'ruleResolved',
   Timeout = 'timeout',
@@ -39,12 +35,10 @@ export const enum ResultReason {
   DrawAgreement = 'drawAgreement',
   Abandoned = 'abandoned',
 }
-
 export const enum PlayerType {
   Local = 'local',
   Engine = 'engine',
 }
-
 export const enum DrawOfferDirection {
   Incoming = 'incoming',
   Outgoing = 'outgoing',
@@ -62,30 +56,25 @@ export interface IDrawOfferState {
   respondingColour: PlayerColour
   direction: DrawOfferDirection
 }
-
 export interface IPlayerSlot {
   colour: PlayerColour
   type: PlayerType
   displayName: string
   assignedEngine: IAssignedEngine | null
 }
-
 export interface ICapturedPieceGroup {
   pieceKind: PieceKind
   count: number
 }
-
 export interface IGameMetadata {
   id: string
   name: string
   createdAt: string
   updatedAt: string
 }
-
 export interface ILiveAnalysisOptions {
   showLiveAnalysisMoves: boolean
 }
-
 export interface IGameWorkspace {
   schemaVersion: number
   metadata: IGameMetadata
@@ -106,7 +95,6 @@ export interface IGameWorkspace {
   liveAnalysisOptions: ILiveAnalysisOptions
   analysisAssignment: IAnalysisAssignment
 }
-
 export interface ICreateGameRequest {
   name: string
   whitePlayerType: PlayerType | null
@@ -118,7 +106,6 @@ export interface ICreateGameRequest {
   timeControl: ITimeControl
   boardRoot?: IBoardPosition
 }
-
 export interface IStartGameFromSetupRequest {
   name?: string
   whitePlayerType: PlayerType
@@ -129,12 +116,10 @@ export interface IStartGameFromSetupRequest {
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
 }
-
 export interface IReassignPlayerRequest {
   playerType: PlayerType | null
   engineId: string | null
 }
-
 export const workspaceKindSchema = z.enum(workspaceKinds)
 export const interactionContextSchema = z.enum(interactionContexts)
 export const clockStateKindSchema = z.enum(clockStateKinds)

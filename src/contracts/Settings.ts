@@ -8,21 +8,17 @@ export const enum ThemeMode {
   Light = 'light',
   Dark = 'dark',
 }
-
 export const enum TakebackPolicy {
   RewriteMainline = 'rewriteMainline',
   AnalysisOnly = 'analysisOnly',
 }
-
 export const enum AnalysisBranchExitBehaviour {
   ReturnToLiveNode = 'returnToLiveNode',
   StayOnBranch = 'stayOnBranch',
 }
-
 export const enum PromotionPolicy {
   RequireExplicitSelection = 'requireExplicitSelection',
 }
-
 export const enum BoardOrientation {
   White = 'white',
   Black = 'black',
@@ -39,14 +35,12 @@ export interface ISettingsSession {
   autosaveDebounceMs: number
   autoPauseOnMenu: boolean
 }
-
 export interface ISettingsGameDefaults {
   quickNewGameName: string
   defaultTimeControl: ITimeControl
   defaultWhitePlayerType: PlayerType
   defaultBlackPlayerType: PlayerType
 }
-
 export interface ISettingsGameplay {
   takebackPolicy: TakebackPolicy
   confirmMainlineRewrite: boolean
@@ -55,12 +49,10 @@ export interface ISettingsGameplay {
   confirmPruneFutureMoves: boolean
   allowRootPrune: boolean
 }
-
 export interface ISettingsAnalysis {
   resumeLiveAnalysisAfterRestore: boolean
   engineInventory: IEngineRecord[]
 }
-
 export interface ISettingsAppearance {
   themeMode: ThemeMode
   boardTheme: string
@@ -70,7 +62,6 @@ export interface ISettingsAppearance {
   showCoordinates: boolean
   highlightLastMove: boolean
 }
-
 export interface ISettingsSnapshot {
   schemaVersion: number
   session: ISettingsSession
@@ -79,7 +70,6 @@ export interface ISettingsSnapshot {
   analysis: ISettingsAnalysis
   appearance: ISettingsAppearance
 }
-
 export const themeModeSchema = z.enum(themeModes)
 export const takebackPolicySchema = z.enum(takebackPolicies)
 export const analysisBranchExitBehaviourSchema = z.enum(analysisBranchExitBehaviours)

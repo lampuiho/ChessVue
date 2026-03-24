@@ -13,12 +13,10 @@ export interface IRecentGameEntry {
   filePath: string | null
   lastSavedAtUtc: string
 }
-
 export interface IRecentGamesSnapshot {
   schemaVersion: number
   entries: IRecentGameEntry[]
 }
-
 export const recentGameSourceKindSchema = z.enum(recentGameSourceKinds)
 export const recentGameEntrySchema = z.object({
   gameId: z.string().min(1),

@@ -1,7 +1,7 @@
-import { MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type IBoardPosition, type IMove, type SquareId } from '../Contracts'
+import { MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type IBoardPosition, type IMove, type SquareId } from '../../contracts'
 
-import { cloneBoardPosition, findKingSquare, getOpponentColour, normaliseBoardPosition } from '../Internal/Board'
-import { coordsToSquare, getForwardDirection, getPawnHomeRank, getPromotionRank, squareToCoords } from '../Internal/Square'
+import { cloneBoardPosition, findKingSquare, getOpponentColour, normaliseBoardPosition } from '../internal/Board'
+import { coordsToSquare, getForwardDirection, getPawnHomeRank, getPromotionRank, squareToCoords } from '../internal/Square'
 
 interface ICandidateMove {
   from: SquareId
@@ -544,23 +544,16 @@ function getDisambiguation(position: IBoardPosition, move: ICandidateMove, legal
     return contenderPiece?.kind === movingPiece.kind
   })
 
-  if (contenders.length === 0) {
-    return ''
-  }
+  if (contenders.length === 0) return '';
 
   const fromCoords = squareToCoords(move.from)
   const sameFile = contenders.some((candidate) => squareToCoords(candidate.from).file === fromCoords.file)
   const sameRank = contenders.some((candidate) => squareToCoords(candidate.from).rank === fromCoords.rank)
 
-  if (!sameFile) {
-    return move.from[0]
-  }
+  if (!sameFile) return move.from[0];
+  if (!sameRank) return move.from[1];
 
-  if (!sameRank) {
-    return move.from[1]
-  }
-
-  return move.from
+  return move.from;
 }
 function buildSan(position: IBoardPosition, move: ICandidateMove, legalMoves: ICandidateMove[]): string {
   if (move.kind === MoveKind.Castle) {
@@ -576,10 +569,8 @@ function buildSan(position: IBoardPosition, move: ICandidateMove, legalMoves: IC
     return `${san}${suffix}`
   }
 
-  const movingPiece = getPiece(position, move.from)
-  if (movingPiece === undefined) {
-    throw new Error(`No piece found on ${move.from}`)
-  }
+  const movingPiece = getPiece(position, move.from);
+  if(!movingPiece) throw new Error(`No piece found on ${move.from}`);
 
   const capture = move.kind === MoveKind.EnPassant || getPiece(position, move.to) !== undefined
   const piecePrefix = movingPiece.kind === PieceKind.Pawn ? '' : pieceSymbol(movingPiece.kind)
@@ -637,7 +628,6 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
 
   return false
 }
-
 export const GameRuleService = {
   generateLegalMoves(position: IBoardPosition): IMove[] {
     const normalisedPosition = normaliseBoardPosition(position)

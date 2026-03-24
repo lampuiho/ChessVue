@@ -9,7 +9,6 @@ export interface IAnalysisLine {
   scoreMate: number | null
   pv: IMove[]
 }
-
 export interface IAnalysisSnapshot {
   gameId: string
   engineId: string
@@ -19,19 +18,16 @@ export interface IAnalysisSnapshot {
   lines: IAnalysisLine[]
   isComplete: boolean
 }
-
 export interface IVisibleAnalysisSnapshot {
   positionFen: string
   engineSnapshots: IAnalysisSnapshot[]
 }
-
 export interface IEngineAnalysisUpdate {
   position: IBoardPosition
   bestMove: IMove | null
   lines: IAnalysisLine[]
   isFinal: boolean
 }
-
 export const analysisLineSchema = z.object({
   depth: z.number().int().min(0),
   scoreCp: z.number().int().nullable(),

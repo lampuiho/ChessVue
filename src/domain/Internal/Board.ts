@@ -1,5 +1,5 @@
-import type { IBoardPosition, ICastlingAvailability, IChessPiece, SquareId } from '../Contracts'
-import { PieceKind, PlayerColour } from '../Contracts'
+import type { IBoardPosition, ICastlingAvailability, IChessPiece, SquareId } from '@/contracts'
+import { PieceKind, PlayerColour } from '@/contracts'
 
 import { withFen } from './Fen'
 
@@ -14,7 +14,6 @@ export function clonePiecesBySquare(piecesBySquare: IBoardPosition['piecesBySqua
 
   return clone
 }
-
 export function cloneBoardPosition(position: IBoardPosition): IBoardPosition {
   return {
     piecesBySquare: clonePiecesBySquare(position.piecesBySquare),
@@ -26,7 +25,6 @@ export function cloneBoardPosition(position: IBoardPosition): IBoardPosition {
     fen: position.fen,
   }
 }
-
 export function createDefaultCastlingAvailability(): ICastlingAvailability {
   return {
     whiteKingSide: true,
@@ -35,7 +33,6 @@ export function createDefaultCastlingAvailability(): ICastlingAvailability {
     blackQueenSide: true,
   }
 }
-
 export function createInitialBoardPosition(): IBoardPosition {
   const piecesBySquare: IBoardPosition['piecesBySquare'] = {
     a1: { kind: PieceKind.Rook, colour: PlayerColour.White },
@@ -70,11 +67,9 @@ export function createInitialBoardPosition(): IBoardPosition {
     fullMoveNumber: 1,
   })
 }
-
 export function getOpponentColour(colour: PlayerColour): PlayerColour {
   return colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White
 }
-
 export function findKingSquare(position: IBoardPosition, colour: PlayerColour): SquareId | null {
   for (const [square, piece] of Object.entries(position.piecesBySquare)) {
     if (piece?.kind === PieceKind.King && piece.colour === colour) {
@@ -84,7 +79,6 @@ export function findKingSquare(position: IBoardPosition, colour: PlayerColour): 
 
   return null
 }
-
 export function normaliseBoardPosition(position: Omit<IBoardPosition, 'fen'> | IBoardPosition): IBoardPosition {
   return withFen({
     piecesBySquare: clonePiecesBySquare(position.piecesBySquare),
@@ -95,7 +89,6 @@ export function normaliseBoardPosition(position: Omit<IBoardPosition, 'fen'> | I
     fullMoveNumber: position.fullMoveNumber,
   })
 }
-
 export function createSparseBoard(pieces: Array<{ square: SquareId; piece: IChessPiece }>, sideToMove: PlayerColour = PlayerColour.White): IBoardPosition {
   const piecesBySquare: IBoardPosition['piecesBySquare'] = {}
 
