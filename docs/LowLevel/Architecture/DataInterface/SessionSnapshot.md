@@ -35,6 +35,7 @@ interface IGameSessionSnapshot {
 - `IUiLayoutState` is one global layout snapshot for the app shell.
 - `IUiLayoutState` persists visibility plus fold state for all committed foldable sections, including shared history-panel and analysis-panel collapse state and analysis-engine groups by global visible-row index.
 - `analysisEngineExpandedByIndex[index] = true` means the corresponding analysis-engine row is expanded, `false` means collapsed, and a missing entry defaults to expanded.
+- `IGameSessionSnapshot.activeGameId` identifies the selected open game tab only; it is not part of layout persistence.
 - `IGameSessionSnapshot.activeRoute` stores canonical routed settings categories rather than the redirecting `/settings` alias.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
 - Recent-game history lives in `IRecentGamesSnapshot`, not in either of these payloads.

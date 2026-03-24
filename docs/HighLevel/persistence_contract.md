@@ -44,11 +44,11 @@ Purpose: remember non-modal UI state such as panel visibility and foldable-secti
 Contains:
 - history and analysis panel visibility
 - fold state for all committed foldable sections, including shared history and analysis panels plus analysis-engine groups by global visible-row index
-- one shared app-shell layout snapshot that is reused across games
+- one global app-shell layout snapshot for the current installation
 - version metadata for migration
 
 Does not contain:
-- open game IDs or active route shell state
+- open game IDs, selected active game tab, or active route shell state
 - full per-game layout variants outside the committed fold-state maps
 - canonical game records
 - recent-game history metadata

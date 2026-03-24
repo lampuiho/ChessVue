@@ -119,6 +119,13 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - History navigation and non-mutating review remain available after the game ends.
 - In-game analysis may still be allowed after timeout for post-game exploration, but it must not change the stored result.
 
+### Draw Offer State
+- In addition to the core workspace, interaction, clock, and result axes, a live game may carry unresolved `drawOfferState`.
+- `drawOfferState = null` means no unresolved draw offer exists for the current workspace.
+- Local-local draw negotiation still uses explicit `drawOffer` and `drawResolve` dialogs, but the resulting unresolved offer remains game-owned state until it is accepted or declined.
+- For non-local opponents, any unresolved incoming or outgoing draw offer keeps the `Draw` control in its lit pending-offer state without introducing a dialog-hosted response step.
+- While that non-local pending-offer indicator is lit, pressing `Draw` accepts an incoming offer or withdraws an outgoing offer.
+
 ## Clock Rules
 - Clocks apply only to `liveGame`.
 - `freeAnalysisSetup`, `historyReview`, and `boardEdit` never consume live clock time.
@@ -128,7 +135,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Timeout sets `clockState` to `expired` and finalises the game once.
 
 ## Ownership Boundaries
-- `workspaceKind`, interaction context, clock state, result state, and result reason are game-related and must be represented in the game model or state derived directly from it.
+- `workspaceKind`, interaction context, clock state, result state, result reason, and unresolved `drawOfferState` are game-related and must be represented in the game model or state derived directly from it.
 - Session shell state such as active route and open tabs belongs to the session/UI state model, not to the game model.
 - Modal visibility is transient UI behaviour and is not part of the canonical game state contract.
 

@@ -72,7 +72,7 @@ Read-side rule:
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
 - [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, local-local draw offer, local-local draw resolve, timeout, dirty-exit, delete, reset, import-error, prune, and blocked board-edit coverage.
-- Non-local draw responses stay on the `GameControlPanel` control surface through its LED-like pending-offer indicator instead of opening a shared dialog.
+- Non-local draw responses stay on the `GameControlPanel` control surface through its LED-like pending-offer indicator instead of opening a shared dialog, with the lit state meaning accept for incoming offers and withdraw for outgoing offers.
 - `NewGameModal` remains the dedicated form component for `newGame` instead of being folded into the generic shared-dialog flow table.
 
 ## Building Block Verification

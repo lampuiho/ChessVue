@@ -178,7 +178,7 @@ Example collapsed analysis state:
 - show up to `3` visible lines per engine, foldable per engine
 - per-engine-title `-` action on the right for removing that engine from the current game
 - Each engine can be folded by clicking the chevron to the left of the engine name
-- Per-engine fold state is remembered through the shared persisted app-shell layout snapshot by visible engine-row index; missing entries default to expanded
+- Per-engine fold state is remembered through the single persisted app-shell layout snapshot by visible engine-row index; missing entries default to expanded
 
 
 ## Player Strip Design
@@ -343,7 +343,7 @@ Named baseline uses:
 - analysis dirty exit: shared keep or discard dialog before leaving in-game analysis with retained exploratory work
 - delete-game confirmation: shared danger-focused confirmation dialog before removal
 - blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
-- non-local draw offers do not use a dialog-hosted response step; the `GameControlPanel` draw control shows a small LED-like pending-offer indicator instead, and the lit state means the next `Draw` press accepts immediately
+- non-local draw offers do not use a dialog-hosted response step; the `GameControlPanel` draw control shows a small LED-like pending-offer indicator instead, and the lit state means the next `Draw` press accepts for incoming offers or withdraws outgoing offers
 
 ## Contract Alignment
 This layout contract is consistent with the existing high-level baseline:

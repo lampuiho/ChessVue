@@ -100,9 +100,9 @@ interface IReassignPlayerRequest {
 - `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
 - `boardEdit` is valid only inside `freeAnalysisSetup`.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
-- `drawOfferState` records one unresolved draw offer for the current live workspace and is persisted with the workspace so non-local pending-offer UI can be restored accurately.
+- `drawOfferState` records one unresolved draw offer for the current live workspace and is persisted with the workspace so non-local pending-offer UI can be restored accurately for both incoming and outgoing offers.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGameWorkspace`.
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
-- `drawOfferState` is cleared when the draw is accepted or declined, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
+- `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
 - `IReassignPlayerRequest` is seat-selection data only. Fresh live-game settings for restarting from setup belong to `IStartGameFromSetupRequest`.

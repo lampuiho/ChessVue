@@ -810,13 +810,14 @@ Each scenario in this document uses the same structure:
   1. User clicks `Offer Draw`.
   2. If the current game is local player versus local player, app opens a shared confirmation dialog for the offer intent.
   3. After a confirmed local-local offer, the store records the offer and app opens a shared draw-resolution dialog for the opposing local side.
-  4. If the opponent is non-local, app records the offer without using a dialog-hosted response step.
-  5. When an incoming non-local draw offer is pending, the game workspace records that unresolved offer and the draw control shows a small LED-like pending-offer indicator light.
-  6. If the user presses `Draw` while that incoming-offer indicator is lit, app accepts immediately and the game is drawn.
+  4. If the opponent is non-local, app records the unresolved offer without using a dialog-hosted response step, and the `Draw` control shows a small LED-like pending-offer indicator while that outgoing offer remains unresolved.
+  5. When a non-local draw offer is received while no unresolved offer is pending, the game workspace records that incoming offer and the same indicator lights.
+  6. If the user presses `Draw` while the lit non-local indicator represents an incoming offer, app accepts immediately and the game is drawn.
+  7. If the user presses `Draw` while the lit non-local indicator represents an outgoing offer, app withdraws the outstanding offer and the game continues.
 - **Branch Paths**:
   - `BR-CTRL-03-CANCEL`: User cancels the local-local offer confirmation -> no draw offer is recorded.
   - `BR-CTRL-03-DECLINED`: Local opponent declines in the draw-resolution dialog -> game continues.
-  - `BR-CTRL-03-NON-LOCAL-NO-RESPONSE`: The current non-local adapter exposes no draw-response callback -> keep game ongoing until the indicator-driven accept path or another result path resolves it.
+  - `BR-CTRL-03-NON-LOCAL-NO-RESPONSE`: The current non-local adapter exposes no draw-response callback -> keep game ongoing until the user withdraws the outgoing offer, accepts an incoming offer through the lit indicator path, or another result path resolves it.
   - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Function Touchpoints**:
@@ -824,6 +825,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
   - `GamesStore.offerDraw`
   - `GamesStore.resolveDrawOffer`
+  - `GamesStore.withdrawDrawOffer`
   - `GamesStore.saveGame`
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Planned

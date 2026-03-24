@@ -29,6 +29,7 @@ cancelBoardEdit(gameId: string): void
 resignGame(gameId: string, colour: PlayerColour): Promise<void>
 offerDraw(gameId: string): Promise<void>
 resolveDrawOffer(gameId: string, decision: "accept" | "decline"): Promise<void>
+withdrawDrawOffer(gameId: string): Promise<void>
 pruneFuture(gameId: string, nodeId: string): Promise<void>
 saveGame(gameId: string): Promise<void>
 exportGame(gameId: string): Promise<void>
@@ -55,8 +56,9 @@ importGame(): Promise<IGameWorkspace>
 - `pauseGame` and `resumeGame` apply only to timed `liveGame + currentPosition + ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
 - `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `none`, `local`, or an engine profile, stops any obsolete seat-specific engine runtime, transitions a live game to `freeAnalysisSetup` when either side becomes unassigned, anchors that setup transition to the currently visible position and branch context, and otherwise preserves the same live game with the current time control and clock state.
 - `offerDraw` creates or updates `drawOfferState` after the local-versus-local confirmation step or directly for non-local opponents, while `resolveDrawOffer` consumes that state, owns the accept or decline branch for local response dialogs and any later non-local participant callback integration, and clears the offer when the draw is resolved.
+- `withdrawDrawOffer` is the explicit non-local outgoing-offer boundary. It clears an unresolved outgoing `drawOfferState` without ending the game and is the store action behind pressing a lit `Draw` control when the pending offer direction is `outgoing`.
 - If UCI or another non-local participant adapter exposes no draw-response callback, the explicit `resolveDrawOffer` boundary still exists in the design but may remain unused by that adapter.
-- An unresolved non-local outgoing draw offer may remain recorded on `drawOfferState` until it is accepted, declined, or superseded by another terminal result.
+- An unresolved non-local outgoing draw offer may remain recorded on `drawOfferState` until it is accepted, declined, withdrawn, or superseded by another terminal result.
 - `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's analysis-engine roster only. Add validates against duplicates and the engine-count limit, while remove stops that engine's analysis runtime and clears its visible analysis row for the game.
 - `enterInGameAnalysis` is valid for ongoing live games and for timeout-finalised live games where `resultReason = timeout`; in both cases it suppresses engine-turn generation until the live node is restored.
 - `createGame` and `startGameFromSetup` create a `liveGame` only when both sides are assigned; `freeAnalysisSetup` is used whenever either side is unassigned.
