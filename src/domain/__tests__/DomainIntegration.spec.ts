@@ -1,11 +1,4 @@
-import {
-  ClockStateKind,
-  InteractionContext,
-  PlayerColour,
-  PlayerType,
-  ResultState,
-  TimeControlPreset,
-  WorkspaceKind, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
   ClockStateKind,
@@ -78,4 +71,3 @@ describe('Domain integration', () => {
     expect(restored.moveTree.nodeById[nodeId].clockSnapshot?.activeColour).toBe(PlayerColour.Black)
   })
 })
-

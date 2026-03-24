@@ -28,7 +28,7 @@ describe('GameRuleService', () => {
       from: 'e2',
       to: 'f2',
       kind: MoveKind.Normal,
-      movingcolour: PlayerColour.White as const,
+      movingColour: PlayerColour.White,
       promotionPiece: null,
       san: 'Rf2',
       uci: 'e2f2',
@@ -109,6 +109,3 @@ describe('GameRuleService', () => {
     expect(GameRuleService.resolveResult(insufficient).resultState).toBe(ResultState.Drawn)
   })
 })
-
-
-

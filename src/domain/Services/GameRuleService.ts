@@ -606,7 +606,13 @@ function buildSan(position: IBoardPosition, move: ICandidateMove, legalMoves: IC
   const resolvedMoves = move.kind === MoveKind.Promotion && move.promotionPiece === null
     ? [{ ...move, promotionPiece: PieceKind.Queen }]
     : [move]
-  const resolvedPosition = applyCandidateMove(position, resolvedMoves[0])
+  const resolvedMove = resolvedMoves[0]
+
+  if (resolvedMove === undefined) {
+    throw new Error('Expected at least one resolved move.')
+  }
+
+  const resolvedPosition = applyCandidateMove(position, resolvedMove)
   const opponent = resolvedPosition.sideToMove
   const opponentLegalMoves = generatePseudoLegalMoves(resolvedPosition, opponent).filter((candidate) => isLegalCandidate(resolvedPosition, candidate))
   const opponentKing = findKingSquare(resolvedPosition, opponent)
@@ -628,12 +634,21 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
   if (nonKingPieces.length === 0) {
     return true
   }
-  const p1 = nonKingPieces[0]
-  if (!p1) return true;
-  if (nonKingPieces.length === 1) return p1.kind === PieceKind.Bishop || p1.kind === PieceKind.Knight;
+
+  const firstNonKingPiece = nonKingPieces[0]
+  if (firstNonKingPiece === undefined) {
+    return true
+  }
+
+  if (nonKingPieces.length === 1) {
+    return firstNonKingPiece.kind === PieceKind.Bishop || firstNonKingPiece.kind === PieceKind.Knight
+  }
+
   if (nonKingPieces.length === 2) {
     const disallowed = nonKingPieces.some((piece) => piece.kind === PieceKind.Queen || piece.kind === PieceKind.Rook || piece.kind === PieceKind.Pawn)
-    if (disallowed) return false;
+    if (disallowed) {
+      return false
+    }
 
     const bishopKnightCount = nonKingPieces.filter((piece) => piece.kind === PieceKind.Bishop || piece.kind === PieceKind.Knight).length
     return bishopKnightCount === 2
@@ -716,7 +731,3 @@ export const GameRuleService = {
     }
   },
 }
-
-
-
-

@@ -1,21 +1,16 @@
-import {
-  ClockStateKind,
-  InteractionContext,
-  PlayerColour,
-  PlayerType,
-  RecentGameSourceKind,
-  ResultState,
-  ThemeMode,
-  TimeControlPreset,
-  WorkspaceKind, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
+  AnalysisBranchExitBehaviour,
+  BoardOrientation,
   ClockStateKind,
   InteractionContext,
   PlayerColour,
   PlayerType,
+  PromotionPolicy,
   RecentGameSourceKind,
   ResultState,
+  TakebackPolicy,
   ThemeMode,
   TimeControlPreset,
   WorkspaceKind,
@@ -41,15 +36,15 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     },
     gameDefaults: {
       quickNewGameName: 'New Game',
-      defaultTimeControl: { preset: 'untimed', initialMs: null, incrementMs: 0 },
+      defaultTimeControl: { preset: TimeControlPreset.Untimed, initialMs: null, incrementMs: 0 },
       defaultWhitePlayerType: PlayerType.Local,
       defaultBlackPlayerType: PlayerType.Local,
     },
     gameplay: {
-      takebackPolicy: 'rewriteMainline',
+      takebackPolicy: TakebackPolicy.RewriteMainline,
       confirmMainlineRewrite: true,
-      analysisBranchExitBehaviour: 'returnToLiveNode',
-      promotionPolicy: 'requireExplicitSelection',
+      analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
+      promotionPolicy: PromotionPolicy.RequireExplicitSelection,
       confirmPruneFutureMoves: true,
       allowRootPrune: false,
     },
@@ -62,7 +57,7 @@ function createSettingsSnapshot(): ISettingsSnapshot {
       boardTheme: 'classic',
       pieceTheme: 'classic',
       uiScalePercent: 100,
-      boardOrientation: 'white',
+      boardOrientation: BoardOrientation.White,
       showCoordinates: true,
       highlightLastMove: true,
     },
@@ -175,4 +170,3 @@ describe('SerializationService', () => {
     expect(() => SerializationService.serialiseGame(workspace)).toThrow(SerializationError)
   })
 })
-
