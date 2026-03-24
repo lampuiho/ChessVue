@@ -34,7 +34,7 @@ interface IPlayerSlot {
   colour: PlayerColour
   type: PlayerType
   displayName: string
-  engineId: string | null
+  assignedEngine: IAssignedEngine | null
 }
 
 interface ICapturedPieceGroup {
@@ -109,10 +109,12 @@ interface IReassignPlayerRequest {
 - `boardEdit` is valid only inside `freeAnalysisSetup`.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
 - `drawOfferState` records one unresolved draw offer for the current live workspace and is persisted with the workspace so non-local pending-offer UI can be restored accurately for both incoming and outgoing offers.
+- Player seats and analysis assignment persist captured assigned-engine snapshots rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGameWorkspace`.
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
 - `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
 - `liveAnalysisOptions.showLiveAnalysisMoves` is persisted as part of the game workspace, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
 - `liveAnalysisOptions.showLiveAnalysisMoves` gates rendered engine move targets for every `liveGame` interaction context. When enabled, `currentPosition` may commit a normal live move from the analysis panel, `historyReview` reuses the ordinary history-move policy, and `inGameAnalysis` may inspect continuations as analysis moves.
+- `analysisAssignment.assignedEngines` preserves the rendered analysis-panel row order for the active game and is the source of truth for mapping remembered engine-group fold state by index.
 - `IReassignPlayerRequest` is seat-selection data only. Fresh live-game settings for restarting from setup belong to `IStartGameFromSetupRequest`.

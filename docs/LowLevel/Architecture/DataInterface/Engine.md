@@ -11,6 +11,7 @@ Define configured engine records, per-game engine assignment, and runtime-sessio
 ## Interfaces
 - `interface IEngineRecord`
 - `interface IEngineOptionMap`
+- `interface IAssignedEngine`
 - `interface IAnalysisAssignment`
 - `interface IEngineRuntimeSession`
 - `interface IEnginePositionState`
@@ -33,14 +34,23 @@ interface IEngineRecord {
   options: IEngineOptionMap
 }
 
+interface IAssignedEngine {
+  assignedEngineId: string
+  sourceProfileId: string | null
+  displayName: string
+  executablePath: string
+  protocol: EngineProtocol
+  options: IEngineOptionMap
+}
+
 interface IAnalysisAssignment {
-  analysisEngineIds: string[]
+  assignedEngines: IAssignedEngine[]
 }
 
 interface IEngineRuntimeSession {
   sessionId: string
   gameId: string
-  engineId: string
+  assignedEngineId: string
   role: EngineRole
   availability: EngineAvailability
   targetPositionState: IEnginePositionState | null
@@ -89,10 +99,14 @@ interface IEngineSessionEvent {
 
 ## Rules
 - Engine inventory lives in settings data.
+- Assigned-engine snapshots live in saved game data.
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.
-- Analysis assignment is per game.
-- A running session is isolated by game, engine, and role.
+- `IAssignedEngine.assignedEngineId` is the stable per-game engine-participant identity used by runtime sessions and in-game removal flows.
+- `IAssignedEngine.sourceProfileId` is an optional provenance link back to the reusable engine profile record and may be `null` when the source profile no longer exists.
+- Creating an assigned engine from a profile copies the display name, executable path, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later.
+- Analysis assignment is per game and preserves rendered roster order through `assignedEngines`.
+- A running session is isolated by game, assigned engine, and role.
 - The baseline permits at most four concurrent analysis engines per game.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
 - `IEnginePositionState` is the engine-facing projection of ChessVue move-tree state and lets the engine client decide whether it can continue the current line or must establish a new game boundary.

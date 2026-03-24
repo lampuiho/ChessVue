@@ -76,7 +76,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 | `SerializationService._migrateBySchemaVersion` |  | `FileIoAdapter._mapFileIoError` |  |
 | `UiStateStore.showModal` |  |  |  |
 
-- UI surface coverage: import failure uses the shared dialog shell; partial-recovery cases may expose continue or cancel actions, while unrecoverable cases reduce to acknowledge-and-close behaviour.
+- UI surface coverage: import failure uses the shared dialog shell as an acknowledge-only invalid-document error. Unsupported, corrupt, and incomplete files all follow the same unrecoverable path.
 - Requirement verification: `Pass`. Failed import does not mutate the current session state.
 
 ## Settings And Engine Inventory
@@ -161,7 +161,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 | `SettingsStore.saveSettings` |  | `SettingsStore._persistSnapshot` |
 
 - UI surface coverage: copy, edit, and delete originate from the engine-profile row actions, with edit reopening the same dedicated profile editor surface and delete affecting the settings draft only.
-- Requirement verification: `Pass`. Edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`, and profile edits affect future assignments rather than mutating already seated engine participants.
+- Requirement verification: `Pass`. Edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`, and open games keep their captured assigned-engine snapshots even when reusable profiles change.
 
 ## Lifecycle Cleanup
 

@@ -30,7 +30,7 @@ loadGameFromPath(filePath: string): Promise<IGameWorkspace>
 - `saveGame` rejects with `IPlatformError` of kind `cancelled` when the user dismisses save without choosing a destination.
 - `saveGame` rejects with `permissionDenied` when the selected destination cannot be written.
 - `loadGame` rejects with `cancelled` when the user dismisses load without choosing a file.
-- `loadGame` rejects with `invalidDocument` when the selected file cannot produce a usable canonical saved game payload after parse and migration.
+- `loadGame` rejects with `invalidDocument` when the selected file is unsupported, corrupt, incomplete, or otherwise cannot produce a usable canonical saved game payload after parse and migration.
 - `loadGame` and `loadGameFromPath` may reject with `notFound` or `permissionDenied` when the host cannot reopen the selected file path.
 
 ## Rewrite-Phase Mock Note
@@ -38,5 +38,6 @@ loadGameFromPath(filePath: string): Promise<IGameWorkspace>
 
 ## Notes
 - Duplicate imported IDs are handled after load, before insertion into stores.
+- Invalid imports are rejected atomically; the baseline file-flow contract does not include partial recovery.
 - Broader external formats and batch workflows are not baseline.
 - `saveGame` returns the final written file path so recent-game metadata can point to the actual manual-save target.

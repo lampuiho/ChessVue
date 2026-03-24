@@ -43,7 +43,7 @@ Purpose: remember non-modal UI state such as panel visibility and foldable-secti
 
 Contains:
 - history and analysis panel visibility
-- fold state for all committed foldable sections, including shared history and analysis panels plus analysis-engine groups by global visible-row index
+- fold state for all committed foldable sections, including shared history and analysis panels plus analysis-engine groups by the active game's rendered analysis-row index
 - one global app-shell layout snapshot for the current installation
 - version metadata for migration
 
@@ -82,7 +82,7 @@ This is the canonical persisted game payload for both:
 
 Contains:
 - game identity and timestamps
-- player slots and per-game engine assignment
+- player slots and captured per-game assigned-engine snapshots
 - per-game live-analysis display preference
 - workspace kind, result state, and unresolved draw-offer state when present
 - board root, move tree, current live node, and current visible node
@@ -116,7 +116,7 @@ Only after that game state is restored may live analysis resume.
 - free-analysis versus live-game state
 - clock state and timing metadata
 - unresolved draw-offer state for the live workspace when one exists
-- per-game engine assignment
+- per-game assigned-engine snapshots, including copied launch configuration and any source-profile provenance link
 - per-game live-analysis display preference
 - visible node and interaction context that are part of the game workspace
 
@@ -127,6 +127,7 @@ Only after that game state is restored may live analysis resume.
 
 ### UI Layout State Owns
 - remembered non-modal UI state such as history/analysis panel visibility and fold state for all committed foldable sections
+- analysis-engine fold state keyed by the active game's rendered analysis-row order, recalculated from that game's persisted analysis roster when the active game changes
 - layout restoration that remains useful even when prior open games are not restored
 
 ### Recent Games Snapshot Owns
@@ -181,6 +182,7 @@ On restore, analysis may restart from the restored game state when engines are a
 
 ### Saved Game Payload
 - If the core game payload is corrupt, reject that saved game payload.
+- Unsupported or incomplete saved-game payloads are rejected through the same invalid-document path; there is no baseline partial-recovery import flow.
 
 The app must isolate bad payloads instead of failing the whole launch or import flow.
 

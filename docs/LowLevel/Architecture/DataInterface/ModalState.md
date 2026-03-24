@@ -83,7 +83,6 @@ type IAppModalState =
       kind: "importError"
       payload: {
         message: string
-        isRecoverable: boolean
       }
     }
   | { kind: "resetSettings" }
@@ -138,3 +137,4 @@ type IAppModalState =
 - `drawOffer` and `drawResolve` remain separate modal kinds so the baseline local-versus-local offer step and response step stay explicit instead of being hidden inside one store call.
 - Non-local draw responses do not require a modal; they surface through the draw-control LED-like pending-offer indicator while still being allowed to call `acceptDrawOffer` or `declineDrawOffer` if an adapter-driven response channel ever exists. The same lit control also serves as the withdraw path for unresolved outgoing non-local offers.
 - `playerSelection` only captures the new seat assignment target. Fresh game settings for a later live restart remain part of `startGameFromSetup`.
+- `importError` is acknowledge-only in the baseline because unsupported, corrupt, and incomplete imports all resolve to one unrecoverable invalid-document path.

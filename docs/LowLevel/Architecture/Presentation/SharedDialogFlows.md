@@ -22,7 +22,7 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 | `drawOffer` | local-versus-local `GameControlPanel.drawRequested` | Confirm that the current local side wants to offer a draw. | `Cancel` and primary `Offer Draw`. | `gameId`, offering `colour` |
 | `drawResolve` | opposing-local-side branch after `GamesStore.offerDraw` | Ask the responding local side whether to accept or decline the outstanding draw offer. | `Decline` and primary `Accept`. | `gameId`, offering `colour`, responding `colour` |
 | `timeout` | `GamesStore.syncClock` timeout finalisation | Explain that the game ended on time and identify the recorded timeout result. | Single acknowledge action. | `gameId`, `resultState`, `resultReason = timeout` |
-| `importError` | invalid or recoverable load path | Explain the import failure and optionally allow continuing with the recoverable subset. | Acknowledge only, or `Cancel` plus primary `Continue` when recovery is possible. | `message`, `isRecoverable` |
+| `importError` | invalid load path | Explain that the selected file could not be imported because it is unsupported, corrupt, or incomplete. | Single acknowledge action. | `message` |
 | `resetSettings` | `SettingsView.onReset` | Confirm reset of the pending settings draft back to defaults. | `Cancel` and danger `Reset`. | none |
 | `deleteGame` | delete active or inactive game flow | Confirm permanent removal of the selected game before the store mutates tabs or active routing. | `Cancel` and danger `Delete`. | `gameId` |
 | `boardEditBlocked` | blocked board-edit attempt from in-game analysis | Explain that board editing belongs only to `freeAnalysisSetup`. | Dismiss-only for the baseline, with room for a later setup shortcut. | `gameId`, `reason` |
@@ -36,4 +36,5 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 - `startGameFromSetup` owns live-game-only choices gathered from a prepared setup workspace, including the persisted `showLiveAnalysisMoves` preference for the resulting live game.
 - Non-local opponents skip the dialog-hosted response step and instead use the draw control's LED-like pending-offer indicator for any unresolved offer, where the lit state switches the next `Draw` press into `accept` for `incoming` or `withdraw` for `outgoing`.
 - Timeout, dirty-exit, and blocked-action dialogs are notifications or confirmations only; they do not move business logic into presentation.
+- `importError` is acknowledge-only in the baseline because invalid import never exposes a recoverable-subset continuation flow.
 - The same dialog shell keeps placement and action-row conventions consistent across gameplay, setup, settings, and lifecycle flows.

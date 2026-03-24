@@ -14,7 +14,6 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Setting | Baseline Notes |
 | --- | --- |
 | Restore previous session on launch | Reopens prior session when valid. |
-| Preferred startup behaviour | Chooses whether fallback goes to restore-or-home or directly to home. |
 | Autosave enabled | Controls whether meaningful state changes are persisted automatically. |
 | Autosave debounce | Reduces excessive write frequency during rapid changes. |
 | Auto-pause on menu interruption | Applies to timed live games during settings, save, and similar flows. |
@@ -37,7 +36,7 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Setting | Baseline Notes |
 | --- | --- |
 | Resume live analysis after restore | Engine-category preference that restarts live analysis only after saved-game restore is complete. |
-| Engine inventory | User-managed registry of reusable UCI engine profiles. Profile names must be unique. Editing a profile affects future assignments, not already seated engine participants. |
+| Engine inventory | User-managed registry of reusable UCI engine profiles. Profile names must be unique. Editing or deleting a profile affects future assignments only; existing games keep their captured assigned-engine snapshots until explicitly swapped. |
 
 ## 4. Appearance
 | Setting | Baseline Notes |

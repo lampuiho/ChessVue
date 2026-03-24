@@ -26,7 +26,7 @@ migrateGame(input: unknown): IGameWorkspace
 - keep one canonical JSON wire shape per persisted artefact
 - migrate older schema versions on read
 - reject corrupt core payloads
-- reject incomplete or incompatible saved-game payloads rather than inventing detached UI restore sections
+- reject incomplete, unsupported, or incompatible saved-game payloads rather than inventing detached UI restore sections or partial-recovery import paths
 
 ## Scenario Coverage
 - `SCN-SESSION-03`

@@ -26,7 +26,6 @@ interface IPlatformError {
   operation: string
   message: string
   detail: string | null
-  isRecoverable: boolean
 }
 ```
 

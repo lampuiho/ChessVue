@@ -48,8 +48,10 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - Analysis engine assignment is per game, not global to the whole app.
 - Analysis engines may be assigned when a game is created and may also be added or removed later from that same game's analysis panel.
 - The same configured engine may be used by more than one game, but each active runtime session must be isolated by game and role.
-- Assigning an engine to a side or analysis slot captures a player or session identity for that game. That identity remains stable until the user explicitly unseats and reseats the engine.
-- Editing the source engine profile later does not rename or retarget an already assigned in-game engine participant.
+- Assigning an engine to a side or analysis slot captures a per-game assigned-engine snapshot with a stable assignment identity plus the copied launch configuration used by that game.
+- That assigned-engine snapshot stores the copied display name, executable path, protocol, and engine options together with an optional source-profile link for provenance.
+- The assigned-engine identity remains stable until the user explicitly unseats and reseats the engine.
+- Editing or deleting the source engine profile later does not rename, retarget, or otherwise mutate an already assigned in-game engine participant because the game keeps its captured assigned-engine snapshot.
 - The player-strip player label acts as the explicit player-reassignment affordance. The baseline choices are `none`, `local`, or one configured engine profile.
 - Engine-controlled interaction contracts are written as the baseline implementation of a more general non-local participant boundary so a future remote adapter can reuse the same draw and seat-control surfaces without rewriting gameplay flows.
 
@@ -59,7 +61,7 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - Removing an assigned engine, deleting a game, or closing the app stops the related engine processes.
 - Updating the configuration of a running engine requires a restart before the new options apply.
 - After a committed engine-controlled live move, the normal live-state gate decides whether the next side should immediately receive an engine turn; this is the same rule for `local/engine` and `engine/engine` games.
-- In the baseline, profile edits do not force that restart automatically. Updated profile values apply only when a new engine participant is created or an existing one is explicitly unseated and reseated.
+- In the baseline, profile edits do not force that restart automatically. Updated profile values apply only when a new assigned-engine snapshot is created or an existing engine is explicitly unseated and reseated.
 - If player reassignment changes a side to `none`, the previous live game ends, live player-engine sessions stop, and the workspace continues as `freeAnalysisSetup` while preserving the move tree.
 - If player reassignment results in both sides being assigned again, live play restarts from the preserved setup/history with a newly chosen time control and fresh live clock state.
 - After that restarted live game is created, the normal live-state gate decides whether the side to move should immediately receive an engine turn.

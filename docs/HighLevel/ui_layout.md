@@ -142,7 +142,7 @@ The baseline desktop sidebar behaviour is:
 
 - `HistoryPanel` and `AnalysisPanel` are both visible by default
 - each panel is independently foldable or collapsible
-- fold state for all committed foldable sections belongs to remembered app-level layout persistence, including shared panels and analysis-engine groups by global visible-row index
+- fold state for all committed foldable sections belongs to remembered app-level layout persistence, including shared panels and analysis-engine groups by the active game's rendered analysis-row index
 - the foldable behaviour should feel closer to a desktop explorer or debug sidebar than to full-screen tab switching
 - collapsing one panel must not move the sidebar into a different column arrangement
 - `GameControlPanel` remains the bottom region of the sidebar and is the main location for committed gameplay actions
@@ -196,7 +196,7 @@ Example collapsed analysis state:
 - when `showLiveAnalysisMoves = true`, `liveGame + inGameAnalysis` renders move targets and clicking one applies the selected path as analysis moves inside that mode
 - per-engine-title `-` action on the right for removing that engine from the current game
 - Each engine can be folded by clicking the chevron to the left of the engine name
-- Per-engine fold state is remembered through the single persisted app-shell layout snapshot by visible engine-row index; missing entries default to expanded
+- Per-engine fold state is remembered through the single persisted app-shell layout snapshot by rendered engine-row index for the active game, using that game's persisted analysis roster order; missing entries default to expanded
 
 
 ## Player Strip Design
@@ -317,7 +317,7 @@ Engine profile editing rules:
 - `Edit` opens the engine-profile editor surface rather than expanding the whole settings page inline
 - the profile editor includes a simple options table for supported engine options, with one row per option name and value pair
 - `Copy` duplicates the selected profile into the current settings draft and requires the copied profile name to be made unique before save
-- `Delete` removes the profile from the current settings draft only; existing seated engine participants in open games are unchanged
+- `Delete` removes the profile from the current settings draft only; existing seated engine participants in open games keep their captured assigned-engine snapshots unchanged
 
 ## Shared Dialog Family
 The baseline uses one reusable dialog shell for confirmation, form, and interruption flows.
@@ -356,7 +356,7 @@ Named baseline uses:
 - draw resolve: shared accept or decline dialog for the opposing local side in local player versus local player only
 - timeout notification: acknowledge dialog after timeout finalisation
 - reset-settings confirmation: confirm or cancel reset from the settings secondary action area
-- invalid-load error or recover prompt: error dialog with continue or cancel when partial recovery is allowed
+- invalid-load error prompt: acknowledge-only error dialog for unsupported, corrupt, or incomplete imports
 - settings dirty leave: shared confirm or discard dialog before leaving with unsaved settings edits
 - analysis dirty exit: shared keep or discard dialog before leaving in-game analysis with retained exploratory work
 - delete-game confirmation: shared danger-focused confirmation dialog before removal
@@ -378,7 +378,8 @@ This layout contract is consistent with the existing high-level baseline:
 - desktop-first layout from [build_settings.md](build_settings.md)
 - integrated `GameView` analysis workspace from [architecture.md](architecture.md)
 - remembered app-level panel visibility and foldable-section state from [persistence_contract.md](persistence_contract.md)
-Remembered UI state may hide, show, or collapse the shared history and analysis panels without redefining the baseline parent layout regions described here. Per-engine analysis-group folding is also remembered through that same UI-layout state by visible-row index.
+Remembered UI state may hide, show, or collapse the shared history and analysis panels without redefining the baseline parent layout regions described here. Per-engine analysis-group folding is also remembered through that same UI-layout state by rendered row index for the active game.
+That analysis-group index is derived from the active game's rendered engine-row order, which follows the game's persisted analysis roster order rather than a cross-game global list.
 
 ## Non-Goals
 This document does not define:

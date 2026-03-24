@@ -16,8 +16,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `Router._resolveStartupTarget` |  |  |  |  | `RecentGameStore._sortMostRecentFirst` |
 
 - UI surface coverage: startup lands on a centred `HomeView`, which exposes one single-row group of large square action buttons for quick new, custom new, load, and settings without auto-creating a workspace. Because this scenario starts with no persisted state, the recent games list remains hidden.
-- Settings coverage: the initial appearance projection is resolved before the first routed screen binds to shared app chrome. When `appearance.themeMode = system`, the effective built-in theme comes from `SystemThemeAdapter` without writing a new settings snapshot.
-- Requirement verification: `Pass`. Defaults load independently, bad absence is not treated as corruption, theme state is resolved before first render, and startup lands on a neutral route instead of auto-creating a game.
+- Settings coverage: the initial appearance projection is resolved before the first routed screen binds to shared app chrome. When `appearance.themeMode = system`, the effective built-in theme comes from `SystemThemeAdapter` without writing a new settings snapshot. Startup falls back to `/home` whenever prior session restore is disabled, absent, corrupt, or otherwise invalid.
+- Requirement verification: `Pass`. Defaults load independently, bad absence is not treated as corruption, theme state is resolved before first render, and startup lands on `/home` instead of auto-creating a game.
 
 ### SCN-SESSION-02 - Restore Previous Session
 
@@ -50,8 +50,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `EngineClient.startAnalysis` |  | `GamesStore._maybeRequestEngineTurn` |
 | `GamesStore.makeMove` |  |  |
 
-- State/settings coverage: `session.restorePreviousSession` gates whether the stored game-session snapshot is used to reopen tabs and the active route. `UiStateStore.loadLayoutState` still runs independently so panel visibility and fold state can be restored even when the prior game session is skipped. When a game is restored, `analysis.resumeLiveAnalysisAfterRestore` gates whether continuous analysis restarts after the persisted game state is shown. The appearance projection is resolved before routed surfaces bind to app chrome, and later system-theme changes reproject appearance only when `appearance.themeMode = system`.
-- Requirement verification: `Pass`. Game-session restore is isolated from settings and layout restore, respects the restore setting, resolves theme state before routed chrome binds, and repairs invalid `activeGameId` values for the selected open tab before routing.
+- State/settings coverage: `session.restorePreviousSession` is the only startup gate for reopening the stored game-session snapshot and active route. If that gate is false, or if the stored session no longer resolves to a valid route, startup falls back to `/home`. `UiStateStore.loadLayoutState` still runs independently so panel visibility and fold state can be restored even when the prior game session is skipped. When a game is restored, `analysis.resumeLiveAnalysisAfterRestore` gates whether continuous analysis restarts after the persisted game state is shown. The appearance projection is resolved before routed surfaces bind to app chrome, and later system-theme changes reproject appearance only when `appearance.themeMode = system`.
+- Requirement verification: `Pass`. Game-session restore is isolated from settings and layout restore, respects the restore setting, resolves theme state before routed chrome binds, repairs invalid `activeGameId` values for the selected open tab before routing, and falls back deterministically to `/home` when restore cannot succeed.
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
 

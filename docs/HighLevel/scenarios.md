@@ -964,7 +964,7 @@ Each scenario in this document uses the same structure:
   3. App displays precise error and keeps current session intact.
 - **Branch Paths**:
   - `BR-LOAD-02-UNSUPPORTED`: Unsupported format -> suggest accepted file types.
-  - `BR-LOAD-02-PARTIAL-RECOVER`: Recoverable subset parsed -> user chooses continue/cancel import.
+  - `BR-LOAD-02-INCOMPLETE`: Required canonical payload sections missing -> reject as invalid document and preserve current session state.
 - **Postconditions**: No existing game data is overwritten by bad import.
 - **Function Touchpoints**:
   - `FileIoAdapter.loadGame`
@@ -1050,7 +1050,7 @@ Each scenario in this document uses the same structure:
   7. App persists the updated engine profile list for future assignments.
 - **Branch Paths**:
   - `BR-ENGINE-02-DUPLICATE-COPY`: Copied profile keeps a colliding name -> block save until renamed.
-  - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged but removes that profile from future assignment choices.
+  - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged because their games already hold captured assigned-engine snapshots, while removing that profile from future assignment choices.
 - **Postconditions**: The saved engine profile list is updated for future assignments. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Function Touchpoints**:
   - `SettingsStore.updateSettings`
@@ -1066,10 +1066,11 @@ Each scenario in this document uses the same structure:
   1. User clicks the displayed player label for one side in the player strip.
   2. App opens a player-selection dialog scoped to that game and colour.
   3. User chooses `none`, `local`, or one configured engine profile.
-  4. If the resulting player setup leaves either side as `none`, app ends the current live game and converts the workspace into `free analysis / setup` from the currently visible position and branch context while preserving the visible move tree/history.
-  5. That transition clears live-only result and clock progression so the resulting setup workspace is no longer carrying active live-game timing or finality state.
-  6. If the resulting player setup keeps both sides assigned inside the same live game, app preserves the current time control and clock state and continues play with the new seat assignment.
-  7. If that preserved live game is now on an engine-controlled side with no valid in-flight request already active for that seat and turn, the normal live engine-turn loop starts from that side.
+  4. If the user chooses an engine profile, app captures a fresh per-game assigned-engine snapshot for that seat before any runtime session starts.
+  5. If the resulting player setup leaves either side as `none`, app ends the current live game and converts the workspace into `free analysis / setup` from the currently visible position and branch context while preserving the visible move tree/history.
+  6. That transition clears live-only result and clock progression so the resulting setup workspace is no longer carrying active live-game timing or finality state.
+  7. If the resulting player setup keeps both sides assigned inside the same live game, app preserves the current time control and clock state and continues play with the new seat assignment.
+  8. If that preserved live game is now on an engine-controlled side with no valid in-flight request already active for that seat and turn, the normal live engine-turn loop starts from that side.
 - **Branch Paths**:
   - `BR-ENGINE-03-SAME-SELECTION`: User selects the already assigned value -> keep the current seat unchanged and close the dialog.
   - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session before the reassignment is committed.

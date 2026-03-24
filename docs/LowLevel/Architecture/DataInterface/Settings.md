@@ -17,7 +17,6 @@ type ThemeMode = "system" | "light" | "dark"
 
 interface ISettingsSession {
   restorePreviousSession: boolean
-  startupBehaviour: "restoreOrHome" | "home"
   autosaveEnabled: boolean
   autosaveDebounceMs: number
   autoPauseOnMenu: boolean
