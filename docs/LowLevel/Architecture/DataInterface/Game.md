@@ -16,6 +16,7 @@ Define the canonical workspace model used by `GamesStore`, related services, and
 - `interface IPlayerSlot`
 - `interface ICapturedPieceGroup`
 - `interface IGameMetadata`
+- `interface ILiveAnalysisOptions`
 - `interface IGameWorkspace`
 - `interface ICreateGameRequest`
 - `interface IStartGameFromSetupRequest`
@@ -48,6 +49,10 @@ interface IGameMetadata {
   updatedAt: string
 }
 
+interface ILiveAnalysisOptions {
+  showLiveAnalysisMoves: boolean
+}
+
 interface IGameWorkspace {
   schemaVersion: number
   metadata: IGameMetadata
@@ -65,6 +70,7 @@ interface IGameWorkspace {
   visibleNodeId: string
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
+  liveAnalysisOptions: ILiveAnalysisOptions
   analysisAssignment: IAnalysisAssignment
 }
 
@@ -75,6 +81,7 @@ interface ICreateGameRequest {
   whiteEngineId: string | null
   blackEngineId: string | null
   analysisEngineIds: string[]
+  showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
   boardRoot?: IBoardPosition
 }
@@ -86,6 +93,7 @@ interface IStartGameFromSetupRequest {
   whiteEngineId: string | null
   blackEngineId: string | null
   analysisEngineIds: string[]
+  showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
 }
 
@@ -105,4 +113,6 @@ interface IReassignPlayerRequest {
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
 - `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
+- `liveAnalysisOptions.showLiveAnalysisMoves` is persisted as part of the game workspace, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
+- `liveAnalysisOptions.showLiveAnalysisMoves` gates rendered engine move targets for every `liveGame` interaction context. When enabled, `currentPosition` may commit a normal live move from the analysis panel, `historyReview` reuses the ordinary history-move policy, and `inGameAnalysis` may inspect continuations as analysis moves.
 - `IReassignPlayerRequest` is seat-selection data only. Fresh live-game settings for restarting from setup belong to `IStartGameFromSetupRequest`.

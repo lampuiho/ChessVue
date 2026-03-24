@@ -19,7 +19,7 @@ Only `Current` and `Planned` scenarios from [../../HighLevel/scenarios.md](../..
 ## Folder Summary
 - [StartupAndNavigation.md](StartupAndNavigation.md): startup, restore, game creation, tabbing, and route flows.
 - [GameplayAndControl.md](GameplayAndControl.md): move input, history, clocks, control-panel flows, and engine-controlled live turns.
-- [AnalysisAndSetup.md](AnalysisAndSetup.md): free analysis/setup, board editing, engine analysis, and analysis-line inspection.
+- [AnalysisAndSetup.md](AnalysisAndSetup.md): free analysis/setup, board editing, engine analysis, and analysis-panel move selection policy.
 - [PersistenceAndAdministration.md](PersistenceAndAdministration.md): autosave, import/export, settings, engine inventory, and deletion flows.
 
 ## Public Interface Verification
@@ -39,11 +39,11 @@ This matrix is the compact cross-check for the public entry points that decide w
 
 | Entry point | Accepted workspace kinds | Accepted interaction contexts | Clock/result gate | Settings that alter branch | Outcome |
 | --- | --- | --- | --- | --- | --- |
-| `GamesStore.makeMove` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | blocks live progression when paused or final | `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, `gameplay.analysisBranchExitBehaviour`, `gameplay.promotionPolicy` | live move, analysis move, history rewrite, or blocked action |
+| `GamesStore.makeMove` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | blocks live progression when paused or final | `workspace.liveAnalysisOptions.showLiveAnalysisMoves`, `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, `gameplay.analysisBranchExitBehaviour`, `gameplay.promotionPolicy` | live move, rendered live-game suggestion move, analysis move, history rewrite, analysis-only history branch, or blocked action |
 | `GamesStore.pauseGame` | `liveGame` | `currentPosition` | timed + ongoing only | none | explicit pause with stored owner |
 | `GamesStore.resumeGame` | `liveGame` | `currentPosition` | timed + paused + ongoing only | none | explicit resume when the same owner is allowed to resume |
 | `GamesStore.enterInGameAnalysis` | `liveGame` | `currentPosition` | ongoing or timeout-final with `resultReason = timeout` | none | switch to analysis-only live-game exploration without reopening live progression |
-| `GamesStore.startGameFromSetup` | `freeAnalysisSetup` | `currentPosition` | result must remain `ongoing` | none beyond engine validation rules | transition to `liveGame` with fresh clocks when both sides are assigned, or reject unsupported setup |
+| `GamesStore.startGameFromSetup` | `freeAnalysisSetup` | `currentPosition` | result must remain `ongoing` | `workspace.liveAnalysisOptions.showLiveAnalysisMoves` plus engine validation rules | transition to `liveGame` with fresh clocks when both sides are assigned, or reject unsupported setup |
 | `GamesStore.importGame` | imported payload decides | restored `currentPosition` or `historyReview` | restored paused/final state is preserved | `analysis.resumeLiveAnalysisAfterRestore` | restore persisted game state first, then optional live analysis and optional engine turn |
 | `GamesStore.reassignPlayer` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | ongoing only for live-game seat changes or live-game-to-setup conversion | none | reassign one side, optionally transition a live game to `freeAnalysisSetup` from the currently visible position and branch context, or preserve the current live game with updated seat ownership |
 | `GamesStore.addAnalysisEngine` | `liveGame`, `freeAnalysisSetup` | `currentPosition`, `historyReview`, `inGameAnalysis` | analysis start is still blocked during `boardEdit` | four-engine cap | add one per-game analysis-engine assignment and start analysis when allowed |
@@ -155,6 +155,8 @@ These helper families are the intended internal structure behind the public APIs
 2. Continue with [GameplayAndControl.md](GameplayAndControl.md) for the core move loop and player-engine turn flow.
 3. Read [AnalysisAndSetup.md](AnalysisAndSetup.md) for engine analysis and setup-specific branching.
 4. Finish with [PersistenceAndAdministration.md](PersistenceAndAdministration.md) for save/load and maintenance workflows.
+
+
 
 
 

@@ -175,7 +175,25 @@ Example collapsed analysis state:
 +-------------------------------+
 ```
 
-- show up to `3` visible lines per engine, foldable per engine
+- each engine row always shows score and engine-status summary content
+- show up to `3` visible lines per engine only when the current workspace context allows rendered move targets
+- each rendered move target represents the continuation up to the clicked move position
+
+```text
++-------------------------------+
+| ⌄ Engine A                 [-]|
+| score / status                |
++-------------------------------+
+| ⌄ Engine B                 [-]|
+| score / status                |
++-------------------------------+
+```
+
+- `freeAnalysisSetup` always keeps move-by-move engine-line rendering, and each rendered move target is clickable
+- any `liveGame` context defaults to score-only rows because each live game stores `showLiveAnalysisMoves = false` unless explicitly enabled at creation or start-from-setup
+- when `showLiveAnalysisMoves = true`, `liveGame + currentPosition` renders move targets and clicking one commits the selected suggestion as a normal live move
+- when `showLiveAnalysisMoves = true`, `liveGame + historyReview` renders move targets and clicking one follows the normal history-move policy, rewriting mainline when takeback allows it or otherwise continuing as analysis-only
+- when `showLiveAnalysisMoves = true`, `liveGame + inGameAnalysis` renders move targets and clicking one applies the selected path as analysis moves inside that mode
 - per-engine-title `-` action on the right for removing that engine from the current game
 - Each engine can be folded by clicking the chevron to the left of the engine name
 - Per-engine fold state is remembered through the single persisted app-shell layout snapshot by visible engine-row index; missing entries default to expanded
@@ -327,9 +345,9 @@ Dialog family rules:
 
 Named baseline uses:
 
-- `NewGameModal`: custom new game form with named sections and create or cancel actions
+- `NewGameModal`: custom new game form with named sections, create or cancel actions, and the per-game live-analysis move preference for live games
 - promotion selection: shared dialog shell or board-local overlay hosting `PiecePalette`
-- start game from setup: shared dialog shell for choosing the live-game start details from a prepared setup workspace
+- start game from setup: shared dialog shell for choosing the live-game start details, including the per-game live-analysis move preference, from a prepared setup workspace
 - player selection: shared dialog shell for changing one seat to `none`, `local`, or a configured engine profile
 - analysis-engine selection: shared dialog shell for choosing an unassigned engine profile for the current game
 - prune confirmation: danger-focused confirmation dialog
@@ -344,6 +362,15 @@ Named baseline uses:
 - delete-game confirmation: shared danger-focused confirmation dialog before removal
 - blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
 - non-local draw offers do not use a dialog-hosted response step; the `GameControlPanel` draw control shows a small LED-like pending-offer indicator instead, and the lit state means the next `Draw` press accepts for incoming offers or withdraws outgoing offers
+
+Live-analysis preference UI rules:
+
+- NewGameModal uses a boolean toggle labelled Show Live Analysis Moves.
+- The toggle default is off.
+- The toggle sits in the live-game analysis or engine section of the form.
+- In custom new game, the toggle is shown only when both sides are assigned and the request will create a `liveGame`; otherwise it stays hidden because the request will create `freeAnalysisSetup`.
+- In start-game-from-setup, the same toggle is always shown because that dialog only creates a live game.
+
 
 ## Contract Alignment
 This layout contract is consistent with the existing high-level baseline:
@@ -363,6 +390,9 @@ This document does not define:
 - internal markup structure for shared render components
 
 Those details belong to the later low-level design and implementation work.
+
+
+
 
 
 

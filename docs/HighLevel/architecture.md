@@ -1,4 +1,4 @@
-﻿# ChessVue Baseline Architecture
+# ChessVue Baseline Architecture
 
 ## Purpose
 This document defines the committed high-level architecture for the next implementation wave.
@@ -171,7 +171,7 @@ The high-level contracts divide behaviour ownership as follows:
 2. `EnginesStore` ensures assigned engines are available.
 3. `EngineClient` translates the selected position into the active engine protocol and uses `ProcessManager` for raw process I/O.
 4. `AnalysisStore` keeps the latest valid result for each engine independently.
-5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth.
+5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth, while score-only versus move-list rendering still follows the current workspace context and the game's persisted `showLiveAnalysisMoves` preference.
 
 ### Save and Restore
 1. `GamesStore`, `RecentGameStore`, and `UiStateStore` produce a canonical saved game payload, recent-games snapshot entry, game-session snapshot, and UI-layout state.
@@ -187,3 +187,4 @@ The following concepts are not part of the baseline architecture and are tracked
 - extra chess variants
 - bookmarks and batch workflows
 - other speculative study extensions
+

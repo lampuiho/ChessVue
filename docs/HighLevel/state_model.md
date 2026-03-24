@@ -54,11 +54,18 @@ The UI and stores may expose convenient derived contexts, but they must map back
 | Free analysis board edit | `freeAnalysisSetup` + `boardEdit` |
 | Finished game | `liveGame` + final `resultState` |
 
+## Per-Game Analysis Display Preference
+- A live game also owns a persisted per-game preference `showLiveAnalysisMoves`.
+- This preference belongs to the saved game workspace, not to global settings or remembered UI layout state.
+- `showLiveAnalysisMoves` defaults to `false` whenever a live game is created or started from setup.
+- The preference is chosen only when a live game is created or when `freeAnalysisSetup` transitions into a live game through start-from-setup.
+
 ## Entry Rules
 ### New Game Creation
 - Quick new game creates a `liveGame`.
 - Custom new game creates a `liveGame` only when both sides are assigned.
 - Custom new game creates `freeAnalysisSetup` when either side is assigned `none`.
+- When custom new game creates a `liveGame`, it also records the per-game `showLiveAnalysisMoves` choice for that live game.
 
 ### Start Game From Setup
 - Starting a real game from `freeAnalysisSetup` changes `workspaceKind` to `liveGame`.
@@ -67,6 +74,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Board editing is no longer available after the transition.
 - Both sides must be assigned before the transition can start.
 - Starting from setup applies a newly chosen time control and resets live clock state from that fresh start point.
+- Starting from setup also records the per-game `showLiveAnalysisMoves` choice for the resulting live game.
 
 ### Player Reassignment
 - Reassigning a player seat from the player strip may choose `none`, `local`, or a configured engine profile.
@@ -86,6 +94,14 @@ The UI and stores may expose convenient derived contexts, but they must map back
 | Pause/resume clock | Timed only | Resume only | No | No | No | No | No |
 | Resign or offer draw | Yes | Yes | No | No | No | No | No |
 | Prune future moves | Policy-driven | Policy-driven | Yes | Yes | Yes | No | Review only |
+
+## Analysis Panel Rendering By Context
+| Context | Analysis score/status | Analysis move list | Move-target click result |
+| --- | --- | --- | --- |
+| `liveGame + currentPosition` | Yes | Only when `showLiveAnalysisMoves = true` | Commit a normal live move |
+| `liveGame + historyReview` | Yes | Only when `showLiveAnalysisMoves = true` | Reuse the ordinary history-move policy |
+| `liveGame + inGameAnalysis` | Yes | Only when `showLiveAnalysisMoves = true` | Apply analysis moves without advancing the live node |
+| `freeAnalysisSetup + currentPosition` | Yes | Yes | Apply analysis moves |
 
 ## Transition Rules
 ### History Review
@@ -135,7 +151,7 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - Timeout sets `clockState` to `expired` and finalises the game once.
 
 ## Ownership Boundaries
-- `workspaceKind`, interaction context, clock state, result state, result reason, and unresolved `drawOfferState` are game-related and must be represented in the game model or state derived directly from it.
+- `workspaceKind`, interaction context, clock state, result state, result reason, unresolved `drawOfferState`, and the per-game `showLiveAnalysisMoves` preference are game-related and must be represented in the game model or state derived directly from it.
 - Session shell state such as active route and open tabs belongs to the session/UI state model, not to the game model.
 - Modal visibility is transient UI behaviour and is not part of the canonical game state contract.
 

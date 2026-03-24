@@ -83,6 +83,7 @@ This is the canonical persisted game payload for both:
 Contains:
 - game identity and timestamps
 - player slots and per-game engine assignment
+- per-game live-analysis display preference
 - workspace kind, result state, and unresolved draw-offer state when present
 - board root, move tree, current live node, and current visible node
 - clock configuration and current clock snapshot
@@ -104,6 +105,7 @@ That means restore must show:
 - the saved visible node or position
 - the saved move tree, clocks, and result state
 - the saved interaction context that is part of the game workspace
+- the saved per-game live-analysis display preference that is part of the game workspace
 
 Only after that game state is restored may live analysis resume.
 
@@ -115,6 +117,7 @@ Only after that game state is restored may live analysis resume.
 - clock state and timing metadata
 - unresolved draw-offer state for the live workspace when one exists
 - per-game engine assignment
+- per-game live-analysis display preference
 - visible node and interaction context that are part of the game workspace
 
 ### Game Session Snapshot Owns

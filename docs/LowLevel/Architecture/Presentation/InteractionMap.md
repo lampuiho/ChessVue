@@ -43,10 +43,10 @@ Read-side rule:
 - `HistoryTree` is a template-free adapter that prepares move-tree view models for `TreeView`.
 
 ### Analysis Interaction
-- `AnalysisPanel` owns refresh, retry, stop, per-game analysis-engine add and remove, and analysis-move selection actions, with `+` on the panel title row and `-` on each engine title row.
+- `AnalysisPanel` owns refresh, retry, stop, per-game analysis-engine add and remove, and conditional analysis-move selection actions, with `+` on the panel title row and `-` on each engine title row.
 - `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
 - `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
-- Each engine group may expose up to `3` visible lines and may be folded independently through remembered UI state keyed by visible-row index without changing the other engine groups.
+- Each engine group always exposes score and engine status, may expose up to `3` visible lines when the current workspace context allows move targets, and may be folded independently through remembered UI state keyed by visible-row index without changing the other engine groups.
 
 ### Game Control Interaction
 - `GameControlPanel` is the single source for live-game and setup controls:

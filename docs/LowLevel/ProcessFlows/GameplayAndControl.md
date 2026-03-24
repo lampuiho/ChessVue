@@ -8,7 +8,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-MOVE-01 - Legal Move on Board
 - Public flow: `GamesStore.makeMove` -> `GameRuleService.isMoveLegal` -> context dispatch to `GameRuleService.applyMove` and `MoveUpdateService` -> `TimeControlService.applyMove` when live clocks apply -> `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn`.
 - Private design: `GamesStore._assertMoveAllowed` -> `_resolveMoveContext` -> `_applyMoveByContext` -> `_commitLiveMove` or `_commitAnalysisMove` -> `_updateClockAfterMove` -> `_refreshVisibleAnalysis` -> `_persistWorkspaceIfNeeded` -> `_maybeRequestEngineTurn`.
-- State/settings coverage: `makeMove` accepts `liveGame` and `freeAnalysisSetup`, but dispatches by context. `liveGame + currentPosition + ongoing + not paused` commits a live move and may trigger a player-engine reply. `historyReview` routes through takeback-policy handling. `inGameAnalysis` and `freeAnalysisSetup` create analysis-only continuations and never trigger a live engine turn. `boardEdit`, paused live play, and final result states block live move progression.
+- State/settings coverage: `makeMove` accepts `liveGame` and `freeAnalysisSetup`, but dispatches by context. `liveGame + currentPosition + ongoing + not paused` commits a live move and may trigger a player-engine reply. When that live game enables `liveAnalysisOptions.showLiveAnalysisMoves`, selecting a rendered engine suggestion from the analysis panel reuses the same context-specific move path as ordinary move entry: `currentPosition` commits a live move, `historyReview` routes through takeback-policy handling, and `inGameAnalysis` stays analysis-only and never triggers a live engine turn. `freeAnalysisSetup` also stays analysis-only. `boardEdit`, paused live play, and final result states block live move progression.
 - Continuous analysis update loop: `EngineClient.subscribeToAnalysis` -> `EnginesStore._forwardAnalysisUpdate` -> `AnalysisStore.applyAnalysisUpdate` -> `AnalysisStore.getVisibleAnalysis` -> `AnalysisPanel` rerender for the affected engine row.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
@@ -128,5 +128,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Private design: `GamesStore._assertBoardEditAllowed` returns a reason token; `UiStateStore` owns the explanatory prompt.
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
+
+
 
 

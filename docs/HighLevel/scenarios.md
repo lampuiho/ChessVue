@@ -202,7 +202,7 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Menu `New Game` -> custom configuration flow.
 - **Main Steps**:
   1. User opens new-game dialog.
-  2. User edits options (players, time control preset/custom, sides, and engine assignment).
+  2. User edits options (players, time control preset/custom, sides, engine assignment, and the per-game live-analysis move preference for live games).
   3. User may assign either side to `none`, which means the flow starts in `free analysis / setup` context instead of a live game.
   4. User confirms creation.
   5. App validates options and creates configured game.
@@ -211,7 +211,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-02-INVALID-TIME`: Invalid time settings (negative/empty) -> inline validation, block submit.
   - `BR-GAME-02-ENGINE-MISSING`: Selected required engine unavailable -> block creation until the setup is corrected.
   - `BR-GAME-02-FREE-ANALYSIS-START`: If either side is assigned `none`, initialize free analysis/setup permissions and enable engine analysis on moves when engines were configured at creation.
-- **Postconditions**: Game starts with validated custom settings.
+- **Postconditions**: Game starts with validated custom settings, including the persisted per-game live-analysis move preference when the result is a live game.
 - **Function Touchpoints**:
   - `MenuBar.customNewGameRequested`
   - `NewGameModal.createRequested`
@@ -515,7 +515,7 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Start-game action from free analysis / setup.
 - **Main Steps**:
   1. User finishes preparing a position in free analysis / setup.
-  2. User selects time control and players to start a real game.
+  2. User selects time control, players, and the per-game live-analysis move preference to start a real game.
   3. App keeps the current board position as the starting position of the new game.
   4. App preserves the prior analysis history in the move tree.
   5. App transitions into normal live-game behavior for the started game.
@@ -541,14 +541,15 @@ Each scenario in this document uses the same structure:
   3. `EngineClient` starts an ongoing search for the current FEN and writes protocol commands through `ProcessManager`.
   4. `ProcessManager` streams raw output to `EngineClient`, which turns it into typed updates.
   5. App stores updated best lines and scores each time the engine reports an improvement or deeper search result.
-  6. Analysis panel refreshes over time to show the latest best line, up to `3` visible lines for that engine, score, and search progress until analysis is stopped or the position changes.
+  6. Analysis panel refreshes over time to show score and search progress for that engine, plus up to `3` visible lines when the current workspace context allows rendered move targets.
 - **Branch Paths**:
   - `BR-ANALYSIS-01-ENGINE-NOT-RUNNING`: Engine start fails -> show actionable error and keep UI responsive.
   - `BR-ANALYSIS-01-PARSE-FAIL`: Output parse fails -> skip bad line and continue listening.
   - `BR-ANALYSIS-01-AUTO-ON-MOVE`: If engines were configured at creation, refresh analysis automatically after each committed move in either free analysis / setup or in-game analysis mode.
+  - `BR-ANALYSIS-01-LIVE-SCORE-ONLY`: In any `liveGame` context, the current game's live-analysis preference may keep the panel score-only instead of rendering PV moves.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
   - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
-- **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching.
+- **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
 - **Function Touchpoints**:
   - `GameView.onStartAnalysis`
   - `EnginesStore.startAnalysis`
@@ -570,11 +571,12 @@ Each scenario in this document uses the same structure:
   3. App dispatches position to all selected engines.
   4. Each engine continues searching and emits updated best lines over time.
   5. App aggregates evaluations keyed by `gameId + engineId + fen`, replacing older lines with newer best results from the same engine.
-  6. Analysis panel renders one row/group per engine, shows up to `3` visible lines per engine, and updates each row independently as new output arrives.
+  6. Analysis panel renders one row/group per engine, always shows score/status, shows up to `3` visible lines only when the current workspace context allows rendered move targets, and updates each row independently as new output arrives.
 - **Branch Paths**:
   - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.
   - `BR-ANALYSIS-02-TOO-MANY`: Resource limit reached -> throttle, queue, or reject additional engines.
   - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
+  - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, engine rows still update independently without rendering move lists.
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
 - **Function Touchpoints**:
@@ -606,28 +608,31 @@ Each scenario in this document uses the same structure:
   - `AnalysisStore.getVisibleAnalysis`
   - `UiStateStore.showModal`
 
-### SCN-ANALYSIS-04 - Click Suggested Move to Inspect Line Progress
+### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
 - **Status**: Planned
-- **Goal**: Let user inspect any move within a suggested engine line from the analysis panel.
-- **Preconditions**: At least one analysis line is available.
+- **Goal**: Let the user inspect or apply engine moves from the analysis panel according to the current workspace context.
+- **Preconditions**: At least one analysis line is available in a context that renders move targets.
 - **Entry Points**: Analysis move click within a visible suggested line.
 - **Main Steps**:
-  1. User clicks any move inside a suggested engine line.
-  2. App enters or reuses analysis context for that continuation.
-  3. App plays move animation through the suggested moves up to the selected move, applying them as analysis moves.
-  4. Board and history preview update at the selected move.
-  5. User returns to mainline/live position.
+  1. User clicks a move inside a rendered suggested engine line.
+  2. In `freeAnalysisSetup`, app plays move animation through the suggested moves up to the selected move and applies them as analysis moves.
+  3. In `liveGame + inGameAnalysis`, app does the same only when that live game enables rendered move targets, and the live node still does not advance.
+  4. In `liveGame + currentPosition`, app commits the selected suggestion as a normal live move only when that live game enables rendered move targets.
+  5. In `liveGame + historyReview`, app reuses the ordinary history-move policy only when that live game enables rendered move targets, rewriting mainline when allowed or otherwise keeping the continuation analysis-only.
+  6. Board, history, clocks, and analysis update according to the resulting context.
 - **Branch Paths**:
   - `BR-ANALYSIS-04-MOVE-STALE`: Selected move path is no longer legal from the current node -> reject and refresh eval list.
-  - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: If enabled, keep the inspected continuation as an analysis branch.
-- **Postconditions**: Suggested moves become interactive, the selected move is reached through animated analysis moves, and live game state is not corrupted.
+  - `BR-ANALYSIS-04-LIVE-SCORE-ONLY`: In any live-game context where `showLiveAnalysisMoves = false`, no move target is rendered from the analysis panel.
+  - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `gameplay.takebackPolicy = analysisOnly`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
+  - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
+- **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.
 - **Function Touchpoints**:
   - `AnalysisPanel.moveSelected`
   - `GameRuleService.isMoveLegal`
   - `MoveUpdateService.addAnalysisMove`
   - `MoveUpdateService.navigateToNode`
   - `GamesStore.getGame`
-  - `GamesStore.inspectAnalysisMovePath`
+  - `GamesStore.makeMove`
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 - **Status**: Planned
@@ -1283,3 +1288,4 @@ Each scenario in this document uses the same structure:
 - All branch paths are tied to module-level function touchpoints for low-level design traceability.
 - The contract map above provides the baseline trace from each `Current` and `Planned` scenario to the four implementation-shaping contracts.
 - `Idea` scenarios are isolated in a dedicated review section, are catalogued in `ideas.md`, and are not implied implementation commitments.
+

@@ -17,7 +17,7 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 | --- | --- | --- | --- | --- |
 | `promotion` | `GamesStore.makeMove` when promotion selection is required | Ask the user to choose the promotion piece for the pending move. | `Cancel` plus local `PiecePalette` choice actions. | `gameId`, pending `move` |
 | `pruneFuture` | `HistoryPanel` prune action | Confirm irreversible deletion of future moves from the selected node. | `Cancel` and danger `Prune`. | `gameId`, `nodeId` |
-| `startGameFromSetup` | `GameControlPanel.startGameFromSetupRequested` | Collect the live-game start details for a prepared setup workspace. | `Cancel` and primary `Start Game`. | `gameId` |
+| `startGameFromSetup` | `GameControlPanel.startGameFromSetupRequested` | Collect the live-game start details for a prepared setup workspace, including the per-game live-analysis move preference. | `Cancel` and primary `Start Game`. | `gameId` |
 | `resign` | `GameControlPanel.resignRequested` | Confirm resignation for the selected side before finalising the result. | `Cancel` and danger `Resign`. | `gameId`, resigning `colour` |
 | `drawOffer` | local-versus-local `GameControlPanel.drawRequested` | Confirm that the current local side wants to offer a draw. | `Cancel` and primary `Offer Draw`. | `gameId`, offering `colour` |
 | `drawResolve` | opposing-local-side branch after `GamesStore.offerDraw` | Ask the responding local side whether to accept or decline the outstanding draw offer. | `Decline` and primary `Accept`. | `gameId`, offering `colour`, responding `colour` |
@@ -33,6 +33,7 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 
 ## Coverage Notes
 - Draw flow is intentionally split into `drawOffer` and `drawResolve` so the baseline local-versus-local response step is visible in design.
+- `startGameFromSetup` owns live-game-only choices gathered from a prepared setup workspace, including the persisted `showLiveAnalysisMoves` preference for the resulting live game.
 - Non-local opponents skip the dialog-hosted response step and instead use the draw control's LED-like pending-offer indicator for any unresolved offer, where the lit state switches the next `Draw` press into `accept` for `incoming` or `withdraw` for `outgoing`.
 - Timeout, dirty-exit, and blocked-action dialogs are notifications or confirmations only; they do not move business logic into presentation.
 - The same dialog shell keeps placement and action-row conventions consistent across gameplay, setup, settings, and lifecycle flows.

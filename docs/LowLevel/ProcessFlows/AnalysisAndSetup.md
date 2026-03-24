@@ -20,7 +20,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 - Public flow: `UiStateStore.showModal({ kind: "startGameFromSetup" })` -> `GamesStore.startGameFromSetup` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
 - Private design: `GamesStore._validateSetupTransition` -> `_validateAssignedPlayers` -> `_validateAssignedEngines` -> `_retainPreparedMoveTree` -> `_initialiseLiveClock` -> `_switchWorkspaceKindToLiveGame`.
-- State/settings coverage: the workspace may leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing` only when both sides are assigned. That transition applies a newly chosen time control and fresh live clock state. After the transition, `_maybeRequestEngineTurn` runs whenever the resulting live side to move is engine-controlled, including `engine/engine`.
+- State/settings coverage: the workspace may leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing` only when both sides are assigned. That transition applies a newly chosen time control, captures the per-game `showLiveAnalysisMoves` choice for the resulting live game, and initialises fresh live clock state. After the transition, `_maybeRequestEngineTurn` runs whenever the resulting live side to move is engine-controlled, including `engine/engine`.
 - Requirement verification: `Pass`. Starting from setup preserves the prepared root and move tree while moving the workspace into live-game rules, and engine-controlled turns continue through the normal live-game gate.
 
 ## Analysis And Engine Runtime
@@ -28,7 +28,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
 - Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.ensureAnalysisSessions` -> `EngineClient.startSession` -> `AnalysisStore.beginAnalysisStream` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> `EngineClient.subscribeToAnalysis` -> `AnalysisStore.applyAnalysisUpdate`.
 - Private design: `EnginesStore._startAnalysisSessions` -> `_bindAnalysisCallbacks` -> `_forwardAnalysisUpdate`; `AnalysisStore` only marks the stream active and merges updates.
-- UI surface coverage: one engine group may show up to `3` visible lines, and folding that engine group hides its rendered lines without stopping the underlying engine session or update stream.
+- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in `freeAnalysisSetup`, and in any `liveGame` context only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`. Folding an engine group hides any rendered details without stopping the underlying engine session or update stream.
 - State gate: `EnginesStore.startAnalysis` accepts `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. It remains valid for paused live games and finished-game review because analysis does not advance the live state. It is blocked while `interactionContext = boardEdit`.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready/registration callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
@@ -102,7 +102,7 @@ For the baseline UCI implementation, `EngineClient` internally sends `uci`, wait
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
 - Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.validateAnalysisSelection` -> `EnginesStore.ensureAnalysisSessions`.
 - Private design: `EnginesStore._assertAnalysisSelectionLimit` -> `_buildSessionPerEngine`; each session runs `EngineClient.syncPosition` and `EngineClient.startAnalysis` independently; `AnalysisStore._mergeEngineSnapshot` keeps each engine row independent.
-- UI surface coverage: the panel renders one independently foldable engine group per selected engine, with up to `3` visible lines per engine group while background updates continue even when one group is folded.
+- UI surface coverage: the panel renders one independently foldable engine group per selected engine. Each group always shows score and engine state, and may additionally show up to `3` visible lines when the current workspace context allows rendered move targets.
 - Requirement verification: `Pass`. The four-engine cap is enforced before processes start, and partial failure does not block healthy engines.
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
@@ -110,10 +110,11 @@ For the baseline UCI implementation, `EngineClient` internally sends `uci`, wait
 - Private design: `EnginesStore._stopMatchingSessions` -> `_markEngineUnavailableInAnalysisStore`; retry uses `_restartSingleEngine` -> `_bindAnalysisCallbacks`.
 - Requirement verification: `Pass`. Stop, crash, and retry behaviour is explicit at the runtime-owner boundary and preserves last-known visible output.
 
-### SCN-ANALYSIS-04 - Click Suggested Line to Inspect Move
-- Public flow: `AnalysisPanel.lineSelected` -> `GamesStore.getGame` -> `GameRuleService.isMoveLegal` -> `GamesStore.makeMove`.
-- Private design: `GamesStore._applySelectedAnalysisLine` -> `_createOrReuseAnalysisBranch` -> `_refreshVisibleAnalysis`; optional branch retention uses `_honourAnalysisBranchPolicy`.
-- Requirement verification: `Pass`. Suggested lines become interactive without bypassing legality checks or corrupting the live node.
+### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
+- Public flow: `AnalysisPanel.moveSelected` -> `GamesStore.getGame` -> `GamesStore.makeMove`.
+- Private design: `GamesStore._applySelectedAnalysisMovePath` -> context dispatch to `_createOrReuseAnalysisBranch`, `_applyHistoryMovePolicy`, or `_commitLiveMove` -> `_refreshVisibleAnalysis`; optional branch retention uses `_honourAnalysisBranchPolicy` only in analysis contexts.
+- State/settings coverage: `freeAnalysisSetup` always renders per-move engine targets, and selecting one animates or applies the path in analysis context. Any `liveGame` context renders engine move targets only when `liveAnalysisOptions.showLiveAnalysisMoves = true`. In `liveGame + currentPosition`, selecting one commits the chosen move through the normal live move path. In `liveGame + historyReview`, selecting one reuses the normal history-move policy, rewriting mainline when allowed or otherwise creating or keeping an analysis-only continuation. In `liveGame + inGameAnalysis`, selecting one animates or applies the path in analysis context without advancing the live node. When the toggle is off, live contexts stay score-only.
+- Requirement verification: `Pass`. Suggested moves are interactive only where the workspace policy allows them, and live-game suggestion clicks reuse the same context-specific move policy as ordinary move entry instead of creating a separate panel-only branch rule.
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 - Public flow: add uses `AnalysisPanel.analysisEngineAddRequested` -> `UiStateStore.showModal({ kind: "analysisEngineSelection" })` -> `GamesStore.addAnalysisEngine`; remove uses `AnalysisPanel.analysisEngineRemoveRequested` -> `GamesStore.removeAnalysisEngine`.
@@ -121,6 +122,10 @@ For the baseline UCI implementation, `EngineClient` internally sends `uci`, wait
 - UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine so assignment is not one-way.
 - State gate: roster add and remove are valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. Adding an engine while `interactionContext = boardEdit` may update the stored roster, but `EnginesStore.startAnalysis` remains blocked until board editing ends.
 - Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to the engine store.
+
+
+
+
 
 
 
