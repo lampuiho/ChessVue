@@ -824,7 +824,8 @@ Each scenario in this document uses the same structure:
   - `GameControlPanel.drawRequested`
   - `UiStateStore.showModal`
   - `GamesStore.offerDraw`
-  - `GamesStore.resolveDrawOffer`
+  - `GamesStore.acceptDrawOffer`
+  - `GamesStore.declineDrawOffer`
   - `GamesStore.withdrawDrawOffer`
   - `GamesStore.saveGame`
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
