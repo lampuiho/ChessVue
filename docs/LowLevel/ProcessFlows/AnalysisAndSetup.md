@@ -6,126 +6,185 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 ## Free Analysis / Setup
 
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
-- Public flow: `GamesStore.createGame` or `GamesStore.reassignPlayer` -> `GamesStore.makeMove` -> conditional `EnginesStore.startAnalysis`.
-- Private design: `GamesStore._resolveWorkspaceKind` -> `_createWorkspace` or `_switchWorkspaceToFreeAnalysisSetup` -> `_allowBothColoursForSetupMoves`; post-move refresh uses `_refreshVisibleAnalysis`.
+
+#### Flow A - Create A Free Analysis Workspace
+| `NewGameModal.createRequestedWithUnassignedSide` | `GamesStore.createGame` |
+| --- | --- |
+| `GamesStore.createGame` | `GamesStore._resolveWorkspaceKind` |
+| `GamesStore._createWorkspace` | `GamesStore._createWorkspace` |
+| `GamesStore._allowBothColoursForSetupMoves` | `GamesStore._allowBothColoursForSetupMoves` |
+
+#### Flow B - Convert A Live Game Into Free Analysis / Setup
+| `PlayerPanel.playerSelectionConfirmedAsNone` | `GamesStore.reassignPlayer` |
+| --- | --- |
+| `GamesStore.reassignPlayer` | `GamesStore._applyPlayerReassignment` |
+| `GamesStore._switchWorkspaceToFreeAnalysisSetup` | `GamesStore._switchWorkspaceToFreeAnalysisSetup` |
+| `GamesStore._allowBothColoursForSetupMoves` | `GamesStore._allowBothColoursForSetupMoves` |
+
+#### Flow C - Refresh Analysis In The Free Analysis Workspace
+| `Free analysis move committed` | `EnginesStore.startAnalysis` |
+| --- | --- |
+| `GamesStore._refreshVisibleAnalysis` | `EnginesStore._startAnalysisSessions` |
+| `EnginesStore.startAnalysis` | `EnginesStore._bindAnalysisCallbacks` |
+
 - Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to `none` yields a non-live workspace while preserving engine-driven analysis when configured.
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
-- Public flow: `GamesStore.enterBoardEdit` -> `EnginesStore.stopAnalysis` for the workspace if analysis is active -> `GamesStore.confirmBoardEdit` or `GamesStore.cancelBoardEdit`; confirm uses `MoveUpdateService.replaceBoardRoot` and `AnalysisStore.clearGameAnalysis`, then conditional `EnginesStore.startAnalysis`.
-- Private design: `GamesStore._assertBoardEditAllowed` -> `_snapshotPreEditState` -> `_suspendAnalysisForBoardEdit`; confirm uses `_confirmHistoryClearIfNeeded` -> `_replaceWorkspaceRoot` -> `_refreshVisibleAnalysis`; cancel uses `_restorePreEditState` -> `_resumeAnalysisAfterBoardEditIfNeeded`.
+
+#### Flow A - Enter Board Edit
+| `GameControlPanel.boardEditRequested` | `GamesStore.enterBoardEdit` | `EnginesStore.stopAnalysis` |
+| --- | --- | --- |
+| `GamesStore.enterBoardEdit` | `GamesStore._assertBoardEditAllowed` |  |
+| `EnginesStore.stopAnalysis` | `GamesStore._snapshotPreEditState` |  |
+| `GamesStore._suspendAnalysisForBoardEdit` | `GamesStore._suspendAnalysisForBoardEdit` |  |
+
+#### Flow B - Confirm Board Edit
+| `BoardEdit.confirmRequested` | `GamesStore.confirmBoardEdit` | `MoveUpdateService.replaceBoardRoot` | `AnalysisStore.clearGameAnalysis` | `EnginesStore.startAnalysis` |
+| --- | --- | --- | --- | --- |
+| `GamesStore.confirmBoardEdit` | `GamesStore._confirmHistoryClearIfNeeded` |  |  |  |
+| `MoveUpdateService.replaceBoardRoot` | `GamesStore._replaceWorkspaceRoot` |  |  |  |
+| `AnalysisStore.clearGameAnalysis` | `GamesStore._refreshVisibleAnalysis` |  |  |  |
+| `EnginesStore.startAnalysis` |  |  |  | `EnginesStore._startAnalysisSessions` |
+
+#### Flow C - Cancel Board Edit
+| `BoardEdit.cancelRequested` | `GamesStore.cancelBoardEdit` | `EnginesStore.startAnalysis` |
+| --- | --- | --- |
+| `GamesStore.cancelBoardEdit` | `GamesStore._restorePreEditState` |  |
+| `GamesStore._resumeAnalysisAfterBoardEditIfNeeded` | `GamesStore._resumeAnalysisAfterBoardEditIfNeeded` |  |
+| `EnginesStore.startAnalysis` |  | `EnginesStore._startAnalysisSessions` |
+
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
-- State coverage: `boardEdit` is valid only inside `freeAnalysisSetup`. While active, engine analysis is suspended and `EnginesStore.startAnalysis` is blocked for that workspace. Analysis may resume only after confirm or cancel returns the workspace to a non-`boardEdit` context.
+- State coverage: `boardEdit` is valid only inside `freeAnalysisSetup`. While active, engine analysis is suspended and `EnginesStore.startAnalysis` is blocked for that workspace.
 - Requirement verification: `Pass`. The public surface covers edit entry, confirm, cancel, history clearing, analysis suspension during edit, and analysis refresh afterwards.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
-- Public flow: `UiStateStore.showModal({ kind: "startGameFromSetup" })` -> `GamesStore.startGameFromSetup` -> conditional `EnginesStore.startAnalysis` -> conditional `GamesStore._maybeRequestEngineTurn` -> `UiStateStore.hideModal`.
-- Private design: `GamesStore._validateSetupTransition` -> `_validateAssignedPlayers` -> `_validateAssignedEngines` -> `_retainPreparedMoveTree` -> `_initialiseLiveClock` -> `_switchWorkspaceKindToLiveGame`.
-- State/settings coverage: the workspace may leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing` only when both sides are assigned. That transition applies a newly chosen time control, captures the per-game `showLiveAnalysisMoves` choice for the resulting live game, and initialises fresh live clock state. After the transition, `_maybeRequestEngineTurn` runs whenever the resulting live side to move is engine-controlled, including `engine/engine`.
+
+#### Flow
+| `StartGameFromSetupModal.confirmed` | `UiStateStore.showModal` | `GamesStore.startGameFromSetup` | `EnginesStore.startAnalysis` | `UiStateStore.hideModal` |
+| --- | --- | --- | --- | --- |
+| `UiStateStore.showModal` |  |  |  |  |
+| `GamesStore.startGameFromSetup` |  | `GamesStore._validateSetupTransition` |  |  |
+| `GamesStore._validateAssignedPlayers` |  | `GamesStore._validateAssignedPlayers` |  |  |
+| `GamesStore._validateAssignedEngines` |  | `GamesStore._validateAssignedEngines` |  |  |
+| `GamesStore._retainPreparedMoveTree` |  | `GamesStore._retainPreparedMoveTree` |  |  |
+| `GamesStore._initialiseLiveClock` |  | `GamesStore._initialiseLiveClock` |  |  |
+| `GamesStore._switchWorkspaceKindToLiveGame` |  | `GamesStore._switchWorkspaceKindToLiveGame` |  |  |
+| `EnginesStore.startAnalysis` |  |  | `EnginesStore._startAnalysisSessions` |  |
+| `GamesStore._maybeRequestEngineTurn` |  |  |  |  |
+| `UiStateStore.hideModal` |  |  |  |  |
+
+- State/settings coverage: the workspace may leave `freeAnalysisSetup` and enter `liveGame + currentPosition + ongoing` only when both sides are assigned. That transition applies a newly chosen time control, captures the per-game `showLiveAnalysisMoves` choice for the resulting live game, and initialises fresh live clock state.
 - Requirement verification: `Pass`. Starting from setup preserves the prepared root and move tree while moving the workspace into live-game rules, and engine-controlled turns continue through the normal live-game gate.
 
 ## Analysis And Engine Runtime
 
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
-- Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.ensureAnalysisSessions` -> `EngineClient.startSession` -> `AnalysisStore.beginAnalysisStream` -> `EngineClient.syncPosition` -> `EngineClient.startAnalysis` -> `EngineClient.subscribeToAnalysis` -> `AnalysisStore.applyAnalysisUpdate`.
-- Private design: `EnginesStore._startAnalysisSessions` -> `_bindAnalysisCallbacks` -> `_forwardAnalysisUpdate`; `AnalysisStore` only marks the stream active and merges updates.
-- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in `freeAnalysisSetup`, and in any `liveGame` context only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`. Folding an engine group hides any rendered details without stopping the underlying engine session or update stream.
-- State gate: `EnginesStore.startAnalysis` accepts `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. It remains valid for paused live games and finished-game review because analysis does not advance the live state. It is blocked while `interactionContext = boardEdit`.
-- Requirement verification: `Pass`. Engine startup, streaming updates, ready/registration callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
-Example concrete session calls:
+#### Flow
+| `Analysis requested for one engine` | `EnginesStore.startAnalysis` | `EnginesStore.ensureAnalysisSessions` | `EngineClient.startSession` | `AnalysisStore.beginAnalysisStream` | `EngineClient.syncPosition` | `EngineClient.startAnalysis` | `AnalysisStore.applyAnalysisUpdate` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `EnginesStore.startAnalysis` | `EnginesStore._startAnalysisSessions` |  |  |  |  |  |  |
+| `EnginesStore.ensureAnalysisSessions` | `EnginesStore._bindAnalysisCallbacks` |  |  |  |  |  |  |
+| `EngineClient.startSession` | `EnginesStore._forwardAnalysisUpdate` |  |  |  |  |  |  |
+| `AnalysisStore.beginAnalysisStream` |  |  |  |  |  |  |  |
+| `EngineClient.syncPosition` |  |  |  |  |  |  |  |
+| `EngineClient.startAnalysis` |  |  |  |  |  |  |  |
+| `EngineClient.subscribeToAnalysis` |  |  |  |  |  |  |  |
+| `AnalysisStore.applyAnalysisUpdate` |  |  |  |  |  |  |  |
 
-```ts
-await engineClient.startSession(session, engine)
-analysisStore.beginAnalysisStream(gameId, session.engineId, positionState.currentPosition)
-await engineClient.syncPosition(session.sessionId, positionState)
-await engineClient.startAnalysis(session.sessionId, {
-  multiPv: 3,
-  searchMode: "infinite",
-})
-```
-
-Example typed update handled by `AnalysisStore.applyAnalysisUpdate`:
-
-```ts
-{
-  position: positionState.currentPosition,
-  bestMove: moveE2E4,
-  lines: [
-    {
-      depth: 18,
-      scoreCp: 35,
-      scoreMate: null,
-      pv: [moveE2E4, moveC7C5, moveG1F3],
-    },
-  ],
-  isFinal: false,
-}
-```
-
-Example implementation shape:
-
-```ts
-async function startAnalysis(gameId: string, engineIds: string[], positionState: IEnginePositionState): Promise<void> {
-  const targetEngineIds = engineIds ?? _getDefaultAnalysisEngineIds(gameId)
-  const sessions = await ensureAnalysisSessions(gameId, targetEngineIds, positionState)
-
-  for (const session of sessions) {
-    await engineClient.startSession(session, _getEngine(session.engineId))
-    analysisStore.beginAnalysisStream(gameId, session.engineId, positionState.currentPosition)
-
-    _trackSubscription(
-      session.sessionId,
-      engineClient.subscribeToAnalysis(session.sessionId, (update) => {
-        analysisStore.applyAnalysisUpdate(gameId, session.engineId, update)
-      }),
-    )
-
-    _trackSessionEvents(
-      session.sessionId,
-      engineClient.subscribeToSessionEvents(session.sessionId, (event) => {
-        _handleEngineSessionEvent(gameId, session.engineId, event)
-      }),
-    )
-
-    await engineClient.stopAnalysis(session.sessionId)
-    await engineClient.syncPosition(session.sessionId, positionState)
-    await engineClient.startAnalysis(session.sessionId, {
-      multiPv: _resolveMultiPv(session),
-      searchMode: "infinite",
-    })
-  }
-}
-```
-
-For the baseline UCI implementation, `EngineClient` internally sends `uci`, waits for `id` / `option` / `uciok`, then sends `isready` and waits for `readyok`. It only emits a new-game boundary internally when the search switches to a different game or an unrelated branch. When the user simply continues forward on the same line, the client reuses the current game context and synchronises the move path instead of forcing a full reset.
+- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in `freeAnalysisSetup`, and in any `liveGame` context only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
+- State gate: `EnginesStore.startAnalysis` accepts `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. It is blocked while `interactionContext = boardEdit`.
+- Requirement verification: `Pass`. Engine startup, streaming updates, ready callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
-- Public flow: `EnginesStore.startAnalysis` -> `EnginesStore.validateAnalysisSelection` -> `EnginesStore.ensureAnalysisSessions`.
-- Private design: `EnginesStore._assertAnalysisSelectionLimit` -> `_buildSessionPerEngine`; each session runs `EngineClient.syncPosition` and `EngineClient.startAnalysis` independently; `AnalysisStore._mergeEngineSnapshot` keeps each engine row independent.
+
+#### Flow
+| `Analysis requested for multiple engines` | `EnginesStore.startAnalysis` | `EnginesStore.validateAnalysisSelection` | `EnginesStore.ensureAnalysisSessions` |
+| --- | --- | --- | --- |
+| `EnginesStore.startAnalysis` | `EnginesStore._assertAnalysisSelectionLimit` |  |  |
+| `EnginesStore.validateAnalysisSelection` | `EnginesStore._buildSessionPerEngine` |  |  |
+| `EnginesStore.ensureAnalysisSessions` |  |  |  |
+| `EngineClient.syncPosition` |  |  |  |
+| `EngineClient.startAnalysis` |  |  |  |
+| `AnalysisStore._mergeEngineSnapshot` |  |  |  |
+
 - UI surface coverage: the panel renders one independently foldable engine group per selected engine. Each group always shows score and engine state, and may additionally show up to `3` visible lines when the current workspace context allows rendered move targets.
 - Requirement verification: `Pass`. The four-engine cap is enforced before processes start, and partial failure does not block healthy engines.
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
-- Public flow: `EnginesStore.stopAnalysis` or `EnginesStore.retryAnalysis` -> `EngineClient.stopAnalysis` or `EngineClient.restartSession` -> `AnalysisStore.markAnalysisUnavailable` or `AnalysisStore.beginAnalysisStream`.
-- Private design: `EnginesStore._stopMatchingSessions` -> `_markEngineUnavailableInAnalysisStore`; retry uses `_restartSingleEngine` -> `_bindAnalysisCallbacks`.
+
+#### Flow A - Stop Analysis Explicitly
+| `AnalysisPanel.stopRequested` | `EnginesStore.stopAnalysis` | `EngineClient.stopAnalysis` | `AnalysisStore.markAnalysisUnavailable` |
+| --- | --- | --- | --- |
+| `EnginesStore.stopAnalysis` | `EnginesStore._stopMatchingSessions` |  |  |
+| `EngineClient.stopAnalysis` | `EnginesStore._markEngineUnavailableInAnalysisStore` |  |  |
+| `AnalysisStore.markAnalysisUnavailable` |  |  |  |
+
+#### Flow B - Retry A Failed Engine
+| `AnalysisPanel.retryRequested` | `EnginesStore.retryAnalysis` | `EngineClient.restartSession` | `AnalysisStore.beginAnalysisStream` |
+| --- | --- | --- | --- |
+| `EnginesStore.retryAnalysis` | `EnginesStore._restartSingleEngine` |  |  |
+| `EngineClient.restartSession` | `EnginesStore._bindAnalysisCallbacks` |  |  |
+| `AnalysisStore.beginAnalysisStream` |  |  |  |
+
 - Requirement verification: `Pass`. Stop, crash, and retry behaviour is explicit at the runtime-owner boundary and preserves last-known visible output.
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
-- Public flow: `AnalysisPanel.moveSelected` -> `GamesStore.getGame` -> `GamesStore.makeMove`.
-- Private design: `GamesStore._applySelectedAnalysisMovePath` -> context dispatch to `_createOrReuseAnalysisBranch`, `_applyHistoryMovePolicy`, or `_commitLiveMove` -> `_refreshVisibleAnalysis`; optional branch retention uses `_honourAnalysisBranchPolicy` only in analysis contexts.
-- State/settings coverage: `freeAnalysisSetup` always renders per-move engine targets, and selecting one animates or applies the path in analysis context. Any `liveGame` context renders engine move targets only when `liveAnalysisOptions.showLiveAnalysisMoves = true`. In `liveGame + currentPosition`, selecting one commits the chosen move through the normal live move path. In `liveGame + historyReview`, selecting one reuses the normal history-move policy, rewriting mainline when allowed or otherwise creating or keeping an analysis-only continuation. In `liveGame + inGameAnalysis`, selecting one animates or applies the path in analysis context without advancing the live node. When the toggle is off, live contexts stay score-only.
-- Requirement verification: `Pass`. Suggested moves are interactive only where the workspace policy allows them, and live-game suggestion clicks reuse the same context-specific move policy as ordinary move entry instead of creating a separate panel-only branch rule.
+
+#### Flow A - Free Analysis / Setup Suggestion
+| `AnalysisPanel.moveSelected` | `GamesStore.getGame` | `GamesStore.makeMove` |
+| --- | --- | --- |
+| `GamesStore.getGame` |  |  |
+| `GamesStore.makeMove` |  | `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._createOrReuseAnalysisBranch` |  | `GamesStore._createOrReuseAnalysisBranch` |
+| `GamesStore._refreshVisibleAnalysis` |  | `GamesStore._refreshVisibleAnalysis` |
+
+#### Flow B - Live Current-Position Suggestion
+| `AnalysisPanel.moveSelected` | `GamesStore.getGame` | `GamesStore.makeMove` |
+| --- | --- | --- |
+| `GamesStore.getGame` |  |  |
+| `GamesStore.makeMove` |  | `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._commitLiveMove` |  | `GamesStore._commitLiveMove` |
+| `GamesStore._refreshVisibleAnalysis` |  | `GamesStore._refreshVisibleAnalysis` |
+
+#### Flow C - Live History-Review Suggestion
+| `AnalysisPanel.moveSelected` | `GamesStore.getGame` | `GamesStore.makeMove` |
+| --- | --- | --- |
+| `GamesStore.getGame` |  |  |
+| `GamesStore.makeMove` |  | `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._applyHistoryMovePolicy` |  | `GamesStore._applyHistoryMovePolicy` |
+| `GamesStore._honourAnalysisBranchPolicy` |  | `GamesStore._honourAnalysisBranchPolicy` |
+| `GamesStore._refreshVisibleAnalysis` |  | `GamesStore._refreshVisibleAnalysis` |
+
+#### Flow D - In-Game Analysis Suggestion
+| `AnalysisPanel.moveSelected` | `GamesStore.getGame` | `GamesStore.makeMove` |
+| --- | --- | --- |
+| `GamesStore.getGame` |  |  |
+| `GamesStore.makeMove` |  | `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._createOrReuseAnalysisBranch` |  | `GamesStore._createOrReuseAnalysisBranch` |
+| `GamesStore._refreshVisibleAnalysis` |  | `GamesStore._refreshVisibleAnalysis` |
+
+- State/settings coverage: `freeAnalysisSetup` always renders per-move engine targets. Any `liveGame` context renders engine move targets only when `liveAnalysisOptions.showLiveAnalysisMoves = true`.
+- Requirement verification: `Pass`. Suggested moves are interactive only where the workspace policy allows them, and live-game suggestion clicks reuse the same context-specific move policy as ordinary move entry.
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
-- Public flow: add uses `AnalysisPanel.analysisEngineAddRequested` -> `UiStateStore.showModal({ kind: "analysisEngineSelection" })` -> `GamesStore.addAnalysisEngine`; remove uses `AnalysisPanel.analysisEngineRemoveRequested` -> `GamesStore.removeAnalysisEngine`.
-- Private design: add uses `GamesStore._assertAnalysisRosterMutable` -> `_mutateAnalysisEngineRoster("add")` -> `EnginesStore.validateAnalysisSelection` -> `_persistWorkspaceIfNeeded` -> conditional `_refreshVisibleAnalysis`; remove uses `_mutateAnalysisEngineRoster("remove")` -> `EnginesStore.stopEngine(gameId, engineId, "analysis")` -> `AnalysisStore.clearEngineAnalysis(gameId, engineId)` -> `_persistWorkspaceIfNeeded`.
-- UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine so assignment is not one-way.
-- State gate: roster add and remove are valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`. Adding an engine while `interactionContext = boardEdit` may update the stored roster, but `EnginesStore.startAnalysis` remains blocked until board editing ends.
+
+#### Flow A - Add An Analysis Engine
+| `AnalysisPanel.analysisEngineAddRequested` | `UiStateStore.showModal` | `GamesStore.addAnalysisEngine` | `EnginesStore.validateAnalysisSelection` |
+| --- | --- | --- | --- |
+| `UiStateStore.showModal` |  |  |  |
+| `GamesStore.addAnalysisEngine` |  | `GamesStore._assertAnalysisRosterMutable` |  |
+| `GamesStore._mutateAnalysisEngineRoster` |  | `GamesStore._mutateAnalysisEngineRoster` |  |
+| `EnginesStore.validateAnalysisSelection` |  | `GamesStore._persistWorkspaceIfNeeded` |  |
+| `GamesStore._refreshVisibleAnalysis` |  | `GamesStore._refreshVisibleAnalysis` |  |
+
+#### Flow B - Remove An Analysis Engine
+| `AnalysisPanel.analysisEngineRemoveRequested` | `GamesStore.removeAnalysisEngine` | `EnginesStore.stopEngine` | `AnalysisStore.clearEngineAnalysis` |
+| --- | --- | --- | --- |
+| `GamesStore.removeAnalysisEngine` | `GamesStore._mutateAnalysisEngineRoster` |  |  |
+| `EnginesStore.stopEngine` | `GamesStore._persistWorkspaceIfNeeded` |  |  |
+| `AnalysisStore.clearEngineAnalysis` |  |  |  |
+
+- UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine.
+- State gate: roster add and remove are valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`.
 - Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to the engine store.
-
-
-
-
-
-
-
