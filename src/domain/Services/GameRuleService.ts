@@ -579,12 +579,9 @@ function buildSan(position: IBoardPosition, move: ICandidateMove, legalMoves: IC
   const promotionText = move.kind === MoveKind.Promotion ? promotionSuffix(move.promotionPiece) : ''
   const resolvedMoves = move.kind === MoveKind.Promotion && move.promotionPiece === null
     ? [{ ...move, promotionPiece: PieceKind.Queen }]
-    : [move]
+    : [move];
   const resolvedMove = resolvedMoves[0]
-
-  if (resolvedMove === undefined) {
-    throw new Error('Expected at least one resolved move.')
-  }
+  if (!resolvedMove) throw new Error('Expected at least one resolved move.')
 
   const resolvedPosition = applyCandidateMove(position, resolvedMove)
   const opponent = resolvedPosition.sideToMove

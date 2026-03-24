@@ -50,15 +50,15 @@ Example implementation shape:
 
 ```ts
 function beginAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void {
-  _markStreamActive(gameId, engineId, position.fen)
+  _markStreamActive(gameId, engineId, position)
 }
 
 function applyAnalysisUpdate(gameId: string, engineId: string, update: IEngineAnalysisUpdate): void {
-  _mergeEngineSnapshot(gameId, engineId, update.position.fen, update)
+  _mergeEngineSnapshot(gameId, engineId, update.position, update)
 }
 
 function completeAnalysisStream(gameId: string, engineId: string, position: IBoardPosition): void {
-  _markStreamComplete(gameId, engineId, position.fen)
+  _markStreamComplete(gameId, engineId, position)
 }
 ```
 

@@ -21,9 +21,7 @@ export interface IMove {
   to: SquareId
   kind: MoveKind
   movingColour: PlayerColour
-  promotionPiece: PieceKind | null
-  san: string
-  uci: string
+  promotionPiece?: PieceKind
 }
 export interface IMoveNode {
   id: string
@@ -49,10 +47,7 @@ export const moveSchema = z.object({
   kind: moveKindSchema,
   movingColour: playerColourSchema,
   promotionPiece: pieceKindSchema.nullable(),
-  san: z.string().min(1),
-  uci: z.string().min(4),
 })
-
 export const moveNodeSchema: z.ZodType<IMoveNode> = z.lazy(() =>
   z.object({
     id: z.string().uuid(),

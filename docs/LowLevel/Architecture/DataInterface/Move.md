@@ -19,9 +19,11 @@ interface IMove {
   to: SquareId
   kind: MoveKind
   movingColour: PlayerColour
-  promotionPiece: PieceKind | null
-  san: string
-  uci: string
+  promotionPiece?: PieceKind
+}
+interface IPromoMove : IMove {
+  kind: MoveKind.Promotion
+  promotionPiece: PieceKind
 }
 
 interface IMoveNode {
@@ -45,3 +47,4 @@ interface IMoveTree {
 - `rootId` represents the starting board root for the workspace.
 - `mainlineChildId` lets `MoveUpdateService` rewrite the main continuation without deleting sibling variations.
 - Analysis-only branches remain in the tree even when the visible screen returns to the live node.
+- `SquareId` use number 0-63, `SquareId % 8` is the file and `SquareId / 8` is the rank

@@ -6,7 +6,7 @@ Define the smallest chess-specific value objects shared by board, move, and game
 ## Types
 - `type PlayerColour = "white" | "black"`
 - `type PieceKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn"`
-- `type SquareId = string`
+- `type SquareId = number`
 
 ## Interfaces
 - `interface IChessPiece`
@@ -20,5 +20,5 @@ interface IChessPiece {
 ```
 
 ## Notes
-- `SquareId` is the serialisable board coordinate token used across board, move, and analysis payloads.
+- `SquareId` is the serialisable board coordinate used across board, move, and analysis payloads.
 - Only standard chess pieces are baseline.
