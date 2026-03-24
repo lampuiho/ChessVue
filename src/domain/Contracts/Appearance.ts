@@ -2,7 +2,12 @@ import { z } from 'zod'
 
 import { themeModeSchema, type ThemeMode } from './Settings'
 
-export type ResolvedThemeMode = 'light' | 'dark'
+export const resolvedThemeModes = ['light', 'dark'] as const
+
+export const enum ResolvedThemeMode {
+  Light = 'light',
+  Dark = 'dark',
+}
 
 export interface IAppearanceCssVariableMap {
   '--surface-app': string
@@ -22,7 +27,7 @@ export interface IAppearanceProjection {
   cssVariables: IAppearanceCssVariableMap
 }
 
-export const resolvedThemeModeSchema = z.enum(['light', 'dark'])
+export const resolvedThemeModeSchema = z.enum(resolvedThemeModes)
 export const appearanceCssVariableMapSchema = z.object({
   '--surface-app': z.string(),
   '--surface-panel': z.string(),

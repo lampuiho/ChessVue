@@ -1,6 +1,24 @@
-import { describe, expect, it } from 'vitest'
+import {
+  ClockStateKind,
+  InteractionContext,
+  PlayerColour,
+  PlayerType,
+  RecentGameSourceKind,
+  ResultState,
+  ThemeMode,
+  TimeControlPreset,
+  WorkspaceKind, describe, expect, it } from 'vitest'
 
 import {
+  ClockStateKind,
+  InteractionContext,
+  PlayerColour,
+  PlayerType,
+  RecentGameSourceKind,
+  ResultState,
+  ThemeMode,
+  TimeControlPreset,
+  WorkspaceKind,
   createInitialBoardPosition,
   GameRuleService,
   MoveUpdateService,
@@ -24,8 +42,8 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     gameDefaults: {
       quickNewGameName: 'New Game',
       defaultTimeControl: { preset: 'untimed', initialMs: null, incrementMs: 0 },
-      defaultWhitePlayerType: 'local',
-      defaultBlackPlayerType: 'local',
+      defaultWhitePlayerType: PlayerType.Local,
+      defaultBlackPlayerType: PlayerType.Local,
     },
     gameplay: {
       takebackPolicy: 'rewriteMainline',
@@ -40,7 +58,7 @@ function createSettingsSnapshot(): ISettingsSnapshot {
       engineInventory: [],
     },
     appearance: {
-      themeMode: 'system',
+      themeMode: ThemeMode.System,
       boardTheme: 'classic',
       pieceTheme: 'classic',
       uiScalePercent: 100,
@@ -52,14 +70,14 @@ function createSettingsSnapshot(): ISettingsSnapshot {
 }
 
 function createWorkspace(): IGameWorkspace {
-  const timeControl = { preset: 'rapid' as const, initialMs: 600000, incrementMs: 0 }
+  const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 }
   const rootPosition = createInitialBoardPosition()
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl)
   const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock)
   const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.uci === 'e2e4')!
   const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null })
-  const started = TimeControlService.startClock(rootClock, 'white', '2026-01-01T12:00:00.000Z')
-  const nextClock = TimeControlService.applyMove(started, 'white', '2026-01-01T12:00:05.000Z', timeControl)
+  const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z')
+  const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl)
   const updatedTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, move, nextPosition, nextClock)
   const liveNodeId = updatedTree.nodeById[updatedTree.rootId].mainlineChildId!
 
@@ -71,21 +89,21 @@ function createWorkspace(): IGameWorkspace {
       createdAt: '2026-01-01T12:00:00.000Z',
       updatedAt: '2026-01-01T12:00:05.000Z',
     },
-    workspaceKind: 'liveGame',
-    interactionContext: 'currentPosition',
-    clockState: 'running',
-    resultState: 'ongoing',
+    workspaceKind: WorkspaceKind.LiveGame,
+    interactionContext: InteractionContext.CurrentPosition,
+    clockState: ClockStateKind.Running,
+    resultState: ResultState.Ongoing,
     resultReason: null,
     drawOfferState: null,
     whitePlayer: {
-      colour: 'white',
-      type: 'local',
+      colour: PlayerColour.White,
+      type: PlayerType.Local,
       displayName: 'White',
       assignedEngine: null,
     },
     blackPlayer: {
-      colour: 'black',
-      type: 'local',
+      colour: PlayerColour.Black,
+      type: PlayerType.Local,
       displayName: 'Black',
       assignedEngine: null,
     },
@@ -116,8 +134,8 @@ describe('SerializationService', () => {
     const snapshot: IRecentGamesSnapshot = {
       schemaVersion: 1,
       entries: [
-        { gameId: 'a', displayName: 'Old', sourceKind: 'autosave', filePath: null, lastSavedAtUtc: '2026-01-01T12:00:00.000Z' },
-        { gameId: 'a', displayName: 'New', sourceKind: 'manualFile', filePath: 'game.json', lastSavedAtUtc: '2026-01-01T12:05:00.000Z' },
+        { gameId: 'a', displayName: 'Old', sourceKind: RecentGameSourceKind.Autosave, filePath: null, lastSavedAtUtc: '2026-01-01T12:00:00.000Z' },
+        { gameId: 'a', displayName: 'New', sourceKind: RecentGameSourceKind.ManualFile, filePath: 'game.json', lastSavedAtUtc: '2026-01-01T12:05:00.000Z' },
       ],
     }
 
@@ -157,3 +175,4 @@ describe('SerializationService', () => {
     expect(() => SerializationService.serialiseGame(workspace)).toThrow(SerializationError)
   })
 })
+

@@ -1,4 +1,4 @@
-import { squareIds, type PlayerColour, type SquareId } from '../Contracts'
+import { PlayerColour, squareIds, type SquareId } from '../Contracts'
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const
 const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'] as const
@@ -41,13 +41,13 @@ export function indexToSquare(index: number): SquareId {
 }
 
 export function getForwardDirection(colour: PlayerColour): number {
-  return colour === 'white' ? 1 : -1
+  return colour === PlayerColour.White ? 1 : -1
 }
 
 export function getPawnHomeRank(colour: PlayerColour): number {
-  return colour === 'white' ? 1 : 6
+  return colour === PlayerColour.White ? 1 : 6
 }
 
 export function getPromotionRank(colour: PlayerColour): number {
-  return colour === 'white' ? 7 : 0
+  return colour === PlayerColour.White ? 7 : 0
 }

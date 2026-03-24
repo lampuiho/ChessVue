@@ -4,19 +4,65 @@ import { analysisAssignmentSchema, assignedEngineSchema, type IAnalysisAssignmen
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { moveTreeSchema, type IMoveTree } from './Move'
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
-import { playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
+import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
 
-export type WorkspaceKind = 'liveGame' | 'freeAnalysisSetup'
-export type InteractionContext = 'currentPosition' | 'historyReview' | 'inGameAnalysis' | 'boardEdit'
-export type ClockStateKind = 'none' | 'running' | 'paused' | 'expired'
-export type ResultState = 'ongoing' | 'drawn' | 'whiteWon' | 'blackWon' | 'abandoned'
-export type ResultReason = 'ruleResolved' | 'timeout' | 'resignation' | 'drawAgreement' | 'abandoned' | null
-export type PlayerType = 'local' | 'engine'
+export const workspaceKinds = ['liveGame', 'freeAnalysisSetup'] as const
+export const interactionContexts = ['currentPosition', 'historyReview', 'inGameAnalysis', 'boardEdit'] as const
+export const clockStateKinds = ['none', 'running', 'paused', 'expired'] as const
+export const resultStates = ['ongoing', 'drawn', 'whiteWon', 'blackWon', 'abandoned'] as const
+export const resultReasons = ['ruleResolved', 'timeout', 'resignation', 'drawAgreement', 'abandoned'] as const
+export const playerTypes = ['local', 'engine'] as const
+export const drawOfferDirections = ['incoming', 'outgoing'] as const
+
+export const enum WorkspaceKind {
+  LiveGame = 'liveGame',
+  FreeAnalysisSetup = 'freeAnalysisSetup',
+}
+
+export const enum InteractionContext {
+  CurrentPosition = 'currentPosition',
+  HistoryReview = 'historyReview',
+  InGameAnalysis = 'inGameAnalysis',
+  BoardEdit = 'boardEdit',
+}
+
+export const enum ClockStateKind {
+  None = 'none',
+  Running = 'running',
+  Paused = 'paused',
+  Expired = 'expired',
+}
+
+export const enum ResultState {
+  Ongoing = 'ongoing',
+  Drawn = 'drawn',
+  WhiteWon = 'whiteWon',
+  BlackWon = 'blackWon',
+  Abandoned = 'abandoned',
+}
+
+export const enum ResultReason {
+  RuleResolved = 'ruleResolved',
+  Timeout = 'timeout',
+  Resignation = 'resignation',
+  DrawAgreement = 'drawAgreement',
+  Abandoned = 'abandoned',
+}
+
+export const enum PlayerType {
+  Local = 'local',
+  Engine = 'engine',
+}
+
+export const enum DrawOfferDirection {
+  Incoming = 'incoming',
+  Outgoing = 'outgoing',
+}
 
 export interface IDrawOfferState {
   offeringColour: PlayerColour
   respondingColour: PlayerColour
-  direction: 'incoming' | 'outgoing'
+  direction: DrawOfferDirection
 }
 
 export interface IPlayerSlot {
@@ -49,7 +95,7 @@ export interface IGameWorkspace {
   interactionContext: InteractionContext
   clockState: ClockStateKind
   resultState: ResultState
-  resultReason: ResultReason
+  resultReason: ResultReason | null
   drawOfferState: IDrawOfferState | null
   whitePlayer: IPlayerSlot | null
   blackPlayer: IPlayerSlot | null
@@ -91,17 +137,18 @@ export interface IReassignPlayerRequest {
   engineId: string | null
 }
 
-export const workspaceKindSchema = z.enum(['liveGame', 'freeAnalysisSetup'])
-export const interactionContextSchema = z.enum(['currentPosition', 'historyReview', 'inGameAnalysis', 'boardEdit'])
-export const clockStateKindSchema = z.enum(['none', 'running', 'paused', 'expired'])
-export const resultStateSchema = z.enum(['ongoing', 'drawn', 'whiteWon', 'blackWon', 'abandoned'])
-export const resultReasonSchema = z.enum(['ruleResolved', 'timeout', 'resignation', 'drawAgreement', 'abandoned']).nullable()
-export const playerTypeSchema = z.enum(['local', 'engine'])
+export const workspaceKindSchema = z.enum(workspaceKinds)
+export const interactionContextSchema = z.enum(interactionContexts)
+export const clockStateKindSchema = z.enum(clockStateKinds)
+export const resultStateSchema = z.enum(resultStates)
+export const resultReasonSchema = z.enum(resultReasons).nullable()
+export const playerTypeSchema = z.enum(playerTypes)
+export const drawOfferDirectionSchema = z.enum(drawOfferDirections)
 
 export const drawOfferStateSchema = z.object({
   offeringColour: playerColourSchema,
   respondingColour: playerColourSchema,
-  direction: z.enum(['incoming', 'outgoing']),
+  direction: drawOfferDirectionSchema,
 })
 
 export const playerSlotSchema = z.object({
@@ -112,7 +159,7 @@ export const playerSlotSchema = z.object({
 })
 
 export const capturedPieceGroupSchema = z.object({
-  pieceKind: z.enum(['king', 'queen', 'rook', 'bishop', 'knight', 'pawn']),
+  pieceKind: pieceKindSchema,
   count: z.number().int().min(0),
 })
 

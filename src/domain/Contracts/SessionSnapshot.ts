@@ -1,6 +1,13 @@
 import { z } from 'zod'
 
-export type SettingsCategory = 'session' | 'gameplay' | 'appearance' | 'engines'
+export const settingsCategories = ['session', 'gameplay', 'appearance', 'engines'] as const
+
+export const enum SettingsCategory {
+  Session = 'session',
+  Gameplay = 'gameplay',
+  Appearance = 'appearance',
+  Engines = 'engines',
+}
 
 export interface IUiLayoutState {
   schemaVersion: number
@@ -18,7 +25,7 @@ export interface IGameSessionSnapshot {
   activeRoute: '/home' | `/game/${string}` | `/settings/${SettingsCategory}`
 }
 
-export const settingsCategorySchema = z.enum(['session', 'gameplay', 'appearance', 'engines'])
+export const settingsCategorySchema = z.enum(settingsCategories)
 export const activeRouteSchema = z.string().regex(/^\/home$|^\/game\/.+$|^\/settings\/(session|gameplay|appearance|engines)$/)
 
 export const uiLayoutStateSchema = z.object({

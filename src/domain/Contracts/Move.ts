@@ -4,8 +4,21 @@ import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { clockSnapshotSchema, type IClockSnapshot } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, squareIdSchema, type PieceKind, type PlayerColour, type SquareId } from './Chess'
 
-export type MoveKind = 'normal' | 'castle' | 'enPassant' | 'promotion'
-export type MoveBranchKind = 'mainline' | 'variation' | 'analysis'
+export const moveKinds = ['normal', 'castle', 'enPassant', 'promotion'] as const
+export const moveBranchKinds = ['mainline', 'variation', 'analysis'] as const
+
+export const enum MoveKind {
+  Normal = 'normal',
+  Castle = 'castle',
+  EnPassant = 'enPassant',
+  Promotion = 'promotion',
+}
+
+export const enum MoveBranchKind {
+  Mainline = 'mainline',
+  Variation = 'variation',
+  Analysis = 'analysis',
+}
 
 export interface IMove {
   from: SquareId
@@ -34,8 +47,8 @@ export interface IMoveTree {
   nodeById: Record<string, IMoveNode>
 }
 
-export const moveKindSchema = z.enum(['normal', 'castle', 'enPassant', 'promotion'])
-export const moveBranchKindSchema = z.enum(['mainline', 'variation', 'analysis'])
+export const moveKindSchema = z.enum(moveKinds)
+export const moveBranchKindSchema = z.enum(moveBranchKinds)
 
 export const moveSchema = z.object({
   from: squareIdSchema,

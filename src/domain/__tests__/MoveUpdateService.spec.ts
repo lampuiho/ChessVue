@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { createInitialBoardPosition, createSparseBoard, MoveUpdateService, TimeControlService, type IMove } from '../index'
+import { createInitialBoardPosition, createSparseBoard, MoveBranchKind, MoveKind, MoveUpdateService, PieceKind, PlayerColour, TimeControlPreset, TimeControlService, type IMove } from '../index'
 
 const sampleMove: IMove = {
   from: 'e2',
   to: 'e4',
-  kind: 'normal',
-  movingColour: 'white',
+  kind: MoveKind.Normal,
+  movingColour: PlayerColour.White,
   promotionPiece: null,
   san: 'e4',
   uci: 'e2e4',
@@ -15,7 +15,7 @@ const sampleMove: IMove = {
 describe('MoveUpdateService', () => {
   it('creates a root-only tree with the supplied clock snapshot', () => {
     const clockSnapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'rapid',
+      preset: TimeControlPreset.Rapid,
       initialMs: 600000,
       incrementMs: 0,
     })
@@ -34,26 +34,26 @@ describe('MoveUpdateService', () => {
 
     const childIds = second.nodeById[second.rootId].childIds
     expect(childIds).toHaveLength(2)
-    expect(second.nodeById[childIds[0]].branchKind).toBe('variation')
-    expect(second.nodeById[childIds[1]].branchKind).toBe('mainline')
+    expect(second.nodeById[childIds[0]].branchKind).toBe(MoveBranchKind.Variation)
+    expect(second.nodeById[childIds[1]].branchKind).toBe(MoveBranchKind.Mainline)
   })
 
   it('adds analysis moves without changing the mainline and inherits the parent clock snapshot', () => {
     const clockSnapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'blitz',
+      preset: TimeControlPreset.Blitz,
       initialMs: 300000,
       incrementMs: 0,
     })
     const tree = MoveUpdateService.createMoveTree(createInitialBoardPosition(), clockSnapshot)
     const analysisPosition = createSparseBoard([
-      { square: 'a1', piece: { kind: 'king', colour: 'white' } },
-      { square: 'h8', piece: { kind: 'king', colour: 'black' } },
+      { square: 'a1', piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+      { square: 'h8', piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ])
     const analysisTree = MoveUpdateService.addAnalysisMove(tree, tree.rootId, sampleMove, analysisPosition)
     const analysisNode = analysisTree.nodeById[analysisTree.nodeById[analysisTree.rootId].childIds[0]]
 
     expect(analysisTree.nodeById[analysisTree.rootId].mainlineChildId).toBeNull()
-    expect(analysisNode.branchKind).toBe('analysis')
+    expect(analysisNode.branchKind).toBe(MoveBranchKind.Analysis)
     expect(analysisNode.clockSnapshot).toEqual(clockSnapshot)
   })
 
@@ -66,19 +66,19 @@ describe('MoveUpdateService', () => {
     const rewritten = MoveUpdateService.rewriteMainline(second, second.rootId, promotedId)
 
     expect(rewritten.nodeById[rewritten.rootId].mainlineChildId).toBe(promotedId)
-    expect(rewritten.nodeById[promotedId].branchKind).toBe('mainline')
+    expect(rewritten.nodeById[promotedId].branchKind).toBe(MoveBranchKind.Mainline)
   })
 
   it('takes back from the current mainline leaf and prunes future moves', () => {
     const clockSnapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'rapid',
+      preset: TimeControlPreset.Rapid,
       initialMs: 600000,
       incrementMs: 0,
     })
     const tree = MoveUpdateService.createMoveTree(createInitialBoardPosition(), clockSnapshot)
     const first = MoveUpdateService.addMainlineMove(tree, tree.rootId, sampleMove, createInitialBoardPosition(), clockSnapshot)
     const childId = first.nodeById[first.rootId].mainlineChildId!
-    const secondMove: IMove = { ...sampleMove, from: 'e7', to: 'e5', movingColour: 'black', san: '...e5', uci: 'e7e5' }
+    const secondMove: IMove = { ...sampleMove, from: 'e7', to: 'e5', movingColour: PlayerColour.Black, san: '...e5', uci: 'e7e5' }
     const second = MoveUpdateService.addMainlineMove(first, childId, secondMove, createInitialBoardPosition(), clockSnapshot)
     const takenBack = MoveUpdateService.takeBack(second, 1)
 
@@ -88,8 +88,8 @@ describe('MoveUpdateService', () => {
 
   it('replaces the board root with a fresh one-node tree', () => {
     const replacement = createSparseBoard([
-      { square: 'a1', piece: { kind: 'king', colour: 'white' } },
-      { square: 'h8', piece: { kind: 'king', colour: 'black' } },
+      { square: 'a1', piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+      { square: 'h8', piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ])
     const tree = MoveUpdateService.replaceBoardRoot(replacement, null)
 
@@ -97,3 +97,5 @@ describe('MoveUpdateService', () => {
     expect(tree.nodeById[tree.rootId].position.fen).toBe(replacement.fen)
   })
 })
+
+

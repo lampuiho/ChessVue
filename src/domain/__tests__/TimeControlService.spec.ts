@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { TimeControlService } from '../Services/TimeControlService'
+import { PlayerColour, TimeControlPreset, TimeControlService } from '../index'
 
 describe('TimeControlService', () => {
   it('initialises untimed snapshots with null clocks', () => {
     const snapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'untimed',
+      preset: TimeControlPreset.Untimed,
       initialMs: null,
       incrementMs: 0,
     })
@@ -17,11 +17,11 @@ describe('TimeControlService', () => {
 
   it('tracks running time from UTC timestamps', () => {
     const initialSnapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'blitz',
+      preset: TimeControlPreset.Blitz,
       initialMs: 300000,
       incrementMs: 0,
     })
-    const runningSnapshot = TimeControlService.startClock(initialSnapshot, 'white', '2026-01-01T12:00:00.000Z')
+    const runningSnapshot = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
 
     const remaining = TimeControlService.getRemainingTime(runningSnapshot, '2026-01-01T12:00:05.000Z')
 
@@ -31,11 +31,11 @@ describe('TimeControlService', () => {
 
   it('pauses and resumes without drift', () => {
     const initialSnapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'rapid',
+      preset: TimeControlPreset.Rapid,
       initialMs: 600000,
       incrementMs: 0,
     })
-    const started = TimeControlService.startClock(initialSnapshot, 'white', '2026-01-01T12:00:00.000Z')
+    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
     const paused = TimeControlService.pauseClock(started, '2026-01-01T12:00:10.000Z')
     const resumed = TimeControlService.resumeClock(paused, '2026-01-01T12:05:00.000Z')
     const remaining = TimeControlService.getRemainingTime(resumed, '2026-01-01T12:05:10.000Z')
@@ -46,31 +46,32 @@ describe('TimeControlService', () => {
 
   it('applies increment after a move and hands the clock over', () => {
     const initialSnapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'rapid',
+      preset: TimeControlPreset.Rapid,
       initialMs: 600000,
       incrementMs: 2000,
     })
-    const started = TimeControlService.startClock(initialSnapshot, 'white', '2026-01-01T12:00:00.000Z')
-    const moved = TimeControlService.applyMove(started, 'white', '2026-01-01T12:00:05.000Z', {
-      preset: 'rapid',
+    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
+    const moved = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', {
+      preset: TimeControlPreset.Rapid,
       initialMs: 600000,
       incrementMs: 2000,
     })
 
     expect(moved.white.remainingMs).toBe(597000)
-    expect(moved.activeColour).toBe('black')
+    expect(moved.activeColour).toBe(PlayerColour.Black)
     expect(moved.black.isRunning).toBe(true)
   })
 
   it('detects timeout after clamping negative time to zero', () => {
     const initialSnapshot = TimeControlService.initialiseClockSnapshot({
-      preset: 'bullet',
+      preset: TimeControlPreset.Bullet,
       initialMs: 1000,
       incrementMs: 0,
     })
-    const started = TimeControlService.startClock(initialSnapshot, 'white', '2026-01-01T12:00:00.000Z')
+    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
 
     expect(TimeControlService.hasExpired(started, '2026-01-01T12:00:02.000Z')).toBe(true)
     expect(TimeControlService.getRemainingTime(started, '2026-01-01T12:00:02.000Z').white).toBe(0)
   })
 })
+

@@ -3,9 +3,54 @@ import { z } from 'zod'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { moveSchema, type IMove } from './Move'
 
-export type EngineProtocol = 'uci'
-export type EngineRole = 'player' | 'analysis'
-export type EngineAvailability = 'ready' | 'starting' | 'running' | 'unavailable' | 'failed'
+export const engineProtocols = ['uci'] as const
+export const engineRoles = ['player', 'analysis'] as const
+export const engineAvailabilities = ['ready', 'starting', 'running', 'unavailable', 'failed'] as const
+export const engineSearchModes = ['infinite'] as const
+export const engineSessionEventKinds = [
+  'handshakeStarted',
+  'handshakeCompleted',
+  'ready',
+  'copyProtectionChecking',
+  'copyProtectionOk',
+  'copyProtectionError',
+  'registrationChecking',
+  'registrationOk',
+  'registrationError',
+] as const
+
+export const enum EngineProtocol {
+  Uci = 'uci',
+}
+
+export const enum EngineRole {
+  Player = 'player',
+  Analysis = 'analysis',
+}
+
+export const enum EngineAvailability {
+  Ready = 'ready',
+  Starting = 'starting',
+  Running = 'running',
+  Unavailable = 'unavailable',
+  Failed = 'failed',
+}
+
+export const enum EngineSearchMode {
+  Infinite = 'infinite',
+}
+
+export const enum EngineSessionEventKind {
+  HandshakeStarted = 'handshakeStarted',
+  HandshakeCompleted = 'handshakeCompleted',
+  Ready = 'ready',
+  CopyProtectionChecking = 'copyProtectionChecking',
+  CopyProtectionOk = 'copyProtectionOk',
+  CopyProtectionError = 'copyProtectionError',
+  RegistrationChecking = 'registrationChecking',
+  RegistrationOk = 'registrationOk',
+  RegistrationError = 'registrationError',
+}
 
 export interface IEngineOptionMap {
   [optionName: string]: string | number | boolean
@@ -51,7 +96,7 @@ export interface IEngineRuntimeSession {
 
 export interface IEngineAnalysisRequest {
   multiPv: number
-  searchMode: 'infinite'
+  searchMode: EngineSearchMode
 }
 
 export interface IEngineRegistrationRequest {
@@ -61,22 +106,15 @@ export interface IEngineRegistrationRequest {
 }
 
 export interface IEngineSessionEvent {
-  kind:
-    | 'handshakeStarted'
-    | 'handshakeCompleted'
-    | 'ready'
-    | 'copyProtectionChecking'
-    | 'copyProtectionOk'
-    | 'copyProtectionError'
-    | 'registrationChecking'
-    | 'registrationOk'
-    | 'registrationError'
+  kind: EngineSessionEventKind
   detail: string | null
 }
 
-export const engineProtocolSchema = z.enum(['uci'])
-export const engineRoleSchema = z.enum(['player', 'analysis'])
-export const engineAvailabilitySchema = z.enum(['ready', 'starting', 'running', 'unavailable', 'failed'])
+export const engineProtocolSchema = z.enum(engineProtocols)
+export const engineRoleSchema = z.enum(engineRoles)
+export const engineAvailabilitySchema = z.enum(engineAvailabilities)
+export const engineSearchModeSchema = z.enum(engineSearchModes)
+export const engineSessionEventKindSchema = z.enum(engineSessionEventKinds)
 export const engineOptionValueSchema = z.union([z.string(), z.number(), z.boolean()])
 export const engineOptionMapSchema = z.record(z.string(), engineOptionValueSchema)
 
@@ -120,7 +158,7 @@ export const engineRuntimeSessionSchema = z.object({
 
 export const engineAnalysisRequestSchema = z.object({
   multiPv: z.number().int().min(1),
-  searchMode: z.literal('infinite'),
+  searchMode: engineSearchModeSchema,
 })
 
 export const engineRegistrationRequestSchema = z.object({
@@ -130,16 +168,6 @@ export const engineRegistrationRequestSchema = z.object({
 })
 
 export const engineSessionEventSchema = z.object({
-  kind: z.enum([
-    'handshakeStarted',
-    'handshakeCompleted',
-    'ready',
-    'copyProtectionChecking',
-    'copyProtectionOk',
-    'copyProtectionError',
-    'registrationChecking',
-    'registrationOk',
-    'registrationError',
-  ]),
+  kind: engineSessionEventKindSchema,
   detail: z.string().nullable(),
 })

@@ -1,4 +1,4 @@
-import type { IBoardPosition, IClockSnapshot, IMove, IMoveNode, IMoveTree } from '../Contracts'
+import { MoveBranchKind, type IBoardPosition, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree } from '../Contracts'
 
 import { createMoveTreeNodeId } from '../Internal/MoveTreeId'
 
@@ -54,7 +54,7 @@ function followMainline(tree: IMoveTree, startNodeId: string): string[] {
   return path
 }
 
-function markPathBranchKind(tree: IMoveTree, startNodeId: string, branchKind: 'mainline' | 'variation'): void {
+function markPathBranchKind(tree: IMoveTree, startNodeId: string, branchKind: MoveBranchKind): void {
   const path = followMainline(tree, startNodeId)
 
   for (const nodeId of path) {
@@ -112,7 +112,7 @@ export const MoveUpdateService = {
           id: rootId,
           parentId: null,
           childIds: [],
-          branchKind: 'mainline',
+          branchKind: MoveBranchKind.Mainline,
           move: null,
           position: structuredClone(boardRoot),
           clockSnapshot: clockSnapshot === null ? null : structuredClone(clockSnapshot),
@@ -130,7 +130,7 @@ export const MoveUpdateService = {
     const newNodeId = createMoveTreeNodeId()
 
     if (previousMainlineChildId !== null) {
-      markPathBranchKind(nextTree, previousMainlineChildId, 'variation')
+      markPathBranchKind(nextTree, previousMainlineChildId, MoveBranchKind.Variation)
     }
 
     parentNode.childIds.push(newNodeId)
@@ -140,7 +140,7 @@ export const MoveUpdateService = {
       id: newNodeId,
       parentId: parentNodeId,
       childIds: [],
-      branchKind: 'mainline',
+      branchKind: MoveBranchKind.Mainline,
       move: structuredClone(move),
       position: structuredClone(position),
       clockSnapshot: clockSnapshot === null ? null : structuredClone(clockSnapshot),
@@ -162,7 +162,7 @@ export const MoveUpdateService = {
       id: newNodeId,
       parentId: parentNodeId,
       childIds: [],
-      branchKind: 'analysis',
+      branchKind: MoveBranchKind.Analysis,
       move: structuredClone(move),
       position: structuredClone(position),
       clockSnapshot: parentNode.clockSnapshot === null ? null : structuredClone(parentNode.clockSnapshot),
@@ -209,11 +209,11 @@ export const MoveUpdateService = {
 
     const previousMainlineChildId = parentNode.mainlineChildId
     if (previousMainlineChildId !== null && previousMainlineChildId !== childNodeId) {
-      markPathBranchKind(nextTree, previousMainlineChildId, 'variation')
+      markPathBranchKind(nextTree, previousMainlineChildId, MoveBranchKind.Variation)
     }
 
     parentNode.mainlineChildId = childNodeId
-    markPathBranchKind(nextTree, childNodeId, 'mainline')
+    markPathBranchKind(nextTree, childNodeId, MoveBranchKind.Mainline)
 
     return nextTree
   },
@@ -230,3 +230,5 @@ export const MoveUpdateService = {
     return this.createMoveTree(boardRoot, clockSnapshot)
   },
 }
+
+

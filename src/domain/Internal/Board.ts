@@ -1,4 +1,5 @@
-import type { IBoardPosition, ICastlingAvailability, IChessPiece, PlayerColour, SquareId } from '../Contracts'
+import type { IBoardPosition, ICastlingAvailability, IChessPiece, SquareId } from '../Contracts'
+import { PieceKind, PlayerColour } from '../Contracts'
 
 import { withFen } from './Fen'
 
@@ -37,32 +38,32 @@ export function createDefaultCastlingAvailability(): ICastlingAvailability {
 
 export function createInitialBoardPosition(): IBoardPosition {
   const piecesBySquare: IBoardPosition['piecesBySquare'] = {
-    a1: { kind: 'rook', colour: 'white' },
-    b1: { kind: 'knight', colour: 'white' },
-    c1: { kind: 'bishop', colour: 'white' },
-    d1: { kind: 'queen', colour: 'white' },
-    e1: { kind: 'king', colour: 'white' },
-    f1: { kind: 'bishop', colour: 'white' },
-    g1: { kind: 'knight', colour: 'white' },
-    h1: { kind: 'rook', colour: 'white' },
-    a8: { kind: 'rook', colour: 'black' },
-    b8: { kind: 'knight', colour: 'black' },
-    c8: { kind: 'bishop', colour: 'black' },
-    d8: { kind: 'queen', colour: 'black' },
-    e8: { kind: 'king', colour: 'black' },
-    f8: { kind: 'bishop', colour: 'black' },
-    g8: { kind: 'knight', colour: 'black' },
-    h8: { kind: 'rook', colour: 'black' },
+    a1: { kind: PieceKind.Rook, colour: PlayerColour.White },
+    b1: { kind: PieceKind.Knight, colour: PlayerColour.White },
+    c1: { kind: PieceKind.Bishop, colour: PlayerColour.White },
+    d1: { kind: PieceKind.Queen, colour: PlayerColour.White },
+    e1: { kind: PieceKind.King, colour: PlayerColour.White },
+    f1: { kind: PieceKind.Bishop, colour: PlayerColour.White },
+    g1: { kind: PieceKind.Knight, colour: PlayerColour.White },
+    h1: { kind: PieceKind.Rook, colour: PlayerColour.White },
+    a8: { kind: PieceKind.Rook, colour: PlayerColour.Black },
+    b8: { kind: PieceKind.Knight, colour: PlayerColour.Black },
+    c8: { kind: PieceKind.Bishop, colour: PlayerColour.Black },
+    d8: { kind: PieceKind.Queen, colour: PlayerColour.Black },
+    e8: { kind: PieceKind.King, colour: PlayerColour.Black },
+    f8: { kind: PieceKind.Bishop, colour: PlayerColour.Black },
+    g8: { kind: PieceKind.Knight, colour: PlayerColour.Black },
+    h8: { kind: PieceKind.Rook, colour: PlayerColour.Black },
   }
 
   for (const file of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const) {
-    piecesBySquare[`${file}2`] = { kind: 'pawn', colour: 'white' }
-    piecesBySquare[`${file}7`] = { kind: 'pawn', colour: 'black' }
+    piecesBySquare[`${file}2`] = { kind: PieceKind.Pawn, colour: PlayerColour.White }
+    piecesBySquare[`${file}7`] = { kind: PieceKind.Pawn, colour: PlayerColour.Black }
   }
 
   return withFen({
     piecesBySquare,
-    sideToMove: 'white',
+    sideToMove: PlayerColour.White,
     castlingAvailability: createDefaultCastlingAvailability(),
     enPassantTarget: null,
     halfMoveClock: 0,
@@ -71,12 +72,12 @@ export function createInitialBoardPosition(): IBoardPosition {
 }
 
 export function getOpponentColour(colour: PlayerColour): PlayerColour {
-  return colour === 'white' ? 'black' : 'white'
+  return colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White
 }
 
 export function findKingSquare(position: IBoardPosition, colour: PlayerColour): SquareId | null {
   for (const [square, piece] of Object.entries(position.piecesBySquare)) {
-    if (piece?.kind === 'king' && piece.colour === colour) {
+    if (piece?.kind === PieceKind.King && piece.colour === colour) {
       return square as SquareId
     }
   }
@@ -95,7 +96,7 @@ export function normaliseBoardPosition(position: Omit<IBoardPosition, 'fen'> | I
   })
 }
 
-export function createSparseBoard(pieces: Array<{ square: SquareId; piece: IChessPiece }>, sideToMove: PlayerColour = 'white'): IBoardPosition {
+export function createSparseBoard(pieces: Array<{ square: SquareId; piece: IChessPiece }>, sideToMove: PlayerColour = PlayerColour.White): IBoardPosition {
   const piecesBySquare: IBoardPosition['piecesBySquare'] = {}
 
   for (const entry of pieces) {

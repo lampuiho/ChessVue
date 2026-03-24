@@ -2,7 +2,15 @@ import { z } from 'zod'
 
 import { playerColourSchema, type PlayerColour } from './Chess'
 
-export type TimeControlPreset = 'bullet' | 'blitz' | 'rapid' | 'classical' | 'untimed'
+export const timeControlPresets = ['bullet', 'blitz', 'rapid', 'classical', 'untimed'] as const
+
+export const enum TimeControlPreset {
+  Bullet = 'bullet',
+  Blitz = 'blitz',
+  Rapid = 'rapid',
+  Classical = 'classical',
+  Untimed = 'untimed',
+}
 
 export interface ITimeControl {
   preset: TimeControlPreset | null
@@ -24,7 +32,7 @@ export interface IClockSnapshot {
   lastMoveAtUtc: string | null
 }
 
-export const timeControlPresetSchema = z.enum(['bullet', 'blitz', 'rapid', 'classical', 'untimed'])
+export const timeControlPresetSchema = z.enum(timeControlPresets)
 export const timeControlSchema = z.object({
   preset: timeControlPresetSchema.nullable(),
   initialMs: z.number().int().min(0).nullable(),

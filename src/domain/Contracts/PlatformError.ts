@@ -1,6 +1,15 @@
 import { z } from 'zod'
 
-export type PlatformErrorKind = 'cancelled' | 'notFound' | 'permissionDenied' | 'invalidDocument' | 'processStartFailed' | 'unexpectedExit'
+export const platformErrorKinds = ['cancelled', 'notFound', 'permissionDenied', 'invalidDocument', 'processStartFailed', 'unexpectedExit'] as const
+
+export const enum PlatformErrorKind {
+  Cancelled = 'cancelled',
+  NotFound = 'notFound',
+  PermissionDenied = 'permissionDenied',
+  InvalidDocument = 'invalidDocument',
+  ProcessStartFailed = 'processStartFailed',
+  UnexpectedExit = 'unexpectedExit',
+}
 
 export interface IPlatformError {
   kind: PlatformErrorKind
@@ -9,14 +18,7 @@ export interface IPlatformError {
   detail: string | null
 }
 
-export const platformErrorKindSchema = z.enum([
-  'cancelled',
-  'notFound',
-  'permissionDenied',
-  'invalidDocument',
-  'processStartFailed',
-  'unexpectedExit',
-])
+export const platformErrorKindSchema = z.enum(platformErrorKinds)
 
 export const platformErrorSchema = z.object({
   kind: platformErrorKindSchema,

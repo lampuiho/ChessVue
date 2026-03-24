@@ -1,4 +1,4 @@
-import type { IClockSnapshot, ITimeControl, PlayerColour } from '../Contracts'
+import { PlayerColour, TimeControlPreset, type IClockSnapshot, type ITimeControl } from '../Contracts'
 
 import { getElapsedMs } from '../Internal/Utc'
 
@@ -14,11 +14,11 @@ function cloneClockSnapshot(snapshot: IClockSnapshot): IClockSnapshot {
 }
 
 function isUntimed(timeControl: ITimeControl): boolean {
-  return timeControl.initialMs === null || timeControl.preset === 'untimed'
+  return timeControl.initialMs === null || timeControl.preset === TimeControlPreset.Untimed
 }
 
 function getClock(snapshot: IClockSnapshot, colour: PlayerColour) {
-  return colour === 'white' ? snapshot.white : snapshot.black
+  return colour === PlayerColour.White ? snapshot.white : snapshot.black
 }
 
 function materialiseElapsed(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
@@ -80,8 +80,8 @@ export const TimeControlService = {
       return nextSnapshot
     }
 
-    nextSnapshot.white.isRunning = activeColour === 'white'
-    nextSnapshot.black.isRunning = activeColour === 'black'
+    nextSnapshot.white.isRunning = activeColour === PlayerColour.White
+    nextSnapshot.black.isRunning = activeColour === PlayerColour.Black
     nextSnapshot.activeColour = activeColour
     nextSnapshot.startedAtUtc = nowUtc
     nextSnapshot.pausedAtUtc = null
@@ -116,8 +116,8 @@ export const TimeControlService = {
     }
 
     const nextSnapshot = cloneClockSnapshot(snapshot)
-    nextSnapshot.white.isRunning = nextSnapshot.activeColour === 'white'
-    nextSnapshot.black.isRunning = nextSnapshot.activeColour === 'black'
+    nextSnapshot.white.isRunning = nextSnapshot.activeColour === PlayerColour.White
+    nextSnapshot.black.isRunning = nextSnapshot.activeColour === PlayerColour.Black
     nextSnapshot.startedAtUtc = nowUtc
     nextSnapshot.pausedAtUtc = null
 
@@ -139,7 +139,7 @@ export const TimeControlService = {
     moverClock.remainingMs += timeControl.incrementMs
     moverClock.isRunning = false
 
-    const nextActiveColour: PlayerColour = mover === 'white' ? 'black' : 'white'
+    const nextActiveColour: PlayerColour = mover === PlayerColour.White ? PlayerColour.Black : PlayerColour.White
     const nextActiveClock = getClock(materialised, nextActiveColour)
     nextActiveClock.isRunning = true
 
@@ -157,3 +157,4 @@ export const TimeControlService = {
     return remaining.white <= 0 || remaining.black <= 0
   },
 }
+

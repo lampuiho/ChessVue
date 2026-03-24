@@ -11,17 +11,40 @@ export const squareIds = [
   'a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8',
 ] as const
 
-export type PlayerColour = 'white' | 'black'
-export type PieceKind = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn'
+export const playerColours = ['white', 'black'] as const
+
+export const enum PlayerColour {
+  White = 'white',
+  Black = 'black',
+}
+
 export type SquareId = (typeof squareIds)[number]
+
+export const enum PieceKind {
+  King = 'king',
+  Queen = 'queen',
+  Rook = 'rook',
+  Bishop = 'bishop',
+  Knight = 'knight',
+  Pawn = 'pawn',
+}
+
+export const pieceKinds = [
+  PieceKind.King,
+  PieceKind.Queen,
+  PieceKind.Rook,
+  PieceKind.Bishop,
+  PieceKind.Knight,
+  PieceKind.Pawn,
+] as const
 
 export interface IChessPiece {
   kind: PieceKind
   colour: PlayerColour
 }
 
-export const playerColourSchema = z.enum(['white', 'black'])
-export const pieceKindSchema = z.enum(['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'])
+export const playerColourSchema = z.enum(playerColours)
+export const pieceKindSchema = z.enum(pieceKinds)
 export const squareIdSchema = z.enum(squareIds)
 export const chessPieceSchema = z.object({
   kind: pieceKindSchema,

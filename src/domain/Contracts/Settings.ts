@@ -4,7 +4,36 @@ import { engineRecordSchema, type IEngineRecord } from './Engine'
 import { playerTypeSchema, type PlayerType } from './Game'
 import { timeControlSchema, type ITimeControl } from './TimeControl'
 
-export type ThemeMode = 'system' | 'light' | 'dark'
+export const themeModes = ['system', 'light', 'dark'] as const
+export const takebackPolicies = ['rewriteMainline', 'analysisOnly'] as const
+export const analysisBranchExitBehaviours = ['returnToLiveNode', 'stayOnBranch'] as const
+export const promotionPolicies = ['requireExplicitSelection'] as const
+export const boardOrientations = ['white', 'black'] as const
+
+export const enum ThemeMode {
+  System = 'system',
+  Light = 'light',
+  Dark = 'dark',
+}
+
+export const enum TakebackPolicy {
+  RewriteMainline = 'rewriteMainline',
+  AnalysisOnly = 'analysisOnly',
+}
+
+export const enum AnalysisBranchExitBehaviour {
+  ReturnToLiveNode = 'returnToLiveNode',
+  StayOnBranch = 'stayOnBranch',
+}
+
+export const enum PromotionPolicy {
+  RequireExplicitSelection = 'requireExplicitSelection',
+}
+
+export const enum BoardOrientation {
+  White = 'white',
+  Black = 'black',
+}
 
 export interface ISettingsSession {
   restorePreviousSession: boolean
@@ -21,10 +50,10 @@ export interface ISettingsGameDefaults {
 }
 
 export interface ISettingsGameplay {
-  takebackPolicy: 'rewriteMainline' | 'analysisOnly'
+  takebackPolicy: TakebackPolicy
   confirmMainlineRewrite: boolean
-  analysisBranchExitBehaviour: 'returnToLiveNode' | 'stayOnBranch'
-  promotionPolicy: 'requireExplicitSelection'
+  analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
+  promotionPolicy: PromotionPolicy
   confirmPruneFutureMoves: boolean
   allowRootPrune: boolean
 }
@@ -39,7 +68,7 @@ export interface ISettingsAppearance {
   boardTheme: string
   pieceTheme: string
   uiScalePercent: number
-  boardOrientation: 'white' | 'black'
+  boardOrientation: BoardOrientation
   showCoordinates: boolean
   highlightLastMove: boolean
 }
@@ -53,7 +82,11 @@ export interface ISettingsSnapshot {
   appearance: ISettingsAppearance
 }
 
-export const themeModeSchema = z.enum(['system', 'light', 'dark'])
+export const themeModeSchema = z.enum(themeModes)
+export const takebackPolicySchema = z.enum(takebackPolicies)
+export const analysisBranchExitBehaviourSchema = z.enum(analysisBranchExitBehaviours)
+export const promotionPolicySchema = z.enum(promotionPolicies)
+export const boardOrientationSchema = z.enum(boardOrientations)
 export const settingsSessionSchema = z.object({
   restorePreviousSession: z.boolean(),
   autosaveEnabled: z.boolean(),
@@ -69,10 +102,10 @@ export const settingsGameDefaultsSchema = z.object({
 })
 
 export const settingsGameplaySchema = z.object({
-  takebackPolicy: z.enum(['rewriteMainline', 'analysisOnly']),
+  takebackPolicy: takebackPolicySchema,
   confirmMainlineRewrite: z.boolean(),
-  analysisBranchExitBehaviour: z.enum(['returnToLiveNode', 'stayOnBranch']),
-  promotionPolicy: z.literal('requireExplicitSelection'),
+  analysisBranchExitBehaviour: analysisBranchExitBehaviourSchema,
+  promotionPolicy: promotionPolicySchema,
   confirmPruneFutureMoves: z.boolean(),
   allowRootPrune: z.boolean(),
 })
@@ -100,7 +133,7 @@ export const settingsAppearanceSchema = z.object({
   boardTheme: z.string().min(1),
   pieceTheme: z.string().min(1),
   uiScalePercent: z.number().int().min(75).max(200),
-  boardOrientation: z.enum(['white', 'black']),
+  boardOrientation: boardOrientationSchema,
   showCoordinates: z.boolean(),
   highlightLastMove: z.boolean(),
 })

@@ -1,4 +1,5 @@
-import type { IBoardPosition, ICastlingAvailability } from '../Contracts'
+import type { IBoardPosition } from '../Contracts'
+import { PlayerColour } from '../Contracts'
 
 import { coordsToSquare } from './Square'
 
@@ -17,7 +18,7 @@ const pieceToFen: Record<string, string> = {
   pawn_black: 'p',
 }
 
-export function buildCastlingField(castlingAvailability: ICastlingAvailability): string {
+export function buildCastlingField(castlingAvailability: IBoardPosition['castlingAvailability']): string {
   const tokens = [
     castlingAvailability.whiteKingSide ? 'K' : '',
     castlingAvailability.whiteQueenSide ? 'Q' : '',
@@ -66,7 +67,7 @@ export function buildFen(position: Omit<IBoardPosition, 'fen'>): string {
 
   return [
     rows.join('/'),
-    position.sideToMove === 'white' ? 'w' : 'b',
+    position.sideToMove === PlayerColour.White ? 'w' : 'b',
     buildCastlingField(position.castlingAvailability),
     position.enPassantTarget ?? '-',
     position.halfMoveClock.toString(),
