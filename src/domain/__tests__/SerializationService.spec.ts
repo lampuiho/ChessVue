@@ -63,7 +63,6 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     },
   }
 }
-
 function createWorkspace(): IGameWorkspace {
   const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 }
   const rootPosition = createInitialBoardPosition()

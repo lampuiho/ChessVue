@@ -1,24 +1,20 @@
 import { z } from 'zod'
-
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { clockSnapshotSchema, type IClockSnapshot } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, squareIdSchema, type PieceKind, type PlayerColour, type SquareId } from './Chess'
-
-export const moveKinds = ['normal', 'castle', 'enPassant', 'promotion'] as const
-export const moveBranchKinds = ['mainline', 'variation', 'analysis'] as const
-
 export const enum MoveKind {
   Normal = 'normal',
   Castle = 'castle',
   EnPassant = 'enPassant',
   Promotion = 'promotion',
 }
-
 export const enum MoveBranchKind {
   Mainline = 'mainline',
   Variation = 'variation',
   Analysis = 'analysis',
 }
+export const moveKinds = [MoveKind.Normal, MoveKind.Castle, MoveKind.EnPassant, MoveKind.Promotion] as const
+export const moveBranchKinds = [MoveBranchKind.Mainline, MoveBranchKind.Variation, MoveBranchKind.Analysis] as const
 
 export interface IMove {
   from: SquareId

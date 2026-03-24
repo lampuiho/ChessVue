@@ -1,18 +1,9 @@
 import { z } from 'zod'
-
 import { analysisAssignmentSchema, assignedEngineSchema, type IAnalysisAssignment, type IAssignedEngine } from './Engine'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { moveTreeSchema, type IMoveTree } from './Move'
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
-
-export const workspaceKinds = ['liveGame', 'freeAnalysisSetup'] as const
-export const interactionContexts = ['currentPosition', 'historyReview', 'inGameAnalysis', 'boardEdit'] as const
-export const clockStateKinds = ['none', 'running', 'paused', 'expired'] as const
-export const resultStates = ['ongoing', 'drawn', 'whiteWon', 'blackWon', 'abandoned'] as const
-export const resultReasons = ['ruleResolved', 'timeout', 'resignation', 'drawAgreement', 'abandoned'] as const
-export const playerTypes = ['local', 'engine'] as const
-export const drawOfferDirections = ['incoming', 'outgoing'] as const
 
 export const enum WorkspaceKind {
   LiveGame = 'liveGame',
@@ -58,6 +49,13 @@ export const enum DrawOfferDirection {
   Incoming = 'incoming',
   Outgoing = 'outgoing',
 }
+export const workspaceKinds = [WorkspaceKind.LiveGame, WorkspaceKind.FreeAnalysisSetup] as const
+export const interactionContexts = [InteractionContext.CurrentPosition, InteractionContext.HistoryReview, InteractionContext.InGameAnalysis, InteractionContext.BoardEdit] as const
+export const clockStateKinds = [ClockStateKind.None, ClockStateKind.Running, ClockStateKind.Paused, ClockStateKind.Expired] as const
+export const resultStates = [ResultState.Ongoing, ResultState.Drawn, ResultState.WhiteWon, ResultState.BlackWon, ResultState.Abandoned] as const
+export const resultReasons = [ResultReason.RuleResolved, ResultReason.Timeout, ResultReason.Resignation, ResultReason.DrawAgreement, ResultReason.Abandoned] as const
+export const playerTypes = [PlayerType.Local, PlayerType.Engine] as const
+export const drawOfferDirections = [DrawOfferDirection.Incoming, DrawOfferDirection.Outgoing] as const
 
 export interface IDrawOfferState {
   offeringColour: PlayerColour

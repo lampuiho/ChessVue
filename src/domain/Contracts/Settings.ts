@@ -1,14 +1,7 @@
 import { z } from 'zod'
-
 import { engineRecordSchema, type IEngineRecord } from './Engine'
 import { playerTypeSchema, type PlayerType } from './Game'
 import { timeControlSchema, type ITimeControl } from './TimeControl'
-
-export const themeModes = ['system', 'light', 'dark'] as const
-export const takebackPolicies = ['rewriteMainline', 'analysisOnly'] as const
-export const analysisBranchExitBehaviours = ['returnToLiveNode', 'stayOnBranch'] as const
-export const promotionPolicies = ['requireExplicitSelection'] as const
-export const boardOrientations = ['white', 'black'] as const
 
 export const enum ThemeMode {
   System = 'system',
@@ -34,6 +27,11 @@ export const enum BoardOrientation {
   White = 'white',
   Black = 'black',
 }
+export const themeModes = [ThemeMode.System, ThemeMode.Light, ThemeMode.Dark] as const
+export const takebackPolicies = [TakebackPolicy.RewriteMainline, TakebackPolicy.AnalysisOnly] as const
+export const analysisBranchExitBehaviours = [AnalysisBranchExitBehaviour.ReturnToLiveNode, AnalysisBranchExitBehaviour.StayOnBranch] as const
+export const promotionPolicies = [PromotionPolicy.RequireExplicitSelection] as const
+export const boardOrientations = [BoardOrientation.White, BoardOrientation.Black] as const
 
 export interface ISettingsSession {
   restorePreviousSession: boolean
@@ -114,15 +112,8 @@ export const settingsAnalysisSchema = z.object({
   resumeLiveAnalysisAfterRestore: z.boolean(),
   engineInventory: z.array(engineRecordSchema).superRefine((engines, context) => {
     const names = new Set<string>()
-
     for (const engine of engines) {
-      if (names.has(engine.displayName)) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Duplicate engine display name: ${engine.displayName}`,
-        })
-      }
-
+      if (names.has(engine.displayName)) context.addIssue({ code: z.ZodIssueCode.custom, message: `Duplicate engine display name: ${engine.displayName}` })
       names.add(engine.displayName)
     }
   }),

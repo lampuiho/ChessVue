@@ -62,7 +62,6 @@ function pieceSymbol(kind: PieceKind): string {
       return ''
   }
 }
-
 function promotionSuffix(piece: PieceKind | null): string {
   if (piece === null) {
     return '=?'
@@ -70,7 +69,6 @@ function promotionSuffix(piece: PieceKind | null): string {
 
   return `=${pieceSymbol(piece)}`
 }
-
 function createMove(candidate: ICandidateMove, san: string): IMove {
   const promotionToken = candidate.promotionPiece === null ? '' : pieceSymbol(candidate.promotionPiece).toLowerCase()
 
@@ -80,19 +78,15 @@ function createMove(candidate: ICandidateMove, san: string): IMove {
     uci: `${candidate.from}${candidate.to}${promotionToken}`,
   }
 }
-
 function getPiece(position: IBoardPosition, square: SquareId) {
   return position.piecesBySquare[square]
 }
-
 function isOccupied(position: IBoardPosition, square: SquareId): boolean {
   return getPiece(position, square) !== undefined
 }
-
 function isOccupiedByColour(position: IBoardPosition, square: SquareId, colour: PlayerColour): boolean {
   return getPiece(position, square)?.colour === colour
 }
-
 function addSlidingMoves(position: IBoardPosition, from: SquareId, colour: PlayerColour, directions: Array<{ file: number; rank: number }>, accumulator: ICandidateMove[]): void {
   const origin = squareToCoords(from)
 
@@ -128,7 +122,6 @@ function addSlidingMoves(position: IBoardPosition, from: SquareId, colour: Playe
     }
   }
 }
-
 function addPawnMoves(position: IBoardPosition, from: SquareId, colour: PlayerColour, accumulator: ICandidateMove[]): void {
   const origin = squareToCoords(from)
   const direction = getForwardDirection(colour)
@@ -195,7 +188,6 @@ function addPawnMoves(position: IBoardPosition, from: SquareId, colour: PlayerCo
     }
   }
 }
-
 function addKnightMoves(position: IBoardPosition, from: SquareId, colour: PlayerColour, accumulator: ICandidateMove[]): void {
   const origin = squareToCoords(from)
 
@@ -215,7 +207,6 @@ function addKnightMoves(position: IBoardPosition, from: SquareId, colour: Player
     })
   }
 }
-
 function addKingMoves(position: IBoardPosition, from: SquareId, colour: PlayerColour, accumulator: ICandidateMove[]): void {
   const origin = squareToCoords(from)
 
@@ -286,7 +277,6 @@ function addKingMoves(position: IBoardPosition, from: SquareId, colour: PlayerCo
     }
   }
 }
-
 function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour): ICandidateMove[] {
   const accumulator: ICandidateMove[] = []
 
@@ -321,7 +311,6 @@ function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour
 
   return accumulator
 }
-
 function isSquareAttacked(position: IBoardPosition, target: SquareId, byColour: PlayerColour): boolean {
   const targetCoords = squareToCoords(target)
   const pawnRank = targetCoords.rank - getForwardDirection(byColour)
@@ -404,7 +393,6 @@ function isSquareAttacked(position: IBoardPosition, target: SquareId, byColour: 
 
   return false
 }
-
 function updateCastlingAvailability(position: IBoardPosition, move: ICandidateMove): IBoardPosition['castlingAvailability'] {
   const nextCastlingAvailability = { ...position.castlingAvailability }
   const movingPiece = getPiece(position, move.from)
@@ -454,7 +442,6 @@ function updateCastlingAvailability(position: IBoardPosition, move: ICandidateMo
 
   return nextCastlingAvailability
 }
-
 function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBoardPosition {
   const movingPiece = getPiece(position, move.from)
 
@@ -516,7 +503,6 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
 
   return normaliseBoardPosition(nextPosition)
 }
-
 function isLegalCandidate(position: IBoardPosition, move: ICandidateMove): boolean {
   const movingPiece = getPiece(position, move.from)
   if (movingPiece === undefined || movingPiece.colour !== move.movingColour) {
@@ -532,7 +518,6 @@ function isLegalCandidate(position: IBoardPosition, move: ICandidateMove): boole
     return !isSquareAttacked(nextPosition, findKingSquare(nextPosition, move.movingColour)!, getOpponentColour(move.movingColour))
   })
 }
-
 function moveMatches(candidate: Pick<IMove, 'from' | 'to' | 'kind' | 'movingColour' | 'promotionPiece'>, move: IMove): boolean {
   if (candidate.from !== move.from || candidate.to !== move.to || candidate.kind !== move.kind || candidate.movingColour !== move.movingColour) {
     return false
@@ -544,7 +529,6 @@ function moveMatches(candidate: Pick<IMove, 'from' | 'to' | 'kind' | 'movingColo
 
   return move.promotionPiece === null || promotionPieces.includes(move.promotionPiece)
 }
-
 function getDisambiguation(position: IBoardPosition, move: ICandidateMove, legalMoves: ICandidateMove[]): string {
   const movingPiece = getPiece(position, move.from)
   if (movingPiece === undefined || movingPiece.kind === PieceKind.Pawn || movingPiece.kind === PieceKind.King) {
@@ -578,7 +562,6 @@ function getDisambiguation(position: IBoardPosition, move: ICandidateMove, legal
 
   return move.from
 }
-
 function buildSan(position: IBoardPosition, move: ICandidateMove, legalMoves: ICandidateMove[]): string {
   if (move.kind === MoveKind.Castle) {
     const san = squareToCoords(move.to).file === 6 ? 'O-O' : 'O-O-O'
@@ -622,11 +605,9 @@ function buildSan(position: IBoardPosition, move: ICandidateMove, legalMoves: IC
 
   return `${piecePrefix}${pawnCapturePrefix}${disambiguation}${capture ? 'x' : ''}${move.to}${promotionText}${suffix}`
 }
-
 function mapCandidateToMove(position: IBoardPosition, candidate: ICandidateMove, legalMoves: ICandidateMove[]): IMove {
   return createMove(candidate, buildSan(position, candidate, legalMoves))
 }
-
 function hasInsufficientMaterial(position: IBoardPosition): boolean {
   const pieces = Object.values(position.piecesBySquare)
   const nonKingPieces = pieces.filter((piece) => piece !== undefined && piece.kind !== PieceKind.King)
@@ -665,11 +646,9 @@ export const GameRuleService = {
 
     return candidates.map((candidate) => mapCandidateToMove(normalisedPosition, candidate, candidates))
   },
-
   isMoveLegal(position: IBoardPosition, move: IMove): boolean {
     return this.generateLegalMoves(position).some((candidate) => moveMatches(candidate, move))
   },
-
   requiresPromotionSelection(position: IBoardPosition, move: IMove): boolean {
     const piece = getPiece(position, move.from)
     if (piece?.kind !== PieceKind.Pawn) {
@@ -679,7 +658,6 @@ export const GameRuleService = {
     const destinationRank = squareToCoords(move.to).rank
     return destinationRank === getPromotionRank(piece.colour) && move.promotionPiece === null
   },
-
   applyMove(position: IBoardPosition, move: IMove): IBoardPosition {
     const legalMoves = this.generateLegalMoves(position)
     const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move))
@@ -700,7 +678,6 @@ export const GameRuleService = {
       promotionPiece: move.promotionPiece,
     })
   },
-
   resolveResult(position: IBoardPosition) {
     if (hasInsufficientMaterial(position)) {
       return {

@@ -1,13 +1,11 @@
 import { z } from 'zod'
-
 import { themeModeSchema, type ThemeMode } from './Settings'
-
-export const resolvedThemeModes = ['light', 'dark'] as const
 
 export const enum ResolvedThemeMode {
   Light = 'light',
   Dark = 'dark',
 }
+export const resolvedThemeModes = [ResolvedThemeMode.Light, ResolvedThemeMode.Dark] as const
 
 export interface IAppearanceCssVariableMap {
   '--surface-app': string

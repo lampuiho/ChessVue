@@ -1,8 +1,5 @@
 import { z } from 'zod'
-
 import { playerColourSchema, type PlayerColour } from './Chess'
-
-export const timeControlPresets = ['bullet', 'blitz', 'rapid', 'classical', 'untimed'] as const
 
 export const enum TimeControlPreset {
   Bullet = 'bullet',
@@ -11,6 +8,7 @@ export const enum TimeControlPreset {
   Classical = 'classical',
   Untimed = 'untimed',
 }
+export const timeControlPresets = [TimeControlPreset.Bullet, TimeControlPreset.Blitz, TimeControlPreset.Rapid, TimeControlPreset.Classical, TimeControlPreset.Untimed] as const
 
 export interface ITimeControl {
   preset: TimeControlPreset | null

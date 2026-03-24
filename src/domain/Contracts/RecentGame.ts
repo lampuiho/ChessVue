@@ -1,11 +1,10 @@
 import { z } from 'zod'
 
-export const recentGameSourceKinds = ['autosave', 'manualFile'] as const
-
 export const enum RecentGameSourceKind {
   Autosave = 'autosave',
   ManualFile = 'manualFile',
 }
+export const recentGameSourceKinds = [RecentGameSourceKind.Autosave, RecentGameSourceKind.ManualFile] as const
 
 export interface IRecentGameEntry {
   gameId: string
@@ -28,19 +27,8 @@ export const recentGameEntrySchema = z.object({
   filePath: z.string().nullable(),
   lastSavedAtUtc: z.string().datetime({ offset: true }),
 }).superRefine((entry, context) => {
-  if (entry.sourceKind === RecentGameSourceKind.Autosave && entry.filePath !== null) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Autosave recent game entries must not include a file path.',
-    })
-  }
-
-  if (entry.sourceKind === RecentGameSourceKind.ManualFile && entry.filePath === null) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Manual file recent game entries must include a file path.',
-    })
-  }
+  if (entry.sourceKind === RecentGameSourceKind.Autosave && entry.filePath !== null) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Autosave recent game entries must not include a file path.' })
+  if (entry.sourceKind === RecentGameSourceKind.ManualFile && entry.filePath === null) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Manual file recent game entries must include a file path.' })
 })
 
 export const recentGamesSnapshotSchema = z.object({

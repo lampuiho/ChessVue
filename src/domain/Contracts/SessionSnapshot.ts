@@ -1,14 +1,16 @@
 import { z } from 'zod'
-
-export const settingsCategories = ['session', 'gameplay', 'appearance', 'engines'] as const
-
 export const enum SettingsCategory {
   Session = 'session',
   Gameplay = 'gameplay',
   Appearance = 'appearance',
   Engines = 'engines',
 }
-
+export const settingsCategories = [
+  SettingsCategory.Session,
+  SettingsCategory.Gameplay,
+  SettingsCategory.Appearance,
+  SettingsCategory.Engines
+] as const
 export interface IUiLayoutState {
   schemaVersion: number
   showHistoryPanel: boolean
@@ -17,7 +19,6 @@ export interface IUiLayoutState {
   analysisCollapsed: boolean
   analysisEngineExpandedByIndex: boolean[]
 }
-
 export interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
@@ -36,7 +37,6 @@ export const uiLayoutStateSchema = z.object({
   analysisCollapsed: z.boolean(),
   analysisEngineExpandedByIndex: z.array(z.boolean()),
 })
-
 export const gameSessionSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
   openGameIds: z.array(z.string().min(1)),

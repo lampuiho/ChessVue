@@ -1,23 +1,6 @@
 import { z } from 'zod'
-
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { moveSchema, type IMove } from './Move'
-
-export const engineProtocols = ['uci'] as const
-export const engineRoles = ['player', 'analysis'] as const
-export const engineAvailabilities = ['ready', 'starting', 'running', 'unavailable', 'failed'] as const
-export const engineSearchModes = ['infinite'] as const
-export const engineSessionEventKinds = [
-  'handshakeStarted',
-  'handshakeCompleted',
-  'ready',
-  'copyProtectionChecking',
-  'copyProtectionOk',
-  'copyProtectionError',
-  'registrationChecking',
-  'registrationOk',
-  'registrationError',
-] as const
 
 export const enum EngineProtocol {
   Uci = 'uci',
@@ -51,6 +34,21 @@ export const enum EngineSessionEventKind {
   RegistrationOk = 'registrationOk',
   RegistrationError = 'registrationError',
 }
+export const engineProtocols = [EngineProtocol.Uci] as const
+export const engineRoles = [EngineRole.Player, EngineRole.Analysis] as const
+export const engineAvailabilities = [EngineAvailability.Ready, EngineAvailability.Starting, EngineAvailability.Running, EngineAvailability.Unavailable, EngineAvailability.Failed] as const
+export const engineSearchModes = [EngineSearchMode.Infinite] as const
+export const engineSessionEventKinds = [
+  EngineSessionEventKind.HandshakeStarted,
+  EngineSessionEventKind.HandshakeCompleted,
+  EngineSessionEventKind.Ready,
+  EngineSessionEventKind.CopyProtectionChecking,
+  EngineSessionEventKind.CopyProtectionOk,
+  EngineSessionEventKind.CopyProtectionError,
+  EngineSessionEventKind.RegistrationChecking,
+  EngineSessionEventKind.RegistrationOk,
+  EngineSessionEventKind.RegistrationError,
+] as const
 
 export interface IEngineOptionMap {
   [optionName: string]: string | number | boolean

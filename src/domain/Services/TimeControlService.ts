@@ -12,15 +12,12 @@ function cloneClockSnapshot(snapshot: IClockSnapshot): IClockSnapshot {
     lastMoveAtUtc: snapshot.lastMoveAtUtc,
   }
 }
-
 function isUntimed(timeControl: ITimeControl): boolean {
   return timeControl.initialMs === null || timeControl.preset === TimeControlPreset.Untimed
 }
-
 function getClock(snapshot: IClockSnapshot, colour: PlayerColour) {
   return colour === PlayerColour.White ? snapshot.white : snapshot.black
 }
-
 function materialiseElapsed(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
   const nextSnapshot = cloneClockSnapshot(snapshot)
 
@@ -63,7 +60,6 @@ export const TimeControlService = {
       lastMoveAtUtc: null,
     }
   },
-
   getRemainingTime(snapshot: IClockSnapshot, nowUtc: string): Record<PlayerColour, number> {
     const materialised = materialiseElapsed(snapshot, nowUtc)
 
@@ -72,7 +68,6 @@ export const TimeControlService = {
       black: materialised.black.remainingMs ?? 0,
     }
   },
-
   startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: string): IClockSnapshot {
     const nextSnapshot = cloneClockSnapshot(snapshot)
 
@@ -89,7 +84,6 @@ export const TimeControlService = {
 
     return nextSnapshot
   },
-
   pauseClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
     if (snapshot.activeColour === null || snapshot.startedAtUtc === null) {
       return cloneClockSnapshot(snapshot)
@@ -103,7 +97,6 @@ export const TimeControlService = {
 
     return nextSnapshot
   },
-
   resumeClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
     if (snapshot.activeColour === null) {
       return cloneClockSnapshot(snapshot)
@@ -123,7 +116,6 @@ export const TimeControlService = {
 
     return nextSnapshot
   },
-
   applyMove(snapshot: IClockSnapshot, mover: PlayerColour, nowUtc: string, timeControl: ITimeControl): IClockSnapshot {
     if (isUntimed(timeControl)) {
       return cloneClockSnapshot(snapshot)
@@ -150,7 +142,6 @@ export const TimeControlService = {
 
     return materialised
   },
-
   hasExpired(snapshot: IClockSnapshot, nowUtc: string): boolean {
     const remaining = this.getRemainingTime(snapshot, nowUtc)
 

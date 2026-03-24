@@ -10,7 +10,6 @@ function cloneNode(node: IMoveNode): IMoveNode {
     clockSnapshot: node.clockSnapshot === null ? null : structuredClone(node.clockSnapshot),
   }
 }
-
 function cloneTree(tree: IMoveTree): IMoveTree {
   return {
     rootId: tree.rootId,
@@ -19,7 +18,6 @@ function cloneTree(tree: IMoveTree): IMoveTree {
     ),
   }
 }
-
 function getNode(tree: IMoveTree, nodeId: string): IMoveNode {
   const node = tree.nodeById[nodeId]
 
@@ -29,7 +27,6 @@ function getNode(tree: IMoveTree, nodeId: string): IMoveNode {
 
   return node
 }
-
 function getLineage(tree: IMoveTree, nodeId: string): string[] {
   const lineage: string[] = []
   let currentId: string | null = nodeId
@@ -41,7 +38,6 @@ function getLineage(tree: IMoveTree, nodeId: string): string[] {
 
   return lineage
 }
-
 function followMainline(tree: IMoveTree, startNodeId: string): string[] {
   const path: string[] = []
   let currentId: string | null = startNodeId
@@ -53,7 +49,6 @@ function followMainline(tree: IMoveTree, startNodeId: string): string[] {
 
   return path
 }
-
 function markPathBranchKind(tree: IMoveTree, startNodeId: string, branchKind: MoveBranchKind): void {
   const path = followMainline(tree, startNodeId)
 
@@ -63,7 +58,6 @@ function markPathBranchKind(tree: IMoveTree, startNodeId: string, branchKind: Mo
     }
   }
 }
-
 function collectDescendants(tree: IMoveTree, nodeId: string): string[] {
   const descendants: string[] = []
   const queue = [...getNode(tree, nodeId).childIds]
@@ -76,7 +70,6 @@ function collectDescendants(tree: IMoveTree, nodeId: string): string[] {
 
   return descendants
 }
-
 function pruneDescendants(tree: IMoveTree, nodeId: string): IMoveTree {
   const nextTree = cloneTree(tree)
   const descendants = collectDescendants(nextTree, nodeId)
@@ -90,7 +83,6 @@ function pruneDescendants(tree: IMoveTree, nodeId: string): IMoveTree {
 
   return nextTree
 }
-
 function getCurrentMainlineLeaf(tree: IMoveTree): IMoveNode {
   let currentNode = getNode(tree, tree.rootId)
 
@@ -122,7 +114,6 @@ export const MoveUpdateService = {
       },
     }
   },
-
   addMainlineMove(tree: IMoveTree, parentNodeId: string, move: IMove, position: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree {
     const nextTree = cloneTree(tree)
     const parentNode = getNode(nextTree, parentNodeId)
@@ -150,7 +141,6 @@ export const MoveUpdateService = {
 
     return nextTree
   },
-
   addAnalysisMove(tree: IMoveTree, parentNodeId: string, move: IMove, position: IBoardPosition): IMoveTree {
     const nextTree = cloneTree(tree)
     const parentNode = getNode(nextTree, parentNodeId)
@@ -172,16 +162,13 @@ export const MoveUpdateService = {
 
     return nextTree
   },
-
   navigateToNode(tree: IMoveTree, nodeId: string): IMoveTree {
     getNode(tree, nodeId)
     return tree
   },
-
   getPosition(tree: IMoveTree, nodeId: string): IBoardPosition {
     return structuredClone(getNode(tree, nodeId).position)
   },
-
   takeBack(tree: IMoveTree, moveCount: number): IMoveTree {
     if (moveCount <= 0) {
       return cloneTree(tree)
@@ -198,7 +185,6 @@ export const MoveUpdateService = {
 
     return pruneDescendants(tree, targetNode.id)
   },
-
   rewriteMainline(tree: IMoveTree, parentNodeId: string, childNodeId: string): IMoveTree {
     const nextTree = cloneTree(tree)
     const parentNode = getNode(nextTree, parentNodeId)
@@ -217,7 +203,6 @@ export const MoveUpdateService = {
 
     return nextTree
   },
-
   pruneFutureMoves(tree: IMoveTree, nodeId: string, allowRootPrune: boolean): IMoveTree {
     if (nodeId === tree.rootId && !allowRootPrune) {
       throw new Error('Root pruning is disabled by policy.')
@@ -225,7 +210,6 @@ export const MoveUpdateService = {
 
     return pruneDescendants(tree, nodeId)
   },
-
   replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree {
     return this.createMoveTree(boardRoot, clockSnapshot)
   },
