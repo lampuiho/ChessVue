@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-
 import {
   AnalysisBranchExitBehaviour,
   BoardOrientation,
@@ -14,16 +13,18 @@ import {
   ThemeMode,
   TimeControlPreset,
   WorkspaceKind,
+  type IGameWorkspace,
+  type IRecentGamesSnapshot,
+  type ISettingsSnapshot,
+} from '@/contracts';
+import {
   createInitialBoardPosition,
   GameRuleService,
   MoveUpdateService,
   SerializationError,
   SerializationService,
   TimeControlService,
-  type IGameWorkspace,
-  type IRecentGamesSnapshot,
-  type ISettingsSnapshot,
-} from '../index'
+} from '..';
 
 function createSettingsSnapshot(): ISettingsSnapshot {
   return {

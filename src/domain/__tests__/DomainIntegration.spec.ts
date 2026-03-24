@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest';
 
 import {
   ClockStateKind,
@@ -8,12 +8,14 @@ import {
   ResultState,
   TimeControlPreset,
   WorkspaceKind,
+} from '@/contracts';
+import {
   createInitialBoardPosition,
   GameRuleService,
   MoveUpdateService,
   SerializationService,
   TimeControlService,
-} from '../index'
+} from '..';
 
 describe('Domain integration', () => {
   it('replays a move through rules, clocks, move tree, and serialisation', () => {

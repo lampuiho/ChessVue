@@ -650,11 +650,8 @@ export const GameRuleService = {
   },
   applyMove(position: IBoardPosition, move: IMove): IBoardPosition {
     const legalMoves = this.generateLegalMoves(position)
-    const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move))
-
-    if (matchingMove === undefined) {
-      throw new Error('Cannot apply an illegal move.')
-    }
+    const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move));
+    if (!matchingMove) throw new Error('Cannot apply an illegal move.');
 
     if (this.requiresPromotionSelection(position, move)) {
       throw new Error('Promotion piece selection is required before applying a promotion move.')

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
-
-import { PlayerColour, TimeControlPreset, TimeControlService } from '../index'
+import { describe, expect, it } from 'vitest';
+import {PlayerColour, TimeControlPreset,} from '@/contracts';
+import { TimeControlService } from '..';
 
 describe('TimeControlService', () => {
   it('initialises untimed snapshots with null clocks', () => {

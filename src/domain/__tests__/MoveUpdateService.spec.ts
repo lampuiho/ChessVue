@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-
-import { createInitialBoardPosition, createSparseBoard, MoveBranchKind, MoveKind, MoveUpdateService, PieceKind, PlayerColour, TimeControlPreset, TimeControlService, type IMove } from '../index'
+import { MoveBranchKind, MoveKind, PieceKind, PlayerColour, TimeControlPreset, type IMove, }from '@/contracts';
+import { createInitialBoardPosition, createSparseBoard, MoveUpdateService, TimeControlService, } from '..'
 
 const sampleMove: IMove = {
   from: 'e2',

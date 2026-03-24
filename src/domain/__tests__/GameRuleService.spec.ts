@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest';
 
-import { createInitialBoardPosition, createSparseBoard, GameRuleService, MoveKind, PieceKind, PlayerColour, ResultState, normaliseBoardPosition, type IBoardPosition } from '../index'
+import { MoveKind, PieceKind, PlayerColour, ResultState, type IBoardPosition } from '@/contracts';
+import { createInitialBoardPosition, createSparseBoard, GameRuleService, normaliseBoardPosition, } from '..';
 
 function withPosition(position: IBoardPosition, overrides: Partial<IBoardPosition>): IBoardPosition {
   return normaliseBoardPosition({
@@ -8,7 +9,6 @@ function withPosition(position: IBoardPosition, overrides: Partial<IBoardPositio
     ...overrides,
   })
 }
-
 describe('GameRuleService', () => {
   it('generates 20 legal opening moves', () => {
     const moves = GameRuleService.generateLegalMoves(createInitialBoardPosition())
