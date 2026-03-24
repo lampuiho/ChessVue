@@ -606,26 +606,28 @@ Each scenario in this document uses the same structure:
   - `AnalysisStore.getVisibleAnalysis`
   - `UiStateStore.showModal`
 
-### SCN-ANALYSIS-04 - Click Suggested Line to Inspect Move
+### SCN-ANALYSIS-04 - Click Suggested Move to Inspect Line Progress
 - **Status**: Planned
-- **Goal**: Let user explore suggested continuation from analysis panel.
+- **Goal**: Let user inspect any move within a suggested engine line from the analysis panel.
 - **Preconditions**: At least one analysis line is available.
-- **Entry Points**: Analysis line click.
+- **Entry Points**: Analysis move click within a visible suggested line.
 - **Main Steps**:
-  1. User clicks a suggested move/line.
-  2. App applies line in analysis context.
-  3. Board and history preview update.
-  4. User returns to mainline/live position.
+  1. User clicks any move inside a suggested engine line.
+  2. App enters or reuses analysis context for that continuation.
+  3. App plays move animation through the suggested moves up to the selected move, applying them as analysis moves.
+  4. Board and history preview update at the selected move.
+  5. User returns to mainline/live position.
 - **Branch Paths**:
-  - `BR-ANALYSIS-04-LINE-STALE`: Line no longer legal in current node -> reject and refresh eval list.
-  - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: If enabled, save inspected line as analysis branch.
-- **Postconditions**: Suggested lines become interactive, without corrupting live game state.
+  - `BR-ANALYSIS-04-MOVE-STALE`: Selected move path is no longer legal from the current node -> reject and refresh eval list.
+  - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: If enabled, keep the inspected continuation as an analysis branch.
+- **Postconditions**: Suggested moves become interactive, the selected move is reached through animated analysis moves, and live game state is not corrupted.
 - **Function Touchpoints**:
-  - `AnalysisPanel.lineSelected`
+  - `AnalysisPanel.moveSelected`
   - `GameRuleService.isMoveLegal`
   - `MoveUpdateService.addAnalysisMove`
   - `MoveUpdateService.navigateToNode`
   - `GamesStore.getGame`
+  - `GamesStore.inspectAnalysisMovePath`
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 - **Status**: Planned
