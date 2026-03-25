@@ -22,12 +22,11 @@ export const castlingAvailabilitySchema = z.object({
   blackKingSide: z.boolean(),
   blackQueenSide: z.boolean(),
 })
-const boardSchema = z.preprocess(
-  (input) => Array.isArray(input) ? input.map((entry) => entry ?? undefined) : input,
-  z.array(chessPieceSchema.optional()).length(64),
-)
+const boardEntrySchema: z.ZodType<IChessPiece | undefined, z.ZodTypeDef, IChessPiece | null | undefined> = z.union([chessPieceSchema, z.null(), z.undefined()])
+  .transform((entry) => entry ?? undefined)
+const boardSchema: z.ZodType<IBoardPosition['board'], z.ZodTypeDef, Array<IChessPiece | null | undefined>> = z.array(boardEntrySchema).length(64)
 
-export const boardPositionSchema: z.ZodType<IBoardPosition> = z.object({
+export const boardPositionSchema: z.ZodType<IBoardPosition, z.ZodTypeDef, Omit<IBoardPosition, 'board'> & { board: Array<IChessPiece | null | undefined> }> = z.object({
   board: boardSchema,
   sideToMove: playerColourSchema,
   castlingAvailability: castlingAvailabilitySchema,

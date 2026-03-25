@@ -53,7 +53,7 @@ export const moveSchema: z.ZodType<IMove> = z.object({
   movingColour: playerColourSchema,
   promotionPiece: pieceKindSchema.nullable(),
 })
-export const moveNodeSchema: z.ZodType<IMoveNode> = z.lazy(() =>
+export const moveNodeSchema = z.lazy(() =>
   z.object({
     id: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
