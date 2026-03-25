@@ -20,7 +20,6 @@ interface IAnalysisLine {
 interface IAnalysisSnapshot {
   gameId: string
   engineId: string
-  positionFen: string
   updatedAt: string
   bestMove: IMove | null
   lines: IAnalysisLine[]
@@ -28,7 +27,6 @@ interface IAnalysisSnapshot {
 }
 
 interface IVisibleAnalysisSnapshot {
-  positionFen: string
   engineSnapshots: IAnalysisSnapshot[]
 }
 
@@ -40,3 +38,4 @@ interface IVisibleAnalysisSnapshot {
 - Visible analysis is runtime state only and is not persisted inside the saved game payload.
 - Analysis-engine fold behaviour is UI-owned state persisted through `IUiLayoutState` by rendered row index for the active game rather than through the saved game payload.
 - Engine-facing updates are normalised into ChessVue move structures before they are stored here.
+- Internal analysis indexing uses derived structural position identity and does not expose that key on the public snapshot contract.

@@ -12,14 +12,12 @@ export interface IAnalysisLine {
 export interface IAnalysisSnapshot {
   gameId: string
   engineId: string
-  positionFen: string
   updatedAt: string
   bestMove: IMove | null
   lines: IAnalysisLine[]
   isComplete: boolean
 }
 export interface IVisibleAnalysisSnapshot {
-  positionFen: string
   engineSnapshots: IAnalysisSnapshot[]
 }
 export interface IEngineAnalysisUpdate {
@@ -38,7 +36,6 @@ export const analysisLineSchema = z.object({
 export const analysisSnapshotSchema = z.object({
   gameId: z.string().min(1),
   engineId: z.string().min(1),
-  positionFen: z.string().min(1),
   updatedAt: z.string().datetime({ offset: true }),
   bestMove: moveSchema.nullable(),
   lines: z.array(analysisLineSchema),
@@ -46,7 +43,6 @@ export const analysisSnapshotSchema = z.object({
 })
 
 export const visibleAnalysisSnapshotSchema = z.object({
-  positionFen: z.string().min(1),
   engineSnapshots: z.array(analysisSnapshotSchema),
 })
 

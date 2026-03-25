@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { clockSnapshotSchema, type IClockSnapshot } from './TimeControl'
-import { pieceKindSchema, playerColourSchema, squareIdSchema, type PieceKind, type PlayerColour, type SquareId } from './Chess'
+import { boardIdSchema, pieceKindSchema, playerColourSchema, type BoardId, type PieceKind, type PlayerColour } from './Chess'
 export const enum MoveKind {
   Normal = 'normal',
   Castle = 'castle',
@@ -16,12 +16,17 @@ export const enum MoveBranchKind {
 export const moveKinds = [MoveKind.Normal, MoveKind.Castle, MoveKind.EnPassant, MoveKind.Promotion] as const
 export const moveBranchKinds = [MoveBranchKind.Mainline, MoveBranchKind.Variation, MoveBranchKind.Analysis] as const
 
+export interface IMoveMetadata {
+  san?: string
+  uci?: string
+}
 export interface IMove {
-  from: SquareId
-  to: SquareId
+  from: BoardId
+  to: BoardId
   kind: MoveKind
   movingColour: PlayerColour
-  promotionPiece?: PieceKind
+  promotionPiece?: PieceKind | null
+  $?: IMoveMetadata
 }
 export interface IMoveNode {
   id: string
@@ -41,9 +46,9 @@ export interface IMoveTree {
 export const moveKindSchema = z.enum(moveKinds)
 export const moveBranchKindSchema = z.enum(moveBranchKinds)
 
-export const moveSchema = z.object({
-  from: squareIdSchema,
-  to: squareIdSchema,
+export const moveSchema: z.ZodType<IMove> = z.object({
+  from: boardIdSchema,
+  to: boardIdSchema,
   kind: moveKindSchema,
   movingColour: playerColourSchema,
   promotionPiece: pieceKindSchema.nullable(),

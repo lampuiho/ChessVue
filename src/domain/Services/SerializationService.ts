@@ -13,6 +13,7 @@ import {
 } from '../../contracts'
 import { SerializationError } from '../errors/SerializationError'
 import { normaliseBoardPosition } from '../internal/Board'
+import { PositionIdentityService } from './PositionIdentityService'
 
 function parseJson(raw: string): unknown {
   try {
@@ -135,7 +136,10 @@ function validateWorkspace(workspace: IGameWorkspace): void {
   }
 
   const rootNode = workspace.moveTree.nodeById[workspace.moveTree.rootId]
-  if (rootNode.position.fen !== workspace.boardRoot.fen) {
+  if (rootNode === undefined) {
+    throw new SerializationError('Saved game boardRoot must match an existing move-tree root position.')
+  }
+  if (PositionIdentityService.buildPositionKey(rootNode.position) !== PositionIdentityService.buildPositionKey(workspace.boardRoot)) {
     throw new SerializationError('Saved game boardRoot must match the move-tree root position.')
   }
 }
@@ -169,7 +173,7 @@ function migrateRecentGamesSnapshot(input: unknown): IRecentGamesSnapshot {
 }
 function migrateGameSessionSnapshot(input: unknown): IGameSessionSnapshot {
   requireSchemaVersionOne(input, 'Game session')
-  const snapshot = parseWithSchema('Game session', (value) => gameSessionSnapshotSchema.parse(value), input)
+  const snapshot = parseWithSchema<IGameSessionSnapshot>('Game session', (value) => gameSessionSnapshotSchema.parse(value) as IGameSessionSnapshot, input)
   validateGameSession(snapshot)
   return snapshot
 }
@@ -223,4 +227,3 @@ export const SerializationService = {
   migrateUiLayoutState,
   migrateGame,
 }
-

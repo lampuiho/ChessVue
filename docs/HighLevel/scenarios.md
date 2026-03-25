@@ -570,7 +570,7 @@ Each scenario in this document uses the same structure:
   2. App starts each selected engine session.
   3. App dispatches position to all selected engines.
   4. Each engine continues searching and emits updated best lines over time.
-  5. App aggregates evaluations keyed by `gameId + engineId + fen`, replacing older lines with newer best results from the same engine.
+  5. App aggregates evaluations keyed by `gameId + engineId + positionKey`, replacing older lines with newer best results from the same engine.
   6. Analysis panel renders one row/group per engine, always shows score/status, shows up to `3` visible lines only when the current workspace context allows rendered move targets, and updates each row independently as new output arrives.
 - **Branch Paths**:
   - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.

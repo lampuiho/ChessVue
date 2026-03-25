@@ -34,8 +34,9 @@ stopSession(sessionId: string): Promise<void>
 - `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires.
 - `syncPosition` receives ChessVue root-and-moves state, and the client decides whether it can continue the same game line or must establish a fresh game boundary.
 - During the rewrite phase, `EngineClient` sits on top of a mocked `NW.js`-style `ProcessManager`, so protocol logic can be implemented and tested before real child-process bindings exist.
+- UCI move strings and engine-facing FEN are engine-boundary details only; they are derived lazily here and are not part of the canonical data contracts.
 
-Example internal helper responsibilities:
+Example internal codec responsibilities:
 
 ```text
 _mapBoardPositionToProtocolPosition

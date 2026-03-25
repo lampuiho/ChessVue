@@ -12,10 +12,13 @@ import {
 import {
   createInitialBoardPosition,
   GameRuleService,
+  MoveNotationService,
   MoveUpdateService,
   SerializationService,
   TimeControlService,
 } from '..';
+
+const boardId = (file: number, rank: number) => file + (rank * 8);
 
 describe('Domain integration', () => {
   it('replays a move through rules, clocks, move tree, and serialisation', () => {
@@ -24,11 +27,11 @@ describe('Domain integration', () => {
     const rootClock = TimeControlService.initialiseClockSnapshot(timeControl)
     const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z')
     const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock)
-    const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.uci === 'e2e4')!
+    const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!
     const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null })
     const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl)
-    const nextTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, move, nextPosition, nextClock)
-    const nodeId = nextTree.nodeById[nextTree.rootId].mainlineChildId!
+    const nextTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock)
+    const nodeId = nextTree.nodeById[nextTree.rootId]!.mainlineChildId!
 
     const workspace = {
       schemaVersion: 1,
@@ -68,8 +71,8 @@ describe('Domain integration', () => {
 
     const restored = SerializationService.deserialiseGame(SerializationService.serialiseGame(workspace))
 
-    expect(restored.moveTree.nodeById[nodeId].move?.uci).toBe('e2e4')
+    expect(restored.moveTree.nodeById[nodeId]!.move?.$).toBeUndefined()
     expect(restored.clockSnapshot.activeColour).toBe(PlayerColour.Black)
-    expect(restored.moveTree.nodeById[nodeId].clockSnapshot?.activeColour).toBe(PlayerColour.Black)
+    expect(restored.moveTree.nodeById[nodeId]!.clockSnapshot?.activeColour).toBe(PlayerColour.Black)
   })
 })

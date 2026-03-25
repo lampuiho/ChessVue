@@ -15,11 +15,15 @@ Define move payloads and tree structures for live play, history review, and anal
 ## Data Structures
 ```ts
 interface IMove {
-  from: SquareId
-  to: SquareId
+  from: BoardId
+  to: BoardId
   kind: MoveKind
   movingColour: PlayerColour
-  promotionPiece?: PieceKind
+  promotionPiece?: PieceKind | null
+  $?: {
+    san?: string
+    uci?: string
+  }
 }
 interface IPromoMove : IMove {
   kind: MoveKind.Promotion
@@ -47,4 +51,5 @@ interface IMoveTree {
 - `rootId` represents the starting board root for the workspace.
 - `mainlineChildId` lets `MoveUpdateService` rewrite the main continuation without deleting sibling variations.
 - Analysis-only branches remain in the tree even when the visible screen returns to the live node.
-- `SquareId` use number 0-63, `SquareId % 8` is the file and `SquareId / 8` is the rank
+- `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
+- `IMove` stays structural. SAN and UCI are runtime-only metadata and are not part of the canonical persisted shape.

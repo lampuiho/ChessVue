@@ -28,7 +28,9 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 
 ### 2. Domain Logic
 - [GameRuleService](DomainLogic/GameRuleService.md)
+- [MoveNotationService](DomainLogic/MoveNotationService.md)
 - [MoveUpdateService](DomainLogic/MoveUpdateService.md)
+- [PositionIdentityService](DomainLogic/PositionIdentityService.md)
 - [TimeControlService](DomainLogic/TimeControlService.md)
 - [SerializationService](DomainLogic/SerializationService.md)
 

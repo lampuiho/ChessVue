@@ -20,6 +20,7 @@ resolveResult(position: IBoardPosition): {
 - block illegal and out-of-context moves
 - enforce explicit promotion selection
 - detect terminal states such as draw or win and return an outcome plus cause
+- return structural moves only; SAN and UCI decoration belongs to `MoveNotationService`
 
 ## Scenario Coverage
 - `SCN-MOVE-01`

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { chessPieceSchema, playerColourSchema, squareIdSchema, type IChessPiece, type PlayerColour, type SquareId } from './Chess'
+import { chessPieceSchema, playerColourSchema, type BoardId, type IChessPiece, type PlayerColour } from './Chess'
 
 export interface ICastlingAvailability {
   whiteKingSide: boolean
@@ -9,13 +9,12 @@ export interface ICastlingAvailability {
   blackQueenSide: boolean
 }
 export interface IBoardPosition {
-  piecesBySquare: Partial<Record<SquareId, IChessPiece>>
+  piecesByBoardId: Partial<Record<BoardId, IChessPiece>>
   sideToMove: PlayerColour
   castlingAvailability: ICastlingAvailability
-  enPassantTarget: SquareId | null
+  enPassantTargetId: BoardId | null
   halfMoveClock: number
   fullMoveNumber: number
-  fen: string
 }
 export const castlingAvailabilitySchema = z.object({
   whiteKingSide: z.boolean(),
@@ -24,12 +23,11 @@ export const castlingAvailabilitySchema = z.object({
   blackQueenSide: z.boolean(),
 })
 
-export const boardPositionSchema = z.object({
-  piecesBySquare: z.record(squareIdSchema, chessPieceSchema),
+export const boardPositionSchema: z.ZodType<IBoardPosition> = z.object({
+  piecesByBoardId: z.record(z.string().regex(/^(?:[0-9]|[1-5][0-9]|6[0-3])$/), chessPieceSchema) as z.ZodType<Partial<Record<BoardId, IChessPiece>>>,
   sideToMove: playerColourSchema,
   castlingAvailability: castlingAvailabilitySchema,
-  enPassantTarget: squareIdSchema.nullable(),
+  enPassantTargetId: z.number().int().min(0).max(63).nullable(),
   halfMoveClock: z.number().int().min(0),
   fullMoveNumber: z.number().int().min(1),
-  fen: z.string().min(1),
 })

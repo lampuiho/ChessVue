@@ -20,11 +20,15 @@ import {
 import {
   createInitialBoardPosition,
   GameRuleService,
+  MoveNotationService,
   MoveUpdateService,
+  PositionIdentityService,
   SerializationError,
   SerializationService,
   TimeControlService,
 } from '..';
+
+const boardId = (file: number, rank: number) => file + (rank * 8);
 
 function createSettingsSnapshot(): ISettingsSnapshot {
   return {
@@ -69,12 +73,12 @@ function createWorkspace(): IGameWorkspace {
   const rootPosition = createInitialBoardPosition()
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl)
   const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock)
-  const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.uci === 'e2e4')!
+  const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!
   const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null })
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z')
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl)
-  const updatedTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, move, nextPosition, nextClock)
-  const liveNodeId = updatedTree.nodeById[updatedTree.rootId].mainlineChildId!
+  const updatedTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock)
+  const liveNodeId = updatedTree.nodeById[updatedTree.rootId]!.mainlineChildId!
 
   return {
     schemaVersion: 1,
@@ -137,7 +141,7 @@ describe('SerializationService', () => {
     const restored = SerializationService.deserialiseRecentGames(SerializationService.serialiseRecentGames(snapshot))
 
     expect(restored.entries).toHaveLength(1)
-    expect(restored.entries[0].displayName).toBe('New')
+    expect(restored.entries[0]!.displayName).toBe('New')
   })
 
   it('rejects invalid game-session snapshots', () => {
@@ -151,20 +155,28 @@ describe('SerializationService', () => {
     expect(() => SerializationService.deserialiseGameSession(invalid)).toThrow(SerializationError)
   })
 
-  it('round-trips saved games and normalises stale fen values', () => {
+  it('round-trips saved games without persisting runtime metadata', () => {
     const workspace = createWorkspace()
-    workspace.boardRoot.fen = 'stale'
-    workspace.moveTree.nodeById[workspace.moveTree.rootId].position.fen = 'stale'
+    workspace.moveTree.nodeById[workspace.liveNodeId!]!.move = {
+      ...workspace.moveTree.nodeById[workspace.liveNodeId!]!.move!,
+      $: {
+        san: 'e4',
+        uci: 'e2e4',
+      },
+    }
 
-    const restored = SerializationService.deserialiseGame(SerializationService.serialiseGame(workspace))
+    const serialised = SerializationService.serialiseGame(workspace)
+    const restored = SerializationService.deserialiseGame(serialised)
 
-    expect(restored.boardRoot.fen).not.toBe('stale')
-    expect(restored.boardRoot.fen).toBe(restored.moveTree.nodeById[restored.moveTree.rootId].position.fen)
+    expect(serialised).not.toContain('"$"')
+    expect(serialised).not.toContain('"fen"')
+    expect(restored.moveTree.nodeById[restored.liveNodeId!]!.move?.$).toBeUndefined()
+    expect(PositionIdentityService.buildPositionKey(restored.boardRoot)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.nodeById[restored.moveTree.rootId]!.position))
   })
 
   it('rejects broken move-tree payloads', () => {
     const workspace = createWorkspace()
-    const rootNode = workspace.moveTree.nodeById[workspace.moveTree.rootId]
+    const rootNode = workspace.moveTree.nodeById[workspace.moveTree.rootId]!
     rootNode.childIds.push('missing-node')
 
     expect(() => SerializationService.serialiseGame(workspace)).toThrow(SerializationError)

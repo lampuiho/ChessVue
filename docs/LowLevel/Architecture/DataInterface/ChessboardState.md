@@ -17,10 +17,10 @@ interface ICastlingAvailability {
 }
 
 interface IBoardPosition {
-  piecesBySquare: Record<SquareId, IChessPiece>
+  piecesByBoardId: Partial<Record<BoardId, IChessPiece>>
   sideToMove: PlayerColour
   castlingAvailability: ICastlingAvailability
-  enPassantTarget?: SquareId
+  enPassantTargetId: BoardId | null
   halfMoveClock: number
   fullMoveNumber: number
 }
@@ -29,4 +29,4 @@ interface IBoardPosition {
 ## Ownership
 - `GameRuleService` validates and mutates `IBoardPosition`.
 - `SerializationService` persists `IBoardPosition` inside `IGameWorkspace`.
-- `AnalysisStore` keys engine output by position identity as `fen`.
+- `AnalysisStore` keys engine output by derived structural position identity, not stored FEN.

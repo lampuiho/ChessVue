@@ -54,7 +54,7 @@ function markPathBranchKind(tree: IMoveTree, startNodeId: string, branchKind: Mo
 
   for (const nodeId of path) {
     if (nodeId !== tree.rootId) {
-      tree.nodeById[nodeId].branchKind = branchKind
+      getNode(tree, nodeId).branchKind = branchKind
     }
   }
 }
@@ -73,9 +73,10 @@ function collectDescendants(tree: IMoveTree, nodeId: string): string[] {
 function pruneDescendants(tree: IMoveTree, nodeId: string): IMoveTree {
   const nextTree = cloneTree(tree)
   const descendants = collectDescendants(nextTree, nodeId)
+  const node = getNode(nextTree, nodeId)
 
-  nextTree.nodeById[nodeId].childIds = []
-  nextTree.nodeById[nodeId].mainlineChildId = null
+  node.childIds = []
+  node.mainlineChildId = null
 
   for (const descendantId of descendants) {
     delete nextTree.nodeById[descendantId]
@@ -213,5 +214,4 @@ export const MoveUpdateService = {
     return this.createMoveTree(boardRoot, clockSnapshot)
   },
 }
-
 

@@ -1,28 +1,31 @@
-import type { IBoardPosition, ICastlingAvailability, IChessPiece, SquareId } from '@/contracts'
+import type { BoardId, IBoardPosition, ICastlingAvailability, IChessPiece } from '@/contracts'
 import { PieceKind, PlayerColour } from '@/contracts'
 
-import { withFen } from './Fen'
+import { coordsToBoardId, isBoardId } from './Square'
 
-export function clonePiecesBySquare(piecesBySquare: IBoardPosition['piecesBySquare']): IBoardPosition['piecesBySquare'] {
-  const clone: IBoardPosition['piecesBySquare'] = {}
+export function clonePiecesByBoardId(piecesByBoardId: IBoardPosition['piecesByBoardId']): IBoardPosition['piecesByBoardId'] {
+  const clone: IBoardPosition['piecesByBoardId'] = {}
 
-  for (const [square, piece] of Object.entries(piecesBySquare)) {
-    if (piece !== undefined) {
-      clone[square as SquareId] = { ...piece }
-    }
+  const boardIds = Object.keys(piecesByBoardId)
+    .map((key) => Number(key))
+    .filter(isBoardId)
+    .sort((left, right) => left - right)
+
+  for (const boardId of boardIds) {
+    const piece = piecesByBoardId[boardId]
+    if (piece !== undefined) clone[boardId] = { ...piece }
   }
 
   return clone
 }
 export function cloneBoardPosition(position: IBoardPosition): IBoardPosition {
   return {
-    piecesBySquare: clonePiecesBySquare(position.piecesBySquare),
+    piecesByBoardId: clonePiecesByBoardId(position.piecesByBoardId),
     sideToMove: position.sideToMove,
     castlingAvailability: { ...position.castlingAvailability },
-    enPassantTarget: position.enPassantTarget,
+    enPassantTargetId: position.enPassantTargetId,
     halfMoveClock: position.halfMoveClock,
     fullMoveNumber: position.fullMoveNumber,
-    fen: position.fen,
   }
 }
 export function createDefaultCastlingAvailability(): ICastlingAvailability {
@@ -34,35 +37,37 @@ export function createDefaultCastlingAvailability(): ICastlingAvailability {
   }
 }
 export function createInitialBoardPosition(): IBoardPosition {
-  const piecesBySquare: IBoardPosition['piecesBySquare'] = {
-    a1: { kind: PieceKind.Rook, colour: PlayerColour.White },
-    b1: { kind: PieceKind.Knight, colour: PlayerColour.White },
-    c1: { kind: PieceKind.Bishop, colour: PlayerColour.White },
-    d1: { kind: PieceKind.Queen, colour: PlayerColour.White },
-    e1: { kind: PieceKind.King, colour: PlayerColour.White },
-    f1: { kind: PieceKind.Bishop, colour: PlayerColour.White },
-    g1: { kind: PieceKind.Knight, colour: PlayerColour.White },
-    h1: { kind: PieceKind.Rook, colour: PlayerColour.White },
-    a8: { kind: PieceKind.Rook, colour: PlayerColour.Black },
-    b8: { kind: PieceKind.Knight, colour: PlayerColour.Black },
-    c8: { kind: PieceKind.Bishop, colour: PlayerColour.Black },
-    d8: { kind: PieceKind.Queen, colour: PlayerColour.Black },
-    e8: { kind: PieceKind.King, colour: PlayerColour.Black },
-    f8: { kind: PieceKind.Bishop, colour: PlayerColour.Black },
-    g8: { kind: PieceKind.Knight, colour: PlayerColour.Black },
-    h8: { kind: PieceKind.Rook, colour: PlayerColour.Black },
+  const piecesByBoardId: IBoardPosition['piecesByBoardId'] = {
+    0: { kind: PieceKind.Rook, colour: PlayerColour.White },
+    1: { kind: PieceKind.Knight, colour: PlayerColour.White },
+    2: { kind: PieceKind.Bishop, colour: PlayerColour.White },
+    3: { kind: PieceKind.Queen, colour: PlayerColour.White },
+    4: { kind: PieceKind.King, colour: PlayerColour.White },
+    5: { kind: PieceKind.Bishop, colour: PlayerColour.White },
+    6: { kind: PieceKind.Knight, colour: PlayerColour.White },
+    7: { kind: PieceKind.Rook, colour: PlayerColour.White },
+    56: { kind: PieceKind.Rook, colour: PlayerColour.Black },
+    57: { kind: PieceKind.Knight, colour: PlayerColour.Black },
+    58: { kind: PieceKind.Bishop, colour: PlayerColour.Black },
+    59: { kind: PieceKind.Queen, colour: PlayerColour.Black },
+    60: { kind: PieceKind.King, colour: PlayerColour.Black },
+    61: { kind: PieceKind.Bishop, colour: PlayerColour.Black },
+    62: { kind: PieceKind.Knight, colour: PlayerColour.Black },
+    63: { kind: PieceKind.Rook, colour: PlayerColour.Black },
   }
 
-  for (const file of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const) {
-    piecesBySquare[`${file}2`] = { kind: PieceKind.Pawn, colour: PlayerColour.White }
-    piecesBySquare[`${file}7`] = { kind: PieceKind.Pawn, colour: PlayerColour.Black }
+  for (let file = 0; file < 8; file += 1) {
+    const whitePawnBoardId = coordsToBoardId(file, 1)
+    const blackPawnBoardId = coordsToBoardId(file, 6)
+    if (whitePawnBoardId !== null) piecesByBoardId[whitePawnBoardId] = { kind: PieceKind.Pawn, colour: PlayerColour.White }
+    if (blackPawnBoardId !== null) piecesByBoardId[blackPawnBoardId] = { kind: PieceKind.Pawn, colour: PlayerColour.Black }
   }
 
-  return withFen({
-    piecesBySquare,
+  return normaliseBoardPosition({
+    piecesByBoardId,
     sideToMove: PlayerColour.White,
     castlingAvailability: createDefaultCastlingAvailability(),
-    enPassantTarget: null,
+    enPassantTargetId: null,
     halfMoveClock: 0,
     fullMoveNumber: 1,
   })
@@ -70,34 +75,34 @@ export function createInitialBoardPosition(): IBoardPosition {
 export function getOpponentColour(colour: PlayerColour): PlayerColour {
   return colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White
 }
-export function findKingSquare(position: IBoardPosition, colour: PlayerColour): SquareId | null {
-  for (const [square, piece] of Object.entries(position.piecesBySquare)) {
+export function findKingBoardId(position: IBoardPosition, colour: PlayerColour): BoardId | null {
+  for (const [boardIdKey, piece] of Object.entries(position.piecesByBoardId)) {
     if (piece?.kind === PieceKind.King && piece.colour === colour) {
-      return square as SquareId
+      return Number(boardIdKey)
     }
   }
 
   return null
 }
-export function normaliseBoardPosition(position: Omit<IBoardPosition, 'fen'> | IBoardPosition): IBoardPosition {
-  return withFen({
-    piecesBySquare: clonePiecesBySquare(position.piecesBySquare),
+export function normaliseBoardPosition(position: IBoardPosition): IBoardPosition {
+  return {
+    piecesByBoardId: clonePiecesByBoardId(position.piecesByBoardId),
     sideToMove: position.sideToMove,
     castlingAvailability: { ...position.castlingAvailability },
-    enPassantTarget: position.enPassantTarget,
+    enPassantTargetId: position.enPassantTargetId,
     halfMoveClock: position.halfMoveClock,
     fullMoveNumber: position.fullMoveNumber,
-  })
+  }
 }
-export function createSparseBoard(pieces: Array<{ square: SquareId; piece: IChessPiece }>, sideToMove: PlayerColour = PlayerColour.White): IBoardPosition {
-  const piecesBySquare: IBoardPosition['piecesBySquare'] = {}
+export function createSparseBoard(pieces: Array<{ boardId: BoardId; piece: IChessPiece }>, sideToMove: PlayerColour = PlayerColour.White): IBoardPosition {
+  const piecesByBoardId: IBoardPosition['piecesByBoardId'] = {}
 
   for (const entry of pieces) {
-    piecesBySquare[entry.square] = { ...entry.piece }
+    piecesByBoardId[entry.boardId] = { ...entry.piece }
   }
 
-  return withFen({
-    piecesBySquare,
+  return normaliseBoardPosition({
+    piecesByBoardId,
     sideToMove,
     castlingAvailability: {
       whiteKingSide: false,
@@ -105,7 +110,7 @@ export function createSparseBoard(pieces: Array<{ square: SquareId; piece: IChes
       blackKingSide: false,
       blackQueenSide: false,
     },
-    enPassantTarget: null,
+    enPassantTargetId: null,
     halfMoveClock: 0,
     fullMoveNumber: 1,
   })

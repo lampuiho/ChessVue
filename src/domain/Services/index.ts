@@ -1,4 +1,6 @@
 export * from './GameRuleService'
+export * from './MoveNotationService'
 export * from './MoveUpdateService'
+export * from './PositionIdentityService'
 export * from './SerializationService'
 export * from './TimeControlService'

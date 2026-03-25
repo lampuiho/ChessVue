@@ -27,6 +27,8 @@ migrateGame(input: unknown): IGameWorkspace
 - migrate older schema versions on read
 - reject corrupt core payloads
 - reject incomplete, unsupported, or incompatible saved-game payloads rather than inventing detached UI restore sections or partial-recovery import paths
+- strip runtime-only `$` metadata from persisted output
+- validate board-root consistency through structural position identity rather than stored FEN
 
 ## Scenario Coverage
 - `SCN-SESSION-03`
