@@ -63,15 +63,15 @@ describe('GameRuleService', () => {
       { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ]), {
       sideToMove: PlayerColour.White,
-      enPassantTargetId: boardId(3, 5),
+      enPassantTarget: boardId(3, 5),
     })
 
     const move = GameRuleService.generateLegalMoves(position).find((candidate) => candidate.kind === MoveKind.EnPassant)
 
     expect(move).toBeDefined()
     const nextPosition = GameRuleService.applyMove(position, move!)
-    expect(nextPosition.piecesByBoardId[boardId(3, 4)]).toBeUndefined()
-    expect(nextPosition.piecesByBoardId[boardId(3, 5)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.White })
+    expect(nextPosition.board[boardId(3, 4)]).toBeUndefined()
+    expect(nextPosition.board[boardId(3, 5)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.White })
   })
 
   it('requires explicit promotion selection', () => {

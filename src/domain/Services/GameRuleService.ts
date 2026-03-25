@@ -40,7 +40,7 @@ const kingOffsets = [
 ]
 
 function getPiece(position: IBoardPosition, boardId: BoardId) {
-  return position.piecesByBoardId[boardId]
+  return position.board[boardId]
 }
 function isOccupied(position: IBoardPosition, boardId: BoardId): boolean {
   return getPiece(position, boardId) !== undefined
@@ -91,7 +91,7 @@ function addPawnMoves(position: IBoardPosition, from: BoardId, colour: PlayerCol
       accumulator.push({ from, to: target, kind: isPromotion ? MoveKind.Promotion : MoveKind.Normal, movingColour: colour, promotionPiece: null })
     }
 
-    if (position.enPassantTargetId === target) {
+    if (position.enPassantTarget === target) {
       const capturedBoardId = coordsToBoardId(origin.file + fileOffset, origin.rank)
       const capturedPiece = capturedBoardId === null ? undefined : getPiece(position, capturedBoardId)
       if (capturedPiece?.kind === PieceKind.Pawn && capturedPiece.colour !== colour) {
@@ -151,9 +151,10 @@ function addKingMoves(position: IBoardPosition, from: BoardId, colour: PlayerCol
 function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour): ICandidateMove[] {
   const accumulator: ICandidateMove[] = []
 
-  for (const [boardIdKey, piece] of Object.entries(position.piecesByBoardId)) {
+  for (let boardId = 0; boardId < position.board.length; boardId += 1) {
+    const piece = position.board[boardId]
     if (piece?.colour !== colour) continue
-    const from = Number(boardIdKey)
+    const from = boardId
 
     switch (piece.kind) {
       case PieceKind.Pawn:
@@ -280,7 +281,7 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
   if (move.kind === MoveKind.Promotion && move.promotionPiece === null) throw new Error('Promotion piece selection is required before applying a promotion move.')
 
   const nextPosition = cloneBoardPosition(position)
-  delete nextPosition.piecesByBoardId[move.from]
+  nextPosition.board[move.from] = undefined
   let isCapture = getPiece(position, move.to) !== undefined
 
   if (move.kind === MoveKind.EnPassant) {
@@ -288,7 +289,7 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
     const toCoords = boardIdToCoords(move.to)
     const capturedBoardId = coordsToBoardId(toCoords.file, fromCoords.rank)
     if (capturedBoardId !== null) {
-      delete nextPosition.piecesByBoardId[capturedBoardId]
+      nextPosition.board[capturedBoardId] = undefined
       isCapture = true
     }
   }
@@ -301,22 +302,22 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
     if (rookFrom !== null && rookTo !== null) {
       const rook = getPiece(position, rookFrom)
       if (rook !== undefined) {
-        delete nextPosition.piecesByBoardId[rookFrom]
-        nextPosition.piecesByBoardId[rookTo] = rook
+        nextPosition.board[rookFrom] = undefined
+        nextPosition.board[rookTo] = rook
       }
     }
   }
 
-  nextPosition.piecesByBoardId[move.to] = move.kind === MoveKind.Promotion
+  nextPosition.board[move.to] = move.kind === MoveKind.Promotion
     ? { kind: move.promotionPiece!, colour: movingPiece.colour }
     : movingPiece
   nextPosition.castlingAvailability = updateCastlingAvailability(position, move)
-  nextPosition.enPassantTargetId = null
+  nextPosition.enPassantTarget = null
 
   const fromCoords = boardIdToCoords(move.from)
   const toCoords = boardIdToCoords(move.to)
   if (movingPiece.kind === PieceKind.Pawn && Math.abs(toCoords.rank - fromCoords.rank) === 2) {
-    nextPosition.enPassantTargetId = coordsToBoardId(fromCoords.file, fromCoords.rank + getForwardDirection(movingPiece.colour))
+    nextPosition.enPassantTarget = coordsToBoardId(fromCoords.file, fromCoords.rank + getForwardDirection(movingPiece.colour))
   }
 
   nextPosition.halfMoveClock = movingPiece.kind === PieceKind.Pawn || isCapture ? 0 : position.halfMoveClock + 1
@@ -343,7 +344,7 @@ function moveMatches(candidate: Pick<IMove, 'from' | 'to' | 'kind' | 'movingColo
   return move.promotionPiece === null || (move.promotionPiece !== undefined && promotionPieces.includes(move.promotionPiece))
 }
 function hasInsufficientMaterial(position: IBoardPosition): boolean {
-  const pieces = Object.values(position.piecesByBoardId)
+  const pieces = position.board
   const nonKingPieces = pieces.filter((piece): piece is NonNullable<typeof piece> => piece !== undefined && piece.kind !== PieceKind.King)
   if (nonKingPieces.length === 0) return true
   const firstNonKingPiece = nonKingPieces[0]

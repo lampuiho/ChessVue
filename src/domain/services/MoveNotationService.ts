@@ -25,7 +25,7 @@ function promotionSuffix(piece: PieceKind | null | undefined): string {
   return `=${pieceSymbol(piece)}`
 }
 function getPiece(position: IBoardPosition, boardId: number) {
-  return position.piecesByBoardId[boardId]
+  return position.board[boardId]
 }
 function buildCheckSuffix(position: IBoardPosition, move: IMove): string {
   const resolvedMove = move.kind === MoveKind.Promotion && move.promotionPiece === null

@@ -9,10 +9,10 @@ export interface ICastlingAvailability {
   blackQueenSide: boolean
 }
 export interface IBoardPosition {
-  piecesByBoardId: Partial<Record<BoardId, IChessPiece>>
+  board: (IChessPiece | undefined)[]
   sideToMove: PlayerColour
   castlingAvailability: ICastlingAvailability
-  enPassantTargetId: BoardId | null
+  enPassantTarget: BoardId | null
   halfMoveClock: number
   fullMoveNumber: number
 }
@@ -22,12 +22,16 @@ export const castlingAvailabilitySchema = z.object({
   blackKingSide: z.boolean(),
   blackQueenSide: z.boolean(),
 })
+const boardSchema = z.preprocess(
+  (input) => Array.isArray(input) ? input.map((entry) => entry ?? undefined) : input,
+  z.array(chessPieceSchema.optional()).length(64),
+)
 
 export const boardPositionSchema: z.ZodType<IBoardPosition> = z.object({
-  piecesByBoardId: z.record(z.string().regex(/^(?:[0-9]|[1-5][0-9]|6[0-3])$/), chessPieceSchema) as z.ZodType<Partial<Record<BoardId, IChessPiece>>>,
+  board: boardSchema,
   sideToMove: playerColourSchema,
   castlingAvailability: castlingAvailabilitySchema,
-  enPassantTargetId: z.number().int().min(0).max(63).nullable(),
+  enPassantTarget: z.number().int().min(0).max(63).nullable(),
   halfMoveClock: z.number().int().min(0),
   fullMoveNumber: z.number().int().min(1),
 })
