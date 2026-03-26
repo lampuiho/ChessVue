@@ -309,7 +309,8 @@ Each scenario in this document uses the same structure:
   - `RecentGameStore.openRecentGame`
   - `RecentGameStore.removeRecentGame`
   - `StorageAdapter.getGame`
-  - `FileIoAdapter.loadGameFromPath`
+  - `FileIoAdapter.loadGameDocumentFromPath`
+  - `SerializationService.deserialiseGame`
   - `GamesStore.insertGame`
   - `UiStateStore.setActiveGame`
 
@@ -920,7 +921,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MenuBar.saveGameRequested`
   - `GameControlPanel.pauseRequested`
-  - `FileIoAdapter.saveGame`
+  - `FileIoAdapter.saveGameDocument`
   - `RecentGameStore.recordManuallySavedGame`
   - `SerializationService.serialiseGame`
   - `GamesStore.getGame`
@@ -935,7 +936,7 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User chooses load action.
   2. User selects file.
-  3. App deserializes/migrates payload.
+  3. App reads the raw document, then deserializes and migrates the payload inside the state-management boundary.
   4. App restores the saved game workspace state immediately, including current position/history node, clock state, and result state.
   5. Game is inserted into store and opened.
   6. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
@@ -945,9 +946,8 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Imported game is available and routable, the user first sees the restored game state from the saved payload, and live analysis resumes afterwards when engines are available.
 - **Function Touchpoints**:
   - `MenuBar.loadGameRequested`
-  - `FileIoAdapter.loadGame`
+  - `FileIoAdapter.loadGameDocument`
   - `SerializationService.deserialiseGame`
-  - `SerializationService.migrateGame`
   - `RecentGameStore.recordManuallySavedGame`
   - `GamesStore.insertGame`
   - `UiStateStore.setActiveGame`
@@ -960,14 +960,14 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Menu `Load Game`.
 - **Main Steps**:
   1. User selects file.
-  2. Deserialization/validation fails.
+  2. App reads the raw document, then deserialization or validation fails inside the state-management boundary.
   3. App displays precise error and keeps current session intact.
 - **Branch Paths**:
   - `BR-LOAD-02-UNSUPPORTED`: Unsupported format -> suggest accepted file types.
   - `BR-LOAD-02-INCOMPLETE`: Required canonical payload sections missing -> reject as invalid document and preserve current session state.
 - **Postconditions**: No existing game data is overwritten by bad import.
 - **Function Touchpoints**:
-  - `FileIoAdapter.loadGame`
+  - `FileIoAdapter.loadGameDocument`
   - `SerializationService.deserialiseGame`
   - `UiStateStore.showModal`
 
@@ -1259,8 +1259,8 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-10-PARTIAL-BATCH-FAIL`: Some items fail; successful items still committed.
 - **Postconditions**: Power users can migrate larger game sets efficiently.
 - **Function Touchpoints**:
-  - `FileIoAdapter.loadGame`
-  - `FileIoAdapter.saveGame`
+  - `FileIoAdapter.loadGameDocument`
+  - `FileIoAdapter.saveGameDocument`
   - `GamesStore.createGame`
   - `GamesStore.listGames`
 

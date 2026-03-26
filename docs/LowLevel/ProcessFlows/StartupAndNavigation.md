@@ -176,13 +176,14 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `UiStateStore.setActiveGame` |  |  |  | `UiStateStore._coerceActiveRoute` |
 
 #### Flow B - Reopen A Manual-File Recent Game
-| `HomeView.recentSelection` | `RecentGameStore.openRecentGame` | `FileIoAdapter.loadGameFromPath` | `GamesStore.insertGame` | `UiStateStore.openTab` | `UiStateStore.setActiveGame` |
-| --- | --- | --- | --- | --- | --- |
-| `RecentGameStore.openRecentGame` | `RecentGameStore._openManualFileGame` |  |  |  |  |
-| `FileIoAdapter.loadGameFromPath` | `FileIoAdapter.loadGameFromPath` |  |  |  |  |
-| `GamesStore.insertGame` |  |  | `GamesStore._hydrateWorkspace` |  |  |
-| `UiStateStore.openTab` |  |  |  | `UiStateStore._coerceOpenTabs` |  |
-| `UiStateStore.setActiveGame` |  |  |  |  | `UiStateStore._coerceActiveRoute` |
+| `HomeView.recentSelection` | `RecentGameStore.openRecentGame` | `FileIoAdapter.loadGameDocumentFromPath` | `SerializationService.deserialiseGame` | `GamesStore.insertGame` | `UiStateStore.openTab` | `UiStateStore.setActiveGame` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `RecentGameStore.openRecentGame` | `RecentGameStore._openManualFileGame` |  |  |  |  |  |
+| `FileIoAdapter.loadGameDocumentFromPath` | `FileIoAdapter.loadGameDocumentFromPath` |  |  |  |  |  |
+| `SerializationService.deserialiseGame` | `RecentGameStore._deserialiseManualFileGame` |  |  |  |  |  |
+| `GamesStore.insertGame` |  |  |  | `GamesStore._hydrateWorkspace` |  |  |
+| `UiStateStore.openTab` |  |  |  |  | `UiStateStore._coerceOpenTabs` |  |
+| `UiStateStore.setActiveGame` |  |  |  |  |  | `UiStateStore._coerceActiveRoute` |
 
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
 - Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references can be removed without breaking the centred home layout.

@@ -22,13 +22,14 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-SAVE-02 - Manual Save Game to File
 
 #### Flow
-| `Menu.saveRequested` | `GamesStore.pauseGame` | `GamesStore.exportGame` | `FileIoAdapter.saveGame` | `RecentGameStore.recordManuallySavedGame` | `GamesStore.resumeGame` |
-| --- | --- | --- | --- | --- | --- |
-| `GamesStore.pauseGame` | `GamesStore._maybeAutoPauseForMenu` |  |  |  |  |
-| `GamesStore.exportGame` |  | `GamesStore._buildPersistedWorkspace` |  |  |  |
-| `FileIoAdapter.saveGame` |  | `GamesStore._exportGame` | `FileIoAdapter._openSaveDialog` |  |  |
-| `RecentGameStore.recordManuallySavedGame` |  |  | `FileIoAdapter._writeGame` | `RecentGameStore._upsertRecentEntry` |  |
-| `GamesStore.resumeGame` |  |  |  | `RecentGameStore._sortMostRecentFirst` | `GamesStore._resumeIfMenuOwnedPause` |
+| `Menu.saveRequested` | `GamesStore.pauseGame` | `GamesStore.exportGame` | `SerializationService.serialiseGame` | `FileIoAdapter.saveGameDocument` | `RecentGameStore.recordManuallySavedGame` | `GamesStore.resumeGame` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GamesStore.pauseGame` | `GamesStore._maybeAutoPauseForMenu` |  |  |  |  |  |
+| `GamesStore.exportGame` |  | `GamesStore._buildPersistedWorkspace` |  |  |  |  |
+| `SerializationService.serialiseGame` |  | `GamesStore._exportGameDocument` |  |  |  |  |
+| `FileIoAdapter.saveGameDocument` |  |  |  | `FileIoAdapter._openSaveDialog` |  |  |
+| `RecentGameStore.recordManuallySavedGame` |  |  |  | `FileIoAdapter._writeGameDocument` | `RecentGameStore._upsertRecentEntry` |  |
+| `GamesStore.resumeGame` |  |  |  |  | `RecentGameStore._sortMostRecentFirst` | `GamesStore._resumeIfMenuOwnedPause` |
 
 - Settings coverage: `session.autoPauseOnMenu` decides whether timed live games are paused for export. The menu pause owner is preserved so export return cannot auto-resume a manually paused game.
 - Requirement verification: `Pass`. Export writes the same canonical document shape used by autosave, returns the final file path for recent-history metadata, and honours menu auto-pause policy.
@@ -36,13 +37,14 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-LOAD-01 - Load Valid Game from File
 
 #### Flow A - Import And Insert The Workspace
-| `Menu.loadRequested` | `GamesStore.importGame` | `FileIoAdapter.loadGame` | `GamesStore.insertGame` | `RecentGameStore.recordManuallySavedGame` |
-| --- | --- | --- | --- | --- |
-| `GamesStore.importGame` |  |  |  |  |
-| `FileIoAdapter.loadGame` |  | `FileIoAdapter._openLoadDialog` |  |  |
-| `GamesStore.insertGame` |  | `FileIoAdapter._readGame` | `GamesStore._remapDuplicateIdIfNeeded` |  |
-| `RecentGameStore.recordManuallySavedGame` |  |  | `GamesStore._hydrateWorkspace` | `RecentGameStore._upsertRecentEntry` |
-|  |  |  |  | `RecentGameStore._sortMostRecentFirst` |
+| `Menu.loadRequested` | `GamesStore.importGame` | `FileIoAdapter.loadGameDocument` | `SerializationService.deserialiseGame` | `GamesStore.insertGame` | `RecentGameStore.recordManuallySavedGame` |
+| --- | --- | --- | --- | --- | --- |
+| `GamesStore.importGame` |  |  |  |  |  |
+| `FileIoAdapter.loadGameDocument` |  | `FileIoAdapter._openLoadDialog` |  |  |  |
+| `SerializationService.deserialiseGame` | `GamesStore._deserialiseImportedWorkspace` | `FileIoAdapter._readGameDocument` |  |  |  |
+| `GamesStore.insertGame` |  |  |  | `GamesStore._remapDuplicateIdIfNeeded` |  |
+| `RecentGameStore.recordManuallySavedGame` |  |  |  | `GamesStore._hydrateWorkspace` | `RecentGameStore._upsertRecentEntry` |
+|  |  |  |  |  | `RecentGameStore._sortMostRecentFirst` |
 
 #### Flow B - Resume Analysis For The Imported Workspace
 | `Imported workspace ready for analysis` | `EnginesStore.startAnalysis` |
@@ -68,13 +70,12 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-LOAD-02 - Load Invalid/Corrupt Game File
 
 #### Flow
-| `Menu.loadRequested` | `GamesStore.importGame` | `FileIoAdapter.loadGame` | `UiStateStore.showModal` |
-| --- | --- | --- | --- |
-| `GamesStore.importGame` |  |  |  |
-| `FileIoAdapter.loadGame` |  | `FileIoAdapter._openLoadDialog` |  |
-| `SerializationService._parseJson` |  | `FileIoAdapter._readGame` |  |
-| `SerializationService._migrateBySchemaVersion` |  | `FileIoAdapter._mapFileIoError` |  |
-| `UiStateStore.showModal` |  |  |  |
+| `Menu.loadRequested` | `GamesStore.importGame` | `FileIoAdapter.loadGameDocument` | `SerializationService.deserialiseGame` | `UiStateStore.showModal` |
+| --- | --- | --- | --- | --- |
+| `GamesStore.importGame` |  |  |  |  |
+| `FileIoAdapter.loadGameDocument` |  | `FileIoAdapter._openLoadDialog` |  |  |
+| `SerializationService.deserialiseGame` | `GamesStore._deserialiseImportedWorkspace` | `FileIoAdapter._readGameDocument` |  |  |
+| `UiStateStore.showModal` |  | `FileIoAdapter._mapFileIoError` |  |  |
 
 - UI surface coverage: import failure uses the shared dialog shell as an acknowledge-only invalid-document error. Unsupported, corrupt, and incomplete files all follow the same unrecoverable path.
 - Requirement verification: `Pass`. Failed import does not mutate the current session state.

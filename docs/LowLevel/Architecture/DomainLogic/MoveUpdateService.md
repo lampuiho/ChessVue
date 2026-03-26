@@ -5,15 +5,15 @@ Own the move-tree operations shared by live play, history review, setup, and ana
 
 ## Public Interface
 ```ts
-createMoveTree(boardRoot: IBoardPosition): IMoveTree
-addMainlineMove(tree: IMoveTree, parentNodeId: string, move: IMove, position: IBoardPosition): IMoveTree
+createMoveTree(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree
+addMainlineMove(tree: IMoveTree, parentNodeId: string, move: IMove, position: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree
 addAnalysisMove(tree: IMoveTree, parentNodeId: string, move: IMove, position: IBoardPosition): IMoveTree
 navigateToNode(tree: IMoveTree, nodeId: string): IMoveTree
 getPosition(tree: IMoveTree, nodeId: string): IBoardPosition
 takeBack(tree: IMoveTree, moveCount: number): IMoveTree
 rewriteMainline(tree: IMoveTree, parentNodeId: string, childNodeId: string): IMoveTree
 pruneFutureMoves(tree: IMoveTree, nodeId: string, allowRootPrune: boolean): IMoveTree
-replaceBoardRoot(boardRoot: IBoardPosition): IMoveTree
+replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree
 ```
 
 ## Responsibilities
@@ -22,6 +22,7 @@ replaceBoardRoot(boardRoot: IBoardPosition): IMoveTree
 - expose deterministic node navigation and position lookup for board, history, and analysis views
 - support takeback-style rewinds without leaking tree internals to stores
 - preserve old continuations as variations when rewriting the mainline
+- carry root and mainline node clock snapshots alongside the stored positions
 - clear prior move history after confirmed board edit
 
 ## Scenario Coverage

@@ -53,7 +53,7 @@ The baseline implementation is expected to map its concrete methods roughly like
 startSession -> spawn process, send `uci`, receive `id` / `option` / `uciok`, then send `isready` and wait for `readyok`
 configureSession -> set engine options
 registerSession -> send `register later` or `register name ... code ...` and emit registration callbacks from engine responses
-syncPosition -> map `IEnginePositionState` into `position startpos moves ...` or `position fen ... moves ...`; send `ucinewgame` plus `isready` only when the next search is from a different game or branch boundary
+syncPosition -> privately map `IEnginePositionState` into `position startpos moves ...` or `position fen ... moves ...`; send `ucinewgame` plus `isready` only when the next search is from a different game or branch boundary
 startAnalysis -> begin search for the current request
 stopAnalysis -> stop the active search
 subscribeToAnalysis -> parse `info` and `bestmove` output into `IMove` and `IAnalysisLine` values

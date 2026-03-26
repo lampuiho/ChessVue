@@ -112,7 +112,7 @@ The data-interface section defines the shared low-level types for:
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
 - `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
 - `EnginesStore` and `EngineClient` own analysis and player-engine runtime control, while `ProcessManager` owns raw process lifecycle and I/O.
-- `SettingsStore`, `RecentGameStore`, `UiStateStore`, `StorageAdapter`, `FileIoAdapter`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios.
+- `SettingsStore`, `RecentGameStore`, `UiStateStore`, `GamesStore`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios, while `StorageAdapter` and `FileIoAdapter` provide raw document transport only.
 - `Router`, `HomeView`, `GameView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions

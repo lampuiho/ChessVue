@@ -51,6 +51,7 @@ importGame(): Promise<IGameWorkspace>
 - record a draw offer and expose explicit accept, decline, and withdraw boundaries instead of hiding draw resolution inside one opaque control-panel action
 - add or remove per-game analysis-engine assignments during a game
 - persist the canonical `IGameWorkspace` payload for autosave and export
+- serialise exported game documents and deserialise imported raw file documents through `SerializationService`
 - notify `RecentGameStore` after successful autosave, manual save, and manual import flows so recent history reflects the latest saved target for each game
 - ask `EnginesStore` to start analysis or run an engine-controlled turn when the visible or live position changes
 
@@ -101,4 +102,5 @@ importGame(): Promise<IGameWorkspace>
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `_maybeRequestEngineTurn` is the internal gate for player-engine move generation and must remain a strict state check rather than a best-effort hint.
 - `GamesStore` resolves `StorageAdapter` and `FileIoAdapter` through `usePlatformServicesStore()`.
-- `saveGame`, `exportGame`, and `importGame` remain the owning public mutations, but they refresh recent-game metadata through `RecentGameStore` only after the relevant autosave write, file write, or duplicate-ID repair has succeeded.
+- `saveGame`, `exportGame`, and `importGame` remain the owning public mutations. `StorageAdapter` and `FileIoAdapter` handle raw document transport only, while `GamesStore` uses `SerializationService` for canonical parse, migration, and serialisation before or after those adapter calls.
+- `saveGame`, `exportGame`, and `importGame` refresh recent-game metadata through `RecentGameStore` only after the relevant autosave write, file write, or duplicate-ID repair has succeeded.

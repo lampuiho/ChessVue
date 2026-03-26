@@ -41,4 +41,5 @@ openRecentGame(gameId: string): Promise<IGameWorkspace>
 - `RecentGameStore` resolves `StorageAdapter` and `FileIoAdapter` through `usePlatformServicesStore()`.
 - `loadRecentGames()` is the authoritative read path for `HomeView`; any short-lived cache must be treated as disposable and non-authoritative.
 - `recordAutosavedGame(...)` and `recordManuallySavedGame(...)` share one internal upsert path keyed by `workspace.metadata.id`.
+- Manual-file reopen stays on the state-management side of the boundary: `FileIoAdapter` returns raw document text, and `RecentGameStore` uses `SerializationService` before handing the workspace to `GamesStore.insertGame(...)`.
 - When `GamesStore.importGame` loads a manual file and repairs duplicate IDs, the recent entry must be written only after the final in-app `gameId` is known.

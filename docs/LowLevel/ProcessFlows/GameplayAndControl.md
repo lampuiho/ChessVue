@@ -8,23 +8,23 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-MOVE-01 - Legal Move on Board
 
 #### Flow A - Live Move At The Current Position
-| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.isMoveLegal` | `GameRuleService.applyMove` | `MoveUpdateService.applyMove` | `TimeControlService.applyMove` | `EnginesStore.startAnalysis` |
+| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.isMoveLegal` | `GameRuleService.applyMove` | `TimeControlService.applyMove` | `MoveUpdateService.addMainlineMove` | `EnginesStore.startAnalysis` |
 | --- | --- | --- | --- | --- | --- | --- |
 | `GamesStore.makeMove` | `GamesStore._assertMoveAllowed` |  |  |  |  |  |
 | `GameRuleService.isMoveLegal` | `GamesStore._resolveMoveContext` |  |  |  |  |  |
 | `GameRuleService.applyMove` | `GamesStore._applyMoveByContext` |  |  |  |  |  |
-| `MoveUpdateService.applyMove` | `GamesStore._commitLiveMove` |  |  |  |  |  |
-| `TimeControlService.applyMove` | `GamesStore._updateClockAfterMove` |  |  |  | `TimeControlService._applyIncrement` |  |
-| `EnginesStore.startAnalysis` | `GamesStore._refreshVisibleAnalysis` |  |  |  | `TimeControlService._switchActiveColour` | `EnginesStore._startAnalysisSessions` |
+| `TimeControlService.applyMove` | `GamesStore._updateClockAfterMove` |  |  | `TimeControlService._applyIncrement` |  |  |
+| `MoveUpdateService.addMainlineMove` | `GamesStore._commitLiveMove` |  |  |  |  |  |
+| `EnginesStore.startAnalysis` | `GamesStore._refreshVisibleAnalysis` |  |  | `TimeControlService._switchActiveColour` |  | `EnginesStore._startAnalysisSessions` |
 | `GamesStore._maybeRequestEngineTurn` | `GamesStore._persistWorkspaceIfNeeded` |  |  |  |  | `EnginesStore._bindAnalysisCallbacks` |
 
 #### Flow B - Analysis-Only Move
-| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.isMoveLegal` | `GameRuleService.applyMove` | `MoveUpdateService.applyMove` | `EnginesStore.startAnalysis` |
+| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.isMoveLegal` | `GameRuleService.applyMove` | `MoveUpdateService.addAnalysisMove` | `EnginesStore.startAnalysis` |
 | --- | --- | --- | --- | --- | --- |
 | `GamesStore.makeMove` | `GamesStore._assertMoveAllowed` |  |  |  |  |
 | `GameRuleService.isMoveLegal` | `GamesStore._resolveMoveContext` |  |  |  |  |
 | `GameRuleService.applyMove` | `GamesStore._applyMoveByContext` |  |  |  |  |
-| `MoveUpdateService.applyMove` | `GamesStore._commitAnalysisMove` |  |  |  |  |
+| `MoveUpdateService.addAnalysisMove` | `GamesStore._commitAnalysisMove` |  |  |  |  |
 | `EnginesStore.startAnalysis` | `GamesStore._refreshVisibleAnalysis` |  |  |  | `EnginesStore._startAnalysisSessions` |
 |  | `GamesStore._persistWorkspaceIfNeeded` |  |  |  | `EnginesStore._bindAnalysisCallbacks` |
 
@@ -53,15 +53,15 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `UiStateStore.showModal` |  |  |  |
 
 #### Flow B - Commit The Selected Promotion Piece
-| `PromotionModal.pieceSelected` | `GamesStore.makeMove` | `GameRuleService.applyMove` | `MoveUpdateService.applyMove` | `UiStateStore.hideModal` |
-| --- | --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._commitPromotionMove` |  |  |  |
-| `GameRuleService.applyMove` | `GamesStore._clearPendingPromotion` |  |  |  |
-| `MoveUpdateService.applyMove` |  |  |  |  |
-| `UiStateStore.hideModal` |  |  |  |  |
+| `PromotionModal.pieceSelected` | `GamesStore.makeMove` | `GameRuleService.applyMove` | `UiStateStore.hideModal` |
+| --- | --- | --- | --- |
+| `GamesStore.makeMove` | `GamesStore._commitPromotionMove` |  |  |
+| `GameRuleService.applyMove` | `GamesStore._clearPendingPromotion` |  |  |
+| `UiStateStore.hideModal` |  |  |  |
 
 - UI surface coverage: promotion uses the shared `PiecePalette` surface, hosted either as a board-local overlay or inside the shared dialog shell, and stays local to the current move attempt.
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received.
+- Process note: once the selected piece is merged into the move, `GamesStore.makeMove` rejoins the same context-specific commit path as `SCN-MOVE-01`. Live current-position moves call `TimeControlService.applyMove` before `MoveUpdateService.addMainlineMove`, while analysis contexts call `MoveUpdateService.addAnalysisMove`.
 - Requirement verification: `Pass`. Promotion remains an explicit store-owned mutation instead of a UI-side special case.
 
 ## Engine-Controlled Turn
@@ -117,13 +117,14 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
 
 #### Flow
-| `Chessboard.moveSubmittedFromHistory` | `GamesStore.makeMove` | `SettingsStore.getSettings` | `MoveUpdateService.addMainlineMove` | `MoveUpdateService.rewriteMainline` |
-| --- | --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._applyHistoryRewritePolicy` |  |  |  |
-| `SettingsStore.getSettings` | `GamesStore._confirmMainlineRewriteIfNeeded` |  |  |  |
-| `MoveUpdateService.addMainlineMove` | `GamesStore._promoteNewContinuation` |  |  |  |
-| `MoveUpdateService.rewriteMainline` | `GamesStore._restoreCurrentPositionAfterRewrite` |  |  |  |
-| `GamesStore._maybeRequestEngineTurn` |  |  |  |  |
+| `Chessboard.moveSubmittedFromHistory` | `GamesStore.makeMove` | `SettingsStore.getSettings` | `TimeControlService.applyMove` | `MoveUpdateService.addMainlineMove` | `MoveUpdateService.rewriteMainline` |
+| --- | --- | --- | --- | --- | --- |
+| `GamesStore.makeMove` | `GamesStore._applyHistoryRewritePolicy` |  |  |  |  |
+| `SettingsStore.getSettings` | `GamesStore._confirmMainlineRewriteIfNeeded` |  |  |  |  |
+| `TimeControlService.applyMove` | `GamesStore._updateClockAfterMove` |  | `TimeControlService._applyIncrement` |  |  |
+| `MoveUpdateService.addMainlineMove` | `GamesStore._promoteNewContinuation` |  |  |  |  |
+| `MoveUpdateService.rewriteMainline` | `GamesStore._restoreCurrentPositionAfterRewrite` |  |  |  |  |
+| `GamesStore._maybeRequestEngineTurn` |  |  | `TimeControlService._switchActiveColour` |  |  |
 
 - Settings coverage: `gameplay.takebackPolicy = rewriteMainline` routes this flow into live mainline mutation. `gameplay.confirmMainlineRewrite` decides whether `_confirmMainlineRewriteIfNeeded` is a no-op or a blocking prompt.
 - Requirement verification: `Pass`. The public surface can keep the old future as a variation while promoting the new continuation.

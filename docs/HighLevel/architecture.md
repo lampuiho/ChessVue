@@ -103,7 +103,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### Platform Abstraction
 - `usePlatformServicesStore` is the only baseline bootstrap seam for wiring concrete platform adapters into the app.
 - `StorageAdapter` persists settings, recent-game history, game-session state, UI-layout state, and autosaved saved-game payloads.
-- `FileIoAdapter` imports, exports, and reopens the canonical saved game payload defined in [persistence_contract.md](persistence_contract.md).
+- `FileIoAdapter` imports, exports, and reopens raw saved-game documents for the canonical payload defined in [persistence_contract.md](persistence_contract.md).
 - `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
 - `EngineClient` translates ChessVue engine-session operations into the active protocol and uses `ProcessManager` for raw process I/O.
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
@@ -121,6 +121,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
 - `RecentGameStore` owns persisted recent-game metadata for `HomeView`, deduped by canonical game identity and refreshed by the latest autosave or manual save target.
 - `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and foldable-section state.
+- State stores use `SerializationService` for canonical parse, migration, and serialisation before or after calling storage or file adapters.
 - State stores obtain platform interfaces from `usePlatformServicesStore` rather than constructing platform objects directly.
 
 ### Presentation

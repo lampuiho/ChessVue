@@ -55,6 +55,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `boardEdit` is valid only inside `freeAnalysisSetup`. While active, engine analysis is suspended and `EnginesStore.startAnalysis` is blocked for that workspace.
+- Process note: because board editing is restricted to `freeAnalysisSetup`, `GamesStore.confirmBoardEdit` replaces the root through `MoveUpdateService.replaceBoardRoot(..., null)` and clears prior move history in one mutation.
 - Requirement verification: `Pass`. The public surface covers edit entry, confirm, cancel, history clearing, analysis suspension during edit, and analysis refresh afterwards.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
