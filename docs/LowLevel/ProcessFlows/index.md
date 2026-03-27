@@ -7,15 +7,17 @@ It answers three questions for every committed scenario:
 
 - which base call starts the flow
 - which public functions are reached from that base call
-- which private helper calls sit behind each public function
+- which further calls each public function makes when expanded recursively
 
 Only `Current` and `Planned` scenarios from [../../HighLevel/scenarios.md](../../HighLevel/scenarios.md) are in scope here. `Idea` scenarios remain out of baseline scope.
 
 ## Conventions
-- Every flow is documented as a table.
-- The first column is the base call for the flow and lists the full straight-line call sequence for that flow.
-- Every public function that appears in the first column gets its own expansion column.
-- Private helpers stay in the column of the public function that owns them and use an underscore prefix, for example `_hydrateWorkspace`.
+- Every flow is documented as a stack of single-column tables rather than one wide table.
+- The first table header is the base call for the flow, and the rows below it list the calls reached directly from that base call in reading order.
+- Every public function reached from that first table gets its own single-column table.
+- Each follow-on table uses the public function as its header and lists the calls made by that function.
+- Read the tables recursively: base call table first, then the table for each public function that appears in it, then the tables for any further public functions reached from there.
+- Private helpers stay in the table of the public function that owns them and use an underscore prefix, for example `_hydrateWorkspace`.
 - Branches are split into separate flow tables instead of being merged into one branching flow.
 - Verification uses `Pass` when the documented public surface can satisfy the scenario without presentation code reaching directly into domain or platform layers.
 

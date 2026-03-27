@@ -8,25 +8,76 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-MOVE-01 - Legal Move on Board
 
 #### Flow A - Live Move At The Current Position
-| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.isMoveLegal` | `GameRuleService.applyMove` | `TimeControlService.applyMove` | `MoveUpdateService.addMainlineMove` | `EnginesStore.startAnalysis` |
-| --- | --- | --- | --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._assertMoveAllowed` |  |  |  |  |  |
-| `GameRuleService.isMoveLegal` | `GamesStore._resolveMoveContext` |  |  |  |  |  |
-| `GameRuleService.applyMove` | `GamesStore._applyMoveByContext` |  |  |  |  |  |
-| `TimeControlService.applyMove` | `GamesStore._updateClockAfterMove` |  |  | `TimeControlService._applyIncrement` |  |  |
-| `MoveUpdateService.addMainlineMove` | `GamesStore._commitLiveMove` |  |  |  |  |  |
-| `EnginesStore.startAnalysis` | `GamesStore._refreshVisibleAnalysis` |  |  | `TimeControlService._switchActiveColour` |  | `EnginesStore._startAnalysisSessions` |
-| `GamesStore._maybeRequestEngineTurn` | `GamesStore._persistWorkspaceIfNeeded` |  |  |  |  | `EnginesStore._bindAnalysisCallbacks` |
+| `Chessboard.moveSubmitted` |
+| --- |
+| `GamesStore.makeMove` |
+| `GameRuleService.isMoveLegal` |
+| `GameRuleService.applyMove` |
+| `TimeControlService.applyMove` |
+| `MoveUpdateService.addMainlineMove` |
+| `EnginesStore.startAnalysis` |
+| `GamesStore._maybeRequestEngineTurn` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._assertMoveAllowed` |
+| `GamesStore._resolveMoveContext` |
+| `GamesStore._applyMoveByContext` |
+| `GamesStore._updateClockAfterMove` |
+| `GamesStore._commitLiveMove` |
+| `GamesStore._refreshVisibleAnalysis` |
+| `GamesStore._persistWorkspaceIfNeeded` |
+
+| `GameRuleService.isMoveLegal` |
+| --- |
+
+| `GameRuleService.applyMove` |
+| --- |
+
+| `TimeControlService.applyMove` |
+| --- |
+| `TimeControlService._applyIncrement` |
+| `TimeControlService._switchActiveColour` |
+
+| `MoveUpdateService.addMainlineMove` |
+| --- |
+
+| `EnginesStore.startAnalysis` |
+| --- |
+| `EnginesStore._startAnalysisSessions` |
+| `EnginesStore._bindAnalysisCallbacks` |
 
 #### Flow B - Analysis-Only Move
-| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.isMoveLegal` | `GameRuleService.applyMove` | `MoveUpdateService.addAnalysisMove` | `EnginesStore.startAnalysis` |
-| --- | --- | --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._assertMoveAllowed` |  |  |  |  |
-| `GameRuleService.isMoveLegal` | `GamesStore._resolveMoveContext` |  |  |  |  |
-| `GameRuleService.applyMove` | `GamesStore._applyMoveByContext` |  |  |  |  |
-| `MoveUpdateService.addAnalysisMove` | `GamesStore._commitAnalysisMove` |  |  |  |  |
-| `EnginesStore.startAnalysis` | `GamesStore._refreshVisibleAnalysis` |  |  |  | `EnginesStore._startAnalysisSessions` |
-|  | `GamesStore._persistWorkspaceIfNeeded` |  |  |  | `EnginesStore._bindAnalysisCallbacks` |
+| `Chessboard.moveSubmitted` |
+| --- |
+| `GamesStore.makeMove` |
+| `GameRuleService.isMoveLegal` |
+| `GameRuleService.applyMove` |
+| `MoveUpdateService.addAnalysisMove` |
+| `EnginesStore.startAnalysis` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._assertMoveAllowed` |
+| `GamesStore._resolveMoveContext` |
+| `GamesStore._applyMoveByContext` |
+| `GamesStore._commitAnalysisMove` |
+| `GamesStore._refreshVisibleAnalysis` |
+| `GamesStore._persistWorkspaceIfNeeded` |
+
+| `GameRuleService.isMoveLegal` |
+| --- |
+
+| `GameRuleService.applyMove` |
+| --- |
+
+| `MoveUpdateService.addAnalysisMove` |
+| --- |
+
+| `EnginesStore.startAnalysis` |
+| --- |
+| `EnginesStore._startAnalysisSessions` |
+| `EnginesStore._bindAnalysisCallbacks` |
 
 - State/settings coverage: `makeMove` accepts `liveGame` and `freeAnalysisSetup`, but dispatches by context. `liveGame + currentPosition + ongoing + not paused` commits a live move and may trigger a player-engine reply. `freeAnalysisSetup`, `historyReview`, and `inGameAnalysis` stay analysis-only. `boardEdit`, paused live play, and final result states block live move progression.
 - Continuous analysis update loop: `EngineClient.subscribeToAnalysis` -> `EnginesStore._forwardAnalysisUpdate` -> `AnalysisStore.applyAnalysisUpdate` -> `AnalysisStore.getVisibleAnalysis` -> `AnalysisPanel` rerender for the affected engine row.
@@ -35,29 +86,60 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-MOVE-02 - Illegal Move Attempt
 
 #### Flow
-| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.isMoveLegal` |
-| --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._assertMoveAllowed` |  |
-| `GameRuleService.isMoveLegal` | `GamesStore._rejectIllegalMove` |  |
-| `GamesStore._refreshLegalTargets` | `GamesStore._refreshLegalTargets` |  |
+| `Chessboard.moveSubmitted` |
+| --- |
+| `GamesStore.makeMove` |
+| `GameRuleService.isMoveLegal` |
+| `GamesStore._refreshLegalTargets` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._assertMoveAllowed` |
+| `GamesStore._rejectIllegalMove` |
+| `GamesStore._refreshLegalTargets` |
+
+| `GameRuleService.isMoveLegal` |
+| --- |
 
 - Requirement verification: `Pass`. Rejection happens before tree, clock, or persistence mutation.
 
 ### SCN-MOVE-03 - Pawn Promotion Resolution
 
 #### Flow A - Require An Explicit Promotion Choice
-| `Chessboard.moveSubmitted` | `GamesStore.makeMove` | `GameRuleService.requiresPromotionSelection` | `UiStateStore.showModal` |
-| --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._assertMoveAllowed` |  |  |
-| `GameRuleService.requiresPromotionSelection` | `GamesStore._stagePendingPromotion` |  |  |
-| `UiStateStore.showModal` |  |  |  |
+| `Chessboard.moveSubmitted` |
+| --- |
+| `GamesStore.makeMove` |
+| `GameRuleService.requiresPromotionSelection` |
+| `UiStateStore.showModal` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._assertMoveAllowed` |
+| `GamesStore._stagePendingPromotion` |
+
+| `GameRuleService.requiresPromotionSelection` |
+| --- |
+
+| `UiStateStore.showModal` |
+| --- |
 
 #### Flow B - Commit The Selected Promotion Piece
-| `PromotionModal.pieceSelected` | `GamesStore.makeMove` | `GameRuleService.applyMove` | `UiStateStore.hideModal` |
-| --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._commitPromotionMove` |  |  |
-| `GameRuleService.applyMove` | `GamesStore._clearPendingPromotion` |  |  |
-| `UiStateStore.hideModal` |  |  |  |
+| `PromotionModal.pieceSelected` |
+| --- |
+| `GamesStore.makeMove` |
+| `GameRuleService.applyMove` |
+| `UiStateStore.hideModal` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._commitPromotionMove` |
+| `GamesStore._clearPendingPromotion` |
+
+| `GameRuleService.applyMove` |
+| --- |
+
+| `UiStateStore.hideModal` |
+| --- |
 
 - UI surface coverage: promotion uses the shared `PiecePalette` surface, hosted either as a board-local overlay or inside the shared dialog shell, and stays local to the current move attempt.
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received.
@@ -69,16 +151,34 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### Live Engine Player Move Generation
 
 #### Flow
-| `Playable live position reached` | `EnginesStore.startPlayerTurn` | `EngineClient.startSession` | `EngineClient.syncPosition` | `EngineClient.startAnalysis` | `GamesStore.makeMove` |
-| --- | --- | --- | --- | --- | --- |
-| `GamesStore._maybeRequestEngineTurn` | `EnginesStore._startPlayerTurnSearch` |  |  |  |  |
-| `EnginesStore.startPlayerTurn` | `EnginesStore._bindPlayerTurnCallbacks` |  |  |  |  |
-| `EngineClient.startSession` |  |  |  |  |  |
-| `EngineClient.syncPosition` |  |  |  |  |  |
-| `EngineClient.startAnalysis` |  |  |  |  |  |
-| `GamesStore.makeMove` |  |  |  |  | `GamesStore._assertMoveAllowed` |
-|  |  |  |  |  | `GamesStore._resolveMoveContext` |
-|  |  |  |  |  | `GamesStore._applyMoveByContext` |
+| `Playable live position reached` |
+| --- |
+| `GamesStore._maybeRequestEngineTurn` |
+| `EnginesStore.startPlayerTurn` |
+| `EngineClient.startSession` |
+| `EngineClient.syncPosition` |
+| `EngineClient.startAnalysis` |
+| `GamesStore.makeMove` |
+
+| `EnginesStore.startPlayerTurn` |
+| --- |
+| `EnginesStore._startPlayerTurnSearch` |
+| `EnginesStore._bindPlayerTurnCallbacks` |
+
+| `EngineClient.startSession` |
+| --- |
+
+| `EngineClient.syncPosition` |
+| --- |
+
+| `EngineClient.startAnalysis` |
+| --- |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._assertMoveAllowed` |
+| `GamesStore._resolveMoveContext` |
+| `GamesStore._applyMoveByContext` |
 
 - Runtime distinction: analysis search keeps streaming updates into `AnalysisStore`, while a player-engine turn waits only for the final move callback and then ends that turn-scoped search.
 - State gate: `EnginesStore.startPlayerTurn` is valid only for `liveGame + currentPosition + ongoing + not paused` when the side to move is assigned to an engine.
@@ -87,14 +187,28 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 
 #### Flow
-| `PlayerPanel.playerSelectionConfirmed` | `UiStateStore.showModal` | `GamesStore.reassignPlayer` | `EnginesStore.stopEngine` |
-| --- | --- | --- | --- |
-| `UiStateStore.showModal` |  |  |  |
-| `GamesStore.reassignPlayer` |  | `GamesStore._assertPlayerReassignmentAllowed` |  |
-| `EnginesStore.stopEngine` |  | `GamesStore._captureVisibleSetupAnchor` |  |
-| `GamesStore._clearPendingTurnRequestIfNeeded` |  | `GamesStore._applyPlayerReassignment` |  |
-| `GamesStore._switchWorkspaceToFreeAnalysisSetup` |  | `GamesStore._persistWorkspaceIfNeeded` |  |
-| `GamesStore._clearLiveResultAndClockStateForSetup` |  | `GamesStore._maybeRequestEngineTurn` |  |
+| `PlayerPanel.playerSelectionConfirmed` |
+| --- |
+| `UiStateStore.showModal` |
+| `GamesStore.reassignPlayer` |
+| `EnginesStore.stopEngine` |
+| `GamesStore._clearPendingTurnRequestIfNeeded` |
+| `GamesStore._switchWorkspaceToFreeAnalysisSetup` |
+| `GamesStore._clearLiveResultAndClockStateForSetup` |
+
+| `UiStateStore.showModal` |
+| --- |
+
+| `GamesStore.reassignPlayer` |
+| --- |
+| `GamesStore._assertPlayerReassignmentAllowed` |
+| `GamesStore._captureVisibleSetupAnchor` |
+| `GamesStore._applyPlayerReassignment` |
+| `GamesStore._persistWorkspaceIfNeeded` |
+| `GamesStore._maybeRequestEngineTurn` |
+
+| `EnginesStore.stopEngine` |
+| --- |
 
 - State coverage: player reassignment is valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis` for the baseline local-or-engine seat model.
 - Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate.
@@ -104,12 +218,27 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-HIST-01 - Navigate Move History Node
 
 #### Flow
-| `HistoryPanel.nodeSelected` | `GamesStore.navigateToNode` | `MoveUpdateService.navigateToNode` | `MoveUpdateService.getPosition` | `AnalysisStore.getVisibleAnalysis` |
-| --- | --- | --- | --- | --- |
-| `GamesStore.navigateToNode` | `GamesStore._setVisibleNode` |  |  |  |
-| `MoveUpdateService.navigateToNode` | `GamesStore._deriveInteractionContext` |  |  |  |
-| `MoveUpdateService.getPosition` | `GamesStore._refreshVisibleAnalysisIfNeeded` |  |  |  |
-| `AnalysisStore.getVisibleAnalysis` |  |  |  |  |
+| `HistoryPanel.nodeSelected` |
+| --- |
+| `GamesStore.navigateToNode` |
+| `MoveUpdateService.navigateToNode` |
+| `MoveUpdateService.getPosition` |
+| `AnalysisStore.getVisibleAnalysis` |
+
+| `GamesStore.navigateToNode` |
+| --- |
+| `GamesStore._setVisibleNode` |
+| `GamesStore._deriveInteractionContext` |
+| `GamesStore._refreshVisibleAnalysisIfNeeded` |
+
+| `MoveUpdateService.navigateToNode` |
+| --- |
+
+| `MoveUpdateService.getPosition` |
+| --- |
+
+| `AnalysisStore.getVisibleAnalysis` |
+| --- |
 
 - State coverage: entering an earlier node moves the workspace into `historyReview` and suppresses `_maybeRequestEngineTurn`; returning to the live node restores `currentPosition`.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the same visible node.
@@ -117,14 +246,36 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
 
 #### Flow
-| `Chessboard.moveSubmittedFromHistory` | `GamesStore.makeMove` | `SettingsStore.getSettings` | `TimeControlService.applyMove` | `MoveUpdateService.addMainlineMove` | `MoveUpdateService.rewriteMainline` |
-| --- | --- | --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._applyHistoryRewritePolicy` |  |  |  |  |
-| `SettingsStore.getSettings` | `GamesStore._confirmMainlineRewriteIfNeeded` |  |  |  |  |
-| `TimeControlService.applyMove` | `GamesStore._updateClockAfterMove` |  | `TimeControlService._applyIncrement` |  |  |
-| `MoveUpdateService.addMainlineMove` | `GamesStore._promoteNewContinuation` |  |  |  |  |
-| `MoveUpdateService.rewriteMainline` | `GamesStore._restoreCurrentPositionAfterRewrite` |  |  |  |  |
-| `GamesStore._maybeRequestEngineTurn` |  |  | `TimeControlService._switchActiveColour` |  |  |
+| `Chessboard.moveSubmittedFromHistory` |
+| --- |
+| `GamesStore.makeMove` |
+| `SettingsStore.getSettings` |
+| `TimeControlService.applyMove` |
+| `MoveUpdateService.addMainlineMove` |
+| `MoveUpdateService.rewriteMainline` |
+| `GamesStore._maybeRequestEngineTurn` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._applyHistoryRewritePolicy` |
+| `GamesStore._confirmMainlineRewriteIfNeeded` |
+| `GamesStore._updateClockAfterMove` |
+| `GamesStore._promoteNewContinuation` |
+| `GamesStore._restoreCurrentPositionAfterRewrite` |
+
+| `SettingsStore.getSettings` |
+| --- |
+
+| `TimeControlService.applyMove` |
+| --- |
+| `TimeControlService._applyIncrement` |
+| `TimeControlService._switchActiveColour` |
+
+| `MoveUpdateService.addMainlineMove` |
+| --- |
+
+| `MoveUpdateService.rewriteMainline` |
+| --- |
 
 - Settings coverage: `gameplay.takebackPolicy = rewriteMainline` routes this flow into live mainline mutation. `gameplay.confirmMainlineRewrite` decides whether `_confirmMainlineRewriteIfNeeded` is a no-op or a blocking prompt.
 - Requirement verification: `Pass`. The public surface can keep the old future as a variation while promoting the new continuation.
@@ -132,19 +283,45 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
 
 #### Flow A - Stay On The Analysis Branch
-| `Chessboard.moveSubmittedFromHistory` | `GamesStore.makeMove` | `SettingsStore.getSettings` | `MoveUpdateService.addAnalysisMove` |
-| --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._applyAnalysisOnlyHistoryPolicy` |  |  |
-| `SettingsStore.getSettings` | `GamesStore._handleAnalysisBranchExitBehaviour` |  |  |
-| `MoveUpdateService.addAnalysisMove` |  |  |  |
+| `Chessboard.moveSubmittedFromHistory` |
+| --- |
+| `GamesStore.makeMove` |
+| `SettingsStore.getSettings` |
+| `MoveUpdateService.addAnalysisMove` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._applyAnalysisOnlyHistoryPolicy` |
+| `GamesStore._handleAnalysisBranchExitBehaviour` |
+
+| `SettingsStore.getSettings` |
+| --- |
+
+| `MoveUpdateService.addAnalysisMove` |
+| --- |
 
 #### Flow B - Return To The Live Node After The Analysis Move
-| `Chessboard.moveSubmittedFromHistory` | `GamesStore.makeMove` | `SettingsStore.getSettings` | `MoveUpdateService.addAnalysisMove` | `MoveUpdateService.navigateToNode` |
-| --- | --- | --- | --- | --- |
-| `GamesStore.makeMove` | `GamesStore._applyAnalysisOnlyHistoryPolicy` |  |  |  |
-| `SettingsStore.getSettings` | `GamesStore._handleAnalysisBranchExitBehaviour` |  |  |  |
-| `MoveUpdateService.addAnalysisMove` | `GamesStore._restoreLiveNodeAfterAnalysisBranch` |  |  |  |
-| `MoveUpdateService.navigateToNode` |  |  |  |  |
+| `Chessboard.moveSubmittedFromHistory` |
+| --- |
+| `GamesStore.makeMove` |
+| `SettingsStore.getSettings` |
+| `MoveUpdateService.addAnalysisMove` |
+| `MoveUpdateService.navigateToNode` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._applyAnalysisOnlyHistoryPolicy` |
+| `GamesStore._handleAnalysisBranchExitBehaviour` |
+| `GamesStore._restoreLiveNodeAfterAnalysisBranch` |
+
+| `SettingsStore.getSettings` |
+| --- |
+
+| `MoveUpdateService.addAnalysisMove` |
+| --- |
+
+| `MoveUpdateService.navigateToNode` |
+| --- |
 
 - Settings coverage: `gameplay.takebackPolicy = analysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the workspace returns to `currentPosition` immediately or stays on the analysis branch.
 - Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
@@ -152,13 +329,30 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-HIST-04 - Prune Future Moves from Selected Node
 
 #### Flow
-| `HistoryPanel.pruneRequested` | `UiStateStore.showModal` | `GamesStore.pruneFuture` | `MoveUpdateService.pruneFutureMoves` | `GamesStore.saveGame` |
-| --- | --- | --- | --- | --- |
-| `UiStateStore.showModal` |  |  |  |  |
-| `GamesStore.pruneFuture` |  | `GamesStore._confirmPruneIfNeeded` |  |  |
-| `MoveUpdateService.pruneFutureMoves` |  | `GamesStore._assertRootPruneAllowed` |  |  |
-| `GamesStore.saveGame` |  | `GamesStore._pruneTreeFromNode` |  | `GamesStore._buildPersistedWorkspace` |
-|  |  | `GamesStore._reconcileLiveAndVisibleNodes` |  | `GamesStore._persistWorkspace` |
+| `HistoryPanel.pruneRequested` |
+| --- |
+| `UiStateStore.showModal` |
+| `GamesStore.pruneFuture` |
+| `MoveUpdateService.pruneFutureMoves` |
+| `GamesStore.saveGame` |
+
+| `UiStateStore.showModal` |
+| --- |
+
+| `GamesStore.pruneFuture` |
+| --- |
+| `GamesStore._confirmPruneIfNeeded` |
+| `GamesStore._assertRootPruneAllowed` |
+| `GamesStore._pruneTreeFromNode` |
+| `GamesStore._reconcileLiveAndVisibleNodes` |
+
+| `MoveUpdateService.pruneFutureMoves` |
+| --- |
+
+| `GamesStore.saveGame` |
+| --- |
+| `GamesStore._buildPersistedWorkspace` |
+| `GamesStore._persistWorkspace` |
 
 - UI surface coverage: prune confirmation uses the shared dialog shell with a danger-focused confirmation row before irreversible mutation is allowed through.
 - Settings coverage: `gameplay.confirmPruneFutureMoves` decides whether the prune confirmation modal is required. `gameplay.allowRootPrune` decides whether pruning from the root node is allowed or rejected before mutation.
@@ -169,12 +363,19 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-TIME-01 - Clock Ticks During Play
 
 #### Flow
-| `GameView.clockTick` | `GamesStore.getGame` | `TimeControlService.getRemainingTime` |
-| --- | --- | --- |
-| `GamesStore.getGame` |  |  |
-| `GameView._buildClockReadModel` |  | `TimeControlService._applyElapsedTime` |
-| `TimeControlService.getRemainingTime` |  |  |
-| `PlayerPanel._formatRemainingTime` |  |  |
+| `GameView.clockTick` |
+| --- |
+| `GamesStore.getGame` |
+| `GameView._buildClockReadModel` |
+| `TimeControlService.getRemainingTime` |
+| `PlayerPanel._formatRemainingTime` |
+
+| `GamesStore.getGame` |
+| --- |
+
+| `TimeControlService.getRemainingTime` |
+| --- |
+| `TimeControlService._applyElapsedTime` |
 
 - UI timing rule: render loops and timer callbacks are cadence only. They request authoritative remaining-time reads but do not mutate stored clock state directly.
 - Requirement verification: `Pass`. Time reads stay authoritative without moving mutation logic into the view.
@@ -182,18 +383,30 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-TIME-02 - Pause and Resume Clocks
 
 #### Flow A - Pause
-| `GameControlPanel.pauseRequested` | `GamesStore.pauseGame` |
-| --- | --- |
-| `GamesStore.pauseGame` | `GamesStore._assertPausable` |
-| `GamesStore._pauseClock` | `GamesStore._pauseClock` |
-| `GamesStore._markPauseOwner` | `GamesStore._markPauseOwner` |
+| `GameControlPanel.pauseRequested` |
+| --- |
+| `GamesStore.pauseGame` |
+| `GamesStore._pauseClock` |
+| `GamesStore._markPauseOwner` |
+
+| `GamesStore.pauseGame` |
+| --- |
+| `GamesStore._assertPausable` |
+| `GamesStore._pauseClock` |
+| `GamesStore._markPauseOwner` |
 
 #### Flow B - Resume
-| `GameControlPanel.resumeRequested` | `GamesStore.resumeGame` |
-| --- | --- |
-| `GamesStore.resumeGame` | `GamesStore._assertResumable` |
-| `GamesStore._resumeClock` | `GamesStore._resumeClock` |
-| `GamesStore._maybeRequestEngineTurn` | `GamesStore._maybeRequestEngineTurn` |
+| `GameControlPanel.resumeRequested` |
+| --- |
+| `GamesStore.resumeGame` |
+| `GamesStore._resumeClock` |
+| `GamesStore._maybeRequestEngineTurn` |
+
+| `GamesStore.resumeGame` |
+| --- |
+| `GamesStore._assertResumable` |
+| `GamesStore._resumeClock` |
+| `GamesStore._maybeRequestEngineTurn` |
 
 - State coverage: pause and resume are valid only for timed `liveGame + currentPosition + ongoing` states.
 - Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally.
@@ -201,23 +414,48 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-TIME-03 - Increment Applied After Move
 
 #### Flow
-| `Successful live move commit` | `TimeControlService.applyMove` |
-| --- | --- |
-| `GamesStore._updateClockAfterMove` | `TimeControlService._applyIncrement` |
-| `TimeControlService.applyMove` | `TimeControlService._switchActiveColour` |
+| `Successful live move commit` |
+| --- |
+| `GamesStore._updateClockAfterMove` |
+| `TimeControlService.applyMove` |
+
+| `TimeControlService.applyMove` |
+| --- |
+| `TimeControlService._applyIncrement` |
+| `TimeControlService._switchActiveColour` |
 
 - Requirement verification: `Pass`. Increment logic remains coupled to successful move commit rather than UI ticks.
 
 ### SCN-TIME-04 - Timeout Ends Game
 
 #### Flow
-| `Clock reconciliation requested` | `GamesStore.syncClock` | `TimeControlService.getRemainingTime` | `TimeControlService.hasExpired` | `GamesStore.saveGame` | `UiStateStore.showModal` |
-| --- | --- | --- | --- | --- | --- |
-| `GamesStore.syncClock` | `GamesStore._reconcileClock` |  |  |  |  |
-| `TimeControlService.getRemainingTime` | `GamesStore._finaliseTimeoutIfNeeded` |  |  |  |  |
-| `TimeControlService.hasExpired` | `GamesStore._lockLiveMoves` |  |  |  |  |
-| `GamesStore.saveGame` | `GamesStore._persistWorkspace` |  |  | `GamesStore._buildPersistedWorkspace` |  |
-| `UiStateStore.showModal` |  |  |  |  |  |
+| `Clock reconciliation requested` |
+| --- |
+| `GamesStore.syncClock` |
+| `TimeControlService.getRemainingTime` |
+| `TimeControlService.hasExpired` |
+| `GamesStore.saveGame` |
+| `UiStateStore.showModal` |
+
+| `GamesStore.syncClock` |
+| --- |
+| `GamesStore._reconcileClock` |
+| `GamesStore._finaliseTimeoutIfNeeded` |
+| `GamesStore._lockLiveMoves` |
+| `GamesStore._persistWorkspace` |
+
+| `TimeControlService.getRemainingTime` |
+| --- |
+
+| `TimeControlService.hasExpired` |
+| --- |
+
+| `GamesStore.saveGame` |
+| --- |
+| `GamesStore._buildPersistedWorkspace` |
+
+| `UiStateStore.showModal` |
+| --- |
 
 - Timing rule: timeout finalisation is triggered from an authoritative clock read. View timer ticks may request `syncClock`, but they do not decide timeout independently.
 - Requirement verification: `Pass`. Timeout finalisation stays in the store and cannot be duplicated by the view.
@@ -225,16 +463,26 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
 
 #### Flow A - Leave The Board For A Menu Action
-| `Menu.interruptingActionRequested` | `GamesStore.pauseGame` |
-| --- | --- |
-| `GamesStore._maybeAutoPauseForMenu` | `GamesStore._maybeAutoPauseForMenu` |
-| `GamesStore.pauseGame` | `GamesStore._rememberPauseOwner` |
+| `Menu.interruptingActionRequested` |
+| --- |
+| `GamesStore._maybeAutoPauseForMenu` |
+| `GamesStore.pauseGame` |
+
+| `GamesStore.pauseGame` |
+| --- |
+| `GamesStore._maybeAutoPauseForMenu` |
+| `GamesStore._rememberPauseOwner` |
 
 #### Flow B - Return From The Menu Action
-| `Menu.interruptingActionCompleted` | `GamesStore.resumeGame` |
-| --- | --- |
-| `GamesStore._resumeIfMenuOwnedPause` | `GamesStore._resumeIfMenuOwnedPause` |
-| `GamesStore.resumeGame` | `GamesStore._resumeClock` |
+| `Menu.interruptingActionCompleted` |
+| --- |
+| `GamesStore._resumeIfMenuOwnedPause` |
+| `GamesStore.resumeGame` |
+
+| `GamesStore.resumeGame` |
+| --- |
+| `GamesStore._resumeIfMenuOwnedPause` |
+| `GamesStore._resumeClock` |
 
 - Settings coverage: `session.autoPauseOnMenu` controls whether timed live games are paused for save, settings, and similar interrupting flows.
 - Requirement verification: `Pass`. Auto-pause is gated by settings, active clock state, and pause ownership.
@@ -244,59 +492,124 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-CTRL-01 - Takeback Action
 
 #### Flow
-| `GameControlPanel.takeBackRequested` | `GamesStore.takeBack` | `MoveUpdateService.takeBack` |
-| --- | --- | --- |
-| `GamesStore.takeBack` | `GamesStore._assertTakeBackAllowed` |  |
-| `MoveUpdateService.takeBack` | `GamesStore._rewindVisibleAndLiveNodes` |  |
-| `GamesStore._rebuildClockFromHistory` | `GamesStore._rebuildClockFromHistory` |  |
-| `GamesStore._refreshVisibleAnalysis` | `GamesStore._refreshVisibleAnalysis` |  |
+| `GameControlPanel.takeBackRequested` |
+| --- |
+| `GamesStore.takeBack` |
+| `MoveUpdateService.takeBack` |
+| `GamesStore._rebuildClockFromHistory` |
+| `GamesStore._refreshVisibleAnalysis` |
+
+| `GamesStore.takeBack` |
+| --- |
+| `GamesStore._assertTakeBackAllowed` |
+| `GamesStore._rewindVisibleAndLiveNodes` |
+| `GamesStore._rebuildClockFromHistory` |
+| `GamesStore._refreshVisibleAnalysis` |
+
+| `MoveUpdateService.takeBack` |
+| --- |
 
 - Requirement verification: `Pass`. Takeback policy and clock recomputation remain inside one mutation boundary.
 
 ### SCN-CTRL-02 - Resign Game
 
 #### Flow
-| `GameControlPanel.resignRequested` | `UiStateStore.showModal` | `GamesStore.resignGame` | `GamesStore.saveGame` |
-| --- | --- | --- | --- |
-| `UiStateStore.showModal` |  |  |  |
-| `GamesStore.resignGame` |  | `GamesStore._assertResultMutable` |  |
-| `GamesStore.saveGame` |  | `GamesStore._finaliseResult` | `GamesStore._buildPersistedWorkspace` |
-|  |  | `GamesStore._persistWorkspace` | `GamesStore._persistWorkspace` |
+| `GameControlPanel.resignRequested` |
+| --- |
+| `UiStateStore.showModal` |
+| `GamesStore.resignGame` |
+| `GamesStore.saveGame` |
+
+| `UiStateStore.showModal` |
+| --- |
+
+| `GamesStore.resignGame` |
+| --- |
+| `GamesStore._assertResultMutable` |
+| `GamesStore._finaliseResult` |
+| `GamesStore._persistWorkspace` |
+
+| `GamesStore.saveGame` |
+| --- |
+| `GamesStore._buildPersistedWorkspace` |
+| `GamesStore._persistWorkspace` |
 
 - Requirement verification: `Pass`. Confirmation and final result persistence are both covered.
 
 ### SCN-CTRL-03 - Draw Offer Flow
 
 #### Flow A - Local Versus Local Draw Offer
-| `GameControlPanel.drawRequested` | `UiStateStore.showModal` | `GamesStore.offerDraw` | `GamesStore.acceptDrawOffer` |
-| --- | --- | --- | --- |
-| `UiStateStore.showModal` |  |  |  |
-| `GamesStore.offerDraw` |  | `GamesStore._assertResultMutable` |  |
-| `UiStateStore.showModal` |  | `GamesStore._captureDrawOfferContext` |  |
-| `GamesStore.acceptDrawOffer` |  | `GamesStore._openDrawOfferPrompt` | `GamesStore._acceptDrawOffer` |
-| `GamesStore.saveGame` |  |  | `GamesStore._finaliseResult` |
+| `GameControlPanel.drawRequested` |
+| --- |
+| `UiStateStore.showModal` |
+| `GamesStore.offerDraw` |
+| `UiStateStore.showModal` |
+| `GamesStore.acceptDrawOffer` |
+| `GamesStore.saveGame` |
+
+| `UiStateStore.showModal` |
+| --- |
+
+| `GamesStore.offerDraw` |
+| --- |
+| `GamesStore._assertResultMutable` |
+| `GamesStore._captureDrawOfferContext` |
+| `GamesStore._openDrawOfferPrompt` |
+
+| `GamesStore.acceptDrawOffer` |
+| --- |
+| `GamesStore._acceptDrawOffer` |
+| `GamesStore._finaliseResult` |
 
 #### Flow B - Send A Draw Offer To A Non-Local Opponent
-| `GameControlPanel.drawRequested` | `GamesStore.offerDraw` | `GamesStore.saveGame` |
-| --- | --- | --- |
-| `GamesStore.offerDraw` | `GamesStore._assertResultMutable` |  |
-| `GamesStore._setDrawOfferState` | `GamesStore._setDrawOfferState` |  |
-| `GamesStore.saveGame` |  | `GamesStore._buildPersistedWorkspace` |
+| `GameControlPanel.drawRequested` |
+| --- |
+| `GamesStore.offerDraw` |
+| `GamesStore._setDrawOfferState` |
+| `GamesStore.saveGame` |
+
+| `GamesStore.offerDraw` |
+| --- |
+| `GamesStore._assertResultMutable` |
+| `GamesStore._setDrawOfferState` |
+
+| `GamesStore.saveGame` |
+| --- |
+| `GamesStore._buildPersistedWorkspace` |
 
 #### Flow C - Accept An Incoming Non-Local Offer
-| `GameControlPanel.drawRequested` | `GamesStore.acceptDrawOffer` | `GamesStore.saveGame` |
-| --- | --- | --- |
-| `GamesStore.acceptDrawOffer` | `GamesStore._acceptDrawOffer` |  |
-| `GamesStore._finaliseResult` | `GamesStore._finaliseResult` |  |
-| `GamesStore._clearDrawOfferStateIfNeeded` | `GamesStore._clearDrawOfferStateIfNeeded` |  |
-| `GamesStore.saveGame` |  | `GamesStore._buildPersistedWorkspace` |
+| `GameControlPanel.drawRequested` |
+| --- |
+| `GamesStore.acceptDrawOffer` |
+| `GamesStore._finaliseResult` |
+| `GamesStore._clearDrawOfferStateIfNeeded` |
+| `GamesStore.saveGame` |
+
+| `GamesStore.acceptDrawOffer` |
+| --- |
+| `GamesStore._acceptDrawOffer` |
+| `GamesStore._finaliseResult` |
+| `GamesStore._clearDrawOfferStateIfNeeded` |
+
+| `GamesStore.saveGame` |
+| --- |
+| `GamesStore._buildPersistedWorkspace` |
 
 #### Flow D - Withdraw An Outgoing Non-Local Offer
-| `GameControlPanel.drawRequested` | `GamesStore.withdrawDrawOffer` | `GamesStore.saveGame` |
-| --- | --- | --- |
-| `GamesStore.withdrawDrawOffer` | `GamesStore._withdrawNonLocalDrawOffer` |  |
-| `GamesStore._clearDrawOfferStateIfNeeded` | `GamesStore._clearDrawOfferStateIfNeeded` |  |
-| `GamesStore.saveGame` |  | `GamesStore._buildPersistedWorkspace` |
+| `GameControlPanel.drawRequested` |
+| --- |
+| `GamesStore.withdrawDrawOffer` |
+| `GamesStore._clearDrawOfferStateIfNeeded` |
+| `GamesStore.saveGame` |
+
+| `GamesStore.withdrawDrawOffer` |
+| --- |
+| `GamesStore._withdrawNonLocalDrawOffer` |
+| `GamesStore._clearDrawOfferStateIfNeeded` |
+
+| `GamesStore.saveGame` |
+| --- |
+| `GamesStore._buildPersistedWorkspace` |
 
 - UI surface coverage: local-local resolution uses the shared dialog shell. Non-local opponents use the LED-like pending-offer indicator on `GameControlPanel`.
 - Requirement verification: `Pass`. The baseline keeps local-local resolution explicit while letting engine-backed non-local participation define the same indicator-based model that a future adapter can reuse.
@@ -304,18 +617,33 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 
 #### Flow A - Enter In-Game Analysis
-| `GameControlPanel.analysisRequested` | `GamesStore.enterInGameAnalysis` |
-| --- | --- |
-| `GamesStore.enterInGameAnalysis` | `GamesStore._assertInGameAnalysisAllowed` |
-| `GamesStore._pauseForAnalysisEntry` | `GamesStore._pauseForAnalysisEntry` |
-| `GamesStore._cloneAnalysisContext` | `GamesStore._cloneAnalysisContext` |
+| `GameControlPanel.analysisRequested` |
+| --- |
+| `GamesStore.enterInGameAnalysis` |
+| `GamesStore._pauseForAnalysisEntry` |
+| `GamesStore._cloneAnalysisContext` |
+
+| `GamesStore.enterInGameAnalysis` |
+| --- |
+| `GamesStore._assertInGameAnalysisAllowed` |
+| `GamesStore._pauseForAnalysisEntry` |
+| `GamesStore._cloneAnalysisContext` |
 
 #### Flow B - Exit In-Game Analysis
-| `GameControlPanel.analysisExitRequested` | `UiStateStore.showModal` | `GamesStore.exitInGameAnalysis` |
-| --- | --- | --- |
-| `GamesStore.exitInGameAnalysis` |  | `GamesStore._promptForDirtyAnalysisExitIfNeeded` |
-| `UiStateStore.showModal` |  | `GamesStore._restoreLiveNode` |
-| `GamesStore._resumeAfterAnalysisIfOwned` |  | `GamesStore._resumeAfterAnalysisIfOwned` |
+| `GameControlPanel.analysisExitRequested` |
+| --- |
+| `GamesStore.exitInGameAnalysis` |
+| `UiStateStore.showModal` |
+| `GamesStore._resumeAfterAnalysisIfOwned` |
+
+| `UiStateStore.showModal` |
+| --- |
+
+| `GamesStore.exitInGameAnalysis` |
+| --- |
+| `GamesStore._promptForDirtyAnalysisExitIfNeeded` |
+| `GamesStore._restoreLiveNode` |
+| `GamesStore._resumeAfterAnalysisIfOwned` |
 
 - State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
@@ -323,16 +651,23 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
 
 #### Flow A - Blocked Attempt
-| `GameControlPanel.boardEditRequested` | `UiStateStore.showModal` |
-| --- | --- |
-| `GamesStore._assertBoardEditAllowed` |  |
-| `UiStateStore.showModal` |  |
+| `GameControlPanel.boardEditRequested` |
+| --- |
+| `GamesStore._assertBoardEditAllowed` |
+| `UiStateStore.showModal` |
+
+| `UiStateStore.showModal` |
+| --- |
 
 #### Flow B - Allowed Attempt
-| `GameControlPanel.boardEditRequested` | `GamesStore.enterBoardEdit` |
-| --- | --- |
-| `GamesStore._assertBoardEditAllowed` |  |
-| `GamesStore.enterBoardEdit` | `GamesStore._snapshotPreEditState` |
+| `GameControlPanel.boardEditRequested` |
+| --- |
+| `GamesStore._assertBoardEditAllowed` |
+| `GamesStore.enterBoardEdit` |
+
+| `GamesStore.enterBoardEdit` |
+| --- |
+| `GamesStore._snapshotPreEditState` |
 
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
