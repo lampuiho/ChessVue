@@ -26,3 +26,4 @@ Define the baseline route map and route-guard responsibilities for the desktop s
 - The router does not load or mutate game data directly.
 - `GameView` is the only baseline game workspace screen.
 - `TabbedView` emits selected tab IDs only; `GameTabs` maps those IDs to `/game/:id`, while `SettingsView` maps category IDs to `/settings/:category`.
+- Flow docs continue to show owner-private functions such as `Router._resolveStartupTarget`, `Router._restoreReturnRoute`, `Router._validateGameRoute`, and `Router._selectFallbackRoute`. If those share implementation with session-state coercion, that implementation is documented under `SessionNavigationUtility` in [UtilityIndex.md](../UtilityIndex.md).

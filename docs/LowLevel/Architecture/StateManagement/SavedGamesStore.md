@@ -45,3 +45,4 @@ importGame(): Promise<IGameWorkspace>
 - `SavedGamesStore` consumes only layer-2 persistence services. It does not resolve `StorageAdapter` or `FileIoAdapter` directly.
 - `SavedGamesStore` does not call sibling stores directly. Any later recent-metadata refresh, tab/session update, or runtime restart is sequenced by the owning flow after the saved-game operation completes.
 - Save-folder grouping belongs to `SavedGameIndexService`, not to `SavedGamesStore` and not to `FileIoAdapter`.
+- Flow docs continue to show owner-private functions such as `SavedGamesStore._writeManagedSaveDocument`, `SavedGamesStore._readManagedSaveDocument`, and `SavedGamesStore._remapDuplicateIdIfNeeded`. If those share implementation, that implementation is documented under `SavedGameDocumentUtility` in [UtilityIndex.md](../UtilityIndex.md).

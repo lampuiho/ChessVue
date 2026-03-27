@@ -35,6 +35,7 @@ stopSession(sessionId: string): Promise<void>
 - `syncPosition` receives ChessVue root-and-moves state, and the client decides whether it can continue the same game line or must establish a fresh game boundary.
 - During the rewrite phase, `EngineClient` sits on top of a mocked `NW.js`-style `ProcessManager`, so protocol logic can be implemented and tested before real child-process bindings exist.
 - UCI move strings and engine-facing FEN are engine-boundary details only; they are derived lazily here and are not part of the canonical data contracts.
+- Flow docs never expose `EngineClient` private utilities directly. If `EngineClient._mapBoardPositionToProtocolPosition` or `_shouldReuseCurrentGameLine` share contract-aware implementation with higher-level engine-position preparation, that implementation is documented under `EnginePositionMappingUtility` in [UtilityIndex.md](../UtilityIndex.md).
 
 Example internal codec responsibilities:
 

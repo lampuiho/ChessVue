@@ -55,6 +55,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 
 ### Shared Data Interfaces
 - [DataInterface Index](DataInterface/index.md)
+- [Utility Index](UtilityIndex.md)
 
 ## Dependency Rules
 The dependency direction is fixed:
@@ -71,6 +72,7 @@ Additional rules:
 - In this doc set, the upper layer is the smaller-numbered layer.
 - Each layer may call only the immediately upper layer by number.
 - Same-layer calls are forbidden.
+- Shared private utilities may be imported like an external library, but they remain invisible in flow ownership, are not public modules, and do not relax adjacency.
 - Presentation components do not own game rules, move-tree mutation, persistence, or engine-process control.
 - State stores are the coordination boundary for UI-triggered mutations, but they call layer-2 services only.
 - State stores do not resolve `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, or `EngineClient` directly.
@@ -81,6 +83,7 @@ Additional rules:
 - The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient`.
 - `EngineClient` owns protocol translation and engine-session messaging. Higher layers do not compose raw UCI strings directly.
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
+- Shared imported private utilities that touch committed contract models are documented only in [UtilityIndex.md](UtilityIndex.md) plus the owning module docs that delegate to them. They do not appear as flow-level owners.
 - Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
 - Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
 - Only common presentation components may own HTML or template markup. Views and feature components are template-free coordinators that connect state, events, and common render building blocks.
@@ -142,3 +145,4 @@ The doc set is aligned only when all of the following are true:
 - multi-engine analysis is baseline, capped at four concurrent analysis engines per game
 - terminology for routes, state axes, result states, and persistence artefacts matches the high-level docs
 - no doc describes same-layer calls or `Layer 3 -> Layer 1` calls
+- shared contract-aware private utilities are inventoried in [UtilityIndex.md](UtilityIndex.md) and remain invisible in process-flow ownership

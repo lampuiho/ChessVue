@@ -164,6 +164,7 @@ Additional rules:
 
 - Each layer may call only the immediately upper layer by number.
 - Same-layer calls are forbidden.
+- Shared private utilities may be imported like an external library, but they remain private implementation only and do not relax adjacency or create new public dependencies.
 - Domain logic remains UI-free and owns the lower-layer service contracts consumed by state stores.
 - Presentation must not implement business rules that belong to the four contracts.
 - State stores are the coordination boundary for UI-triggered game mutations, but they do that work only through layer-2 services.

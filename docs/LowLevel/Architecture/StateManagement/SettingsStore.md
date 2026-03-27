@@ -43,3 +43,4 @@ resetSettings(): Promise<void>
 - `loadSettings()` must produce both the persisted settings snapshot and the initial `IAppearanceProjection` before the root app-shell surface binds to shared app chrome.
 - Accepted engine-inventory changes update reusable engine profiles only. They do not directly mutate already assigned engine participants or running engine sessions.
 - The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.
+- Flow docs continue to show `SettingsStore._resolveThemeMode` and `SettingsStore._buildAppearanceProjection` as the visible owner-private boundaries. If those functions share implementation, that implementation is documented under `AppearanceProjectionUtility` in [UtilityIndex.md](../UtilityIndex.md).

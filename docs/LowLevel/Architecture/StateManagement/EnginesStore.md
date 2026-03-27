@@ -60,3 +60,4 @@ removeSessionsForEngine(assignedEngineId: string): Promise<void>
 ## Notes
 - `EnginesStore` consumes layer-2 engine runtime boundaries only. It does not resolve `ProcessManager` or `EngineClient` directly.
 - Protocol-specific command text, FEN or UCI mapping, and child-process transport remain below layer 3.
+- Flow docs continue to show `EnginesStore._startAnalysisSessions` and `EnginesStore._startPlayerTurnSearch` as the visible owner-private boundaries. If they share contract-aware engine-position mapping, that implementation is documented under `EnginePositionMappingUtility` in [UtilityIndex.md](../UtilityIndex.md).
