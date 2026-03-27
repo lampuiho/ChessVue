@@ -3,6 +3,7 @@
 ## Baseline Views
 - [HomeView](Home.md)
 - [GameView](Game.md)
+- [SavedGamesView](SavedGames.md)
 - [SettingsView](Settings.md)
 
 ## Supporting Map

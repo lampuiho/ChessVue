@@ -882,7 +882,7 @@ Each scenario in this document uses the same structure:
 
 ### SCN-SAVE-01 - Autosave Internal Save Entry
 - **Status**: Planned
-- **Goal**: Update the dedicated internal autosave entry for the current game without opening the save/load dialog.
+- **Goal**: Update the dedicated internal autosave entry for the current game without routing to the save/load views.
 - **Preconditions**: Active game exists; at least one autosave trigger is enabled.
 - **Entry Points**: Configured move-count threshold reached or close flow begins.
 - **Main Steps**:
@@ -905,33 +905,31 @@ Each scenario in this document uses the same structure:
   - `FileIoAdapter.writeTextFile`
   - `SettingsStore.loadSettings`
 
-### SCN-SAVE-02 - Open Internal Save Dialog
+### SCN-SAVE-02 - Open Internal Save View
 - **Status**: Planned
-- **Goal**: Open the ChessVue save/load dialog on the `Save` tab so the user can browse grouped saves and stage an internal save.
+- **Goal**: Route to the ChessVue save view so the user can browse the current game's saves and stage an internal save.
 - **Preconditions**: Active game exists.
 - **Entry Points**: Menu `Save Game`.
 - **Main Steps**:
   1. User chooses save action.
   2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before entering the save flow.
-  3. App opens the shared save/load dialog on the `Save` tab.
-  4. The current game is selected by default when one exists.
-  5. The left side lists games grouped for save browsing; selecting a game shows that game's saves in the central list.
-  6. The save list shows the autosave entry first, then a separator when autosave exists, then the remaining saves with save-name and date columns.
-  7. The right panel shows details for the currently selected game or save.
-  8. The save-name text box at the bottom of the list receives focus on open.
-  9. The bottom action row shows `Cancel` and `Save`.
-  10. When the user returns to the game screen, app auto-resumes if the pause came from this save flow.
+  3. App routes to `/saved-games/save/:name` using the current game name.
+  4. The save view opens directly in the selected game's save-list screen rather than a transient dialog.
+  5. The save list shows the autosave entry first, then a separator when autosave exists, then the remaining saves with save-name and date columns.
+  6. The right panel shows details for the selected save entry.
+  7. The save-name text box at the bottom of the list receives focus on open.
+  8. The bottom-right action row shows `Cancel` and `Save`.
+  9. When the user returns to the game screen, app auto-resumes if the pause came from this save flow.
 - **Branch Paths**:
-  - `BR-SAVE-02-CANCEL`: User closes the dialog -> no save is written.
-  - `BR-SAVE-02-NO-CURRENT-GAME`: If no current game exists, the dialog opens without a selected game and disables `Save` until the user selects a valid target.
+  - `BR-SAVE-02-CANCEL`: User leaves the save view -> no save is written.
+  - `BR-SAVE-02-NO-CURRENT-GAME`: If no current game exists, the route is blocked or redirected because save requires one selected game.
   - `BR-SAVE-02-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, save proceeds without pausing the clock.
-- **Postconditions**: The user reaches a consistent internal save surface without leaving the app context, and the dialog state is ready for either creating a new save or selecting an existing save slot.
+- **Postconditions**: The user reaches a consistent route-level save surface without leaving the app context, and the save screen is ready for creating or replacing a save entry for the current game.
 - **Function Touchpoints**:
   - `MenuBar.saveGameRequested`
   - `GameControlPanel.pauseRequested`
-  - `UiStateStore.showModal`
+  - `Router.push`
   - `SavedGamesStore.listSavedGames`
-  - `GamesStore.listGames`
   - `GamesStore.getGame`
   - `SavedGameIndexService.projectSaveGroups`
   - `SettingsStore.loadSettings`
@@ -939,18 +937,18 @@ Each scenario in this document uses the same structure:
 ### SCN-SAVE-03 - Confirm Internal Save Write
 - **Status**: Planned
 - **Goal**: Write the current game to an internal save file, including overwrite confirmation when the chosen save name already exists.
-- **Preconditions**: The internal save dialog is open on the `Save` tab with a valid selected game and non-empty save name.
-- **Entry Points**: Save dialog `Save` button.
+- **Preconditions**: The save view is open at `/saved-games/save/:name` with a valid selected game and non-empty save name.
+- **Entry Points**: Save view `Save` button.
 - **Main Steps**:
   1. User enters or selects a save name and clicks `Save`.
   2. App resolves the target game folder beneath `session.saveRootPath`.
   3. If the chosen save name matches an existing save entry for that game, app asks for overwrite confirmation.
   4. On confirm or when no collision exists, app snapshots the current game workspace state.
   5. App serializes the canonical saved-game payload and writes the internal save file.
-  6. App refreshes the save list, recent-game metadata, and visible details, then closes the dialog or keeps the updated selection visible according to the final UI flow.
+  6. App refreshes the save list, recent-game metadata, and visible details, then stays on the save route or returns according to the final UI flow.
 - **Branch Paths**:
-  - `BR-SAVE-03-COLLISION-CANCEL`: User declines overwrite confirmation -> no write occurs and the dialog stays open.
-  - `BR-SAVE-03-IO-ERROR`: Save write fails -> show retry guidance and keep the dialog open.
+  - `BR-SAVE-03-COLLISION-CANCEL`: User declines overwrite confirmation -> no write occurs and the save view stays open.
+  - `BR-SAVE-03-IO-ERROR`: Save write fails -> show retry guidance and keep the save view open.
   - `BR-SAVE-03-EMPTY-NAME`: Save name is blank or invalid -> block save and keep focus in the text box.
 - **Postconditions**: The selected game has a new or replaced internal save entry in its game folder, and the same canonical payload is available for later internal load.
 - **Function Touchpoints**:
@@ -962,32 +960,37 @@ Each scenario in this document uses the same structure:
   - `FileIoAdapter.writeTextFile`
   - `RecentGameStore.recordSavedGame`
 
-### SCN-LOAD-01 - Load Valid Game from Internal Save Dialog
+### SCN-LOAD-01 - Load Valid Game from Internal Save View
 - **Status**: Planned
-- **Goal**: Open a ChessVue-managed save from the shared save/load dialog and make it the active game context.
+- **Goal**: Open a ChessVue-managed save from the route-level load view and make it the active game context.
 - **Preconditions**: At least one valid internal save file exists.
 - **Entry Points**: Menu `Load Game`.
 - **Main Steps**:
   1. User chooses load action.
   2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before entering the load flow.
-  3. App opens the shared save/load dialog on the `Load` tab.
-  4. The dialog groups save files by game, with the current game preselected when one exists, including when switching from `Save` to `Load`.
-  5. User selects a game, then selects a save entry showing save-name and date columns while the right panel shows game details.
-  6. User clicks `Load`.
-  7. App reads the raw save document, deserializes and migrates the payload inside the state-management boundary, and restores the saved game workspace state immediately.
-  8. Game is inserted into store and opened.
-  9. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
-  10. When the user returns to the game screen, app auto-resumes if the pause came from this load flow.
+  3. App routes to `/saved-games/load`.
+  4. The load view shows the grouped game list, with the current game selected when one exists.
+  5. Single-clicking a game selects it only.
+  6. Double-clicking a game immediately loads that game's latest save file.
+  7. The bottom-right action row shows `Cancel` and `Select`.
+  8. Choosing `Select` routes to `/saved-games/load/:name` for the selected game.
+  9. The game-save listing screen shows that game's saves and replaces the bottom-right `Select` action with `Load`.
+  10. User selects a save entry and clicks `Load`, or arrives by double-click latest-save behaviour from the grouped list.
+  11. App reads the raw save document, deserializes and migrates the payload inside the state-management boundary, and restores the saved game workspace state immediately.
+  12. Game is inserted into store and opened.
+  13. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
+  14. When the user returns to the game screen, app auto-resumes if the pause came from this load flow.
 - **Branch Paths**:
-  - `BR-LOAD-01-CANCEL`: User closes the dialog or presses `Cancel` -> no load occurs.
+  - `BR-LOAD-01-CANCEL`: User leaves either load route or presses `Cancel` -> no load occurs.
   - `BR-LOAD-01-DUPLICATE-ID`: Loaded game ID collides with an already open or persisted game -> remap ID before insert.
   - `BR-LOAD-01-MIGRATION`: Older schema detected -> migrate then persist upgraded format on the next normal save cycle.
+  - `BR-LOAD-01-NO-SELECTION`: User presses `Select` without a selected game on `/saved-games/load` -> keep the user on the grouped game list and block navigation.
   - `BR-LOAD-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, load proceeds without pausing the clock.
-- **Postconditions**: The selected internal save opens as an active game, the user first sees the restored saved state, and live analysis resumes afterwards when engines are available.
+- **Postconditions**: The selected internal save opens as an active game, whether reached through direct double-click latest-load or the nested `/saved-games/load/:name` save-list route, and live analysis resumes afterwards when engines are available.
 - **Function Touchpoints**:
   - `MenuBar.loadGameRequested`
   - `GameControlPanel.pauseRequested`
-  - `UiStateStore.showModal`
+  - `Router.push`
   - `SavedGamesStore.listSavedGames`
   - `SavedGamesStore.loadSavedGame`
   - `SavedGameIndexService.projectSaveGroups`

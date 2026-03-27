@@ -89,10 +89,13 @@ The low-level design assumes only these routes:
 
 - `/home`
 - `/game/:id`
+- `/saved-games/save/:name`
+- `/saved-games/load`
+- `/saved-games/load/:name`
 - `/settings`
 - `/settings/:category`
 
-`GameView` hosts board, players, history, analysis, and game controls. A standalone analysis route or view is out of scope.
+`GameView` hosts board, players, history, analysis, and game controls. `SavedGamesView` hosts the route-level internal save/load surface. A standalone analysis route or view is out of scope.
 
 ## Baseline Data Contracts
 The data-interface section defines the shared low-level types for:
@@ -118,7 +121,7 @@ The data-interface section defines the shared low-level types for:
 - `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
 - `EnginesStore` and `EngineClient` own analysis and player-engine runtime control, while `ProcessManager` owns raw process lifecycle and I/O.
 - `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios, with stores orchestrating workflows, `SavedGameIndexService` owning save-folder rules, and `SerializationService` owning canonical payload conversion, while `StorageAdapter` and `FileIoAdapter` provide raw document transport only.
-- `Router`, `HomeView`, `GameView`, `SettingsView`, and shell components own route and screen composition only.
+- `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions
 The low-level docs do not introduce:

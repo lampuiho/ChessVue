@@ -1,7 +1,7 @@
 # SavedGameIndexService
 
 ## Purpose
-Own the pure ChessVue rules for where saved games live on disk and how generic directory contents are interpreted as logical save groups.
+Own the pure ChessVue rules for where saved games live on disk and how generic directory contents are interpreted as logical save groups and latest-save targets.
 
 ## Public Interface
 ```ts
@@ -29,8 +29,9 @@ projectSaveGroups(rootPath: string, entriesByDirectory: ReadonlyMap<string, IFil
 ## Responsibilities
 - keep ChessVue's canonical save-root, game-folder, and file-naming conventions in one platform-independent place
 - decide how autosave and named-save file paths are composed from `session.saveRootPath`, `gameId`, and `saveName`
-- interpret generic directory entries from `FileIoAdapter` into logical game/save groups for the save/load dialog
+- interpret generic directory entries from `FileIoAdapter` into logical game/save groups and latest-save targets for the route-level save/load views
 - identify autosave entries without depending on UI code or file-system APIs
+- identify the latest loadable save entry for a selected game without depending on UI code or file-system APIs
 
 ## Dependencies
 - shared low-level data interfaces only

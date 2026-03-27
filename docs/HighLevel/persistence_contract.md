@@ -160,7 +160,7 @@ On restore, analysis may restart from the restored game state when engines are a
 
 ### Internal Save File
 - Writes the same canonical saved-game payload to a ChessVue-managed save file beneath the configured save root.
-- Supports grouped browsing by game and save entry inside the app's save/load dialog.
+- Supports grouped browsing by game and save entry inside the app's route-level save/load view.
 - Uses the same restore fidelity as autosave because both persist the same canonical payload.
 - May require overwrite confirmation when a chosen save name already exists inside the selected game folder.
 

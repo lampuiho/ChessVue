@@ -32,6 +32,11 @@ Read-side rule:
 - `GameTabs` owns open-game switching and close actions, with `TabbedView` and `TabButton` handling generic tab interaction while `GameTabs` maps selection to `/game/:id`.
 - `Router` and `UiStateStore` validate and persist route-level navigation state.
 
+### Saved Games Navigation
+- `SavedGamesView` owns the route-level save/load surface for `/saved-games/save/:name`, `/saved-games/load`, and `/saved-games/load/:name`.
+- `SavedGamesView` forwards grouped-game selection, double-click latest-load, and bottom-row `Select`, `Load`, and `Save` actions to `SavedGamesStore`.
+- `SavedGamesStore` owns latest-save choice, save grouping, route-specific load behaviour, and save execution; the view stays display and routing focused.
+
 ### Board And Move Input
 - `Chessboard` owns board interaction entry points such as click-click move input, drag-drop, selection clearing, and board-edit confirmation.
 - `BoardGrid`, `SquareSurface`, `ChessPiece`, `AnalysisChessPieceButton`, and `ButtonGroup` own the board and piece render surfaces.

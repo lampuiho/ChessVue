@@ -79,6 +79,7 @@ Committed presentation modules:
 - `Router`
 - `HomeView`
 - `GameView`
+- `SavedGamesView`
 - `SettingsView`
 - `MenuBar`
 - `GameTabs`
@@ -96,6 +97,9 @@ The committed baseline route map is:
 
 - `/home`
 - `/game/:id`
+- `/saved-games/save/:name`
+- `/saved-games/load`
+- `/saved-games/load/:name`
 - `/settings`
 - `/settings/:category`
 
@@ -119,7 +123,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 
 ### State Management
 - `GamesStore` owns only live/open game workspaces and enforces the interaction rules in [state_model.md](state_model.md).
-- `SavedGamesStore` owns autosave, internal save/load browsing, external import/export, and saved-game restore orchestration.
+- `SavedGamesStore` owns autosave, route-level internal save/load browsing, external import/export, and saved-game restore orchestration.
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
 - `EnginesStore` owns per-game engine assignment, runtime availability state, and engine-session lifecycle coordination.
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
@@ -131,6 +135,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### Presentation
 - `HomeView` is the neutral landing screen for launch, no-active-game fallback, and recent-game reopening when recent entries exist.
 - `GameView` is the main gameplay workspace and hosts board, players, history, analysis, and controls.
+- `SavedGamesView` is the route-level save/load surface for ChessVue-managed saved games.
 - `SettingsView` edits committed user settings and engine inventory.
 - `MenuBar`, `GameTabs`, and `NewGameModal` provide shell-level actions and navigation.
 - `Chessboard`, `PlayerPanel`, `HistoryPanel`, `AnalysisPanel`, and `GameControlPanel` render committed game interactions only.
@@ -184,7 +189,7 @@ The high-level contracts divide behaviour ownership as follows:
 1. `SavedGamesStore`, `RecentGameStore`, and `UiStateStore` orchestrate creation of a canonical saved game payload, recent-games snapshot entry, game-session snapshot, and UI-layout state.
 2. `GamesStore` supplies or accepts live/open game workspaces, but it does not decide save-folder structure or file workflows.
 3. `StorageAdapter` persists autosaved state, recent-game metadata, game-session state, and UI-layout state, while `FileIoAdapter` provides generic directory, file-read/write, and host-dialog operations.
-4. `SavedGameIndexService` converts configured save-root rules plus generic directory entries into ChessVue save groups and canonical target file paths.
+4. `SavedGameIndexService` converts configured save-root rules plus generic directory entries into ChessVue save groups, latest-save targets, and canonical target file paths.
 5. `SerializationService` converts between raw save-file documents and canonical game payloads, including format detection and migration.
 6. `RecentGameStore` keeps at most one recent entry per canonical `gameId`, pointing to the newest autosave or saved-file target.
 7. Startup may restore UI-layout state even when settings disable reopening the previous game session. When a game is restored, the app rebuilds the persisted workspace state, then resumes live analysis if engines are available.

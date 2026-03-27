@@ -18,6 +18,7 @@ The baseline layout must accommodate:
 - `HomeView`
 - `MenuBar`
 - `GameTabs`
+- `SavedGamesView`
 - `PlayerPanel`
 - `Chessboard`
 - `HistoryPanel`
@@ -298,6 +299,49 @@ Settings layout rules:
 - the bottom action area remains in a fixed bottom corner position relative to the settings surface
 - category content owns its internal fields, but not the outer action-row placement
 - `Appearance` contains both visual theme settings and layout-related presentation preferences such as UI scale, board orientation, coordinate visibility, and last-move highlighting
+
+## Saved Games View Layout
+`SavedGamesView` is a route-level surface rather than a modal dialog.
+
+The committed saved-games routes are:
+
+- `/saved-games/save/:name`
+- `/saved-games/load`
+- `/saved-games/load/:name`
+
+Saved-games layout sketch:
+
+```text
++------------------------------------------------------------------------------+
+| Saved Games                                                                  |
++------------------------------------------------------------------------------+
+| [Save] [Load]                                                                |
++--------------------------+-----------------------------+----------------------+
+| Games                    | Saves                       | Details              |
+| selected game            | autosave                    | selected item        |
+| other game               | --------------------------  | metadata summary     |
+| other game               | named save                  |                      |
++--------------------------+-----------------------------+----------------------+
+| save name field or path context                                               |
++-------------------------------------------------------+----------------------+
+|                                               [Cancel] [Select/Load/Save]    |
++------------------------------------------------------------------------------+
+```
+
+Saved-games view rules:
+
+- the saved-games surface is route-owned and not part of the shared dialog family
+- `/saved-games/save/:name` opens the save route directly for one selected game
+- `/saved-games/load` is the grouped game-selection screen
+- clicking a game on `/saved-games/load` selects it only
+- double-clicking a game on `/saved-games/load` loads the latest save file for that game immediately
+- the bottom-right action row on `/saved-games/load` shows `Cancel` and `Select`
+- pressing `Select` on `/saved-games/load` routes to `/saved-games/load/:name` for the selected game
+- `/saved-games/load/:name` is the selected game's save-list screen and uses `Load` instead of `Select`
+- the save list still shows autosave first, then a separator when autosave exists, then the remaining saves
+- `/saved-games/save/:name` keeps the save-name text box focused on open
+- the details panel shows the currently selected game or save entry metadata
+- route-level saved-games views replace the old save/load dialog concept; shared dialogs remain for transient confirmation and interruption flows only
 
 Engine profile list direction inside the `Engines` category:
 

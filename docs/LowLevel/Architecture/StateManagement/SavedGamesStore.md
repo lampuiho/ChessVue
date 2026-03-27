@@ -1,7 +1,7 @@
 # SavedGamesStore
 
 ## Purpose
-Own saved-game workflows for autosave, internal save/load browsing, external import/export, and restore orchestration without taking ownership of live-game mutation rules.
+Own saved-game workflows for autosave, route-level internal save/load browsing, external import/export, and restore orchestration without taking ownership of live-game mutation rules.
 
 ## Public Interface
 ```ts
@@ -18,9 +18,10 @@ importGame(): Promise<IGameWorkspace>
 ## Responsibilities
 - persist the current/open game workspace to its current saved target when a committed scenario requires persistence outside the explicit manual save flow
 - orchestrate autosave writes for the current game using settings-driven triggers
-- list grouped save entries for the internal save/load dialog
+- list grouped save entries for the route-level save/load views
 - save the current game into an internal save slot with overwrite handling
 - load an internal or recent saved game into the open-game collection
+- handle route-driven load behaviour, including selected-game navigation and double-click latest-save loading
 - import and export external saved-game files through host dialogs
 - use `SavedGameIndexService` for save-root, folder, and file-path logic
 - use `SerializationService` for canonical saved-game serialisation, deserialisation, and migration
