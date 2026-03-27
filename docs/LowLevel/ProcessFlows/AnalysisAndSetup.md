@@ -152,39 +152,26 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
 
 #### Flow
-| `Analysis requested for one engine` |
+| Analysis requested for one engine |
 | --- |
-| `EnginesStore.startAnalysis` |
-| `EnginesStore.ensureAnalysisSessions` |
-| `EngineClient.startSession` |
-| `AnalysisStore.beginAnalysisStream` |
-| `EngineClient.syncPosition` |
-| `EngineClient.startAnalysis` |
-| `EngineClient.subscribeToAnalysis` |
-| `AnalysisStore.applyAnalysisUpdate` |
+| EnginesStore.startAnalysis |
+| EnginesStore.ensureAnalysisSessions |
+| AnalysisStore.beginAnalysisStream |
+| AnalysisStore.applyAnalysisUpdate |
 
-| `EnginesStore.startAnalysis` |
+| EnginesStore.startAnalysis |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
-| `EnginesStore._forwardAnalysisUpdate` |
+| EnginesStore._startAnalysisSessions |
+| EnginesStore._bindAnalysisCallbacks |
+| EnginesStore._forwardAnalysisUpdate |
 
-| `EnginesStore.ensureAnalysisSessions` |
+| EnginesStore.ensureAnalysisSessions |
 | --- |
 
-| `EngineClient.startSession` |
+| AnalysisStore.beginAnalysisStream |
 | --- |
 
-| `AnalysisStore.beginAnalysisStream` |
-| --- |
-
-| `EngineClient.syncPosition` |
-| --- |
-
-| `EngineClient.startAnalysis` |
-| --- |
-
-| `AnalysisStore.applyAnalysisUpdate` |
+| AnalysisStore.applyAnalysisUpdate |
 | --- |
 
 - UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in `freeAnalysisSetup`, and in any `liveGame` context only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
@@ -194,65 +181,55 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
 
 #### Flow
-| `Analysis requested for multiple engines` |
+| Analysis requested for multiple engines |
 | --- |
-| `EnginesStore.startAnalysis` |
-| `EnginesStore.validateAnalysisSelection` |
-| `EnginesStore.ensureAnalysisSessions` |
-| `EngineClient.syncPosition` |
-| `EngineClient.startAnalysis` |
-| `AnalysisStore._mergeEngineSnapshot` |
+| EnginesStore.startAnalysis |
+| EnginesStore.validateAnalysisSelection |
+| EnginesStore.ensureAnalysisSessions |
+| AnalysisStore._mergeEngineSnapshot |
 
-| `EnginesStore.startAnalysis` |
+| EnginesStore.startAnalysis |
 | --- |
-| `EnginesStore._assertAnalysisSelectionLimit` |
-| `EnginesStore._buildSessionPerEngine` |
+| EnginesStore._assertAnalysisSelectionLimit |
+| EnginesStore._buildSessionPerEngine |
 
-| `EnginesStore.validateAnalysisSelection` |
+| EnginesStore.validateAnalysisSelection |
 | --- |
 
-| `EnginesStore.ensureAnalysisSessions` |
+| EnginesStore.ensureAnalysisSessions |
 | --- |
 
-- UI surface coverage: the panel renders one independently foldable engine group per selected engine. Each group always shows score and engine state, and may additionally show up to `3` visible lines when the current workspace context allows rendered move targets.
+- UI surface coverage: the panel renders one independently foldable engine group per selected engine. Each group always shows score and engine state, and may additionally show up to 3 visible lines when the current workspace context allows rendered move targets.
 - Requirement verification: `Pass`. The four-engine cap is enforced before processes start, and partial failure does not block healthy engines.
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
 
 #### Flow A - Stop Analysis Explicitly
-| `AnalysisPanel.stopRequested` |
+| AnalysisPanel.stopRequested |
 | --- |
-| `EnginesStore.stopAnalysis` |
-| `EngineClient.stopAnalysis` |
-| `AnalysisStore.markAnalysisUnavailable` |
+| EnginesStore.stopAnalysis |
+| AnalysisStore.markAnalysisUnavailable |
 
-| `EnginesStore.stopAnalysis` |
+| EnginesStore.stopAnalysis |
 | --- |
-| `EnginesStore._stopMatchingSessions` |
-| `EnginesStore._markEngineUnavailableInAnalysisStore` |
+| EnginesStore._stopMatchingSessions |
+| EnginesStore._markEngineUnavailableInAnalysisStore |
 
-| `EngineClient.stopAnalysis` |
-| --- |
-
-| `AnalysisStore.markAnalysisUnavailable` |
+| AnalysisStore.markAnalysisUnavailable |
 | --- |
 
 #### Flow B - Retry A Failed Engine
-| `AnalysisPanel.retryRequested` |
+| AnalysisPanel.retryRequested |
 | --- |
-| `EnginesStore.retryAnalysis` |
-| `EngineClient.restartSession` |
-| `AnalysisStore.beginAnalysisStream` |
+| EnginesStore.retryAnalysis |
+| AnalysisStore.beginAnalysisStream |
 
-| `EnginesStore.retryAnalysis` |
+| EnginesStore.retryAnalysis |
 | --- |
-| `EnginesStore._restartSingleEngine` |
-| `EnginesStore._bindAnalysisCallbacks` |
+| EnginesStore._restartSingleEngine |
+| EnginesStore._bindAnalysisCallbacks |
 
-| `EngineClient.restartSession` |
-| --- |
-
-| `AnalysisStore.beginAnalysisStream` |
+| AnalysisStore.beginAnalysisStream |
 | --- |
 
 - Requirement verification: `Pass`. Stop, crash, and retry behaviour is explicit at the runtime-owner boundary and preserves last-known visible output.
@@ -377,3 +354,5 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 - UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine.
 - State gate: roster add and remove are valid for `liveGame` and `freeAnalysisSetup` workspaces in `currentPosition`, `historyReview`, and `inGameAnalysis`.
 - Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to the engine store.
+
+

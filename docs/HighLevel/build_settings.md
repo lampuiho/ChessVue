@@ -1,4 +1,4 @@
-﻿# ChessVue Build and Runtime Baseline
+# ChessVue Build and Runtime Baseline
 
 ## Purpose
 This document defines the committed build-time and runtime assumptions for the rewrite baseline.
@@ -15,13 +15,13 @@ Unlike earlier notes, this is not a catalogue of all possible future targets. It
 Deferred runtime options are tracked in [ideas.md](ideas.md).
 
 ## Rewrite-Phase Host Assumption
-The first rewrite implementation should behave as if the desktop host were `NW.js`, but the Vue app must only see platform adapters.
+The first rewrite implementation should behave as if the desktop host were `NW.js`, but the Vue app must only see state stores plus layer-2 services.
 
 That means:
 
-- `StorageAdapter`, `FileIoAdapter`, and `ProcessManager` are wired through one Pinia-backed platform-services store
+- `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` are wired during platform bootstrap and then exposed upward through layer-2 service boundaries
 - the initial concrete implementations are mocked `NW.js`-style services behind those adapters
-- real host wiring may replace the mocks later without changing store or presentation contracts
+- real host wiring may replace the mocks later without changing layer-3 or layer-4 contracts
 
 ## Platform Runtime
 | Setting Area | Baseline Decision |
@@ -49,7 +49,7 @@ The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 ## Persistence Runtime
 | Setting Area | Baseline Decision |
 | --- | --- |
-| Autosave backend | App-local desktop persistence via `StorageAdapter` |
+| Autosave backend | File-backed internal save beneath `session.saveRootPath` |
 | File save/load | User-selected desktop file paths via `FileIoAdapter` |
 | Canonical game format | One internal JSON saved game payload |
 | Session restore | Persisted separately from settings and per-game saved-game payloads |
@@ -62,7 +62,7 @@ The detailed behaviour lives in [persistence_contract.md](persistence_contract.m
 ## Routing and Shell Baseline
 | Setting Area | Baseline Decision |
 | --- | --- |
-| Route map | `/home`, `/game/:id`, `/settings`, `/settings/:category` |
+| Route map | `/home`, `/game/:id`, `/saved-games/save/:name`, `/saved-games/load`, `/saved-games/load/:name`, `/settings`, `/settings/:category` |
 | Analysis presentation | Integrated into `GameView` |
 | Tab shell | Hide tab bar when only one game exists |
 | Feature exposure | Only baseline desktop features are assumed to exist |

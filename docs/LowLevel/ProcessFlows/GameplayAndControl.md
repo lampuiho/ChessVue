@@ -80,7 +80,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `EnginesStore._bindAnalysisCallbacks` |
 
 - State/settings coverage: `makeMove` accepts `liveGame` and `freeAnalysisSetup`, but dispatches by context. `liveGame + currentPosition + ongoing + not paused` commits a live move and may trigger a player-engine reply. `freeAnalysisSetup`, `historyReview`, and `inGameAnalysis` stay analysis-only. `boardEdit`, paused live play, and final result states block live move progression.
-- Continuous analysis update loop: `EngineClient.subscribeToAnalysis` -> `EnginesStore._forwardAnalysisUpdate` -> `AnalysisStore.applyAnalysisUpdate` -> `AnalysisStore.getVisibleAnalysis` -> `AnalysisPanel` rerender for the affected engine row.
+- Continuous analysis update loop: the layer-2 engine runtime path -> `EnginesStore._forwardAnalysisUpdate` -> `AnalysisStore.applyAnalysisUpdate` -> `AnalysisStore.getVisibleAnalysis` -> `AnalysisPanel` rerender for the affected engine row.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
 ### SCN-MOVE-02 - Illegal Move Attempt
@@ -151,34 +151,22 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 ### Live Engine Player Move Generation
 
 #### Flow
-| `Playable live position reached` |
+| Playable live position reached |
 | --- |
-| `GamesStore._maybeRequestEngineTurn` |
-| `EnginesStore.startPlayerTurn` |
-| `EngineClient.startSession` |
-| `EngineClient.syncPosition` |
-| `EngineClient.startAnalysis` |
-| `GamesStore.makeMove` |
+| GamesStore._maybeRequestEngineTurn |
+| EnginesStore.startPlayerTurn |
+| GamesStore.makeMove |
 
-| `EnginesStore.startPlayerTurn` |
+| EnginesStore.startPlayerTurn |
 | --- |
-| `EnginesStore._startPlayerTurnSearch` |
-| `EnginesStore._bindPlayerTurnCallbacks` |
+| EnginesStore._startPlayerTurnSearch |
+| EnginesStore._bindPlayerTurnCallbacks |
 
-| `EngineClient.startSession` |
+| GamesStore.makeMove |
 | --- |
-
-| `EngineClient.syncPosition` |
-| --- |
-
-| `EngineClient.startAnalysis` |
-| --- |
-
-| `GamesStore.makeMove` |
-| --- |
-| `GamesStore._assertMoveAllowed` |
-| `GamesStore._resolveMoveContext` |
-| `GamesStore._applyMoveByContext` |
+| GamesStore._assertMoveAllowed |
+| GamesStore._resolveMoveContext |
+| GamesStore._applyMoveByContext |
 
 - Runtime distinction: analysis search keeps streaming updates into `AnalysisStore`, while a player-engine turn waits only for the final move callback and then ends that turn-scoped search.
 - State gate: `EnginesStore.startPlayerTurn` is valid only for `liveGame + currentPosition + ongoing + not paused` when the side to move is assigned to an engine.
@@ -671,3 +659,4 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
 - Requirement verification: `Pass`. Board editing stays isolated to `freeAnalysisSetup` without leaking the rule into components.
+

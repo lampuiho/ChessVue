@@ -65,10 +65,11 @@ function completeAnalysisStream(gameId: string, engineId: string, position: IBoa
 ## Continuous Update Loop
 After a runtime owner starts analysis, live updates continue like this:
 
-1. `EngineClient.subscribeToAnalysis` emits a new `IEngineAnalysisUpdate` whenever the engine reports a deeper or otherwise newer principal variation.
+1. The layer-2 engine runtime path emits a new `IEngineAnalysisUpdate` whenever the engine reports a deeper or otherwise newer principal variation.
 2. `EnginesStore` forwards that callback to `AnalysisStore.applyAnalysisUpdate`.
 3. `_mergeEngineSnapshot` replaces the stored line set for that `gameId + engineId + positionKey` when the new update is more recent, final, or deeper than the current one.
 4. `getVisibleAnalysis` returns a new visible snapshot reference for the active position.
 5. `AnalysisPanel` rerenders the affected engine row, so the user sees the stronger score or line without manually refreshing.
 
 This means runtime control belongs outside `AnalysisStore`, while `applyAnalysisUpdate` is the function that keeps improving the panel contents over time.
+

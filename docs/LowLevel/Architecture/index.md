@@ -60,25 +60,26 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 The dependency direction is fixed:
 
 ```text
-Platform Abstraction
-Domain Logic
-State Management -> Domain Logic + Platform Abstraction
-Presentation -> State Management
+Layer 1 Platform Abstraction
+Layer 2 Domain Logic -> Layer 1 Platform Abstraction
+Layer 3 State Management -> Layer 2 Domain Logic
+Layer 4 Presentation -> Layer 3 State Management
 ```
 
 Additional rules:
 
-- Each layer may call only the next lower layer directly; it must not skip layers or absorb a neighbouring layer's ownership.
+- In this doc set, the upper layer is the smaller-numbered layer.
+- Each layer may call only the immediately upper layer by number.
+- Same-layer calls are forbidden.
 - Presentation components do not own game rules, move-tree mutation, persistence, or engine-process control.
-- State stores are the coordination boundary for UI-triggered mutations.
-- State stores orchestrate persistence and file workflows, while domain services own persisted payload rules and document interpretation.
+- State stores are the coordination boundary for UI-triggered mutations, but they call layer-2 services only.
+- State stores do not resolve `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, or `EngineClient` directly.
 - `GamesStore` owns only live/open game-workspace behaviour; saved-game browsing and save/load/import/export orchestration belong to `SavedGamesStore`.
-- Domain logic remains serialisable and platform-independent.
+- Domain logic owns persisted payload rules, document interpretation, notation rules, position identity rules, and the lower-layer service boundaries exposed to layer 3.
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
-- `usePlatformServicesStore()` is the only baseline bootstrap seam for injecting concrete platform adapters into the app.
-- The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `FileIoAdapter`, and `ProcessManager`.
-- The StateManagement layer obtains platform interfaces from `PlatformServices` rather than constructing them directly.
-- `EngineClient` owns protocol translation and engine-session messaging on top of `ProcessManager`; stores do not compose raw UCI strings themselves.
+- `usePlatformServicesStore()` is the bootstrap-only seam for injecting concrete platform adapters into the app and wiring them into layer-2 services.
+- The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient`.
+- `EngineClient` owns protocol translation and engine-session messaging. Higher layers do not compose raw UCI strings directly.
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
 - Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
 - Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
@@ -116,11 +117,11 @@ The data-interface section defines the shared low-level types for:
   - canonical saved-game payload based on `IGameWorkspace`
 
 ## Scenario Ownership Summary
-- `GamesStore`, `MoveUpdateService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
+- `GamesStore`, `MoveUpdateService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
 - `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
-- `EnginesStore` and `EngineClient` own analysis and player-engine runtime control, while `ProcessManager` owns raw process lifecycle and I/O.
-- `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios, with stores orchestrating workflows, `SavedGameIndexService` owning save-folder rules, and `SerializationService` owning canonical payload conversion, while `StorageAdapter` and `FileIoAdapter` provide raw document transport only.
+- `EnginesStore` owns analysis and player-engine runtime state at layer 3, while the lower-layer engine runtime path owns protocol and process transport.
+- `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios, with stores orchestrating workflows, `SavedGameIndexService` owning save-folder rules, and `SerializationService` owning canonical payload conversion.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions
@@ -140,4 +141,4 @@ The doc set is aligned only when all of the following are true:
 - persisted artefacts match the saved-game and settings ownership contracts
 - multi-engine analysis is baseline, capped at four concurrent analysis engines per game
 - terminology for routes, state axes, result states, and persistence artefacts matches the high-level docs
-
+- no doc describes same-layer calls or `Layer 3 -> Layer 1` calls

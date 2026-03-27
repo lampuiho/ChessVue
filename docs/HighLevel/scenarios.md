@@ -311,8 +311,7 @@ Each scenario in this document uses the same structure:
   - `RecentGameStore.loadRecentGames`
   - `SavedGamesStore.openRecentGame`
   - `RecentGameStore.removeRecentGame`
-  - `StorageAdapter.getGame`
-  - `FileIoAdapter.readTextFile`
+  - `SavedGameIndexService.getAutosaveFilePath`
   - `SerializationService.deserialiseGame`
   - `GamesStore.insertGame`
   - `UiStateStore.setActiveGame`
@@ -557,10 +556,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GameView.onStartAnalysis`
   - `EnginesStore.startAnalysis`
-  - `EngineClient.startSession`
-  - `ProcessManager.spawnProcess`
-  - `ProcessManager.writeInput`
-  - `ProcessManager.subscribeToStdout`
+  - `EnginesStore.ensureAnalysisSessions`
   - `AnalysisStore.applyAnalysisUpdate`
   - `AnalysisStore.getVisibleAnalysis`
 
@@ -1097,8 +1093,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
   - `AppShell.applyAppearanceProjection`
-  - `PlatformServices.getSystemThemeAdapter`
-  - `StorageAdapter.setSettingsSnapshot`
+  - `SettingsStore.getAppearanceProjection`
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 - **Status**: Current
@@ -1394,4 +1389,7 @@ Each scenario in this document uses the same structure:
 - All branch paths are tied to module-level function touchpoints for low-level design traceability.
 - The contract map above provides the baseline trace from each `Current` and `Planned` scenario to the four implementation-shaping contracts.
 - `Idea` scenarios are isolated in a dedicated review section, are catalogued in `ideas.md`, and are not implied implementation commitments.
+
+
+
 

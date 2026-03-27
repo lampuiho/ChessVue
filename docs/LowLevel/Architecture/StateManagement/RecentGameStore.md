@@ -22,7 +22,7 @@ pruneUnavailableRecentGames(): Promise<IRecentGameEntry[]>
 - avoid treating the full recent-games list as long-lived authoritative reactive store state
 
 ## Dependencies
-- `PlatformServices`
+- `SerializationService`
 
 ## Scenario Coverage
 - `SCN-SESSION-01`
@@ -33,7 +33,7 @@ pruneUnavailableRecentGames(): Promise<IRecentGameEntry[]>
 - `SCN-SAVE-03`
 
 ## Notes
-- `RecentGameStore` resolves `StorageAdapter` and `FileIoAdapter` through `usePlatformServicesStore()`.
+- `RecentGameStore` consumes the layer-2 recent-games persistence path only; it does not resolve `StorageAdapter` or `FileIoAdapter` directly.
 - `loadRecentGames()` is the authoritative read path for `HomeView`; any short-lived cache must be treated as disposable and non-authoritative.
 - `recordAutosavedGame(...)` and `recordSavedGame(...)` share one internal upsert path keyed by `workspace.metadata.id`.
 - Loading a recent entry's saved target belongs to `SavedGamesStore`; `RecentGameStore` owns only the metadata snapshot.

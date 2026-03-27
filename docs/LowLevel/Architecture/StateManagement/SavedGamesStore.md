@@ -16,7 +16,7 @@ importGame(): Promise<IGameWorkspace>
 ```
 
 ## Responsibilities
-- persist the current/open game workspace to its current saved target when a committed scenario requires persistence outside the explicit manual save flow
+- persist the current or open game workspace to its current saved target when a committed scenario requires persistence outside the explicit manual save flow
 - orchestrate autosave writes for the current game using settings-driven triggers
 - list grouped save entries for the route-level save/load views
 - save the current game into an internal save slot with overwrite handling
@@ -25,17 +25,11 @@ importGame(): Promise<IGameWorkspace>
 - import and export external saved-game files through host dialogs
 - use `SavedGameIndexService` for save-root, folder, and file-path logic
 - use `SerializationService` for canonical saved-game serialisation, deserialisation, and migration
-- update `RecentGameStore` only after successful autosave, save, load, import, or export outcomes that should affect recent metadata
+- keep save-file orchestration inside one owning store even when later caller-owned sequencing also updates recent metadata, open tabs, active route, or runtime restart state
 
 ## Dependencies
 - `SavedGameIndexService`
 - `SerializationService`
-- `PlatformServices`
-- `GamesStore`
-- `RecentGameStore`
-- `SettingsStore`
-- `UiStateStore`
-- `EnginesStore`
 
 ## Scenario Coverage
 - `SCN-NAV-03`
@@ -48,5 +42,6 @@ importGame(): Promise<IGameWorkspace>
 - `SCN-IMPORT-02`
 
 ## Notes
-- `SavedGamesStore` may read from `GamesStore` to obtain the current/open workspace or insert a restored workspace, but `GamesStore` does not own save/load/import/export orchestration.
+- `SavedGamesStore` consumes only layer-2 persistence services. It does not resolve `StorageAdapter` or `FileIoAdapter` directly.
+- `SavedGamesStore` does not call sibling stores directly. Any later recent-metadata refresh, tab/session update, or runtime restart is sequenced by the owning flow after the saved-game operation completes.
 - Save-folder grouping belongs to `SavedGameIndexService`, not to `SavedGamesStore` and not to `FileIoAdapter`.

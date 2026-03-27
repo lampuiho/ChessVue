@@ -8,372 +8,304 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-SAVE-01 - Autosave Internal Save Entry
 
 #### Flow
-| `Owning mutation committed` |
+| Owning mutation committed |
 | --- |
-| `SavedGamesStore.autosaveGame` |
+| SavedGamesStore.autosaveGame |
 
-| `SavedGamesStore.autosaveGame` |
+| SavedGamesStore.autosaveGame |
 | --- |
-| `SavedGamesStore._shouldAutosaveForTrigger` |
-| `SettingsStore.loadSettings` |
-| `GamesStore.getGame` |
-| `SerializationService.serialiseGame` |
-| `StorageAdapter.setGame` |
-| `RecentGameStore.recordAutosavedGame` |
+| SavedGamesStore._shouldAutosaveForTrigger |
+| SavedGameIndexService.getAutosaveFilePath |
+| SerializationService.serialiseGame |
+| SavedGamesStore._writeManagedSaveDocument |
+| SavedGamesStore._emitRecentAutosaveRefresh |
 
-| `SettingsStore.loadSettings` |
+| SerializationService.serialiseGame |
 | --- |
+| SerializationService._normalisePayload |
 
-| `GamesStore.getGame` |
-| --- |
-
-| `SerializationService.serialiseGame` |
-| --- |
-| `SerializationService._normalisePayload` |
-
-| `RecentGameStore.recordAutosavedGame` |
-| --- |
-| `RecentGameStore._upsertRecentEntry` |
-| `RecentGameStore._sortMostRecentFirst` |
-
-- Settings coverage: `session.autosaveAfterMoveCount` gates move-threshold autosave, while `session.autosaveOnClose` separately gates close-trigger autosave. `SavedGamesStore.autosaveGame(..., trigger)` is the only persistence owner for both trigger kinds.
-- Requirement verification: `Pass`. Autosave refreshes only the dedicated autosaved workspace payload, keeps recent metadata separate, and leaves in-memory game state intact when a write fails.
+- Settings coverage: session.autosaveAfterMoveCount gates move-threshold autosave, while session.autosaveOnClose separately gates close-trigger autosave. SavedGamesStore.autosaveGame(..., trigger) is the only persistence owner for both trigger kinds.
+- Requirement verification: Pass. Autosave writes the dedicated internal save entry beneath the configured save root, keeps recent metadata separate, and leaves in-memory game state intact when a write fails.
 
 ### SCN-SAVE-02 - Open Internal Save View
 
 #### Flow
-| `MenuBar.saveGameRequested` |
+| MenuBar.saveGameRequested |
 | --- |
-| `GamesStore.pauseGame` |
-| `Router.push` |
-| `UiStateStore.setActiveRoute` |
-| `SavedGamesStore.listSavedGames` |
+| GamesStore.pauseGame |
+| Router.push |
+| UiStateStore.setActiveRoute |
+| SavedGamesStore.listSavedGames |
 
-| `GamesStore.pauseGame` |
+| GamesStore.pauseGame |
 | --- |
-| `GamesStore._maybeAutoPauseForMenu` |
-| `GamesStore._markPauseOwner` |
+| GamesStore._maybeAutoPauseForMenu |
+| GamesStore._markPauseOwner |
 
-| `UiStateStore.setActiveRoute` |
+| UiStateStore.setActiveRoute |
 | --- |
-| `UiStateStore._rememberReturnRoute` |
+| UiStateStore._rememberReturnRoute |
 
-| `SavedGamesStore.listSavedGames` |
+| SavedGamesStore.listSavedGames |
 | --- |
-| `SettingsStore.loadSettings` |
-| `SavedGamesStore._enumerateSaveEntriesByDirectory` |
-| `SavedGameIndexService.projectSaveGroups` |
+| SavedGamesStore._resolveSaveRoot |
+| SavedGamesStore._enumerateManagedSaveEntries |
+| SavedGameIndexService.projectSaveGroups |
 
-| `SettingsStore.loadSettings` |
-| --- |
-
-- Route coverage: save routes through `/saved-games/save/:name`, opens directly into the selected game's save surface, and does not use the shared dialog family.
-- Settings coverage: `session.autoPauseOnMenu` decides whether a timed live game is paused before routing into the save view, and the remembered pause owner is what later allows safe auto-resume.
-- Requirement verification: `Pass`. The save flow is route-level, ready-only until the user confirms a save name, and `SavedGamesStore` owns the grouped save-browser data instead of `GamesStore`.
+- Route coverage: save routes through /saved-games/save/:name, opens directly into the selected game's save surface, and does not use the shared dialog family.
+- Settings coverage: session.autoPauseOnMenu decides whether a timed live game is paused before routing into the save view, and the remembered pause owner is what later allows safe auto-resume.
+- Requirement verification: Pass. The save flow is route-level, ready-only until the user confirms a save name, and SavedGamesStore owns the grouped save-browser data instead of GamesStore.
 
 ### SCN-SAVE-03 - Confirm Internal Save Write
 
 #### Flow
-| `SavedGamesView.saveRequested` |
+| SavedGamesView.saveRequested |
 | --- |
-| `UiStateStore.showModal` |
-| `SavedGamesStore.saveGameAs` |
-| `SavedGamesStore.listSavedGames` |
+| UiStateStore.showModal |
+| SavedGamesStore.saveGameAs |
+| SavedGamesStore.listSavedGames |
 
-| `UiStateStore.showModal` |
-| --- |
-
-| `SavedGamesStore.saveGameAs` |
-| --- |
-| `SavedGamesStore._validateSaveName` |
-| `SettingsStore.loadSettings` |
-| `GamesStore.getGame` |
-| `SavedGameIndexService.getNamedSaveFilePath` |
-| `SerializationService.serialiseGame` |
-| `FileIoAdapter.ensureDirectory` |
-| `FileIoAdapter.writeTextFile` |
-| `RecentGameStore.recordSavedGame` |
-
-| `SettingsStore.loadSettings` |
+| UiStateStore.showModal |
 | --- |
 
-| `GamesStore.getGame` |
+| SavedGamesStore.saveGameAs |
 | --- |
+| SavedGamesStore._validateSaveName |
+| SavedGameIndexService.getNamedSaveFilePath |
+| SerializationService.serialiseGame |
+| SavedGamesStore._writeManagedSaveDocument |
+| SavedGamesStore._emitRecentSavedGameRefresh |
 
-| `SerializationService.serialiseGame` |
+| SerializationService.serialiseGame |
 | --- |
-| `SerializationService._normalisePayload` |
+| SerializationService._normalisePayload |
 
-| `RecentGameStore.recordSavedGame` |
-| --- |
-| `RecentGameStore._upsertRecentEntry` |
-| `RecentGameStore._sortMostRecentFirst` |
-
-- UI surface coverage: overwrite confirmation uses the shared dialog shell, while the save-name field and `Cancel` or `Save` action row remain route-owned by `SavedGamesView`.
-- Requirement verification: `Pass`. Internal named-save writes stay inside `SavedGamesStore`, overwrite confirmation is explicit, and recent metadata updates only after a successful save-file write.
+- UI surface coverage: overwrite confirmation uses the shared dialog shell, while the save-name field and Cancel or Save action row remain route-owned by SavedGamesView.
+- Requirement verification: Pass. Internal named-save writes stay inside SavedGamesStore, overwrite confirmation is explicit, and recent metadata updates only after a successful save-file write.
 
 ### SCN-LOAD-01 - Load Valid Game from Internal Save View
 
 #### Flow A - Open The Route-Level Load Surface
-| `MenuBar.loadGameRequested` |
+| MenuBar.loadGameRequested |
 | --- |
-| `GamesStore.pauseGame` |
-| `Router.push` |
-| `UiStateStore.setActiveRoute` |
-| `SavedGamesStore.listSavedGames` |
+| GamesStore.pauseGame |
+| Router.push |
+| UiStateStore.setActiveRoute |
+| SavedGamesStore.listSavedGames |
 
-| `GamesStore.pauseGame` |
+| GamesStore.pauseGame |
 | --- |
-| `GamesStore._maybeAutoPauseForMenu` |
-| `GamesStore._markPauseOwner` |
+| GamesStore._maybeAutoPauseForMenu |
+| GamesStore._markPauseOwner |
 
-| `UiStateStore.setActiveRoute` |
+| UiStateStore.setActiveRoute |
 | --- |
-| `UiStateStore._rememberReturnRoute` |
+| UiStateStore._rememberReturnRoute |
 
-| `SavedGamesStore.listSavedGames` |
+| SavedGamesStore.listSavedGames |
 | --- |
-| `SettingsStore.loadSettings` |
-| `SavedGamesStore._enumerateSaveEntriesByDirectory` |
-| `SavedGameIndexService.projectSaveGroups` |
+| SavedGamesStore._resolveSaveRoot |
+| SavedGamesStore._enumerateManagedSaveEntries |
+| SavedGameIndexService.projectSaveGroups |
 
 #### Flow B - Load The Selected Internal Save
-| `SavedGamesView.loadRequested` |
+| SavedGamesView.loadRequested |
 | --- |
-| `SavedGamesStore.loadSavedGame` |
-| `GamesStore.insertGame` |
-| `UiStateStore.openTab` |
-| `UiStateStore.setActiveGame` |
-| `UiStateStore.saveGameSession` |
+| SavedGamesStore.loadSavedGame |
+| GamesStore.insertGame |
+| UiStateStore.openTab |
+| UiStateStore.setActiveGame |
+| UiStateStore.saveGameSession |
 
-| `SavedGamesStore.loadSavedGame` |
+| SavedGamesStore.loadSavedGame |
 | --- |
-| `FileIoAdapter.readTextFile` |
-| `SerializationService.deserialiseGame` |
-| `SavedGamesStore._remapDuplicateIdIfNeeded` |
-| `RecentGameStore.recordSavedGame` |
+| SavedGamesStore._readManagedSaveDocument |
+| SerializationService.deserialiseGame |
+| SavedGamesStore._remapDuplicateIdIfNeeded |
+| SavedGamesStore._emitRecentSavedGameRefresh |
 
-| `FileIoAdapter.readTextFile` |
+| SerializationService.deserialiseGame |
 | --- |
+| SerializationService._detectGameDocumentShape |
 
-| `SerializationService.deserialiseGame` |
+| GamesStore.insertGame |
 | --- |
-| `SerializationService._detectGameDocumentShape` |
+| GamesStore._hydrateWorkspace |
 
-| `GamesStore.insertGame` |
+| UiStateStore.openTab |
 | --- |
-| `GamesStore._hydrateWorkspace` |
+| UiStateStore._coerceOpenTabs |
 
-| `UiStateStore.openTab` |
+| UiStateStore.setActiveGame |
 | --- |
-| `UiStateStore._coerceOpenTabs` |
+| UiStateStore._coerceActiveRoute |
 
-| `UiStateStore.setActiveGame` |
+| UiStateStore.saveGameSession |
 | --- |
-| `UiStateStore._coerceActiveRoute` |
-
-| `UiStateStore.saveGameSession` |
-| --- |
-| `UiStateStore._saveGameSessionSnapshot` |
+| UiStateStore._saveGameSessionSnapshot |
 
 #### Flow C - Resume Analysis For The Loaded Workspace
-| `Loaded workspace ready for analysis resume` |
+| Loaded workspace ready for analysis resume |
 | --- |
-| `EnginesStore.startAnalysis` |
-| `EngineClient.startSession` |
-| `EngineClient.syncPosition` |
-| `EngineClient.startAnalysis` |
+| EnginesStore.startAnalysis |
 
-| `EnginesStore.startAnalysis` |
+| EnginesStore.startAnalysis |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
-| `EnginesStore._forwardAnalysisUpdate` |
+| EnginesStore._startAnalysisSessions |
+| EnginesStore._bindAnalysisCallbacks |
+| EnginesStore._forwardAnalysisUpdate |
 
 #### Flow D - Request An Engine Turn For The Loaded Workspace
-| `Loaded live current position ready for engine move` |
+| Loaded live current position ready for engine move |
 | --- |
-| `GamesStore._maybeRequestEngineTurn` |
-| `EnginesStore.startPlayerTurn` |
-| `EngineClient.startSession` |
-| `EngineClient.syncPosition` |
-| `EngineClient.startAnalysis` |
-| `GamesStore.makeMove` |
+| GamesStore._maybeRequestEngineTurn |
+| EnginesStore.startPlayerTurn |
+| GamesStore.makeMove |
 
-| `EnginesStore.startPlayerTurn` |
+| EnginesStore.startPlayerTurn |
 | --- |
-| `EnginesStore._startPlayerTurnSearch` |
-| `EnginesStore._bindPlayerTurnCallbacks` |
+| EnginesStore._startPlayerTurnSearch |
+| EnginesStore._bindPlayerTurnCallbacks |
 
-| `GamesStore.makeMove` |
+| GamesStore.makeMove |
 | --- |
-| `GamesStore._assertMoveAllowed` |
-| `GamesStore._resolveMoveContext` |
-| `GamesStore._applyMoveByContext` |
-| `GamesStore._persistWorkspaceIfNeeded` |
-| `GamesStore._maybeRequestEngineTurn` |
+| GamesStore._assertMoveAllowed |
+| GamesStore._resolveMoveContext |
+| GamesStore._applyMoveByContext |
+| GamesStore._persistWorkspaceIfNeeded |
+| GamesStore._maybeRequestEngineTurn |
 
-- Route coverage: `/saved-games/load` shows grouped games, double-click latest-save loading, and `Select`, while `/saved-games/load/:name` switches the bottom-right action to `Load` for the selected game's save list.
+- Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
 - State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `session.autoPauseOnMenu` controls the route-entry pause branch only.
-- Requirement verification: `Pass`. Internal load stays distinct from external import, duplicate IDs are repaired before insertion, and recent metadata plus shell routing stay coordinated through `SavedGamesStore`, `GamesStore`, and `UiStateStore`.
+- Requirement verification: Pass. Internal load stays distinct from external import, duplicate IDs are repaired before insertion, and recent metadata plus shell routing stay coordinated through SavedGamesStore, GamesStore, and UiStateStore.
 
 ### SCN-EXPORT-01 - Export Game to External File
 
 #### Flow
-| `MenuBar.exportGameRequested` |
+| MenuBar.exportGameRequested |
 | --- |
-| `GamesStore.pauseGame` |
-| `SavedGamesStore.exportGame` |
-| `GamesStore.resumeGame` |
+| GamesStore.pauseGame |
+| SavedGamesStore.exportGame |
+| GamesStore.resumeGame |
 
-| `GamesStore.pauseGame` |
+| GamesStore.pauseGame |
 | --- |
-| `GamesStore._maybeAutoPauseForMenu` |
-| `GamesStore._markPauseOwner` |
+| GamesStore._maybeAutoPauseForMenu |
+| GamesStore._markPauseOwner |
 
-| `SavedGamesStore.exportGame` |
+| SavedGamesStore.exportGame |
 | --- |
-| `GamesStore.getGame` |
-| `SerializationService.serialiseGame` |
-| `FileIoAdapter.showSaveDialog` |
-| `FileIoAdapter.writeTextFile` |
-| `RecentGameStore.recordSavedGame` |
+| SavedGamesStore._captureWorkspaceSnapshot |
+| SerializationService.serialiseGame |
+| SavedGamesStore._writeExternalExportDocument |
+| SavedGamesStore._emitRecentSavedGameRefresh |
 
-| `GamesStore.getGame` |
+| SerializationService.serialiseGame |
 | --- |
+| SerializationService._normalisePayload |
 
-| `SerializationService.serialiseGame` |
+| GamesStore.resumeGame |
 | --- |
-| `SerializationService._normalisePayload` |
+| GamesStore._assertResumable |
+| GamesStore._resumeClock |
+| GamesStore._resumeIfMenuOwnedPause |
 
-| `RecentGameStore.recordSavedGame` |
-| --- |
-| `RecentGameStore._upsertRecentEntry` |
-| `RecentGameStore._sortMostRecentFirst` |
-
-| `GamesStore.resumeGame` |
-| --- |
-| `GamesStore._assertResumable` |
-| `GamesStore._resumeClock` |
-| `GamesStore._resumeIfMenuOwnedPause` |
-
-- Settings coverage: `session.autoPauseOnMenu` controls whether export pauses a timed live game before the external file dialog opens.
-- Requirement verification: `Pass`. External export stays distinct from internal save slots, writes the canonical saved-game payload once, and returns through the menu-owned pause path without mutating game state beyond the export side effect.
+- Settings coverage: session.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens.
+- Requirement verification: Pass. External export stays distinct from internal save slots, writes the canonical saved-game payload once, and returns through the menu-owned pause path without mutating game state beyond the export side effect.
 
 ### SCN-IMPORT-01 - Import Valid Game from External File
 
 #### Flow A - Import And Insert The Workspace
-| `MenuBar.importGameRequested` |
+| MenuBar.importGameRequested |
 | --- |
-| `SavedGamesStore.importGame` |
-| `GamesStore.insertGame` |
-| `UiStateStore.openTab` |
-| `UiStateStore.setActiveGame` |
-| `UiStateStore.saveGameSession` |
+| SavedGamesStore.importGame |
+| GamesStore.insertGame |
+| UiStateStore.openTab |
+| UiStateStore.setActiveGame |
+| UiStateStore.saveGameSession |
 
-| `SavedGamesStore.importGame` |
+| SavedGamesStore.importGame |
 | --- |
-| `FileIoAdapter.showOpenDialog` |
-| `FileIoAdapter.readTextFile` |
-| `SerializationService.deserialiseGame` |
-| `SavedGamesStore._remapDuplicateIdIfNeeded` |
-| `RecentGameStore.recordSavedGame` |
+| SavedGamesStore._readExternalImportDocument |
+| SerializationService.deserialiseGame |
+| SavedGamesStore._remapDuplicateIdIfNeeded |
+| SavedGamesStore._emitRecentSavedGameRefresh |
 
-| `FileIoAdapter.showOpenDialog` |
+| SerializationService.deserialiseGame |
 | --- |
+| SerializationService._detectGameDocumentShape |
 
-| `FileIoAdapter.readTextFile` |
+| GamesStore.insertGame |
 | --- |
+| GamesStore._hydrateWorkspace |
 
-| `SerializationService.deserialiseGame` |
+| UiStateStore.openTab |
 | --- |
-| `SerializationService._detectGameDocumentShape` |
+| UiStateStore._coerceOpenTabs |
 
-| `GamesStore.insertGame` |
+| UiStateStore.setActiveGame |
 | --- |
-| `GamesStore._hydrateWorkspace` |
+| UiStateStore._coerceActiveRoute |
 
-| `UiStateStore.openTab` |
+| UiStateStore.saveGameSession |
 | --- |
-| `UiStateStore._coerceOpenTabs` |
-
-| `UiStateStore.setActiveGame` |
-| --- |
-| `UiStateStore._coerceActiveRoute` |
-
-| `UiStateStore.saveGameSession` |
-| --- |
-| `UiStateStore._saveGameSessionSnapshot` |
+| UiStateStore._saveGameSessionSnapshot |
 
 #### Flow B - Resume Analysis For The Imported Workspace
-| `Imported workspace ready for analysis resume` |
+| Imported workspace ready for analysis resume |
 | --- |
-| `EnginesStore.startAnalysis` |
-| `EngineClient.startSession` |
-| `EngineClient.syncPosition` |
-| `EngineClient.startAnalysis` |
+| EnginesStore.startAnalysis |
 
-| `EnginesStore.startAnalysis` |
+| EnginesStore.startAnalysis |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
-| `EnginesStore._forwardAnalysisUpdate` |
+| EnginesStore._startAnalysisSessions |
+| EnginesStore._bindAnalysisCallbacks |
+| EnginesStore._forwardAnalysisUpdate |
 
 #### Flow C - Request An Engine Turn For The Imported Workspace
-| `Imported live current position ready for engine move` |
+| Imported live current position ready for engine move |
 | --- |
-| `GamesStore._maybeRequestEngineTurn` |
-| `EnginesStore.startPlayerTurn` |
-| `EngineClient.startSession` |
-| `EngineClient.syncPosition` |
-| `EngineClient.startAnalysis` |
-| `GamesStore.makeMove` |
+| GamesStore._maybeRequestEngineTurn |
+| EnginesStore.startPlayerTurn |
+| GamesStore.makeMove |
 
-| `EnginesStore.startPlayerTurn` |
+| EnginesStore.startPlayerTurn |
 | --- |
-| `EnginesStore._startPlayerTurnSearch` |
-| `EnginesStore._bindPlayerTurnCallbacks` |
+| EnginesStore._startPlayerTurnSearch |
+| EnginesStore._bindPlayerTurnCallbacks |
 
-| `GamesStore.makeMove` |
+| GamesStore.makeMove |
 | --- |
-| `GamesStore._assertMoveAllowed` |
-| `GamesStore._resolveMoveContext` |
-| `GamesStore._applyMoveByContext` |
-| `GamesStore._persistWorkspaceIfNeeded` |
-| `GamesStore._maybeRequestEngineTurn` |
+| GamesStore._assertMoveAllowed |
+| GamesStore._resolveMoveContext |
+| GamesStore._applyMoveByContext |
+| GamesStore._persistWorkspaceIfNeeded |
+| GamesStore._maybeRequestEngineTurn |
 
-- Requirement verification: `Pass`. External import stays separate from internal save browsing, duplicate IDs are repaired before insertion, and the restored game state is visible before analysis or engine-turn restart begins.
+- Requirement verification: Pass. External import stays separate from internal save browsing, duplicate IDs are repaired before insertion, and the restored game state is visible before analysis or engine-turn restart begins.
 
 ### SCN-IMPORT-02 - Reject Invalid External Game File
 
 #### Flow
-| `MenuBar.importGameRequested` |
+| MenuBar.importGameRequested |
 | --- |
-| `SavedGamesStore.importGame` |
-| `UiStateStore.showModal` |
+| SavedGamesStore.importGame |
+| UiStateStore.showModal |
 
-| `SavedGamesStore.importGame` |
+| SavedGamesStore.importGame |
 | --- |
-| `FileIoAdapter.showOpenDialog` |
-| `FileIoAdapter.readTextFile` |
-| `SerializationService.deserialiseGame` |
+| SavedGamesStore._readExternalImportDocument |
+| SerializationService.deserialiseGame |
 
-| `FileIoAdapter.showOpenDialog` |
+| SerializationService.deserialiseGame |
 | --- |
+| SerializationService._detectGameDocumentShape |
 
-| `FileIoAdapter.readTextFile` |
-| --- |
-| `FileIoAdapter._mapFileIoError` |
-
-| `SerializationService.deserialiseGame` |
-| --- |
-| `SerializationService._detectGameDocumentShape` |
-
-| `UiStateStore.showModal` |
+| UiStateStore.showModal |
 | --- |
 
-- UI surface coverage: invalid external import uses the shared dialog shell as the acknowledge-only `importError` path.
-- Requirement verification: `Pass`. Failed import does not mutate the current session state, and unsupported, corrupt, or incomplete documents stay isolated inside the state-management boundary.
+- UI surface coverage: invalid external import uses the shared dialog shell as the acknowledge-only importError path.
+- Requirement verification: Pass. Failed import does not mutate the current session state, and unsupported, corrupt, or incomplete documents stay isolated inside the state-management boundary.
 
 ## Settings And Engine Inventory
 
@@ -421,7 +353,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
 - Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
-- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows `SystemThemeAdapter`, while `light` and `dark` force built-in app themes.
+- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows the layer-2 theme-resolution path, while `light` and `dark` force built-in app themes.
 - Requirement verification: `Pass`. Validation happens before apply or persistence, only committed settings fields are writable, engine inventory stays inside the same settings draft model as the other fields, and accepted appearance changes refresh the shared app-theme variables immediately.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
@@ -594,4 +526,12 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 | `UiStateStore._coerceActiveRoute` |
 
 - Requirement verification: `Pass`. Active-game deletion cannot leave a dangling route or session pointer.
+
+
+
+
+
+
+
+
 

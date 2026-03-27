@@ -36,7 +36,6 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - exclude modal visibility and other transient UI prompts from persistence
 
 ## Dependencies
-- `PlatformServices`
 - `SerializationService`
 
 ## Scenario Coverage
@@ -54,7 +53,7 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `SCN-IMPORT-02`
 
 ## Notes
-- `UiStateStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.
+- `UiStateStore` consumes the layer-2 session and layout persistence path only; it does not resolve `StorageAdapter` directly.
 - `loadLayoutState()` still runs when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's persisted analysis roster order to derive the current mapping.
