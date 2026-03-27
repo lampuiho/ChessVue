@@ -361,15 +361,14 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow A - Reopen An Autosaved Recent Game
 | `HomeView.recentSelection` |
 | --- |
-| `RecentGameStore.openRecentGame` |
-| `StorageAdapter.getGame` |
+| `SavedGamesStore.openRecentGame` |
 | `GamesStore.insertGame` |
 | `UiStateStore.openTab` |
 | `UiStateStore.setActiveGame` |
 
-| `RecentGameStore.openRecentGame` |
+| `SavedGamesStore.openRecentGame` |
 | --- |
-| `RecentGameStore._openAutosavedGame` |
+| `SavedGamesStore._openAutosavedRecentGame` |
 | `StorageAdapter.getGame` |
 
 | `GamesStore.insertGame` |
@@ -387,20 +386,18 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow B - Reopen A Manual-File Recent Game
 | `HomeView.recentSelection` |
 | --- |
-| `RecentGameStore.openRecentGame` |
-| `FileIoAdapter.loadGameDocumentFromPath` |
-| `SerializationService.deserialiseGame` |
+| `SavedGamesStore.openRecentGame` |
 | `GamesStore.insertGame` |
 | `UiStateStore.openTab` |
 | `UiStateStore.setActiveGame` |
 
-| `RecentGameStore.openRecentGame` |
+| `SavedGamesStore.openRecentGame` |
 | --- |
-| `RecentGameStore._openManualFileGame` |
-| `FileIoAdapter.loadGameDocumentFromPath` |
-| `RecentGameStore._deserialiseManualFileGame` |
+| `SavedGamesStore._openManualFileRecentGame` |
+| `FileIoAdapter.readTextFile` |
+| `SerializationService.deserialiseGame` |
 
-| `FileIoAdapter.loadGameDocumentFromPath` |
+| `FileIoAdapter.readTextFile` |
 | --- |
 
 | `SerializationService.deserialiseGame` |
@@ -418,5 +415,15 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | --- |
 | `UiStateStore._coerceActiveRoute` |
 
+#### Flow C - Remove A Stale Recent Entry
+| `SavedGamesStore.openRecentGame failed to resolve target` |
+| --- |
+| `RecentGameStore.removeRecentGame` |
+
+| `RecentGameStore.removeRecentGame` |
+| --- |
+| `RecentGameStore._removeStoredEntry` |
+
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
+- Ownership coverage: `SavedGamesStore` owns reopening the saved target, while `RecentGameStore` remains limited to metadata reads and stale-entry cleanup.
 - Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references can be removed without breaking the centred home layout.

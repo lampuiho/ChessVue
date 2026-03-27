@@ -13,6 +13,7 @@ import {
   ThemeMode,
   TimeControlPreset,
   WorkspaceKind,
+  type IGameSessionSnapshot,
   type IGameWorkspace,
   type IRecentGamesSnapshot,
   type ISettingsSnapshot,
@@ -35,8 +36,9 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     schemaVersion: 1,
     session: {
       restorePreviousSession: true,
-      autosaveEnabled: true,
-      autosaveDebounceMs: 750,
+      saveRootPath: 'saves',
+      autosaveAfterMoveCount: 1,
+      autosaveOnClose: true,
       autoPauseOnMenu: true,
     },
     gameDefaults: {
@@ -66,19 +68,19 @@ function createSettingsSnapshot(): ISettingsSnapshot {
       showCoordinates: true,
       highlightLastMove: true,
     },
-  }
+  };
 }
 function createWorkspace(): IGameWorkspace {
-  const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 }
-  const rootPosition = createInitialBoardPosition()
-  const rootClock = TimeControlService.initialiseClockSnapshot(timeControl)
-  const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock)
-  const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!
-  const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null })
-  const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z')
-  const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl)
-  const updatedTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock)
-  const liveNodeId = updatedTree.nodeById[updatedTree.rootId]!.mainlineChildId!
+  const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 };
+  const rootPosition = createInitialBoardPosition();
+  const rootClock = TimeControlService.initialiseClockSnapshot(timeControl);
+  const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock);
+  const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
+  const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null });
+  const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
+  const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
+  const updatedTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
+  const liveNodeId = updatedTree.nodeById[updatedTree.rootId]!.mainlineChildId!;
 
   return {
     schemaVersion: 1,
@@ -118,31 +120,43 @@ function createWorkspace(): IGameWorkspace {
     analysisAssignment: {
       assignedEngines: [],
     },
-  }
+  };
 }
 
 describe('SerializationService', () => {
   it('round-trips settings snapshots', () => {
-    const snapshot = createSettingsSnapshot()
-    const restored = SerializationService.deserialiseSettings(SerializationService.serialiseSettings(snapshot))
+    const snapshot = createSettingsSnapshot();
+    const restored = SerializationService.deserialiseSettings(SerializationService.serialiseSettings(snapshot));
 
-    expect(restored).toEqual(snapshot)
-  })
+    expect(restored).toEqual(snapshot);
+  });
+
+  it('round-trips game-session snapshots with saved-games routes', () => {
+    const snapshot: IGameSessionSnapshot = {
+      schemaVersion: 1,
+      openGameIds: ['game-1'],
+      activeGameId: 'game-1',
+      activeRoute: '/saved-games/load/game-1',
+    };
+    const restored = SerializationService.deserialiseGameSession(SerializationService.serialiseGameSession(snapshot));
+
+    expect(restored).toEqual(snapshot);
+  });
 
   it('normalises and deduplicates recent games by latest saved time', () => {
     const snapshot: IRecentGamesSnapshot = {
       schemaVersion: 1,
       entries: [
         { gameId: 'a', displayName: 'Old', sourceKind: RecentGameSourceKind.Autosave, filePath: null, lastSavedAtUtc: '2026-01-01T12:00:00.000Z' },
-        { gameId: 'a', displayName: 'New', sourceKind: RecentGameSourceKind.ManualFile, filePath: 'game.json', lastSavedAtUtc: '2026-01-01T12:05:00.000Z' },
+        { gameId: 'a', displayName: 'New', sourceKind: RecentGameSourceKind.SaveFile, filePath: 'game.json', lastSavedAtUtc: '2026-01-01T12:05:00.000Z' },
       ],
-    }
+    };
 
-    const restored = SerializationService.deserialiseRecentGames(SerializationService.serialiseRecentGames(snapshot))
+    const restored = SerializationService.deserialiseRecentGames(SerializationService.serialiseRecentGames(snapshot));
 
-    expect(restored.entries).toHaveLength(1)
-    expect(restored.entries[0]!.displayName).toBe('New')
-  })
+    expect(restored.entries).toHaveLength(1);
+    expect(restored.entries[0]!.displayName).toBe('New');
+  });
 
   it('rejects invalid game-session snapshots', () => {
     const invalid = JSON.stringify({
@@ -150,35 +164,35 @@ describe('SerializationService', () => {
       openGameIds: ['game-1'],
       activeGameId: 'missing',
       activeRoute: '/home',
-    })
+    });
 
-    expect(() => SerializationService.deserialiseGameSession(invalid)).toThrow(SerializationError)
-  })
+    expect(() => SerializationService.deserialiseGameSession(invalid)).toThrow(SerializationError);
+  });
 
   it('round-trips saved games without persisting runtime metadata', () => {
-    const workspace = createWorkspace()
+    const workspace = createWorkspace();
     workspace.moveTree.nodeById[workspace.liveNodeId!]!.move = {
       ...workspace.moveTree.nodeById[workspace.liveNodeId!]!.move!,
       $: {
         san: 'e4',
         uci: 'e2e4',
       },
-    }
+    };
 
-    const serialised = SerializationService.serialiseGame(workspace)
-    const restored = SerializationService.deserialiseGame(serialised)
+    const serialised = SerializationService.serialiseGame(workspace);
+    const restored = SerializationService.deserialiseGame(serialised);
 
-    expect(serialised).not.toContain('"$"')
-    expect(serialised).not.toContain('"fen"')
-    expect(restored.moveTree.nodeById[restored.liveNodeId!]!.move?.$).toBeUndefined()
-    expect(PositionIdentityService.buildPositionKey(restored.boardRoot)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.nodeById[restored.moveTree.rootId]!.position))
-  })
+    expect(serialised).not.toContain('"$"');
+    expect(serialised).not.toContain('"fen"');
+    expect(restored.moveTree.nodeById[restored.liveNodeId!]!.move?.$).toBeUndefined();
+    expect(PositionIdentityService.buildPositionKey(restored.boardRoot)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.nodeById[restored.moveTree.rootId]!.position));
+  });
 
   it('rejects broken move-tree payloads', () => {
-    const workspace = createWorkspace()
-    const rootNode = workspace.moveTree.nodeById[workspace.moveTree.rootId]!
-    rootNode.childIds.push('missing-node')
+    const workspace = createWorkspace();
+    const rootNode = workspace.moveTree.nodeById[workspace.moveTree.rootId]!;
+    rootNode.childIds.push('missing-node');
 
-    expect(() => SerializationService.serialiseGame(workspace)).toThrow(SerializationError)
-  })
-})
+    expect(() => SerializationService.serialiseGame(workspace)).toThrow(SerializationError);
+  });
+});

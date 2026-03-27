@@ -31,8 +31,9 @@ export const boardOrientations = [BoardOrientation.White, BoardOrientation.Black
 
 export interface ISettingsSession {
   restorePreviousSession: boolean
-  autosaveEnabled: boolean
-  autosaveDebounceMs: number
+  saveRootPath: string
+  autosaveAfterMoveCount: number
+  autosaveOnClose: boolean
   autoPauseOnMenu: boolean
 }
 export interface ISettingsGameDefaults {
@@ -77,8 +78,9 @@ export const promotionPolicySchema = z.enum(promotionPolicies)
 export const boardOrientationSchema = z.enum(boardOrientations)
 export const settingsSessionSchema = z.object({
   restorePreviousSession: z.boolean(),
-  autosaveEnabled: z.boolean(),
-  autosaveDebounceMs: z.number().int().min(250).max(5000),
+  saveRootPath: z.string().min(1),
+  autosaveAfterMoveCount: z.number().int().min(0),
+  autosaveOnClose: z.boolean(),
   autoPauseOnMenu: z.boolean(),
 })
 

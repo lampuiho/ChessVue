@@ -23,10 +23,16 @@ export interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
   activeGameId: string | null
-  activeRoute: '/home' | `/game/${string}` | `/settings/${SettingsCategory}`
+  activeRoute:
+    | '/home'
+    | `/game/${string}`
+    | '/saved-games/load'
+    | `/saved-games/load/${string}`
+    | `/saved-games/save/${string}`
+    | `/settings/${SettingsCategory}`
 }
 export const settingsCategorySchema = z.enum(settingsCategories)
-export const activeRouteSchema = z.string().regex(/^\/home$|^\/game\/.+$|^\/settings\/(session|gameplay|appearance|engines)$/)
+export const activeRouteSchema = z.string().regex(/^\/home$|^\/game\/.+$|^\/saved-games\/load$|^\/saved-games\/load\/.+$|^\/saved-games\/save\/.+$|^\/settings\/(session|gameplay|appearance|engines)$/)
 
 export const uiLayoutStateSchema = z.object({
   schemaVersion: z.literal(1),

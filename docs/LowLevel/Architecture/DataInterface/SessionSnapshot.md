@@ -25,7 +25,13 @@ interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
   activeGameId: string | null
-  activeRoute: "/home" | `/game/${string}` | `/settings/${SettingsCategory}`
+  activeRoute:
+    | "/home"
+    | `/game/${string}`
+    | "/saved-games/load"
+    | `/saved-games/load/${string}`
+    | `/saved-games/save/${string}`
+    | `/settings/${SettingsCategory}`
 }
 ```
 
@@ -37,7 +43,7 @@ interface IGameSessionSnapshot {
 - `analysisEngineExpandedByIndex[index] = true` means the analysis-engine row at that rendered index for the active game is expanded, `false` means collapsed, and a missing entry defaults to expanded.
 - The rendered row order is derived from `IGameWorkspace.analysisAssignment.assignedEngines` for the active game and is recalculated whenever the active game changes.
 - `IGameSessionSnapshot.activeGameId` identifies the selected open game tab only; it is not part of layout persistence.
-- `IGameSessionSnapshot.activeRoute` stores canonical routed settings categories rather than the redirecting `/settings` alias.
+- `IGameSessionSnapshot.activeRoute` stores canonical routed settings categories and the committed saved-games routes rather than redirect-only aliases such as `/settings`.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
 - Recent-game history lives in `IRecentGamesSnapshot`, not in either of these payloads.
 - Conscious user preferences live in `ISettingsSnapshot`, not in either of these payloads.
