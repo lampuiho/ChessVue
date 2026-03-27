@@ -62,9 +62,9 @@ Contains:
 - one recent entry per canonical game ID
 - newest-first ordering for recent-entry presentation
 - display name for home-screen presentation
-- whether the winning recent target is `autosave` or `manualFile`
-- manual file path when the winning target is a file-backed save
-- `lastSavedAtUtc` used to decide whether autosave or manual-file metadata wins for the same game
+- whether the winning recent target is `autosave` or `saveFile`
+- saved file path when the winning target is a file-backed save
+- `lastSavedAtUtc` used to decide whether autosave or saved-file metadata wins for the same game
 - version metadata for migration
 
 Does not contain:
@@ -78,7 +78,8 @@ Purpose: represent one game or setup workspace in a serialisable form.
 This is the canonical persisted game payload for both:
 
 - internal autosave storage
-- manual export and import files
+- internal save/load files
+- external export and import files
 
 Contains:
 - game identity and timestamps
@@ -132,31 +133,44 @@ Only after that game state is restored may live analysis resume.
 
 ### Recent Games Snapshot Owns
 - recent-game metadata shown on `HomeView`
-- latest-save deduping between autosave and manual-file targets for the same canonical `gameId`
-- file-path metadata needed to reopen manual saved games without reopening a file picker
+- latest-save deduping between autosave and saved-file targets for the same canonical `gameId`
+- file-path metadata needed to reopen saved games without reopening a picker
 
 ### Settings Snapshot Owns
 - user preferences and default behaviours
 - engine inventory records
+
+## Internal Save File Organisation
+- `session.saveRootPath` defines the logical root for ChessVue's own save/load files.
+- The default root is the relative path `saves`.
+- ChessVue creates one folder per canonical game beneath that root.
+- Each game folder may contain one autosave entry plus user-named save files that use the same canonical saved-game payload.
+- Platform adapters may emulate the folder structure differently when the host does not expose normal directories, but the contract remains folder-based.
 
 ## Analysis Persistence Rule
 The baseline contract does not require persistence of streamed analysis output inside the saved game payload.
 
 On restore, analysis may restart from the restored game state when engines are available and the relevant setting allows it.
 
-## Autosave Versus Export
+## Internal Save Storage and External File Flows
 ### Autosave
-- Triggered by meaningful state changes such as committed moves, settings changes, active game changes, or other contractually persisted game-screen changes.
-- Writes the saved game payload, recent-games snapshot, game-session snapshot, UI-layout state, or settings snapshot as appropriate.
-- May batch rapid writes, but must remain eventually consistent.
+- Writes or replaces the dedicated autosave entry for one game using the canonical saved-game payload.
+- Triggered only by the configured move-count threshold in `session.autosaveAfterMoveCount` and the close trigger in `session.autosaveOnClose`.
+- Settings, recent-games metadata, game-session state, and UI-layout state remain separate persisted artefacts rather than becoming part of the autosave trigger definition.
 
-### Manual Export
-- Writes the same canonical saved game payload to a user-selected file.
-- Refreshes the recent-games snapshot with the final written file path after a successful write.
-- Must preserve the same game-state restore fidelity as autosave.
+### Internal Save File
+- Writes the same canonical saved-game payload to a ChessVue-managed save file beneath the configured save root.
+- Supports grouped browsing by game and save entry inside the app's save/load dialog.
+- Uses the same restore fidelity as autosave because both persist the same canonical payload.
+- May require overwrite confirmation when a chosen save name already exists inside the selected game folder.
+
+### External Export
+- Writes the same canonical saved-game payload to a user-selected file through a normal OS save dialog.
+- May refresh recent-games metadata with the final written file path when ChessVue chooses to surface that file as a reopenable recent target.
+- Must preserve the same game-state restore fidelity as autosave and internal save files.
 - Must not depend on session-only data outside that payload.
 
-### Manual Import
+### External Import
 - Reads the canonical saved game payload from file.
 - Migrates older versions before insertion into stores.
 - Refreshes the recent-games snapshot after any duplicate-ID repair so the stored recent entry points to the final in-app `gameId` and the chosen file path.
@@ -188,12 +202,12 @@ The app must isolate bad payloads instead of failing the whole launch or import 
 
 ## Duplicate Game ID Handling
 - Internal autosave restore trusts the persisted ID.
-- File import must detect collisions with existing in-app game IDs.
-- On collision, the imported game receives a new ID before insertion.
-- The imported payload otherwise preserves its content and game-state snapshot.
+- File-backed load and external import must detect collisions with existing in-app game IDs.
+- On collision, the loaded game receives a new ID before insertion.
+- The loaded payload otherwise preserves its content and game-state snapshot.
 
 ## Baseline File Format Scope
-- The baseline import and export contract is one canonical internal JSON document.
+- The baseline internal save/load and external import/export contract is one canonical internal JSON document.
 - Broader external formats are deferred to [ideas.md](ideas.md).
 
 ## Restore Policy Note

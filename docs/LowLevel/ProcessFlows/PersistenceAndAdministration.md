@@ -22,17 +22,16 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 ### SCN-SAVE-02 - Manual Save Game to File
 
 #### Flow
-| `Menu.saveRequested` | `GamesStore.pauseGame` | `GamesStore.exportGame` | `SerializationService.serialiseGame` | `FileIoAdapter.saveGameDocument` | `RecentGameStore.recordManuallySavedGame` | `GamesStore.resumeGame` |
+| `Menu.saveRequested` | `GamesStore.pauseGame` | `GamesStore.exportGame` | `SerializationService.serialiseGame` | `FileIoAdapter.saveFile` | `RecentGameStore.recordManuallySavedGame` | `GamesStore.resumeGame` |
 | --- | --- | --- | --- | --- | --- | --- |
-| `GamesStore.pauseGame` | `GamesStore._maybeAutoPauseForMenu` |  |  |  |  |  |
-| `GamesStore.exportGame` |  | `GamesStore._buildPersistedWorkspace` |  |  |  |  |
-| `SerializationService.serialiseGame` |  | `GamesStore._exportGameDocument` |  |  |  |  |
-| `FileIoAdapter.saveGameDocument` |  |  |  | `FileIoAdapter._openSaveDialog` |  |  |
-| `RecentGameStore.recordManuallySavedGame` |  |  |  | `FileIoAdapter._writeGameDocument` | `RecentGameStore._upsertRecentEntry` |  |
-| `GamesStore.resumeGame` |  |  |  |  | `RecentGameStore._sortMostRecentFirst` | `GamesStore._resumeIfMenuOwnedPause` |
+| `GameStore._shouldAutoPauseOnMenu` | `TimeControlService.pauseClock` | `SerializationService.serialiseGame` | `SerializationService._normalisePayload` | nwjs api | `RecentGameStore._getSaveToOverwrite` | `GamesStore.resumeClock` |
+| `GamesStore.pauseGame` |  |  | `FileIoAdaptor.saveFile` |  | `RecentGameStore._insertOrReplace` |  |
+| `GamesStore.exportGame` |  |  |  |  | `RecentGameStore._sortMostRecentFirst` |  |
+| `RecentGameStore.recordManuallySavedGame` |  |  |  |  |  |  |
+| `GamesStore.resumeGame` |  |  |  |  |  |  |
 
-- Settings coverage: `session.autoPauseOnMenu` decides whether timed live games are paused for export. The menu pause owner is preserved so export return cannot auto-resume a manually paused game.
-- Requirement verification: `Pass`. Export writes the same canonical document shape used by autosave, returns the final file path for recent-history metadata, and honours menu auto-pause policy.
+- Settings coverage: `session.autoPauseOnMenu` decides whether timed live games are paused for export. The menu pause owner is preserved so export return cannot auto-resume a manually paused game. For this flow, the pause branch is assumed.
+- Requirement verification: `Pass`. Presentation stays at the store boundary, `GamesStore.exportGame` orchestrates the workflow, `SerializationService` owns the game-document conversion, and export still writes the same canonical document shape used by autosave while returning the final file path for recent-history metadata.
 
 ### SCN-LOAD-01 - Load Valid Game from File
 
@@ -41,7 +40,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 | --- | --- | --- | --- | --- | --- |
 | `GamesStore.importGame` |  |  |  |  |  |
 | `FileIoAdapter.loadGameDocument` |  | `FileIoAdapter._openLoadDialog` |  |  |  |
-| `SerializationService.deserialiseGame` | `GamesStore._deserialiseImportedWorkspace` | `FileIoAdapter._readGameDocument` |  |  |  |
+| `SerializationService.deserialiseGame` | `GamesStore._deserialiseImportedDocument` | `FileIoAdapter._readGameDocument` | `SerializationService._detectGameDocumentShape` |  |  |
 | `GamesStore.insertGame` |  |  |  | `GamesStore._remapDuplicateIdIfNeeded` |  |
 | `RecentGameStore.recordManuallySavedGame` |  |  |  | `GamesStore._hydrateWorkspace` | `RecentGameStore._upsertRecentEntry` |
 |  |  |  |  |  | `RecentGameStore._sortMostRecentFirst` |
@@ -65,7 +64,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 | `GamesStore.makeMove` |  |  |
 
 - State/settings coverage: the game workspace is restored first, including a restored `historyReview`, paused state, or finished result. `analysis.resumeLiveAnalysisAfterRestore` decides whether continuous analysis restarts after the persisted game state is shown.
-- Requirement verification: `Pass`. Game-state restore happens before live analysis resumes, duplicate IDs are repaired before the recent-entry write, and engine-turn restart stays aligned with the restored live state.
+- Requirement verification: `Pass`. `GamesStore.importGame` remains the only UI-facing import mutation, `SerializationService` decides how the loaded document is interpreted before insertion, duplicate IDs are repaired before the recent-entry write, and engine-turn restart stays aligned with the restored live state.
 
 ### SCN-LOAD-02 - Load Invalid/Corrupt Game File
 
@@ -74,11 +73,11 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 | --- | --- | --- | --- | --- |
 | `GamesStore.importGame` |  |  |  |  |
 | `FileIoAdapter.loadGameDocument` |  | `FileIoAdapter._openLoadDialog` |  |  |
-| `SerializationService.deserialiseGame` | `GamesStore._deserialiseImportedWorkspace` | `FileIoAdapter._readGameDocument` |  |  |
+| `SerializationService.deserialiseGame` | `GamesStore._deserialiseImportedDocument` | `FileIoAdapter._readGameDocument` | `SerializationService._detectGameDocumentShape` |  |
 | `UiStateStore.showModal` |  | `FileIoAdapter._mapFileIoError` |  |  |
 
 - UI surface coverage: import failure uses the shared dialog shell as an acknowledge-only invalid-document error. Unsupported, corrupt, and incomplete files all follow the same unrecoverable path.
-- Requirement verification: `Pass`. Failed import does not mutate the current session state.
+- Requirement verification: `Pass`. Failed import does not mutate the current session state, and document-type detection and rejection stay in `SerializationService` rather than in presentation or store-specific parsing branches.
 
 ## Settings And Engine Inventory
 
@@ -192,3 +191,4 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 | `Router._selectFallbackRoute` |  |  |  |  |
 
 - Requirement verification: `Pass`. Active-game deletion cannot leave a dangling route or session pointer.
+

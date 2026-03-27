@@ -51,6 +51,7 @@ Committed domain modules:
 - `GameRuleService`
 - `MoveUpdateService`
 - `TimeControlService`
+- `SavedGameIndexService`
 - `SerializationService`
 
 This layer owns legal move handling, move-tree rules, clock calculation rules, and serialisation rules.
@@ -61,6 +62,7 @@ Purpose: coordinate app state, domain logic, persistence, and engine runtime.
 Committed state modules:
 
 - `GamesStore`
+- `SavedGamesStore`
 - `AnalysisStore`
 - `EnginesStore`
 - `SettingsStore`
@@ -103,7 +105,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### Platform Abstraction
 - `usePlatformServicesStore` is the only baseline bootstrap seam for wiring concrete platform adapters into the app.
 - `StorageAdapter` persists settings, recent-game history, game-session state, UI-layout state, and autosaved saved-game payloads.
-- `FileIoAdapter` imports, exports, and reopens raw saved-game documents for the canonical payload defined in [persistence_contract.md](persistence_contract.md).
+- `FileIoAdapter` exposes generic file-system and file-dialog operations only, while state stores decide how ChessVue save folders and save files are interpreted.
 - `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
 - `EngineClient` translates ChessVue engine-session operations into the active protocol and uses `ProcessManager` for raw process I/O.
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
@@ -112,16 +114,18 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `GameRuleService` validates and applies moves, resolves promotion choices, and detects terminal game results.
 - `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
-- `SerializationService` owns the canonical saved game payload shape, schema versioning hooks, and migration entry points.
+- `SavedGameIndexService` owns ChessVue's save-folder conventions, path composition, and projection of generic directory entries into logical saved-game groups without doing any file I/O.
+- `SerializationService` owns the canonical saved game payload shape, schema versioning hooks, migration entry points, and saved-game document interpretation for internal save/load plus external import/export flows.
 
 ### State Management
-- `GamesStore` owns live game instances and enforces the interaction rules in [state_model.md](state_model.md).
+- `GamesStore` owns only live/open game workspaces and enforces the interaction rules in [state_model.md](state_model.md).
+- `SavedGamesStore` owns autosave, internal save/load browsing, external import/export, and saved-game restore orchestration.
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
 - `EnginesStore` owns per-game engine assignment, runtime availability state, and engine-session lifecycle coordination.
 - `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
-- `RecentGameStore` owns persisted recent-game metadata for `HomeView`, deduped by canonical game identity and refreshed by the latest autosave or manual save target.
+- `RecentGameStore` owns persisted recent-game metadata for `HomeView`, deduped by canonical game identity and refreshed by the latest autosave or saved-file target, but it does not own saved-game file workflows.
 - `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and foldable-section state.
-- State stores use `SerializationService` for canonical parse, migration, and serialisation before or after calling storage or file adapters.
+- State stores orchestrate persistence workflows and use `SavedGameIndexService` plus `SerializationService` for saved-game path/index rules and canonical parse, migration, serialisation, and document interpretation before or after calling storage or file adapters.
 - State stores obtain platform interfaces from `usePlatformServicesStore` rather than constructing platform objects directly.
 
 ### Presentation
@@ -144,9 +148,11 @@ Presentation -> State Management
 
 Additional rules:
 
+- Each layer may call only the next lower layer directly; it must not skip a layer or absorb another layer's responsibilities.
 - Domain logic must remain serialisable and testable without desktop APIs.
 - Presentation must not implement business rules that belong to the four contracts.
 - State stores are the coordination boundary for persistence, engine runtime, and UI-triggered game mutations.
+- `GamesStore` must not own saved-game browsing, save-folder interpretation, or import/export orchestration; those belong to `SavedGamesStore`.
 - Views and feature adapters consume store state directly and may shape it with pure local selectors only.
 - Narrow domain reads such as `TimeControlService.getRemainingTime` remain allowed when the composing view or store needs an authoritative calculation, but they do not form a separate presentation-helper layer.
 
@@ -165,7 +171,7 @@ The high-level contracts divide behaviour ownership as follows:
 3. `GamesStore` validates the action against the active state context.
 4. Domain services update move tree, board state, and clocks.
 5. `EnginesStore` and `EngineClient` refresh assigned analysis engines when required, and `GamesStore` may request the next engine-controlled live turn when the side to move is assigned to an engine.
-6. Autosave persists the updated game workspace, relevant session state, and refreshed recent-game metadata when the saved target for that game changed.
+6. Autosave updates only the dedicated internal autosave entry when the configured ply threshold or close trigger fires; settings, session state, and layout state remain separate persisted artefacts.
 
 ### Analysis Refresh
 1. A committed move or explicit analysis action requests evaluation.
@@ -175,10 +181,13 @@ The high-level contracts divide behaviour ownership as follows:
 5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth, while score-only versus move-list rendering still follows the current workspace context and the game's persisted `showLiveAnalysisMoves` preference.
 
 ### Save and Restore
-1. `GamesStore`, `RecentGameStore`, and `UiStateStore` produce a canonical saved game payload, recent-games snapshot entry, game-session snapshot, and UI-layout state.
-2. `StorageAdapter` persists autosaved state, recent-game metadata, game-session state, and UI-layout state, while `FileIoAdapter` imports, exports, or reopens the same canonical game payload for manual-file flows.
-3. `RecentGameStore` keeps at most one recent entry per canonical `gameId`, pointing to the newest autosave or manual-file target.
-4. Startup may restore UI-layout state even when settings disable reopening the previous game session. When a game is restored, the app rebuilds the persisted workspace state, then resumes live analysis if engines are available.
+1. `SavedGamesStore`, `RecentGameStore`, and `UiStateStore` orchestrate creation of a canonical saved game payload, recent-games snapshot entry, game-session snapshot, and UI-layout state.
+2. `GamesStore` supplies or accepts live/open game workspaces, but it does not decide save-folder structure or file workflows.
+3. `StorageAdapter` persists autosaved state, recent-game metadata, game-session state, and UI-layout state, while `FileIoAdapter` provides generic directory, file-read/write, and host-dialog operations.
+4. `SavedGameIndexService` converts configured save-root rules plus generic directory entries into ChessVue save groups and canonical target file paths.
+5. `SerializationService` converts between raw save-file documents and canonical game payloads, including format detection and migration.
+6. `RecentGameStore` keeps at most one recent entry per canonical `gameId`, pointing to the newest autosave or saved-file target.
+7. Startup may restore UI-layout state even when settings disable reopening the previous game session. When a game is restored, the app rebuilds the persisted workspace state, then resumes live analysis if engines are available.
 
 ## Explicitly Deferred
 The following concepts are not part of the baseline architecture and are tracked in [ideas.md](ideas.md):

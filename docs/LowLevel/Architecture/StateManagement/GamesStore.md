@@ -1,7 +1,7 @@
 # GamesStore
 
 ## Purpose
-Own live game workspaces and coordinate game-state mutations across domain logic, persistence, and engine/runtime stores.
+Own live/open game workspaces and coordinate current-game mutations across domain logic and engine/runtime stores.
 
 ## Public Interface
 ```ts
@@ -32,9 +32,6 @@ acceptDrawOffer(gameId: string): Promise<void>
 declineDrawOffer(gameId: string): Promise<void>
 withdrawDrawOffer(gameId: string): Promise<void>
 pruneFuture(gameId: string, nodeId: string): Promise<void>
-saveGame(gameId: string): Promise<void>
-exportGame(gameId: string): Promise<void>
-importGame(): Promise<IGameWorkspace>
 ```
 
 ## Responsibilities
@@ -50,9 +47,6 @@ importGame(): Promise<IGameWorkspace>
 - change one side's player assignment from the player strip, including transitions from live play into `freeAnalysisSetup` and seat updates while already in setup
 - record a draw offer and expose explicit accept, decline, and withdraw boundaries instead of hiding draw resolution inside one opaque control-panel action
 - add or remove per-game analysis-engine assignments during a game
-- persist the canonical `IGameWorkspace` payload for autosave and export
-- serialise exported game documents and deserialise imported raw file documents through `SerializationService`
-- notify `RecentGameStore` after successful autosave, manual save, and manual import flows so recent history reflects the latest saved target for each game
 - ask `EnginesStore` to start analysis or run an engine-controlled turn when the visible or live position changes
 
 ## State And Settings Notes
@@ -70,18 +64,16 @@ importGame(): Promise<IGameWorkspace>
 - `reassignPlayer` never starts a fresh live game. Once a workspace is in `freeAnalysisSetup`, the separate `startGameFromSetup` flow owns collecting fresh settings and creating a new live clock state.
 - `_maybeRequestEngineTurn` is the generic live-game gate for `local/engine`, `engine/local`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
 - When `reassignPlayer` keeps the workspace as a live game, `_maybeRequestEngineTurn` may run only if the resulting side to move is engine-controlled and there is no still-valid in-flight request for that same seat and turn.
-- `importGame` and session restore rebuild the persisted workspace state, including captured assigned-engine snapshots, first, then may request continuous analysis and a player-engine turn only when the restored state is playable live current-position ongoing state.
+- When a restored workspace is inserted by `SavedGamesStore`, `GamesStore` rebuilds the persisted workspace state, including captured assigned-engine snapshots, first, then may request continuous analysis and a player-engine turn only when the restored state is playable live current-position ongoing state.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = false`, live-game analysis rows stay score-only in `currentPosition`, `historyReview`, and `inGameAnalysis`. When the toggle is enabled in `historyReview`, analysis-panel clicks still reuse the normal takeback-policy path rather than introducing a panel-specific rewrite rule.
 
 ## Dependencies
 - `GameRuleService`
 - `MoveUpdateService`
 - `TimeControlService`
-- `SerializationService`
 - `PlatformServices`
 - `AnalysisStore`
 - `EnginesStore`
-- `RecentGameStore`
 
 ## Scenario Coverage
 - `SCN-SESSION-02`
@@ -95,12 +87,10 @@ importGame(): Promise<IGameWorkspace>
 - `SCN-TIME-01` to `SCN-TIME-05`
 - `SCN-CTRL-01` to `SCN-CTRL-05`
 - `SCN-ENGINE-03`
-- `SCN-SAVE-01` to `SCN-LOAD-02`
 - `SCN-LIFECYCLE-01` and `SCN-LIFECYCLE-02`
 
 ## Notes
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `_maybeRequestEngineTurn` is the internal gate for player-engine move generation and must remain a strict state check rather than a best-effort hint.
-- `GamesStore` resolves `StorageAdapter` and `FileIoAdapter` through `usePlatformServicesStore()`.
-- `saveGame`, `exportGame`, and `importGame` remain the owning public mutations. `StorageAdapter` and `FileIoAdapter` handle raw document transport only, while `GamesStore` uses `SerializationService` for canonical parse, migration, and serialisation before or after those adapter calls.
-- `saveGame`, `exportGame`, and `importGame` refresh recent-game metadata through `RecentGameStore` only after the relevant autosave write, file write, or duplicate-ID repair has succeeded.
+- `GamesStore` resolves platform-backed persisted live-workspace dependencies through `usePlatformServicesStore()` when startup restore requires them.
+- `GamesStore` owns the current/open workspace only. Save/load/import/export orchestration belongs to `SavedGamesStore`.

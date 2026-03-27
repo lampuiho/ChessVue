@@ -51,7 +51,7 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `SCN-TIME-04`
 - `SCN-TIME-05`
 - `SCN-CTRL-02` to `SCN-CTRL-05`
-- `SCN-LOAD-02`
+- `SCN-IMPORT-02`
 
 ## Notes
 - `UiStateStore` resolves `StorageAdapter` through `usePlatformServicesStore()`.

@@ -1,7 +1,7 @@
 # Saved Game Payload
 
 ## Purpose
-Define the canonical persisted saved-game payload used for autosave and manual import/export.
+Define the canonical persisted saved-game payload used for autosave, internal save/load files, and external import/export.
 
 ## Canonical Shape
 The baseline does not define a separate persisted `IGameDocument` interface.
@@ -18,7 +18,7 @@ The canonical saved-game payload is `IGameWorkspace` from [Game.md](Game.md).
 - time control and clock snapshot
 
 ## Rules
-- `IGameWorkspace` is the canonical payload for both autosave storage and manual file export.
+- `IGameWorkspace` is the canonical payload for autosave storage, ChessVue-managed save files, and external import/export files.
 - Restore rebuilds the saved game workspace from that payload, then may resume live analysis when available.
 - Panel visibility, panel positioning, and other layout concerns are not stored inside the saved game payload.
 - Analysis output is runtime state and is not part of the baseline saved-game payload.
