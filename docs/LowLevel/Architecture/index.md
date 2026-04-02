@@ -76,7 +76,7 @@ Additional rules:
 - Presentation components do not own game rules, move-tree mutation, persistence, or engine-process control.
 - State stores are the coordination boundary for UI-triggered mutations, but they call layer-2 services only.
 - State stores do not resolve `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, or `EngineClient` directly.
-- `GamesStore` owns only live/open game-workspace behaviour; saved-game browsing and save/load/import/export orchestration belong to `SavedGamesStore`.
+- `GamesStore` owns live/open game-workspace behaviour plus actual workspace save and load execution; `SavedGamesStore` owns saved-game browsing, grouped save-list state, and route or dialog target selection.
 - Domain logic owns persisted payload rules, document interpretation, notation rules, position identity rules, and the lower-layer service boundaries exposed to layer 3.
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
 - `usePlatformServicesStore()` is the bootstrap-only seam for injecting concrete platform adapters into the app and wiring them into layer-2 services.
@@ -116,7 +116,6 @@ The data-interface section defines the shared low-level types for:
   - settings snapshot
   - game-session snapshot
   - UI-layout state
-  - recent-games snapshot
   - canonical saved-game payload based on `IGameWorkspace`
 
 ## Scenario Ownership Summary
@@ -124,7 +123,7 @@ The data-interface section defines the shared low-level types for:
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
 - `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
 - `EnginesStore` owns analysis and player-engine runtime state at layer 3, while the lower-layer engine runtime path owns protocol and process transport.
-- `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios, with stores orchestrating workflows, `SavedGameIndexService` owning save-folder rules, and `SerializationService` owning canonical payload conversion.
+- `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, and `SerializationService` owning canonical payload conversion.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions

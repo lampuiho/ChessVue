@@ -6,7 +6,7 @@ Render the neutral landing screen for launch, no-active-game fallback, first-use
 ## Inputs
 - game-session and layout restore outcome from `UiStateStore`
 - available actions from `GamesStore`
-- recent game entries loaded on demand from `RecentGameStore`
+- recent game entries projected on demand from `RecentGameStore`
 - `HomeMenuButton` for landing-page actions
 - `ItemList` for recent game entries when present
 

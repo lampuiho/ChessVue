@@ -114,7 +114,7 @@ Each scenario in this document uses the same structure:
   3. App loads default settings.
   4. App resolves the effective app theme from built-in defaults and the current system theme when the default mode is `system`.
   5. App shows a centred home/default game area with a single-row action button group for quick new game, custom new game, load game, and settings.
-  6. Because no recent metadata exists yet, the recent games list stays hidden.
+  6. Because no saved games exist yet, the recent games list stays hidden.
 - **Branch Paths**:
   - `BR-SESSION-01-INIT-FAIL`: If any persisted read fails unexpectedly, app falls back to safe defaults and logs recoverable error.
   - `BR-SESSION-01-HOME-FALLBACK`: If the preferred home screen cannot be restored, app still shows a neutral landing state without auto-creating a game.
@@ -195,7 +195,6 @@ Each scenario in this document uses the same structure:
   - `MenuBar.quickNewGameRequested`
   - `GamesStore.createGame`
   - `UiStateStore.setActiveGame`
-  - `SavedGamesStore.persistGame`
   - `StorageAdapter.setGameSessionSnapshot`
 
 ### SCN-GAME-02 - Custom New Game with User Options
@@ -301,19 +300,18 @@ Each scenario in this document uses the same structure:
   1. User lands on `HomeView`.
   2. App shows the centred single-row action buttons and a recent games list below them.
   3. User selects a recent game entry.
-  4. App resolves the stored recent reference and loads the referenced game from either autosave storage or a saved file path.
+  4. App resolves the selected recent entry and loads the referenced game from either autosave storage or a saved file path.
   5. App opens the loaded game as the active context and routes to it.
 - **Branch Paths**:
-  - `BR-NAV-03-MISSING-ENTRY`: Recent reference no longer resolves -> remove stale entry and keep the user on `HomeView`.
+  - `BR-NAV-03-MISSING-ENTRY`: The selected recent entry no longer resolves -> reload the recent list and keep the user on `HomeView`.
   - `BR-NAV-03-LOAD-FAIL`: Referenced game file is invalid or unreadable -> route through the normal invalid-load error flow.
 - **Postconditions**: A valid recent entry opens as the active game; invalid recent entries are removed without breaking the home screen.
 - **Function Touchpoints**:
   - `RecentGameStore.loadRecentGames`
-  - `SavedGamesStore.openRecentGame`
-  - `RecentGameStore.removeRecentGame`
+  - `SavedGamesStore.getRecentGamePath`
   - `SavedGameIndexService.getAutosaveFilePath`
+  - `GamesStore.loadGame`
   - `SerializationService.deserialiseGame`
-  - `GamesStore.insertGame`
   - `UiStateStore.setActiveGame`
 
 ---
@@ -459,7 +457,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Move tree contains only retained line(s).
 - **Function Touchpoints**:
   - `MoveUpdateService.pruneFutureMoves`
-  - `SavedGamesStore.persistGame`
+  - `GamesStore.saveGame`
   - `UiStateStore.showModal`
 
 ---
@@ -507,7 +505,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
   - `MoveUpdateService.createMoveTree`
-  - `SavedGamesStore.persistGame`
+  - `GamesStore.saveGame`
   - `AnalysisStore.getVisibleAnalysis`
   - `AnalysisStore.clearGameAnalysis`
 
@@ -743,7 +741,7 @@ Each scenario in this document uses the same structure:
   - `GameView.onTimerTick`
   - `TimeControlService.getRemainingTime`
   - `GamesStore.syncClock`
-  - `SavedGamesStore.persistGame`
+  - `GamesStore.saveGame`
   - `UiStateStore.showModal`
 
 
@@ -806,7 +804,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GameControlPanel.resignRequested`
   - `UiStateStore.showModal`
-  - `SavedGamesStore.persistGame`
+  - `GamesStore.saveGame`
 
 ### SCN-CTRL-03 - Draw Offer Flow
 - **Status**: Planned
@@ -834,7 +832,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.acceptDrawOffer`
   - `GamesStore.declineDrawOffer`
   - `GamesStore.withdrawDrawOffer`
-  - `SavedGamesStore.persistGame`
+  - `GamesStore.saveGame`
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Planned
 - **Goal**: Enter a mode from an active game where the user controls both sides for exploration without progressing the live game.
@@ -886,15 +884,14 @@ Each scenario in this document uses the same structure:
   2. App checks `session.autosaveAfterMoveCount` using committed ply count and separately checks `session.autosaveOnClose` during close.
   3. When a trigger applies, app snapshots the current game workspace state, including active position/history node, clocks, and result state.
   4. App serializes the canonical saved-game payload.
-  5. App writes or replaces the autosave entry for that game beneath the configured save root and refreshes recent-game metadata.
+  5. App writes or replaces the autosave entry for that game beneath the configured save root.
 - **Branch Paths**:
   - `BR-SAVE-01-MOVE-COUNT-DISABLED`: `session.autosaveAfterMoveCount = 0` -> move commits do not write an autosave entry.
   - `BR-SAVE-01-CLOSE-DISABLED`: `session.autosaveOnClose = false` -> close flow does not write an autosave entry.
   - `BR-SAVE-01-WRITE-FAIL`: Autosave write fails -> keep in-memory state and surface recoverable failure for later retry.
 - **Postconditions**: The autosave entry is refreshed only when the configured trigger fires, and a later restore can reproduce the same game workspace state without depending on UI or engine runtime snapshots.
 - **Function Touchpoints**:
-  - `SavedGamesStore.autosaveGame`
-  - `RecentGameStore.recordAutosavedGame`
+  - `GamesStore.saveGame`
   - `SavedGameIndexService.getAutosaveFilePath`
   - `SerializationService.serialiseGame`
   - `FileIoAdapter.ensureDirectory`
@@ -941,7 +938,7 @@ Each scenario in this document uses the same structure:
   3. If the chosen save name matches an existing save entry for that game, app asks for overwrite confirmation.
   4. On confirm or when no collision exists, app snapshots the current game workspace state.
   5. App serializes the canonical saved-game payload and writes the internal save file.
-  6. App refreshes the save list, recent-game metadata, and visible details, then stays on the save route or returns according to the final UI flow.
+  6. App refreshes the save list and visible details, then stays on the save route or returns according to the final UI flow.
 - **Branch Paths**:
   - `BR-SAVE-03-COLLISION-CANCEL`: User declines overwrite confirmation -> no write occurs and the save view stays open.
   - `BR-SAVE-03-IO-ERROR`: Save write fails -> show retry guidance and keep the save view open.
@@ -949,12 +946,11 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: The selected game has a new or replaced internal save entry in its game folder, and the same canonical payload is available for later internal load.
 - **Function Touchpoints**:
   - `UiStateStore.showModal`
-  - `SavedGamesStore.saveGameAs`
+  - `GamesStore.saveGame`
   - `SavedGameIndexService.getNamedSaveFilePath`
   - `SerializationService.serialiseGame`
   - `FileIoAdapter.ensureDirectory`
   - `FileIoAdapter.writeTextFile`
-  - `RecentGameStore.recordSavedGame`
 
 ### SCN-LOAD-01 - Load Valid Game from Internal Save View
 - **Status**: Planned
@@ -972,8 +968,8 @@ Each scenario in this document uses the same structure:
   8. Choosing `Select` routes to `/saved-games/load/:name` for the selected game.
   9. The game-save listing screen shows that game's saves and replaces the bottom-right `Select` action with `Load`.
   10. User selects a save entry and clicks `Load`, or arrives by double-click latest-save behaviour from the grouped list.
-  11. App reads the raw save document, deserializes and migrates the payload inside the state-management boundary, and restores the saved game workspace state immediately.
-  12. Game is inserted into store and opened.
+  11. App resolves the selected internal save to a concrete file path, then `GamesStore` reads the raw save document, deserializes and migrates the payload inside the state-management boundary, and restores the saved game workspace state immediately.
+  12. Game is loaded into store and opened.
   13. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
   14. When the user returns to the game screen, app auto-resumes if the pause came from this load flow.
 - **Branch Paths**:
@@ -988,12 +984,11 @@ Each scenario in this document uses the same structure:
   - `GameControlPanel.pauseRequested`
   - `Router.push`
   - `SavedGamesStore.listSavedGames`
-  - `SavedGamesStore.loadSavedGame`
+  - `SavedGamesStore.getLoadFilePath`
   - `SavedGameIndexService.projectSaveGroups`
   - `FileIoAdapter.readTextFile`
   - `SerializationService.deserialiseGame`
-  - `RecentGameStore.recordSavedGame`
-  - `GamesStore.insertGame`
+  - `GamesStore.loadGame`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.saveGameSession`
 
@@ -1019,10 +1014,10 @@ Each scenario in this document uses the same structure:
   - `MenuBar.exportGameRequested`
   - `GameControlPanel.pauseRequested`
   - `SavedGamesStore.exportGame`
+  - `GamesStore.saveGame`
   - `FileIoAdapter.showSaveDialog`
   - `FileIoAdapter.writeTextFile`
   - `SerializationService.serialiseGame`
-  - `RecentGameStore.recordSavedGame`
 
 ### SCN-IMPORT-01 - Import Valid Game from External File
 - **Status**: Planned
@@ -1033,9 +1028,9 @@ Each scenario in this document uses the same structure:
   1. User chooses import action.
   2. App opens a normal OS file picker.
   3. User selects a file.
-  4. App reads the raw document, then deserializes and migrates the payload inside the state-management boundary.
+  4. `SavedGamesStore` resolves the selected external file path, then `GamesStore` reads the raw document, deserializes and migrates the payload inside the state-management boundary.
   5. App restores the saved game workspace state immediately, including current position/history node, clock state, and result state.
-  6. Game is inserted into store and opened.
+  6. Game is loaded into store and opened.
   7. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
 - **Branch Paths**:
   - `BR-IMPORT-01-CANCEL`: User cancels the OS file picker -> no import occurs.
@@ -1048,8 +1043,7 @@ Each scenario in this document uses the same structure:
   - `FileIoAdapter.showOpenDialog`
   - `FileIoAdapter.readTextFile`
   - `SerializationService.deserialiseGame`
-  - `RecentGameStore.recordSavedGame`
-  - `GamesStore.insertGame`
+  - `GamesStore.loadGame`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.saveGameSession`
 
@@ -1069,6 +1063,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `FileIoAdapter.showOpenDialog`
   - `FileIoAdapter.readTextFile`
+  - `GamesStore.loadGame`
   - `SerializationService.deserialiseGame`
   - `UiStateStore.showModal`
 

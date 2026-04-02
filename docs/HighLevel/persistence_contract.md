@@ -4,7 +4,7 @@
 This document defines what ChessVue persists, how persisted artefacts are separated, and what restore guarantees the low-level rewrite must honour.
 
 ## Canonical Persisted Artefacts
-ChessVue persists five artefact types.
+ChessVue persists four artefact types.
 
 ### 1. User Settings Snapshot
 Purpose: store committed user-editable settings.
@@ -55,24 +55,7 @@ Does not contain:
 - user settings values
 - transient modal visibility
 
-### 4. Recent Games Snapshot
-Purpose: store the recent-game history shown on `HomeView`.
-
-Contains:
-- one recent entry per canonical game ID
-- newest-first ordering for recent-entry presentation
-- display name for home-screen presentation
-- whether the winning recent target is `autosave` or `saveFile`
-- saved file path when the winning target is a file-backed save
-- `lastSavedAtUtc` used to decide whether autosave or saved-file metadata wins for the same game
-- version metadata for migration
-
-Does not contain:
-- the full saved game payload
-- tab order or active route shell state
-- user settings values
-
-### 5. Saved Game Payload
+### 4. Saved Game Payload
 Purpose: represent one game or setup workspace in a serialisable form.
 
 This is the canonical persisted game payload for both:
@@ -131,14 +114,15 @@ Only after that game state is restored may live analysis resume.
 - analysis-engine fold state keyed by the active game's rendered analysis-row order, recalculated from that game's persisted analysis roster when the active game changes
 - layout restoration that remains useful even when prior open games are not restored
 
-### Recent Games Snapshot Owns
-- recent-game metadata shown on `HomeView`
-- latest-save deduping between autosave and saved-file targets for the same canonical `gameId`
-- file-path metadata needed to reopen saved games without reopening a picker
-
 ### Settings Snapshot Owns
 - user preferences and default behaviours
 - engine inventory records
+
+## On-Demand Recent Games Projection
+- `HomeView` recent entries are projected on demand from the available managed saves instead of being stored as a separate persisted artefact.
+- That projection still keeps at most one recent entry per canonical `gameId`.
+- When both an autosave target and a saved-file target exist for the same `gameId`, the target with the newest `lastSavedAtUtc` wins for home-screen display.
+- File-path metadata needed to reopen a saved-file recent entry is derived from the selected saved target at query time.
 
 ## Internal Save File Organisation
 - `session.saveRootPath` defines the logical root for ChessVue's own save/load files.
@@ -156,7 +140,7 @@ On restore, analysis may restart from the restored game state when engines are a
 ### Autosave
 - Writes or replaces the dedicated autosave entry for one game using the canonical saved-game payload.
 - Triggered only by the configured move-count threshold in `session.autosaveAfterMoveCount` and the close trigger in `session.autosaveOnClose`.
-- Settings, recent-games metadata, game-session state, and UI-layout state remain separate persisted artefacts rather than becoming part of the autosave trigger definition.
+- Settings, game-session state, and UI-layout state remain separate persisted artefacts rather than becoming part of the autosave trigger definition.
 
 ### Internal Save File
 - Writes the same canonical saved-game payload to a ChessVue-managed save file beneath the configured save root.
@@ -166,14 +150,12 @@ On restore, analysis may restart from the restored game state when engines are a
 
 ### External Export
 - Writes the same canonical saved-game payload to a user-selected file through a normal OS save dialog.
-- May refresh recent-games metadata with the final written file path when ChessVue chooses to surface that file as a reopenable recent target.
 - Must preserve the same game-state restore fidelity as autosave and internal save files.
 - Must not depend on session-only data outside that payload.
 
 ### External Import
 - Reads the canonical saved game payload from file.
 - Migrates older versions before insertion into stores.
-- Refreshes the recent-games snapshot after any duplicate-ID repair so the stored recent entry points to the final in-app `gameId` and the chosen file path.
 - Restores the saved game workspace immediately, then resumes live analysis if possible.
 
 ## Schema Versioning
@@ -186,10 +168,7 @@ On restore, analysis may restart from the restored game state when engines are a
 - If corrupt, discard the bad game-session snapshot and keep valid settings, valid UI-layout state, and valid games.
 
 ### UI Layout State
-- If corrupt, discard the bad UI-layout state and fall back to layout defaults without affecting valid settings, valid recent-game history, or valid games.
-
-### Recent Games Snapshot
-- If corrupt, discard the bad recent-games snapshot and keep valid settings, valid game-session state, valid UI-layout state, and valid games.
+- If corrupt, discard the bad UI-layout state and fall back to layout defaults without affecting valid settings or valid saved games.
 
 ### Settings Snapshot
 - If corrupt, discard the bad settings snapshot and fall back to defaults.

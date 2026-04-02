@@ -42,16 +42,12 @@ Each entry must define:
 ## Persistence And Saved Documents
 ### SavedGameDocumentUtility
 - Purpose: share canonical managed-save document access, external document access, and duplicate-identity repair around saved-game workflows.
-- Touched contract models: `IGameWorkspace`, `ISavedGameGroup`, recent-game target metadata, canonical saved-game document text.
-- Allowed importers: `SavedGamesStore`.
+- Touched contract models: `IGameWorkspace`, canonical saved-game document text.
+- Allowed importers: `GamesStore`.
 - Owner-private delegates:
-  - `SavedGamesStore._writeManagedSaveDocument`
-  - `SavedGamesStore._readManagedSaveDocument`
-  - `SavedGamesStore._loadAutosaveDocument`
-  - `SavedGamesStore._loadSavedFileDocument`
-  - `SavedGamesStore._readExternalImportDocument`
-  - `SavedGamesStore._writeExternalExportDocument`
-  - `SavedGamesStore._remapDuplicateIdIfNeeded`
+  - `GamesStore._writeSavedGameDocument`
+  - `GamesStore._readSavedGameDocument`
+  - `GamesStore._remapDuplicateIdIfNeeded`
 - Classification: `mixed`.
 - Validation or failure semantics: raw document errors and invalid payloads are surfaced back through the owning store; duplicate identity repair must preserve the canonical payload shape before insertion into live state.
 

@@ -45,7 +45,7 @@ interface IGameSessionSnapshot {
 - `IGameSessionSnapshot.activeGameId` identifies the selected open game tab only; it is not part of layout persistence.
 - `IGameSessionSnapshot.activeRoute` stores canonical routed settings categories and the committed saved-games routes rather than redirect-only aliases such as `/settings`.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
-- Recent-game history lives in `IRecentGamesSnapshot`, not in either of these payloads.
+- Recent-game history is derived on demand for `HomeView`, not stored in either of these payloads.
 - Conscious user preferences live in `ISettingsSnapshot`, not in either of these payloads.
 - Modal visibility is transient and is not persisted here.
-- Invalid or corrupt session-state payloads are discarded without affecting valid settings, valid recent-game history, or valid saved-game payloads.
+- Invalid or corrupt session-state payloads are discarded without affecting valid settings, valid recent-game queries, or valid saved-game payloads.

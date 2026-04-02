@@ -1,12 +1,14 @@
 # GamesStore
 
 ## Purpose
-Own live or open game workspaces and coordinate current-game mutations through layer-2 game services.
+Own live or open game workspaces, coordinate current-game mutations through layer-2 game services, and execute workspace save and load once a committed flow has resolved the target.
 
 ## Public Interface
 ```ts
 restorePersistedGames(gameIds?: string[]): Promise<IGameWorkspace[]>
 createGame(request: ICreateGameRequest): Promise<IGameWorkspace>
+saveGame(gameId: string, options: ISaveGameOptions): Promise<string>
+loadGame(filePath: string): Promise<IGameWorkspace>
 startGameFromSetup(gameId: string, request: IStartGameFromSetupRequest): Promise<void>
 insertGame(workspace: IGameWorkspace): Promise<IGameWorkspace>
 deleteGame(gameId: string): Promise<void>
@@ -37,6 +39,8 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 ## Responsibilities
 - restore persisted game workspaces into live workspaces during startup or session recovery
 - create live games or free-analysis workspaces from setup input
+- serialise and write the current workspace to autosave, managed-save, or external-file targets once the owning flow has selected that target
+- read, deserialise, migrate, and hydrate a saved workspace into the open-game collection once the owning flow has selected a source file
 - transition a prepared setup workspace into a live game without losing its prepared root or move tree
 - persist each game's live-analysis display preference alongside the rest of the workspace state
 - capture assigned-engine snapshots from reusable engine profiles when seating player engines or analysis engines
@@ -65,6 +69,8 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - `_maybeRequestEngineTurn` is the generic live-game gate for `local/engine`, `engine/local`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
 - When `reassignPlayer` keeps the workspace as a live game, `_maybeRequestEngineTurn` may run only if the resulting side to move is engine-controlled and there is no still-valid in-flight request for that same seat and turn.
 - When a restored workspace enters the open-game collection through a committed load, import, or reopen flow, `GamesStore` rebuilds the persisted workspace state first, then may emit continuous-analysis or player-engine-turn intent only when the restored state is playable live current-position ongoing state.
+- `saveGame` owns serialising the current workspace after the calling flow has already decided whether the target is autosave, a named internal save, or an external export path.
+- `loadGame` owns reading and hydrating a saved workspace after the calling flow has already resolved the source path from a recent entry, a managed save selection, or an external import picker.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = false`, live-game analysis rows stay score-only in `currentPosition`, `historyReview`, and `inGameAnalysis`. When the toggle is enabled in `historyReview`, analysis-panel clicks still reuse the normal takeback-policy path rather than introducing a panel-specific rewrite rule.
 
 ## Dependencies
@@ -72,6 +78,8 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - `MoveNotationService`
 - `MoveUpdateService`
 - `PositionIdentityService`
+- `SavedGameIndexService`
+- `SerializationService`
 - `TimeControlService`
 
 ## Scenario Coverage
@@ -85,12 +93,17 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - `SCN-ANALYSIS-05`
 - `SCN-TIME-01` to `SCN-TIME-05`
 - `SCN-CTRL-01` to `SCN-CTRL-05`
+- `SCN-SAVE-01` to `SCN-SAVE-03`
+- `SCN-LOAD-01`
+- `SCN-EXPORT-01`
+- `SCN-IMPORT-01`
+- `SCN-IMPORT-02`
 - `SCN-ENGINE-03`
 - `SCN-LIFECYCLE-01` and `SCN-LIFECYCLE-02`
 
 ## Notes
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `_maybeRequestEngineTurn` is the internal gate for player-engine move generation and must remain a strict state check rather than a best-effort hint.
-- `GamesStore` owns the current or open workspace only. Save/load/import/export orchestration belongs to `SavedGamesStore`.
+- `SavedGamesStore` owns save browsing, recent-target resolution, and external picker flows. `GamesStore` owns serialising the current workspace and hydrating a saved workspace once the target path is known.
 - `GamesStore` does not call sibling stores directly. Any later tab, route, recent, or engine-runtime sequencing is owned by the caller-facing workflow that composes this store with the rest of layer 3.
-- Flow docs continue to show owner-private functions such as `GamesStore._hydrateWorkspace` and `GamesStore._hydrateWorkspaceCollection`. If those share implementation, that implementation is documented under `WorkspaceRestoreUtility` in [UtilityIndex.md](../UtilityIndex.md).
+- Flow docs continue to show owner-private functions such as `GamesStore._hydrateWorkspace`, `GamesStore._readSavedGameDocument`, and `GamesStore._hydrateWorkspaceCollection`. If those share implementation, that implementation is documented under [UtilityIndex.md](../UtilityIndex.md).

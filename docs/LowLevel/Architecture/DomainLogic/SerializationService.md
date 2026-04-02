@@ -7,8 +7,6 @@ Own canonical JSON serialisation, deserialisation, and migration for all persist
 ```ts
 serialiseSettings(snapshot: ISettingsSnapshot): string
 deserialiseSettings(raw: string): ISettingsSnapshot
-serialiseRecentGames(snapshot: IRecentGamesSnapshot): string
-deserialiseRecentGames(raw: string): IRecentGamesSnapshot
 serialiseGameSession(snapshot: IGameSessionSnapshot): string
 deserialiseGameSession(raw: string): IGameSessionSnapshot
 serialiseUiLayoutState(state: IUiLayoutState): string
@@ -16,7 +14,6 @@ deserialiseUiLayoutState(raw: string): IUiLayoutState
 serialiseGame(workspace: IGameWorkspace): string
 deserialiseGame(raw: string): IGameWorkspace
 migrateSettingsSnapshot(input: unknown): ISettingsSnapshot
-migrateRecentGamesSnapshot(input: unknown): IRecentGamesSnapshot
 migrateGameSessionSnapshot(input: unknown): IGameSessionSnapshot
 migrateUiLayoutState(input: unknown): IUiLayoutState
 migrateGame(input: unknown): IGameWorkspace
