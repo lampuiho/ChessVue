@@ -126,7 +126,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.loadLayoutState`
   - `UiStateStore.loadGameSession`
   - `RecentGameStore.loadRecentGames`
-  - `StorageAdapter.getItem`
+  - `StorageAdapter.readTextFile`
 
 ### SCN-SESSION-02 - Restore Previous Session
 - **Status**: Planned
@@ -150,7 +150,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.listGames`
   - `UiStateStore.setActiveGame`
   - `Router.beforeEachRouteGuard`
-  - `StorageAdapter.getItem`
+  - `StorageAdapter.readTextFile`
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
 - **Status**: Planned
@@ -170,8 +170,8 @@ Each scenario in this document uses the same structure:
   - `SerializationService.deserialiseGame`
   - `SerializationService.migrateGame`
   - `SettingsStore.resetSettings`
-  - `StorageAdapter.getItem`
-  - `StorageAdapter.setSettingsSnapshot`
+  - `StorageAdapter.readTextFile`
+  - `StorageAdapter.writeTextFile`
 
 ---
 
@@ -195,7 +195,7 @@ Each scenario in this document uses the same structure:
   - `MenuBar.quickNewGameRequested`
   - `GamesStore.createGame`
   - `UiStateStore.setActiveGame`
-  - `StorageAdapter.setGameSessionSnapshot`
+  - `StorageAdapter.writeTextFile`
 
 ### SCN-GAME-02 - Custom New Game with User Options
 - **Status**: Planned
@@ -894,8 +894,8 @@ Each scenario in this document uses the same structure:
   - `GamesStore.saveGame`
   - `SavedGameIndexService.getAutosaveFilePath`
   - `SerializationService.serialiseGame`
-  - `FileIoAdapter.ensureDirectory`
-  - `FileIoAdapter.writeTextFile`
+  - `StorageAdapter.ensureDirectory`
+  - `StorageAdapter.writeTextFile`
   - `SettingsStore.loadSettings`
 
 ### SCN-SAVE-02 - Open Internal Save View
@@ -949,8 +949,8 @@ Each scenario in this document uses the same structure:
   - `GamesStore.saveGame`
   - `SavedGameIndexService.getNamedSaveFilePath`
   - `SerializationService.serialiseGame`
-  - `FileIoAdapter.ensureDirectory`
-  - `FileIoAdapter.writeTextFile`
+  - `StorageAdapter.ensureDirectory`
+  - `StorageAdapter.writeTextFile`
 
 ### SCN-LOAD-01 - Load Valid Game from Internal Save View
 - **Status**: Planned
@@ -986,7 +986,7 @@ Each scenario in this document uses the same structure:
   - `SavedGamesStore.listSavedGames`
   - `SavedGamesStore.getLoadFilePath`
   - `SavedGameIndexService.projectSaveGroups`
-  - `FileIoAdapter.readTextFile`
+  - `StorageAdapter.readTextFile`
   - `SerializationService.deserialiseGame`
   - `GamesStore.loadGame`
   - `UiStateStore.setActiveGame`
@@ -1015,8 +1015,8 @@ Each scenario in this document uses the same structure:
   - `GameControlPanel.pauseRequested`
   - `SavedGamesStore.exportGame`
   - `GamesStore.saveGame`
-  - `FileIoAdapter.showSaveDialog`
-  - `FileIoAdapter.writeTextFile`
+  - `StorageAdapter.showSaveDialog`
+  - `StorageAdapter.writeTextFile`
   - `SerializationService.serialiseGame`
 
 ### SCN-IMPORT-01 - Import Valid Game from External File
@@ -1040,8 +1040,8 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MenuBar.importGameRequested`
   - `SavedGamesStore.importGame`
-  - `FileIoAdapter.showOpenDialog`
-  - `FileIoAdapter.readTextFile`
+  - `StorageAdapter.showOpenDialog`
+  - `StorageAdapter.readTextFile`
   - `SerializationService.deserialiseGame`
   - `GamesStore.loadGame`
   - `UiStateStore.setActiveGame`
@@ -1061,8 +1061,8 @@ Each scenario in this document uses the same structure:
   - `BR-IMPORT-02-INCOMPLETE`: Required canonical payload sections missing -> reject as invalid document and preserve current session state.
 - **Postconditions**: No existing game data is overwritten by bad import.
 - **Function Touchpoints**:
-  - `FileIoAdapter.showOpenDialog`
-  - `FileIoAdapter.readTextFile`
+  - `StorageAdapter.showOpenDialog`
+  - `StorageAdapter.readTextFile`
   - `GamesStore.loadGame`
   - `SerializationService.deserialiseGame`
   - `UiStateStore.showModal`
@@ -1198,7 +1198,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GamesStore.deleteGame`
   - `GamesStore.listGames`
-  - `StorageAdapter.removeGame`
+  - `StorageAdapter.deleteFile`
   - `UiStateStore.showModal`
 
 ### SCN-LIFECYCLE-02 - Delete Active Game and Switch Context
@@ -1257,7 +1257,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MoveUpdateService.getCurrentPosition`
   - `AnalysisStore.getVisibleAnalysis`
-  - `StorageAdapter.setGame`
+  - `StorageAdapter.writeTextFile`
 
 ### SCN-IDEA-05 - Explain Evaluation Panel
 - **Status**: Idea
@@ -1354,8 +1354,8 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-10-PARTIAL-BATCH-FAIL`: Some items fail; successful items still committed.
 - **Postconditions**: Power users can migrate larger game sets efficiently.
 - **Function Touchpoints**:
-  - `FileIoAdapter.readTextFile`
-  - `FileIoAdapter.writeTextFile`
+  - `StorageAdapter.readTextFile`
+  - `StorageAdapter.writeTextFile`
   - `GamesStore.createGame`
   - `GamesStore.listGames`
 

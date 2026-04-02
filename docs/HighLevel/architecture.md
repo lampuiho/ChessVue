@@ -37,8 +37,7 @@ Purpose: isolate desktop-specific capabilities behind interfaces that are wired 
 Committed platform modules:
 
 - `usePlatformServicesStore` as the bootstrap seam for concrete platform adapters
-- `StorageAdapter` for app-local settings, game-session, and UI-layout persistence
-- `FileIoAdapter` for generic file-system and file-dialog operations
+- `StorageAdapter` for generic host storage, file-system, and file-dialog operations
 - `ProcessManager` for local child-process lifecycle and raw stdin/stdout transport
 - `SystemThemeAdapter` for OS theme detection and change notifications
 - `EngineClient` for concrete engine-protocol transport
@@ -115,8 +114,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ## Module Responsibilities
 ### Platform Abstraction
 - `usePlatformServicesStore` is the bootstrap-only seam for wiring concrete platform adapters into the app and then into the layer-2 service graph.
-- `StorageAdapter` persists settings, recent-game history, game-session state, and UI-layout state only.
-- `FileIoAdapter` exposes generic file-system and file-dialog operations only.
+- `StorageAdapter` exposes generic host storage, file-system, and file-dialog operations only.
 - `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
 - `SystemThemeAdapter` exposes the current OS theme and change notifications only.
 - `EngineClient` translates ChessVue engine-session operations into the active protocol and hides raw engine message formats from higher layers.

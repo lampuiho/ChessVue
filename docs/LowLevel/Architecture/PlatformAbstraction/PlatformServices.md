@@ -10,7 +10,6 @@ interface IPlatformServicesStore {
   isInitialised: boolean
   initialiseFromBuildConfig(): void
   getStorageAdapter(): StorageAdapter
-  getFileIoAdapter(): FileIoAdapter
   getProcessManager(): ProcessManager
   getSystemThemeAdapter(): SystemThemeAdapter
   getEngineClient(): EngineClient
@@ -21,7 +20,7 @@ usePlatformServicesStore(): IPlatformServicesStore
 
 ## Responsibilities
 - resolve the active platform from build configuration
-- lazily initialise concrete `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` instances for that platform
+- lazily initialise concrete `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` instances for that platform
 - expose those interfaces to bootstrap and layer-2 service wiring only
 - keep state stores, views, and domain models unaware of host globals or desktop-specific bootstrap code
 - preserve one replacement point for later real host wiring
@@ -31,8 +30,7 @@ The first implementation uses adapter-backed mocked `NW.js`-style services.
 
 That mocked host is expected to provide:
 
-- in-memory artefact-separated persistence for `StorageAdapter`
-- canned document and canned failure modes for `FileIoAdapter`
+- canned document, directory, dialog, and delete failure modes for `StorageAdapter`
 - scripted stdout, scripted unexpected exit, and per-session isolation for `ProcessManager`
 - deterministic system-theme reads and scripted theme-change notifications for `SystemThemeAdapter`
 - deterministic protocol transport hooks for `EngineClient`

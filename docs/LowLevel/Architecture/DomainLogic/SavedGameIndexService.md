@@ -29,7 +29,7 @@ projectSaveGroups(rootPath: string, entriesByDirectory: ReadonlyMap<string, IFil
 ## Responsibilities
 - keep ChessVue's canonical save-root, game-folder, and file-naming conventions in one platform-independent place
 - decide how autosave and named-save file paths are composed from `session.saveRootPath`, `gameId`, and `saveName`
-- interpret generic directory entries from `FileIoAdapter` into logical game/save groups and latest-save targets for the route-level save/load views
+- interpret generic directory entries from `StorageAdapter` into logical game/save groups and latest-save targets for the route-level save/load views
 - identify autosave entries without depending on UI code or file-system APIs
 - identify the latest loadable save entry for a selected game without depending on UI code or file-system APIs
 
@@ -44,4 +44,4 @@ projectSaveGroups(rootPath: string, entriesByDirectory: ReadonlyMap<string, IFil
 
 ## Notes
 - `SavedGameIndexService` performs no file I/O and opens no dialogs.
-- Folder enumeration and raw reads/writes belong to `FileIoAdapter`; save grouping and path conventions belong here.
+- Folder enumeration and raw reads or writes belong to `StorageAdapter`; save grouping and path conventions belong here.

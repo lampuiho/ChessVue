@@ -34,7 +34,7 @@ importGame(): Promise<string | null>
 - `SCN-IMPORT-02`
 
 ## Notes
-- `SavedGamesStore` consumes only layer-2 persistence services. It does not resolve `StorageAdapter` or `FileIoAdapter` directly.
+- `SavedGamesStore` consumes only layer-2 persistence services. It does not resolve `StorageAdapter` directly.
 - `SavedGamesStore` does not call sibling stores directly. Any later save execution, load execution, home-screen recent query, tab or session update, or runtime restart is sequenced by the owning flow after the saved-game lookup or picker operation completes.
-- Save-folder grouping belongs to `SavedGameIndexService`, not to `SavedGamesStore` and not to `FileIoAdapter`.
+- Save-folder grouping belongs to `SavedGameIndexService`, not to `SavedGamesStore` and not to `StorageAdapter`.
 - `SavedGamesStore` does not serialise or hydrate workspaces. `GamesStore` owns the actual save and load execution once `SavedGamesStore` has resolved the file path or picker result.

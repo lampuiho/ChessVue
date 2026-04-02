@@ -19,7 +19,7 @@ The first rewrite implementation should behave as if the desktop host were `NW.j
 
 That means:
 
-- `StorageAdapter`, `FileIoAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` are wired during platform bootstrap and then exposed upward through layer-2 service boundaries
+- `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` are wired during platform bootstrap and then exposed upward through layer-2 service boundaries
 - the initial concrete implementations are mocked `NW.js`-style services behind those adapters
 - real host wiring may replace the mocks later without changing layer-3 or layer-4 contracts
 
@@ -50,7 +50,7 @@ The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 | Setting Area | Baseline Decision |
 | --- | --- |
 | Autosave backend | File-backed internal save beneath `session.saveRootPath` |
-| File save/load | User-selected desktop file paths via `FileIoAdapter` |
+| File save/load | User-selected desktop file paths via `StorageAdapter` |
 | Canonical game format | One internal JSON saved game payload |
 | Session restore | Persisted separately from settings and per-game saved-game payloads |
 | Schema versioning | Required on every persisted artefact type |

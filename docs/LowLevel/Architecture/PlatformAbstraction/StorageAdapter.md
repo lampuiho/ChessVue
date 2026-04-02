@@ -1,33 +1,46 @@
 # StorageAdapter
 
 ## Purpose
-Persist settings snapshots, game-session snapshots, and UI-layout state in app-local desktop storage.
+Handle generic host storage plus generic file-system and file-dialog operations through one platform contract.
 
 ## Public Interface
 ```ts
-getSettingsSnapshot(): Promise<ISettingsSnapshot | null>
-setSettingsSnapshot(snapshot: ISettingsSnapshot): Promise<void>
-getGameSessionSnapshot(): Promise<IGameSessionSnapshot | null>
-setGameSessionSnapshot(snapshot: IGameSessionSnapshot): Promise<void>
-getUiLayoutState(): Promise<IUiLayoutState | null>
-setUiLayoutState(state: IUiLayoutState): Promise<void>
+interface IFileSystemEntry {
+  path: string
+  name: string
+  isDirectory: boolean
+  lastModifiedUtc: string | null
+}
+
+showSaveDialog(suggestedPath?: string): Promise<string>
+showOpenDialog(startDirectory?: string): Promise<string>
+listDirectory(path: string): Promise<IFileSystemEntry[]>
+ensureDirectory(path: string): Promise<void>
+writeTextFile(path: string, raw: string, overwrite?: boolean): Promise<void>
+readTextFile(path: string): Promise<string>
+deleteFile(path: string): Promise<void>
 ```
 
 ## Responsibilities
-- isolate persisted artefact types instead of exposing an untyped shared key/value API
-- keep schema-versioned payloads separated by artefact class
-- support corruption isolation per artefact
-- keep non-game shell persistence separate from canonical saved-game documents
+- show host save/open dialogs and return the selected file paths
+- enumerate directories, create folders when requested, and read or write raw text documents at caller-provided paths
+- delete caller-provided files when the owning layer has already decided that removal is required
 
 ## Dependencies
-- underlying desktop persistence mechanism
+- underlying host persistence and file APIs
 - shared platform failure contract from `DataInterface/PlatformError`
 
 ## Failure Semantics
-- `getSettingsSnapshot`, `getGameSessionSnapshot`, and `getUiLayoutState` return `null` when the artefact is absent.
-- All `set...` methods reject with `IPlatformError` when the host storage boundary fails.
+- `showSaveDialog` and `showOpenDialog` reject with `IPlatformError` of kind `cancelled` when the user dismisses the host dialog without choosing a path.
+- `listDirectory` rejects with `notFound` or `permissionDenied` when the requested path cannot be enumerated.
+- `ensureDirectory` rejects with `permissionDenied` when the requested directory cannot be created or confirmed.
+- `writeTextFile` rejects with `alreadyExists` when overwrite is required but not permitted by the caller.
+- `writeTextFile` rejects with `permissionDenied` when the selected destination cannot be written.
+- `readTextFile` rejects with `invalidDocument` when the selected file cannot be read as a raw text document.
+- `readTextFile` may reject with `notFound` or `permissionDenied` when the host cannot reopen the selected file path.
+- `deleteFile` rejects with `notFound` or `permissionDenied` when the host cannot remove the selected path.
 - Readable-but-invalid payloads are not silently repaired here; layer-2 services still pass loaded artefacts through `SerializationService` for migration and corruption decisions.
 
 ## Rewrite-Phase Mock Note
 - The first implementation pretends to run on `NW.js` but uses an adapter-backed in-memory mock.
-- The mock keeps settings, game-session, and UI-layout payloads separated so corruption and recovery can be tested independently.
+- The mock exposes canned document, directory, dialog, and delete responses for file-backed flows.
