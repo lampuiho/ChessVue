@@ -13,11 +13,11 @@ Case 1: autosave after `n` moves. Called at the end of `GamesStore.makeMove`; wh
 | `GamesStore.makeMove completed` |
 | --- |
 | `GamesStore._saveGameIfNMoveSinceLastAutoSave` |
-| `GamesStore.saveGame("auto", true)` |
 
 | `GamesStore._saveGameIfNMoveSinceLastAutoSave` |
 | --- |
 | `GamesStore._getNoOfMoveSinceLastAutoSave` |
+| `GamesStore.saveGame("auto", true)` |
 
 Case 2: autosave after quitting. Register the app-close event on the running game session; when close-trigger autosave is enabled, the close path also calls `saveGame` with reserved name `"auto"` and `autoSave = true` before shutdown completes.
 
