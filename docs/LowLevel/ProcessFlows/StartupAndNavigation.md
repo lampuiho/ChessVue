@@ -21,7 +21,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `SettingsStore._migrateSnapshotOrDefault` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
-| `SettingsStore._subscribeToSystemThemeChanges` |
+| `PlatformEventService.subscribeToSystemThemeChanged` |
 
 | `SettingsStore.getAppearanceProjection` |
 | --- |
@@ -64,7 +64,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `SettingsStore._migrateSnapshotOrDefault` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
-| `SettingsStore._subscribeToSystemThemeChanges` |
+| `PlatformEventService.subscribeToSystemThemeChanged` |
 
 | `SettingsStore.getAppearanceProjection` |
 | --- |

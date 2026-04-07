@@ -15,6 +15,7 @@ The types in this folder are the contract-level shapes that state stores and ser
 - [Analysis](Analysis.md): streamed engine output and visible analysis snapshots.
 - [ModalState](ModalState.md): typed transient modal kinds and payloads.
 - [PlatformError](PlatformError.md): shared typed platform-layer failure contract.
+- [PlatformEventRegistration](PlatformEventRegistration.md): active platform event-registration snapshot entries.
 - [Appearance](Appearance.md): app theme modes, resolved theme state, and semantic CSS-variable projection.
 
 ## Persisted Artefacts

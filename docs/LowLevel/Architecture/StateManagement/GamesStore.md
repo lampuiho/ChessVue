@@ -47,6 +47,7 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - enforce allowed actions from the state axes and settings policies
 - coordinate legal move application, move-tree updates, notation, position identity, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
+- register and tear down session-owned app-close and focus-return callbacks through layer-2 platform-event boundaries when a game session becomes runnable or is torn down
 - coordinate pause and resume flows for manual controls, menu interruptions, and analysis-mode entry
 - change one side's player assignment from the player strip, including transitions from live play into `freeAnalysisSetup` and seat updates while already in setup
 - record a draw offer and expose explicit accept, decline, and withdraw boundaries instead of hiding draw resolution inside one opaque control-panel action
@@ -69,6 +70,7 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - `_maybeRequestEngineTurn` is the generic live-game gate for `local/engine`, `engine/local`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
 - When `reassignPlayer` keeps the workspace as a live game, `_maybeRequestEngineTurn` may run only if the resulting side to move is engine-controlled and there is no still-valid in-flight request for that same seat and turn.
 - When a restored workspace enters the open-game collection through a committed load, import, or reopen flow, `GamesStore` rebuilds the persisted workspace state first, then may emit continuous-analysis or player-engine-turn intent only when the restored state is playable live current-position ongoing state.
+- Runnable game sessions may own app-close autosave and focus-return clock-reconciliation registrations through `PlatformEventService`. Untimed, paused, finished, or otherwise non-runnable contexts do not keep those registrations active.
 - `saveGame` owns serialising the current workspace after the calling flow has already decided whether the target is autosave, a named internal save, or an external export path.
 - `loadGame` owns reading and hydrating a saved workspace after the calling flow has already resolved the source path from a recent entry, a managed save selection, or an external import picker.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = false`, live-game analysis rows stay score-only in `currentPosition`, `historyReview`, and `inGameAnalysis`. When the toggle is enabled in `historyReview`, analysis-panel clicks still reuse the normal takeback-policy path rather than introducing a panel-specific rewrite rule.
@@ -79,6 +81,7 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - `MoveUpdateService`
 - `PositionIdentityService`
 - `SavedGameIndexService`
+- `PlatformEventService`
 - `SerializationService`
 - `TimeControlService`
 

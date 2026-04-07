@@ -36,10 +36,10 @@ Purpose: isolate desktop-specific capabilities behind interfaces that are wired 
 
 Committed platform modules:
 
-- `usePlatformServicesStore` as the bootstrap seam for concrete platform adapters
+- `IPlatformService` as the bootstrap-selected host contract
 - `StorageAdapter` for generic host storage, file-system, and file-dialog operations
 - `ProcessManager` for local child-process lifecycle and raw stdin/stdout transport
-- `SystemThemeAdapter` for OS theme detection and change notifications
+- `SystemThemeAdapter` for current OS theme detection
 - `EngineClient` for concrete engine-protocol transport
 
 During the rewrite phase, these adapters are backed by mocked `NW.js`-style host services rather than final real host bindings.
@@ -58,6 +58,7 @@ Committed domain modules:
 - `TimeControlService`
 - `SavedGameIndexService`
 - `SerializationService`
+- `PlatformEventService`
 - `UserSettingSerivce`
 
 This layer owns legal move handling, move-tree rules, clock calculation rules, canonical saved-game rules, and the layer-2 service boundaries that hide platform details from state stores.
@@ -113,11 +114,12 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 
 ## Module Responsibilities
 ### Platform Abstraction
-- `usePlatformServicesStore` is the bootstrap-only seam for wiring concrete platform adapters into the app and then into the layer-2 service graph.
+- Bootstrap selects one `IPlatformService` implementation for the active platform and injects it into the layer-2 service graph.
 - `StorageAdapter` exposes generic host storage, file-system, and file-dialog operations only.
 - `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
-- `SystemThemeAdapter` exposes the current OS theme and change notifications only.
+- `SystemThemeAdapter` exposes the current OS theme only.
 - `EngineClient` translates ChessVue engine-session operations into the active protocol and hides raw engine message formats from higher layers.
+- `IPlatformService` also owns the small typed app-event registration surface for app close, focus return, and system-theme change notifications plus active-registration inspection.
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
 
 ### Domain Logic
@@ -128,7 +130,8 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
 - `SerializationService` owns the canonical saved-game payload shape, schema versioning hooks, migration entry points, settings and session serialisation, and saved-game document interpretation for internal save/load plus external import/export flows.
-- Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, or theme access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
+- `PlatformEventService` exposes typed app-level event registration and inspection to state stores without letting layer 3 depend on `IPlatformService` directly.
+- Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
 
 ### State Management
 - `GamesStore` owns live/open game workspaces, enforces the interaction rules in [state_model.md](state_model.md), and is the store that saves the current workspace or loads a saved workspace into the running session once a concrete target has been chosen.

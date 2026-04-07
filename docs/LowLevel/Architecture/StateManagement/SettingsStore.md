@@ -30,6 +30,7 @@ resetSettings(): Promise<void>
 
 ## Dependencies
 - `SerializationService`
+- `PlatformEventService`
 
 ## Scenario Coverage
 - `SCN-SESSION-01`
@@ -39,7 +40,7 @@ resetSettings(): Promise<void>
 - `SCN-ENGINE-02`
 
 ## Notes
-- `SettingsStore` consumes layer-2 settings serialisation and theme-resolution boundaries; it does not resolve `StorageAdapter` or `SystemThemeAdapter` directly.
+- `SettingsStore` consumes layer-2 settings serialisation, theme-resolution, and platform-event boundaries; it does not resolve `IPlatformService`, `StorageAdapter`, or `SystemThemeAdapter` directly.
 - `loadSettings()` must produce both the persisted settings snapshot and the initial `IAppearanceProjection` before the root app-shell surface binds to shared app chrome.
 - Accepted engine-inventory changes update reusable engine profiles only. They do not directly mutate already assigned engine participants or running engine sessions.
 - The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.

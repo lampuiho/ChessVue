@@ -19,11 +19,17 @@ Case 1: autosave after `n` moves. Called at the end of `GamesStore.makeMove`; wh
 | `GamesStore._getNoOfMoveSinceLastAutoSave` |
 | `GamesStore._saveAutoSave` |
 
-Case 2: autosave after quitting. Register the app-close event on the running game session; when close-trigger autosave is enabled, the close path also calls `saveGame` with reserved name `"auto"` and `autoSave = true` before shutdown completes.
+Case 2: autosave after quitting. When a runnable game session starts, it registers an app-close callback through `PlatformEventService`; when close-trigger autosave is enabled, that callback calls `saveGame` with reserved name `"auto"` and `autoSave = true` before shutdown completes.
 
-#### Flow B - Check Close Autosave
+#### Flow B - Register Close Autosave Callback
+| `Runnable game session ready` |
+| --- |
+| `PlatformEventService.subscribeToAppCloseRequested` |
+
+#### Flow C - Check Close Autosave
 | `AppShell.closeRequested` |
 | --- |
+| `Registered app-close callback` |
 | `GamesStore._saveGameOnCloseIfEnabled` |
 | `GamesStore._saveAutoSave` |
 
@@ -32,7 +38,7 @@ Case 2: autosave after quitting. Register the app-close event on the running gam
 | `GamesStore._assertCloseAutosaveEnabled` |
 | `GamesStore._assertGameExists` |
 
-#### Flow C - Autosave Game
+#### Flow D - Autosave Game
 | `GamesStore._saveAutoSave` |
 | --- |
 | `GamesStore.saveGame("auto", { autosave: true })` |
@@ -47,7 +53,7 @@ Case 2: autosave after quitting. Register the app-close event on the running gam
 | --- |
 | `SerializationService._normalisePayload` |
 
-- Settings coverage: `session.autosaveAfterMoveCount` gates move-threshold autosave, while `session.autosaveOnClose` separately gates close-trigger autosave. `GamesStore.saveGame(..., autoSave = true)` is the only workspace-save owner for both trigger kinds.
+- Settings coverage: `session.autosaveAfterMoveCount` gates move-threshold autosave, while `session.autosaveOnClose` separately gates close-trigger autosave. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., autoSave = true)` is the only workspace-save owner for both trigger kinds.
 - Requirement verification: `Pass`. Autosave writes the dedicated internal save entry beneath the configured save root, leaves recent-game projection to later on-demand queries, and leaves in-memory game state intact when a write fails.
 
 ### SCN-SAVE-02 - Open Internal Save View
@@ -509,6 +515,7 @@ Case 2: autosave after quitting. Register the app-close event on the running gam
 | `GamesStore.deleteGame` |
 | --- |
 | `GamesStore._assertGameExists` |
+| `GamesStore._disposePlatformEventSubscriptions` |
 | `GamesStore._stopGameSessions` |
 | `GamesStore._removePersistedDocument` |
 
@@ -539,6 +546,7 @@ Case 2: autosave after quitting. Register the app-close event on the running gam
 | `GamesStore.deleteGame` |
 | --- |
 | `GamesStore._assertGameExists` |
+| `GamesStore._disposePlatformEventSubscriptions` |
 | `GamesStore._selectFallbackGameId` |
 
 | `GamesStore.listGames` |

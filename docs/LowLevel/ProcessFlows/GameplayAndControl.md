@@ -416,7 +416,12 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 ### SCN-TIME-04 - Timeout Ends Game
 
-#### Flow
+#### Flow A - Register Focus-Return Clock Reconciliation
+| `Runnable timed live session ready` |
+| --- |
+| `PlatformEventService.subscribeToAppFocusReturned` |
+
+#### Flow B - Reconcile The Clock
 | `Clock reconciliation requested` |
 | --- |
 | `GamesStore.syncClock` |
@@ -445,7 +450,8 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `UiStateStore.showModal` |
 | --- |
 
-- Timing rule: timeout finalisation is triggered from an authoritative clock read. View timer ticks may request `syncClock`, but they do not decide timeout independently.
+- Timing rule: timeout finalisation is triggered from an authoritative clock read. View timer ticks and registered focus-return callbacks may request `syncClock`, but they do not decide timeout independently.
+- Registration rule: focus-return registration exists only while the session is a runnable timed live game. Untimed, paused, finished, and non-live contexts do not keep that callback active.
 - Requirement verification: `Pass`. Timeout finalisation stays in the store and cannot be duplicated by the view.
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games

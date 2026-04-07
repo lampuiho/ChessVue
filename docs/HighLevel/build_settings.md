@@ -19,7 +19,7 @@ The first rewrite implementation should behave as if the desktop host were `NW.j
 
 That means:
 
-- `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` are wired during platform bootstrap and then exposed upward through layer-2 service boundaries
+- bootstrap selects one `IPlatformService` implementation, which exposes `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, `EngineClient`, and the typed app-event registration surface upward through layer-2 service boundaries
 - the initial concrete implementations are mocked `NW.js`-style services behind those adapters
 - real host wiring may replace the mocks later without changing layer-3 or layer-4 contracts
 
@@ -30,7 +30,7 @@ That means:
 | Supported runtime family | Desktop only for the current rewrite baseline |
 | Environment detection | Minimal desktop-capability bootstrap only |
 | Rewrite-phase host fiction | Mocked `NW.js`-style services behind platform adapters |
-| Adapter bootstrap seam | `usePlatformServicesStore().initialiseFromBuildConfig()` |
+| Platform composition seam | `createPlatformService(platformKey)` selected during bootstrap |
 | Responsive target | Desktop layout first; compact and mobile-specific behaviour is deferred |
 
 ## Engine Runtime

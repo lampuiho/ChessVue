@@ -33,6 +33,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [TimeControlService](DomainLogic/TimeControlService.md)
 - [SavedGameIndexService](DomainLogic/SavedGameIndexService.md)
 - [SerializationService](DomainLogic/SerializationService.md)
+- [PlatformEventService](DomainLogic/PlatformEventService.md)
 
 ### 3. State Management
 - [GamesStore](StateManagement/GamesStore.md)
@@ -74,11 +75,11 @@ Additional rules:
 - Shared private utilities may be imported like an external library, but they remain invisible in flow ownership, are not public modules, and do not relax adjacency.
 - Presentation components do not own game rules, move-tree mutation, persistence, or engine-process control.
 - State stores are the coordination boundary for UI-triggered mutations, but they call layer-2 services only.
-- State stores do not resolve `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, or `EngineClient` directly.
+- State stores do not resolve `IPlatformService`, `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, or `EngineClient` directly.
 - `GamesStore` owns live/open game-workspace behaviour plus actual workspace save and load execution; `SavedGamesStore` owns saved-game browsing, grouped save-list state, and route or dialog target selection.
 - Domain logic owns persisted payload rules, document interpretation, notation rules, position identity rules, and the lower-layer service boundaries exposed to layer 3.
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
-- `usePlatformServicesStore()` is the bootstrap-only seam for injecting concrete platform adapters into the app and wiring them into layer-2 services.
+- Bootstrap selects one `IPlatformService` implementation and wires it into layer-2 services.
 - The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient`.
 - `EngineClient` owns protocol translation and engine-session messaging. Higher layers do not compose raw UCI strings directly.
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
@@ -110,6 +111,7 @@ The data-interface section defines the shared low-level types for:
 - analysis snapshots
 - transient modal state
 - appearance projection and semantic app-theme variables
+- active platform event-registration snapshots
 - shared platform failure contracts
 - persisted artefacts:
   - settings snapshot
