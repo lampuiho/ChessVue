@@ -4,16 +4,23 @@
 Define the low-level appearance contracts that turn persisted theme preferences into presentation-safe theme state.
 
 ## Interfaces
-- `type ThemeMode`
-- `type ResolvedThemeMode`
+- `enum ThemeMode`
+- `enum ResolvedThemeMode`
 - `interface IAppearanceCssVariableMap`
 - `interface IAppearanceProjection`
 
 ## Data Structures
 ```ts
-type ThemeMode = "system" | "light" | "dark"
+enum ThemeMode {
+  System = "system",
+  Light = "light",
+  Dark = "dark"
+}
 
-type ResolvedThemeMode = "light" | "dark"
+enum ResolvedThemeMode {
+  Light = "light",
+  Dark = "dark"
+}
 
 interface IAppearanceCssVariableMap {
   "--surface-app": string
@@ -36,7 +43,7 @@ interface IAppearanceProjection {
 
 ## Rules
 - `themeMode` is the persisted user choice from settings.
-- `resolvedThemeMode` is the effective built-in theme after `system` mode has been mapped to the current OS theme.
+- `resolvedThemeMode` is the effective built-in theme after `ThemeMode.System` has been mapped to the current OS theme.
 - `cssVariables` is the semantic app-chrome variable map derived from the resolved theme and any other committed appearance configuration that affects shared UI chrome.
 - The semantic variable contract must remain stable so future user-created themes can supply values without requiring component-specific behaviour changes.
 - App theme variables style shared UI chrome only; board and piece appearance remain separate concerns.

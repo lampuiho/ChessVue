@@ -4,9 +4,11 @@
 Define configured engine records, per-game engine assignment, and runtime-session state.
 
 ## Types
-- `type EngineProtocol = "uci"`
-- `type EngineRole = "player" | "analysis"`
-- `type EngineAvailability = "ready" | "starting" | "running" | "unavailable" | "failed"`
+- `enum EngineProtocol`
+- `enum EngineRole`
+- `enum EngineAvailability`
+- `enum EngineAnalysisSearchMode`
+- `enum EngineSessionEventKind`
 
 ## Interfaces
 - `interface IEngineRecord`
@@ -22,6 +24,39 @@ Define configured engine records, per-game engine assignment, and runtime-sessio
 
 ## Data Structures
 ```ts
+enum EngineProtocol {
+  Uci = "uci"
+}
+
+enum EngineRole {
+  Player = "player",
+  Analysis = "analysis"
+}
+
+enum EngineAvailability {
+  Ready = "ready",
+  Starting = "starting",
+  Running = "running",
+  Unavailable = "unavailable",
+  Failed = "failed"
+}
+
+enum EngineAnalysisSearchMode {
+  Infinite = "infinite"
+}
+
+enum EngineSessionEventKind {
+  HandshakeStarted = "handshakeStarted",
+  HandshakeCompleted = "handshakeCompleted",
+  Ready = "ready",
+  CopyProtectionChecking = "copyProtectionChecking",
+  CopyProtectionOk = "copyProtectionOk",
+  CopyProtectionError = "copyProtectionError",
+  RegistrationChecking = "registrationChecking",
+  RegistrationOk = "registrationOk",
+  RegistrationError = "registrationError"
+}
+
 interface IEngineOptionMap {
   [optionName: string]: string | number | boolean
 }
@@ -66,7 +101,7 @@ interface IEnginePositionState {
 
 interface IEngineAnalysisRequest {
   multiPv: number
-  searchMode: "infinite"
+  searchMode: EngineAnalysisSearchMode
 }
 
 interface IEngineAnalysisUpdate {
@@ -83,16 +118,7 @@ interface IEngineRegistrationRequest {
 }
 
 interface IEngineSessionEvent {
-  kind:
-    | "handshakeStarted"
-    | "handshakeCompleted"
-    | "ready"
-    | "copyProtectionChecking"
-    | "copyProtectionOk"
-    | "copyProtectionError"
-    | "registrationChecking"
-    | "registrationOk"
-    | "registrationError"
+  kind: EngineSessionEventKind
   detail: string | null
 }
 ```

@@ -4,67 +4,73 @@
 Define the typed transient modal states owned by `UiStateStore`.
 
 ## Types
-- `type AppModalKind = "newGame" | "promotion" | "pruneFuture" | "startGameFromSetup" | "resign" | "drawOffer" | "drawResolve" | "timeout" | "importError" | "resetSettings" | "deleteGame" | "boardEditBlocked" | "settingsDirtyLeave" | "analysisExitDirty" | "playerSelection" | "analysisEngineSelection"`
+- `enum AppModalKind`
+- `enum BoardEditBlockedReason`
 - `type IAppModalState`
 
 ## Data Structures
 ```ts
-type AppModalKind =
-  | "newGame"
-  | "promotion"
-  | "pruneFuture"
-  | "startGameFromSetup"
-  | "resign"
-  | "drawOffer"
-  | "drawResolve"
-  | "timeout"
-  | "importError"
-  | "resetSettings"
-  | "deleteGame"
-  | "boardEditBlocked"
-  | "settingsDirtyLeave"
-  | "analysisExitDirty"
-  | "playerSelection"
-  | "analysisEngineSelection"
+enum AppModalKind {
+  NewGame = "newGame",
+  Promotion = "promotion",
+  PruneFuture = "pruneFuture",
+  StartGameFromSetup = "startGameFromSetup",
+  Resign = "resign",
+  DrawOffer = "drawOffer",
+  DrawResolve = "drawResolve",
+  Timeout = "timeout",
+  ImportError = "importError",
+  ResetSettings = "resetSettings",
+  DeleteGame = "deleteGame",
+  BoardEditBlocked = "boardEditBlocked",
+  SettingsDirtyLeave = "settingsDirtyLeave",
+  AnalysisExitDirty = "analysisExitDirty",
+  PlayerSelection = "playerSelection",
+  AnalysisEngineSelection = "analysisEngineSelection"
+}
+
+enum BoardEditBlockedReason {
+  InGameAnalysis = "inGameAnalysis"
+}
 
 type IAppModalState =
-  | { kind: "newGame" }
+  | { kind: AppModalKind.NewGame }
   | {
-      kind: "promotion"
+      kind: AppModalKind.Promotion
       payload: {
         gameId: string
         move: IMove
       }
     }
   | {
-      kind: "pruneFuture"
+      kind: AppModalKind.PruneFuture
       payload: {
         gameId: string
         nodeId: string
       }
     }
   | {
-      kind: "startGameFromSetup"
+      kind: AppModalKind.StartGameFromSetup
       payload: {
         gameId: string
       }
     }
   | {
-      kind: "resign"
+      kind: AppModalKind.Resign
       payload: {
         gameId: string
         colour: PlayerColour
       }
     }
   | {
-      kind: "drawOffer"
+      kind: AppModalKind.DrawOffer
       payload: {
         gameId: string
         offeringColour: PlayerColour
       }
     }
   | {
-      kind: "drawResolve"
+      kind: AppModalKind.DrawResolve
       payload: {
         gameId: string
         offeringColour: PlayerColour
@@ -72,47 +78,47 @@ type IAppModalState =
       }
     }
   | {
-      kind: "timeout"
+      kind: AppModalKind.Timeout
       payload: {
         gameId: string
-        resultState: Exclude<ResultState, "ongoing">
-        resultReason: "timeout"
+        resultState: Exclude<ResultState, ResultState.Ongoing>
+        resultReason: ResultReason.Timeout
       }
     }
   | {
-      kind: "importError"
+      kind: AppModalKind.ImportError
       payload: {
         message: string
       }
     }
-  | { kind: "resetSettings" }
+  | { kind: AppModalKind.ResetSettings }
   | {
-      kind: "deleteGame"
+      kind: AppModalKind.DeleteGame
       payload: {
         gameId: string
       }
     }
   | {
-      kind: "boardEditBlocked"
+      kind: AppModalKind.BoardEditBlocked
       payload: {
         gameId: string
-        reason: "inGameAnalysis"
+        reason: BoardEditBlockedReason
       }
     }
   | {
-      kind: "settingsDirtyLeave"
+      kind: AppModalKind.SettingsDirtyLeave
       payload: {
         targetRoute: IGameSessionSnapshot["activeRoute"]
       }
     }
   | {
-      kind: "analysisExitDirty"
+      kind: AppModalKind.AnalysisExitDirty
       payload: {
         gameId: string
       }
     }
   | {
-      kind: "playerSelection"
+      kind: AppModalKind.PlayerSelection
       payload: {
         gameId: string
         colour: PlayerColour
@@ -121,7 +127,7 @@ type IAppModalState =
       }
     }
   | {
-      kind: "analysisEngineSelection"
+      kind: AppModalKind.AnalysisEngineSelection
       payload: {
         gameId: string
         assignedEngineIds: string[]
@@ -134,7 +140,7 @@ type IAppModalState =
 - The modal contract exists to replace untyped string IDs and generic payload bags at the store boundary.
 - Dirty-settings-leave and dirty-analysis-exit prompts are part of the committed baseline modal contract because those branches already exist in the high-level scenarios.
 - Player-selection and analysis-engine selection are part of the committed baseline modal contract because both flows are explicitly routed through shared dialog surfaces.
-- `drawOffer` and `drawResolve` remain separate modal kinds so the baseline local-versus-local offer step and response step stay explicit instead of being hidden inside one store call.
+- `AppModalKind.DrawOffer` and `AppModalKind.DrawResolve` remain separate modal kinds so the baseline local-versus-local offer step and response step stay explicit instead of being hidden inside one store call.
 - Non-local draw responses do not require a modal; they surface through the draw-control LED-like pending-offer indicator while still being allowed to call `acceptDrawOffer` or `declineDrawOffer` if an adapter-driven response channel ever exists. The same lit control also serves as the withdraw path for unresolved outgoing non-local offers.
-- `playerSelection` only captures the new seat assignment target. Fresh game settings for a later live restart remain part of `startGameFromSetup`.
-- `importError` is acknowledge-only in the baseline because unsupported, corrupt, and incomplete imports all resolve to one unrecoverable invalid-document path.
+- `AppModalKind.PlayerSelection` only captures the new seat assignment target. Fresh game settings for a later live restart remain part of `AppModalKind.StartGameFromSetup`.
+- `AppModalKind.ImportError` is acknowledge-only in the baseline because unsupported, corrupt, and incomplete imports all resolve to one unrecoverable invalid-document path.

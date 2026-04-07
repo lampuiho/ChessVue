@@ -13,7 +13,7 @@ loadRecentGames(): Promise<IRecentGameEntry[]>
 - project recent-game metadata from available save targets instead of persisting a dedicated recent snapshot
 - keep at most one recent entry per canonical `gameId`
 - expose the recent list in newest-first order by `lastSavedAtUtc`
-- pick the newest available autosave or saved-file target for each canonical `gameId`
+- pick the newest available autosave or saved-file target for each canonical `gameId` through `SavedGameIndexService.getLatestSaveEntry(...)`
 - drop missing or invalid targets naturally on the next query instead of requiring eager cleanup writes
 - avoid treating the full recent-games list as long-lived authoritative reactive store state
 

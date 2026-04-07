@@ -4,8 +4,8 @@
 Define move payloads and tree structures for live play, history review, and analysis branches.
 
 ## Types
-- `type MoveKind = "normal" | "castle" | "enPassant" | "promotion"`
-- `type MoveBranchKind = "mainline" | "variation" | "analysis"`
+- `enum MoveKind`
+- `enum MoveBranchKind`
 
 ## Interfaces
 - `interface IMove`
@@ -14,6 +14,19 @@ Define move payloads and tree structures for live play, history review, and anal
 
 ## Data Structures
 ```ts
+enum MoveKind {
+  Normal = "normal",
+  Castle = "castle",
+  EnPassant = "enPassant",
+  Promotion = "promotion"
+}
+
+enum MoveBranchKind {
+  Mainline = "mainline",
+  Variation = "variation",
+  Analysis = "analysis"
+}
+
 interface IMove {
   from: BoardId
   to: BoardId
@@ -37,6 +50,7 @@ interface IMoveNode {
   branchKind: MoveBranchKind
   move: IMove | null
   position: IBoardPosition
+  clockSnapshot: IClockSnapshot | null
   plyIndex: number
   mainlineChildId: string | null
 }
@@ -51,5 +65,6 @@ interface IMoveTree {
 - `rootId` represents the starting board root for the workspace.
 - `mainlineChildId` lets `MoveUpdateService` rewrite the main continuation without deleting sibling variations.
 - Analysis-only branches remain in the tree even when the visible screen returns to the live node.
+- `clockSnapshot` is stored on the root node and on live/mainline nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may store `null`.
 - `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
 - `IMove` stays structural. SAN and UCI are runtime-only metadata and are not part of the canonical persisted shape.

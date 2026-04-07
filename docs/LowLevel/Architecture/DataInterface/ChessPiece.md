@@ -4,8 +4,8 @@
 Define the smallest chess-specific value objects shared by board, move, and game-document types.
 
 ## Types
-- `type PlayerColour = "white" | "black"`
-- `type PieceKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn"`
+- `enum PlayerColour`
+- `enum PieceKind`
 - `type BoardId = number`
 
 ## Interfaces
@@ -13,6 +13,20 @@ Define the smallest chess-specific value objects shared by board, move, and game
 
 ## Data Structures
 ```ts
+enum PlayerColour {
+  White = "white",
+  Black = "black"
+}
+
+enum PieceKind {
+  King = "king",
+  Queen = "queen",
+  Rook = "rook",
+  Bishop = "bishop",
+  Knight = "knight",
+  Pawn = "pawn"
+}
+
 interface IChessPiece {
   kind: PieceKind
   colour: PlayerColour

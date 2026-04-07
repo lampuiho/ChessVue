@@ -1,7 +1,7 @@
 # EnginesStore
 
 ## Purpose
-Own configured engine-session state, per-game assignment, runtime availability, and engine intent boundaries for analysis and engine-controlled turns.
+Own configured engine-session state, runtime availability, and engine intent boundaries for analysis and engine-controlled turns.
 
 ## Public Interface
 ```ts
@@ -31,12 +31,12 @@ removeSessionsForEngine(assignedEngineId: string): Promise<void>
 - own all analysis start, retry, and stop orchestration through the layer-2 engine runtime path
 - retain enough position-state context for the lower-layer engine client to reuse the same game line instead of forcing a new-game reset on every search
 - distinguish continuous analysis searches from turn-scoped player-engine move generation
-- surface typed runtime outcomes so the owning caller-facing workflow can commit them into visible analysis state without direct same-layer calls
+- surface typed analysis callbacks to the caller-owned flow that updates `AnalysisStore`
 
 ## Runtime Gating Notes
-- `startAnalysis` supports `liveGame`, `historyReview`, `inGameAnalysis`, `freeAnalysisSetup`, paused live review, and finished-game review because analysis is read-only with respect to live progression.
-- `startAnalysis` is blocked when the workspace is actively in `boardEdit`.
-- `startPlayerTurn` is a strict preconditioned call for `liveGame + currentPosition + ongoing + not paused` only. It must reject or no-op for `freeAnalysisSetup`, `historyReview`, `inGameAnalysis`, `boardEdit`, paused games, expired clocks, and final result states.
+- `startAnalysis` supports `WorkspaceKind.LiveGame`, `InteractionContext.HistoryReview`, `InteractionContext.InGameAnalysis`, `WorkspaceKind.FreeAnalysisSetup`, paused live review, and finished-game review because analysis is read-only with respect to live progression.
+- `startAnalysis` is blocked when the workspace is actively in `InteractionContext.BoardEdit`.
+- `startPlayerTurn` is a strict preconditioned call for `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing + not paused` only. It must reject or no-op for `WorkspaceKind.FreeAnalysisSetup`, `InteractionContext.HistoryReview`, `InteractionContext.InGameAnalysis`, `InteractionContext.BoardEdit`, paused games, expired clocks, and final result states.
 - `startPlayerTurn` does not distinguish `local/engine` from `engine/engine`; it only checks the live-state gate and the side-to-move assignment.
 - Analysis-runtime restart after restore follows the caller's `analysis.resumeLiveAnalysisAfterRestore` decision; `EnginesStore` does not override that policy.
 - Engine-profile editing is owned by `SettingsStore`; already assigned games keep their captured engine snapshots until the user explicitly reassigns them.
@@ -60,4 +60,6 @@ removeSessionsForEngine(assignedEngineId: string): Promise<void>
 ## Notes
 - `EnginesStore` consumes layer-2 engine runtime boundaries only. It does not resolve `ProcessManager` or `EngineClient` directly.
 - Protocol-specific command text, FEN or UCI mapping, and child-process transport remain below layer 3.
+- Visible analysis snapshots are owned by `AnalysisStore`, not by `EnginesStore`.
+- Continuous analysis callbacks originate from runtime sessions owned by `EnginesStore`, but caller-owned handlers update `AnalysisStore`.
 - Flow docs continue to show `EnginesStore._startAnalysisSessions` and `EnginesStore._startPlayerTurnSearch` as the visible owner-private boundaries. If they share contract-aware engine-position mapping, that implementation is documented under `EnginePositionMappingUtility` in [UtilityIndex.md](../UtilityIndex.md).

@@ -6,20 +6,21 @@ Define the shared typed failure contract used by platform-layer adapters during 
 These errors describe host-boundary failures only. They do not replace domain validation or schema-migration decisions owned elsewhere.
 
 ## Types
-- `type PlatformErrorKind = "cancelled" | "notFound" | "permissionDenied" | "invalidDocument" | "processStartFailed" | "unexpectedExit"`
+- `enum PlatformErrorKind`
 
 ## Interfaces
 - `interface IPlatformError`
 
 ## Data Structures
 ```ts
-type PlatformErrorKind =
-  | "cancelled"
-  | "notFound"
-  | "permissionDenied"
-  | "invalidDocument"
-  | "processStartFailed"
-  | "unexpectedExit"
+enum PlatformErrorKind {
+  Cancelled = "cancelled",
+  NotFound = "notFound",
+  PermissionDenied = "permissionDenied",
+  InvalidDocument = "invalidDocument",
+  ProcessStartFailed = "processStartFailed",
+  UnexpectedExit = "unexpectedExit"
+}
 
 interface IPlatformError {
   kind: PlatformErrorKind

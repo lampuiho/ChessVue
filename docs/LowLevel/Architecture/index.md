@@ -39,8 +39,8 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 ### 3. State Management
 - [GamesStore](StateManagement/GamesStore.md)
 - [SavedGamesStore](StateManagement/SavedGamesStore.md)
-- [AnalysisStore](StateManagement/AnalysisStore.md)
 - [EnginesStore](StateManagement/EnginesStore.md)
+- [AnalysisStore](StateManagement/AnalysisStore.md)
 - [SettingsStore](StateManagement/SettingsStore.md)
 - [RecentGameStore](StateManagement/RecentGameStore.md)
 - [UiStateStore](StateManagement/UiStateStore.md)
@@ -72,7 +72,8 @@ Additional rules:
 
 - In this doc set, the upper layer is the smaller-numbered layer.
 - Each layer may call only the immediately upper layer by number.
-- Same-layer calls are forbidden.
+- `Layer 4` may coordinate multiple `Layer 3` stores in a single top-level user or route flow.
+- Same-layer store calls are forbidden.
 - Shared private utilities may be imported like an external library, but they remain invisible in flow ownership, are not public modules, and do not relax adjacency.
 - Presentation components do not own game rules, move-tree mutation, persistence, or engine-process control.
 - State stores are the coordination boundary for UI-triggered mutations, but they call layer-2 services only.
@@ -86,6 +87,7 @@ Additional rules:
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
 - Shared imported private utilities that touch committed contract models are documented only in [UtilityIndex.md](UtilityIndex.md) plus the owning module docs that delegate to them. They do not appear as flow-level owners.
 - Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
+- Process-flow tables must begin with a concrete callable owner such as a view handler, component handler, router guard, bootstrap function, store public function, or domain-service public function.
 - Presentation should prefer shallow composition through well-named self-contained components over deep nested HTML inside views.
 - Only common presentation components may own HTML or template markup. Views and feature components are template-free coordinators that connect state, events, and common render building blocks.
 
@@ -123,8 +125,7 @@ The data-interface section defines the shared low-level types for:
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
-- `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
-- `EnginesStore` owns analysis and player-engine runtime state at layer 3, while the lower-layer engine runtime path owns protocol and process transport.
+- `EnginesStore` owns configured engine profiles, streamed runtime session state, and player-engine runtime state at layer 3, while `AnalysisStore` owns visible analysis snapshots and the lower-layer engine runtime path owns protocol and process transport.
 - `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SerializationService`, and `UserSettingSerivce` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SerializationService` owning canonical payload conversion, and `UserSettingSerivce` owning settings pathing, validation, caching, and persistence behind the layer-2 boundary.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
@@ -145,5 +146,6 @@ The doc set is aligned only when all of the following are true:
 - persisted artefacts match the saved-game and settings ownership contracts
 - multi-engine analysis is baseline, capped at four concurrent analysis engines per game
 - terminology for routes, state axes, result states, and persistence artefacts matches the high-level docs
-- no doc describes same-layer calls or `Layer 3 -> Layer 1` calls
+- no doc describes same-layer store calls or `Layer 3 -> Layer 1` calls
+- every process-flow table starts with a concrete callable owner
 - shared contract-aware private utilities are inventoried in [UtilityIndex.md](UtilityIndex.md) and remain invisible in process-flow ownership

@@ -4,14 +4,17 @@
 Define the recent-game metadata projected for `HomeView` by `RecentGameStore`.
 
 ## Types
-- `type RecentGameSourceKind = "autosave" | "saveFile"`
+- `enum RecentGameSourceKind`
 
 ## Interfaces
 - `interface IRecentGameEntry`
 
 ## Data Structures
 ```ts
-type RecentGameSourceKind = "autosave" | "saveFile"
+enum RecentGameSourceKind {
+  Autosave = "autosave",
+  SaveFile = "saveFile"
+}
 
 interface IRecentGameEntry {
   gameId: string

@@ -4,14 +4,18 @@
 Define the shared debug snapshot shape used to inspect active platform event registrations.
 
 ## Types
-- `type PlatformEventKey = "appCloseRequested" | "appFocusReturned" | "systemThemeChanged"`
+- `enum PlatformEventKey`
 
 ## Interfaces
 - `interface IPlatformEventRegistration`
 
 ## Data Structures
 ```ts
-type PlatformEventKey = "appCloseRequested" | "appFocusReturned" | "systemThemeChanged"
+enum PlatformEventKey {
+  AppCloseRequested = "appCloseRequested",
+  AppFocusReturned = "appFocusReturned",
+  SystemThemeChanged = "systemThemeChanged"
+}
 
 interface IPlatformEventRegistration {
   registrationId: string

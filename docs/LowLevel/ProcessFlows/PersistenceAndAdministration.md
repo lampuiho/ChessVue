@@ -10,7 +10,7 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 Case 1: autosave after `n` moves. Called at the end of `GamesStore.makeMove`; when committed move count since the last autosave reaches the configured threshold, the store calls `saveGame` with reserved name `"auto"` and `autoSave = true`.
 
 #### Flow A - Check Move-Threshold Autosave
-| `GamesStore.makeMove completed` |
+| `GamesStore.makeMove` |
 | --- |
 | `GamesStore._saveGameIfNMoveSinceLastAutoSave` |
 
@@ -22,14 +22,14 @@ Case 1: autosave after `n` moves. Called at the end of `GamesStore.makeMove`; wh
 Case 2: autosave after quitting. When a runnable game session starts, it registers an app-close callback through `PlatformEventService`; when close-trigger autosave is enabled, that callback calls `saveGame` with reserved name `"auto"` and `autoSave = true` before shutdown completes.
 
 #### Flow B - Register Close Autosave Callback
-| `Runnable game session ready` |
+| `GamesStore._registerRunnableSessionSubscriptions` |
 | --- |
 | `PlatformEventService.subscribeToAppCloseRequested` |
 
 #### Flow C - Check Close Autosave
-| `Registered app-close callback` |
+| `GamesStore._handleAppCloseRequested` |
 | --- |
-| `GameStore._saveGameOnCloseIfEnabled` |
+| `GamesStore._saveGameOnCloseIfEnabled` |
 
 | `GamesStore._saveGameOnCloseIfEnabled` |
 | --- |
@@ -171,7 +171,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | UiStateStore._saveGameSessionSnapshot |
 
 #### Flow C - Resume Analysis For The Loaded Workspace
-| Loaded workspace ready for analysis resume |
+| `SavedGamesView.onLoadRequested` |
 | --- |
 | EnginesStore.startAnalysis |
 
@@ -179,19 +179,26 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | --- |
 | EnginesStore._startAnalysisSessions |
 | EnginesStore._bindAnalysisCallbacks |
-| EnginesStore._forwardAnalysisUpdate |
+
+| `GameView._handleAnalysisRuntimeUpdate` |
+| --- |
+| `AnalysisStore.applyAnalysisUpdate` |
 
 #### Flow D - Request An Engine Turn For The Loaded Workspace
-| Loaded live current position ready for engine move |
+| `GameView._requestEngineTurnIfNeeded` |
 | --- |
-| GamesStore._maybeRequestEngineTurn |
+| GamesStore.getGame |
 | EnginesStore.startPlayerTurn |
-| GamesStore.makeMove |
+| EnginesStore._handlePlayerTurnMove |
 
 | EnginesStore.startPlayerTurn |
 | --- |
 | EnginesStore._startPlayerTurnSearch |
 | EnginesStore._bindPlayerTurnCallbacks |
+
+| EnginesStore._handlePlayerTurnMove |
+| --- |
+| GamesStore.makeMove |
 
 | GamesStore.makeMove |
 | --- |
@@ -199,7 +206,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GamesStore._resolveMoveContext |
 | GamesStore._applyMoveByContext |
 | GamesStore._persistWorkspaceIfNeeded |
-| GamesStore._maybeRequestEngineTurn |
+| GameView._requestEngineTurnIfNeeded |
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
 - State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `session.autoPauseOnMenu` controls the route-entry pause branch only.
@@ -239,7 +246,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | --- |
 | GamesStore._assertResumable |
 | GamesStore._resumeClock |
-| GamesStore._resumeIfMenuOwnedPause |
+| GameView._resumeIfMenuOwnedPause |
 
 - Settings coverage: session.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens.
 - Requirement verification: `Pass`. External export stays distinct from internal save slots, `SavedGamesStore` owns destination selection, `GamesStore` writes the canonical saved-game payload once, and the flow returns through the menu-owned pause path without mutating game state beyond the export side effect.
@@ -279,7 +286,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | UiStateStore._saveGameSessionSnapshot |
 
 #### Flow B - Resume Analysis For The Imported Workspace
-| Imported workspace ready for analysis resume |
+| `MenuBar.importGameRequested` |
 | --- |
 | EnginesStore.startAnalysis |
 
@@ -287,19 +294,26 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | --- |
 | EnginesStore._startAnalysisSessions |
 | EnginesStore._bindAnalysisCallbacks |
-| EnginesStore._forwardAnalysisUpdate |
+
+| `GameView._handleAnalysisRuntimeUpdate` |
+| --- |
+| `AnalysisStore.applyAnalysisUpdate` |
 
 #### Flow C - Request An Engine Turn For The Imported Workspace
-| Imported live current position ready for engine move |
+| `GameView._requestEngineTurnIfNeeded` |
 | --- |
-| GamesStore._maybeRequestEngineTurn |
+| GamesStore.getGame |
 | EnginesStore.startPlayerTurn |
-| GamesStore.makeMove |
+| EnginesStore._handlePlayerTurnMove |
 
 | EnginesStore.startPlayerTurn |
 | --- |
 | EnginesStore._startPlayerTurnSearch |
 | EnginesStore._bindPlayerTurnCallbacks |
+
+| EnginesStore._handlePlayerTurnMove |
+| --- |
+| GamesStore.makeMove |
 
 | GamesStore.makeMove |
 | --- |
@@ -307,7 +321,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GamesStore._resolveMoveContext |
 | GamesStore._applyMoveByContext |
 | GamesStore._persistWorkspaceIfNeeded |
-| GamesStore._maybeRequestEngineTurn |
+| GameView._requestEngineTurnIfNeeded |
 
 - Requirement verification: `Pass`. External import stays separate from internal save browsing, `SavedGamesStore` owns picker selection, `GamesStore` performs the actual load, duplicate IDs are repaired before insertion, and the restored game state is visible before analysis or engine-turn restart begins.
 
@@ -389,7 +403,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
 - Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
-- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `system` follows the layer-2 theme-resolution path, while `light` and `dark` force built-in app themes.
+- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `ThemeMode.System` follows the layer-2 theme-resolution path, while `ThemeMode.Light` and `ThemeMode.Dark` force built-in app themes.
 - Requirement verification: `Pass`. Validation happens before apply or persistence, only committed settings fields are writable, engine inventory stays inside the same settings draft model as the other fields, and accepted appearance changes refresh the shared app-theme variables immediately.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults

@@ -4,6 +4,11 @@
 Define the authoritative persisted settings schema from the baseline settings contract.
 
 ## Interfaces
+- `enum ThemeMode`
+- `enum TakebackPolicy`
+- `enum AnalysisBranchExitBehaviour`
+- `enum PromotionPolicy`
+- `enum BoardOrientation`
 - `interface ISettingsSession`
 - `interface ISettingsGameDefaults`
 - `interface ISettingsGameplay`
@@ -13,7 +18,30 @@ Define the authoritative persisted settings schema from the baseline settings co
 
 ## Data Structures
 ```ts
-type ThemeMode = "system" | "light" | "dark"
+enum ThemeMode {
+  System = "system",
+  Light = "light",
+  Dark = "dark"
+}
+
+enum TakebackPolicy {
+  RewriteMainline = "rewriteMainline",
+  AnalysisOnly = "analysisOnly"
+}
+
+enum AnalysisBranchExitBehaviour {
+  ReturnToLiveNode = "returnToLiveNode",
+  StayOnBranch = "stayOnBranch"
+}
+
+enum PromotionPolicy {
+  RequireExplicitSelection = "requireExplicitSelection"
+}
+
+enum BoardOrientation {
+  White = "white",
+  Black = "black"
+}
 
 interface ISettingsSession {
   restorePreviousSession: boolean
@@ -31,10 +59,10 @@ interface ISettingsGameDefaults {
 }
 
 interface ISettingsGameplay {
-  takebackPolicy: "rewriteMainline" | "analysisOnly"
+  takebackPolicy: TakebackPolicy
   confirmMainlineRewrite: boolean
-  analysisBranchExitBehaviour: "returnToLiveNode" | "stayOnBranch"
-  promotionPolicy: "requireExplicitSelection"
+  analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
+  promotionPolicy: PromotionPolicy
   confirmPruneFutureMoves: boolean
   allowRootPrune: boolean
 }
@@ -49,7 +77,7 @@ interface ISettingsAppearance {
   boardTheme: string
   pieceTheme: string
   uiScalePercent: number
-  boardOrientation: "white" | "black"
+  boardOrientation: BoardOrientation
   showCoordinates: boolean
   highlightLastMove: boolean
 }

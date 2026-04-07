@@ -4,12 +4,13 @@
 Define the canonical workspace model used by `GamesStore`, related services, and persisted saved-game payloads.
 
 ## Types
-- `type WorkspaceKind = "liveGame" | "freeAnalysisSetup"`
-- `type InteractionContext = "currentPosition" | "historyReview" | "inGameAnalysis" | "boardEdit"`
-- `type ClockStateKind = "none" | "running" | "paused" | "expired"`
-- `type ResultState = "ongoing" | "drawn" | "whiteWon" | "blackWon" | "abandoned"`
-- `type ResultReason = "ruleResolved" | "timeout" | "resignation" | "drawAgreement" | "abandoned" | null`
-- `type PlayerType = "local" | "engine"`
+- `enum WorkspaceKind`
+- `enum InteractionContext`
+- `enum ClockStateKind`
+- `enum ResultState`
+- `enum ResultReason`
+- `enum PlayerType`
+- `enum DrawOfferDirection`
 
 ## Interfaces
 - `interface IDrawOfferState`
@@ -24,10 +25,55 @@ Define the canonical workspace model used by `GamesStore`, related services, and
 
 ## Data Structures
 ```ts
+enum WorkspaceKind {
+  LiveGame = "liveGame",
+  FreeAnalysisSetup = "freeAnalysisSetup"
+}
+
+enum InteractionContext {
+  CurrentPosition = "currentPosition",
+  HistoryReview = "historyReview",
+  InGameAnalysis = "inGameAnalysis",
+  BoardEdit = "boardEdit"
+}
+
+enum ClockStateKind {
+  None = "none",
+  Running = "running",
+  Paused = "paused",
+  Expired = "expired"
+}
+
+enum ResultState {
+  Ongoing = "ongoing",
+  Drawn = "drawn",
+  WhiteWon = "whiteWon",
+  BlackWon = "blackWon",
+  Abandoned = "abandoned"
+}
+
+enum ResultReason {
+  RuleResolved = "ruleResolved",
+  Timeout = "timeout",
+  Resignation = "resignation",
+  DrawAgreement = "drawAgreement",
+  Abandoned = "abandoned"
+}
+
+enum PlayerType {
+  Local = "local",
+  Engine = "engine"
+}
+
+enum DrawOfferDirection {
+  Incoming = "incoming",
+  Outgoing = "outgoing"
+}
+
 interface IDrawOfferState {
   offeringColour: PlayerColour
   respondingColour: PlayerColour
-  direction: "incoming" | "outgoing"
+  direction: DrawOfferDirection
 }
 
 interface IPlayerSlot {
@@ -60,7 +106,7 @@ interface IGameWorkspace {
   interactionContext: InteractionContext
   clockState: ClockStateKind
   resultState: ResultState
-  resultReason: ResultReason
+  resultReason: ResultReason | null
   drawOfferState: IDrawOfferState | null
   whitePlayer: IPlayerSlot | null
   blackPlayer: IPlayerSlot | null
@@ -104,9 +150,9 @@ interface IReassignPlayerRequest {
 ```
 
 ## Rules
-- `freeAnalysisSetup` is created when either side is assigned no player.
+- `WorkspaceKind.FreeAnalysisSetup` is created when either side is assigned no player.
 - `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
-- `boardEdit` is valid only inside `freeAnalysisSetup`.
+- `InteractionContext.BoardEdit` is valid only inside `WorkspaceKind.FreeAnalysisSetup`.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
 - `drawOfferState` records one unresolved draw offer for the current live workspace and is persisted with the workspace so non-local pending-offer UI can be restored accurately for both incoming and outgoing offers.
 - Player seats and analysis assignment persist captured assigned-engine snapshots rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
@@ -115,6 +161,6 @@ interface IReassignPlayerRequest {
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
 - `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
 - `liveAnalysisOptions.showLiveAnalysisMoves` is persisted as part of the game workspace, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
-- `liveAnalysisOptions.showLiveAnalysisMoves` gates rendered engine move targets for every `liveGame` interaction context. When enabled, `currentPosition` may commit a normal live move from the analysis panel, `historyReview` reuses the ordinary history-move policy, and `inGameAnalysis` may inspect continuations as analysis moves.
+- `liveAnalysisOptions.showLiveAnalysisMoves` gates rendered engine move targets for every `WorkspaceKind.LiveGame` interaction context. When enabled, `InteractionContext.CurrentPosition` may commit a normal live move from the analysis panel, `InteractionContext.HistoryReview` reuses the ordinary history-move policy, and `InteractionContext.InGameAnalysis` may inspect continuations as analysis moves.
 - `analysisAssignment.assignedEngines` preserves the rendered analysis-panel row order for the active game and is the source of truth for mapping remembered engine-group fold state by index.
 - `IReassignPlayerRequest` is seat-selection data only. Fresh live-game settings for restarting from setup belong to `IStartGameFromSetupRequest`.

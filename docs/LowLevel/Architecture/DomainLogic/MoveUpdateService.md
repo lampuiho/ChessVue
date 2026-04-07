@@ -22,7 +22,7 @@ replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null
 - expose deterministic node navigation and position lookup for board, history, and analysis views
 - support takeback-style rewinds without leaking tree internals to stores
 - preserve old continuations as variations when rewriting the mainline
-- carry root and mainline node clock snapshots alongside the stored positions
+- carry root and live/mainline node clock snapshots alongside the stored positions
 - clear prior move history after confirmed board edit
 
 ## Scenario Coverage

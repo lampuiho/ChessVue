@@ -24,6 +24,7 @@ getGameFolderPath(rootPath: string, gameId: string): string
 getAutosaveFilePath(rootPath: string, gameId: string): string
 getNamedSaveFilePath(rootPath: string, gameId: string, saveName: string): string
 projectSaveGroups(rootPath: string, entriesByDirectory: ReadonlyMap<string, IFileSystemEntry[]>): ISavedGameGroup[]
+getLatestSaveEntry(entries: ISavedGameFileEntry[]): ISavedGameFileEntry | null
 ```
 
 ## Responsibilities
@@ -45,3 +46,4 @@ projectSaveGroups(rootPath: string, entriesByDirectory: ReadonlyMap<string, IFil
 ## Notes
 - `SavedGameIndexService` performs no file I/O and opens no dialogs.
 - Folder enumeration and raw reads or writes belong to `StorageAdapter`; save grouping and path conventions belong here.
+- `getLatestSaveEntry(...)` is a pure query. It picks the newest entry by `savedAtUtc`, and when timestamps are missing or equal it falls back to a deterministic ordering of autosave before named-save and then ascending `saveName`.

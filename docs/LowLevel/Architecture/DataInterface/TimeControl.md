@@ -4,7 +4,7 @@
 Define the baseline time-control schema and the live timing snapshot used for drift-safe clock handling.
 
 ## Types
-- `type TimeControlPreset = "bullet" | "blitz" | "rapid" | "classical" | "untimed"`
+- `enum TimeControlPreset`
 
 ## Interfaces
 - `interface ITimeControl`
@@ -13,6 +13,14 @@ Define the baseline time-control schema and the live timing snapshot used for dr
 
 ## Data Structures
 ```ts
+enum TimeControlPreset {
+  Bullet = "bullet",
+  Blitz = "blitz",
+  Rapid = "rapid",
+  Classical = "classical",
+  Untimed = "untimed"
+}
+
 interface ITimeControl {
   preset: TimeControlPreset | null
   initialMs: number | null
