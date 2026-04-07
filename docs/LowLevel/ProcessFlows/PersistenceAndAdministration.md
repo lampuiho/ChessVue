@@ -27,16 +27,15 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `PlatformEventService.subscribeToAppCloseRequested` |
 
 #### Flow C - Check Close Autosave
-| `AppShell.closeRequested` |
-| --- |
 | `Registered app-close callback` |
-| `GamesStore._saveGameOnCloseIfEnabled` |
-| `GamesStore._saveAutoSave` |
+| --- |
+| `GameStore._saveGameOnCloseIfEnabled` |
 
 | `GamesStore._saveGameOnCloseIfEnabled` |
 | --- |
-| `GamesStore._assertCloseAutosaveEnabled` |
+| `UserSettingSerivce._getSettings` |
 | `GamesStore._assertGameExists` |
+| `GamesStore._saveAutoSave` |
 
 #### Flow D - Autosave Game
 | `GamesStore._saveAutoSave` |
