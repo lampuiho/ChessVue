@@ -34,6 +34,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [SavedGameIndexService](DomainLogic/SavedGameIndexService.md)
 - [SerializationService](DomainLogic/SerializationService.md)
 - [PlatformEventService](DomainLogic/PlatformEventService.md)
+- [UserSettingSerivce](DomainLogic/UserSettingSerivce.md)
 
 ### 3. State Management
 - [GamesStore](StateManagement/GamesStore.md)
@@ -124,7 +125,7 @@ The data-interface section defines the shared low-level types for:
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
 - `AnalysisStore` owns streamed evaluation state and visible analysis snapshots.
 - `EnginesStore` owns analysis and player-engine runtime state at layer 3, while the lower-layer engine runtime path owns protocol and process transport.
-- `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, and `SerializationService` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, and `SerializationService` owning canonical payload conversion.
+- `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SerializationService`, and `UserSettingSerivce` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SerializationService` owning canonical payload conversion, and `UserSettingSerivce` owning settings pathing, validation, caching, and persistence behind the layer-2 boundary.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions

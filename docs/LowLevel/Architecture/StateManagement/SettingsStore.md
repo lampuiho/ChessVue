@@ -1,7 +1,7 @@
 # SettingsStore
 
 ## Purpose
-Own the authoritative user settings snapshot, defaults, validation, and persistence.
+Own settings-screen state, editable settings drafts, and appearance projection for the committed settings UI.
 
 ## Public Interface
 ```ts
@@ -18,18 +18,16 @@ resetSettings(): Promise<void>
 ```
 
 ## Responsibilities
-- expose only committed settings from the settings contract
-- validate engine inventory and gameplay policy values
-- provide defaults when no valid snapshot exists
+- load and expose the accepted settings snapshot for `SettingsView`
 - keep a draft settings snapshot separate from the last accepted snapshot so apply/save/cancel flows are deterministic
 - own engine-inventory draft edits as part of the same pending settings snapshot used by `Cancel`, `Apply`, and `Save`
+- commit accepted settings changes through `UserSettingSerivce` instead of owning raw settings-file access directly
 - resolve the effective app theme from `appearance.themeMode` and the active system theme
 - build the presentation-safe appearance projection, including the semantic CSS-variable map
 - keep the appearance projection reactive when accepted settings or system-theme events change
-- persist settings independently from session and game data
 
 ## Dependencies
-- `SerializationService`
+- `UserSettingSerivce`
 - `PlatformEventService`
 
 ## Scenario Coverage
@@ -40,8 +38,8 @@ resetSettings(): Promise<void>
 - `SCN-ENGINE-02`
 
 ## Notes
-- `SettingsStore` consumes layer-2 settings serialisation, theme-resolution, and platform-event boundaries; it does not resolve `IPlatformService`, `StorageAdapter`, or `SystemThemeAdapter` directly.
-- `loadSettings()` must produce both the persisted settings snapshot and the initial `IAppearanceProjection` before the root app-shell surface binds to shared app chrome.
+- `SettingsStore` consumes `UserSettingSerivce` for accepted settings reads and writes plus `PlatformEventService` for theme-change reactions; it does not resolve `IPlatformService`, `StorageAdapter`, or `SystemThemeAdapter` directly.
+- `loadSettings()` must hydrate the accepted settings snapshot from `UserSettingSerivce`, mirror it into the editable draft, and produce the initial `IAppearanceProjection` before the root app-shell surface binds to shared app chrome.
 - Accepted engine-inventory changes update reusable engine profiles only. They do not directly mutate already assigned engine participants or running engine sessions.
 - The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.
 - Flow docs continue to show `SettingsStore._resolveThemeMode` and `SettingsStore._buildAppearanceProjection` as the visible owner-private boundaries. If those functions share implementation, that implementation is documented under `AppearanceProjectionUtility` in [UtilityIndex.md](../UtilityIndex.md).

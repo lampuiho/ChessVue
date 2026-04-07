@@ -33,7 +33,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `GamesStore._saveGameOnCloseIfEnabled` |
 | --- |
-| `UserSettingSerivce._getSettings` |
+| `UserSettingSerivce.getSettings` |
 | `GamesStore._assertGameExists` |
 | `GamesStore._saveAutoSave` |
 
@@ -52,7 +52,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | --- |
 | `SerializationService._normalisePayload` |
 
-- Settings coverage: `session.autosaveAfterMoveCount` gates move-threshold autosave, while `session.autosaveOnClose` separately gates close-trigger autosave. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., autoSave = true)` is the only workspace-save owner for both trigger kinds.
+- Settings coverage: `session.autosaveAfterMoveCount` gates move-threshold autosave, while `session.autosaveOnClose` separately gates close-trigger autosave. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., { autosave: true })` is the only workspace-save owner for both trigger kinds.
 - Requirement verification: `Pass`. Autosave writes the dedicated internal save entry beneath the configured save root, leaves recent-game projection to later on-demand queries, and leaves in-memory game state intact when a write fails.
 
 ### SCN-SAVE-02 - Open Internal Save View
@@ -343,7 +343,6 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SettingsView.applyRequested` |
 | --- |
 | `SettingsStore.updateSettings` |
-| `SettingsStore._normaliseEngineInventory` |
 | `SettingsStore._projectPendingSettings` |
 | `SettingsStore.applySettings` |
 | `SettingsStore._resolveThemeMode` |
@@ -351,33 +350,42 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.updateSettings` |
 | --- |
-| `SettingsStore._validatePatch` |
-| `SettingsStore._normaliseEngineInventory` |
+| `SettingsStore._mergeDraftPatch` |
 | `SettingsStore._projectPendingSettings` |
 
 | `SettingsStore.applySettings` |
 | --- |
+| `UserSettingSerivce.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
+| `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
+
+| `UserSettingSerivce.saveSettings` |
+| --- |
+| `UserSettingSerivce._validateSettings` |
+| `UserSettingSerivce._writeSettingsSnapshot` |
+| `UserSettingSerivce._cacheAcceptedSettings` |
 
 #### Flow B - Save Accepted Settings
 | `SettingsView.saveRequested` |
 | --- |
 | `SettingsStore.updateSettings` |
-| `SettingsStore._normaliseEngineInventory` |
 | `SettingsStore._projectPendingSettings` |
 | `SettingsStore.saveSettings` |
 
 | `SettingsStore.updateSettings` |
 | --- |
-| `SettingsStore._validatePatch` |
-| `SettingsStore._normaliseEngineInventory` |
+| `SettingsStore._mergeDraftPatch` |
 | `SettingsStore._projectPendingSettings` |
 
 | `SettingsStore.saveSettings` |
 | --- |
-| `SettingsStore._persistSnapshot` |
+| `UserSettingSerivce.saveSettings` |
+| `SettingsStore._applyAcceptedSettings` |
+| `SettingsStore._syncDraftToAccepted` |
+| `SettingsStore._resolveThemeMode` |
+| `SettingsStore._buildAppearanceProjection` |
 
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
 - Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
@@ -393,7 +401,6 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SettingsStore.resetSettings` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
-| `SettingsStore._persistSnapshot` |
 | `UiStateStore.hideModal` |
 
 | `UiStateStore.showModal` |
@@ -401,10 +408,17 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.resetSettings` |
 | --- |
-| `SettingsStore._defaultSettings` |
+| `UserSettingSerivce.resetSettings` |
+| `SettingsStore._applyAcceptedSettings` |
+| `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
-| `SettingsStore._persistSnapshot` |
+
+| `UserSettingSerivce.resetSettings` |
+| --- |
+| `UserSettingSerivce._defaultSettings` |
+| `UserSettingSerivce._writeSettingsSnapshot` |
+| `UserSettingSerivce._cacheAcceptedSettings` |
 
 | `UiStateStore.hideModal` |
 | --- |
@@ -418,37 +432,37 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `EngineInventoryEditor.addRequested` |
 | --- |
 | `SettingsStore.updateSettings` |
-| `SettingsStore._normaliseEngineInventory` |
 | `SettingsStore._projectPendingSettings` |
 | `SettingsStore.applySettings` |
 
 | `SettingsStore.updateSettings` |
 | --- |
-| `SettingsStore._validatePatch` |
-| `SettingsStore._normaliseEngineInventory` |
+| `SettingsStore._mergeDraftPatch` |
 | `SettingsStore._projectPendingSettings` |
 
 | `SettingsStore.applySettings` |
 | --- |
+| `UserSettingSerivce.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
+| `SettingsStore._syncDraftToAccepted` |
 
 #### Flow B - Add And Save The New Profile
 | `EngineInventoryEditor.addRequested` |
 | --- |
 | `SettingsStore.updateSettings` |
-| `SettingsStore._normaliseEngineInventory` |
 | `SettingsStore._projectPendingSettings` |
 | `SettingsStore.saveSettings` |
 
 | `SettingsStore.updateSettings` |
 | --- |
-| `SettingsStore._validatePatch` |
-| `SettingsStore._normaliseEngineInventory` |
+| `SettingsStore._mergeDraftPatch` |
 | `SettingsStore._projectPendingSettings` |
 
 | `SettingsStore.saveSettings` |
 | --- |
-| `SettingsStore._persistSnapshot` |
+| `UserSettingSerivce.saveSettings` |
+| `SettingsStore._applyAcceptedSettings` |
+| `SettingsStore._syncDraftToAccepted` |
 
 - UI surface coverage: add opens the dedicated profile editor surface, where option rows may be added, edited, or removed before the draft is applied or saved.
 - Requirement verification: `Pass`. Unique profile-name validation happens before the engine record becomes part of the accepted settings snapshot, while all other profile values are stored as entered.
@@ -459,37 +473,37 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `EngineInventoryEditor.editRequested` |
 | --- |
 | `SettingsStore.updateSettings` |
-| `SettingsStore._normaliseEngineInventory` |
 | `SettingsStore._projectPendingSettings` |
 | `SettingsStore.applySettings` |
 
 | `SettingsStore.updateSettings` |
 | --- |
-| `SettingsStore._validatePatch` |
-| `SettingsStore._normaliseEngineInventory` |
+| `SettingsStore._mergeDraftPatch` |
 | `SettingsStore._projectPendingSettings` |
 
 | `SettingsStore.applySettings` |
 | --- |
+| `UserSettingSerivce.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
+| `SettingsStore._syncDraftToAccepted` |
 
 #### Flow B - Remove An Existing Profile
 | `EngineInventoryEditor.deleteRequested` |
 | --- |
 | `SettingsStore.updateSettings` |
-| `SettingsStore._normaliseEngineInventory` |
 | `SettingsStore._projectPendingSettings` |
 | `SettingsStore.saveSettings` |
 
 | `SettingsStore.updateSettings` |
 | --- |
-| `SettingsStore._validatePatch` |
-| `SettingsStore._normaliseEngineInventory` |
+| `SettingsStore._mergeDraftPatch` |
 | `SettingsStore._projectPendingSettings` |
 
 | `SettingsStore.saveSettings` |
 | --- |
-| `SettingsStore._persistSnapshot` |
+| `UserSettingSerivce.saveSettings` |
+| `SettingsStore._applyAcceptedSettings` |
+| `SettingsStore._syncDraftToAccepted` |
 
 - UI surface coverage: copy, edit, and delete originate from the engine-profile row actions, with edit reopening the same dedicated profile editor surface and delete affecting the settings draft only.
 - Requirement verification: `Pass`. Edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`, and open games keep their captured assigned-engine snapshots even when reusable profiles change.

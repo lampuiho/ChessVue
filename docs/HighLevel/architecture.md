@@ -131,6 +131,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
 - `SerializationService` owns the canonical saved-game payload shape, schema versioning hooks, migration entry points, settings and session serialisation, and saved-game document interpretation for internal save/load plus external import/export flows.
 - `PlatformEventService` exposes typed app-level event registration and inspection to state stores without letting layer 3 depend on `IPlatformService` directly.
+- `UserSettingSerivce` owns the canonical settings file path, loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults or migration fallback when needed, and persists accepted settings without exposing platform storage directly to layer 3.
 - Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
 
 ### State Management
@@ -138,7 +139,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `SavedGamesStore` owns saved games for rendering the saved-game menus, route-level internal save/load browsing, external import/export target selection, and saved-game lookup information such as resolving the full file path for a selected managed save or recent target.
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
 - `EnginesStore` owns per-game engine assignment, runtime availability state, and engine-session lifecycle coordination.
-- `SettingsStore` owns persisted user settings defined in [settings_contract.md](settings_contract.md).
+- `SettingsStore` owns settings-view state, editable settings drafts, apply or save coordination, and the presentation-safe appearance projection used by `SettingsView` and shared app chrome; it does not own canonical settings file rules or raw persisted settings access.
 - `RecentGameStore` owns on-demand recent-game projection for `HomeView`, deduped by canonical game identity and derived from the latest available save target when the home screen is opened, but it does not own saved-game file workflows.
 - `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and foldable-section state.
 - State stores call only layer-2 services. They do not resolve platform adapters directly, and they do not invoke sibling stores directly.

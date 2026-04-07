@@ -17,8 +17,9 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SettingsStore.loadSettings` |
 | --- |
-| `SettingsStore._loadStoredSnapshot` |
-| `SettingsStore._migrateSnapshotOrDefault` |
+| `UserSettingSerivce.loadSettings` |
+| `SettingsStore._syncAcceptedSettings` |
+| `SettingsStore._syncDraftSettings` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
 | `PlatformEventService.subscribeToSystemThemeChanged` |
@@ -60,8 +61,9 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SettingsStore.loadSettings` |
 | --- |
-| `SettingsStore._loadStoredSnapshot` |
-| `SettingsStore._migrateSnapshotOrDefault` |
+| `UserSettingSerivce.loadSettings` |
+| `SettingsStore._syncAcceptedSettings` |
+| `SettingsStore._syncDraftSettings` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
 | `PlatformEventService.subscribeToSystemThemeChanged` |
@@ -136,9 +138,14 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SettingsStore.loadSettings` |
 | --- |
+| `UserSettingSerivce.loadSettings` |
+
+| `UserSettingSerivce.loadSettings` |
+| --- |
 | `SerializationService._parseJson` |
 | `SerializationService._migrateBySchemaVersion` |
-| `SettingsStore._migrateSnapshotOrDefault` |
+| `UserSettingSerivce._migrateSnapshotOrDefault` |
+| `UserSettingSerivce._cacheAcceptedSettings` |
 
 | `UiStateStore.loadLayoutState` |
 | --- |
@@ -297,7 +304,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SettingsStore.loadSettings` |
 | --- |
-| `SettingsStore._loadStoredSnapshot` |
+| `UserSettingSerivce.loadSettings` |
 
 #### Flow B - Leave Settings And Return
 | `SettingsView.returnRequested` |
