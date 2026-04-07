@@ -5,82 +5,67 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 ### SCN-SESSION-01 - Fresh Launch with No Saved State
 
-#### Flow
-| `AppBootstrap.start` |
+#### Flow A - Home Route Setup
+| `HomeView.setup` |
 | --- |
-| `SettingsStore.loadSettings` |
 | `SettingsStore.getAppearanceProjection` |
-| `UiStateStore.loadLayoutState` |
-| `GamesStore.restorePersistedGames` |
-| `RecentGameStore.loadRecentGames` |
-| `Router._resolveStartupTarget` |
+| `UiStateStore.getLayoutStateOrDefault` |
+| `RecentGameStore.getRecentGames` |
 
-| `SettingsStore.loadSettings` |
+| `SettingsStore.getAppearanceProjection` |
 | --- |
-| `UserSettingSerivce.loadSettings` |
-| `SettingsStore._syncAcceptedSettings` |
-| `SettingsStore._syncDraftSettings` |
+| `SettingsStore.getSettings` |
 | `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
 | `PlatformEventService.subscribeToSystemThemeChanged` |
 
-| `SettingsStore.getAppearanceProjection` |
+| `SettingsStore.getSettings` |
 | --- |
+| `UserSettingSerivce.getSettingsOrDefault` |
+| `SettingsStore._syncAcceptedSettings` |
+| `SettingsStore._syncDraftSettings` |
 
-| `UiStateStore.loadLayoutState` |
+| `UiStateStore.getLayoutStateOrDefault` |
 | --- |
 | `UiStateStore._loadStoredLayoutState` |
 | `UiStateStore._coerceLayoutState` |
 
-| `GamesStore.restorePersistedGames` |
+| `RecentGameStore.getRecentGames` |
 | --- |
-| `GamesStore._loadRequestedDocuments` |
-| `GamesStore._hydrateWorkspaceCollection` |
-
-| `RecentGameStore.loadRecentGames` |
-| --- |
-| `RecentGameStore._loadStoredSnapshot` |
+| `RecentGameStore._enumerateRecentSaveTargets` |
+| `RecentGameStore._projectRecentEntries` |
 | `RecentGameStore._sortMostRecentFirst` |
 
 - UI surface coverage: startup lands on a centred `HomeView`, which exposes one single-row group of large square action buttons for quick new, custom new, load, and settings without auto-creating a workspace. Because this scenario starts with no saved games, the recent games list remains hidden.
-- Settings coverage: the initial appearance projection is resolved before the first routed screen binds to shared app chrome. When `appearance.themeMode = ThemeMode.System`, the effective built-in theme comes from the layer-2 theme-resolution path without writing a new settings snapshot. Startup falls back to `/home` whenever prior session restore is disabled, absent, corrupt, or otherwise invalid.
-- Requirement verification: `Pass`. Defaults load independently, bad absence is not treated as corruption, theme state is resolved before first render, and startup lands on `/home` instead of auto-creating a game.
+- State/settings coverage: there is no eager bootstrap hydration phase. `HomeView.setup` uses the same lazy read path regardless of whether backing files exist; missing files simply resolve to defaults or empty projections. When `appearance.themeMode = ThemeMode.System`, the effective built-in theme comes from the layer-2 theme-resolution path without writing a new settings snapshot.
+- Requirement verification: `Pass`. Fresh launch uses the same route and setup path as any other home-screen entry, theme and layout are resolved only when needed, and an empty install still lands on `/home` without special-case bootstrap logic.
 
 ### SCN-SESSION-02 - Restore Previous Session
 
 #### Flow A - Restore Saved Tabs And Route
-| `AppBootstrap.start` |
+| `HomeView.setup` |
 | --- |
-| `SettingsStore.loadSettings` |
-| `SettingsStore.getAppearanceProjection` |
-| `UiStateStore.loadLayoutState` |
-| `UiStateStore.loadGameSession` |
-| `GamesStore.restorePersistedGames` |
-| `UiStateStore.setActiveGame` |
+| `SettingsStore.getSettings` |
+| `UiStateStore.getGameSessionOrDefault` |
 | `Router._restoreReturnRoute` |
 
-| `SettingsStore.loadSettings` |
+| `SettingsStore.getSettings` |
 | --- |
-| `UserSettingSerivce.loadSettings` |
+| `UserSettingSerivce.getSettingsOrDefault` |
 | `SettingsStore._syncAcceptedSettings` |
 | `SettingsStore._syncDraftSettings` |
-| `SettingsStore._resolveThemeMode` |
-| `SettingsStore._buildAppearanceProjection` |
-| `PlatformEventService.subscribeToSystemThemeChanged` |
 
-| `SettingsStore.getAppearanceProjection` |
-| --- |
-
-| `UiStateStore.loadLayoutState` |
-| --- |
-| `UiStateStore._loadStoredLayoutState` |
-| `UiStateStore._coerceLayoutState` |
-
-| `UiStateStore.loadGameSession` |
+| `UiStateStore.getGameSessionOrDefault` |
 | --- |
 | `UiStateStore._loadStoredGameSession` |
 | `UiStateStore._coerceOpenTabs` |
 | `UiStateStore._coerceActiveRoute` |
+
+#### Flow B - Restore The Routed Game Lazily
+| `GameView.setup` |
+| --- |
+| `GamesStore.restorePersistedGames` |
+| `UiStateStore.setActiveGame` |
 
 | `GamesStore.restorePersistedGames` |
 | --- |
@@ -91,8 +76,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `UiStateStore.setActiveGame` |
 | --- |
 
-#### Flow B - Resume Continuous Analysis After Restore
-| `AppBootstrap._resumeVisibleAnalysisIfAllowed` |
+#### Flow C - Resume Continuous Analysis After Restore
+| `GameView._resumeVisibleAnalysisIfAllowed` |
 | --- |
 | `EnginesStore.startAnalysis` |
 
@@ -101,12 +86,12 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `EnginesStore._startAnalysisSessions` |
 | `EnginesStore._bindAnalysisCallbacks` |
 
-| `AppBootstrap._handleAnalysisRuntimeUpdate` |
+| `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `AnalysisStore.applyAnalysisUpdate` |
 
-#### Flow C - Request Engine Turn After Restore
-| `AppBootstrap._requestOpeningEngineTurnIfNeeded` |
+#### Flow D - Request Engine Turn After Restore
+| `GameView._requestEngineTurnIfNeeded` |
 | --- |
 | `GamesStore.getGame` |
 | `EnginesStore.startPlayerTurn` |
@@ -127,54 +112,64 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._resolveMoveContext` |
 | `GamesStore._applyMoveByContext` |
 | `GamesStore._persistWorkspaceIfNeeded` |
-| `AppBootstrap._requestOpeningEngineTurnIfNeeded` |
+| `GameView._requestEngineTurnIfNeeded` |
 
-- State/settings coverage: `session.restorePreviousSession` is the only startup gate for reopening the stored game-session snapshot and active route. If that gate is false, or if the stored session no longer resolves to a valid route, startup falls back to `/home`. `UiStateStore.loadLayoutState` still runs independently so panel visibility and fold state can be restored even when the prior game session is skipped. When a game is restored, `analysis.resumeLiveAnalysisAfterRestore` gates whether continuous analysis restarts after the persisted game state is shown. The appearance projection is resolved before routed surfaces bind to app chrome, and later system-theme changes reproject appearance only when `appearance.themeMode = ThemeMode.System`.
-- Requirement verification: `Pass`. Game-session restore is isolated from settings and layout restore, respects the restore setting, resolves theme state before routed chrome binds, repairs invalid `activeGameId` values for the selected open tab before routing, and falls back deterministically to `/home` when restore cannot succeed.
+- State/settings coverage: `session.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. When the restored route resolves to a game, `GameView.setup` lazily restores only the needed persisted game data. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
+- Requirement verification: `Pass`. Session restore is lazy, route-driven, respects the restore setting, repairs invalid `activeGameId` values before the game view binds, and falls back deterministically to `/home` when restore cannot succeed.
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
 
-#### Flow
-| `AppBootstrap.start` |
+#### Flow A - Home Route Setup With Corrupt Optional Data
+| `HomeView.setup` |
 | --- |
-| `SettingsStore.loadSettings` |
-| `UiStateStore.loadLayoutState` |
-| `UiStateStore.loadGameSession` |
-| `RecentGameStore.loadRecentGames` |
-| `GamesStore.restorePersistedGames` |
+| `SettingsStore.getAppearanceProjection` |
+| `UiStateStore.getLayoutStateOrDefault` |
+| `UiStateStore.getGameSessionOrDefault` |
+| `RecentGameStore.getRecentGames` |
 
-| `SettingsStore.loadSettings` |
+| `SettingsStore.getAppearanceProjection` |
 | --- |
-| `UserSettingSerivce.loadSettings` |
+| `SettingsStore.getSettings` |
+| `SettingsStore._resolveThemeMode` |
+| `SettingsStore._buildAppearanceProjection` |
 
-| `UserSettingSerivce.loadSettings` |
+| `SettingsStore.getSettings` |
+| --- |
+| `UserSettingSerivce.getSettingsOrDefault` |
+
+| `UserSettingSerivce.getSettingsOrDefault` |
 | --- |
 | `SerializationService._parseJson` |
 | `SerializationService._migrateBySchemaVersion` |
 | `UserSettingSerivce._migrateSnapshotOrDefault` |
 | `UserSettingSerivce._cacheAcceptedSettings` |
 
-| `UiStateStore.loadLayoutState` |
+| `UiStateStore.getLayoutStateOrDefault` |
 | --- |
 | `UiStateStore._loadStoredLayoutState` |
 | `UiStateStore._resetInvalidLayoutState` |
 
-| `UiStateStore.loadGameSession` |
+| `UiStateStore.getGameSessionOrDefault` |
 | --- |
 | `UiStateStore._loadStoredGameSession` |
 | `UiStateStore._resetInvalidGameSession` |
 
-| `RecentGameStore.loadRecentGames` |
+| `RecentGameStore.getRecentGames` |
 | --- |
-| `RecentGameStore._loadStoredSnapshot` |
-| `RecentGameStore._resetCorruptSnapshot` |
+| `RecentGameStore._enumerateRecentSaveTargets` |
+| `RecentGameStore._skipInvalidRecentTarget` |
+
+#### Flow B - Corrupt Restored Game Payload
+| `GameView.setup` |
+| --- |
+| `GamesStore.restorePersistedGames` |
 
 | `GamesStore.restorePersistedGames` |
 | --- |
 | `GamesStore._loadRequestedDocuments` |
 | `GamesStore._skipCorruptDocument` |
 
-- Requirement verification: `Pass`. Corrupt settings, game-session, UI-layout, recent-games, or game payloads fall back independently, and corrupt core game payloads are isolated instead of crashing startup.
+- Requirement verification: `Pass`. Corrupt settings, game-session, UI-layout, recent-save targets, or game payloads fall back independently through lazy reads, and corrupt core game payloads are isolated instead of crashing app entry.
 
 ### SCN-GAME-01 - Quick New Game from Menu
 
@@ -305,7 +300,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore.pauseGame` |
 | `Router.navigateToSettings` |
 | `UiStateStore.setActiveRoute` |
-| `SettingsStore.loadSettings` |
+| `SettingsView.setup` |
 
 | `GamesStore.pauseGame` |
 | --- |
@@ -316,9 +311,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | --- |
 | `UiStateStore._rememberReturnRoute` |
 
-| `SettingsStore.loadSettings` |
+| `SettingsView.setup` |
 | --- |
-| `UserSettingSerivce.loadSettings` |
+| `SettingsStore.getSettings` |
+
+| `SettingsStore.getSettings` |
+| --- |
+| `UserSettingSerivce.getSettingsOrDefault` |
 
 #### Flow B - Leave Settings And Return
 | `SettingsView.returnRequested` |
@@ -425,7 +424,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow C - Remove A Stale Recent Entry
 | `HomeView.onRecentGameSelected` |
 | --- |
-| `RecentGameStore.loadRecentGames` |
+| `RecentGameStore.getRecentGames` |
 
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
 - Ownership coverage: `SavedGamesStore` owns recent-target path resolution, `GamesStore` owns loading that saved file into the live session, and `RecentGameStore` remains limited to on-demand recent-list projection.

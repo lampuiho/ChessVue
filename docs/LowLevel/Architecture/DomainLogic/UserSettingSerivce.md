@@ -5,7 +5,7 @@ Own the canonical user-settings file rules plus loading, caching, validation, de
 
 ## Public Interface
 ```ts
-loadSettings(): Promise<ISettingsSnapshot>
+getSettingsOrDefault(): Promise<ISettingsSnapshot>
 getSettings(): ISettingsSnapshot
 saveSettings(snapshot: ISettingsSnapshot): Promise<ISettingsSnapshot>
 resetSettings(): Promise<ISettingsSnapshot>
@@ -13,7 +13,7 @@ resetSettings(): Promise<ISettingsSnapshot>
 
 ## Responsibilities
 - keep the canonical settings-file location and pathing rules in one layer-2 service
-- load the settings snapshot through `StorageAdapter` and deserialise or migrate it through `SerializationService`
+- lazily read the settings snapshot through `StorageAdapter` and deserialise or migrate it through `SerializationService`
 - fall back to the authoritative default snapshot when the stored settings file is missing, corrupt, or no longer valid
 - validate accepted settings snapshots before exposing them to layer 3 or writing them back to storage
 - cache the accepted settings snapshot so `GamesStore`, `SettingsStore`, and other layer-3 owners can read current settings without sibling-store calls
@@ -41,4 +41,5 @@ resetSettings(): Promise<ISettingsSnapshot>
 ## Notes
 - `UserSettingSerivce` is the layer-2 boundary for current-settings reads by other stores. `GamesStore` and other layer-3 owners do not read policy settings from `SettingsStore`.
 - `SettingsStore` remains the owner of settings-screen state, pending draft changes, and appearance projection for the UI.
-- Validation and defaulting belong here so the accepted snapshot stays consistent whether it was loaded at startup, applied from the settings screen, saved explicitly, or reset to defaults.
+- `getSettingsOrDefault()` is the lazy first-read boundary. Missing or invalid files resolve to the default accepted snapshot without requiring an eager bootstrap phase.
+- Validation and defaulting belong here so the accepted snapshot stays consistent whether it was first read from a view setup path, applied from the settings screen, saved explicitly, or reset to defaults.

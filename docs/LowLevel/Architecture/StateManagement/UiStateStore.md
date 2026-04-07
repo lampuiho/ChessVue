@@ -5,11 +5,9 @@ Own shell/session state such as active route, open tabs, active game, remembered
 
 ## Public Interface
 ```ts
-loadGameSession(): Promise<IGameSessionSnapshot>
-getGameSession(): IGameSessionSnapshot
+getGameSessionOrDefault(): Promise<IGameSessionSnapshot>
 saveGameSession(): Promise<void>
-loadLayoutState(): Promise<IUiLayoutState>
-getLayoutState(): IUiLayoutState
+getLayoutStateOrDefault(): Promise<IUiLayoutState>
 saveLayoutState(): Promise<void>
 setActiveRoute(route: IGameSessionSnapshot["activeRoute"]): void
 setActiveGame(gameId: string | null): void
@@ -26,8 +24,8 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 ```
 
 ## Responsibilities
-- restore game-session shell state across launches when that behaviour is enabled by settings
-- restore remembered UI layout state independently from game-session restore
+- lazily read game-session shell state across launches when that behaviour is enabled by settings
+- lazily read remembered UI layout state independently from game-session restore
 - persist remembered panel visibility and fold state as one app-level layout snapshot, including analysis-engine fold state by rendered row index for the active game
 - own typed transient modal and confirmation prompts without persisting them
 - own remembered analysis-engine fold state inside the shared layout snapshot without introducing extra game-linked layout keys
@@ -54,7 +52,8 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 
 ## Notes
 - `UiStateStore` consumes the layer-2 session and layout persistence path only; it does not resolve `StorageAdapter` directly.
-- `loadLayoutState()` still runs when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
+- `getLayoutStateOrDefault()` still returns the remembered layout when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
+- `getGameSessionOrDefault()` and `getLayoutStateOrDefault()` are lazy first-read boundaries intended for route or view setup paths rather than an eager startup phase.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's persisted analysis roster order to derive the current mapping.
 - Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. If they share implementation with routing logic, that implementation is documented under `SessionNavigationUtility` in [UtilityIndex.md](../UtilityIndex.md).

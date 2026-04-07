@@ -5,11 +5,11 @@ Own on-demand recent-game projection for `HomeView`, including latest-save dedup
 
 ## Public Interface
 ```ts
-loadRecentGames(): Promise<IRecentGameEntry[]>
+getRecentGames(): Promise<IRecentGameEntry[]>
 ```
 
 ## Responsibilities
-- load recent-game entries on demand when `HomeView` becomes active
+- get recent-game entries on demand from the `HomeView.setup` body
 - project recent-game metadata from available save targets instead of persisting a dedicated recent snapshot
 - keep at most one recent entry per canonical `gameId`
 - expose the recent list in newest-first order by `lastSavedAtUtc`
@@ -28,5 +28,5 @@ loadRecentGames(): Promise<IRecentGameEntry[]>
 
 ## Notes
 - `RecentGameStore` consumes only layer-2 save-index and serialisation services. It does not resolve `StorageAdapter` directly.
-- `loadRecentGames()` is the authoritative read path for `HomeView`; any short-lived cache must be treated as disposable and non-authoritative.
+- `getRecentGames()` is the authoritative read path for `HomeView`; any short-lived cache must be treated as disposable and non-authoritative.
 - Loading a recent entry's saved target belongs to `GamesStore` after `SavedGamesStore` resolves the full path; `RecentGameStore` owns only the projected recent-entry metadata.
