@@ -86,7 +86,7 @@ Additional rules:
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
 - Bootstrap selects one `IPlatformService` implementation and wires it into layer-2 services.
 - The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient`.
-- `EngineClient` owns protocol translation and engine-session messaging behind `EngineRuntimeService`. Higher layers do not compose raw UCI strings directly.
+- `EngineClient` owns protocol translation and parsing behind `EngineRuntimeService`, while `EngineRuntimeService` owns process lifecycle and raw transport. Higher layers do not compose raw UCI strings directly.
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
 - Shared imported private utilities that touch committed contract models are documented only in [UtilityIndex.md](UtilityIndex.md) plus the owning module docs that delegate to them. They do not appear as flow-level owners.
 - Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
@@ -128,7 +128,7 @@ The data-interface section defines the shared low-level types for:
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
-- `EnginesStore` owns configured engine profiles, streamed runtime session state, and player-engine runtime state at layer 3, while `AnalysisStore` owns visible analysis snapshots and `EngineRuntimeService` owns the lower-layer engine runtime path to protocol and process transport.
+- `EnginesStore` owns configured engine profiles, streamed runtime session state, and player-engine runtime state at layer 3, while `AnalysisStore` owns visible analysis snapshots and `EngineRuntimeService` owns the lower-layer engine runtime path to `ProcessManager` and `EngineClient`.
 - `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SavedGameDocumentService`, `SerializationService`, `SessionStateService`, and `UserSettingSerivce` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SavedGameDocumentService` owning saved-game document I/O and picker boundaries, `SerializationService` owning canonical payload conversion, `SessionStateService` owning session and layout document I/O, and `UserSettingSerivce` owning settings pathing, validation, caching, persistence, and initial system-theme reads behind the layer-2 boundary.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 

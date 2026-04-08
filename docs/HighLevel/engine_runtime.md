@@ -104,8 +104,8 @@ If the user selects more than the supported concurrent analysis engines, the app
 - `EnginesStore` owns assignment, availability state, and lifecycle coordination for already assigned engine participants.
 - `AnalysisStore` owns streamed evaluation state for the current runtime session.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `EnginesStore`.
-- `EngineClient` owns protocol-specific engine-session mechanics and translates between ChessVue engine operations and raw process I/O behind `EngineRuntimeService`.
-- `ProcessManager` owns child-process mechanics only.
+- `EngineClient` owns protocol-specific command building, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.
+- `ProcessManager` owns child-process mechanics only and is consumed by `EngineRuntimeService`.
 
 ## Non-Baseline Exclusions
 The following are explicitly out of scope for the rewrite baseline:

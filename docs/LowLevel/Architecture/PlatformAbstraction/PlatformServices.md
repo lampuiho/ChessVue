@@ -41,6 +41,7 @@ That mocked host is expected to provide:
 
 ## Notes
 - `IPlatformService` is selected during bootstrap or other composition-root wiring, then injected into the layer-2 service graph.
+- `EngineRuntimeService` is the baseline layer-2 composer of `ProcessManager` and `EngineClient`.
 - The baseline expects multiple concrete host implementations to satisfy the same `IPlatformService` contract; it does not assume a store-shaped singleton.
 - State-management modules do not resolve `IPlatformService` directly.
 - The returned adapters should satisfy the same contracts that later real desktop bindings will satisfy.

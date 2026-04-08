@@ -60,7 +60,7 @@ removeSessionsForEngine(assignedEngineId: string): Promise<void>
 
 ## Notes
 - `EnginesStore` consumes `EngineRuntimeService` as its engine-facing layer-2 boundary. It does not resolve `ProcessManager` or `EngineClient` directly.
-- Protocol-specific command text, FEN or UCI mapping, and child-process transport remain below layer 3.
+- Protocol-specific command text, FEN or UCI mapping, raw process transport, and parser wiring remain below layer 3.
 - Visible analysis snapshots are owned by `AnalysisStore`, not by `EnginesStore`.
 - Continuous analysis callbacks originate from runtime sessions owned by `EnginesStore`, but caller-owned handlers update `AnalysisStore`.
 - Flow docs continue to show `EnginesStore._startAnalysisSessions` and `EnginesStore._startPlayerTurnSearch` as the visible owner-private boundaries. If they share contract-aware engine-position mapping, that implementation is documented under `EnginePositionMappingUtility` in [UtilityIndex.md](../UtilityIndex.md).

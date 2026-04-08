@@ -20,13 +20,15 @@ stopSession(sessionId: string): Promise<void>
 ```
 
 ## Responsibilities
-- wrap `EngineClient` so layer 3 consumes one engine-runtime service instead of a platform adapter
-- start, configure, register, sync, restart, and stop engine sessions using the captured assigned-engine snapshot from the game workspace
+- wrap `EngineClient` and `ProcessManager` so layer 3 consumes one engine-runtime service instead of platform adapters
+- spawn, configure, register, sync, restart, and stop engine sessions using the captured assigned-engine snapshot from the game workspace
+- subscribe to engine stdout, route raw lines through `EngineClient`, and write protocol commands to stdin through `ProcessManager`
 - expose typed analysis, player-turn, and session-event callbacks without leaking UCI or raw process semantics upward
-- isolate protocol-specific message composition, ready handshakes, and raw process transport behind the layer-2 boundary
+- isolate protocol-specific message composition, ready handshakes, raw process transport, and per-session callback fanout behind the layer-2 boundary
 - support position supersession and deterministic new-game-boundary handling for analysis refresh and player-engine turns
 
 ## Dependencies
+- `ProcessManager`
 - `EngineClient`
 
 ## Scenario Coverage
@@ -41,5 +43,6 @@ stopSession(sessionId: string): Promise<void>
 
 ## Notes
 - `EngineRuntimeService` is the missing layer-2 engine-facing path described by the flow docs and high-level architecture.
-- `EnginesStore` owns runtime intent and session state, but it reaches protocol transport only through this service.
-- `EngineClient` remains the owner of UCI mapping, engine-facing FEN, and raw process-session mechanics.
+- `EnginesStore` owns runtime intent and session state, but it reaches process transport and protocol translation only through this service.
+- `EngineRuntimeService` owns process lifecycle, stdin/stdout wiring, and typed runtime callback delivery for engine sessions.
+- `EngineClient` remains the owner of UCI mapping, engine-facing FEN, and protocol parsing only.

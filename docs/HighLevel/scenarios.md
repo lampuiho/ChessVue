@@ -582,8 +582,8 @@ Each scenario in this document uses the same structure:
   - `EnginesStore.startAnalysis`
   - `AnalysisStore.applyAnalysisUpdate`
   - `AnalysisStore.getVisibleAnalysis`
-  - `ProcessManager.writeInput`
-  - `ProcessManager.subscribeToStdout`
+  - `EngineRuntimeService.startAnalysis`
+  - `EngineRuntimeService.subscribeToAnalysis`
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
 - **Status**: Planned
@@ -601,7 +601,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Engine failures are isolated and recoverable, and the last streamed best line remains visible until replaced by a new search.
 - **Function Touchpoints**:
   - `EnginesStore.stopAnalysis`
-  - `ProcessManager.stopProcess`
+  - `EngineRuntimeService.stopSession`
   - `EnginesStore.startAnalysis`
   - `AnalysisStore.getVisibleAnalysis`
   - `UiStateStore.showModal`

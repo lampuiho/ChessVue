@@ -84,7 +84,7 @@ Each entry must define:
   - `EnginesStore._startAnalysisSessions`
   - `EnginesStore._startPlayerTurnSearch`
   - `EngineRuntimeService._syncEnginePosition`
-  - `EngineClient._mapBoardPositionToProtocolPosition`
-  - `EngineClient._shouldReuseCurrentGameLine`
+  - `EngineClient.buildPositionSyncCommands`
+  - `EngineClient.requiresNewGameBoundary`
 - Classification: `pure`.
 - Validation or failure semantics: produced engine-position state must preserve canonical move ordering and branch identity so runtime restart and position reuse decisions stay deterministic.

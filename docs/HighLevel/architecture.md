@@ -121,7 +121,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `StorageAdapter` exposes generic host storage, file-system, and file-dialog operations only.
 - `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
 - `SystemThemeAdapter` exposes the current OS theme only.
-- `EngineClient` translates ChessVue engine-session operations into the active protocol and hides raw engine message formats from higher layers.
+- `EngineClient` translates between ChessVue engine structures and the active engine protocol and hides raw engine message formats from higher layers.
   It is consumed through `EngineRuntimeService`, not by layer-3 stores directly.
 - `IPlatformService` also owns the small typed app-event registration surface for app close, focus return, and system-theme change notifications plus active-registration inspection.
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
@@ -132,7 +132,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `PositionIdentityService` owns canonical position identity and equality rules used by analysis, restore, and serialisation workflows.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
-- `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `EnginesStore` for continuous analysis and player-engine turns while keeping protocol and process transport behind `EngineClient`.
+- `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `EnginesStore` for continuous analysis and player-engine turns, including process lifecycle through `ProcessManager` and protocol translation through `EngineClient`.
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
 - `SavedGameDocumentService` owns saved-game document I/O, managed-save enumeration, and external import/export picker access behind the layer-2 boundary.
 - `SerializationService` owns the canonical saved-game payload shape, schema versioning hooks, migration entry points, settings and session serialisation, and saved-game document interpretation for internal save/load plus external import/export flows.
@@ -202,7 +202,7 @@ The high-level contracts divide behaviour ownership as follows:
 ### Analysis Refresh
 1. A committed move or explicit analysis action requests evaluation.
 2. `EnginesStore` ensures assigned engines are available.
-3. The layer-2 engine-facing path translates the selected position into the active engine protocol and uses platform process transport.
+3. `EngineRuntimeService` starts or reuses the engine process through `ProcessManager`, translates the selected position through `EngineClient`, and routes raw transport through that layer-2 boundary.
 4. `AnalysisStore` keeps the latest valid result for each engine independently.
 5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth, while score-only versus move-list rendering still follows the current workspace context and the game's persisted `showLiveAnalysisMoves` preference.
 
