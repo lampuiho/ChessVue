@@ -16,13 +16,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | --- |
 | `SettingsStore.getSettings` |
 | `SettingsStore._resolveThemeMode` |
-| `UserSettingSerivce.getSystemTheme` |
+| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 | `PlatformEventService.subscribeToSystemThemeChanged` |
 
 | `SettingsStore.getSettings` |
 | --- |
-| `UserSettingSerivce.getSettingsOrDefault` |
+| `UserSettingService.getSettingsOrDefault` |
 | `SettingsStore._syncAcceptedSettings` |
 | `SettingsStore._syncDraftSettings` |
 
@@ -53,7 +53,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SettingsStore.getSettings` |
 | --- |
-| `UserSettingSerivce.getSettingsOrDefault` |
+| `UserSettingService.getSettingsOrDefault` |
 | `SettingsStore._syncAcceptedSettings` |
 | `SettingsStore._syncDraftSettings` |
 
@@ -134,19 +134,19 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | --- |
 | `SettingsStore.getSettings` |
 | `SettingsStore._resolveThemeMode` |
-| `UserSettingSerivce.getSystemTheme` |
+| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 | `SettingsStore.getSettings` |
 | --- |
-| `UserSettingSerivce.getSettingsOrDefault` |
+| `UserSettingService.getSettingsOrDefault` |
 
-| `UserSettingSerivce.getSettingsOrDefault` |
+| `UserSettingService.getSettingsOrDefault` |
 | --- |
 | `SerializationService._parseJson` |
 | `SerializationService._migrateBySchemaVersion` |
-| `UserSettingSerivce._migrateSnapshotOrDefault` |
-| `UserSettingSerivce._cacheAcceptedSettings` |
+| `UserSettingService._migrateSnapshotOrDefault` |
+| `UserSettingService._cacheAcceptedSettings` |
 
 | `UiStateStore.getLayoutStateOrDefault` |
 | --- |
@@ -323,7 +323,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SettingsStore.getSettings` |
 | --- |
-| `UserSettingSerivce.getSettingsOrDefault` |
+| `UserSettingService.getSettingsOrDefault` |
 
 #### Flow B - Leave Settings And Return
 | `SettingsView.returnRequested` |

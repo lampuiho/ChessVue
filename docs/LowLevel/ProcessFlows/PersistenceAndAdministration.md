@@ -33,7 +33,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `GamesStore._saveGameOnCloseIfEnabled` |
 | --- |
-| `UserSettingSerivce.getSettings` |
+| `UserSettingService.getSettings` |
 | `GamesStore._assertGameExists` |
 | `GamesStore._saveAutoSave` |
 
@@ -369,18 +369,18 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.applySettings` |
 | --- |
-| `UserSettingSerivce.saveSettings` |
+| `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
-| `UserSettingSerivce.getSystemTheme` |
+| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
-| `UserSettingSerivce.saveSettings` |
+| `UserSettingService.saveSettings` |
 | --- |
-| `UserSettingSerivce._validateSettings` |
-| `UserSettingSerivce._writeSettingsSnapshot` |
-| `UserSettingSerivce._cacheAcceptedSettings` |
+| `UserSettingService._validateSettings` |
+| `UserSettingService._writeSettingsSnapshot` |
+| `UserSettingService._cacheAcceptedSettings` |
 
 #### Flow B - Save Accepted Settings
 | `SettingsView.saveRequested` |
@@ -396,11 +396,11 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.saveSettings` |
 | --- |
-| `UserSettingSerivce.saveSettings` |
+| `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
-| `UserSettingSerivce.getSystemTheme` |
+| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
@@ -424,18 +424,18 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.resetSettings` |
 | --- |
-| `UserSettingSerivce.resetSettings` |
+| `UserSettingService.resetSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
-| `UserSettingSerivce.getSystemTheme` |
+| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
-| `UserSettingSerivce.resetSettings` |
+| `UserSettingService.resetSettings` |
 | --- |
-| `UserSettingSerivce._defaultSettings` |
-| `UserSettingSerivce._writeSettingsSnapshot` |
-| `UserSettingSerivce._cacheAcceptedSettings` |
+| `UserSettingService._defaultSettings` |
+| `UserSettingService._writeSettingsSnapshot` |
+| `UserSettingService._cacheAcceptedSettings` |
 
 | `UiStateStore.hideModal` |
 | --- |
@@ -459,7 +459,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.applySettings` |
 | --- |
-| `UserSettingSerivce.saveSettings` |
+| `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 
@@ -477,7 +477,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.saveSettings` |
 | --- |
-| `UserSettingSerivce.saveSettings` |
+| `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 
@@ -500,7 +500,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.applySettings` |
 | --- |
-| `UserSettingSerivce.saveSettings` |
+| `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 
@@ -518,7 +518,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `SettingsStore.saveSettings` |
 | --- |
-| `UserSettingSerivce.saveSettings` |
+| `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 

@@ -61,7 +61,7 @@ pruneFuture(gameId: string, path: MovePath): Promise<void>
 - read, deserialise, migrate, and hydrate a saved workspace into the open-game collection once the owning flow has selected a source file
 - transition a prepared setup workspace into a live game without losing its prepared root or move tree
 - persist each game's live-analysis display preference alongside the rest of the workspace state
-- capture assigned-engine snapshots from reusable engine profiles when seating player engines or analysis engines by reading the accepted engine inventory through `UserSettingSerivce`
+- capture assigned-engine snapshots from reusable engine profiles when seating player engines or analysis engines by reading the accepted engine inventory through `UserSettingService`
 - enforce allowed actions from the state axes and accepted gameplay or session policies
 - coordinate legal move application, move-tree updates, notation, position identity, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
@@ -106,7 +106,7 @@ pruneFuture(gameId: string, path: MovePath): Promise<void>
 - `PlatformEventService`
 - `SerializationService`
 - `TimeControlService`
-- `UserSettingSerivce`
+- `UserSettingService`
 
 ## Scenario Coverage
 - `SCN-SESSION-02`

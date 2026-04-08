@@ -62,7 +62,7 @@ Committed domain modules:
 - `SerializationService`
 - `SessionStateService`
 - `PlatformEventService`
-- `UserSettingSerivce`
+- `UserSettingService`
 
 This layer owns legal move handling, move-tree rules, clock calculation rules, canonical saved-game rules, and the layer-2 service boundaries that hide platform details from state stores.
 
@@ -138,7 +138,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `SerializationService` owns the canonical saved-game payload shape, schema versioning hooks, migration entry points, settings and session serialisation, and saved-game document interpretation for internal save/load plus external import/export flows.
 - `SessionStateService` owns canonical path rules plus load/save for persisted game-session and UI-layout artefacts.
 - `PlatformEventService` exposes typed app-level event registration and inspection to state stores without letting layer 3 depend on `IPlatformService` directly.
-- `UserSettingSerivce` owns the canonical settings file path, loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults or migration fallback when needed, exposes the current system theme, and persists accepted settings without exposing platform storage directly to layer 3.
+- `UserSettingService` owns the canonical settings file path, loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults or migration fallback when needed, exposes the current system theme, and persists accepted settings without exposing platform storage directly to layer 3.
 - Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
 
 ### State Management

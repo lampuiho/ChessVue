@@ -250,7 +250,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `Chessboard.moveSubmittedFromHistory` |
 | --- |
 | `GamesStore.makeMove` |
-| `UserSettingSerivce.getSettings` |
+| `UserSettingService.getSettings` |
 | `TimeControlService.applyMove` |
 | `MoveUpdateService.addMainlineMove` |
 | `MoveUpdateService.rewriteMainline` |
@@ -264,7 +264,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._promoteNewContinuation` |
 | `GamesStore._restoreCurrentPositionAfterRewrite` |
 
-| `UserSettingSerivce.getSettings` |
+| `UserSettingService.getSettings` |
 | --- |
 
 | `TimeControlService.applyMove` |
@@ -287,7 +287,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `Chessboard.moveSubmittedFromHistory` |
 | --- |
 | `GamesStore.makeMove` |
-| `UserSettingSerivce.getSettings` |
+| `UserSettingService.getSettings` |
 | `MoveUpdateService.addAnalysisMove` |
 
 | `GamesStore.makeMove` |
@@ -295,7 +295,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._applyAnalysisOnlyHistoryPolicy` |
 | `GamesStore._handleAnalysisBranchExitBehaviour` |
 
-| `UserSettingSerivce.getSettings` |
+| `UserSettingService.getSettings` |
 | --- |
 
 | `MoveUpdateService.addAnalysisMove` |
@@ -305,7 +305,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `Chessboard.moveSubmittedFromHistory` |
 | --- |
 | `GamesStore.makeMove` |
-| `UserSettingSerivce.getSettings` |
+| `UserSettingService.getSettings` |
 | `MoveUpdateService.addAnalysisMove` |
 | `GamesStore.navigateToNode` |
 
@@ -315,7 +315,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._handleAnalysisBranchExitBehaviour` |
 | `GamesStore._restoreLiveNodeAfterAnalysisBranch` |
 
-| `UserSettingSerivce.getSettings` |
+| `UserSettingService.getSettings` |
 | --- |
 
 | `MoveUpdateService.addAnalysisMove` |
