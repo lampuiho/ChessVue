@@ -29,7 +29,7 @@ migrateGame(input: unknown): IGameWorkspace
 - reject incomplete, unsupported, or incompatible saved-game payloads rather than inventing detached UI restore sections or partial-recovery import paths
 - strip runtime-only `$` metadata from persisted output
 - validate board-root consistency through structural position identity rather than stored FEN
-- remain platform-independent: stores orchestrate adapter calls, but `SerializationService` decides how persisted game documents are interpreted
+- remain platform-independent and path-agnostic: stores orchestrate adapter calls, but `SerializationService` decides how persisted payloads are interpreted
 
 ## Scenario Coverage
 - `SCN-SESSION-03`
@@ -41,3 +41,7 @@ migrateGame(input: unknown): IGameWorkspace
 - `SCN-EXPORT-01`
 - `SCN-IMPORT-01`
 - `SCN-IMPORT-02`
+
+## Notes
+- `SerializationService` owns payload shape only. It does not resolve file paths, storage roots, executable-root policy, or save-root policy.
+- Recent-game history remains query-derived from available save targets and is not a serialised persisted artefact owned by this service.

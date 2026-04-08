@@ -48,7 +48,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | --- |
 | `AnalysisStore.applyAnalysisUpdate` |
 
-- Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to `PlayerType.None` yields a non-live workspace while preserving engine-driven analysis when configured.
+- Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to `null` yields a non-live workspace while preserving engine-driven analysis when configured.
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
 
@@ -349,5 +349,6 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 - UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine.
 - State gate: roster add and remove are valid for `WorkspaceKind.LiveGame` and `WorkspaceKind.FreeAnalysisSetup` workspaces in `InteractionContext.CurrentPosition`, `InteractionContext.HistoryReview`, and `InteractionContext.InGameAnalysis`.
 - Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to the engine store.
+
 
 

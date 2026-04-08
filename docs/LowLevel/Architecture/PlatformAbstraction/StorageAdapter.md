@@ -3,6 +3,8 @@
 ## Purpose
 Handle generic host storage plus generic file-system and file-dialog operations through one platform contract.
 
+`StorageAdapter` is path-based and rootless. It operates only on explicit paths supplied by callers and does not own save-root, executable-root, or app-data path policy.
+
 ## Public Interface
 ```ts
 interface IFileSystemEntry {
@@ -25,6 +27,7 @@ deleteFile(path: string): Promise<void>
 - show host save/open dialogs and return the selected file paths
 - enumerate directories, create folders when requested, and read or write raw text documents at caller-provided paths
 - delete caller-provided files when the owning layer has already decided that removal is required
+- avoid owning any implicit storage root; higher-layer services decide how paths such as managed save roots or executable-root-relative files are resolved
 
 ## Dependencies
 - underlying host persistence and file APIs
@@ -43,4 +46,4 @@ deleteFile(path: string): Promise<void>
 
 ## Rewrite-Phase Mock Note
 - The first implementation pretends to run on `NW.js` but uses an adapter-backed in-memory mock.
-- The mock exposes canned document, directory, dialog, and delete responses for file-backed flows.
+- The mock exposes canned document, directory, dialog, and delete responses for file-backed flows while still behaving as a rootless path-based adapter.

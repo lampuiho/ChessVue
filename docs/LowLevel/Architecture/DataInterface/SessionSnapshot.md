@@ -5,8 +5,6 @@ Define the persisted game-session and UI-layout payloads used to restore the app
 
 ## Interfaces
 - `enum SettingsCategory`
-- `enum AppRouteKind`
-- `interface IActiveRoute`
 - `interface IGameSessionSnapshot`
 - `interface IUiLayoutState`
 
@@ -17,21 +15,6 @@ enum SettingsCategory {
   Gameplay = "gameplay",
   Appearance = "appearance",
   Engines = "engines"
-}
-
-enum AppRouteKind {
-  Home = "home",
-  Game = "game",
-  SavedGamesLoad = "savedGamesLoad",
-  SavedGamesSave = "savedGamesSave",
-  Settings = "settings"
-}
-
-interface IActiveRoute {
-  kind: AppRouteKind
-  gameId?: string
-  saveName?: string
-  settingsCategory?: SettingsCategory
 }
 
 interface IUiLayoutState {
@@ -47,7 +30,13 @@ interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
   activeGameId: string | null
-  activeRoute: IActiveRoute
+  activeRoute:
+    | "/home"
+    | `/game/${string}`
+    | "/saved-games/load"
+    | `/saved-games/load/${string}`
+    | `/saved-games/save/${string}`
+    | `/settings/${SettingsCategory}`
 }
 ```
 
@@ -59,7 +48,8 @@ interface IGameSessionSnapshot {
 - `analysisEngineExpandedByIndex[index] = true` means the analysis-engine row at that rendered index for the active game is expanded, `false` means collapsed, and a missing entry defaults to expanded.
 - The rendered row order is derived from `IGameWorkspace.analysisAssignment.assignedEngines` for the active game and is recalculated whenever the active game changes.
 - `IGameSessionSnapshot.activeGameId` identifies the selected open game tab only; it is not part of layout persistence.
-- `IGameSessionSnapshot.activeRoute` stores the canonical routed target as an enum-backed route kind plus the minimum route parameters needed for restore, rather than redirect-only aliases such as `/settings`.
+- `IGameSessionSnapshot.activeRoute` stores the canonical committed route directly as a route string rather than through an enum-backed route object.
+- `IGameSessionSnapshot.activeRoute` is limited to the committed route family and does not store redirect-only aliases such as `/settings`.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.
 - Recent-game history is derived on demand for `HomeView`, not stored in either of these payloads.
 - Conscious user preferences live in `ISettingsSnapshot`, not in either of these payloads.

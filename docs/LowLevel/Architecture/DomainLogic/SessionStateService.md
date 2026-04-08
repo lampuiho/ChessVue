@@ -36,3 +36,6 @@ saveLayoutState(state: IUiLayoutState): Promise<void>
 ## Notes
 - `SessionStateService` is the layer-2 session and layout persistence path referenced by `UiStateStore`.
 - `SerializationService` remains pure; this service owns the storage-backed load and save boundary, not the payload contract itself.
+- In the first desktop implementation, `SessionStateService` resolves `game-session.json` and `layout-state.json` relative to the executable or app root.
+- That executable-root policy is a concrete desktop implementation choice owned by this service layer, not by `StorageAdapter`.
+- Future non-desktop implementations may resolve the same artefacts differently without changing the rootless `StorageAdapter` contract.

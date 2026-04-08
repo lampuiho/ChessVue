@@ -28,7 +28,7 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 | `AppModalKind.BoardEditBlocked` | `GameControlPanel.boardEditRequested` when board edit is not allowed | Explain that board editing belongs only to `WorkspaceKind.FreeAnalysisSetup`. | Dismiss-only for the baseline, with room for a later setup shortcut. | `gameId`, `reason` |
 | `AppModalKind.SettingsDirtyLeave` | `SettingsView.returnRequested` with pending draft edits | Ask whether to discard or keep editing before leaving the settings route. | Secondary `Stay` and primary `Discard Changes`. | target route |
 | `AppModalKind.AnalysisExitDirty` | `GameControlPanel.analysisExitRequested` with retained exploratory work | Ask whether to keep or discard the dirty analysis branch before restoring the live node. | Secondary `Keep Branch` and primary `Discard Branch`. | `gameId` |
-| `AppModalKind.PlayerSelection` | `PlayerPanel.playerSelectionRequested` | Choose `PlayerType.None`, `PlayerType.Local`, or a configured engine profile for one seat. | `Cancel` plus seat-selection actions. | `gameId`, seat `colour`, current player selection |
+| `AppModalKind.PlayerSelection` | `PlayerPanel.playerSelectionRequested` | Choose unassigned, `PlayerType.Local`, or a configured engine profile for one seat. | `Cancel` plus seat-selection actions. | `gameId`, seat `colour`, current player selection |
 | `AppModalKind.AnalysisEngineSelection` | `AnalysisPanel.analysisEngineAddRequested` | Choose one unassigned engine profile to add to the current game's analysis roster. | `Cancel` and primary `Add Engine`. | `gameId`, current `assignedEngineIds` |
 
 ## Coverage Notes

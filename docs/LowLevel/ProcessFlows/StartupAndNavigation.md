@@ -270,7 +270,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GameView._requestEngineTurnIfNeeded` |
 
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
-- State/settings coverage: any request with both sides assigned becomes a baseline `WorkspaceKind.LiveGame`, while any request with either side assigned `PlayerType.None` becomes `WorkspaceKind.FreeAnalysisSetup`. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GameView._requestEngineTurnIfNeeded` is evaluated immediately after creation whenever the resulting live game starts on an engine-controlled side to move, including `PlayerType.Engine/PlayerType.Engine`.
+- State/settings coverage: any request with both sides assigned becomes a baseline `WorkspaceKind.LiveGame`, while any request with either side unassigned becomes `WorkspaceKind.FreeAnalysisSetup`. At the low-level request boundary, that unassigned state is encoded as `null`. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GameView._requestEngineTurnIfNeeded` is evaluated immediately after creation whenever the resulting live game starts on an engine-controlled side to move, including `PlayerType.Engine/PlayerType.Engine`.
 - Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, any partially or fully unassigned player request resolves into `WorkspaceKind.FreeAnalysisSetup`, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
@@ -435,5 +435,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
 - Ownership coverage: `SavedGamesStore` owns recent-target path resolution, `GamesStore` owns loading that saved file into the live session, and `RecentGameStore` remains limited to on-demand recent-list projection.
 - Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references disappear on the next recent-list query without needing eager cleanup writes.
+
 
 
