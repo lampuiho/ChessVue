@@ -41,13 +41,15 @@ Each entry must define:
 
 ## Persistence And Saved Documents
 ### SavedGameDocumentUtility
-- Purpose: share canonical managed-save document access, external document access, and duplicate-identity repair around saved-game workflows.
+- Purpose: share canonical managed-save enumeration, saved-document access, and duplicate-identity repair around saved-game workflows.
 - Touched contract models: `IGameWorkspace`, canonical saved-game document text.
-- Allowed importers: `GamesStore`.
+- Allowed importers: `SavedGameDocumentService`, `GamesStore`, `RecentGameStore`.
 - Owner-private delegates:
-  - `GamesStore._writeSavedGameDocument`
-  - `GamesStore._readSavedGameDocument`
+  - `SavedGameDocumentService._enumerateManagedSaveEntries`
+  - `SavedGameDocumentService._writeSavedGameDocument`
+  - `SavedGameDocumentService._readSavedGameDocument`
   - `GamesStore._remapDuplicateIdIfNeeded`
+  - `RecentGameStore._enumerateRecentSaveTargets`
 - Classification: `mixed`.
 - Validation or failure semantics: raw document errors and invalid payloads are surfaced back through the owning store; duplicate identity repair must preserve the canonical payload shape before insertion into live state.
 
@@ -77,10 +79,11 @@ Each entry must define:
 ### EnginePositionMappingUtility
 - Purpose: share contract-aware projection between ChessVue workspace state and engine-facing position state used for continuous analysis and player-engine turns.
 - Touched contract models: `IEnginePositionState`, `IGameWorkspace`, `IBoardPosition`, move-tree node identity.
-- Allowed importers: `EnginesStore`, `EngineClient`.
+- Allowed importers: `EnginesStore`, `EngineRuntimeService`, `EngineClient`.
 - Owner-private delegates:
   - `EnginesStore._startAnalysisSessions`
   - `EnginesStore._startPlayerTurnSearch`
+  - `EngineRuntimeService._syncEnginePosition`
   - `EngineClient._mapBoardPositionToProtocolPosition`
   - `EngineClient._shouldReuseCurrentGameLine`
 - Classification: `pure`.

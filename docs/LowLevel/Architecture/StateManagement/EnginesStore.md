@@ -29,7 +29,7 @@ removeSessionsForEngine(assignedEngineId: string): Promise<void>
 - build runtime sessions from the game's captured assigned-engine snapshots rather than reading launch configuration from mutable profile records at start time
 - expose concrete runtime sessions without leaking protocol-specific command composition
 - own all analysis start, retry, and stop orchestration through the layer-2 engine runtime path
-- retain enough position-state context for the lower-layer engine client to reuse the same game line instead of forcing a new-game reset on every search
+- retain enough position-state context for the lower-layer engine runtime path to reuse the same game line instead of forcing a new-game reset on every search
 - distinguish continuous analysis searches from turn-scoped player-engine move generation
 - surface typed analysis callbacks to the caller-owned flow that updates `AnalysisStore`
 
@@ -44,6 +44,7 @@ removeSessionsForEngine(assignedEngineId: string): Promise<void>
 - When `GamesStore` changes a game's analysis-engine roster, `EnginesStore` starts or stops only the affected game-role sessions. Other games and roles are untouched.
 
 ## Dependencies
+- `EngineRuntimeService`
 - `MoveNotationService`
 - `PositionIdentityService`
 
@@ -58,7 +59,7 @@ removeSessionsForEngine(assignedEngineId: string): Promise<void>
 - `SCN-ENGINE-03`
 
 ## Notes
-- `EnginesStore` consumes layer-2 engine runtime boundaries only. It does not resolve `ProcessManager` or `EngineClient` directly.
+- `EnginesStore` consumes `EngineRuntimeService` as its engine-facing layer-2 boundary. It does not resolve `ProcessManager` or `EngineClient` directly.
 - Protocol-specific command text, FEN or UCI mapping, and child-process transport remain below layer 3.
 - Visible analysis snapshots are owned by `AnalysisStore`, not by `EnginesStore`.
 - Continuous analysis callbacks originate from runtime sessions owned by `EnginesStore`, but caller-owned handlers update `AnalysisStore`.

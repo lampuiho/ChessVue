@@ -99,6 +99,7 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - `MoveUpdateService`
 - `PositionIdentityService`
 - `SavedGameIndexService`
+- `SavedGameDocumentService`
 - `PlatformEventService`
 - `SerializationService`
 - `TimeControlService`
@@ -127,5 +128,6 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `GamesStore._canRequestEngineTurn` is the internal gate behind player-engine move generation and must remain a strict state check rather than a best-effort hint.
 - `SavedGamesStore` owns save browsing, recent-target resolution, and external picker flows. `GamesStore` owns serialising the current workspace and hydrating a saved workspace once the target path is known.
+- `GamesStore` uses `SavedGameDocumentService` for raw saved-game document reads, writes, and deletes while keeping workspace serialisation and hydration in-store.
 - `GamesStore` does not call sibling stores directly. Any later tab, route, modal, or engine-runtime sequencing is owned by the caller-facing presentation or bootstrap flow that composes this store with the rest of layer 3.
-- Flow docs continue to show owner-private functions such as `GamesStore._hydrateWorkspace`, `GamesStore._readSavedGameDocument`, and `GamesStore._hydrateWorkspaceCollection`. If those share implementation, that implementation is documented under [UtilityIndex.md](../UtilityIndex.md).
+- Flow docs continue to show owner-private functions such as `GamesStore._hydrateWorkspace`, `GamesStore._loadRequestedDocuments`, and `GamesStore._hydrateWorkspaceCollection`. If those share implementation, that implementation is documented under [UtilityIndex.md](../UtilityIndex.md).

@@ -34,7 +34,7 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - exclude modal visibility and other transient UI prompts from persistence
 
 ## Dependencies
-- `SerializationService`
+- `SessionStateService`
 
 ## Scenario Coverage
 - `SCN-SESSION-01`
@@ -51,7 +51,7 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `SCN-IMPORT-02`
 
 ## Notes
-- `UiStateStore` consumes the layer-2 session and layout persistence path only; it does not resolve `StorageAdapter` directly.
+- `UiStateStore` consumes `SessionStateService` as the layer-2 session and layout persistence path; it does not resolve `StorageAdapter` directly.
 - `getLayoutStateOrDefault()` still returns the remembered layout when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
 - `getGameSessionOrDefault()` and `getLayoutStateOrDefault()` are lazy first-read boundaries intended for route or view setup paths rather than an eager startup phase.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.

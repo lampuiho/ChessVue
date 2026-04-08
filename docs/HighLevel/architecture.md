@@ -56,8 +56,11 @@ Committed domain modules:
 - `MoveUpdateService`
 - `PositionIdentityService`
 - `TimeControlService`
+- `EngineRuntimeService`
 - `SavedGameIndexService`
+- `SavedGameDocumentService`
 - `SerializationService`
+- `SessionStateService`
 - `PlatformEventService`
 - `UserSettingSerivce`
 
@@ -119,6 +122,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
 - `SystemThemeAdapter` exposes the current OS theme only.
 - `EngineClient` translates ChessVue engine-session operations into the active protocol and hides raw engine message formats from higher layers.
+  It is consumed through `EngineRuntimeService`, not by layer-3 stores directly.
 - `IPlatformService` also owns the small typed app-event registration surface for app close, focus return, and system-theme change notifications plus active-registration inspection.
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
 
@@ -128,10 +132,13 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `PositionIdentityService` owns canonical position identity and equality rules used by analysis, restore, and serialisation workflows.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
+- `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `EnginesStore` for continuous analysis and player-engine turns while keeping protocol and process transport behind `EngineClient`.
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
+- `SavedGameDocumentService` owns saved-game document I/O, managed-save enumeration, and external import/export picker access behind the layer-2 boundary.
 - `SerializationService` owns the canonical saved-game payload shape, schema versioning hooks, migration entry points, settings and session serialisation, and saved-game document interpretation for internal save/load plus external import/export flows.
+- `SessionStateService` owns canonical path rules plus load/save for persisted game-session and UI-layout artefacts.
 - `PlatformEventService` exposes typed app-level event registration and inspection to state stores without letting layer 3 depend on `IPlatformService` directly.
-- `UserSettingSerivce` owns the canonical settings file path, loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults or migration fallback when needed, and persists accepted settings without exposing platform storage directly to layer 3.
+- `UserSettingSerivce` owns the canonical settings file path, loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults or migration fallback when needed, exposes the current system theme, and persists accepted settings without exposing platform storage directly to layer 3.
 - Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
 
 ### State Management
@@ -203,11 +210,12 @@ The high-level contracts divide behaviour ownership as follows:
 1. `GamesStore`, `SavedGamesStore`, `RecentGameStore`, and `UiStateStore` own their separate state responsibilities within the committed persistence flows.
 2. `SavedGamesStore` resolves managed-save, recent-entry, and external-file selections into the concrete file paths or destinations needed by the active flow.
 3. `GamesStore` supplies the current workspace to save flows and reconstructs a live workspace during load flows, but it does not decide save-list grouping or picker behaviour.
-4. Layer-2 persistence services serialise, locate, and interpret saved documents, then use platform storage or file adapters as needed; state stores do not resolve those adapters directly.
+4. Layer-2 persistence services locate, enumerate, and move raw document text between state stores and platform storage or file dialogs; state stores do not resolve those adapters directly.
 5. `SavedGameIndexService` converts configured save-root rules plus generic directory entries into ChessVue save groups, latest-save targets, and canonical target file paths.
-6. `SerializationService` converts between raw save-file documents and canonical game payloads, including format detection and migration.
-7. `RecentGameStore` derives at most one recent entry per canonical `gameId`, pointing to the newest autosave or saved-file target when `HomeView` requests the list.
-8. Startup may restore UI-layout state even when settings disable reopening the previous game session. When a game is restored, the app rebuilds the persisted workspace state, then resumes live analysis if engines are available.
+6. `SavedGameDocumentService` enumerates managed-save entries and reads or writes raw saved-game document text for internal save/load plus external import/export flows.
+7. `SerializationService` converts between raw save-file documents and canonical game payloads, including format detection and migration.
+8. `RecentGameStore` derives at most one recent entry per canonical `gameId`, pointing to the newest autosave or saved-file target when `HomeView` requests the list.
+9. Startup may restore UI-layout state even when settings disable reopening the previous game session. When a game is restored, the app rebuilds the persisted workspace state, then resumes live analysis if engines are available.
 
 ## Explicitly Deferred
 The following concepts are not part of the baseline architecture and are tracked in [ideas.md](ideas.md):

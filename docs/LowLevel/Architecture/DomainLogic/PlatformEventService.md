@@ -23,4 +23,4 @@ getEventRegistrationSnapshot(): IPlatformEventRegistration[]
 ## Notes
 - Session-owned workflows such as close-trigger autosave and focus-return clock reconciliation register and unregister through this service.
 - `SettingsStore` uses this service to react to later system-theme changes while continuing to read the current theme through its existing theme-resolution path.
-- `EngineClient.subscribeToSessionEvents` remains engine-runtime-specific and is not replaced by this service.
+- `EngineRuntimeService.subscribeToSessionEvents` remains engine-runtime-specific and is not replaced by this service.

@@ -1,0 +1,45 @@
+# EngineRuntimeService
+
+## Purpose
+Own the layer-2 engine runtime boundary consumed by `EnginesStore` for continuous analysis and engine-controlled turns.
+
+## Public Interface
+```ts
+ensureSession(session: IEngineRuntimeSession, engine: IAssignedEngine): Promise<void>
+configureSession(sessionId: string, options: IEngineOptionMap): Promise<void>
+registerSession(sessionId: string, request: IEngineRegistrationRequest): Promise<void>
+syncPosition(sessionId: string, positionState: IEnginePositionState): Promise<void>
+startAnalysis(sessionId: string, request: IEngineAnalysisRequest): Promise<void>
+stopAnalysis(sessionId: string): Promise<void>
+startPlayerTurn(sessionId: string): Promise<void>
+subscribeToAnalysis(sessionId: string, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void
+subscribeToPlayerTurnResult(sessionId: string, onMove: (move: IMove | null) => void): () => void
+subscribeToSessionEvents(sessionId: string, onEvent: (event: IEngineSessionEvent) => void): () => void
+restartSession(session: IEngineRuntimeSession, engine: IAssignedEngine): Promise<void>
+stopSession(sessionId: string): Promise<void>
+```
+
+## Responsibilities
+- wrap `EngineClient` so layer 3 consumes one engine-runtime service instead of a platform adapter
+- start, configure, register, sync, restart, and stop engine sessions using the captured assigned-engine snapshot from the game workspace
+- expose typed analysis, player-turn, and session-event callbacks without leaking UCI or raw process semantics upward
+- isolate protocol-specific message composition, ready handshakes, and raw process transport behind the layer-2 boundary
+- support position supersession and deterministic new-game-boundary handling for analysis refresh and player-engine turns
+
+## Dependencies
+- `EngineClient`
+
+## Scenario Coverage
+- `SCN-GAME-02`
+- `SCN-SESSION-02`
+- `SCN-FREE-ANALYSIS-01` to `SCN-FREE-ANALYSIS-03`
+- `SCN-ANALYSIS-01` to `SCN-ANALYSIS-05`
+- `SCN-LOAD-01`
+- `SCN-ENGINE-01`
+- `SCN-ENGINE-02`
+- `SCN-ENGINE-03`
+
+## Notes
+- `EngineRuntimeService` is the missing layer-2 engine-facing path described by the flow docs and high-level architecture.
+- `EnginesStore` owns runtime intent and session state, but it reaches protocol transport only through this service.
+- `EngineClient` remains the owner of UCI mapping, engine-facing FEN, and raw process-session mechanics.

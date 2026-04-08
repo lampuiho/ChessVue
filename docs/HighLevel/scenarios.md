@@ -539,8 +539,8 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User starts analysis manually, or analysis is auto-triggered after a move.
   2. App ensures the engine session is running.
-  3. `EngineClient` starts an ongoing search for the current FEN and writes protocol commands through `ProcessManager`.
-  4. `ProcessManager` streams raw output to `EngineClient`, which turns it into typed updates.
+  3. `EngineRuntimeService` starts an ongoing search for the current engine position state and delegates protocol commands through `EngineClient` and `ProcessManager`.
+  4. `EngineRuntimeService` receives typed updates from `EngineClient` and passes them back to the caller-owned analysis flow.
   5. App stores updated best lines and scores each time the engine reports an improvement or deeper search result.
   6. Analysis panel refreshes over time to show score and search progress for that engine, plus up to `3` visible lines when the current workspace context allows rendered move targets.
 - **Branch Paths**:
@@ -1304,7 +1304,7 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-07-MAX-RETRY`: Retry limit reached -> disable engine and notify user.
 - **Postconditions**: Better resilience for unstable engine binaries.
 - **Function Touchpoints**:
-  - `EngineClient.subscribeToSessionEvents`
+  - `EngineRuntimeService.subscribeToSessionEvents`
   - `EnginesStore.startAnalysis`
   - `AnalysisStore.getVisibleAnalysis`
 

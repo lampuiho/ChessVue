@@ -38,7 +38,7 @@ That means:
 | --- | --- |
 | Engine protocol | `UCI` only |
 | Engine transport | Local child process |
-| Protocol/session ownership | Managed through `EngineClient` |
+| Protocol/session ownership | Managed through `EngineClient` behind `EngineRuntimeService` |
 | Raw process ownership | Managed through `ProcessManager` |
 | Concurrent analysis | Up to `4` analysis engines per game |
 | Failure behaviour | Isolate failure per engine and allow manual retry |
@@ -49,10 +49,10 @@ The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 ## Persistence Runtime
 | Setting Area | Baseline Decision |
 | --- | --- |
-| Autosave backend | File-backed internal save beneath `session.saveRootPath` |
-| File save/load | User-selected desktop file paths via `StorageAdapter` |
+| Autosave backend | File-backed internal save beneath `session.saveRootPath` via `SavedGameDocumentService` |
+| File save/load | User-selected desktop file paths through layer-2 persistence services backed by `StorageAdapter` |
 | Canonical game format | One internal JSON saved game payload |
-| Session restore | Persisted separately from settings and per-game saved-game payloads |
+| Session restore | Persisted separately from settings and per-game saved-game payloads through `SessionStateService` |
 | Schema versioning | Required on every persisted artefact type |
 | Migration strategy | Migrate on read, resave on next normal save cycle |
 | Corrupt payload handling | Isolate bad payloads and fall back safely |

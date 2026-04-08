@@ -46,7 +46,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | --- |
 | `SavedGameIndexService.getAutosaveFilePath` |
 | `SerializationService.serialiseGame` |
-| `GamesStore._writeSavedGameDocument` |
+| `SavedGameDocumentService.writeDocument` |
 
 | `SerializationService.serialiseGame` |
 | --- |
@@ -77,7 +77,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGamesStore.listSavedGames |
 | --- |
 | SavedGamesStore._resolveSaveRoot |
-| SavedGamesStore._enumerateManagedSaveEntries |
+| SavedGameDocumentService.listManagedSaveEntries |
 | SavedGameIndexService.projectSaveGroups |
 
 - Route coverage: save routes through /saved-games/save/:name, opens directly into the selected game's save surface, and does not use the shared dialog family.
@@ -102,7 +102,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GamesStore._buildPersistedWorkspace |
 | SavedGameIndexService.getNamedSaveFilePath |
 | SerializationService.serialiseGame |
-| GamesStore._writeSavedGameDocument |
+| SavedGameDocumentService.writeDocument |
 
 | SerializationService.serialiseGame |
 | --- |
@@ -133,7 +133,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGamesStore.listSavedGames |
 | --- |
 | SavedGamesStore._resolveSaveRoot |
-| SavedGamesStore._enumerateManagedSaveEntries |
+| SavedGameDocumentService.listManagedSaveEntries |
 | SavedGameIndexService.projectSaveGroups |
 
 #### Flow B - Load The Selected Internal Save
@@ -153,7 +153,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.loadGame |
 | --- |
-| GamesStore._readSavedGameDocument |
+| SavedGameDocumentService.readDocument |
 | SerializationService.deserialiseGame |
 | GamesStore._remapDuplicateIdIfNeeded |
 | GamesStore._hydrateWorkspace |
@@ -168,7 +168,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | UiStateStore.saveGameSession |
 | --- |
-| UiStateStore._saveGameSessionSnapshot |
+| SessionStateService.saveGameSession |
 
 #### Flow C - Resume Analysis For The Loaded Workspace
 | `SavedGamesView.onLoadRequested` |
@@ -230,13 +230,13 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGamesStore.exportGame |
 | --- |
 | SavedGamesStore._buildDefaultExportName |
-| SavedGamesStore._showExportDialog |
+| SavedGameDocumentService.selectExportFile |
 
 | GamesStore.saveGame |
 | --- |
 | GamesStore._buildPersistedWorkspace |
 | SerializationService.serialiseGame |
-| GamesStore._writeSavedGameDocument |
+| SavedGameDocumentService.writeDocument |
 
 | SerializationService.serialiseGame |
 | --- |
@@ -264,11 +264,11 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | SavedGamesStore.importGame |
 | --- |
-| SavedGamesStore._showImportDialog |
+| SavedGameDocumentService.selectImportFile |
 
 | GamesStore.loadGame |
 | --- |
-| GamesStore._readSavedGameDocument |
+| SavedGameDocumentService.readDocument |
 | SerializationService.deserialiseGame |
 | GamesStore._remapDuplicateIdIfNeeded |
 | GamesStore._hydrateWorkspace |
@@ -283,7 +283,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | UiStateStore.saveGameSession |
 | --- |
-| UiStateStore._saveGameSessionSnapshot |
+| SessionStateService.saveGameSession |
 
 #### Flow B - Resume Analysis For The Imported Workspace
 | `MenuBar.importGameRequested` |
@@ -336,11 +336,11 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | SavedGamesStore.importGame |
 | --- |
-| SavedGamesStore._showImportDialog |
+| SavedGameDocumentService.selectImportFile |
 
 | GamesStore.loadGame |
 | --- |
-| GamesStore._readSavedGameDocument |
+| SavedGameDocumentService.readDocument |
 | SerializationService.deserialiseGame |
 
 | UiStateStore.showModal |
@@ -373,6 +373,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
+| `UserSettingSerivce.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 | `UserSettingSerivce.saveSettings` |
@@ -399,6 +400,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
+| `UserSettingSerivce.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
@@ -426,6 +428,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
 | `SettingsStore._resolveThemeMode` |
+| `UserSettingSerivce.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 | `UserSettingSerivce.resetSettings` |
@@ -544,7 +547,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `GamesStore._assertGameExists` |
 | `GamesStore._disposePlatformEventSubscriptions` |
 | `GamesStore._stopGameSessions` |
-| `GamesStore._removePersistedDocument` |
+| `SavedGameDocumentService.deleteDocument` |
 
 | `UiStateStore.closeTab` |
 | --- |
@@ -552,7 +555,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `UiStateStore.saveGameSession` |
 | --- |
-| `UiStateStore._saveGameSessionSnapshot` |
+| `SessionStateService.saveGameSession` |
 
 - Requirement verification: `Pass`. Deletion removes runtime, persistence, and tab state together.
 

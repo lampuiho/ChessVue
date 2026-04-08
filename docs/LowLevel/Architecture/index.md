@@ -31,8 +31,11 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [MoveUpdateService](DomainLogic/MoveUpdateService.md)
 - [PositionIdentityService](DomainLogic/PositionIdentityService.md)
 - [TimeControlService](DomainLogic/TimeControlService.md)
+- [EngineRuntimeService](DomainLogic/EngineRuntimeService.md)
 - [SavedGameIndexService](DomainLogic/SavedGameIndexService.md)
+- [SavedGameDocumentService](DomainLogic/SavedGameDocumentService.md)
 - [SerializationService](DomainLogic/SerializationService.md)
+- [SessionStateService](DomainLogic/SessionStateService.md)
 - [PlatformEventService](DomainLogic/PlatformEventService.md)
 - [UserSettingSerivce](DomainLogic/UserSettingSerivce.md)
 
@@ -83,7 +86,7 @@ Additional rules:
 - Platform abstraction owns desktop capabilities only; it does not define chess rules or UI state.
 - Bootstrap selects one `IPlatformService` implementation and wires it into layer-2 services.
 - The rewrite-phase concrete host behaves like mocked `NW.js` services behind `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient`.
-- `EngineClient` owns protocol translation and engine-session messaging. Higher layers do not compose raw UCI strings directly.
+- `EngineClient` owns protocol translation and engine-session messaging behind `EngineRuntimeService`. Higher layers do not compose raw UCI strings directly.
 - Presentation reads store state directly. Local pure mapping or selector functions may adapt that state for rendering, but there is no separate read-helper subsystem in the baseline.
 - Shared imported private utilities that touch committed contract models are documented only in [UtilityIndex.md](UtilityIndex.md) plus the owning module docs that delegate to them. They do not appear as flow-level owners.
 - Narrow authoritative reads such as `TimeControlService.getRemainingTime` remain domain calls used by the owning view or store when required by a committed flow.
@@ -125,8 +128,8 @@ The data-interface section defines the shared low-level types for:
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
-- `EnginesStore` owns configured engine profiles, streamed runtime session state, and player-engine runtime state at layer 3, while `AnalysisStore` owns visible analysis snapshots and the lower-layer engine runtime path owns protocol and process transport.
-- `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SerializationService`, and `UserSettingSerivce` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SerializationService` owning canonical payload conversion, and `UserSettingSerivce` owning settings pathing, validation, caching, and persistence behind the layer-2 boundary.
+- `EnginesStore` owns configured engine profiles, streamed runtime session state, and player-engine runtime state at layer 3, while `AnalysisStore` owns visible analysis snapshots and `EngineRuntimeService` owns the lower-layer engine runtime path to protocol and process transport.
+- `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SavedGameDocumentService`, `SerializationService`, `SessionStateService`, and `UserSettingSerivce` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SavedGameDocumentService` owning saved-game document I/O and picker boundaries, `SerializationService` owning canonical payload conversion, `SessionStateService` owning session and layout document I/O, and `UserSettingSerivce` owning settings pathing, validation, caching, persistence, and initial system-theme reads behind the layer-2 boundary.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions

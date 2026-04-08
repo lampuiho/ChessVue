@@ -39,7 +39,7 @@ resetSettings(): Promise<void>
 ## Notes
 - `SettingsStore` consumes `UserSettingSerivce` for accepted settings reads and writes plus `PlatformEventService` for theme-change reactions; it does not resolve `IPlatformService`, `StorageAdapter`, or `SystemThemeAdapter` directly.
 - `getSettings()` is the lazy accepted-settings boundary. On first read it hydrates from `UserSettingSerivce.getSettingsOrDefault()`, mirrors that snapshot into the editable draft, and caches the accepted state for later callers.
-- `getAppearanceProjection()` may trigger that same first-read path when needed by a view setup body, then resolves and caches the current `IAppearanceProjection`.
+- `getAppearanceProjection()` may trigger that same first-read path when needed by a view setup body, then resolves and caches the current `IAppearanceProjection` by calling `UserSettingSerivce.getSystemTheme()` when `appearance.themeMode = ThemeMode.System`.
 - Accepted engine-inventory changes update reusable engine profiles only. They do not directly mutate already assigned engine participants or running engine sessions.
 - The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.
 - Flow docs continue to show `SettingsStore._resolveThemeMode` and `SettingsStore._buildAppearanceProjection` as the visible owner-private boundaries. If those functions share implementation, that implementation is documented under `AppearanceProjectionUtility` in [UtilityIndex.md](../UtilityIndex.md).

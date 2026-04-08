@@ -1,7 +1,7 @@
 # EngineClient
 
 ## Purpose
-Expose concrete engine-session operations to stores while hiding protocol-specific message formats such as UCI command strings.
+Expose concrete engine-session operations to `EngineRuntimeService` while hiding protocol-specific message formats such as UCI command strings.
 
 ## Public Interface
 ```ts
