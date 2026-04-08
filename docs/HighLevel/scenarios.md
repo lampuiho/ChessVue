@@ -457,6 +457,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Move tree contains only retained line(s).
 - **Function Touchpoints**:
   - `MoveUpdateService.pruneFutureMoves`
+  - `GamesStore.pruneFuture`
   - `GamesStore.saveGame`
   - `UiStateStore.showModal`
 

@@ -356,6 +356,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._persistWorkspace` |
 
 - UI surface coverage: prune confirmation uses the shared dialog shell with a danger-focused confirmation row before irreversible mutation is allowed through.
+- Runtime selector coverage: the selected history node reaches this flow as a hydrated `IMoveNode`; `GamesStore` derives any persisted path bookkeeping internally before and after the prune mutation.
 - Settings coverage: `gameplay.confirmPruneFutureMoves` decides whether the prune confirmation modal is required. `gameplay.allowRootPrune` decides whether pruning from the root node is allowed or rejected before mutation.
 - Requirement verification: `Pass`. Root-prune policy and irreversible confirmation both sit behind the store boundary.
 

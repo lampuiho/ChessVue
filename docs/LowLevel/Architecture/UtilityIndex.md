@@ -62,7 +62,7 @@ Each entry must define:
   - `GamesStore._hydrateWorkspaceCollection`
   - `GamesStore._repairMissingActiveGame`
 - Classification: `pure`.
-- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references and resolves persisted `livePath` / `visiblePath` selectors.
+- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references, resolves persisted `livePath` / `visiblePath` selectors, and exposes the resulting hydrated node references back to `GamesStore` for runtime navigation and mutation flows.
 
 ## Appearance
 ### AppearanceProjectionUtility
