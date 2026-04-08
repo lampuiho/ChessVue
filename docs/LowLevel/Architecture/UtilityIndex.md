@@ -55,14 +55,14 @@ Each entry must define:
 
 ### WorkspaceRestoreUtility
 - Purpose: share reconstruction of live workspace state from canonical persisted game payloads.
-- Touched contract models: `IGameWorkspace`, `IAnalysisAssignment`, captured assigned-engine snapshots, `IClockSnapshot`.
+- Touched contract models: `IGameWorkspace`, `MovePath`, nested `IMoveTree`, `IAnalysisAssignment`, captured assigned-engine snapshots, `IClockSnapshot`.
 - Allowed importers: `GamesStore`.
 - Owner-private delegates:
   - `GamesStore._hydrateWorkspace`
   - `GamesStore._hydrateWorkspaceCollection`
   - `GamesStore._repairMissingActiveGame`
 - Classification: `pure`.
-- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state.
+- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references and resolves persisted `livePath` / `visiblePath` selectors.
 
 ## Appearance
 ### AppearanceProjectionUtility

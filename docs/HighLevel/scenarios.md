@@ -391,13 +391,13 @@ Each scenario in this document uses the same structure:
   2. App navigates board state to selected node.
   3. Analysis panel switches to selected FEN context.
 - **Branch Paths**:
-  - `BR-HIST-01-NODE-MISSING`: Node ID invalid -> ignore and refresh tree.
+  - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
 - **Postconditions**: Board and analysis context match selected history node.
 - **Function Touchpoints**:
   - `HistoryPanel.onNavigateNode`
-  - `MoveUpdateService.navigateToNode`
-  - `MoveUpdateService.getCurrentPosition`
+  - `GamesStore.navigateToNode`
+  - `MoveUpdateService.getPosition`
   - `AnalysisStore.getVisibleAnalysis`
   - `GamesStore.getGame`
 
@@ -438,7 +438,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Live game line preserved; analysis branch captured separately.
 - **Function Touchpoints**:
   - `MoveUpdateService.addAnalysisMove`
-  - `MoveUpdateService.navigateToNode`
+  - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
 
 ### SCN-HIST-04 - Prune Future Moves from Selected Node
@@ -628,7 +628,7 @@ Each scenario in this document uses the same structure:
   - `AnalysisPanel.moveSelected`
   - `GameRuleService.isMoveLegal`
   - `MoveUpdateService.addAnalysisMove`
-  - `MoveUpdateService.navigateToNode`
+  - `GamesStore.navigateToNode`
   - `GamesStore.getGame`
   - `GamesStore.makeMove`
 
@@ -851,7 +851,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GameControlPanel.enterInGameAnalysisRequested`
   - `MoveUpdateService.addAnalysisMove`
-  - `MoveUpdateService.navigateToNode`
+  - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
@@ -1255,7 +1255,7 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-04-DUPLICATE-BOOKMARK`: Same FEN already bookmarked -> merge or increment counter.
 - **Postconditions**: Users can curate study points during play/analysis.
 - **Function Touchpoints**:
-  - `MoveUpdateService.getCurrentPosition`
+  - `MoveUpdateService.getPosition`
   - `AnalysisStore.getVisibleAnalysis`
   - `StorageAdapter.writeTextFile`
 
@@ -1288,7 +1288,7 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-06-STACK-EMPTY`: Undo/redo unavailable at stack bounds.
 - **Postconditions**: Exploration becomes faster than manual node clicking.
 - **Function Touchpoints**:
-  - `MoveUpdateService.navigateToNode`
+  - `GamesStore.navigateToNode`
   - `MoveUpdateService.addAnalysisMove`
 
 ### SCN-IDEA-07 - Auto-Reconnect Engine After Crash

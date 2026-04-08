@@ -34,7 +34,7 @@ getGame(gameId: string): IGameWorkspace | null
 listGames(): IGameWorkspace[]
 makeMove(gameId: string, move: IMove): Promise<IMakeMoveResult>
 takeBack(gameId: string, moveCount?: number): Promise<void>
-navigateToNode(gameId: string, nodeId: string): void
+navigateToNode(gameId: string, node: IMoveNode): void
 syncClock(gameId: string, nowUtc: string): Promise<void>
 pauseGame(gameId: string, reason: PauseReason): Promise<void>
 resumeGame(gameId: string, reason: PauseReason): Promise<void>
@@ -51,7 +51,7 @@ offerDraw(gameId: string): Promise<void>
 acceptDrawOffer(gameId: string): Promise<void>
 declineDrawOffer(gameId: string): Promise<void>
 withdrawDrawOffer(gameId: string): Promise<void>
-pruneFuture(gameId: string, nodeId: string): Promise<void>
+pruneFuture(gameId: string, path: MovePath): Promise<void>
 ```
 
 ## Responsibilities
@@ -71,9 +71,11 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - record a draw offer and expose explicit accept, decline, and withdraw boundaries instead of hiding draw resolution inside one opaque control-panel action
 - add or remove per-game analysis-engine assignments during a game
 - return enough move outcome information for presentation-owned promotion flows to decide whether a modal must be opened
+- own live and visible path selection on the workspace, while `MoveUpdateService` stays limited to tree mutation
 
 ## State And Settings Notes
 - `makeMove` is the context dispatcher for live current-position play, history rewrite, analysis-only history branching, in-game analysis moves, free-analysis exploration, and any rendered live-game engine suggestion selected from the analysis panel. Blocked states are rejected before domain mutation, and the returned `IMakeMoveResult` tells the caller whether the move committed, was rejected, or needs explicit promotion completion.
+- `navigateToNode` is the public history-navigation boundary. It accepts a hydrated `IMoveNode`, derives the new `visiblePath` by tracing parent references back to the root, updates the workspace visible selection, and then derives the resulting interaction context.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = true`, selecting a rendered engine suggestion in a `WorkspaceKind.LiveGame` reuses the same context-specific move path as board move entry: `InteractionContext.CurrentPosition` commits a live move, `InteractionContext.HistoryReview` applies takeback-policy handling, and `InteractionContext.InGameAnalysis` remains analysis-only.
 - `pauseGame` and `resumeGame` apply only to timed `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing` contexts and track pause ownership so menu return cannot resume a manually paused game.
 - `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `null`, `PlayerType.Local`, or an engine profile, captures a fresh assigned-engine snapshot when a new engine seat is chosen, clears obsolete seat-specific runtime intent, transitions a live game to `WorkspaceKind.FreeAnalysisSetup` when either side becomes unassigned, anchors that setup transition to the currently visible position and branch context, and otherwise preserves the same live game with the current time control and clock state.
@@ -88,6 +90,7 @@ pruneFuture(gameId: string, nodeId: string): Promise<void>
 - `GamesStore._canRequestEngineTurn` is the generic live-game gate for `local/engine`, `engine/local`, and `engine/engine`. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
 - When `reassignPlayer` keeps the workspace as a live game, presentation may call `GameView._requestEngineTurnIfNeeded` only if `GamesStore._canRequestEngineTurn` still reports that the resulting side to move is engine-controlled and there is no still-valid in-flight request for that same seat and turn.
 - When a restored workspace enters the open-game collection through a committed load, import, or reopen flow, `GamesStore` rebuilds the persisted workspace state first. Presentation and bootstrap flows may then call `EnginesStore` from the restored visible state when the relevant policy allows it.
+- Restore hydration rebuilds runtime-only move-tree references from the persisted nested tree and resolves `livePath` / `visiblePath` before the workspace becomes active live state.
 - Runnable game sessions may own app-close autosave and focus-return clock-reconciliation registrations through `PlatformEventService`. Untimed, paused, finished, or otherwise non-runnable contexts do not keep those registrations active.
 - `saveGame` owns serialising the current workspace after the calling flow has already decided whether the target is autosave, a named internal save, or an external export path.
 - `loadGame` owns reading and hydrating a saved workspace after the calling flow has already resolved the source path from a recent entry, a managed save selection, or an external import picker.

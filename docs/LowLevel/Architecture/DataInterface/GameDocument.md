@@ -16,7 +16,7 @@ The canonical saved-game payload is `IGameWorkspace` from [Game.md](Game.md).
 - `drawOfferState`
 - `whitePlayer` and `blackPlayer`, including captured assigned-engine snapshots when a seat is engine-controlled
 - `boardRoot` and the full `moveTree`
-- `liveNodeId` and `visibleNodeId`
+- `livePath` and `visiblePath`
 - `timeControl` and `clockSnapshot`
 - `liveAnalysisOptions.showLiveAnalysisMoves`
 - `analysisAssignment`, including the persisted assigned-engine row order for the active game
@@ -26,4 +26,4 @@ The canonical saved-game payload is `IGameWorkspace` from [Game.md](Game.md).
 - Restore rebuilds the saved game workspace from that payload, then may resume live analysis when available.
 - Panel visibility, panel positioning, and other layout concerns are not stored inside the saved game payload.
 - Analysis output is runtime state and is not part of the baseline saved-game payload.
-- The saved payload must preserve enough state to round-trip result cause, unresolved draw-offer state, captured engine configuration, live-node identity, visible-node identity, and the per-game live-analysis preference without inventing a second persisted sidecar document.
+- The saved payload must preserve enough state to round-trip result cause, unresolved draw-offer state, captured engine configuration, live-path selection, visible-path selection, and the per-game live-analysis preference without inventing a second persisted sidecar document.

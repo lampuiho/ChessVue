@@ -16,7 +16,7 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 | Modal kind | Owning entry point | Title and body intent | Action row | Payload |
 | --- | --- | --- | --- | --- |
 | `AppModalKind.Promotion` | `Chessboard.moveSubmitted` after `GamesStore.makeMove` returns `MakeMoveResultKind.PromotionRequired` | Ask the user to choose the promotion piece for the pending move. | `Cancel` plus local `PiecePalette` choice actions. | `gameId`, pending `move` |
-| `AppModalKind.PruneFuture` | `HistoryPanel` prune action | Confirm irreversible deletion of future moves from the selected node. | `Cancel` and danger `Prune`. | `gameId`, `nodeId` |
+| `AppModalKind.PruneFuture` | `HistoryPanel` prune action | Confirm irreversible deletion of future moves from the selected node. | `Cancel` and danger `Prune`. | `gameId`, node `path` |
 | `AppModalKind.StartGameFromSetup` | `GameControlPanel.startGameFromSetupRequested` | Collect the live-game start details for a prepared setup workspace, including the per-game live-analysis move preference. | `Cancel` and primary `Start Game`. | `gameId` |
 | `AppModalKind.Resign` | `GameControlPanel.resignRequested` | Confirm resignation for the selected side before finalising the result. | `Cancel` and danger `Resign`. | `gameId`, resigning `colour` |
 | `AppModalKind.DrawOffer` | local-versus-local `GameControlPanel.drawRequested` | Confirm that the current local side wants to offer a draw. | `Cancel` and primary `Offer Draw`. | `gameId`, offering `colour` |

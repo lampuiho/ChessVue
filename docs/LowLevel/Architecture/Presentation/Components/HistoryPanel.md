@@ -5,8 +5,8 @@ Render the move tree and expose history navigation and prune actions.
 
 ## Consumes
 - move tree
-- visible node identity
-- live node identity
+- visible node selection
+- live node selection
 - settings-derived prune and rewrite affordances
 - `PanelSurface` and `ItemList` for shared panel and row behaviour
 - `SidePanelButton` for panel actions

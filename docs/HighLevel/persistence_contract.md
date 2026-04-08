@@ -69,7 +69,7 @@ Contains:
 - player slots and captured per-game assigned-engine snapshots
 - per-game live-analysis display preference
 - workspace kind, result state, and unresolved draw-offer state when present
-- board root, move tree, current live node, and current visible node
+- board root, move tree, and minimal selector paths for the current live node and current visible node
 - clock configuration and current clock snapshot
 - schema version metadata
 
@@ -102,7 +102,7 @@ Only after that game state is restored may live analysis resume.
 - unresolved draw-offer state for the live workspace when one exists
 - per-game assigned-engine snapshots, including copied launch configuration and any source-profile provenance link
 - per-game live-analysis display preference
-- visible node and interaction context that are part of the game workspace
+- visible-path selection, live-path selection, and interaction context that are part of the game workspace
 
 ### Game Session Snapshot Owns
 - which games are currently open in the shell

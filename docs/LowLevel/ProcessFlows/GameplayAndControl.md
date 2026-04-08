@@ -232,7 +232,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 | `GamesStore.navigateToNode` |
 | --- |
-| `GamesStore._setVisibleNode` |
+| `GamesStore._setVisiblePathFromNode` |
 | `GamesStore._deriveInteractionContext` |
 
 | `GameView._refreshVisibleAnalysisAfterNavigation` |
@@ -307,7 +307,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore.makeMove` |
 | `UserSettingSerivce.getSettings` |
 | `MoveUpdateService.addAnalysisMove` |
-| `MoveUpdateService.navigateToNode` |
+| `GamesStore.navigateToNode` |
 
 | `GamesStore.makeMove` |
 | --- |
@@ -321,7 +321,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `MoveUpdateService.addAnalysisMove` |
 | --- |
 
-| `MoveUpdateService.navigateToNode` |
+| `GamesStore.navigateToNode` |
 | --- |
 
 - Settings coverage: `gameplay.takebackPolicy = TakebackPolicy.AnalysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the workspace returns to `InteractionContext.CurrentPosition` immediately or stays on the analysis branch.

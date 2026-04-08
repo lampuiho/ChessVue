@@ -5,8 +5,8 @@ Render nested move-tree rows for mainline and variations.
 
 ## Consumes
 - move tree data
-- visible node identity
-- live node identity
+- visible node selection
+- live node selection
 - mainline markers
 
 ## Emits

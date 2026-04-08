@@ -46,7 +46,7 @@ type IAppModalState =
       kind: AppModalKind.PruneFuture
       payload: {
         gameId: string
-        nodeId: string
+        path: MovePath
       }
     }
   | {

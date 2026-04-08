@@ -112,8 +112,8 @@ interface IGameWorkspace {
   blackPlayer: IPlayerSlot | null
   boardRoot: IBoardPosition
   moveTree: IMoveTree
-  liveNodeId: string | null
-  visibleNodeId: string
+  livePath: MovePath | null
+  visiblePath: MovePath
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
   liveAnalysisOptions: ILiveAnalysisOptions
@@ -151,7 +151,7 @@ interface IReassignPlayerRequest {
 
 ## Rules
 - `WorkspaceKind.FreeAnalysisSetup` is created when either side is assigned no player.
-- `visibleNodeId` may differ from `liveNodeId` during history review or analysis.
+- `visiblePath` may differ from `livePath` during history review or analysis.
 - `InteractionContext.BoardEdit` is valid only inside `WorkspaceKind.FreeAnalysisSetup`.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
 - `drawOfferState` records one unresolved draw offer for the current live workspace and is persisted with the workspace so non-local pending-offer UI can be restored accurately for both incoming and outgoing offers.
@@ -159,6 +159,7 @@ interface IReassignPlayerRequest {
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGameWorkspace`.
 - The baseline persisted saved-game artefact reuses `IGameWorkspace` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGameWorkspace` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
+- `livePath` and `visiblePath` are minimal persisted selectors for exact restore. They identify nodes by child-index traversal from `moveTree.root` and are resolved into runtime references during hydration.
 - `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
 - `liveAnalysisOptions.showLiveAnalysisMoves` is persisted as part of the game workspace, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
 - `liveAnalysisOptions.showLiveAnalysisMoves` gates rendered engine move targets for every `WorkspaceKind.LiveGame` interaction context. When enabled, `InteractionContext.CurrentPosition` may commit a normal live move from the analysis panel, `InteractionContext.HistoryReview` reuses the ordinary history-move policy, and `InteractionContext.InGameAnalysis` may inspect continuations as analysis moves.
