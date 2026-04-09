@@ -238,7 +238,16 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | --- |
 | `AnalysisStore.applyAnalysisUpdate` |
 
-- Requirement verification: `Pass`. Stop, crash, and retry behaviour is explicit at the runtime-owner boundary and preserves last-known visible output.
+#### Flow C - Unexpected Analysis Engine Exit
+| `EngineRuntimeService.subscribeToSessionEvents` |
+| --- |
+| `EnginesStore._handleAnalysisUnexpectedExit` |
+| `EnginesStore._markAnalysisUnavailable` |
+
+- Failure handling: malformed analysis output keeps the existing baseline rule and is discarded per message without stopping the session.
+- Unexpected-exit handling: if an analysis-engine process terminates unexpectedly, only that engine row is marked unavailable or disconnected, the last valid analysis snapshot remains visible, and no blocking dialog is opened.
+- Retry rule: retry remains manual through `AnalysisPanel.retryRequested`; the baseline does not invent timeout, auto-reconnect, or backoff behaviour.
+- Requirement verification: `Pass`. Stop, crash, malformed-output discard, and retry behaviour are explicit at the runtime-owner boundary and preserve last-known visible output.
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
 

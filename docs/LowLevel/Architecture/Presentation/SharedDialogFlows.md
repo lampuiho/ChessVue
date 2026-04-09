@@ -36,4 +36,5 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 - In-game analysis exit is prompt-free in the baseline. The mode restores the live node immediately, and any exploratory continuation from the latest live node is cleaned up later by the next real live move if it becomes superseded.
 - Timeout, settings-dirty-leave, and blocked-action dialogs are notifications or confirmations only; they do not move business logic into presentation.
 - `AppModalKind.ImportError` is acknowledge-only in the baseline because invalid import never exposes a recoverable-subset continuation flow.
+- Exceptional runtime-error dialogs are outside this matrix. They may reuse the same shell through `RuntimeErrorDialogMountUtility` without becoming a typed feature-modal contract on `UiStateStore`.
 - The same dialog shell keeps placement and action-row conventions consistent across gameplay, setup, settings, and lifecycle flows.

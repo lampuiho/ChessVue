@@ -161,7 +161,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 ### Live Engine Player Move Generation
 
-#### Flow
+#### Flow A - Successful Player Engine Turn
 | `GameView._requestEngineTurnIfNeeded` |
 | --- |
 | GamesStore.getGame |
@@ -184,9 +184,20 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | GamesStore._resolveMoveContext |
 | GamesStore._applyMoveByContext |
 
+#### Flow B - Unexpected Exit During Player Turn
+| `EngineRuntimeService.subscribeToSessionEvents` |
+| --- |
+| `EnginesStore._handlePlayerTurnUnexpectedExit` |
+| `GamesStore.pauseGame` |
+| `GameView._openRuntimeErrorDialog` |
+
 - Runtime distinction: analysis search keeps streaming updates inside `EnginesStore`, while a player-engine turn waits only for the final move callback and then ends that turn-scoped search.
 - State gate: `EnginesStore.startPlayerTurn` is valid only for `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing + not paused` when the side to move is assigned to an engine.
 - Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, board edit, paused live games, and finished games.
+- Completion rule: the player-engine turn completes only when a valid move callback is produced. The baseline defines no no-response timeout.
+- Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.
+- Runtime-error rule: malformed player-turn output or other unexpected runtime exceptions are logged and surfaced through the owning standard error-handling path without inventing automatic reconnect, automatic stop, or timeout behaviour.
+- Unexpected-exit rule: process termination is the only automatic disconnect trigger. The owning flow marks the affected seat unavailable or disconnected, pauses the live game immediately, and opens the standard runtime error dialog.
 
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 

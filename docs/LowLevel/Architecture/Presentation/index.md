@@ -50,3 +50,10 @@ This section defines the baseline layout-scaling expectations for presentation c
 - Parent shells and layout components should prefer flexible growth and shrink behaviour over hardcoded widths and heights.
 - Fixed dimensions are reserved only for genuine invariants such as square board geometry, icon glyph boxes, or minimum hit targets.
 - Even when an invariant requires a fixed dimension, prefer `rem` or other relative units over raw pixel values where practical.
+
+## Runtime Error Surface
+This section defines the baseline presentation rule for exceptional runtime errors that do not belong to the ordinary feature-modal matrix.
+
+- Blocking runtime errors may be shown through `RuntimeErrorDialogMountUtility`, a private implementation helper that mounts a dedicated Vue app into the shared dialog shell.
+- `RuntimeErrorDialogMountUtility` is implementation-only and is not a public architecture module, route, or typed `UiStateStore` modal kind.
+- The mounted runtime-error surface should reuse the same shell conventions as `ModalDialog` so exceptional runtime failures do not fork a separate dialog language.

@@ -26,6 +26,8 @@ stopSession(sessionId: string): Promise<void>
 - expose typed analysis, player-turn, and session-event callbacks without leaking UCI or raw process semantics upward
 - isolate protocol-specific message composition, ready handshakes, raw process transport, and per-session callback fanout behind the layer-2 boundary
 - support position supersession and deterministic new-game-boundary handling for analysis refresh and player-engine turns
+- discard malformed analysis output messages without failing the whole session
+- surface malformed player-turn output and other runtime exceptions to the owning caller's standard runtime-error path without inventing a response timeout or automatic reconnect
 
 ## Dependencies
 - `ProcessManager`
@@ -46,3 +48,7 @@ stopSession(sessionId: string): Promise<void>
 - `EnginesStore` owns runtime intent and session state, but it reaches process transport and protocol translation only through this service.
 - `EngineRuntimeService` owns process lifecycle, stdin/stdout wiring, and typed runtime callback delivery for engine sessions.
 - `EngineClient` remains the owner of UCI mapping, engine-facing FEN, and protocol parsing only.
+- `startPlayerTurn` has no response timeout in the baseline. If the process stays alive but does not produce a valid move, the turn remains pending until a valid move arrives or the session exits unexpectedly.
+- Player-turn completion is driven only by a valid move callback. `subscribeToPlayerTurnResult(...)` should not use `null` as the normal no-response or cancel signal in the baseline.
+- Unexpected process exit is the only automatic disconnection trigger. Recovery stays manual through the owning retry flows.
+- Analysis parse failures discard only the bad output message and keep the session alive. Player-turn parse failures and other runtime exceptions are surfaced to the owning standard error-handling path.

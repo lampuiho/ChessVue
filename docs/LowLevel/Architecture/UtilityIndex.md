@@ -64,6 +64,21 @@ Each entry must define:
 - Classification: `pure`.
 - Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references, resolves persisted `livePath` / `visiblePath` selectors, and exposes the resulting hydrated node references back to `GamesStore` before any node-based runtime navigation or mutation flow runs.
 
+## Error Handling
+### StandardErrorHandlingUtility
+- Purpose: share normalisation of runtime and platform exceptions into logging plus caller-owned user-facing error presentation policy.
+- Touched contract models: `IPlatformError` and the shared runtime-error presentation payload owned by the handling path.
+- Allowed importers: `EngineRuntimeService`, `EnginesStore`, `GamesStore`, `SavedGameDocumentService`, `SessionStateService`, `UserSettingService`.
+- Owner-private delegates:
+  - `EngineRuntimeService._handleRuntimeError`
+  - `EnginesStore._handlePlayerTurnRuntimeError`
+  - `GamesStore._handleRuntimeError`
+  - `SavedGameDocumentService._handlePlatformError`
+  - `SessionStateService._handlePlatformError`
+  - `UserSettingService._handlePlatformError`
+- Classification: `mixed`.
+- Validation or failure semantics: every handled error is logged. The owning caller decides whether the error remains local state such as an analysis-engine unavailable row or is escalated into a user-facing runtime dialog. Blocking runtime dialogs may be rendered through `RuntimeErrorDialogMountUtility`, a private presentation-only helper that mounts a dedicated Vue app inside the shared dialog shell without adding a new public modal contract.
+
 ## Appearance
 ### AppearanceProjectionUtility
 - Purpose: share resolved-theme mapping and appearance projection building from committed settings.
