@@ -108,14 +108,14 @@ type IAppModalState =
         gameId: string
         colour: PlayerColour
         currentPlayerType: PlayerType | null
-        currentEngineId: string | null
+        currentAssignedEngine: IAssignedEngine | null
       }
     }
   | {
       kind: AppModalKind.AnalysisEngineSelection
       payload: {
         gameId: string
-        assignedEngineIds: string[]
+        currentAnalysisEngines: IAssignedEngine[]
       }
     }
 ```

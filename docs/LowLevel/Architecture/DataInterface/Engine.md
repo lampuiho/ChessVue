@@ -1,19 +1,18 @@
 # Engine Types
 
 ## Purpose
-Define configured engine records, assigned-engine snapshots, and runtime-session state.
+Define configured engine records, copied in-game engine snapshots, and engine analysis request or update types.
 
 ## Types
 - `enum EngineProtocol`
-- `enum EngineRole`
 - `enum EngineAvailability`
 - `enum EngineAnalysisSearchMode`
 
 ## Interfaces
 - `interface IEngineRecord`
 - `interface IEngineOptionMap`
+- `interface IAssignedEngineRuntime`
 - `interface IAssignedEngine`
-- `interface IEngineRuntimeSession`
 - `interface IEnginePositionState`
 - `interface IEngineAnalysisRequest`
 - `interface IEngineAnalysisUpdate`
@@ -23,11 +22,6 @@ Define configured engine records, assigned-engine snapshots, and runtime-session
 ```ts
 enum EngineProtocol {
   Uci = "uci"
-}
-
-enum EngineRole {
-  Player = "player",
-  Analysis = "analysis"
 }
 
 enum EngineAvailability {
@@ -54,23 +48,18 @@ interface IEngineRecord {
   options: IEngineOptionMap
 }
 
+interface IAssignedEngineRuntime {
+  processHandle: ProcessHandle | null
+  availability: EngineAvailability
+  lastError: string | null
+}
+
 interface IAssignedEngine {
-  assignedEngineId: string
-  sourceProfileId: string | null
   displayName: string
   executablePath: string
   protocol: EngineProtocol
   options: IEngineOptionMap
-}
-
-interface IEngineRuntimeSession {
-  sessionId: string
-  gameId: string
-  assignedEngineId: string
-  role: EngineRole
-  availability: EngineAvailability
-  targetPositionState: IEnginePositionState | null
-  lastError: string | null
+  $?: IAssignedEngineRuntime
 }
 
 interface IEnginePositionState {
@@ -87,6 +76,7 @@ interface IEngineAnalysisRequest {
 
 interface IEngineAnalysisUpdate {
   position: IBoardPosition
+  positionKey: string
   bestMove: IMove | null
   lines: IAnalysisLine[]
   isFinal: boolean
@@ -101,15 +91,14 @@ interface IEngineRegistrationRequest {
 
 ## Rules
 - Engine inventory lives in settings data.
-- Assigned-engine snapshots live in saved game data.
+- Assigned-engine snapshots live in saved game data and are copied by value from the selected reusable engine profile.
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.
-- `IAssignedEngine.assignedEngineId` is the stable per-game engine-participant identity used by runtime sessions and in-game removal flows.
-- `IAssignedEngine.sourceProfileId` is an optional provenance link back to the reusable engine profile record and may be `null` when the source profile no longer exists.
-- Creating an assigned engine from a profile copies the display name, executable path, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later.
-- A running session is isolated by game, assigned engine, and role.
+- Creating an assigned engine from a profile copies the display name, executable path, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later or when the reusable profile is deleted.
+- `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis snapshots.
 - The baseline permits at most four concurrent analysis engines per game.
-- `IEngineRuntimeSession.availability` plus `lastError` are the public runtime-status surface used for health checks. Higher layers do not rely on callback-style session-event contracts.
+- `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and carries the current process handle, availability, and last error for that engine instance.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
 - `IEnginePositionState` is the engine-facing projection of ChessVue move-tree state and lets the engine client decide whether it can continue the current line or must establish a new game boundary.
+- `IEngineAnalysisUpdate` is an app-facing streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes.
 - `executablePath` and `options` are user-managed profile values and are not strictly validated at settings-edit time beyond being storable in the profile record.

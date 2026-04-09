@@ -38,30 +38,29 @@ Each committed engine profile must include:
 
 Only profile names must be unique.
 
-All other profile fields are user-managed values. The app stores them as entered and uses them when creating a new engine participant or runtime session.
+All other profile fields are user-managed values. The app stores them as entered and uses them when creating copied in-game engine payloads.
 
-Profile edits change the reusable engine profile only. They do not mutate already assigned player-engine or analysis-engine sessions inside an existing game.
+Profile edits change the reusable engine profile only. They do not mutate already copied player-engine or analysis-engine payloads inside an existing game.
 
 ## Per-Game Assignment Rules
 - Live games require both sides to be assigned, using either a local player or an engine profile.
 - Free analysis/setup is used whenever either side is assigned `none`.
 - Analysis engine assignment is per game, not global to the whole app.
 - Analysis engines may be assigned when a game is created and may also be added or removed later from that same game's analysis panel.
-- The same configured engine may be used by more than one game, but each active runtime session must be isolated by game and role.
-- Assigning an engine to a side or analysis slot captures a per-game assigned-engine snapshot with a stable assignment identity plus the copied launch configuration used by that game.
-- That assigned-engine snapshot stores the copied display name, executable path, protocol, and engine options together with an optional source-profile link for provenance.
-- The assigned-engine identity remains stable until the user explicitly unseats and reseats the engine.
-- Editing or deleting the source engine profile later does not rename, retarget, or otherwise mutate an already assigned in-game engine participant because the game keeps its captured assigned-engine snapshot.
+- The same configured engine may be used by more than one game, but each copied in-game engine payload keeps its own runtime state.
+- Assigning an engine to a side or analysis row captures a copied in-game engine payload with the launch configuration used by that game.
+- That copied engine payload stores the copied display name, executable path, protocol, and engine options directly on the game.
+- Editing or deleting the source engine profile later does not rename, retarget, or otherwise mutate an already copied in-game engine participant because the game keeps its own copied engine payload.
 - The player-strip player label acts as the explicit player-reassignment affordance. The baseline choices are `none`, `local`, or one configured engine profile.
 - Engine-controlled interaction contracts are written as the baseline implementation of a more general non-local participant boundary so a future remote adapter can reuse the same draw and seat-control surfaces without rewriting gameplay flows.
 
 ## Process Lifetime
 - Engine processes start on demand when analysis or engine-controlled play needs them.
 - If a position changes while analysis is running, the previous search is superseded and the engine is redirected to the new position.
-- Removing an assigned engine, deleting a game, or closing the app stops the related engine processes.
+- Removing a copied in-game analysis engine, deleting a game, or closing the app stops the related engine processes.
 - Updating the configuration of a running engine requires a restart before the new options apply.
 - After a committed engine-controlled live move, the normal live-state gate decides whether the next side should immediately receive an engine turn; this is the same rule for `local/engine` and `engine/engine` games.
-- In the baseline, profile edits do not force that restart automatically. Updated profile values apply only when a new assigned-engine snapshot is created or an existing engine is explicitly unseated and reseated.
+- In the baseline, profile edits do not force that restart automatically. Updated profile values apply only when a new copied in-game engine payload is created or an existing engine is explicitly unseated and reseated.
 - If player reassignment changes a side to `none`, the previous live game ends, live player-engine sessions stop, and the workspace continues as `freeAnalysisSetup` while preserving the move tree.
 - If player reassignment results in both sides being assigned again, live play restarts from the preserved setup/history with a newly chosen time control and fresh live clock state.
 - After that restarted live game is created, the normal live-state gate decides whether the side to move should immediately receive an engine turn.
@@ -69,13 +68,13 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 ## Player Move Contract
 - Engine-backed move generation is exposed to the game flow as a simple async request/response boundary.
 - Higher layers request a move and await the returned `IMove`.
-- The runtime implementation may still use internal callbacks or stdout listeners to resolve that promise.
+- The runtime implementation may still use internal callbacks or engine-output listeners to resolve that promise.
 - Polling is reserved for runtime-health checks such as whether the underlying process is still running.
 
 ## Multi-Engine Analysis Contract
 - Multiple assigned analysis engines may evaluate the same position concurrently.
 - Each engine updates its own row or group in the analysis UI independently.
-- The app stores the latest valid result from each engine for a given game and derived position inside that game's persisted analysis data.
+- The app stores the latest valid result from each copied in-game analysis engine inside that game's persisted analysis data.
 - Each engine group may expose up to `3` visible lines for the active position.
 - Each engine group may be folded or expanded independently without affecting the other engine groups.
 - Partial failure of one engine must not stop the remaining engines.
@@ -91,7 +90,7 @@ If the user selects more than the supported concurrent analysis engines, the app
 ## Search and Streaming Behaviour
 - Analysis engines stream incremental results over time.
 - The latest valid output from an engine replaces its earlier displayed result for that same position.
-- Output parse failures discard only the invalid line or message and do not terminate the engine session on their own.
+- Protocol parsing remains an internal engine-boundary concern owned by `EngineClient`; upper layers consume app-facing analysis updates and awaited moves rather than raw engine lines.
 - If the engine stops unexpectedly, the last valid displayed result remains visible until replaced.
 
 ## Failure and Retry Behaviour
@@ -103,16 +102,17 @@ If the user selects more than the supported concurrent analysis engines, the app
 ## Restore Behaviour
 - When a saved game is loaded, the restored workspace position becomes the new analysis target.
 - Only after that may live analysis restart for available engines.
-- If an assigned engine is unavailable, analysis remains empty or unavailable for that engine and the user gets actionable feedback.
+- If a copied in-game engine is unavailable, analysis remains empty or unavailable for that engine and the user gets actionable feedback.
 
 ## Ownership Boundaries
 - `SettingsStore` owns configured engine inventory.
 - `EnginesStore` exposes configured engine inventory and can construct engine-backed players for selection flows.
-- `GamesStore` owns assignment on the current game, turn waiting, and analysis coordination for already assigned engine participants.
+- `GamesStore` owns assignment on the current game, turn waiting, and analysis coordination for already copied engine participants.
 - `GamesStore` persists streamed evaluation snapshots on the game and exposes the visible-analysis read model.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore`.
-- `EngineClient` owns protocol-specific command building, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.
-- `ProcessManager` owns child-process mechanics only and is consumed by `EngineRuntimeService`.
+- `EngineRuntimeService` composes `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation.
+- `EngineClient` owns protocol sequencing, engine-output interpretation, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.
+- `ProcessManager` owns child-process lifecycle only and is consumed by `EngineRuntimeService`.
 
 ## Non-Baseline Exclusions
 The following are explicitly out of scope for the rewrite baseline:

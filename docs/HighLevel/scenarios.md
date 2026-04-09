@@ -539,7 +539,7 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User starts analysis manually, or analysis is auto-triggered after a move.
   2. `GamesStore` decides that the current game context should refresh analysis and ensures the relevant engine sessions are running.
-  3. `EngineRuntimeService` starts an ongoing search for the current engine position state and delegates protocol commands through `EngineClient` and `ProcessManager`.
+  3. `EngineRuntimeService` ensures the process lifecycle through `ProcessManager` and starts the ongoing engine search through `EngineClient`.
   4. `EngineRuntimeService` receives typed updates from `EngineClient` and passes them back to the game-owned analysis flow.
   5. App stores updated best lines and scores each time the engine reports an improvement or deeper search result.
   6. Analysis panel refreshes over time to show score and search progress for that engine, plus up to `3` visible lines when the current workspace context allows rendered move targets.
@@ -633,23 +633,23 @@ Each scenario in this document uses the same structure:
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 - **Status**: Planned
-- **Goal**: Manage the current game's analysis-engine roster from the analysis panel without changing other games.
+- **Goal**: Manage the current game's ordered analysis-engine rows from the analysis panel without changing other games.
 - **Preconditions**: Active game exists; at least one configured engine profile may be available.
 - **Entry Points**: Analysis panel title-row `+` action, per-engine remove action.
 - **Main Steps**:
   1. User clicks the `+` button on the right side of the analysis panel title.
   2. App opens an analysis-engine selection dialog scoped to the current game.
-  3. User selects an unassigned engine profile to add.
-  4. App records the new per-game analysis-engine assignment.
+  3. User selects an engine profile that is not already present in the current game's copied analysis-engine rows.
+  4. App records a new copied per-game analysis-engine row.
   5. If the current interaction context allows analysis, app starts or refreshes analysis for that engine on the visible position.
   6. User may later click the `-` action on the right side of that engine group's title row to remove it.
-  7. App stops that engine's active analysis session for the current game and removes that engine from the current game's analysis roster only.
+  7. App stops that engine's active analysis runtime for the current game and removes that engine from the current game's ordered analysis rows only.
 - **Branch Paths**:
-  - `BR-ANALYSIS-05-DUPLICATE`: Selected engine is already assigned to this game -> reject duplicate add and keep current roster unchanged.
+  - `BR-ANALYSIS-05-DUPLICATE`: Selected engine is already present on this game -> reject duplicate add and keep current rows unchanged.
   - `BR-ANALYSIS-05-LIMIT`: Adding the engine would exceed the supported concurrent analysis-engine limit -> reject and explain the limit.
   - `BR-ANALYSIS-05-START-FAIL`: Added engine cannot start for the current position -> keep the assignment with unavailable feedback and allow retry or removal.
   - `BR-ANALYSIS-05-BOARD-EDIT`: Current workspace is in `boardEdit` -> block live analysis start until board editing ends.
-- **Postconditions**: The current game's analysis roster updates independently from other games, and assigned engines begin or end analysis accordingly.
+- **Postconditions**: The current game's ordered copied analysis-engine rows update independently from other games, and those copied engines begin or end analysis accordingly.
 - **Function Touchpoints**:
   - `AnalysisPanel.analysisEngineAddRequested`
   - `AnalysisPanel.analysisEngineRemoveRequested`

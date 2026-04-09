@@ -48,7 +48,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - `IPlayer` state is intentionally minimal: `active` or `nonActive`.
 - `nonActive` covers disconnected participants, unavailable engines, or any other seat that has left normal participation.
 - Turn ownership and move permissions are derived from `gameState`, not stored on the player.
-- Runtime-only seat availability belongs under `IPlayer.$`, not in the persisted player payload.
+- Runtime-only seat availability belongs under `IPlayer.$`, while engine-specific runtime such as process handle, availability, and last error belongs under the copied engine payload stored on an engine-backed player.
 
 ## Per-Game Analysis Display Preference
 - A live game owns a persisted per-game preference `showLiveAnalysisMoves`.

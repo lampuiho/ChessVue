@@ -34,14 +34,14 @@ The first implementation uses adapter-backed mocked `NW.js`-style services.
 That mocked host is expected to provide:
 
 - canned document, directory, dialog, and delete failure modes for `StorageAdapter`
-- scripted stdout, scripted unexpected exit, and per-session isolation for `ProcessManager`
+- scripted process start failure, scripted unexpected exit, and per-session isolation for `ProcessManager`
 - deterministic system-theme reads through `SystemThemeAdapter`
 - scripted app-close, focus-return, and system-theme notifications through `IPlatformService`
-- deterministic protocol transport hooks for `EngineClient`
+- deterministic engine communication hooks for `EngineClient`
 
 ## Notes
 - `IPlatformService` is selected during bootstrap or other composition-root wiring, then injected into the layer-2 service graph.
-- `EngineRuntimeService` is the baseline layer-2 composer of `ProcessManager` and `EngineClient`.
+- `EngineRuntimeService` composes `ProcessManager` and `EngineClient` from layer 2; layer-1 modules do not call one another.
 - The baseline expects multiple concrete host implementations to satisfy the same `IPlatformService` contract; it does not assume a store-shaped singleton.
 - State-management modules do not resolve `IPlatformService` directly.
 - The returned adapters should satisfy the same contracts that later real desktop bindings will satisfy.

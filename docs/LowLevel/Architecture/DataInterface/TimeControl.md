@@ -45,4 +45,5 @@ interface IClockSnapshot {
 ## Rules
 - `null` timing values represent untimed play.
 - Relative timestamps, not UI tick counters, are the source of truth for remaining time.
-- `clockState` on `IGame` tells consumers whether a snapshot is running, paused, expired, or inactive.
+- `gameState` on `IGame` tells consumers whether a snapshot is actively running, paused, or outside live clock consumption.
+- `IClockSnapshot` stores timing data only. It does not replace `gameState` as the authority for whether the game is in live play, live analysis, board edit, or checkmate.

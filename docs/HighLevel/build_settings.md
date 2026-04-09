@@ -39,7 +39,7 @@ That means:
 | Engine protocol | `UCI` only |
 | Engine transport | Local child process |
 | Protocol/session ownership | Managed through `EngineRuntimeService` using `EngineClient` |
-| Raw process ownership | Managed through `EngineRuntimeService` using `ProcessManager` |
+| Raw process lifecycle ownership | Managed through `EngineRuntimeService` using `ProcessManager` |
 | Concurrent analysis | Up to `4` analysis engines per game |
 | Failure behaviour | Isolate failure per engine and allow manual retry |
 | Auto-reconnect | Deferred |
@@ -73,7 +73,7 @@ The detailed behaviour lives in [persistence_contract.md](persistence_contract.m
 | Internal format | Canonical JSON document |
 | Migration support | Required |
 | External formats | Deferred |
-| Analysis persistence | No persisted streamed-analysis snapshot requirement in the baseline |
+| Analysis persistence | Persisted as part of the canonical game payload |
 
 ## Explicitly Deferred
 The following are outside the current build/runtime baseline:

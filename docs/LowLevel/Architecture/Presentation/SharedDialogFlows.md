@@ -26,8 +26,8 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 | `AppModalKind.DeleteGame` | `GameTabs.deleteRequestedForActiveGame` or `GameTabs.deleteRequestedForInactiveGame` | Confirm permanent removal of the selected game before the store mutates tabs or active routing. | `Cancel` and danger `Delete`. | `gameId` |
 | `AppModalKind.BoardEditBlocked` | `GameControlPanel.boardEditRequested` when board edit is not allowed | Explain that board editing belongs only to non-live analysis states. | Dismiss-only for the baseline, with room for a later setup shortcut. | `gameId`, `reason` |
 | `AppModalKind.SettingsDirtyLeave` | `SettingsView.returnRequested` with pending draft edits | Ask whether to discard or keep editing before leaving the settings route. | Secondary `Stay` and primary `Discard Changes`. | target route |
-| `AppModalKind.PlayerSelection` | `PlayerPanel.playerSelectionRequested` | Choose unassigned, `PlayerType.Local`, or a configured engine profile for one seat. | `Cancel` plus seat-selection actions. | `gameId`, seat `colour`, current player selection |
-| `AppModalKind.AnalysisEngineSelection` | `AnalysisPanel.analysisEngineAddRequested` | Choose one unassigned engine profile to add to the current game's analysis roster. | `Cancel` and primary `Add Engine`. | `gameId`, current `assignedEngineIds` |
+| `AppModalKind.PlayerSelection` | `PlayerPanel.playerSelectionRequested` | Choose unassigned, `PlayerType.Local`, or a configured engine profile for one seat. | `Cancel` plus seat-selection actions. | `gameId`, seat `colour`, current player selection, current copied assigned engine |
+| `AppModalKind.AnalysisEngineSelection` | `AnalysisPanel.analysisEngineAddRequested` | Choose one configured engine profile to add to the current game's ordered analysis rows when that copied engine is not already present. | `Cancel` and primary `Add Engine`. | `gameId`, current copied analysis engines |
 
 ## Coverage Notes
 - Draw flow is intentionally split into `AppModalKind.DrawOffer` and `AppModalKind.DrawResolve` so the baseline local-versus-local response step is visible in design.

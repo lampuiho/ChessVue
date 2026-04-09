@@ -66,17 +66,17 @@ This is the canonical persisted game payload for both:
 
 Contains:
 - game identity and timestamps
-- player slots and captured per-game assigned-engine snapshots
+- player slots and copied per-game engine payloads
 - per-game live-analysis display preference
 - workspace kind, result state, and unresolved draw-offer state when present
 - board root, move tree, and minimal selector paths for the current live node and current visible node
 - clock configuration and current clock snapshot
+- persisted analysis snapshots with copied engine payloads
 - schema version metadata
 
 Does not contain:
 - unrelated session shell state such as open tab order for other games
 - panel visibility or panel positioning
-- saved analysis output
 - transient modal visibility
 
 The low-level design should persist the game workspace directly rather than maintaining a second detached saved-game interface.
@@ -100,7 +100,7 @@ Only after that game state is restored may live analysis resume.
 - free-analysis versus live-game state
 - clock state and timing metadata
 - unresolved draw-offer state for the live workspace when one exists
-- per-game assigned-engine snapshots, including copied launch configuration and any source-profile provenance link
+- per-game copied engine payloads, including copied launch configuration
 - per-game live-analysis display preference
 - visible-path selection, live-path selection, and interaction context that are part of the game workspace
 
@@ -111,7 +111,7 @@ Only after that game state is restored may live analysis resume.
 
 ### UI Layout State Owns
 - remembered non-modal UI state such as history/analysis panel visibility and fold state for all committed foldable sections
-- analysis-engine fold state keyed by the active game's rendered analysis-row order, recalculated from that game's persisted analysis roster when the active game changes
+- analysis-engine fold state keyed by the active game's rendered analysis-row order, recalculated from that game's ordered persisted analysis snapshot rows when the active game changes
 - layout restoration that remains useful even when prior open games are not restored
 
 ### Settings Snapshot Owns
@@ -132,9 +132,9 @@ Only after that game state is restored may live analysis resume.
 - Platform adapters may emulate the folder structure differently when the host does not expose normal directories, but the contract remains folder-based.
 
 ## Analysis Persistence Rule
-The baseline contract does not require persistence of streamed analysis output inside the saved game payload.
+The baseline contract persists saved analysis snapshots directly inside the saved game payload.
 
-On restore, analysis may restart from the restored game state when engines are available and the relevant setting allows it.
+On restore, those persisted snapshots are restored with the game, and analysis may then restart from the restored game state when engines are available and the relevant setting allows it.
 
 ## Internal Save Storage and External File Flows
 ### Autosave
@@ -198,4 +198,3 @@ This contract does not commit to:
 
 - batch import or export
 - public-domain format support beyond the canonical JSON document
-- persisted streamed analysis snapshots inside the saved game payload

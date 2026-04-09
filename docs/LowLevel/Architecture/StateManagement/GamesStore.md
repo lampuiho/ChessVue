@@ -29,10 +29,10 @@ pauseGame(game: IGame, reason: PauseReason): Promise<void>
 resumeGame(game: IGame, reason: PauseReason): Promise<void>
 reassignPlayer(game: IGame, colour: PlayerColour, player: IPlayer | null): Promise<void>
 addAnalysisEngine(game: IGame, engineId: string): Promise<void>
-removeAnalysisEngine(game: IGame, assignedEngineId: string): Promise<void>
+removeAnalysisEngine(game: IGame, engineIndex: number): Promise<void>
 refreshAnalysis(game: IGame): Promise<void>
-retryAnalysis(game: IGame, assignedEngineId: string): Promise<void>
-stopAnalysis(game: IGame, assignedEngineId?: string): Promise<void>
+retryAnalysis(game: IGame, engineIndex: number): Promise<void>
+stopAnalysis(game: IGame, engineIndex?: number): Promise<void>
 requestPlayerMove(game: IGame): Promise<IMove | null>
 enterInGameAnalysis(game: IGame): Promise<void>
 exitInGameAnalysis(game: IGame): void
@@ -52,7 +52,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - read, deserialise, migrate, and hydrate a saved game into the open-game collection once the owning flow has selected a source file
 - transition a prepared non-live analysis game into a live game without losing its prepared root or move tree
 - persist each game's live-analysis display preference alongside the rest of the game state
-- capture assigned-engine snapshots from reusable engine profiles when seating player engines or analysis engines by reading the accepted engine inventory through `UserSettingService`
+- capture copied in-game engine snapshots from reusable engine profiles when seating player engines or analysis engines by reading the accepted engine inventory through `UserSettingService`
 - enforce allowed actions from `GameState`, `ResultState`, and accepted gameplay or session policies
 - coordinate legal move application, move-tree updates, notation, position identity, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
@@ -76,7 +76,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `null` or a concrete `IPlayer`, clears obsolete seat-specific runtime intent, transitions a live game to `AnalysisWhiteMove` or `AnalysisBlackMove` when either side becomes unassigned, anchors that transition to the currently highlighted position and branch context, and otherwise preserves the same game.
 - `offerDraw` creates or updates `drawOfferState` after the local-versus-local confirmation step or directly for non-local opponents. `acceptDrawOffer` finalises the game as a draw, `declineDrawOffer` clears the unresolved offer while the game continues, and both are valid for the local response dialog or any later non-local participant callback integration.
 - `withdrawDrawOffer` is the explicit non-local outgoing-offer boundary. It clears an unresolved outgoing `drawOfferState` without ending the game and is the store action behind pressing a lit `Draw` control when the pending offer direction is `DrawOfferDirection.Outgoing`.
-- `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's analysis roster only. Add validates against duplicates and the engine-count limit, then snapshots the selected reusable profile into a new assigned-engine entry. Remove targets an existing `assignedEngineId`, removes that engine's persisted analysis snapshots from `game.analysis`, and tears down any active analysis runtime owned by the game.
+- `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's ordered analysis snapshot list only. Add validates against duplicates and the engine-count limit, then snapshots the selected reusable profile into a new analysis row with the copied `IAssignedEngine`. Remove targets the current row index, removes that persisted snapshot row from `game.analysis`, and tears down any active runtime owned by that copied engine.
 - `enterInGameAnalysis` is valid for live or paused live games and for timeout-ended games when post-timeout analysis is allowed. It suppresses engine-turn generation until the live node is restored, and entering the mode does not bypass the same per-game `liveAnalysisOptions.showLiveAnalysisMoves` gate that controls whether live-game engine move targets are rendered.
 - `exitInGameAnalysis` is prompt-free in the baseline. It restores `highlightPath` to the live node immediately, and any exploratory descendants created from the latest live node remain visible only until a later real live move from that same node supersedes them.
 - `createGame` and `startGameFromSetup` create live states only when both sides are assigned. When either side is unassigned, they create `AnalysisWhiteMove` or `AnalysisBlackMove` based on the prepared board side to move. When they create a live game, they also persist the per-game `liveAnalysisOptions.showLiveAnalysisMoves` choice, which defaults to `false`.
@@ -131,4 +131,5 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `SavedGamesStore` owns save browsing, recent-target resolution, and external picker flows. `GamesStore` owns serialising the current game and hydrating a saved game once the target path is known.
 - `GamesStore` uses `SavedGameDocumentService` for raw saved-game document reads, writes, and deletes while keeping game serialisation and hydration in-store.
 - `GamesStore` does not call sibling stores directly. Any player selection coming from `EnginesStore` is bridged through presentation as a concrete `IPlayer` value.
+- Analysis-engine row identity is the current row index in `game.analysis.snapshots`; duplicate copied engines are blocked so row-targeted actions stay unambiguous.
 - Flow docs continue to show owner-private functions such as `GamesStore._hydrateWorkspace`, `GamesStore._loadRequestedDocuments`, and `GamesStore._hydrateWorkspaceCollection`. If those share implementation, that implementation is documented under [UtilityIndex.md](../UtilityIndex.md).

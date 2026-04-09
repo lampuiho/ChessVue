@@ -38,7 +38,7 @@ Committed platform modules:
 
 - `IPlatformService` as the bootstrap-selected host contract
 - `StorageAdapter` for generic host storage, file-system, and file-dialog operations
-- `ProcessManager` for local child-process lifecycle and raw stdin/stdout transport
+- `ProcessManager` for local child-process lifecycle
 - `SystemThemeAdapter` for current OS theme detection
 - `EngineClient` for concrete engine-protocol transport
 
@@ -118,7 +118,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### Platform Abstraction
 - Bootstrap selects one `IPlatformService` implementation for the active platform and injects it into the layer-2 service graph.
 - `StorageAdapter` exposes generic host storage, file-system, and file-dialog operations only.
-- `ProcessManager` starts, writes to, reads from, and stops local child processes as defined in [engine_runtime.md](engine_runtime.md).
+- `ProcessManager` starts, restarts, stops, and reports unexpected termination for local child processes as defined in [engine_runtime.md](engine_runtime.md).
 - `SystemThemeAdapter` exposes the current OS theme only.
 - `EngineClient` translates between ChessVue engine structures and the active engine protocol and hides raw engine message formats from higher layers.
   It is consumed through `EngineRuntimeService`, not by layer-3 stores directly.
@@ -131,7 +131,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `PositionIdentityService` owns canonical position identity and equality rules used by analysis, restore, and serialisation workflows.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
-- `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `GamesStore` for continuous analysis and player-engine turns, including process lifecycle through `ProcessManager` and protocol translation through `EngineClient`.
+- `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `GamesStore` for continuous analysis and player-engine turns, composing `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation without same-layer platform calls.
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
 - `SavedGameDocumentService` owns saved-game document I/O, managed-save enumeration, and external import/export picker access behind the layer-2 boundary.
 - `SerializationService` owns the canonical saved-game payload shape, schema versioning hooks, migration entry points, settings and session serialisation, and saved-game document interpretation for internal save/load plus external import/export flows.
@@ -200,8 +200,8 @@ The high-level contracts divide behaviour ownership as follows:
 ### Analysis Refresh
 1. A committed move or explicit analysis action requests evaluation.
 2. `GamesStore` decides whether the current game context should start, stop, or refresh analysis.
-3. `EngineRuntimeService` starts or reuses the engine process through `ProcessManager`, translates the selected position through `EngineClient`, and routes raw transport through that layer-2 boundary.
-4. `GamesStore` keeps the latest valid result for each assigned engine independently on the active game.
+3. `EngineRuntimeService` starts or reuses the required runtime session through `ProcessManager` and `EngineClient`, with process lifecycle and protocol conversation kept on separate layer-1 boundaries.
+4. `GamesStore` keeps the latest valid result for each persisted copied in-game analysis engine independently on the active game.
 5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth, while score-only versus move-list rendering still follows the current workspace context and the game's persisted `showLiveAnalysisMoves` preference.
 
 ### Save and Restore

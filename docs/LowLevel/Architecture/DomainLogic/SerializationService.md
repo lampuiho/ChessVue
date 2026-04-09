@@ -30,6 +30,7 @@ migrateGame(input: unknown): IGame
 - strip runtime-only `$` metadata from persisted output for moves, move nodes, and any other hydrated runtime helpers
 - validate board-root consistency through structural position identity rather than stored FEN
 - validate nested move-tree structure, `mainlineChildIndex`, and persisted `livePath` / `highlightPath`
+- validate persisted `IGame.analysis`, including ordered snapshot shape and embedded copied-engine payload shape
 - stop at canonical payload validation and normalised data output; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` / `WorkspaceRestoreUtility` after successful deserialisation
 - remain platform-independent and path-agnostic: stores orchestrate adapter calls, but `SerializationService` decides how persisted payloads are interpreted
 
@@ -47,3 +48,6 @@ migrateGame(input: unknown): IGame
 ## Notes
 - `SerializationService` owns payload shape only. It does not resolve file paths, storage roots, executable-root policy, or save-root policy.
 - Recent-game history remains query-derived from available save targets and is not a serialised persisted artefact owned by this service.
+- All runtime-only `$` members are stripped from persisted output, including `IGame.$`, `IPlayer.$`, `IAssignedEngine.$`, `IMove.$`, `IMoveNode.$`, and any later runtime-only helpers added under that namespace.
+- Embedded copied engine payloads inside `IEnginePlayer.assignedEngine` and `analysis.snapshots[].assignedEngine` must satisfy the `IAssignedEngine` shape directly. Invalid embedded engine payloads are rejected as invalid saved-game payloads rather than silently repaired.
+- `analysis.snapshots[].positionKey` is preserved as an opaque persisted derived key. Deserialisation validates its presence and shape but does not recompute it during payload interpretation.
