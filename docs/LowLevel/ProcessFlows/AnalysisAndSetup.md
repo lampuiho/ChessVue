@@ -36,13 +36,12 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 #### Flow C - Refresh Analysis In The Free Analysis Workspace
 | `Chessboard.moveSubmitted` |
 | --- |
-| `GameView._refreshVisibleAnalysisAfterCommittedMove` |
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
+| `EngineRuntimeService.startAnalysis` |
+| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -56,17 +55,12 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GameControlPanel.boardEditRequested` |
 | --- |
 | `GamesStore.enterBoardEdit` |
-| `EnginesStore.stopAnalysis` |
-| `GameView._suspendAnalysisForBoardEdit` |
+| `GamesStore.stopAnalysis` |
 
 | `GamesStore.enterBoardEdit` |
 | --- |
 | `GamesStore._assertBoardEditAllowed` |
-| `GamesStore._snapshotPreEditState` |
-| `GamesStore._suspendAnalysisForBoardEdit` |
-
-| `EnginesStore.stopAnalysis` |
-| --- |
+| `GamesStore._enterBoardEditContext` |
 
 #### Flow B - Confirm Board Edit
 | `BoardEdit.confirmRequested` |
@@ -74,11 +68,10 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GamesStore.confirmBoardEdit` |
 | `MoveUpdateService.replaceBoardRoot` |
 | `AnalysisStore.clearGameAnalysis` |
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 
 | `GamesStore.confirmBoardEdit` |
 | --- |
-| `GamesStore._confirmHistoryClearIfNeeded` |
 | `GamesStore._replaceWorkspaceRoot` |
 
 | `MoveUpdateService.replaceBoardRoot` |
@@ -87,39 +80,19 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `AnalysisStore.clearGameAnalysis` |
 | --- |
 
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
-
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
-| `AnalysisStore.applyAnalysisUpdate` |
-
-#### Flow C - Cancel Board Edit
-| `BoardEdit.cancelRequested` |
-| --- |
-| `GamesStore.cancelBoardEdit` |
-| `GameView._resumeAnalysisAfterBoardEditIfNeeded` |
-| `EnginesStore.startAnalysis` |
-
-| `GamesStore.cancelBoardEdit` |
-| --- |
-| `GamesStore._restorePreEditState` |
-
-| `EnginesStore.startAnalysis` |
-| --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
+| `EngineRuntimeService.startAnalysis` |
+| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `AnalysisStore.applyAnalysisUpdate` |
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
-- State coverage: `InteractionContext.BoardEdit` is valid only inside `WorkspaceKind.FreeAnalysisSetup`. While active, engine analysis is suspended and `EnginesStore.startAnalysis` is blocked for that workspace.
+- State coverage: `InteractionContext.BoardEdit` is valid only inside `WorkspaceKind.FreeAnalysisSetup`. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
 - Process note: because board editing is restricted to `WorkspaceKind.FreeAnalysisSetup`, `GamesStore.confirmBoardEdit` replaces the root through `MoveUpdateService.replaceBoardRoot(..., null)` and clears prior move history in one mutation.
-- Requirement verification: `Pass`. The public surface covers edit entry, confirm, cancel, history clearing, analysis suspension during edit, and analysis refresh afterwards.
+- Requirement verification: `Pass`. The public surface covers edit entry, confirm, history clearing, analysis suspension during edit, and analysis refresh afterwards.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 
@@ -129,8 +102,8 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `UiStateStore.showModal` |
 | `GamesStore.startGameFromSetup` |
 | `GameView._refreshRuntimeAfterSetupStart` |
-| `EnginesStore.startAnalysis` |
-| `GameView._requestEngineTurnIfNeeded` |
+| `GamesStore.refreshAnalysis` |
+| `GameView._requestPlayerMoveIfNeeded` |
 | `UiStateStore.hideModal` |
 
 | `UiStateStore.showModal` |
@@ -145,10 +118,10 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GamesStore._initialiseLiveClock` |
 | `GamesStore._switchWorkspaceKindToLiveGame` |
 
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
+| `EngineRuntimeService.startAnalysis` |
+| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -167,26 +140,22 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 #### Flow
 | `GameView._refreshVisibleAnalysis` |
 | --- |
-| EnginesStore.startAnalysis |
-| EnginesStore.ensureAnalysisSessions |
+| GamesStore.refreshAnalysis |
 
-| EnginesStore.startAnalysis |
+| GamesStore.refreshAnalysis |
 | --- |
-| EnginesStore._startAnalysisSessions |
-| EnginesStore._bindAnalysisCallbacks |
+| EngineRuntimeService.startAnalysis |
+| GamesStore._bindAnalysisCallbacks |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `AnalysisStore.applyAnalysisUpdate` |
 
-| EnginesStore.ensureAnalysisSessions |
-| --- |
-
 | AnalysisStore.getVisibleAnalysis |
 | --- |
 
 - UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in `WorkspaceKind.FreeAnalysisSetup`, and in any `WorkspaceKind.LiveGame` context only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
-- State gate: `EnginesStore.startAnalysis` accepts `WorkspaceKind.LiveGame` and `WorkspaceKind.FreeAnalysisSetup` workspaces in `InteractionContext.CurrentPosition`, `InteractionContext.HistoryReview`, and `InteractionContext.InGameAnalysis`. It is blocked while `interactionContext = InteractionContext.BoardEdit`.
+- State gate: `GamesStore.refreshAnalysis` accepts `WorkspaceKind.LiveGame` and `WorkspaceKind.FreeAnalysisSetup` games in `InteractionContext.CurrentPosition`, `InteractionContext.HistoryReview`, and `InteractionContext.InGameAnalysis`. It is blocked while `interactionContext = InteractionContext.BoardEdit`.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
@@ -194,19 +163,15 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 #### Flow
 | `GameView._refreshVisibleAnalysis` |
 | --- |
-| EnginesStore.startAnalysis |
+| GamesStore.refreshAnalysis |
 | EnginesStore.validateAnalysisSelection |
-| EnginesStore.ensureAnalysisSessions |
 
-| EnginesStore.startAnalysis |
+| GamesStore.refreshAnalysis |
 | --- |
-| EnginesStore._assertAnalysisSelectionLimit |
-| EnginesStore._buildSessionPerEngine |
+| GamesStore._assertAnalysisSelectionLimit |
+| GamesStore._startAnalysisSessions |
 
 | EnginesStore.validateAnalysisSelection |
-| --- |
-
-| EnginesStore.ensureAnalysisSessions |
 | --- |
 
 - UI surface coverage: the panel renders one independently foldable engine group per selected engine. Each group always shows score and engine state, and may additionally show up to 3 visible lines when the current workspace context allows rendered move targets.
@@ -217,32 +182,32 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 #### Flow A - Stop Analysis Explicitly
 | AnalysisPanel.stopRequested |
 | --- |
-| EnginesStore.stopAnalysis |
+| GamesStore.stopAnalysis |
 
-| EnginesStore.stopAnalysis |
+| GamesStore.stopAnalysis |
 | --- |
-| EnginesStore._stopMatchingSessions |
-| EnginesStore._markAnalysisUnavailable |
+| GamesStore._stopMatchingAnalysisSessions |
+| GamesStore._markAnalysisUnavailable |
 
 #### Flow B - Retry A Failed Engine
 | AnalysisPanel.retryRequested |
 | --- |
-| EnginesStore.retryAnalysis |
+| GamesStore.retryAnalysis |
 
-| EnginesStore.retryAnalysis |
+| GamesStore.retryAnalysis |
 | --- |
-| EnginesStore._restartSingleEngine |
-| EnginesStore._bindAnalysisCallbacks |
+| GamesStore._restartSingleAnalysisSession |
+| GamesStore._bindAnalysisCallbacks |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `AnalysisStore.applyAnalysisUpdate` |
 
 #### Flow C - Unexpected Analysis Engine Exit
-| `EngineRuntimeService.subscribeToSessionEvents` |
+| `GamesStore._pollAnalysisSessionHealth` |
 | --- |
-| `EnginesStore._handleAnalysisUnexpectedExit` |
-| `EnginesStore._markAnalysisUnavailable` |
+| `GamesStore._handleAnalysisUnexpectedExit` |
+| `GamesStore._markAnalysisUnavailable` |
 
 - Failure handling: malformed analysis output keeps the existing baseline rule and is discarded per message without stopping the session.
 - Unexpected-exit handling: if an analysis-engine process terminates unexpectedly, only that engine row is marked unavailable or disconnected, the last valid analysis snapshot remains visible, and no blocking dialog is opened.
@@ -324,7 +289,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `UiStateStore.showModal` |
 | `GamesStore.addAnalysisEngine` |
 | `EnginesStore.validateAnalysisSelection` |
-| `GameView._refreshVisibleAnalysis` |
+| `GamesStore.refreshAnalysis` |
 
 | `UiStateStore.showModal` |
 | --- |
@@ -342,7 +307,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `AnalysisPanel.analysisEngineRemoveRequested` |
 | --- |
 | `GamesStore.removeAnalysisEngine` |
-| `EnginesStore.stopEngine` |
+| `GamesStore.stopAnalysis` |
 | `AnalysisStore.clearEngineAnalysis` |
 
 | `GamesStore.removeAnalysisEngine` |
@@ -350,7 +315,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GamesStore._mutateAnalysisEngineRoster` |
 | `GamesStore._persistWorkspaceIfNeeded` |
 
-| `EnginesStore.stopEngine` |
+| `GamesStore.stopAnalysis` |
 | --- |
 
 | `AnalysisStore.clearEngineAnalysis` |

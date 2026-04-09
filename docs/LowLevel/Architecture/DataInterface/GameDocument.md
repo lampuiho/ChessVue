@@ -6,7 +6,7 @@ Define the canonical persisted saved-game payload used for autosave, internal sa
 ## Canonical Shape
 The baseline does not define a separate persisted `IGameDocument` interface.
 
-The canonical saved-game payload is `IGameWorkspace` from [Game.md](Game.md).
+The canonical saved-game payload is `IGame` from [Game.md](Game.md).
 
 ## Included In The Persisted Game
 - `schemaVersion`
@@ -22,7 +22,7 @@ The canonical saved-game payload is `IGameWorkspace` from [Game.md](Game.md).
 - `analysisAssignment`, including the persisted assigned-engine row order for the active game
 
 ## Rules
-- `IGameWorkspace` is the canonical payload for autosave storage, ChessVue-managed save files, and external import/export files.
+- `IGame` is the canonical payload for autosave storage, ChessVue-managed save files, and external import/export files.
 - Restore rebuilds the saved game workspace from that payload, then may resume live analysis when available.
 - Panel visibility, panel positioning, and other layout concerns are not stored inside the saved game payload.
 - Analysis output is runtime state and is not part of the baseline saved-game payload.

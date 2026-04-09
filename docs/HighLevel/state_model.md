@@ -54,6 +54,12 @@ The UI and stores may expose convenient derived contexts, but they must map back
 | Free analysis board edit | `freeAnalysisSetup` + `boardEdit` |
 | Finished game | `liveGame` + final `resultState` |
 
+## Game And Player Ownership
+- `IGame` owns the seated `IPlayer` values for white and black.
+- `IPlayer` state is intentionally minimal: `active` or `nonActive`.
+- `nonActive` covers disconnected participants, unavailable engines, or any other seat that has left normal participation.
+- Turn ownership and whether the game is currently waiting for a non-local move belong to `IGame`, not to `IPlayer`.
+
 ## Per-Game Analysis Display Preference
 - A live game also owns a persisted per-game preference `showLiveAnalysisMoves`.
 - This preference belongs to the saved game workspace, not to global settings or remembered UI layout state.
@@ -121,7 +127,6 @@ The UI and stores may expose convenient derived contexts, but they must map back
 - `freeAnalysisSetup` allows legal move exploration for both colours.
 - Board editing is only available inside `freeAnalysisSetup`.
 - Confirming a board edit replaces the current board root and clears prior move history for that workspace.
-- Cancelling a board edit restores the previous free-analysis position unchanged.
 - Reaching `freeAnalysisSetup` from player reassignment keeps the visible board context and prior move tree available for review and later restart.
 
 ### Pausing and Interruptions

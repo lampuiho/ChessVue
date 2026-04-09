@@ -17,7 +17,6 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 - `startGameFromSetupRequested`
 - `enterBoardEditRequested`
 - `confirmBoardEditRequested`
-- `cancelBoardEditRequested`
 - `pauseRequested`
 - `resumeRequested`
 - `resignRequested`
@@ -30,7 +29,7 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 | Paused live play | Keep `Takeback`, replace `Pause` with `Resume`, keep `Resign` and `Draw`, and disable `Analysis Mode` entry until the playable live state is restored. The draw control still renders any unresolved non-local pending-offer dot from `drawOfferState`, and a lit indicator still means the next `Draw` press accepts for `DrawOfferDirection.Incoming` or withdraws for `DrawOfferDirection.Outgoing`. |
 | In-game analysis | Keep `Takeback` for exploratory navigation, replace `Analysis Mode` entry with `Exit Analysis`, and hide `Pause`, `Resume`, `Resign`, `Draw`, and setup-only actions. |
 | Free analysis/setup | Show `Takeback`, `Enter Board Edit`, and `Start Game From Setup`. Hide live-game-only actions such as `Pause`, `Resume`, `Resign`, `Draw`, and in-game analysis entry. |
-| Free analysis board edit | Replace normal setup actions with `Confirm Board Edit` and `Cancel Board Edit`. Hide live-game-only actions and `Start Game From Setup` until board edit finishes. |
+| Free analysis board edit | Replace normal setup actions with `Confirm Board Edit`. Hide live-game-only actions and `Start Game From Setup` until board edit finishes. |
 | Finished game review | Keep `Takeback` only when the active policy still allows rewind or review-driven correction. Hide `Pause`, `Resume`, `Resign`, `Draw`, board-edit entry, and start-from-setup actions. |
 | Post-timeout analysis | Replace `Analysis Mode` entry with `Exit Analysis`, keep review-safe `Takeback` only when the analysis branch itself can rewind, and hide all live-result-changing actions plus setup-only actions. |
 

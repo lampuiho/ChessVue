@@ -22,7 +22,7 @@ The types in this folder are the contract-level shapes that state stores and ser
 - [Settings](Settings.md): authoritative user settings snapshot.
 - [RecentGame](RecentGame.md): recent-game entries projected for `HomeView`.
 - [SessionSnapshot](SessionSnapshot.md): persisted game-session and UI-layout restore payloads.
-- [GameDocument](GameDocument.md): persistence rules for the canonical saved-game payload, which reuses `IGameWorkspace`.
+- [GameDocument](GameDocument.md): persistence rules for the canonical saved-game payload, which reuses `IGame`.
 
 ## Design Rules
 - Interface names use `I` prefixes.

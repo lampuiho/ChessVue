@@ -11,12 +11,12 @@ serialiseGameSession(snapshot: IGameSessionSnapshot): string
 deserialiseGameSession(raw: string): IGameSessionSnapshot
 serialiseUiLayoutState(state: IUiLayoutState): string
 deserialiseUiLayoutState(raw: string): IUiLayoutState
-serialiseGame(workspace: IGameWorkspace): string
-deserialiseGame(raw: string): IGameWorkspace
+serialiseGame(game: IGame): string
+deserialiseGame(raw: string): IGame
 migrateSettingsSnapshot(input: unknown): ISettingsSnapshot
 migrateGameSessionSnapshot(input: unknown): IGameSessionSnapshot
 migrateUiLayoutState(input: unknown): IUiLayoutState
-migrateGame(input: unknown): IGameWorkspace
+migrateGame(input: unknown): IGame
 ```
 
 ## Responsibilities

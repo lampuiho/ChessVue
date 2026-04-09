@@ -8,7 +8,6 @@ Define configured engine records, per-game engine assignment, and runtime-sessio
 - `enum EngineRole`
 - `enum EngineAvailability`
 - `enum EngineAnalysisSearchMode`
-- `enum EngineSessionEventKind`
 
 ## Interfaces
 - `interface IEngineRecord`
@@ -20,7 +19,6 @@ Define configured engine records, per-game engine assignment, and runtime-sessio
 - `interface IEngineAnalysisRequest`
 - `interface IEngineAnalysisUpdate`
 - `interface IEngineRegistrationRequest`
-- `interface IEngineSessionEvent`
 
 ## Data Structures
 ```ts
@@ -43,18 +41,6 @@ enum EngineAvailability {
 
 enum EngineAnalysisSearchMode {
   Infinite = "infinite"
-}
-
-enum EngineSessionEventKind {
-  HandshakeStarted = "handshakeStarted",
-  HandshakeCompleted = "handshakeCompleted",
-  Ready = "ready",
-  CopyProtectionChecking = "copyProtectionChecking",
-  CopyProtectionOk = "copyProtectionOk",
-  CopyProtectionError = "copyProtectionError",
-  RegistrationChecking = "registrationChecking",
-  RegistrationOk = "registrationOk",
-  RegistrationError = "registrationError"
 }
 
 interface IEngineOptionMap {
@@ -116,11 +102,6 @@ interface IEngineRegistrationRequest {
   code: string | null
   registerLater: boolean
 }
-
-interface IEngineSessionEvent {
-  kind: EngineSessionEventKind
-  detail: string | null
-}
 ```
 
 ## Rules
@@ -134,6 +115,7 @@ interface IEngineSessionEvent {
 - Analysis assignment is per game and preserves rendered roster order through `assignedEngines`.
 - A running session is isolated by game, assigned engine, and role.
 - The baseline permits at most four concurrent analysis engines per game.
+- `IEngineRuntimeSession.availability` plus `lastError` are the public runtime-status surface used for health checks. Higher layers do not rely on callback-style session-event contracts.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
 - `IEnginePositionState` is the engine-facing projection of ChessVue move-tree state and lets the engine client decide whether it can continue the current line or must establish a new game boundary.
 - `executablePath` and `options` are user-managed profile values and are not strictly validated at settings-edit time beyond being storable in the profile record.

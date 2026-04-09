@@ -28,6 +28,6 @@ interface IBoardPosition {
 
 ## Ownership
 - `GameRuleService` validates and mutates `IBoardPosition`.
-- `SerializationService` persists `IBoardPosition` inside `IGameWorkspace`.
+- `SerializationService` persists `IBoardPosition` inside `IGame`.
 - `AnalysisStore` keys visible analysis by derived structural position identity, not stored FEN.
 - `board` is always a `64`-entry array indexed directly by `BoardId`.

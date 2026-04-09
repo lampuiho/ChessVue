@@ -5,10 +5,10 @@ Own visible per-game analysis snapshots for the currently relevant position with
 
 ## Public Interface
 ```ts
-getVisibleAnalysis(gameId: string, position: IBoardPosition): IVisibleAnalysisSnapshot | null
-applyAnalysisUpdate(gameId: string, snapshot: IAnalysisSnapshot, position: IBoardPosition): void
-clearGameAnalysis(gameId: string): void
-clearEngineAnalysis(gameId: string, engineId: string): void
+getVisibleAnalysis(game: IGame, position: IBoardPosition): IVisibleAnalysisSnapshot | null
+applyAnalysisUpdate(game: IGame, snapshot: IAnalysisSnapshot, position: IBoardPosition): void
+clearGameAnalysis(game: IGame): void
+clearEngineAnalysis(game: IGame, engineId: string): void
 ```
 
 ## Responsibilities
@@ -28,6 +28,6 @@ clearEngineAnalysis(gameId: string, engineId: string): void
 - `SCN-LOAD-01`
 
 ## Notes
-- `AnalysisStore` is a layer-3 snapshot store only. It does not start, retry, stop, or restart engine sessions.
-- `AnalysisStore` does not call sibling stores directly. Caller-owned presentation or bootstrap flows coordinate `EnginesStore` runtime actions and `AnalysisStore` snapshot updates from concrete callable handlers.
-- Continuous analysis callbacks may arrive long after the originating user action, so the low-level flow owner for snapshot writes is a concrete callback handler such as `GameView._handleAnalysisRuntimeUpdate`, not an abstract workflow step.
+- `AnalysisStore` is a layer-3 snapshot store only. It does not decide when analysis should start, retry, stop, or retarget.
+- `GamesStore` owns the per-game analysis workflow and writes resulting snapshots here.
+- `AnalysisStore` does not call sibling stores directly.

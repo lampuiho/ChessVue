@@ -82,9 +82,9 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow C - Resume Continuous Analysis After Restore
 | `GameView._resumeVisibleAnalysisIfAllowed` |
 | --- |
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 | --- |
 | `EnginesStore._startAnalysisSessions` |
 | `EnginesStore._bindAnalysisCallbacks` |
@@ -94,13 +94,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `AnalysisStore.applyAnalysisUpdate` |
 
 #### Flow D - Request Engine Turn After Restore
-| `GameView._requestEngineTurnIfNeeded` |
+| `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | `GamesStore.getGame` |
-| `EnginesStore.startPlayerTurn` |
+| `GamesStore.requestPlayerMove` |
 | `EnginesStore._handlePlayerTurnMove` |
 
-| `EnginesStore.startPlayerTurn` |
+| `GamesStore.requestPlayerMove` |
 | --- |
 | `EnginesStore._startPlayerTurnSearch` |
 | `EnginesStore._bindPlayerTurnCallbacks` |
@@ -115,7 +115,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._resolveMoveContext` |
 | `GamesStore._applyMoveByContext` |
 | `GamesStore._persistWorkspaceIfNeeded` |
-| `GameView._requestEngineTurnIfNeeded` |
+| `GameView._requestPlayerMoveIfNeeded` |
 
 - State/settings coverage: `session.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. When the restored route resolves to a game, `GameView.setup` lazily restores only the needed persisted game data. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
 - Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `GamesStore._hydrateWorkspace` then rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
@@ -235,9 +235,9 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow B - Start Continuous Analysis For The New Workspace
 | `NewGameModal.createRequested` |
 | --- |
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 
-| `EnginesStore.startAnalysis` |
+| `GamesStore.refreshAnalysis` |
 | --- |
 | `EnginesStore._startAnalysisSessions` |
 | `EnginesStore._bindAnalysisCallbacks` |
@@ -247,13 +247,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `AnalysisStore.applyAnalysisUpdate` |
 
 #### Flow C - Request The Opening Engine Turn
-| `GameView._requestEngineTurnIfNeeded` |
+| `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | `GamesStore.getGame` |
-| `EnginesStore.startPlayerTurn` |
+| `GamesStore.requestPlayerMove` |
 | `EnginesStore._handlePlayerTurnMove` |
 
-| `EnginesStore.startPlayerTurn` |
+| `GamesStore.requestPlayerMove` |
 | --- |
 | `EnginesStore._startPlayerTurnSearch` |
 | `EnginesStore._bindPlayerTurnCallbacks` |
@@ -268,10 +268,10 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._resolveMoveContext` |
 | `GamesStore._applyMoveByContext` |
 | `GamesStore._persistWorkspaceIfNeeded` |
-| `GameView._requestEngineTurnIfNeeded` |
+| `GameView._requestPlayerMoveIfNeeded` |
 
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
-- State/settings coverage: any request with both sides assigned becomes a baseline `WorkspaceKind.LiveGame`, while any request with either side unassigned becomes `WorkspaceKind.FreeAnalysisSetup`. At the low-level request boundary, that unassigned state is encoded as `null`. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GameView._requestEngineTurnIfNeeded` is evaluated immediately after creation whenever the resulting live game starts on an engine-controlled side to move, including `PlayerType.Engine/PlayerType.Engine`.
+- State/settings coverage: any request with both sides assigned becomes a baseline `WorkspaceKind.LiveGame`, while any request with either side unassigned becomes `WorkspaceKind.FreeAnalysisSetup`. At the low-level request boundary, that unassigned state is encoded as `null`. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GameView._requestPlayerMoveIfNeeded` is evaluated immediately after creation whenever the resulting live game starts on an active non-local side to move, including `PlayerType.Engine/PlayerType.Engine`.
 - Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, any partially or fully unassigned player request resolves into `WorkspaceKind.FreeAnalysisSetup`, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility

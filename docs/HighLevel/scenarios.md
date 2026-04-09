@@ -340,6 +340,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
   - `MoveUpdateService.addMainlineMove`
   - `TimeControlService.applyMove`
+  - `GamesStore.refreshAnalysis`
   - `AnalysisStore.applyAnalysisUpdate` (subsequent engine response)
 
 ### SCN-MOVE-02 - Illegal Move Attempt
@@ -369,15 +370,14 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User moves pawn to promotion rank.
   2. App opens promotion selection UI.
-  3. User selects piece type.
-  4. App finalizes move and updates history/clock.
+  3. User selects piece type and the board interaction completes a normal `IMove`.
+  4. App submits that completed `IMove` through the normal `GamesStore.makeMove` path and updates history/clock.
 - **Branch Paths**:
-  - `BR-MOVE-03-CANCEL`: User closes promotion UI -> move not committed.
+  - `BR-MOVE-03-CANCEL`: User closes promotion UI -> no `IMove` is submitted.
 - **Postconditions**: Promotion move is explicit and deterministic.
 - **Function Touchpoints**:
   - `Chessboard.moveAttempt`
   - `GameRuleService.isMoveLegal`
-  - `GameRuleService.applyMove`
   - `GamesStore.makeMove`
   - `UiStateStore.showModal`
 
@@ -483,7 +483,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.reassignPlayer`
   - `GamesStore.makeMove`
   - `AnalysisStore.getVisibleAnalysis`
-  - `EnginesStore.startAnalysis`
+  - `GamesStore.refreshAnalysis`
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
 - **Status**: Planned
@@ -498,7 +498,6 @@ Each scenario in this document uses the same structure:
   5. App clears existing move history and treats the edited board as the new root position.
   6. If engines were configured at creation, app requests analysis for the edited position.
 - **Branch Paths**:
-  - `BR-FREE-ANALYSIS-02-CANCEL`: User cancels board editing -> restore prior position and history unchanged.
   - `BR-FREE-ANALYSIS-02-CLEAR-CONFIRM`: If history exists, app asks for confirmation before clearing it.
   - `BR-FREE-ANALYSIS-02-ENGINE-REFRESH-FAIL`: If engines cannot refresh on the edited position, keep the edited board and show evaluation as unavailable.
 - **Postconditions**: The edited position becomes the current free-analysis root and old move history is removed when confirmed.
@@ -507,7 +506,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.hideModal`
   - `MoveUpdateService.createMoveTree`
   - `GamesStore.saveGame`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.refreshAnalysis`
   - `AnalysisStore.clearGameAnalysis`
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
@@ -539,9 +538,9 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Analysis start action in a game context, or automatic trigger after a move when engines were configured at creation.
 - **Main Steps**:
   1. User starts analysis manually, or analysis is auto-triggered after a move.
-  2. App ensures the engine session is running.
+  2. `GamesStore` decides that the current game context should refresh analysis and ensures the relevant engine sessions are running.
   3. `EngineRuntimeService` starts an ongoing search for the current engine position state and delegates protocol commands through `EngineClient` and `ProcessManager`.
-  4. `EngineRuntimeService` receives typed updates from `EngineClient` and passes them back to the caller-owned analysis flow.
+  4. `EngineRuntimeService` receives typed updates from `EngineClient` and passes them back to the game-owned analysis flow.
   5. App stores updated best lines and scores each time the engine reports an improvement or deeper search result.
   6. Analysis panel refreshes over time to show score and search progress for that engine, plus up to `3` visible lines when the current workspace context allows rendered move targets.
 - **Branch Paths**:
@@ -554,8 +553,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
 - **Function Touchpoints**:
   - `GameView.onStartAnalysis`
-  - `EnginesStore.startAnalysis`
-  - `EnginesStore.ensureAnalysisSessions`
+  - `GamesStore.refreshAnalysis`
   - `AnalysisStore.applyAnalysisUpdate`
   - `AnalysisStore.getVisibleAnalysis`
 
@@ -580,7 +578,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
 - **Function Touchpoints**:
   - `EnginesStore.listConfiguredEngines`
-  - `EnginesStore.startAnalysis`
+  - `GamesStore.refreshAnalysis`
   - `AnalysisStore.applyAnalysisUpdate`
   - `AnalysisStore.getVisibleAnalysis`
   - `EngineRuntimeService.startAnalysis`
@@ -601,9 +599,9 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-03-RETRY-FAIL`: Restart fails repeatedly -> suggest settings edit/remove.
 - **Postconditions**: Engine failures are isolated and recoverable, and the last streamed best line remains visible until replaced by a new search.
 - **Function Touchpoints**:
-  - `EnginesStore.stopAnalysis`
+  - `GamesStore.stopAnalysis`
   - `EngineRuntimeService.stopSession`
-  - `EnginesStore.startAnalysis`
+  - `GamesStore.retryAnalysis`
   - `AnalysisStore.getVisibleAnalysis`
   - `UiStateStore.showModal`
 
@@ -659,8 +657,8 @@ Each scenario in this document uses the same structure:
   - `GamesStore.addAnalysisEngine`
   - `GamesStore.removeAnalysisEngine`
   - `EnginesStore.validateAnalysisSelection`
-  - `EnginesStore.startAnalysis`
-  - `EnginesStore.stopEngine`
+  - `GamesStore.refreshAnalysis`
+  - `GamesStore.stopAnalysis`
 
 ---
 
@@ -1163,11 +1161,11 @@ Each scenario in this document uses the same structure:
   1. User clicks the displayed player label for one side in the player strip.
   2. App opens a player-selection dialog scoped to that game and colour.
   3. User chooses `none`, `local`, or one configured engine profile.
-  4. If the user chooses an engine profile, app captures a fresh per-game assigned-engine snapshot for that seat before any runtime session starts.
+  4. If the user chooses an engine profile, presentation constructs an engine-backed `IPlayer` from the selected profile and passes that player into `GamesStore.reassignPlayer(...)`.
   5. If the resulting player setup leaves either side as `none`, app ends the current live game and converts the workspace into `free analysis / setup` from the currently visible position and branch context while preserving the visible move tree/history.
   6. That transition clears live-only result and clock progression so the resulting setup workspace is no longer carrying active live-game timing or finality state.
   7. If the resulting player setup keeps both sides assigned inside the same live game, app preserves the current time control and clock state and continues play with the new seat assignment.
-  8. If that preserved live game is now on an engine-controlled side with no valid in-flight request already active for that seat and turn, the normal live engine-turn loop starts from that side.
+  8. If that preserved live game is now on a non-local active side with no valid in-flight request already active for that seat and turn, the normal awaited-move loop starts from that side.
 - **Branch Paths**:
   - `BR-ENGINE-03-SAME-SELECTION`: User selects the already assigned value -> keep the current seat unchanged and close the dialog.
   - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session before the reassignment is committed.
@@ -1176,9 +1174,9 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `PlayerPanel.playerSelectionRequested`
   - `UiStateStore.showModal`
+  - `EnginesStore.createPlayer`
   - `GamesStore.reassignPlayer`
-  - `EnginesStore.stopEngine`
-  - `EnginesStore.startPlayerTurn`
+  - `EngineRuntimeService.awaitPlayerTurnMove`
 
 ---
 
@@ -1306,8 +1304,8 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-07-MAX-RETRY`: Retry limit reached -> disable engine and notify user.
 - **Postconditions**: Better resilience for unstable engine binaries.
 - **Function Touchpoints**:
-  - `EngineRuntimeService.subscribeToSessionEvents`
-  - `EnginesStore.startAnalysis`
+  - `GamesStore._pollAnalysisSessionHealth`
+  - `GamesStore.refreshAnalysis`
   - `AnalysisStore.getVisibleAnalysis`
 
 ### SCN-IDEA-08 - Variant Rules Toggle

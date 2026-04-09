@@ -42,7 +42,7 @@ Each entry must define:
 ## Persistence And Saved Documents
 ### SavedGameDocumentUtility
 - Purpose: share canonical managed-save enumeration, saved-document access, and duplicate-identity repair around saved-game workflows.
-- Touched contract models: `IGameWorkspace`, canonical saved-game document text.
+- Touched contract models: `IGame`, canonical saved-game document text.
 - Allowed importers: `SavedGameDocumentService`, `GamesStore`, `RecentGameStore`.
 - Owner-private delegates:
   - `SavedGameDocumentService._enumerateManagedSaveEntries`
@@ -55,7 +55,7 @@ Each entry must define:
 
 ### WorkspaceRestoreUtility
 - Purpose: share reconstruction of live workspace state from canonical persisted game payloads.
-- Touched contract models: `IGameWorkspace`, `MovePath`, nested `IMoveTree`, `IAnalysisAssignment`, captured assigned-engine snapshots, `IClockSnapshot`.
+- Touched contract models: `IGame`, `MovePath`, nested `IMoveTree`, `IAnalysisAssignment`, captured assigned-engine snapshots, `IClockSnapshot`.
 - Allowed importers: `GamesStore`.
 - Owner-private delegates:
   - `GamesStore._hydrateWorkspace`
@@ -93,7 +93,7 @@ Each entry must define:
 ## Engine Position Mapping
 ### EnginePositionMappingUtility
 - Purpose: share contract-aware projection between ChessVue workspace state and engine-facing position state used for continuous analysis and player-engine turns.
-- Touched contract models: `IEnginePositionState`, `IGameWorkspace`, `IBoardPosition`, move ordering and branch lineage from the current hydrated tree.
+- Touched contract models: `IEnginePositionState`, `IGame`, `IBoardPosition`, move ordering and branch lineage from the current hydrated tree.
 - Allowed importers: `EnginesStore`, `EngineRuntimeService`, `EngineClient`.
 - Owner-private delegates:
   - `EnginesStore._startAnalysisSessions`

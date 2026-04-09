@@ -173,9 +173,9 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 #### Flow C - Resume Analysis For The Loaded Workspace
 | `SavedGamesView.onLoadRequested` |
 | --- |
-| EnginesStore.startAnalysis |
+| GamesStore.refreshAnalysis |
 
-| EnginesStore.startAnalysis |
+| GamesStore.refreshAnalysis |
 | --- |
 | EnginesStore._startAnalysisSessions |
 | EnginesStore._bindAnalysisCallbacks |
@@ -185,13 +185,13 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `AnalysisStore.applyAnalysisUpdate` |
 
 #### Flow D - Request An Engine Turn For The Loaded Workspace
-| `GameView._requestEngineTurnIfNeeded` |
+| `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | GamesStore.getGame |
-| EnginesStore.startPlayerTurn |
+| GamesStore.requestPlayerMove |
 | EnginesStore._handlePlayerTurnMove |
 
-| EnginesStore.startPlayerTurn |
+| GamesStore.requestPlayerMove |
 | --- |
 | EnginesStore._startPlayerTurnSearch |
 | EnginesStore._bindPlayerTurnCallbacks |
@@ -206,7 +206,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GamesStore._resolveMoveContext |
 | GamesStore._applyMoveByContext |
 | GamesStore._persistWorkspaceIfNeeded |
-| GameView._requestEngineTurnIfNeeded |
+| GameView._requestPlayerMoveIfNeeded |
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
 - State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `session.autoPauseOnMenu` controls the route-entry pause branch only.
@@ -288,9 +288,9 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 #### Flow B - Resume Analysis For The Imported Workspace
 | `MenuBar.importGameRequested` |
 | --- |
-| EnginesStore.startAnalysis |
+| GamesStore.refreshAnalysis |
 
-| EnginesStore.startAnalysis |
+| GamesStore.refreshAnalysis |
 | --- |
 | EnginesStore._startAnalysisSessions |
 | EnginesStore._bindAnalysisCallbacks |
@@ -300,13 +300,13 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `AnalysisStore.applyAnalysisUpdate` |
 
 #### Flow C - Request An Engine Turn For The Imported Workspace
-| `GameView._requestEngineTurnIfNeeded` |
+| `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | GamesStore.getGame |
-| EnginesStore.startPlayerTurn |
+| GamesStore.requestPlayerMove |
 | EnginesStore._handlePlayerTurnMove |
 
-| EnginesStore.startPlayerTurn |
+| GamesStore.requestPlayerMove |
 | --- |
 | EnginesStore._startPlayerTurnSearch |
 | EnginesStore._bindPlayerTurnCallbacks |
@@ -321,7 +321,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GamesStore._resolveMoveContext |
 | GamesStore._applyMoveByContext |
 | GamesStore._persistWorkspaceIfNeeded |
-| GameView._requestEngineTurnIfNeeded |
+| GameView._requestPlayerMoveIfNeeded |
 
 - Requirement verification: `Pass`. External import stays separate from internal save browsing, `SavedGamesStore` owns picker selection, `GamesStore` performs the actual load, duplicate IDs are repaired before insertion, and the restored game state is visible before analysis or engine-turn restart begins.
 

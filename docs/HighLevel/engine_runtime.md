@@ -66,6 +66,12 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - If player reassignment results in both sides being assigned again, live play restarts from the preserved setup/history with a newly chosen time control and fresh live clock state.
 - After that restarted live game is created, the normal live-state gate decides whether the side to move should immediately receive an engine turn.
 
+## Player Move Contract
+- Engine-backed move generation is exposed to the game flow as a simple async request/response boundary.
+- Higher layers request a move and await the returned `IMove`.
+- The runtime implementation may still use internal callbacks or stdout listeners to resolve that promise.
+- Polling is reserved for runtime-health checks such as whether the underlying process is still running.
+
 ## Multi-Engine Analysis Contract
 - Multiple assigned analysis engines may evaluate the same position concurrently.
 - Each engine updates its own row or group in the analysis UI independently.
@@ -101,9 +107,10 @@ If the user selects more than the supported concurrent analysis engines, the app
 
 ## Ownership Boundaries
 - `SettingsStore` owns configured engine inventory.
-- `EnginesStore` owns assignment, availability state, and lifecycle coordination for already assigned engine participants.
-- `AnalysisStore` owns streamed evaluation state for the current runtime session.
-- `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `EnginesStore`.
+- `EnginesStore` exposes configured engine inventory and can construct engine-backed players for selection flows.
+- `GamesStore` owns assignment on the current game, turn waiting, and analysis coordination for already assigned engine participants.
+- `AnalysisStore` owns streamed evaluation snapshots for the current runtime session.
+- `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore`.
 - `EngineClient` owns protocol-specific command building, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.
 - `ProcessManager` owns child-process mechanics only and is consumed by `EngineRuntimeService`.
 

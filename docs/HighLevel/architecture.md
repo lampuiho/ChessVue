@@ -73,8 +73,8 @@ Committed state modules:
 
 - `GamesStore`
 - `SavedGamesStore`
-- `AnalysisStore`
 - `EnginesStore`
+- `AnalysisStore`
 - `SettingsStore`
 - `RecentGameStore`
 - `UiStateStore`
@@ -142,10 +142,10 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
 
 ### State Management
-- `GamesStore` owns live/open game workspaces, enforces the interaction rules in [state_model.md](state_model.md), and is the store that saves the current workspace or loads a saved workspace into the running session once a concrete target has been chosen.
+- `GamesStore` owns live/open games, enforces the interaction rules in [state_model.md](state_model.md), coordinates per-game analysis timing and non-local move waiting, and is the store that saves the current game or loads a saved game into the running session once a concrete target has been chosen.
 - `SavedGamesStore` owns saved games for rendering the saved-game menus, route-level internal save/load browsing, external import/export target selection, and saved-game lookup information such as resolving the full file path for a selected managed save or recent target.
 - `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
-- `EnginesStore` owns per-game engine assignment, runtime availability state, and engine-session lifecycle coordination.
+- `EnginesStore` exposes configured engine inventory and constructs engine-backed players for selection flows; it does not own live runtime coordination.
 - `SettingsStore` owns settings-view state, editable settings drafts, apply or save coordination, and the presentation-safe appearance projection used by `SettingsView` and shared app chrome; it does not own canonical settings file rules or raw persisted settings access.
 - `RecentGameStore` owns on-demand recent-game projection for `HomeView`, deduped by canonical game identity and derived from the latest available save target when the home screen is opened, but it does not own saved-game file workflows.
 - `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and foldable-section state.
@@ -201,7 +201,7 @@ The high-level contracts divide behaviour ownership as follows:
 
 ### Analysis Refresh
 1. A committed move or explicit analysis action requests evaluation.
-2. `EnginesStore` ensures assigned engines are available.
+2. `GamesStore` decides whether the current game context should start, stop, or refresh analysis.
 3. `EngineRuntimeService` starts or reuses the engine process through `ProcessManager`, translates the selected position through `EngineClient`, and routes raw transport through that layer-2 boundary.
 4. `AnalysisStore` keeps the latest valid result for each engine independently.
 5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth, while score-only versus move-list rendering still follows the current workspace context and the game's persisted `showLiveAnalysisMoves` preference.

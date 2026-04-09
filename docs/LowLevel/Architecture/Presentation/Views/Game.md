@@ -4,9 +4,9 @@
 Render the integrated gameplay workspace for one active game.
 
 ## Inputs
-- active game workspace from `GamesStore`
+- active game from `GamesStore`
 - visible analysis from `AnalysisStore`
-- per-game runtime availability from `EnginesStore`
+- configured engine inventory from `EnginesStore` when selection flows need it
 - remembered global layout state from `UiStateStore`
 - effective app theme from the shared root app-shell appearance host
 - local pure mapping of store state into board, panel, control, and captured-material props
@@ -31,7 +31,7 @@ Render the integrated gameplay workspace for one active game.
 - Game-tab selection is resolved through route updates, with `GameTabs` delegating shared child-route tab logic to `TabbedView`.
 - `GameView` reads store state directly; it does not depend on a separate query-helper subsystem.
 - When a committed flow needs an authoritative derived read such as remaining clock time, `GameView` may call the relevant domain service locally while still keeping mutation ownership in stores.
-- `GameView` may coordinate multiple stores for a single user or route action, for example calling `GamesStore` for mutation and then `EnginesStore`, `AnalysisStore`, or `UiStateStore` for follow-up runtime, snapshot, or modal work.
+- `GameView` may coordinate multiple stores for a single user or route action, for example calling `GamesStore` for mutation or analysis refresh, `EnginesStore` for player selection, `AnalysisStore` for visible snapshot reads, or `UiStateStore` for modal work.
 - `GameView` consumes the effective app theme from the shared root app-shell appearance host rather than owning the root theme attachment itself.
 - `GameView` owns the local pure derivation of captured-piece groups from the visible position before passing them into `PlayerPanel`.
 - `GameView` wires player-strip player-label clicks into the player-selection dialog flow and forwards confirmed assignment changes to `GamesStore`.

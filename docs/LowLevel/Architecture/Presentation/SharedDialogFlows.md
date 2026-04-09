@@ -15,7 +15,7 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 ## Dialog Matrix
 | Modal kind | Owning entry point | Title and body intent | Action row | Payload |
 | --- | --- | --- | --- | --- |
-| `AppModalKind.Promotion` | `Chessboard.moveSubmitted` after `GamesStore.makeMove` returns `MakeMoveResultKind.PromotionRequired` | Ask the user to choose the promotion piece for the pending move. | `Cancel` plus local `PiecePalette` choice actions. | `gameId`, pending `move` |
+| `AppModalKind.Promotion` | `Chessboard.moveAttempt` before `GamesStore.makeMove` when the attempted pawn move needs an explicit promotion piece | Ask the user to choose the promotion piece for the draft move before any store mutation runs. | `Cancel` plus local `PiecePalette` choice actions. | `gameId`, draft `move` |
 | `AppModalKind.StartGameFromSetup` | `GameControlPanel.startGameFromSetupRequested` | Collect the live-game start details for a prepared setup workspace, including the per-game live-analysis move preference. | `Cancel` and primary `Start Game`. | `gameId` |
 | `AppModalKind.Resign` | `GameControlPanel.resignRequested` | Confirm resignation for the selected side before finalising the result. | `Cancel` and danger `Resign`. | `gameId`, resigning `colour` |
 | `AppModalKind.DrawOffer` | local-versus-local `GameControlPanel.drawRequested` | Confirm that the current local side wants to offer a draw. | `Cancel` and primary `Offer Draw`. | `gameId`, offering `colour` |
