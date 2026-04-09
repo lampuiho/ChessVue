@@ -641,7 +641,7 @@ Each scenario in this document uses the same structure:
   2. App opens an analysis-engine selection dialog scoped to the current game.
   3. User selects an engine profile that is not already present in the current game's copied analysis-engine rows.
   4. App records a new copied per-game analysis-engine row.
-  5. If the current interaction context allows analysis, app starts or refreshes analysis for that engine on the visible position.
+  5. If the current `gameState` allows analysis, app starts or refreshes analysis for that engine on the highlighted position.
   6. User may later click the `-` action on the right side of that engine group's title row to remove it.
   7. App stops that engine's active analysis runtime for the current game and removes that engine from the current game's ordered analysis rows only.
 - **Branch Paths**:
@@ -1145,7 +1145,7 @@ Each scenario in this document uses the same structure:
   7. App persists the updated engine profile list for future assignments.
 - **Branch Paths**:
   - `BR-ENGINE-02-DUPLICATE-COPY`: Copied profile keeps a colliding name -> block save until renamed.
-  - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged because their games already hold captured assigned-engine snapshots, while removing that profile from future assignment choices.
+  - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged because their games already hold copied in-game engine payloads, while removing that profile from future assignment choices.
 - **Postconditions**: The saved engine profile list is updated for future assignments. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Function Touchpoints**:
   - `SettingsStore.updateSettings`

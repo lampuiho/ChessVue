@@ -13,12 +13,12 @@ The canonical saved-game payload is `IGame` from [Game.md](Game.md).
 - game identity and timestamps from `metadata`
 - `gameState`, `resultState`, and `resultReason`
 - `drawOfferState`
-- `whitePlayer` and `blackPlayer`, including captured assigned-engine snapshots when a seat is engine-controlled
+- `whitePlayer` and `blackPlayer`, including copied in-game engine payloads when a seat is engine-controlled
 - `boardRoot` and the full `moveTree`
 - `livePath` and `highlightPath`
 - `timeControl` and `clockSnapshot`
 - `liveAnalysisOptions.showLiveAnalysisMoves`
-- `analysis`, including the persisted assigned-engine row order and saved snapshots for the active game
+- `analysis`, including the ordered persisted analysis snapshot rows for the active game
 
 ## Rules
 - `IGame` is the canonical payload for autosave storage, ChessVue-managed save files, and external import/export files.

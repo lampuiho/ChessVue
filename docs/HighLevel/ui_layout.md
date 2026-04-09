@@ -361,7 +361,7 @@ Engine profile editing rules:
 - `Edit` opens the engine-profile editor surface rather than expanding the whole settings page inline
 - the profile editor includes a simple options table for supported engine options, with one row per option name and value pair
 - `Copy` duplicates the selected profile into the current settings draft and requires the copied profile name to be made unique before save
-- `Delete` removes the profile from the current settings draft only; existing seated engine participants in open games keep their captured assigned-engine snapshots unchanged
+- `Delete` removes the profile from the current settings draft only; existing seated engine participants in open games keep their copied in-game engine payloads unchanged
 
 ## Shared Dialog Family
 The baseline uses one reusable dialog shell for confirmation, form, and interruption flows.

@@ -55,7 +55,7 @@ Each entry must define:
 
 ### WorkspaceRestoreUtility
 - Purpose: share reconstruction of live workspace state from canonical persisted game payloads.
-- Touched contract models: `IGame`, `MovePath`, nested `IMoveTree`, `IGameAnalysis`, captured assigned-engine snapshots, `IClockSnapshot`.
+- Touched contract models: `IGame`, `MovePath`, nested `IMoveTree`, `IGameAnalysis`, copied in-game engine payloads, `IClockSnapshot`.
 - Allowed importers: `GamesStore`.
 - Owner-private delegates:
   - `GamesStore._hydrateWorkspace`

@@ -30,7 +30,7 @@ Render user-editable settings and engine inventory management.
 - Engine inventory edits stay inside the same pending settings draft as all other settings until the user applies, saves, or cancels them.
 - Inside the engines category, each engine-profile row shows the profile name on the left and icon buttons for copy, edit, and delete on the right.
 - Editing a profile opens a dedicated profile editor surface with general fields plus an options name/value table for supported engine options.
-- Applying or saving engine-profile edits updates reusable profiles only. Existing assigned engine participants inside open games keep their current identity and captured launch configuration until the user explicitly swaps them.
+- Applying or saving engine-profile edits updates reusable profiles only. Existing copied engine payloads inside open games keep their current launch configuration until the user explicitly swaps them.
 - The primary settings action row sits at the bottom-right of the settings surface and contains `Cancel`, `Save`, and `Apply`.
 - `Reset` stays outside that primary row in a separate secondary settings action area and always routes through a confirmation dialog before defaults are restored.
 - `SettingsView` contains no HTML or template markup and delegates rendering to common form and list components.

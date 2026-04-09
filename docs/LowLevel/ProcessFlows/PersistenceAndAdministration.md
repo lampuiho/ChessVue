@@ -523,7 +523,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SettingsStore._syncDraftToAccepted` |
 
 - UI surface coverage: copy, edit, and delete originate from the engine-profile row actions, with edit reopening the same dedicated profile editor surface and delete affecting the settings draft only.
-- Requirement verification: `Pass`. Edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`, and open games keep their captured assigned-engine snapshots even when reusable profiles change.
+- Requirement verification: `Pass`. Edit and remove operations remain consistent with `Cancel`, `Apply`, and `Save`, and open games keep their copied in-game engine payloads even when reusable profiles change.
 
 ## Lifecycle Cleanup
 

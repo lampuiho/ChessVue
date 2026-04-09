@@ -68,8 +68,8 @@ Contains:
 - game identity and timestamps
 - player slots and copied per-game engine payloads
 - per-game live-analysis display preference
-- workspace kind, result state, and unresolved draw-offer state when present
-- board root, move tree, and minimal selector paths for the current live node and current visible node
+- gameState, result state, and unresolved draw-offer state when present
+- board root, move tree, and minimal selector paths for `livePath` and `highlightPath`
 - clock configuration and current clock snapshot
 - persisted analysis snapshots with copied engine payloads
 - schema version metadata
@@ -86,9 +86,9 @@ When a saved game is restored, ChessVue must recreate the persisted game workspa
 
 That means restore must show:
 
-- the saved visible node or position
+- the saved highlighted node or position
 - the saved move tree, clocks, and result state
-- the saved interaction context that is part of the game workspace
+- the saved `gameState` that is part of the game workspace
 - the saved per-game live-analysis display preference that is part of the game workspace
 
 Only after that game state is restored may live analysis resume.
@@ -97,12 +97,12 @@ Only after that game state is restored may live analysis resume.
 ### Saved Game Payload Owns
 - game identity and lifecycle state
 - move tree and live/mainline markers
-- free-analysis versus live-game state
+- `gameState`
 - clock state and timing metadata
 - unresolved draw-offer state for the live workspace when one exists
 - per-game copied engine payloads, including copied launch configuration
 - per-game live-analysis display preference
-- visible-path selection, live-path selection, and interaction context that are part of the game workspace
+- `highlightPath`, `livePath`, and `gameState` as persisted parts of the game workspace
 
 ### Game Session Snapshot Owns
 - which games are currently open in the shell

@@ -166,7 +166,7 @@ interface IStartGameFromSetupRequest {
 - `GameState.Checkmate` is the only board state that blocks further moves by state alone.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
 - Draw, resignation, timeout, and abandonment do not create an extra generic terminal state. They end live play and leave the game in one of the analysis states.
-- Player seats persist copied assigned-engine snapshots rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
+- Player seats persist copied in-game engine payloads rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
 - `IPlayer.type = engine` is the discriminator for treating the player as `IEnginePlayer`.
 - `IEnginePlayer.assignedEngine` is the copied in-game engine payload for that seat.
 - `IPlayer.$.activityState` is intentionally minimal. `active` means the seat can still participate normally, while `nonActive` covers unavailable engines, disconnected non-local players, or any other seat that has left normal participation.
