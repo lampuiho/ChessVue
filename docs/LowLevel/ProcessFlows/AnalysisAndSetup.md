@@ -254,7 +254,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
 | `GamesStore._createOrReuseAnalysisBranch` |
 
 #### Flow B - Live Current-Position Suggestion
@@ -269,7 +269,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
 | `GamesStore._commitLiveMove` |
 
 #### Flow C - Live History-Review Suggestion
@@ -284,7 +284,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
 | `GamesStore._applyHistoryMovePolicy` |
 | `GamesStore._honourAnalysisBranchPolicy` |
 
@@ -300,10 +300,11 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMovePath` |
+| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
 | `GamesStore._createOrReuseAnalysisBranch` |
 
 - State/settings coverage: `WorkspaceKind.FreeAnalysisSetup` always renders per-move engine targets. Any `WorkspaceKind.LiveGame` context renders engine move targets only when `liveAnalysisOptions.showLiveAnalysisMoves = true`.
+- Runtime selector coverage: analysis-panel move selection reuses the current visible hydrated node. Any persisted `MovePath` updates remain store-internal bookkeeping derived from that node and are not a public runtime interaction contract.
 - Requirement verification: `Pass`. Suggested moves are interactive only where the workspace policy allows them, and live-game suggestion clicks reuse the same context-specific move policy as ordinary move entry.
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game

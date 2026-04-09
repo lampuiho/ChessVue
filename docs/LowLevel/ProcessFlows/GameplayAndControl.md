@@ -241,6 +241,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `EnginesStore.startAnalysis` |
 | `AnalysisStore.getVisibleAnalysis` |
 
+- Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
 - State coverage: entering an earlier node moves the workspace into `InteractionContext.HistoryReview` and suppresses `GameView._requestEngineTurnIfNeeded`; returning to the live node restores `InteractionContext.CurrentPosition`.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the same visible node.
 
@@ -327,24 +328,23 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Settings coverage: `gameplay.takebackPolicy = TakebackPolicy.AnalysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the workspace returns to `InteractionContext.CurrentPosition` immediately or stays on the analysis branch.
 - Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
 
-### SCN-HIST-04 - Prune Future Moves from Selected Node
+### SCN-HIST-04 - Discard Latest-Node Analysis Continuation When Live Play Resumes
 
 #### Flow
-| `HistoryPanel.pruneRequested` |
+| `Chessboard.moveSubmitted` |
 | --- |
-| `UiStateStore.showModal` |
-| `GamesStore.pruneFuture` |
+| `GamesStore.makeMove` |
 | `MoveUpdateService.pruneFutureMoves` |
+| `TimeControlService.applyMove` |
+| `MoveUpdateService.addMainlineMove` |
+| `GameView._requestEngineTurnIfNeeded` |
 | `GamesStore.saveGame` |
 
-| `UiStateStore.showModal` |
+| `GamesStore.makeMove` |
 | --- |
-
-| `GamesStore.pruneFuture` |
-| --- |
-| `GamesStore._confirmPruneIfNeeded` |
-| `GamesStore._assertRootPruneAllowed` |
-| `GamesStore._pruneTreeFromNode` |
+| `GamesStore._pruneLatestAnalysisContinuationIfNeeded` |
+| `GamesStore._updateClockAfterMove` |
+| `GamesStore._commitCurrentPositionMove` |
 | `GamesStore._reconcileLiveAndVisibleNodes` |
 
 | `MoveUpdateService.pruneFutureMoves` |
@@ -355,10 +355,9 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._buildPersistedWorkspace` |
 | `GamesStore._persistWorkspace` |
 
-- UI surface coverage: prune confirmation uses the shared dialog shell with a danger-focused confirmation row before irreversible mutation is allowed through.
-- Runtime selector coverage: the selected history node reaches this flow as a hydrated `IMoveNode`; `GamesStore` derives any persisted path bookkeeping internally before and after the prune mutation.
-- Settings coverage: `gameplay.confirmPruneFutureMoves` decides whether the prune confirmation modal is required. `gameplay.allowRootPrune` decides whether pruning from the root node is allowed or rejected before mutation.
-- Requirement verification: `Pass`. Root-prune policy and irreversible confirmation both sit behind the store boundary.
+- UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. Cleanup is implicit in the next real live move from the same latest node after in-game analysis exit.
+- Runtime selector coverage: `GamesStore` compares the current live move against the stored in-game-analysis entry anchor and runs `MoveUpdateService.pruneFutureMoves` only when live play resumes from that same latest node. After cleanup and move commit, the store reacquires the surviving live and visible nodes from the new tree.
+- Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but they are automatically discarded once real play supersedes them.
 
 ## Time Control
 
@@ -640,19 +639,15 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GameControlPanel.analysisExitRequested` |
 | --- |
 | `GamesStore.exitInGameAnalysis` |
-| `UiStateStore.showModal` |
-| `GamesStore._resumeAfterAnalysisIfOwned` |
-
-| `UiStateStore.showModal` |
-| --- |
-
-| `GamesStore.exitInGameAnalysis` |
-| --- |
-| `GamesStore._promptForDirtyAnalysisExitIfNeeded` |
 | `GamesStore._restoreLiveNode` |
 | `GamesStore._resumeAfterAnalysisIfOwned` |
 
-- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result.
+| `GamesStore.exitInGameAnalysis` |
+| --- |
+| `GamesStore._restoreLiveNode` |
+| `GamesStore._resumeAfterAnalysisIfOwned` |
+
+- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Exiting the mode is prompt-free and restores the live node immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode

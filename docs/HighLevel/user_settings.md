@@ -29,8 +29,6 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Confirm before mainline rewrite | Adds a confirmation gate before changing the main continuation. |
 | Analysis branch exit behaviour | Decides whether analysis-only history moves return to the live node or stay on the branch. |
 | Promotion policy | Baseline requires explicit promotion selection. |
-| Confirm prune future moves | Guards irreversible prune actions. |
-| Allow root prune | Controls whether prune is allowed from the root. |
 
 ## 3. Engines
 | Setting | Baseline Notes |

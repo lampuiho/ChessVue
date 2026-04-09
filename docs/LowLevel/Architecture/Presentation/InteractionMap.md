@@ -43,7 +43,7 @@ Read-side rule:
 - `GameView` forwards board events to `GamesStore`, which remains the mutation boundary.
 
 ### History Navigation
-- `HistoryPanel` owns node selection, prune entry, and return-to-live-node actions.
+- `HistoryPanel` owns node selection and return-to-live-node actions.
 - `PanelSurface`, `TreeView`, `SidePanelButton`, and `EmptyState` own the history render surface.
 - `HistoryTree` is a template-free adapter that prepares move-tree view models for `TreeView`.
 
@@ -77,7 +77,7 @@ Read-side rule:
 
 ### Modal And Confirmation Flows
 - `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
-- [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, local-local draw offer, local-local draw resolve, timeout, dirty-exit, delete, reset, import-error, prune, and blocked board-edit coverage.
+- [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, local-local draw offer, local-local draw resolve, timeout, settings-dirty-leave, delete, reset, import-error, and blocked board-edit coverage.
 - Non-local draw responses stay on the `GameControlPanel` control surface through its LED-like pending-offer indicator instead of opening a shared dialog, with the lit state meaning accept for incoming offers and withdraw for outgoing offers.
 - `NewGameModal` remains the dedicated form component for `newGame` instead of being folded into the generic shared-dialog flow table.
 

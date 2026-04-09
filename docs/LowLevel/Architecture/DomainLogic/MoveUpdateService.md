@@ -11,7 +11,7 @@ addAnalysisMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition): I
 getPosition(node: IMoveNode): IBoardPosition
 takeBack(fromNode: IMoveNode, moveCount: number): IMoveTree
 rewriteMainline(parentNode: IMoveNode, childNode: IMoveNode): IMoveTree
-pruneFutureMoves(node: IMoveNode, allowRootPrune: boolean): IMoveTree
+pruneFutureMoves(node: IMoveNode): IMoveTree
 replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree
 ```
 
@@ -21,6 +21,7 @@ replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null
 - expose deterministic position lookup and tree mutation against hydrated runtime node references
 - support takeback-style rewinds without leaking tree internals to stores
 - preserve old continuations as variations when rewriting the mainline
+- prune superseded descendant continuations when store-owned live-play rules decide they should be discarded
 - carry root and live/mainline node clock snapshots alongside the stored positions
 - operate on hydrated nodes whose runtime-only `$` metadata provides parent traversal
 - clear prior move history after confirmed board edit

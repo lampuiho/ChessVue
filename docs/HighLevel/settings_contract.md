@@ -32,8 +32,6 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `gameplay.confirmMainlineRewrite` | Require confirmation before changing the main continuation | `true` | Boolean | Settings snapshot |
 | `gameplay.analysisBranchExitBehaviour` | Decide what happens after analysis-only branch creation from history | `returnToLiveNode` | `returnToLiveNode` or `stayOnBranch` | Settings snapshot |
 | `gameplay.promotionPolicy` | Decide how promotion is resolved | `requireExplicitSelection` | `requireExplicitSelection` only in baseline | Settings snapshot |
-| `gameplay.confirmPruneFutureMoves` | Confirm irreversible pruning | `true` | Boolean | Settings snapshot |
-| `gameplay.allowRootPrune` | Allow prune action from the root node | `false` | Boolean | Settings snapshot |
 | `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
 | `analysis.engineInventory` | User-managed engine profile registry | `[]` | Unique profile names only; remaining profile fields are user-managed values | Settings snapshot |
 | `appearance.themeMode` | Decide whether app chrome follows the OS theme or uses an explicit built-in theme | `system` | `system`, `light`, or `dark` | Settings snapshot |

@@ -52,7 +52,7 @@ This matrix is the authoritative trace from each committed scenario to the contr
 | `SCN-HIST-01` | `STATE`, `ENGINE` |
 | `SCN-HIST-02` | `STATE`, `SETTINGS` |
 | `SCN-HIST-03` | `STATE`, `SETTINGS` |
-| `SCN-HIST-04` | `STATE`, `PERSIST`, `SETTINGS` |
+| `SCN-HIST-04` | `STATE`, `PERSIST` |
 | `SCN-FREE-ANALYSIS-01` | `STATE`, `ENGINE` |
 | `SCN-FREE-ANALYSIS-02` | `STATE`, `ENGINE`, `SETTINGS` |
 | `SCN-FREE-ANALYSIS-03` | `STATE`, `ENGINE`, `SETTINGS` |
@@ -419,7 +419,6 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MoveUpdateService.takeback`
   - `MoveUpdateService.addMainlineMove`
-  - `MoveUpdateService.pruneFutureMoves`
   - `GamesStore.makeMove`
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
@@ -441,25 +440,26 @@ Each scenario in this document uses the same structure:
   - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
 
-### SCN-HIST-04 - Prune Future Moves from Selected Node
+### SCN-HIST-04 - Discard Latest-Node Analysis Continuation When Live Play Resumes
 - **Status**: Planned
-- **Goal**: Cleanly delete continuation moves when user chooses to prune.
-- **Preconditions**: Selected node has descendants.
-- **Entry Points**: History panel action `Prune future`.
+- **Goal**: Remove exploratory in-game-analysis continuations from the latest live node once real play resumes from that same node.
+- **Preconditions**: User entered in-game analysis from the latest live node, created at least one analysis-only continuation, and then exited back to the live node.
+- **Entry Points**: Real move committed from the latest live node after leaving in-game analysis.
 - **Main Steps**:
-  1. User selects node.
-  2. User triggers prune action.
-  3. App confirms irreversible operation.
-  4. App deletes descendants and updates mainline markers.
+  1. User enters in-game analysis while already on the latest live node.
+  2. App records exploratory moves as analysis-only continuations without advancing the live game.
+  3. User exits in-game analysis and app restores the live node while the exploratory continuation still remains visible as a variation.
+  4. User makes a real live move from that same latest node.
+  5. App discards the superseded analysis-only descendants before committing the new live continuation.
 - **Branch Paths**:
-  - `BR-HIST-04-CANCEL`: User cancels confirmation -> no mutation.
-  - `BR-HIST-04-ROOT-GUARD`: Root prune attempt rejected if policy forbids deleting full game line.
-- **Postconditions**: Move tree contains only retained line(s).
+  - `BR-HIST-04-NO-CLEANUP`: Analysis did not originate from the latest live node, or live play resumed from a different node -> no automatic cleanup path runs.
+  - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
+- **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation.
 - **Function Touchpoints**:
   - `MoveUpdateService.pruneFutureMoves`
-  - `GamesStore.pruneFuture`
+  - `GamesStore.exitInGameAnalysis`
+  - `GamesStore.makeMove`
   - `GamesStore.saveGame`
-  - `UiStateStore.showModal`
 
 ---
 ## Free Analysis / Setup
@@ -844,14 +844,15 @@ Each scenario in this document uses the same structure:
   2. App gives the user move control for both colors.
   3. If engines were configured when the game was created, app refreshes analysis after each committed move.
   4. User explores positions without progressing the live game.
-  5. User exits in-game analysis mode and app returns to the live node by default.
+  5. User exits in-game analysis mode and app returns to the live node immediately without prompting.
 - **Branch Paths**:
-  - `BR-CTRL-04-EXIT-DIRTY`: Unsaved analysis branch exists -> keep/discard prompt.
+  - `BR-CTRL-04-LATEST-NODE-VARIATION`: When analysis started from the latest live node, exploratory continuations may remain visible as variations until a later real live move supersedes them.
   - `BR-CTRL-04-LIVE-CONFLICT`: Attempt to submit live move while in analysis mode -> block or force exit.
-- **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode returns the screen to the live game position.
+- **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode always returns the screen to the live game position without a keep-or-discard prompt.
 - **Function Touchpoints**:
   - `GameControlPanel.enterInGameAnalysisRequested`
   - `MoveUpdateService.addAnalysisMove`
+  - `GamesStore.exitInGameAnalysis`
   - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
 

@@ -13,7 +13,6 @@ Define the typed transient modal states owned by `UiStateStore`.
 enum AppModalKind {
   NewGame = "newGame",
   Promotion = "promotion",
-  PruneFuture = "pruneFuture",
   StartGameFromSetup = "startGameFromSetup",
   Resign = "resign",
   DrawOffer = "drawOffer",
@@ -24,7 +23,6 @@ enum AppModalKind {
   DeleteGame = "deleteGame",
   BoardEditBlocked = "boardEditBlocked",
   SettingsDirtyLeave = "settingsDirtyLeave",
-  AnalysisExitDirty = "analysisExitDirty",
   PlayerSelection = "playerSelection",
   AnalysisEngineSelection = "analysisEngineSelection"
 }
@@ -40,13 +38,6 @@ type IAppModalState =
       payload: {
         gameId: string
         move: IMove
-      }
-    }
-  | {
-      kind: AppModalKind.PruneFuture
-      payload: {
-        gameId: string
-        node: IMoveNode
       }
     }
   | {
@@ -112,12 +103,6 @@ type IAppModalState =
       }
     }
   | {
-      kind: AppModalKind.AnalysisExitDirty
-      payload: {
-        gameId: string
-      }
-    }
-  | {
       kind: AppModalKind.PlayerSelection
       payload: {
         gameId: string
@@ -138,9 +123,8 @@ type IAppModalState =
 ## Rules
 - Modal state is transient UI state only and is never persisted in `IGameSessionSnapshot`, `IUiLayoutState`, or `IGameWorkspace`.
 - The modal contract exists to replace untyped string IDs and generic payload bags at the store boundary.
-- Dirty-settings-leave and dirty-analysis-exit prompts are part of the committed baseline modal contract because those branches already exist in the high-level scenarios.
+- Dirty-settings-leave prompts are part of the committed baseline modal contract because that branch already exists in the high-level scenarios.
 - Player-selection and analysis-engine selection are part of the committed baseline modal contract because both flows are explicitly routed through shared dialog surfaces.
-- `AppModalKind.PruneFuture` is runtime-only transient UI state, so it carries the currently selected hydrated `IMoveNode` rather than a persisted `MovePath`.
 - `AppModalKind.DrawOffer` and `AppModalKind.DrawResolve` remain separate modal kinds so the baseline local-versus-local offer step and response step stay explicit instead of being hidden inside one store call.
 - Non-local draw responses do not require a modal; they surface through the draw-control LED-like pending-offer indicator while still being allowed to call `acceptDrawOffer` or `declineDrawOffer` if an adapter-driven response channel ever exists. The same lit control also serves as the withdraw path for unresolved outgoing non-local offers.
 - `AppModalKind.PlayerSelection` only captures the new seat assignment target. Fresh game settings for a later live restart remain part of `AppModalKind.StartGameFromSetup`.

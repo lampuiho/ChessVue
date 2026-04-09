@@ -30,7 +30,7 @@ migrateGame(input: unknown): IGameWorkspace
 - strip runtime-only `$` metadata from persisted output for moves, move nodes, and any other hydrated runtime helpers
 - validate board-root consistency through structural position identity rather than stored FEN
 - validate nested move-tree structure, `mainlineChildIndex`, and persisted `livePath` / `visiblePath`
-- stop at canonical payload validation and normalised data output; rebuilding runtime-only move-tree references and store-usable selection state belongs to `GamesStore` / `WorkspaceRestoreUtility` after successful deserialisation
+- stop at canonical payload validation and normalised data output; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` / `WorkspaceRestoreUtility` after successful deserialisation
 - remain platform-independent and path-agnostic: stores orchestrate adapter calls, but `SerializationService` decides how persisted payloads are interpreted
 
 ## Scenario Coverage

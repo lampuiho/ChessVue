@@ -62,7 +62,7 @@ Each entry must define:
   - `GamesStore._hydrateWorkspaceCollection`
   - `GamesStore._repairMissingActiveGame`
 - Classification: `pure`.
-- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references, resolves persisted `livePath` / `visiblePath` selectors, and exposes the resulting hydrated node references back to `GamesStore` for runtime navigation and mutation flows.
+- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references, resolves persisted `livePath` / `visiblePath` selectors, and exposes the resulting hydrated node references back to `GamesStore` before any node-based runtime navigation or mutation flow runs.
 
 ## Appearance
 ### AppearanceProjectionUtility
@@ -78,7 +78,7 @@ Each entry must define:
 ## Engine Position Mapping
 ### EnginePositionMappingUtility
 - Purpose: share contract-aware projection between ChessVue workspace state and engine-facing position state used for continuous analysis and player-engine turns.
-- Touched contract models: `IEnginePositionState`, `IGameWorkspace`, `IBoardPosition`, move-tree node identity.
+- Touched contract models: `IEnginePositionState`, `IGameWorkspace`, `IBoardPosition`, move ordering and branch lineage from the current hydrated tree.
 - Allowed importers: `EnginesStore`, `EngineRuntimeService`, `EngineClient`.
 - Owner-private delegates:
   - `EnginesStore._startAnalysisSessions`

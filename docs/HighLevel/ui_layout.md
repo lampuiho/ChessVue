@@ -242,7 +242,7 @@ Button placement follows screen ownership rather than ad hoc local placement.
 - Game-switching actions stay in `GameTabs`.
   - examples: select tab, close tab
 - Panel-specific actions stay inside the panel they affect.
-  - examples: history prune, history return-to-live, analysis refresh, analysis add `+`, analysis remove `-`, engine retry, engine stop
+  - examples: history return-to-live, analysis refresh, analysis add `+`, analysis remove `-`, engine retry, engine stop
 - Per-seat player reassignment stays on the player strip that owns that seat.
   - example: clicking the displayed player label in `PlayerPanel` to open the player-selection dialog for that side
 - Committed gameplay actions stay in `GameControlPanel` at the bottom-right of the workspace.
@@ -394,7 +394,6 @@ Named baseline uses:
 - start game from setup: shared dialog shell for choosing the live-game start details, including the per-game live-analysis move preference, from a prepared setup workspace
 - player selection: shared dialog shell for changing one seat to `none`, `local`, or a configured engine profile
 - analysis-engine selection: shared dialog shell for choosing an unassigned engine profile for the current game
-- prune confirmation: danger-focused confirmation dialog
 - resign confirmation: danger-focused confirmation dialog
 - draw offer: shared confirmation dialog before the offer is recorded for local player versus local player only
 - draw resolve: shared accept or decline dialog for the opposing local side in local player versus local player only
@@ -402,7 +401,6 @@ Named baseline uses:
 - reset-settings confirmation: confirm or cancel reset from the settings secondary action area
 - invalid-load error prompt: acknowledge-only error dialog for unsupported, corrupt, or incomplete imports
 - settings dirty leave: shared confirm or discard dialog before leaving with unsaved settings edits
-- analysis dirty exit: shared keep or discard dialog before leaving in-game analysis with retained exploratory work
 - delete-game confirmation: shared danger-focused confirmation dialog before removal
 - blocked board-edit explanation: explanatory dialog shown when board editing is attempted during in-game analysis
 - non-local draw offers do not use a dialog-hosted response step; the `GameControlPanel` draw control shows a small LED-like pending-offer indicator instead, and the lit state means the next `Draw` press accepts for incoming offers or withdraws outgoing offers

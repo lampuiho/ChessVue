@@ -63,8 +63,6 @@ interface ISettingsGameplay {
   confirmMainlineRewrite: boolean
   analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
   promotionPolicy: PromotionPolicy
-  confirmPruneFutureMoves: boolean
-  allowRootPrune: boolean
 }
 
 interface ISettingsAnalysis {
