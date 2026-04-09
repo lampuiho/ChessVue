@@ -74,7 +74,6 @@ Committed state modules:
 - `GamesStore`
 - `SavedGamesStore`
 - `EnginesStore`
-- `AnalysisStore`
 - `SettingsStore`
 - `RecentGameStore`
 - `UiStateStore`
@@ -132,7 +131,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `PositionIdentityService` owns canonical position identity and equality rules used by analysis, restore, and serialisation workflows.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
-- `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `EnginesStore` for continuous analysis and player-engine turns, including process lifecycle through `ProcessManager` and protocol translation through `EngineClient`.
+- `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `GamesStore` for continuous analysis and player-engine turns, including process lifecycle through `ProcessManager` and protocol translation through `EngineClient`.
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
 - `SavedGameDocumentService` owns saved-game document I/O, managed-save enumeration, and external import/export picker access behind the layer-2 boundary.
 - `SerializationService` owns the canonical saved-game payload shape, schema versioning hooks, migration entry points, settings and session serialisation, and saved-game document interpretation for internal save/load plus external import/export flows.
@@ -142,9 +141,8 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
 
 ### State Management
-- `GamesStore` owns live/open games, enforces the interaction rules in [state_model.md](state_model.md), coordinates per-game analysis timing and non-local move waiting, and is the store that saves the current game or loads a saved game into the running session once a concrete target has been chosen.
+- `GamesStore` owns live/open games, enforces the interaction rules in [state_model.md](state_model.md), coordinates per-game analysis timing and non-local move waiting, stores persisted per-game analysis state, and is the store that saves the current game or loads a saved game into the running session once a concrete target has been chosen.
 - `SavedGamesStore` owns saved games for rendering the saved-game menus, route-level internal save/load browsing, external import/export target selection, and saved-game lookup information such as resolving the full file path for a selected managed save or recent target.
-- `AnalysisStore` manages per-game, per-engine analysis snapshots keyed by engine and position.
 - `EnginesStore` exposes configured engine inventory and constructs engine-backed players for selection flows; it does not own live runtime coordination.
 - `SettingsStore` owns settings-view state, editable settings drafts, apply or save coordination, and the presentation-safe appearance projection used by `SettingsView` and shared app chrome; it does not own canonical settings file rules or raw persisted settings access.
 - `RecentGameStore` owns on-demand recent-game projection for `HomeView`, deduped by canonical game identity and derived from the latest available save target when the home screen is opened, but it does not own saved-game file workflows.
@@ -203,7 +201,7 @@ The high-level contracts divide behaviour ownership as follows:
 1. A committed move or explicit analysis action requests evaluation.
 2. `GamesStore` decides whether the current game context should start, stop, or refresh analysis.
 3. `EngineRuntimeService` starts or reuses the engine process through `ProcessManager`, translates the selected position through `EngineClient`, and routes raw transport through that layer-2 boundary.
-4. `AnalysisStore` keeps the latest valid result for each engine independently.
+4. `GamesStore` keeps the latest valid result for each assigned engine independently on the active game.
 5. `AnalysisPanel` renders the newest per-engine results without waiting for synchronised depth, while score-only versus move-list rendering still follows the current workspace context and the game's persisted `showLiveAnalysisMoves` preference.
 
 ### Save and Restore

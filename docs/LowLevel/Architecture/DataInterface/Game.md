@@ -1,48 +1,43 @@
 # Game Workspace Types
 
 ## Purpose
-Define the canonical workspace model used by `GamesStore`, related services, and persisted saved-game payloads.
+Define the canonical game model used by `GamesStore`, related services, and persisted saved-game payloads.
 
 ## Types
-- `enum WorkspaceKind`
-- `enum InteractionContext`
-- `enum ClockStateKind`
+- `enum GameState`
 - `enum ResultState`
 - `enum ResultReason`
 - `enum PlayerType`
+- `enum PlayerActivityState`
 - `enum DrawOfferDirection`
 
 ## Interfaces
 - `interface IDrawOfferState`
-- `enum PlayerActivityState`
+- `interface IPlayerRuntime`
 - `interface IPlayer`
-- `interface IGameTurnState`
 - `interface ICapturedPieceGroup`
 - `interface IGameMetadata`
 - `interface ILiveAnalysisOptions`
+- `interface IGameRuntime`
 - `interface IGame`
 - `interface ICreateGameRequest`
 - `interface IStartGameFromSetupRequest`
 
 ## Data Structures
 ```ts
-enum WorkspaceKind {
-  LiveGame = "liveGame",
-  FreeAnalysisSetup = "freeAnalysisSetup"
-}
-
-enum InteractionContext {
-  CurrentPosition = "currentPosition",
-  HistoryReview = "historyReview",
-  InGameAnalysis = "inGameAnalysis",
-  BoardEdit = "boardEdit"
-}
-
-enum ClockStateKind {
-  None = "none",
-  Running = "running",
-  Paused = "paused",
-  Expired = "expired"
+enum GameState {
+  LiveWhiteTurn = "liveWhiteTurn",
+  LiveBlackTurn = "liveBlackTurn",
+  PausedWhiteTurn = "pausedWhiteTurn",
+  PausedBlackTurn = "pausedBlackTurn",
+  LiveAnalysisFromWhiteTurnWhiteMove = "liveAnalysisFromWhiteTurnWhiteMove",
+  LiveAnalysisFromWhiteTurnBlackMove = "liveAnalysisFromWhiteTurnBlackMove",
+  LiveAnalysisFromBlackTurnWhiteMove = "liveAnalysisFromBlackTurnWhiteMove",
+  LiveAnalysisFromBlackTurnBlackMove = "liveAnalysisFromBlackTurnBlackMove",
+  AnalysisWhiteMove = "analysisWhiteMove",
+  AnalysisBlackMove = "analysisBlackMove",
+  BoardEdit = "boardEdit",
+  Checkmate = "checkmate"
 }
 
 enum ResultState {
@@ -82,17 +77,16 @@ interface IDrawOfferState {
   direction: DrawOfferDirection
 }
 
+interface IPlayerRuntime {
+  activityState: PlayerActivityState
+}
+
 interface IPlayer {
   colour: PlayerColour
   type: PlayerType
   displayName: string
-  activityState: PlayerActivityState
   assignedEngine: IAssignedEngine | null
-}
-
-interface IGameTurnState {
-  activeColour: PlayerColour | null
-  isAwaitingMove: boolean
+  $?: IPlayerRuntime
 }
 
 interface ICapturedPieceGroup {
@@ -111,26 +105,26 @@ interface ILiveAnalysisOptions {
   showLiveAnalysisMoves: boolean
 }
 
+interface IGameRuntime {}
+
 interface IGame {
   schemaVersion: number
   metadata: IGameMetadata
-  workspaceKind: WorkspaceKind
-  interactionContext: InteractionContext
-  clockState: ClockStateKind
+  gameState: GameState
   resultState: ResultState
   resultReason: ResultReason | null
   drawOfferState: IDrawOfferState | null
   whitePlayer: IPlayer | null
   blackPlayer: IPlayer | null
-  turnState: IGameTurnState
   boardRoot: IBoardPosition
   moveTree: IMoveTree
   livePath: MovePath | null
-  visiblePath: MovePath
+  highlightPath: MovePath
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
   liveAnalysisOptions: ILiveAnalysisOptions
-  analysisAssignment: IAnalysisAssignment
+  analysis: IGameAnalysis
+  $?: IGameRuntime
 }
 
 interface ICreateGameRequest {
@@ -155,24 +149,29 @@ interface IStartGameFromSetupRequest {
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
 }
-
 ```
 
 ## Rules
-- `WorkspaceKind.FreeAnalysisSetup` is created when either side is assigned no player.
-- `visiblePath` may differ from `livePath` during history review or analysis.
-- `InteractionContext.BoardEdit` is valid only inside `WorkspaceKind.FreeAnalysisSetup`.
+- `GameState` is the single authoritative playable-state enum. It replaces separate workspace, interaction, clock, and turn-waiting axes.
+- `GameState.LiveWhiteTurn` and `GameState.LiveBlackTurn` are the only normal live-play states.
+- `GameState.PausedWhiteTurn` and `GameState.PausedBlackTurn` are timed live states paused by user or app flow.
+- `GameState.LiveAnalysisFrom*` means the game still has a committed live turn anchor, but the visible board is exploring analysis moves instead of progressing the live node.
+- `GameState.AnalysisWhiteMove` and `GameState.AnalysisBlackMove` are non-live analysis states used for free analysis/setup and for post-result analysis after non-checkmate terminal results.
+- `GameState.BoardEdit` is a free-edit state only and is never combined with live play.
+- `GameState.Checkmate` is the only board state that blocks further moves by state alone.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
-- `drawOfferState` records one unresolved draw offer for the current live workspace and is persisted with the workspace so non-local pending-offer UI can be restored accurately for both incoming and outgoing offers.
-- Player seats and analysis assignment persist captured assigned-engine snapshots rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
-- `IPlayer.activityState` is intentionally minimal. `active` means the seat can still participate normally, while `nonActive` covers unavailable engines, disconnected non-local players, or any other seat that has left normal participation.
-- Turn ownership and move-waiting state belong to `IGame.turnState`, not to `IPlayer`.
+- Draw, resignation, timeout, and abandonment do not create an extra generic terminal state. They end live play and leave the game in one of the analysis states.
+- Player seats persist captured assigned-engine snapshots rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
+- `IPlayer.$.activityState` is intentionally minimal. `active` means the seat can still participate normally, while `nonActive` covers unavailable engines, disconnected non-local players, or any other seat that has left normal participation.
+- `$` is the runtime-only namespace. Anything under `$` is rebuilt in memory and is never persisted in the canonical saved-game payload.
+- Turn ownership, move waiting, and move permissions are derived from `gameState`, not stored on `IPlayer`.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGame`.
 - The baseline persisted saved-game artefact reuses `IGame` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGame` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
-- `livePath` and `visiblePath` are minimal persisted selectors for exact restore. They identify nodes by child-index traversal from `moveTree.root` and are resolved into runtime references during hydration.
-- `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the workspace leaves live-game progression for setup.
-- `liveAnalysisOptions.showLiveAnalysisMoves` is persisted as part of the game workspace, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
-- `liveAnalysisOptions.showLiveAnalysisMoves` gates rendered engine move targets for every `WorkspaceKind.LiveGame` interaction context. When enabled, `InteractionContext.CurrentPosition` may commit a normal live move from the analysis panel, `InteractionContext.HistoryReview` reuses the ordinary history-move policy, and `InteractionContext.InGameAnalysis` may inspect continuations as analysis moves.
-- `analysisAssignment.assignedEngines` preserves the rendered analysis-panel row order for the active game and is the source of truth for mapping remembered engine-group fold state by index.
+- `livePath` and `highlightPath` are persisted selectors for exact restore. They identify nodes by child-index traversal from `moveTree.root` and are resolved into runtime references during hydration.
+- `highlightPath` tracks the line currently highlighted in history and analysis. In normal live play it matches `livePath`, while in analysis or history navigation it may differ.
+- `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the game leaves live play for free analysis/setup.
+- `liveAnalysisOptions.showLiveAnalysisMoves` is persisted as part of the game, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
+- `analysis.assignedEngines` preserves the rendered analysis-panel row order for the active game and is the source of truth for mapping remembered engine-group fold state by index.
+- `analysis.snapshots` is persisted and restored as part of the game.
 - `IGame` is the game-facing object used by mutation flows. IDs remain on `metadata.id` for routing, persistence, and lookup.

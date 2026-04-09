@@ -1,7 +1,7 @@
 # Engine Types
 
 ## Purpose
-Define configured engine records, per-game engine assignment, and runtime-session state.
+Define configured engine records, assigned-engine snapshots, and runtime-session state.
 
 ## Types
 - `enum EngineProtocol`
@@ -13,7 +13,6 @@ Define configured engine records, per-game engine assignment, and runtime-sessio
 - `interface IEngineRecord`
 - `interface IEngineOptionMap`
 - `interface IAssignedEngine`
-- `interface IAnalysisAssignment`
 - `interface IEngineRuntimeSession`
 - `interface IEnginePositionState`
 - `interface IEngineAnalysisRequest`
@@ -64,10 +63,6 @@ interface IAssignedEngine {
   options: IEngineOptionMap
 }
 
-interface IAnalysisAssignment {
-  assignedEngines: IAssignedEngine[]
-}
-
 interface IEngineRuntimeSession {
   sessionId: string
   gameId: string
@@ -112,7 +107,6 @@ interface IEngineRegistrationRequest {
 - `IAssignedEngine.assignedEngineId` is the stable per-game engine-participant identity used by runtime sessions and in-game removal flows.
 - `IAssignedEngine.sourceProfileId` is an optional provenance link back to the reusable engine profile record and may be `null` when the source profile no longer exists.
 - Creating an assigned engine from a profile copies the display name, executable path, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later.
-- Analysis assignment is per game and preserves rendered roster order through `assignedEngines`.
 - A running session is isolated by game, assigned engine, and role.
 - The baseline permits at most four concurrent analysis engines per game.
 - `IEngineRuntimeSession.availability` plus `lastError` are the public runtime-status surface used for health checks. Higher layers do not rely on callback-style session-event contracts.

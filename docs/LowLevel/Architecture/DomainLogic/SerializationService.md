@@ -29,7 +29,7 @@ migrateGame(input: unknown): IGame
 - reject incomplete, unsupported, or incompatible saved-game payloads rather than inventing detached UI restore sections or partial-recovery import paths
 - strip runtime-only `$` metadata from persisted output for moves, move nodes, and any other hydrated runtime helpers
 - validate board-root consistency through structural position identity rather than stored FEN
-- validate nested move-tree structure, `mainlineChildIndex`, and persisted `livePath` / `visiblePath`
+- validate nested move-tree structure, `mainlineChildIndex`, and persisted `livePath` / `highlightPath`
 - stop at canonical payload validation and normalised data output; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` / `WorkspaceRestoreUtility` after successful deserialisation
 - remain platform-independent and path-agnostic: stores orchestrate adapter calls, but `SerializationService` decides how persisted payloads are interpreted
 

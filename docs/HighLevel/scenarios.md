@@ -331,7 +331,7 @@ Each scenario in this document uses the same structure:
   6. Analysis is queued/refreshed for resulting position.
 - **Branch Paths**:
   - `BR-MOVE-01-STALE-POS`: If position changed before submission (race), reject move and refresh legal map.
-  - `BR-MOVE-01-GAME-OVER`: If move ends game, transition to game-over state and stop further moves.
+  - `BR-MOVE-01-GAME-OVER`: If move ends game, transition either to `Checkmate` or to non-live analysis with the recorded result, and stop further live moves.
 - **Postconditions**: Move is committed once, reflected across board/history/clock/analysis.
 - **Function Touchpoints**:
   - `Chessboard.moveAttempt`
@@ -341,7 +341,7 @@ Each scenario in this document uses the same structure:
   - `MoveUpdateService.addMainlineMove`
   - `TimeControlService.applyMove`
   - `GamesStore.refreshAnalysis`
-  - `AnalysisStore.applyAnalysisUpdate` (subsequent engine response)
+  - `GamesStore._applyAnalysisUpdate` (subsequent engine response)
 
 ### SCN-MOVE-02 - Illegal Move Attempt
 - **Status**: Current
@@ -398,7 +398,7 @@ Each scenario in this document uses the same structure:
   - `HistoryPanel.onNavigateNode`
   - `GamesStore.navigateToNode`
   - `MoveUpdateService.getPosition`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.getVisibleAnalysis`
   - `GamesStore.getGame`
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
@@ -482,7 +482,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.createGame`
   - `GamesStore.reassignPlayer`
   - `GamesStore.makeMove`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.getVisibleAnalysis`
   - `GamesStore.refreshAnalysis`
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
@@ -507,7 +507,7 @@ Each scenario in this document uses the same structure:
   - `MoveUpdateService.createMoveTree`
   - `GamesStore.saveGame`
   - `GamesStore.refreshAnalysis`
-  - `AnalysisStore.clearGameAnalysis`
+  - `GamesStore._clearGameAnalysis`
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 - **Status**: Planned
@@ -550,12 +550,12 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-01-LIVE-SCORE-ONLY`: In any `liveGame` context, the current game's live-analysis preference may keep the panel score-only instead of rendering PV moves.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
   - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
-- **Postconditions**: The latest valid eval for the active position is available in analysis store, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
+- **Postconditions**: The latest valid eval for the active position is available on the game-owned analysis data, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
 - **Function Touchpoints**:
   - `GameView.onStartAnalysis`
   - `GamesStore.refreshAnalysis`
-  - `AnalysisStore.applyAnalysisUpdate`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore._applyAnalysisUpdate`
+  - `GamesStore.getVisibleAnalysis`
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
 - **Status**: Planned
@@ -579,8 +579,8 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `EnginesStore.listConfiguredEngines`
   - `GamesStore.refreshAnalysis`
-  - `AnalysisStore.applyAnalysisUpdate`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore._applyAnalysisUpdate`
+  - `GamesStore.getVisibleAnalysis`
   - `EngineRuntimeService.startAnalysis`
   - `EngineRuntimeService.subscribeToAnalysis`
 
@@ -602,7 +602,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.stopAnalysis`
   - `EngineRuntimeService.stopSession`
   - `GamesStore.retryAnalysis`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.getVisibleAnalysis`
   - `UiStateStore.showModal`
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
@@ -1256,7 +1256,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Users can curate study points during play/analysis.
 - **Function Touchpoints**:
   - `MoveUpdateService.getPosition`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.getVisibleAnalysis`
   - `StorageAdapter.writeTextFile`
 
 ### SCN-IDEA-05 - Explain Evaluation Panel
@@ -1272,7 +1272,7 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-05-NO-EXPLANATION`: Engine lacks explain mode -> show score-only fallback.
 - **Postconditions**: Better interpretability for non-expert users.
 - **Function Touchpoints**:
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.getVisibleAnalysis`
   - `AnalysisPanel.renderAnalysisLines`
 
 ### SCN-IDEA-06 - Undo/Redo Stack in Analysis Mode
@@ -1306,7 +1306,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GamesStore._pollAnalysisSessionHealth`
   - `GamesStore.refreshAnalysis`
-  - `AnalysisStore.getVisibleAnalysis`
+  - `GamesStore.getVisibleAnalysis`
 
 ### SCN-IDEA-08 - Variant Rules Toggle
 - **Status**: Idea

@@ -86,26 +86,26 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
+| `GamesStore._startAnalysisSessions` |
+| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 #### Flow D - Request Engine Turn After Restore
 | `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.requestPlayerMove` |
-| `EnginesStore._handlePlayerTurnMove` |
+| `GamesStore._handlePlayerTurnMove` |
 
 | `GamesStore.requestPlayerMove` |
 | --- |
-| `EnginesStore._startPlayerTurnSearch` |
-| `EnginesStore._bindPlayerTurnCallbacks` |
+| `EngineRuntimeService.startPlayerTurn` |
+| `EngineRuntimeService.awaitPlayerTurnMove` |
 
-| `EnginesStore._handlePlayerTurnMove` |
+| `GamesStore._handlePlayerTurnMove` |
 | --- |
 | `GamesStore.makeMove` |
 
@@ -223,7 +223,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore.createGame` |
 | --- |
 | `GamesStore._validateCreateRequest` |
-| `GamesStore._resolveWorkspaceKind` |
+| `GamesStore._resolveInitialGameState` |
 | `GamesStore._validateAssignedPlayers` |
 | `GamesStore._validateAssignedEngines` |
 | `GamesStore._initialiseClockSnapshot` |
@@ -239,26 +239,26 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `EnginesStore._startAnalysisSessions` |
-| `EnginesStore._bindAnalysisCallbacks` |
+| `GamesStore._startAnalysisSessions` |
+| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 #### Flow C - Request The Opening Engine Turn
 | `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.requestPlayerMove` |
-| `EnginesStore._handlePlayerTurnMove` |
+| `GamesStore._handlePlayerTurnMove` |
 
 | `GamesStore.requestPlayerMove` |
 | --- |
-| `EnginesStore._startPlayerTurnSearch` |
-| `EnginesStore._bindPlayerTurnCallbacks` |
+| `EngineRuntimeService.startPlayerTurn` |
+| `EngineRuntimeService.awaitPlayerTurnMove` |
 
-| `EnginesStore._handlePlayerTurnMove` |
+| `GamesStore._handlePlayerTurnMove` |
 | --- |
 | `GamesStore.makeMove` |
 
@@ -271,8 +271,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GameView._requestPlayerMoveIfNeeded` |
 
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
-- State/settings coverage: any request with both sides assigned becomes a baseline `WorkspaceKind.LiveGame`, while any request with either side unassigned becomes `WorkspaceKind.FreeAnalysisSetup`. At the low-level request boundary, that unassigned state is encoded as `null`. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GameView._requestPlayerMoveIfNeeded` is evaluated immediately after creation whenever the resulting live game starts on an active non-local side to move, including `PlayerType.Engine/PlayerType.Engine`.
-- Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, any partially or fully unassigned player request resolves into `WorkspaceKind.FreeAnalysisSetup`, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
+- State/settings coverage: any request with both sides assigned becomes a live state, while any request with either side unassigned becomes a non-live analysis state. At the low-level request boundary, that unassigned state is encoded as `null`. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GameView._requestPlayerMoveIfNeeded` is evaluated immediately after creation whenever the resulting live game starts on an active non-local side to move, including `PlayerType.Engine/PlayerType.Engine`.
+- Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, any partially or fully unassigned player request resolves into non-live analysis, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
 
@@ -345,7 +345,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 - UI surface coverage: `SettingsView` keeps category switching in a tab-style top strip, a secondary reset action area, and a primary bottom-right action row for `Cancel`, `Save`, and `Apply`.
 - Route coverage: settings category tabs map to `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, while invalid settings routes fall back to `/settings/session`.
-- State/settings coverage: `session.autoPauseOnMenu` applies only to timed `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing` contexts. The stored pause owner prevents settings return from auto-resuming a manually paused game or a game paused for another reason such as in-game analysis. Accepted appearance updates reproject the root semantic CSS variables immediately, and system-theme subscription updates remain active only while `appearance.themeMode = ThemeMode.System`.
+- State/settings coverage: `session.autoPauseOnMenu` applies only to timed `LiveWhiteTurn` and `LiveBlackTurn` contexts with `resultState = ongoing`. The stored pause owner prevents settings return from auto-resuming a manually paused game or a game paused for another reason such as live analysis. Accepted appearance updates reproject the root semantic CSS variables immediately, and system-theme subscription updates remain active only while `appearance.themeMode = ThemeMode.System`.
 - Requirement verification: `Pass`. Auto-pause remains policy-driven, dirty-form prompts stay in `UiStateStore` through the typed `AppModalKind.SettingsDirtyLeave` modal contract, and return routing does not depend on a still-valid game always existing.
 
 ### SCN-NAV-02 - Invalid Game Route Handling

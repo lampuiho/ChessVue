@@ -75,7 +75,7 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 ## Multi-Engine Analysis Contract
 - Multiple assigned analysis engines may evaluate the same position concurrently.
 - Each engine updates its own row or group in the analysis UI independently.
-- The app stores the latest valid result from each engine for a given game and position.
+- The app stores the latest valid result from each engine for a given game and derived position inside that game's persisted analysis data.
 - Each engine group may expose up to `3` visible lines for the active position.
 - Each engine group may be folded or expanded independently without affecting the other engine groups.
 - Partial failure of one engine must not stop the remaining engines.
@@ -109,7 +109,7 @@ If the user selects more than the supported concurrent analysis engines, the app
 - `SettingsStore` owns configured engine inventory.
 - `EnginesStore` exposes configured engine inventory and can construct engine-backed players for selection flows.
 - `GamesStore` owns assignment on the current game, turn waiting, and analysis coordination for already assigned engine participants.
-- `AnalysisStore` owns streamed evaluation snapshots for the current runtime session.
+- `GamesStore` persists streamed evaluation snapshots on the game and exposes the visible-analysis read model.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore`.
 - `EngineClient` owns protocol-specific command building, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.
 - `ProcessManager` owns child-process mechanics only and is consumed by `EngineRuntimeService`.

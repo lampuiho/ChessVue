@@ -49,7 +49,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 | `GameView._requestPlayerMoveIfNeeded` |
 | --- |
@@ -91,10 +91,10 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
-- State/settings coverage: `makeMove` accepts `WorkspaceKind.LiveGame` and `WorkspaceKind.FreeAnalysisSetup`, but dispatches by context. `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing + not paused` commits a live move and may trigger a player-engine reply. `WorkspaceKind.FreeAnalysisSetup`, `InteractionContext.HistoryReview`, and `InteractionContext.InGameAnalysis` stay analysis-only. `InteractionContext.BoardEdit`, paused live play, and final result states block live move progression.
-- Continuous analysis update loop: the layer-2 engine runtime path -> `GameView._handleAnalysisRuntimeUpdate` -> `AnalysisStore.applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
+- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit`, paused live states, and `Checkmate` block live move progression.
+- Continuous analysis update loop: the layer-2 engine runtime path -> `GameView._handleAnalysisRuntimeUpdate` -> `GamesStore._applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
 ### SCN-MOVE-02 - Illegal Move Attempt
@@ -178,8 +178,8 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GameView._openRuntimeErrorDialog` |
 
 - Runtime distinction: analysis search keeps streaming updates over time, while a player-engine turn waits only for the final awaited move and then ends that turn-scoped search.
-- State gate: `GamesStore.requestPlayerMove` is valid only for `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing + not paused` when the side to move is assigned to an active non-local player.
-- Guardrails: player-engine turn generation is blocked in free analysis/setup, in-game analysis, history review, board edit, paused live games, and finished games.
+- State gate: `GamesStore.requestPlayerMove` is valid only for `LiveWhiteTurn` or `LiveBlackTurn` with `resultState = ongoing` when the side to move is assigned to an active non-local player.
+- Guardrails: player-engine turn generation is blocked in non-live analysis, live analysis, board edit, paused live games, and `Checkmate`.
 - Completion rule: the player-engine turn completes only when `EngineRuntimeService.awaitPlayerTurnMove(...)` resolves with a valid move. The baseline defines no no-response timeout.
 - Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.
 - Runtime-error rule: malformed player-turn output or other unexpected runtime exceptions are logged and surfaced through the owning standard error-handling path without inventing automatic reconnect, automatic stop, or timeout behaviour.
@@ -214,7 +214,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore.refreshAnalysis` |
 | `GameView._requestPlayerMoveIfNeeded` |
 
-- State coverage: player reassignment is valid for `WorkspaceKind.LiveGame` and `WorkspaceKind.FreeAnalysisSetup` workspaces in `InteractionContext.CurrentPosition`, `InteractionContext.HistoryReview`, and `InteractionContext.InGameAnalysis` for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model.
+- State coverage: player reassignment is valid in live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model.
 - Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate.
 
 ## History And Branching
@@ -229,17 +229,17 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 | `GamesStore.navigateToNode` |
 | --- |
-| `GamesStore._setVisiblePathFromNode` |
-| `GamesStore._deriveInteractionContext` |
+| `GamesStore._setHighlightPathFromNode` |
+| `GamesStore._deriveGameState` |
 
 | `GameView._refreshVisibleAnalysisAfterNavigation` |
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.refreshAnalysis` |
-| `AnalysisStore.getVisibleAnalysis` |
+| `GamesStore.getVisibleAnalysis` |
 
 - Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
-- State coverage: entering an earlier node moves the workspace into `InteractionContext.HistoryReview` and suppresses `GameView._requestPlayerMoveIfNeeded`; returning to the live node restores `InteractionContext.CurrentPosition`.
+- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state and suppresses `GameView._requestPlayerMoveIfNeeded`; returning to the live node restores the matching live or paused live state.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the same visible node.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
@@ -322,7 +322,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore.navigateToNode` |
 | --- |
 
-- Settings coverage: `gameplay.takebackPolicy = TakebackPolicy.AnalysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the workspace returns to `InteractionContext.CurrentPosition` immediately or stays on the analysis branch.
+- Settings coverage: `gameplay.takebackPolicy = TakebackPolicy.AnalysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the game returns to the live node immediately or stays on the analysis branch.
 - Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
 
 ### SCN-HIST-04 - Automatic Pruning After Live Move From The Latest Node
@@ -409,7 +409,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore.getGame` |
 | `GamesStore.requestPlayerMove` |
 
-- State coverage: pause and resume are valid only for timed `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing` states.
+- State coverage: pause and resume are valid only for timed `LiveWhiteTurn` or `LiveBlackTurn` states with `resultState = ongoing`.
 - Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally.
 
 ### SCN-TIME-03 - Increment Applied After Move
@@ -669,5 +669,5 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._enterBoardEditContext` |
 
 - UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
-- Requirement verification: `Pass`. Board editing stays isolated to `WorkspaceKind.FreeAnalysisSetup` without leaking the rule into components.
+- Requirement verification: `Pass`. Board editing stays isolated to non-live analysis states without leaking the rule into components.
 

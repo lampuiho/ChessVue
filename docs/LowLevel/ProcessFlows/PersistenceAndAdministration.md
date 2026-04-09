@@ -177,26 +177,26 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.refreshAnalysis |
 | --- |
-| EnginesStore._startAnalysisSessions |
-| EnginesStore._bindAnalysisCallbacks |
+| GamesStore._startAnalysisSessions |
+| GamesStore._bindAnalysisCallbacks |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 #### Flow D - Request An Engine Turn For The Loaded Workspace
 | `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | GamesStore.getGame |
 | GamesStore.requestPlayerMove |
-| EnginesStore._handlePlayerTurnMove |
+| GamesStore._handlePlayerTurnMove |
 
 | GamesStore.requestPlayerMove |
 | --- |
-| EnginesStore._startPlayerTurnSearch |
-| EnginesStore._bindPlayerTurnCallbacks |
+| EngineRuntimeService.startPlayerTurn |
+| EngineRuntimeService.awaitPlayerTurnMove |
 
-| EnginesStore._handlePlayerTurnMove |
+| GamesStore._handlePlayerTurnMove |
 | --- |
 | GamesStore.makeMove |
 
@@ -292,26 +292,26 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.refreshAnalysis |
 | --- |
-| EnginesStore._startAnalysisSessions |
-| EnginesStore._bindAnalysisCallbacks |
+| GamesStore._startAnalysisSessions |
+| GamesStore._bindAnalysisCallbacks |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 #### Flow C - Request An Engine Turn For The Imported Workspace
 | `GameView._requestPlayerMoveIfNeeded` |
 | --- |
 | GamesStore.getGame |
 | GamesStore.requestPlayerMove |
-| EnginesStore._handlePlayerTurnMove |
+| GamesStore._handlePlayerTurnMove |
 
 | GamesStore.requestPlayerMove |
 | --- |
-| EnginesStore._startPlayerTurnSearch |
-| EnginesStore._bindPlayerTurnCallbacks |
+| EngineRuntimeService.startPlayerTurn |
+| EngineRuntimeService.awaitPlayerTurnMove |
 
-| EnginesStore._handlePlayerTurnMove |
+| GamesStore._handlePlayerTurnMove |
 | --- |
 | GamesStore.makeMove |
 

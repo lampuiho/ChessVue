@@ -16,7 +16,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.createGame` |
 | --- |
-| `GamesStore._resolveWorkspaceKind` |
+| `GamesStore._resolveInitialGameState` |
 | `GamesStore._createWorkspace` |
 | `GamesStore._allowBothColoursForSetupMoves` |
 
@@ -45,7 +45,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 - Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to `null` yields a non-live workspace while preserving engine-driven analysis when configured.
 
@@ -67,7 +67,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | --- |
 | `GamesStore.confirmBoardEdit` |
 | `MoveUpdateService.replaceBoardRoot` |
-| `AnalysisStore.clearGameAnalysis` |
+| `GamesStore._clearGameAnalysis` |
 | `GamesStore.refreshAnalysis` |
 
 | `GamesStore.confirmBoardEdit` |
@@ -77,7 +77,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `MoveUpdateService.replaceBoardRoot` |
 | --- |
 
-| `AnalysisStore.clearGameAnalysis` |
+| `GamesStore._clearGameAnalysis` |
 | --- |
 
 | `GamesStore.refreshAnalysis` |
@@ -87,11 +87,11 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
-- State coverage: `InteractionContext.BoardEdit` is valid only inside `WorkspaceKind.FreeAnalysisSetup`. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
-- Process note: because board editing is restricted to `WorkspaceKind.FreeAnalysisSetup`, `GamesStore.confirmBoardEdit` replaces the root through `MoveUpdateService.replaceBoardRoot(..., null)` and clears prior move history in one mutation.
+- State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
+- Process note: because board editing is restricted to non-live analysis, `GamesStore.confirmBoardEdit` replaces the root through `MoveUpdateService.replaceBoardRoot(..., null)` and clears prior move history in one mutation.
 - Requirement verification: `Pass`. The public surface covers edit entry, confirm, history clearing, analysis suspension during edit, and analysis refresh afterwards.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
@@ -116,7 +116,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GamesStore._validateAssignedEngines` |
 | `GamesStore._retainPreparedMoveTree` |
 | `GamesStore._initialiseLiveClock` |
-| `GamesStore._switchWorkspaceKindToLiveGame` |
+| `GamesStore._switchToLiveGameState` |
 
 | `GamesStore.refreshAnalysis` |
 | --- |
@@ -125,12 +125,12 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 | `UiStateStore.hideModal` |
 | --- |
 
-- State/settings coverage: the workspace may leave `WorkspaceKind.FreeAnalysisSetup` and enter `WorkspaceKind.LiveGame + InteractionContext.CurrentPosition + ResultState.Ongoing` only when both sides are assigned. That transition applies a newly chosen time control, captures the per-game `showLiveAnalysisMoves` choice for the resulting live game, and initialises fresh live clock state.
+- State/settings coverage: the game may leave non-live analysis and enter `LiveWhiteTurn` or `LiveBlackTurn` only when both sides are assigned. That transition applies a newly chosen time control, captures the per-game `showLiveAnalysisMoves` choice for the resulting live game, and initialises fresh live clock state.
 - Requirement verification: `Pass`. Starting from setup preserves the prepared root and move tree while moving the workspace into live-game rules, and engine-controlled turns continue through the normal live-game gate.
 
 ## Analysis And Engine Runtime
@@ -149,13 +149,13 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
-| AnalysisStore.getVisibleAnalysis |
+| GamesStore.getVisibleAnalysis |
 | --- |
 
-- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in `WorkspaceKind.FreeAnalysisSetup`, and in any `WorkspaceKind.LiveGame` context only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
-- State gate: `GamesStore.refreshAnalysis` accepts `WorkspaceKind.LiveGame` and `WorkspaceKind.FreeAnalysisSetup` games in `InteractionContext.CurrentPosition`, `InteractionContext.HistoryReview`, and `InteractionContext.InGameAnalysis`. It is blocked while `interactionContext = InteractionContext.BoardEdit`.
+- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in non-live analysis states, and in live or live-analysis states only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
+- State gate: `GamesStore.refreshAnalysis` accepts live states, live-analysis states, and non-live analysis states. It is blocked while `gameState = GameState.BoardEdit`.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
@@ -201,7 +201,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `AnalysisStore.applyAnalysisUpdate` |
+| `GamesStore._applyAnalysisUpdate` |
 
 #### Flow C - Unexpected Analysis Engine Exit
 | `GamesStore._pollAnalysisSessionHealth` |
@@ -277,7 +277,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
 | `GamesStore._createOrReuseAnalysisBranch` |
 
-- State/settings coverage: `WorkspaceKind.FreeAnalysisSetup` always renders per-move engine targets. Any `WorkspaceKind.LiveGame` context renders engine move targets only when `liveAnalysisOptions.showLiveAnalysisMoves = true`.
+- State/settings coverage: non-live analysis always renders per-move engine targets. Live and live-analysis states render engine move targets only when `liveAnalysisOptions.showLiveAnalysisMoves = true`.
 - Runtime selector coverage: analysis-panel move selection reuses the current visible hydrated node. Any persisted `MovePath` updates remain store-internal bookkeeping derived from that node and are not a public runtime interaction contract.
 - Requirement verification: `Pass`. Suggested moves are interactive only where the workspace policy allows them, and live-game suggestion clicks reuse the same context-specific move policy as ordinary move entry.
 
@@ -308,7 +308,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | --- |
 | `GamesStore.removeAnalysisEngine` |
 | `GamesStore.stopAnalysis` |
-| `AnalysisStore.clearEngineAnalysis` |
+| `GamesStore._clearEngineAnalysis` |
 
 | `GamesStore.removeAnalysisEngine` |
 | --- |
@@ -318,12 +318,12 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GamesStore.stopAnalysis` |
 | --- |
 
-| `AnalysisStore.clearEngineAnalysis` |
+| `GamesStore._clearEngineAnalysis` |
 | --- |
 
 - UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine.
-- State gate: roster add and remove are valid for `WorkspaceKind.LiveGame` and `WorkspaceKind.FreeAnalysisSetup` workspaces in `InteractionContext.CurrentPosition`, `InteractionContext.HistoryReview`, and `InteractionContext.InGameAnalysis`.
-- Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to the engine store.
+- State gate: roster add and remove are valid in live states, live-analysis states, and non-live analysis states.
+- Requirement verification: `Pass`. Analysis-engine assignment stays per game, add and remove are both covered, and runtime start or stop remains delegated to `GamesStore`.
 
 
 

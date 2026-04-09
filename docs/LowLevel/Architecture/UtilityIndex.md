@@ -55,14 +55,14 @@ Each entry must define:
 
 ### WorkspaceRestoreUtility
 - Purpose: share reconstruction of live workspace state from canonical persisted game payloads.
-- Touched contract models: `IGame`, `MovePath`, nested `IMoveTree`, `IAnalysisAssignment`, captured assigned-engine snapshots, `IClockSnapshot`.
+- Touched contract models: `IGame`, `MovePath`, nested `IMoveTree`, `IGameAnalysis`, captured assigned-engine snapshots, `IClockSnapshot`.
 - Allowed importers: `GamesStore`.
 - Owner-private delegates:
   - `GamesStore._hydrateWorkspace`
   - `GamesStore._hydrateWorkspaceCollection`
   - `GamesStore._repairMissingActiveGame`
 - Classification: `pure`.
-- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references, resolves persisted `livePath` / `visiblePath` selectors, and exposes the resulting hydrated node references back to `GamesStore` before any node-based runtime navigation or mutation flow runs.
+- Validation or failure semantics: invalid or incomplete workspace payloads are rejected by the owning restore flow before they become active live state. Successful hydration rebuilds runtime-only move-tree helpers such as parent references, resolves persisted `livePath` / `highlightPath` selectors, and exposes the resulting hydrated node references back to `GamesStore` before any node-based runtime navigation or mutation flow runs.
 
 ## Error Handling
 ### StandardErrorHandlingUtility
@@ -94,10 +94,10 @@ Each entry must define:
 ### EnginePositionMappingUtility
 - Purpose: share contract-aware projection between ChessVue workspace state and engine-facing position state used for continuous analysis and player-engine turns.
 - Touched contract models: `IEnginePositionState`, `IGame`, `IBoardPosition`, move ordering and branch lineage from the current hydrated tree.
-- Allowed importers: `EnginesStore`, `EngineRuntimeService`, `EngineClient`.
+- Allowed importers: `GamesStore`, `EngineRuntimeService`, `EngineClient`.
 - Owner-private delegates:
-  - `EnginesStore._startAnalysisSessions`
-  - `EnginesStore._startPlayerTurnSearch`
+  - `GamesStore._startAnalysisSessions`
+  - `GamesStore._requestRuntimePlayerMove`
   - `EngineRuntimeService._syncEnginePosition`
   - `EngineClient.buildPositionSyncCommands`
   - `EngineClient.requiresNewGameBoundary`

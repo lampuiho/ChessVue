@@ -52,7 +52,7 @@ Read-side rule:
 - `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
 - `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
 - Each engine group always exposes score and engine status, may expose up to `3` visible lines when the current workspace context allows move targets, and may be folded independently through remembered UI state keyed by rendered row index for the active game without changing the other engine groups.
-- `GameView` may coordinate `GamesStore`, `EnginesStore`, `AnalysisStore`, and `UiStateStore` in one user flow when engine selection, mutation, snapshot updates, and modal handling all stem from the same concrete presentation event.
+- `GameView` may coordinate `GamesStore`, `EnginesStore`, and `UiStateStore` in one user flow when engine selection, mutation, analysis updates, and modal handling all stem from the same concrete presentation event.
 
 ### Game Control Interaction
 - `GameControlPanel` is the single source for live-game and setup controls:

@@ -43,7 +43,6 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [GamesStore](StateManagement/GamesStore.md)
 - [SavedGamesStore](StateManagement/SavedGamesStore.md)
 - [EnginesStore](StateManagement/EnginesStore.md)
-- [AnalysisStore](StateManagement/AnalysisStore.md)
 - [SettingsStore](StateManagement/SettingsStore.md)
 - [RecentGameStore](StateManagement/RecentGameStore.md)
 - [UiStateStore](StateManagement/UiStateStore.md)
@@ -111,7 +110,7 @@ The low-level design assumes only these routes:
 The data-interface section defines the shared low-level types for:
 
 - board and move-tree state
-- game workspace state axes
+- game state and result state
 - time control and clock snapshots
 - engine inventory, assignment, and runtime sessions
 - analysis snapshots
@@ -128,7 +127,7 @@ The data-interface section defines the shared low-level types for:
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
-- `GamesStore` owns move timing, non-local turn waiting, and analysis coordination at layer 3, `EnginesStore` exposes configured engine profiles plus engine-backed player creation for selection flows, `AnalysisStore` owns visible analysis snapshots, and `EngineRuntimeService` owns the lower-layer engine runtime path to `ProcessManager` and `EngineClient`.
+- `GamesStore` owns move timing, non-local turn waiting, analysis coordination, and persisted analysis snapshots at layer 3, `EnginesStore` exposes configured engine profiles plus engine-backed player creation for selection flows, and `EngineRuntimeService` owns the lower-layer engine runtime path to `ProcessManager` and `EngineClient`.
 - `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SavedGameDocumentService`, `SerializationService`, `SessionStateService`, and `UserSettingService` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SavedGameDocumentService` owning saved-game document I/O and picker boundaries, `SerializationService` owning canonical payload conversion, `SessionStateService` owning session and layout document I/O, and `UserSettingService` owning settings pathing, validation, caching, persistence, and initial system-theme reads behind the layer-2 boundary.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
@@ -148,7 +147,7 @@ The doc set is aligned only when all of the following are true:
 - every `Current` and `Planned` scenario has an owning module
 - persisted artefacts match the saved-game and settings ownership contracts
 - multi-engine analysis is baseline, capped at four concurrent analysis engines per game
-- terminology for routes, state axes, result states, and persistence artefacts matches the high-level docs
+- terminology for routes, game states, result states, and persistence artefacts matches the high-level docs
 - no doc describes same-layer store calls or `Layer 3 -> Layer 1` calls
 - every process-flow table starts with a concrete callable owner
 - shared contract-aware private utilities are inventoried in [UtilityIndex.md](UtilityIndex.md) and remain invisible in process-flow ownership

@@ -13,7 +13,7 @@ buildPositionKey(position: IBoardPosition): string
 - include only position-relevant equality state: board occupancy, side to move, castling availability, and en-passant target
 - exclude move counters such as `halfMoveClock` and `fullMoveNumber` from the identity key
 - keep app-level position identity independent from FEN
-- support `AnalysisStore` analysis indexing and `SerializationService` validation
+- support `GamesStore` analysis indexing and `SerializationService` validation
 
 ## Notes
 - `buildPositionKey(...)` is an app-owned structural encoding, not a user-facing or persisted chess notation.
