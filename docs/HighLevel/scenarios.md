@@ -440,9 +440,9 @@ Each scenario in this document uses the same structure:
   - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
 
-### SCN-HIST-04 - Discard Latest-Node Analysis Continuation When Live Play Resumes
+### SCN-HIST-04 - Automatic Pruning After Live Move From The Latest Node
 - **Status**: Planned
-- **Goal**: Remove exploratory in-game-analysis continuations from the latest live node once real play resumes from that same node.
+- **Goal**: Run the automatic pruning action that removes exploratory in-game-analysis continuations from the latest live node once real play resumes from that same node.
 - **Preconditions**: User entered in-game analysis from the latest live node, created at least one analysis-only continuation, and then exited back to the live node.
 - **Entry Points**: Real move committed from the latest live node after leaving in-game analysis.
 - **Main Steps**:
@@ -450,11 +450,11 @@ Each scenario in this document uses the same structure:
   2. App records exploratory moves as analysis-only continuations without advancing the live game.
   3. User exits in-game analysis and app restores the live node while the exploratory continuation still remains visible as a variation.
   4. User makes a real live move from that same latest node.
-  5. App discards the superseded analysis-only descendants before committing the new live continuation.
+  5. App runs the automatic pruning action, discarding the superseded analysis-only descendants before committing the new live continuation.
 - **Branch Paths**:
   - `BR-HIST-04-NO-CLEANUP`: Analysis did not originate from the latest live node, or live play resumed from a different node -> no automatic cleanup path runs.
   - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
-- **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation.
+- **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs.
 - **Function Touchpoints**:
   - `MoveUpdateService.pruneFutureMoves`
   - `GamesStore.exitInGameAnalysis`

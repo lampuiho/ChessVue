@@ -328,7 +328,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Settings coverage: `gameplay.takebackPolicy = TakebackPolicy.AnalysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the workspace returns to `InteractionContext.CurrentPosition` immediately or stays on the analysis branch.
 - Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
 
-### SCN-HIST-04 - Discard Latest-Node Analysis Continuation When Live Play Resumes
+### SCN-HIST-04 - Automatic Pruning After Live Move From The Latest Node
 
 #### Flow
 | `Chessboard.moveSubmitted` |
@@ -355,9 +355,9 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._buildPersistedWorkspace` |
 | `GamesStore._persistWorkspace` |
 
-- UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. Cleanup is implicit in the next real live move from the same latest node after in-game analysis exit.
-- Runtime selector coverage: `GamesStore` compares the current live move against the stored in-game-analysis entry anchor and runs `MoveUpdateService.pruneFutureMoves` only when live play resumes from that same latest node. After cleanup and move commit, the store reacquires the surviving live and visible nodes from the new tree.
-- Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but they are automatically discarded once real play supersedes them.
+- UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. The pruning action is automatic and is triggered by the next real live move from the same latest node after in-game analysis exit.
+- Runtime selector coverage: `GamesStore` compares the current live move against the stored in-game-analysis entry anchor and runs the automatic pruning action through `MoveUpdateService.pruneFutureMoves` only when live play resumes from that same latest node. After pruning and move commit, the store reacquires the surviving live and visible nodes from the new tree.
+- Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but the automatic pruning action discards them once real play supersedes them.
 
 ## Time Control
 
