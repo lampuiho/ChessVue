@@ -30,7 +30,8 @@ deleteFile(path: string): Promise<void>
 - avoid owning any implicit storage root; higher-layer services decide how paths such as managed save roots or executable-root-relative files are resolved
 
 ## Dependencies
-- underlying host persistence and file APIs
+- `NW.js` file-dialog capabilities
+- Node file-system APIs available through the active `NW.js` runtime
 - shared platform failure contract from `DataInterface/PlatformError`
 
 ## Failure Semantics
@@ -44,6 +45,6 @@ deleteFile(path: string): Promise<void>
 - `deleteFile` rejects with `notFound` or `permissionDenied` when the host cannot remove the selected path.
 - Readable-but-invalid payloads are not silently repaired here; layer-2 services still pass loaded artefacts through `SerializationService` for migration and corruption decisions.
 
-## Rewrite-Phase Mock Note
-- The first implementation pretends to run on `NW.js` but uses an adapter-backed in-memory mock.
-- The mock exposes canned document, directory, dialog, and delete responses for file-backed flows while still behaving as a rootless path-based adapter.
+## Notes
+- The current implementation uses `NW.js` file inputs for open/save selection and Node file APIs for raw file-system work.
+- The adapter remains rootless and path-based even though the host is desktop-specific.

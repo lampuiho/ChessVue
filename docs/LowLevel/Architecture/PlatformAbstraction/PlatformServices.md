@@ -1,49 +1,49 @@
 # PlatformServices
 
 ## Purpose
-Define the host contract selected at bootstrap and injected into the layer-2 service graph.
+Define the host contract exposed through the platform Pinia store and injected into the layer-2 service graph.
 
 ## Public Interface
 ```ts
+enum EngineClientType {
+  Uci
+}
+
 interface IPlatformService {
-  platformKey: string
   getStorageAdapter(): StorageAdapter
   getProcessManager(): ProcessManager
   getSystemThemeAdapter(): SystemThemeAdapter
-  getEngineClient(): EngineClient
+  getEngineClient(engineClientType: EngineClientType): EngineClient
   subscribeToAppCloseRequested(owner: string, onCloseRequested: () => Promise<void> | void, debugLabel?: string): () => void
   subscribeToAppFocusReturned(owner: string, onFocusReturned: () => Promise<void> | void, debugLabel?: string): () => void
   subscribeToSystemThemeChanged(owner: string, onChanged: (theme: ResolvedThemeMode) => void, debugLabel?: string): () => void
   getEventRegistrationSnapshot(): IPlatformEventRegistration[]
 }
 
-createPlatformService(platformKey: string): IPlatformService
+usePlatformService(): IPlatformService
 ```
 
 ## Responsibilities
-- expose concrete `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` instances for the selected platform
+- expose concrete `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, and `EngineClient` instances for the active build target
 - expose the small typed app-level event registration surface used by layer-2 services
-- allow bootstrap or composition code to select one concrete host implementation for the active platform
+- select the active host implementation from build configuration rather than from runtime caller choice
 - keep state stores, views, and domain models unaware of host globals or desktop-specific bootstrap code
-- preserve one replacement point per platform for later real host wiring
+- preserve one replacement point per platform for later additional host wiring
 - provide a queryable snapshot of active platform event registrations for debugging
 
-## Rewrite-Phase Host Note
-The first implementation uses adapter-backed mocked `NW.js`-style services.
+## Current Host Note
+The current build target is `NW.js`.
 
-That mocked host is expected to provide:
+The platform stores are built from one shared injected `nw` instance. Any required Node modules are resolved separately through implementation-support utilities because NW.js exposes them differently from hosts such as Electron.
 
-- canned document, directory, dialog, and delete failure modes for `StorageAdapter`
-- scripted process start failure, scripted unexpected exit, and per-session isolation for `ProcessManager`
-- deterministic system-theme reads through `SystemThemeAdapter`
-- scripted app-close, focus-return, and system-theme notifications through `IPlatformService`
-- deterministic engine communication hooks for `EngineClient`
+The current NW.js host exposes `EngineClientType.Uci` through the concrete `NwjsUciEngineClient`.
 
 ## Notes
-- `IPlatformService` is selected during bootstrap or other composition-root wiring, then injected into the layer-2 service graph.
+- `usePlatformService()` is the composition-root boundary for the active host implementation.
+- The active implementation is selected from build configuration, not by passing a platform key at runtime.
 - `EngineRuntimeService` composes `ProcessManager` and `EngineClient` from layer 2; layer-1 modules do not call one another.
-- The baseline expects multiple concrete host implementations to satisfy the same `IPlatformService` contract; it does not assume a store-shaped singleton.
-- State-management modules do not resolve `IPlatformService` directly.
+- State-management modules do not resolve host globals directly.
+- Shared `nw` instance for all sub-services store initialisation and NW.js-exposed Node-module access are implementation-support concerns and should be documented through `UtilityIndex.md`, not as part of the public platform abstraction contract.
 - The returned adapters should satisfy the same contracts that later real desktop bindings will satisfy.
 - `subscribeToAppCloseRequested`, `subscribeToAppFocusReturned`, and `subscribeToSystemThemeChanged` register callbacks in registration order and return an unsubscribe callback.
 - App-close callbacks must be awaited before shutdown completes. One callback failure does not prevent later registered callbacks from running.

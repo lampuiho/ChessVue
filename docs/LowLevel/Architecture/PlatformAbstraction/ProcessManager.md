@@ -21,7 +21,7 @@ restartProcess(processHandle: ProcessHandle, executablePath: string, args?: stri
 - stay at the process-lifecycle boundary only; protocol-specific I/O and UCI commands belong outside this service
 
 ## Dependencies
-- desktop child-process APIs
+- Node child-process APIs available through the active `NW.js` runtime
 - shared platform failure contract from `DataInterface/PlatformError`
 
 ## Notes
@@ -31,7 +31,6 @@ restartProcess(processHandle: ProcessHandle, executablePath: string, args?: stri
 - `spawnProcess` and `restartProcess` reject with `IPlatformError` of kind `processStartFailed` when the host cannot create the process.
 - Post-start termination is treated separately as `unexpectedExit` so callers can distinguish launch failure from runtime failure.
 - `subscribeToUnexpectedExit(...)` reports only post-start termination for the subscribed session and does not replace the launch-failure rejection path.
-- The rewrite-phase mock must support scripted unexpected exit and per-session isolation so `EngineRuntimeService` and analysis-flow tests do not depend on real engine binaries.
 
 ## Lifecycle Example
 `ProcessManager` only sees process creation and termination boundaries.

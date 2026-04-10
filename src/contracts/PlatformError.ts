@@ -3,12 +3,21 @@ import { z } from 'zod'
 export const enum PlatformErrorKind {
   Cancelled = 'cancelled',
   NotFound = 'notFound',
+  AlreadyExists = 'alreadyExists',
   PermissionDenied = 'permissionDenied',
   InvalidDocument = 'invalidDocument',
   ProcessStartFailed = 'processStartFailed',
   UnexpectedExit = 'unexpectedExit',
 }
-export const platformErrorKinds = [PlatformErrorKind.Cancelled, PlatformErrorKind.NotFound, PlatformErrorKind.PermissionDenied, PlatformErrorKind.InvalidDocument, PlatformErrorKind.ProcessStartFailed, PlatformErrorKind.UnexpectedExit] as const
+export const platformErrorKinds = [
+  PlatformErrorKind.Cancelled,
+  PlatformErrorKind.NotFound,
+  PlatformErrorKind.AlreadyExists,
+  PlatformErrorKind.PermissionDenied,
+  PlatformErrorKind.InvalidDocument,
+  PlatformErrorKind.ProcessStartFailed,
+  PlatformErrorKind.UnexpectedExit,
+] as const
 
 export interface IPlatformError {
   kind: PlatformErrorKind

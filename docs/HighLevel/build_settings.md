@@ -10,27 +10,28 @@ Unlike earlier notes, this is not a catalogue of all possible future targets. It
 - local filesystem access
 - local child-process engine runtime
 - canonical internal JSON persistence
-- adapter-backed mocked `NW.js` host services during the rewrite phase
+- `NW.js` build target
 
 Deferred runtime options are tracked in [ideas.md](ideas.md).
 
-## Rewrite-Phase Host Assumption
-The first rewrite implementation should behave as if the desktop host were `NW.js`, but the Vue app must only see state stores plus layer-2 services.
+## Host Assumption
+The current rewrite implementation targets `NW.js`, and the Vue app reaches host capabilities only through the platform stores plus layer-2 services.
 
 That means:
 
-- bootstrap selects one `IPlatformService` implementation, which exposes `StorageAdapter`, `ProcessManager`, `SystemThemeAdapter`, `EngineClient`, and the typed app-event registration surface upward through layer-2 service boundaries
-- the initial concrete implementations are mocked `NW.js`-style services behind those adapters
-- real host wiring may replace the mocks later without changing layer-3 or layer-4 contracts
+- build configuration selects the active platform target
+- `usePlatformService()` exposes one `IPlatformService` implementation for that build target
+- the `NW.js` implementation is built from one shared injected `nw` runtime instance and real NW.js plus Node APIs
+- later host implementations may replace the NW.js stores without changing layer-3 or layer-4 contracts
 
 ## Platform Runtime
 | Setting Area | Baseline Decision |
 | --- | --- |
 | Host capability | Desktop shell with filesystem and process access |
 | Supported runtime family | Desktop only for the current rewrite baseline |
-| Environment detection | Minimal desktop-capability bootstrap only |
-| Rewrite-phase host fiction | Mocked `NW.js`-style services behind platform adapters |
-| Platform composition seam | `createPlatformService(platformKey)` selected during bootstrap |
+| Environment detection | Build-selected platform target |
+| Current host target | `NW.js` |
+| Platform composition seam | `usePlatformService()` Pinia store exposing `IPlatformService` |
 | Responsive target | Desktop layout first; compact and mobile-specific behaviour is deferred |
 
 ## Engine Runtime

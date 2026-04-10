@@ -29,7 +29,9 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 - host-specific engine communication capability
 
 ## Notes
+- `PlatformService` selects the concrete implementation through `EngineClientType`.
 - The baseline implementation targets `UCI`, but callers never compose or parse UCI strings directly.
+- The current NW.js concrete implementation is `NwjsUciEngineClient` for `EngineClientType.Uci`.
 - If another protocol is ever introduced later, the protocol switch belongs inside `EngineClient`, not in `EngineRuntimeService`, stores, or views.
 - `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires.
 - `EngineClient` acts on the in-game `IAssignedEngine` object and any runtime process handle already bound under `engine.$` by `EngineRuntimeService`.

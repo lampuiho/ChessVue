@@ -103,3 +103,27 @@ Each entry must define:
   - `EngineClient.requiresNewGameBoundary`
 - Classification: `pure`.
 - Validation or failure semantics: produced engine-position state must preserve canonical move ordering and branch identity so runtime restart and position reuse decisions stay deterministic.
+
+## Platform Host Support
+### NwjsUtility
+- Purpose: share typed access to the shared `nw` host object used by the concrete NW.js platform implementation.
+- Touched contract models: none directly; supports typed implementation of platform-owned contracts without extending the public abstraction surface.
+- Allowed importers: `PlatformService`, `NwjsPlatformService`, `NwjsStorageAdapter`, `NwjsProcessManager`, `NwjsSystemThemeAdapter`, `NwjsUciEngineClient`.
+- Owner-private delegates:
+  - `PlatformService._resolveNw`
+- Classification: `mixed`.
+- Validation or failure semantics: the utility must return one shared typed `nw` object for the active build target, allow explicit test or bootstrap override, and fall back to the temporary mock host only when the real NW.js bindings are unavailable. `PlatformService` resolves that shared instance once, and the concrete NW.js store definitions receive it through injected parameters rather than resolving host globals independently.
+
+### NodeUtility
+- Purpose: share access to Node modules exposed through the NW.js host and the temporary mock-module fallback required before the real desktop bootstrap is present.
+- Touched contract models: none directly; supports platform-owned file-system and process implementations without adding Node-module concerns to the public platform contract.
+- Allowed importers: `NwjsStorageAdapter`, `NwjsProcessManager`, `NwjsUciEngineClient`.
+- Owner-private delegates:
+  - `NwjsStorageAdapter._resolveFs`
+  - `NwjsStorageAdapter._resolvePath`
+  - `NwjsStorageAdapter._resolveDocument`
+  - `NwjsStorageAdapter._createFileInput`
+  - `NwjsProcessManager._resolveChildProcess`
+  - `NwjsUciEngineClient._resolveChildProcess`
+- Classification: `mixed`.
+- Validation or failure semantics: the utility must resolve each required Node-backed dependency separately from the active NW.js host when available, allow explicit test override per dependency, and fall back to temporary mock implementations only when the real NW.js-exposed Node environment is unavailable.
