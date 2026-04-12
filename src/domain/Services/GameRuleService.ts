@@ -1,10 +1,10 @@
-import { MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '../../contracts'
+import { MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '../../contracts';
 
-import { cloneBoardPosition, findKingBoardId, getOpponentColour, normaliseBoardPosition } from '../internal/Board'
-import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank, getPromotionRank } from '../internal/Square'
+import { cloneBoardPosition, findKingBoardId, getOpponentColour, normaliseBoardPosition } from '@/utility/chess/BoardUtility';
+import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank, getPromotionRank } from '@/utility/chess/SquareUtility';
 
 type ICandidateMove = IMove;
-const promotionPieces: PieceKind[] = [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]
+const promotionPieces: PieceKind[] = [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight];
 const knightOffsets = [
   { file: -2, rank: -1 },
   { file: -2, rank: 1 },
@@ -14,19 +14,19 @@ const knightOffsets = [
   { file: 1, rank: 2 },
   { file: 2, rank: -1 },
   { file: 2, rank: 1 },
-]
+];
 const bishopDirections = [
   { file: -1, rank: -1 },
   { file: -1, rank: 1 },
   { file: 1, rank: -1 },
   { file: 1, rank: 1 },
-]
+];
 const rookDirections = [
   { file: -1, rank: 0 },
   { file: 1, rank: 0 },
   { file: 0, rank: -1 },
   { file: 0, rank: 1 },
-]
+];
 const queenDirections = [...bishopDirections, ...rookDirections]
 const kingOffsets = [
   { file: -1, rank: -1 },
@@ -37,7 +37,7 @@ const kingOffsets = [
   { file: 1, rank: -1 },
   { file: 1, rank: 0 },
   { file: 1, rank: 1 },
-]
+];
 
 function getPiece(position: IBoardPosition, boardId: BoardId) {
   return position.board[boardId]
@@ -178,7 +178,7 @@ function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour
     }
   }
 
-  return accumulator
+  return accumulator;
 }
 function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: PlayerColour): boolean {
   const targetCoords = boardIdToCoords(target)
@@ -358,27 +358,27 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
     return bishopKnightCount === 2
   }
 
-  return false
+  return false;
 }
 export const GameRuleService = {
   generateLegalMoves(position: IBoardPosition): IMove[] {
-    const normalisedPosition = normaliseBoardPosition(position)
+    const normalisedPosition = normaliseBoardPosition(position);
     return generatePseudoLegalMoves(normalisedPosition, normalisedPosition.sideToMove)
-      .filter((candidate) => isLegalCandidate(normalisedPosition, candidate))
+      .filter((candidate) => isLegalCandidate(normalisedPosition, candidate));
   },
   isMoveLegal(position: IBoardPosition, move: IMove): boolean {
-    return this.generateLegalMoves(position).some((candidate) => moveMatches(candidate, move))
+    return this.generateLegalMoves(position).some((candidate) => moveMatches(candidate, move));
   },
   requiresPromotionSelection(position: IBoardPosition, move: IMove): boolean {
-    const piece = getPiece(position, move.from)
-    if (piece?.kind !== PieceKind.Pawn) return false
-    return boardIdToCoords(move.to).rank === getPromotionRank(piece.colour) && move.promotionPiece === null
+    const piece = getPiece(position, move.from);
+    if (piece?.kind !== PieceKind.Pawn) return false;
+    return boardIdToCoords(move.to).rank === getPromotionRank(piece.colour) && move.promotionPiece === null;
   },
   applyMove(position: IBoardPosition, move: IMove): IBoardPosition {
-    const legalMoves = this.generateLegalMoves(position)
-    const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move))
-    if (!matchingMove) throw new Error('Cannot apply an illegal move.')
-    if (this.requiresPromotionSelection(position, move)) throw new Error('Promotion piece selection is required before applying a promotion move.')
+    const legalMoves = this.generateLegalMoves(position);
+    const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move));
+    if (!matchingMove) throw new Error('Cannot apply an illegal move.');
+    if (this.requiresPromotionSelection(position, move)) throw new Error('Promotion piece selection is required before applying a promotion move.');
 
     return applyCandidateMove(position, {
       from: matchingMove.from,
@@ -386,35 +386,35 @@ export const GameRuleService = {
       kind: matchingMove.kind,
       movingColour: matchingMove.movingColour,
       promotionPiece: move.promotionPiece,
-    })
+    });
   },
   resolveResult(position: IBoardPosition) {
     if (hasInsufficientMaterial(position)) {
       return {
         resultState: ResultState.Drawn,
         resultReason: ResultReason.RuleResolved,
-      }
+      };
     }
 
-    const legalMoves = this.generateLegalMoves(position)
+    const legalMoves = this.generateLegalMoves(position);
     if (legalMoves.length > 0) {
       return {
         resultState: ResultState.Ongoing,
         resultReason: null,
-      }
+      };
     }
 
-    const kingBoardId = findKingBoardId(position, position.sideToMove)
+    const kingBoardId = findKingBoardId(position, position.sideToMove);
     if (kingBoardId !== null && isSquareAttacked(position, kingBoardId, getOpponentColour(position.sideToMove))) {
       return {
         resultState: position.sideToMove === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon,
         resultReason: ResultReason.RuleResolved,
-      }
+      };
     }
 
     return {
       resultState: ResultState.Drawn,
       resultReason: ResultReason.RuleResolved,
-    }
+    };
   },
-}
+};

@@ -104,6 +104,31 @@ Each entry must define:
 - Classification: `pure`.
 - Validation or failure semantics: produced engine-position state must preserve canonical move ordering and branch identity so runtime restart and position reuse decisions stay deterministic.
 
+## Chess Structure Support
+### ChessBoardUtility
+- Purpose: share public board-structure helpers used by domain services and tests without exposing a `domain/internal` module surface.
+- Touched contract models: `IBoardPosition`, `ICastlingAvailability`, `IChessPiece`, `BoardId`, `PlayerColour`.
+- Allowed importers: `GameRuleService`, `MoveNotationService`, `SerializationService`, domain tests, platform tests.
+- Owner-private delegates:
+  - `GameRuleService._cloneBoardPosition`
+  - `GameRuleService._findKingBoardId`
+  - `GameRuleService._getOpponentColour`
+  - `SerializationService._normaliseBoardPosition`
+- Classification: `pure`.
+- Validation or failure semantics: helpers preserve structural board shape only. They do not invent missing pieces, infer legality, or mutate caller-owned board arrays in place.
+
+### ChessSquareUtility
+- Purpose: share board-index, coordinate, notation, and pawn-direction helpers used by chess-rule and notation code without exposing a `domain/internal` module surface.
+- Touched contract models: `BoardId`, `PlayerColour`.
+- Allowed importers: `GameRuleService`, `MoveNotationService`, domain tests, platform tests.
+- Owner-private delegates:
+  - `GameRuleService._boardIdToCoords`
+  - `GameRuleService._coordsToBoardId`
+  - `GameRuleService._getForwardDirection`
+  - `MoveNotationService._boardIdToNotation`
+- Classification: `pure`.
+- Validation or failure semantics: helpers perform only structural coordinate conversion and deterministic notation mapping. Out-of-range coordinates return `null` rather than coercing to a board id.
+
 ## Platform Host Support
 ### NwjsUtility
 - Purpose: share typed access to the shared `nw` host object used by the concrete NW.js platform implementation.

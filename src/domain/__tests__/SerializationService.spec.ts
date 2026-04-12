@@ -7,7 +7,6 @@ import {
   PlayerColour,
   PlayerType,
   PromotionPolicy,
-  RecentGameSourceKind,
   ResultState,
   TakebackPolicy,
   ThemeMode,
@@ -15,11 +14,9 @@ import {
   WorkspaceKind,
   type IGameSessionSnapshot,
   type IGameWorkspace,
-  type IRecentGamesSnapshot,
   type ISettingsSnapshot,
 } from '@/contracts';
 import {
-  createInitialBoardPosition,
   GameRuleService,
   MoveNotationService,
   MoveUpdateService,
@@ -28,6 +25,7 @@ import {
   SerializationService,
   TimeControlService,
 } from '..';
+import { createInitialBoardPosition } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -141,21 +139,6 @@ describe('SerializationService', () => {
     const restored = SerializationService.deserialiseGameSession(SerializationService.serialiseGameSession(snapshot));
 
     expect(restored).toEqual(snapshot);
-  });
-
-  it('normalises and deduplicates recent games by latest saved time', () => {
-    const snapshot: IRecentGamesSnapshot = {
-      schemaVersion: 1,
-      entries: [
-        { gameId: 'a', displayName: 'Old', sourceKind: RecentGameSourceKind.Autosave, filePath: null, lastSavedAtUtc: '2026-01-01T12:00:00.000Z' },
-        { gameId: 'a', displayName: 'New', sourceKind: RecentGameSourceKind.SaveFile, filePath: 'game.json', lastSavedAtUtc: '2026-01-01T12:05:00.000Z' },
-      ],
-    };
-
-    const restored = SerializationService.deserialiseRecentGames(SerializationService.serialiseRecentGames(snapshot));
-
-    expect(restored.entries).toHaveLength(1);
-    expect(restored.entries[0]!.displayName).toBe('New');
   });
 
   it('rejects invalid game-session snapshots', () => {

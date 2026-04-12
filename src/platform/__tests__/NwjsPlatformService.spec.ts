@@ -6,7 +6,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EngineProtocol, EngineSearchMode, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
-import { createInitialBoardPosition, GameRuleService, PositionIdentityService } from '@/domain';
+import { GameRuleService, PositionIdentityService } from '@/domain';
+import { createInitialBoardPosition } from '@/utility/chess';
 import type { IEngineAnalysisUpdate } from '@/platform';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 

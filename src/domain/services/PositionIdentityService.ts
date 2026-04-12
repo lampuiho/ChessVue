@@ -1,4 +1,4 @@
-import type { IBoardPosition } from '../../contracts'
+import type { IBoardPosition } from '../../contracts';
 
 function buildCastlingField(position: IBoardPosition): string {
   return [
@@ -6,21 +6,19 @@ function buildCastlingField(position: IBoardPosition): string {
     position.castlingAvailability.whiteQueenSide ? 'Q' : '',
     position.castlingAvailability.blackKingSide ? 'k' : '',
     position.castlingAvailability.blackQueenSide ? 'q' : '',
-  ].join('')
+  ].join('');
 }
 export const PositionIdentityService = {
   buildPositionKey(position: IBoardPosition): string {
     const pieceTokens = position.board
       .map((piece, boardId) => piece === undefined ? null : `${boardId}:${piece.kind}:${piece.colour}`)
-      .filter((token): token is string => token !== null)
+      .filter((token): token is string => token !== null);
 
     return [
       pieceTokens.join('|'),
       position.sideToMove,
       buildCastlingField(position),
       position.enPassantTarget === null ? '-' : position.enPassantTarget.toString(),
-      position.halfMoveClock.toString(),
-      position.fullMoveNumber.toString(),
-    ].join(' ')
+    ].join(' ');
   },
-}
+};

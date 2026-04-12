@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MoveBranchKind, MoveKind, PieceKind, PlayerColour, TimeControlPreset, type IMove, }from '@/contracts';
-import { createInitialBoardPosition, createSparseBoard, MoveUpdateService, TimeControlService, } from '..'
+import { MoveUpdateService, TimeControlService, } from '..'
+import { createInitialBoardPosition, createSparseBoard } from '@/utility/chess'
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 

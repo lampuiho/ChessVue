@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { MoveKind, PieceKind, PlayerColour, type IMove } from '@/contracts'
-import { createSparseBoard, MoveNotationService, normaliseBoardPosition, PositionIdentityService } from '..'
+import { MoveNotationService, PositionIdentityService } from '..'
+import { createSparseBoard, normaliseBoardPosition } from '@/utility/chess'
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 

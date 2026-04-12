@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { MoveKind, PieceKind, PlayerColour, ResultState, type IBoardPosition } from '@/contracts';
-import { createInitialBoardPosition, createSparseBoard, GameRuleService, normaliseBoardPosition, } from '..';
+import { GameRuleService } from '..';
+import { createInitialBoardPosition, createSparseBoard, normaliseBoardPosition } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
