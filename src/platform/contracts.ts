@@ -9,13 +9,11 @@ export type ProcessHandle = string;
 export enum EngineClientType {
   Uci = 'uci',
 }
-
 export const enum PlatformEventKey {
   AppCloseRequested = 'appCloseRequested',
   AppFocusReturned = 'appFocusReturned',
   SystemThemeChanged = 'systemThemeChanged',
 }
-
 export interface IPlatformEventRegistration {
   registrationId: string;
   eventKey: PlatformEventKey;
@@ -23,14 +21,12 @@ export interface IPlatformEventRegistration {
   debugLabel: string | null;
   registeredAtUtc: string;
 }
-
 export interface IFileSystemEntry {
   path: string;
   name: string;
   isDirectory: boolean;
   lastModifiedUtc: string | null;
 }
-
 export interface IStorageAdapter {
   showSaveDialog(suggestedPath?: string): Promise<string>;
   showOpenDialog(startDirectory?: string): Promise<string>;
@@ -40,18 +36,15 @@ export interface IStorageAdapter {
   readTextFile(path: string): Promise<string>;
   deleteFile(path: string): Promise<void>;
 }
-
 export interface IProcessManager {
   spawnProcess(executablePath: string, args?: string[]): Promise<ProcessHandle>;
   subscribeToUnexpectedExit(processHandle: ProcessHandle, onUnexpectedExit: (error: IPlatformError) => void): () => void;
   stopProcess(processHandle: ProcessHandle): Promise<void>;
   restartProcess(processHandle: ProcessHandle, executablePath: string, args?: string[]): Promise<ProcessHandle>;
 }
-
 export interface ISystemThemeAdapter {
   getSystemTheme(): ResolvedThemeMode;
 }
-
 export interface IEngineAnalysisUpdate {
   position: IBoardPosition;
   positionKey: string;
@@ -59,7 +52,6 @@ export interface IEngineAnalysisUpdate {
   lines: IAnalysisLine[];
   isFinal: boolean;
 }
-
 export interface IEngineClient {
   initialiseEngine(engine: IAssignedEngine): Promise<void>;
   registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void>;
@@ -72,7 +64,6 @@ export interface IEngineClient {
   restartEngine(engine: IAssignedEngine): Promise<void>;
   requiresNewGameBoundary(positionState: IEnginePositionState): boolean;
 }
-
 export interface IPlatformService {
   getStorageAdapter(): IStorageAdapter;
   getProcessManager(): IProcessManager;

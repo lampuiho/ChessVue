@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineProtocol, EngineSearchMode, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
 import { createInitialBoardPosition, GameRuleService, PositionIdentityService } from '@/domain';
 import type { IEngineAnalysisUpdate } from '@/platform';
-import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/NwjsUtility';
+import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -193,7 +193,7 @@ class FakeNwjsEnvironment {
     this._dialogResults.push({ kind: 'selected', path: targetPath });
   }
   createInput(document: Document): HTMLInputElement & { oncancel: ((event: Event) => void) | null } {
-    const input = document.createElement('input') as HTMLInputElement & { oncancel: ((event: Event) => void) | null };
+    const input = Document.prototype.createElement.call(document, 'input') as HTMLInputElement & { oncancel: ((event: Event) => void) | null };
     input.oncancel = null;
     input.click = () => {
       const result = this._dialogResults.shift();
@@ -238,6 +238,8 @@ function createEnginePositionState(): IEnginePositionState {
 
 let environment: FakeNwjsEnvironment;
 let _originalMatchMedia: typeof window.matchMedia;
+let _originalCreateElement: typeof document.createElement;
+let _originalRequire: unknown;
 let usePlatformService: typeof import('@/platform')['usePlatformService'];
 let _engineClientType: typeof import('@/platform')['EngineClientType'];
 
@@ -246,27 +248,29 @@ describe('usePlatformService', () => {
     setActivePinia(createPinia());
     environment = new FakeNwjsEnvironment();
     _originalMatchMedia = window.matchMedia;
+    _originalCreateElement = document.createElement.bind(document);
+    _originalRequire = (globalThis as any).require;
     vi.resetModules();
-    const nwjsUtility = await import('@/utility/NwjsUtility');
-    const nodeUtility = await import('@/utility/NodeUtility');
+    const nwjsUtility = await import('@/utility/nwjs/NwjsUtility');
     nwjsUtility.setNwjsOverride(environment.nw);
-    nodeUtility.setNwjsFsOverride(environment.fileSystem.module);
-    nodeUtility.setNwjsPathOverride(path);
-    nodeUtility.setNwjsDocumentOverride(document);
-    nodeUtility.setNwjsInputFactoryOverride((document) => environment.createInput(document) as any);
-    nodeUtility.setNwjsChildProcessOverride({ spawn: () => environment.spawn() as any });
+    document.createElement = ((tagName: string, options?: ElementCreationOptions) => {
+      if (tagName.toLowerCase() === 'input') return environment.createInput(document);
+      return _originalCreateElement(tagName as keyof HTMLElementTagNameMap, options);
+    }) as typeof document.createElement;
+    (globalThis as any).require = ((moduleName: string) => {
+      if (moduleName === 'fs') return environment.fileSystem.module;
+      if (moduleName === 'path') return path;
+      if (moduleName === 'child_process') return { spawn: () => environment.spawn() as any };
+      throw new Error(`Unsupported test module: ${moduleName}.`);
+    }) as any;
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => environment.mediaQuery });
     ({ usePlatformService, EngineClientType: _engineClientType } = await import('@/platform'));
   });
   afterEach(async () => {
-    const nwjsUtility = await import('@/utility/NwjsUtility');
-    const nodeUtility = await import('@/utility/NodeUtility');
+    const nwjsUtility = await import('@/utility/nwjs/NwjsUtility');
     nwjsUtility.setNwjsOverride(null);
-    nodeUtility.setNwjsFsOverride(null);
-    nodeUtility.setNwjsPathOverride(null);
-    nodeUtility.setNwjsDocumentOverride(null);
-    nodeUtility.setNwjsInputFactoryOverride(null);
-    nodeUtility.setNwjsChildProcessOverride(null);
+    document.createElement = _originalCreateElement;
+    (globalThis as any).require = _originalRequire;
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: _originalMatchMedia });
   });
 

@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 
 import { PlatformErrorKind, type IPlatformError } from '@/contracts';
-import { createNwjsFileInput, getNodeDocument, getNodeFs, getNodePath } from '@/utility/NodeUtility';
-import type { INwjsGlobal } from '@/utility/NwjsUtility';
+import { getNodeFs, getNodePath } from '@/utility/nwjs/NodeUtility';
+import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
 
 import type { IFileSystemEntry, IStorageAdapter } from '../contracts';
 
@@ -23,7 +23,6 @@ function mapNodeError(error: unknown, operation: string, fallbackMessage: string
   return createPlatformError(PlatformErrorKind.InvalidDocument, operation, fallbackMessage, error instanceof Error ? error.message : null);
 }
 async function _resolveFileDialog(input: IFileDialogInput, operation: 'showSaveDialog' | 'showOpenDialog'): Promise<string> {
-  const document = getNodeDocument();
   return new Promise<string>((resolve, reject) => {
     const cleanup = () => {
       input.remove();
@@ -45,74 +44,76 @@ async function _resolveFileDialog(input: IFileDialogInput, operation: 'showSaveD
     input.click();
   });
 }
+function _createFileInput(): IFileDialogInput {
+  return document.createElement('input') as IFileDialogInput;
+}
 export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
   return defineStore('nwjsStorageAdapter', () => {
     const fs = getNodeFs();
-    const path = getNodePath();
-    const document = getNodeDocument();
+    const pathModule = getNodePath();
 
     async function showSaveDialog(suggestedPath?: string): Promise<string> {
-      const input = createNwjsFileInput(document);
+      const input = _createFileInput();
       input.type = 'file';
-      if (suggestedPath !== undefined) input.setAttribute('nwsaveas', path.basename(suggestedPath));
-      const workingDirectory = suggestedPath === undefined ? null : path.dirname(suggestedPath);
+      if (suggestedPath !== undefined) input.setAttribute('nwsaveas', pathModule.basename(suggestedPath));
+      const workingDirectory = suggestedPath === undefined ? null : pathModule.dirname(suggestedPath);
       if (workingDirectory !== null) input.setAttribute('nwworkingdir', workingDirectory);
       return _resolveFileDialog(input, 'showSaveDialog');
     }
     async function showOpenDialog(startDirectory?: string): Promise<string> {
-      const input = createNwjsFileInput(document);
+      const input = _createFileInput();
       input.type = 'file';
       if (startDirectory !== undefined) input.setAttribute('nwworkingdir', startDirectory);
       return _resolveFileDialog(input, 'showOpenDialog');
     }
-    async function listDirectory(path: string): Promise<IFileSystemEntry[]> {
+    async function listDirectory(targetPath: string): Promise<IFileSystemEntry[]> {
       try {
-        const entries = await fs.promises.readdir(path, { withFileTypes: true });
+        const entries = await fs.promises.readdir(targetPath, { withFileTypes: true });
         return await Promise.all(entries.map(async (entry) => {
-          const entryPath = getNodePath().join(path, entry.name);
+          const entryPath = pathModule.join(targetPath, entry.name);
           const lastModifiedUtc = entry.isDirectory() ? null : (await fs.promises.stat(entryPath)).mtime.toISOString();
           return { path: normalisePath(entryPath), name: entry.name, isDirectory: entry.isDirectory(), lastModifiedUtc };
         }));
       } catch (error) {
-        throw mapNodeError(error, 'listDirectory', `Directory was not found or could not be enumerated: ${path}.`);
+        throw mapNodeError(error, 'listDirectory', `Directory was not found or could not be enumerated: ${targetPath}.`);
       }
     }
-    async function ensureDirectory(path: string): Promise<void> {
+    async function ensureDirectory(targetPath: string): Promise<void> {
       try {
-        await fs.promises.mkdir(path, { recursive: true });
+        await fs.promises.mkdir(targetPath, { recursive: true });
       } catch (error) {
-        throw mapNodeError(error, 'ensureDirectory', `Directory could not be created: ${path}.`);
+        throw mapNodeError(error, 'ensureDirectory', `Directory could not be created: ${targetPath}.`);
       }
     }
-    async function writeTextFile(path: string, raw: string, overwrite: boolean = false): Promise<void> {
+    async function writeTextFile(targetPath: string, raw: string, overwrite: boolean = false): Promise<void> {
       try {
-        if (!overwrite) await fs.promises.access(path).then(() => {
-          throw createPlatformError(PlatformErrorKind.AlreadyExists, 'writeTextFile', `File already exists: ${path}.`);
+        if (!overwrite) await fs.promises.access(targetPath).then(() => {
+          throw createPlatformError(PlatformErrorKind.AlreadyExists, 'writeTextFile', `File already exists: ${targetPath}.`);
         }).catch((error) => {
           if (typeof error === 'object' && error !== null && 'kind' in error) throw error;
           if (typeof error === 'object' && error !== null && 'code' in error && String((error as { code: unknown }).code) === 'ENOENT') return;
           throw error;
         });
-        await fs.promises.mkdir(getNodePath().dirname(path), { recursive: true });
-        await fs.promises.writeFile(path, raw, 'utf8');
+        await fs.promises.mkdir(pathModule.dirname(targetPath), { recursive: true });
+        await fs.promises.writeFile(targetPath, raw, 'utf8');
       } catch (error) {
         if (typeof error === 'object' && error !== null && 'kind' in error) throw error;
-        throw mapNodeError(error, 'writeTextFile', `File could not be written: ${path}.`);
+        throw mapNodeError(error, 'writeTextFile', `File could not be written: ${targetPath}.`);
       }
     }
-    async function readTextFile(path: string): Promise<string> {
+    async function readTextFile(targetPath: string): Promise<string> {
       try {
-        const raw = await fs.promises.readFile(path);
+        const raw = await fs.promises.readFile(targetPath);
         return new TextDecoder('utf-8', { fatal: true }).decode(raw);
       } catch (error) {
-        throw mapNodeError(error, 'readTextFile', `File could not be read as a valid text document: ${path}.`);
+        throw mapNodeError(error, 'readTextFile', `File could not be read as a valid text document: ${targetPath}.`);
       }
     }
-    async function deleteFile(path: string): Promise<void> {
+    async function deleteFile(targetPath: string): Promise<void> {
       try {
-        await fs.promises.unlink(path);
+        await fs.promises.unlink(targetPath);
       } catch (error) {
-        throw mapNodeError(error, 'deleteFile', `File could not be deleted: ${path}.`);
+        throw mapNodeError(error, 'deleteFile', `File could not be deleted: ${targetPath}.`);
       }
     }
 

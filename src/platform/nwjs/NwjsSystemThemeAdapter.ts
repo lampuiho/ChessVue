@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 
 import { ResolvedThemeMode } from '@/contracts';
-import type { INwjsGlobal } from '@/utility/NwjsUtility';
+import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
 
 import type { ISystemThemeAdapter } from '../contracts';
 

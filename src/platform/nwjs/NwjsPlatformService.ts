@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 
 import { ResolvedThemeMode, PlatformErrorKind, type IPlatformError } from '@/contracts';
-import type { INwjsGlobal } from '@/utility/NwjsUtility';
+import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
 
 import { EngineClientType, PlatformEventKey, type IPlatformEventRegistration, type IPlatformService } from '../contracts';
 import { defineNwjsProcessManagerStore } from './NwjsProcessManager';

@@ -1,4 +1,4 @@
-import { getPlatformTarget, getNwjs } from '@/utility/NwjsUtility';
+import { getPlatformTarget, getNwjs } from '@/utility/nwjs/NwjsUtility';
 
 import { defineNwjsPlatformServiceStore } from './nwjs/NwjsPlatformService';
 

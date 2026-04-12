@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 
 import { PlatformErrorKind, type IPlatformError } from '@/contracts';
-import { getNodeChildProcess } from '@/utility/NodeUtility';
-import type { INwjsGlobal, ISpawnedProcess } from '@/utility/NwjsUtility';
+import { getNodeChildProcess } from '@/utility/nwjs/NodeUtility';
+import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 import type { IProcessManager, ProcessHandle } from '../contracts';
 

@@ -121,9 +121,7 @@ Each entry must define:
 - Owner-private delegates:
   - `NwjsStorageAdapter._resolveFs`
   - `NwjsStorageAdapter._resolvePath`
-  - `NwjsStorageAdapter._resolveDocument`
-  - `NwjsStorageAdapter._createFileInput`
   - `NwjsProcessManager._resolveChildProcess`
   - `NwjsUciEngineClient._resolveChildProcess`
 - Classification: `mixed`.
-- Validation or failure semantics: the utility must resolve each required Node-backed dependency separately from the active NW.js host when available, allow explicit test override per dependency, and fall back to temporary mock implementations only when the real NW.js-exposed Node environment is unavailable.
+- Validation or failure semantics: the utility must resolve each required Node-backed dependency separately from the active NW.js host when available, and fall back to temporary mock implementations only when the real NW.js-exposed Node environment is unavailable.

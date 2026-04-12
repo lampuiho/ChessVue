@@ -2,8 +2,8 @@ import { defineStore } from 'pinia';
 
 import { EngineSearchMode, MoveKind, PieceKind, PlayerColour, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IBoardPosition, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
 import { GameRuleService, PositionIdentityService } from '@/domain';
-import { getNodeChildProcess } from '@/utility/NodeUtility';
-import type { INwjsGlobal, ISpawnedProcess } from '@/utility/NwjsUtility';
+import { getNodeChildProcess } from '@/utility/nwjs/NodeUtility';
+import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '../contracts';
 

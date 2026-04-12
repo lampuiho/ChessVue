@@ -1,14 +1,8 @@
-import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from './NwjsUtility';
+import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from './models';
 
-interface IMockStorageNodeModules {
-  fs: typeof import('node:fs');
-  path: typeof import('node:path');
-  document: Document;
-  createInput(document: Document): HTMLInputElement & { oncancel: ((event: Event) => void) | null };
-}
-interface IMockProcessNodeModules {
-  childProcess: Pick<typeof import('node:child_process'), 'spawn'>;
-}
+type IFsModule = typeof import('node:fs');
+type IPathModule = typeof import('node:path');
+type IChildProcessModule = Pick<typeof import('node:child_process'), 'spawn'>;
 type TListener = (...args: any[]) => void;
 
 class MockEmitter {
@@ -176,32 +170,28 @@ class MockFsModule {
   }
 }
 
-const _mockNwWindow = new MockNwWindow();
-const _mockNw: INwjsGlobal = { Window: { get: () => _mockNwWindow } };
-const _mockPathModule = new MockPathModule() as unknown as typeof import('node:path');
-const _mockFsModule = new MockFsModule() as unknown as typeof import('node:fs');
-const _mockChildProcessModule = { spawn: (() => new MockChildProcess() as unknown as ReturnType<typeof import('node:child_process')['spawn']>) } as unknown as Pick<typeof import('node:child_process'), 'spawn'>;
+interface IMockedNodeModules {
+  fs?: IFsModule;
+  path?: IPathModule;
+  childProcess?: IChildProcessModule;
+}
+
+const _nodeCache: IMockedNodeModules = {};
+let _nwjsCache: INwjsGlobal | null = null;
 
 export function getMockNwjs(): INwjsGlobal {
-  return _mockNw;
+  _nwjsCache ??= { Window: { get: () => new MockNwWindow() } };
+  return _nwjsCache;
 }
-export function getMockStorageNodeModules(document: Document): IMockStorageNodeModules {
-  return {
-    fs: _mockFsModule,
-    path: _mockPathModule,
-    document,
-    createInput: (document) => {
-      const input = document.createElement('input') as HTMLInputElement & { oncancel: ((event: Event) => void) | null };
-      input.oncancel = null;
-      input.click = () => {
-        queueMicrotask(() => {
-          input.oncancel?.(new Event('cancel'));
-        });
-      };
-      return input;
-    },
-  };
+export function getMockNodeFs(): IFsModule {
+  _nodeCache.fs ??= new MockFsModule() as unknown as IFsModule;
+  return _nodeCache.fs;
 }
-export function getMockProcessNodeModules(): IMockProcessNodeModules {
-  return { childProcess: _mockChildProcessModule };
+export function getMockNodePath(): IPathModule {
+  _nodeCache.path ??= new MockPathModule() as unknown as IPathModule;
+  return _nodeCache.path;
+}
+export function getMockNodeChildProcess(): IChildProcessModule {
+  _nodeCache.childProcess ??= { spawn: (() => new MockChildProcess() as unknown) as IChildProcessModule['spawn'] };
+  return _nodeCache.childProcess as IChildProcessModule;
 }
