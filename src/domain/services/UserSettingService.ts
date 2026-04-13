@@ -30,8 +30,6 @@ function createDefaultSettingsSnapshot(): ISettingsSnapshot {
       confirmMainlineRewrite: true,
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
       promotionPolicy: PromotionPolicy.RequireExplicitSelection,
-      confirmPruneFutureMoves: true,
-      allowRootPrune: false,
     },
     analysis: {
       resumeLiveAnalysisAfterRestore: true,

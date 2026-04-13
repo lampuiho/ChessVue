@@ -13,7 +13,7 @@ stopAnalysis(engine: IAssignedEngine): Promise<void>
 startPlayerTurn(engine: IAssignedEngine): Promise<void>
 subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void
 awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>
-getRuntime(engine: IAssignedEngine): IAssignedEngineRuntime | null
+isRuntimeAlive(engine: IAssignedEngine): boolean
 restartEngine(engine: IAssignedEngine): Promise<void>
 stopEngine(engine: IAssignedEngine): Promise<void>
 ```
@@ -46,9 +46,9 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - `EngineRuntimeService` owns process start, stop, restart, and unexpected-exit handling through `ProcessManager`.
 - `EngineRuntimeService` binds runtime process state directly onto `IAssignedEngine.$`, including the `processHandle` returned by `ProcessManager`.
 - `EngineClient` owns UCI mapping, engine-facing FEN, engine-output interpretation, and protocol sequencing behind this service.
-- `getRuntime(...)` is the polling surface for health checks. It returns the current runtime view already stored under `engine.$`.
+- `isRuntimeAlive(...)` is the only public runtime-health polling surface. Detailed runtime state stays internal on `engine.$`.
 - `startPlayerTurn` has no response timeout in the baseline. If the process stays alive but does not produce a valid move, the turn remains pending until a valid move arrives or the session exits unexpectedly.
 - Player-turn completion is exposed as `awaitPlayerTurnMove(...)`, even if the implementation uses internal callbacks to resolve that promise.
-- Session health checks use `getRuntime(...)` polling over `availability` and `lastError`, rather than a public session-event callback contract.
+- Session health checks use `isRuntimeAlive(...)` polling rather than a public session-event callback contract.
 - Unexpected process exit is the only automatic disconnection trigger. Recovery stays manual through the owning retry flows.
 - Analysis parse failures discard only the bad protocol message and keep the session alive. Player-turn parse failures and other runtime exceptions are surfaced to the owning standard error-handling path.

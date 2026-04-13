@@ -87,9 +87,11 @@ export const EngineRuntimeService = {
     const engineClient = getEngineClient(engine);
     return runEngineOperation(engine, () => engineClient.awaitPlayerTurnMove(engine));
   },
-  getRuntime(engine: IAssignedEngine): IAssignedEngineRuntime | null {
+  isRuntimeAlive(engine: IAssignedEngine): boolean {
     const runtimeState = getRuntimeState(engine);
-    return runtimeState === null ? null : { ...runtimeState, analysisCallbacks: new Set(runtimeState.analysisCallbacks) };
+    return runtimeState !== null
+      && runtimeState.availability !== EngineAvailability.Unavailable
+      && runtimeState.availability !== EngineAvailability.Failed;
   },
   async restartEngine(engine: IAssignedEngine): Promise<void> {
     const engineClient = getEngineClient(engine);

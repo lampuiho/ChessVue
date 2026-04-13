@@ -47,8 +47,6 @@ export interface ISettingsGameplay {
   confirmMainlineRewrite: boolean
   analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
   promotionPolicy: PromotionPolicy
-  confirmPruneFutureMoves: boolean
-  allowRootPrune: boolean
 }
 export interface ISettingsAnalysis {
   resumeLiveAnalysisAfterRestore: boolean
@@ -96,8 +94,6 @@ export const settingsGameplaySchema = z.object({
   confirmMainlineRewrite: z.boolean(),
   analysisBranchExitBehaviour: analysisBranchExitBehaviourSchema,
   promotionPolicy: promotionPolicySchema,
-  confirmPruneFutureMoves: z.boolean(),
-  allowRootPrune: z.boolean(),
 })
 
 export const settingsAnalysisSchema = z.object({
