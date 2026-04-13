@@ -5,7 +5,7 @@ import { PassThrough, Writable } from 'node:stream';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EngineClientType, EngineProtocol, EngineSearchMode, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
 import { GameRuleService, PositionIdentityService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
 import type { IEngineAnalysisUpdate } from '@/platform';
@@ -355,10 +355,12 @@ describe('usePlatformService', () => {
 
   it('maps engine state to UCI commands and parses analysis plus player moves through one process', async () => {
     const platform = usePlatformService();
+    const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const positionState = createEnginePositionState();
     const updates: IEngineAnalysisUpdate[] = [];
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, lastError: null };
 
     const syncPromise = client.syncPosition(engine, positionState);
     const process = environment.latestProcess();
@@ -369,7 +371,7 @@ describe('usePlatformService', () => {
     ]);
     process.queueResponse('go', ['bestmove e7e5']);
     await syncPromise;
-    await client.startAnalysis(engine, { multiPv: 2, searchMode: EngineSearchMode.Infinite }, (update) => {
+    await client.startAnalysis(engine, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, (update) => {
       updates.push(update);
     });
     await client.startPlayerTurn(engine);

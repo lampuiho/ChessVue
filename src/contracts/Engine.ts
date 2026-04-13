@@ -1,16 +1,14 @@
 import { z } from 'zod'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { moveSchema, type IMove } from './Move'
+import type { IAnalysisLine } from './Analysis'
 
+export type ProcessHandle = string
 export const enum EngineProtocol {
   Uci = 'uci',
 }
 export const enum EngineClientType {
   Uci = 'uci',
-}
-export const enum EngineRole {
-  Player = 'player',
-  Analysis = 'analysis',
 }
 export const enum EngineAvailability {
   Ready = 'ready',
@@ -19,36 +17,13 @@ export const enum EngineAvailability {
   Unavailable = 'unavailable',
   Failed = 'failed',
 }
-export const enum EngineSearchMode {
+export const enum EngineAnalysisSearchMode {
   Infinite = 'infinite',
-}
-export const enum EngineSessionEventKind {
-  HandshakeStarted = 'handshakeStarted',
-  HandshakeCompleted = 'handshakeCompleted',
-  Ready = 'ready',
-  CopyProtectionChecking = 'copyProtectionChecking',
-  CopyProtectionOk = 'copyProtectionOk',
-  CopyProtectionError = 'copyProtectionError',
-  RegistrationChecking = 'registrationChecking',
-  RegistrationOk = 'registrationOk',
-  RegistrationError = 'registrationError',
 }
 export const engineProtocols = [EngineProtocol.Uci] as const
 export const engineClientTypes = [EngineClientType.Uci] as const
-export const engineRoles = [EngineRole.Player, EngineRole.Analysis] as const
 export const engineAvailabilities = [EngineAvailability.Ready, EngineAvailability.Starting, EngineAvailability.Running, EngineAvailability.Unavailable, EngineAvailability.Failed] as const
-export const engineSearchModes = [EngineSearchMode.Infinite] as const
-export const engineSessionEventKinds = [
-  EngineSessionEventKind.HandshakeStarted,
-  EngineSessionEventKind.HandshakeCompleted,
-  EngineSessionEventKind.Ready,
-  EngineSessionEventKind.CopyProtectionChecking,
-  EngineSessionEventKind.CopyProtectionOk,
-  EngineSessionEventKind.CopyProtectionError,
-  EngineSessionEventKind.RegistrationChecking,
-  EngineSessionEventKind.RegistrationOk,
-  EngineSessionEventKind.RegistrationError,
-] as const
+export const engineAnalysisSearchModes = [EngineAnalysisSearchMode.Infinite] as const
 
 export interface IEngineOptionMap {
   [optionName: string]: string | number | boolean
@@ -61,12 +36,18 @@ export interface IEngineRecord {
   protocol: EngineProtocol
   options: IEngineOptionMap
 }
+export interface IAssignedEngineRuntime {
+  processHandle: ProcessHandle | null
+  availability: EngineAvailability
+  lastError: string | null
+}
 export interface IAssignedEngine {
   displayName: string
   executablePath: string
   clientType: EngineClientType
   protocol: EngineProtocol
   options: IEngineOptionMap
+  $?: IAssignedEngineRuntime
 }
 export interface IEnginePositionState {
   rootPosition: IBoardPosition
@@ -74,33 +55,26 @@ export interface IEnginePositionState {
   currentPosition: IBoardPosition
   requiresNewGameBoundary: boolean
 }
-export interface IEngineRuntimeSession {
-  sessionId: string
-  gameId: string
-  role: EngineRole
-  availability: EngineAvailability
-  targetPositionState: IEnginePositionState | null
-  lastError: string | null
-}
 export interface IEngineAnalysisRequest {
   multiPv: number
-  searchMode: EngineSearchMode
+  searchMode: EngineAnalysisSearchMode
+}
+export interface IEngineAnalysisUpdate {
+  position: IBoardPosition
+  positionKey: string
+  bestMove: IMove | null
+  lines: IAnalysisLine[]
+  isFinal: boolean
 }
 export interface IEngineRegistrationRequest {
   name: string | null
   code: string | null
   registerLater: boolean
 }
-export interface IEngineSessionEvent {
-  kind: EngineSessionEventKind
-  detail: string | null
-}
 export const engineProtocolSchema = z.enum(engineProtocols)
 export const engineClientTypeSchema = z.enum(engineClientTypes)
-export const engineRoleSchema = z.enum(engineRoles)
 export const engineAvailabilitySchema = z.enum(engineAvailabilities)
-export const engineSearchModeSchema = z.enum(engineSearchModes)
-export const engineSessionEventKindSchema = z.enum(engineSessionEventKinds)
+export const engineAnalysisSearchModeSchema = z.enum(engineAnalysisSearchModes)
 export const engineOptionValueSchema = z.union([z.string(), z.number(), z.boolean()])
 export const engineOptionMapSchema = z.record(z.string(), engineOptionValueSchema)
 
@@ -128,27 +102,13 @@ export const enginePositionStateSchema = z.object({
   requiresNewGameBoundary: z.boolean(),
 })
 
-export const engineRuntimeSessionSchema = z.object({
-  sessionId: z.string().min(1),
-  gameId: z.string().min(1),
-  role: engineRoleSchema,
-  availability: engineAvailabilitySchema,
-  targetPositionState: enginePositionStateSchema.nullable(),
-  lastError: z.string().nullable(),
-})
-
 export const engineAnalysisRequestSchema = z.object({
   multiPv: z.number().int().min(1),
-  searchMode: engineSearchModeSchema,
+  searchMode: engineAnalysisSearchModeSchema,
 })
 
 export const engineRegistrationRequestSchema = z.object({
   name: z.string().nullable(),
   code: z.string().nullable(),
   registerLater: z.boolean(),
-})
-
-export const engineSessionEventSchema = z.object({
-  kind: engineSessionEventKindSchema,
-  detail: z.string().nullable(),
 })

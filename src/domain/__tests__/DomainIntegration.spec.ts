@@ -37,7 +37,7 @@ describe('Domain integration', () => {
     const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
     const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null });
     const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
-    const nextTree = MoveUpdateService.addMainlineMove(moveTree, [], MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
+    const nextTree = MoveUpdateService.addMainlineMove(moveTree.root, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
 
     const workspace = {
       schemaVersion: 1,

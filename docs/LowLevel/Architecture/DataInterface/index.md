@@ -3,8 +3,6 @@
 ## Purpose
 This folder defines the shared low-level types used across the platform, domain, state, and presentation layers.
 
-The types in this folder are the contract-level shapes that state stores and services coordinate around. They are not inferred from the current starter code.
-
 ## Core Runtime Types
 - [ChessPiece](ChessPiece.md): piece, colour, square, and notation primitives.
 - [ChessboardState](ChessboardState.md): serialisable board-position state.

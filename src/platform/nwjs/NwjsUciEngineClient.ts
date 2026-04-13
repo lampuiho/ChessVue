@@ -1,17 +1,12 @@
 import { defineStore } from 'pinia';
 
-import { EngineSearchMode, MoveKind, PieceKind, PlayerColour, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IBoardPosition, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAnalysisSearchMode, MoveKind, PieceKind, PlayerColour, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
 import { GameRuleService, PositionIdentityService } from '@/domain';
-import { getNodeChildProcess } from '@/utility/nwjs/NodeUtility';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '../contracts';
+import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 
-type IRuntimeAssignedEngine = IAssignedEngine & {
-  $?: {
-    processHandle?: ProcessHandle | null;
-  };
-};
 interface IDeferred<T> {
   promise: Promise<T>;
   resolve(value: T): void;
@@ -25,7 +20,6 @@ interface ILineWaiter {
 interface IUciSession {
   initialised: boolean;
   isStopping: boolean;
-  processHandle: ProcessHandle | null;
   process: ISpawnedProcess | null;
   lineBuffer: string;
   positionState: IEnginePositionState | null;
@@ -35,6 +29,15 @@ interface IUciSession {
   waiters: ILineWaiter[];
   detachProcessListeners: (() => void) | null;
 }
+interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
+  session: IUciSession;
+}
+type IRuntimeAssignedEngine = IAssignedEngine & {
+  $: IAssignedEngineRuntime;
+};
+type IAssignedUciEngine = IAssignedEngine & {
+  $: IAssignedUciEngineRuntime;
+};
 
 function createDeferred<T>(): IDeferred<T> {
   let resolve!: (value: T) => void;
@@ -152,17 +155,47 @@ function buildRegistrationCommand(request: IEngineRegistrationRequest): string {
 function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail: string | null = null): IPlatformError {
   return { kind, operation, message, detail };
 }
-export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
+function createSession(): IUciSession {
+  return {
+    initialised: false,
+    isStopping: false,
+    process: null,
+    lineBuffer: '',
+    positionState: null,
+    analysisCallback: null,
+    analysisLines: new Map(),
+    playerMoveDeferred: null,
+    waiters: [],
+    detachProcessListeners: null,
+  };
+}
+function isRuntimeAssignedUciEngine(engine: IAssignedEngine): engine is IAssignedUciEngine {
+  return engine.$ !== undefined && 'session' in engine.$;
+}
+function hasRuntimeAssignedEngine(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
+  return engine.$ !== undefined;
+}
+function requireRuntimeAssignedEngine(engine: IAssignedEngine): IRuntimeAssignedEngine {
+  if (hasRuntimeAssignedEngine(engine)) return engine;
+  throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine runtime is not available for ${engine.displayName}.`);
+}
+function requireRuntimeAssignedUciEngine(engine: IAssignedEngine): IAssignedUciEngine {
+  if (isRuntimeAssignedUciEngine(engine)) return engine;
+  throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine runtime is not available for ${engine.displayName}.`);
+}
+function _ensureAssignedEngineInitialised(engine: IAssignedEngine): IAssignedUciEngine {
+  if (isRuntimeAssignedUciEngine(engine)) return engine;
+  const runtimeState: IAssignedUciEngineRuntime = { ...requireRuntimeAssignedEngine(engine).$, session: createSession() };
+  engine.$ = runtimeState;
+  if (isRuntimeAssignedUciEngine(engine)) return engine;
+  throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Failed to initialise engine runtime for ${engine.displayName}.`);
+}
+export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
   return defineStore('nwjsUciEngineClient', () => {
-    const childProcess = getNodeChildProcess();
-    let nextProcessHandleId = 1;
-    const sessionByEngine = new WeakMap<IAssignedEngine, IUciSession>();
-    const processByHandle = new Map<ProcessHandle, ISpawnedProcess>();
-
     async function initialiseEngine(engine: IAssignedEngine): Promise<void> {
-      const session = _getOrCreateSession(engine);
+      const session = _requireSession(_ensureAssignedEngineInitialised(engine));
       if (session.initialised) return;
-      const processHandle = await _ensureProcess(engine);
+      const processHandle = _requireProcessHandle(engine);
       _attachToProcess(engine, processHandle);
       await _writeCommandAndWait(session, processHandle, 'uci', (line) => line === 'uciok');
       for (const [optionName, value] of Object.entries(engine.options)) await _writeCommand(processHandle, `setoption name ${optionName} value ${String(value)}`);
@@ -175,7 +208,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
     }
     async function syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {
       await initialiseEngine(engine);
-      const session = _getOrCreateSession(engine);
+      const session = _requireSession(engine);
       const processHandle = _requireProcessHandle(engine);
       if (session.positionState === null || requiresNewGameBoundary(positionState)) {
         await _writeCommand(processHandle, 'ucinewgame');
@@ -185,9 +218,9 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
       await _writeCommand(processHandle, buildPositionCommand(positionState));
     }
     async function startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void> {
-      if (request.searchMode !== EngineSearchMode.Infinite) throw new Error(`Unsupported engine search mode: ${request.searchMode}.`);
+      if (request.searchMode !== EngineAnalysisSearchMode.Infinite) throw new Error(`Unsupported engine search mode: ${request.searchMode}.`);
       await initialiseEngine(engine);
-      const session = _getOrCreateSession(engine);
+      const session = _requireSession(engine);
       session.analysisCallback = onUpdate;
       session.analysisLines.clear();
       await _writeCommand(_requireProcessHandle(engine), `setoption name MultiPV value ${request.multiPv}`);
@@ -198,41 +231,31 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
     }
     async function startPlayerTurn(engine: IAssignedEngine): Promise<void> {
       await initialiseEngine(engine);
-      const session = _getOrCreateSession(engine);
+      const session = _requireSession(engine);
       session.playerMoveDeferred = createDeferred<IMove>();
       await _writeCommand(_requireProcessHandle(engine), 'go');
     }
     async function awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
-      const session = _getOrCreateSession(engine);
+      const session = _requireSession(engine);
       if (session.playerMoveDeferred === null) throw new Error(`No player turn is active for engine ${engine.displayName}.`);
       const movePromise = session.playerMoveDeferred.promise;
       session.playerMoveDeferred = null;
       return movePromise;
     }
     async function stopEngine(engine: IAssignedEngine): Promise<void> {
-      const runtimeEngine = engine as IRuntimeAssignedEngine;
-      const session = _getOrCreateSession(engine);
-      const process = session.process;
+      const session = _requireSession(_ensureAssignedEngineInitialised(engine));
+      session.isStopping = true;
       session.initialised = false;
       session.positionState = null;
       session.analysisCallback = null;
       session.analysisLines.clear();
+      session.waiters.splice(0).forEach((waiter) => waiter.reject(new Error('Engine stopped.')));
       session.playerMoveDeferred?.reject(new Error('Engine stopped.'));
       session.playerMoveDeferred = null;
-      if (process !== null) {
-        session.isStopping = true;
-        await _writeCommand(session.processHandle, 'quit').catch(() => undefined);
-        await new Promise<void>((resolve) => {
-          process.once('exit', () => resolve());
-          process.kill();
-        }).catch(() => undefined);
-      }
-      runtimeEngine.$ = { ...(runtimeEngine.$ ?? {}), processHandle: null };
+      session.lineBuffer = '';
       _detachProcess(session);
-      session.isStopping = false;
-      if (session.processHandle !== null) processByHandle.delete(session.processHandle);
       session.process = null;
-      session.processHandle = null;
+      session.isStopping = false;
     }
     async function restartEngine(engine: IAssignedEngine): Promise<void> {
       await stopEngine(engine);
@@ -241,54 +264,29 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
     function requiresNewGameBoundary(positionState: IEnginePositionState): boolean {
       return positionState.requiresNewGameBoundary;
     }
-    async function _ensureProcess(engine: IAssignedEngine): Promise<ProcessHandle> {
-      const runtimeEngine = engine as IRuntimeAssignedEngine;
-      const session = _getOrCreateSession(engine);
-      if (session.process !== null && session.processHandle !== null) return session.processHandle;
-      const process = childProcess.spawn(engine.executablePath, [], { stdio: 'pipe' }) as unknown as ISpawnedProcess;
-      const processHandle = `engine-process-${nextProcessHandleId++}`;
-      await new Promise<void>((resolve, reject) => {
-        const handleSpawn = () => {
-          cleanup();
-          resolve();
-        };
-        const handleError = (error: Error & { code?: string }) => {
-          cleanup();
-          reject(createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Process failed to start: ${engine.executablePath}.`, error.message));
-        };
-        const cleanup = () => {
-          process.removeListener('spawn', handleSpawn);
-          process.removeListener('error', handleError);
-        };
-        process.once('spawn', handleSpawn);
-        process.once('error', handleError);
-      });
-      session.process = process;
-      session.processHandle = processHandle;
-      processByHandle.set(processHandle, process);
-      runtimeEngine.$ = { ...(runtimeEngine.$ ?? {}), processHandle };
-      return processHandle;
-    }
     function _attachToProcess(engine: IAssignedEngine, processHandle: ProcessHandle): void {
-      const session = _getOrCreateSession(engine);
-      if (session.processHandle !== processHandle || session.process === null) throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine process is not available for ${engine.displayName}.`);
+      const runtimeState = requireRuntimeAssignedUciEngine(engine).$;
+      const session = runtimeState.session;
+      if (runtimeState.processHandle !== processHandle) throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine process is not available for ${engine.displayName}.`);
+      const process = _requireProcess(processHandle);
+      if (session.process === process && session.detachProcessListeners !== null) return;
+      if (session.detachProcessListeners !== null) _detachProcess(session);
+      session.process = process;
       if (session.detachProcessListeners !== null) return;
-      const process = session.process;
       const onStdoutData = (chunk: string | Buffer) => _consumeChunk(session, chunk.toString());
       const onStderrData = (chunk: string | Buffer) => _consumeChunk(session, chunk.toString());
       const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+        session.detachProcessListeners = null;
+        session.process = null;
         if (session.isStopping) return;
         const error = createPlatformError(PlatformErrorKind.UnexpectedExit, 'engineClient', `Engine exited unexpectedly for ${engine.displayName}.`, `code=${code ?? 'null'} signal=${signal ?? 'null'}`);
         session.initialised = false;
+        session.positionState = null;
         session.waiters.splice(0).forEach((waiter) => waiter.reject(error));
         session.playerMoveDeferred?.reject(error);
         session.playerMoveDeferred = null;
         session.analysisCallback = null;
         session.analysisLines.clear();
-        if (session.processHandle !== null) processByHandle.delete(session.processHandle);
-        session.process = null;
-        session.processHandle = null;
-        (engine as IRuntimeAssignedEngine).$ = { ...((engine as IRuntimeAssignedEngine).$ ?? {}), processHandle: null };
       };
       process.stdout?.on('data', onStdoutData);
       process.stderr?.on('data', onStderrData);
@@ -356,22 +354,18 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
       process.stdin.write(`${command}\n`);
     }
     function _requireProcessHandle(engine: IAssignedEngine): ProcessHandle {
-      const processHandle = (engine as IRuntimeAssignedEngine).$?.processHandle ?? null;
+      const processHandle = requireRuntimeAssignedUciEngine(engine).$.processHandle;
       if (processHandle === null) throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine process is not available for ${engine.displayName}.`);
       return processHandle;
     }
     function _requireProcess(processHandle: ProcessHandle | null): ISpawnedProcess {
       if (processHandle === null) throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', 'Engine process handle is unavailable.');
-      const process = processByHandle.get(processHandle);
+      const process = processRegistry.get(processHandle);
       if (process !== undefined) return process;
       throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine process is not available for handle ${processHandle}.`);
     }
-    function _getOrCreateSession(engine: IAssignedEngine): IUciSession {
-      const existingSession = sessionByEngine.get(engine);
-      if (existingSession !== undefined) return existingSession;
-      const session: IUciSession = { initialised: false, isStopping: false, processHandle: null, process: null, lineBuffer: '', positionState: null, analysisCallback: null, analysisLines: new Map(), playerMoveDeferred: null, waiters: [], detachProcessListeners: null };
-      sessionByEngine.set(engine, session);
-      return session;
+    function _requireSession(engine: IAssignedEngine): IUciSession {
+      return requireRuntimeAssignedUciEngine(engine).$.session;
     }
 
     return { initialiseEngine, registerEngine, syncPosition, startAnalysis, stopAnalysis, startPlayerTurn, awaitPlayerTurnMove, stopEngine, restartEngine, requiresNewGameBoundary } satisfies IEngineClient;

@@ -5,6 +5,7 @@ import { getNodeChildProcess } from '@/utility/nwjs/NodeUtility';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 import type { IProcessManager, ProcessHandle } from '../contracts';
+import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 
 interface IProcessSession {
   process: ISpawnedProcess;
@@ -15,7 +16,7 @@ interface IProcessSession {
 function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail: string | null = null): IPlatformError {
   return { kind, operation, message, detail };
 }
-export function defineNwjsProcessManagerStore(_nw: INwjsGlobal) {
+export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
   return defineStore('nwjsProcessManager', () => {
     const childProcess = getNodeChildProcess();
     let nextHandleId = 1;
@@ -29,10 +30,12 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal) {
         const handleSpawn = () => {
           cleanup();
           sessionByHandle.set(handle, { process, exitSubscribers: new Map(), isStopping: false });
+          processRegistry.set(handle, process);
           process.once('exit', (code: number | null, signal: NodeJS.Signals | null) => {
             const session = sessionByHandle.get(handle);
             if (session === undefined) return;
             sessionByHandle.delete(handle);
+            processRegistry.delete(handle);
             if (session.isStopping) return;
             const error = createPlatformError(PlatformErrorKind.UnexpectedExit, 'spawnProcess', `Process exited unexpectedly: ${executablePath}.`, `code=${code ?? 'null'} signal=${signal ?? 'null'}`);
             for (const subscriber of session.exitSubscribers.values()) subscriber(error);
@@ -67,6 +70,7 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal) {
         session.process.kill();
       });
       sessionByHandle.delete(processHandle);
+      processRegistry.delete(processHandle);
     }
     async function restartProcess(processHandle: ProcessHandle, executablePath: string, args: string[] = []): Promise<ProcessHandle> {
       await stopProcess(processHandle);

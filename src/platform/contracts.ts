@@ -1,11 +1,9 @@
-import type { IAnalysisLine } from '@/contracts/Analysis';
 import type { ResolvedThemeMode } from '@/contracts/Appearance';
-import type { IBoardPosition } from '@/contracts/ChessboardState';
-import { EngineClientType, type IAssignedEngine, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest } from '@/contracts/Engine';
+import { EngineClientType, type IAssignedEngine, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEnginePositionState, type IEngineRegistrationRequest, type ProcessHandle } from '@/contracts/Engine';
 import type { IMove } from '@/contracts/Move';
 import type { IPlatformError } from '@/contracts/PlatformError';
 
-export type ProcessHandle = string;
+export type { IEngineAnalysisUpdate, ProcessHandle };
 export { EngineClientType };
 export const enum PlatformEventKey {
   AppCloseRequested = 'appCloseRequested',
@@ -42,13 +40,6 @@ export interface IProcessManager {
 }
 export interface ISystemThemeAdapter {
   getSystemTheme(): ResolvedThemeMode;
-}
-export interface IEngineAnalysisUpdate {
-  position: IBoardPosition;
-  positionKey: string;
-  bestMove: IMove | null;
-  lines: IAnalysisLine[];
-  isFinal: boolean;
 }
 export interface IEngineClient {
   initialiseEngine(engine: IAssignedEngine): Promise<void>;

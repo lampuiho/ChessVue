@@ -34,9 +34,9 @@ describe('MoveUpdateService', () => {
 
   it('adds a mainline move and demotes the previous continuation to a variation', () => {
     const tree = MoveUpdateService.createMoveTree(createInitialBoardPosition(), null)
-    const first = MoveUpdateService.addMainlineMove(tree, [], sampleMove, createInitialBoardPosition(), null)
+    const first = MoveUpdateService.addMainlineMove(tree.root, sampleMove, createInitialBoardPosition(), null)
     const secondMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
-    const second = MoveUpdateService.addMainlineMove(first, [], secondMove, createInitialBoardPosition(), null)
+    const second = MoveUpdateService.addMainlineMove(first.root, secondMove, createInitialBoardPosition(), null)
 
     expect(second.root.children).toHaveLength(2)
     expect(second.root.children[0]!.branchKind).toBe(MoveBranchKind.Variation)
@@ -55,7 +55,7 @@ describe('MoveUpdateService', () => {
       { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
       { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ])
-    const analysisTree = MoveUpdateService.addAnalysisMove(tree, [], sampleMove, analysisPosition)
+    const analysisTree = MoveUpdateService.addAnalysisMove(tree.root, sampleMove, analysisPosition)
     const analysisNode = getNode(analysisTree, [0])
 
     expect(analysisTree.root.mainlineChildIndex).toBeNull()
@@ -65,10 +65,10 @@ describe('MoveUpdateService', () => {
 
   it('rewrites the selected child to the mainline', () => {
     const tree = MoveUpdateService.createMoveTree(createInitialBoardPosition(), null)
-    const first = MoveUpdateService.addAnalysisMove(tree, [], sampleMove, createInitialBoardPosition())
+    const first = MoveUpdateService.addAnalysisMove(tree.root, sampleMove, createInitialBoardPosition())
     const secondMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
-    const second = MoveUpdateService.addAnalysisMove(first, [], secondMove, createInitialBoardPosition())
-    const rewritten = MoveUpdateService.rewriteMainline(second, [], 1)
+    const second = MoveUpdateService.addAnalysisMove(first.root, secondMove, createInitialBoardPosition())
+    const rewritten = MoveUpdateService.rewriteMainline(second.root, second.root.children[1]!)
 
     expect(rewritten.root.mainlineChildIndex).toBe(1)
     expect(rewritten.root.children[1]!.branchKind).toBe(MoveBranchKind.Mainline)
@@ -81,10 +81,10 @@ describe('MoveUpdateService', () => {
       incrementMs: 0,
     })
     const tree = MoveUpdateService.createMoveTree(createInitialBoardPosition(), clockSnapshot)
-    const first = MoveUpdateService.addMainlineMove(tree, [], sampleMove, createInitialBoardPosition(), clockSnapshot)
+    const first = MoveUpdateService.addMainlineMove(tree.root, sampleMove, createInitialBoardPosition(), clockSnapshot)
     const secondMove: IMove = { ...sampleMove, from: boardId(4, 6), to: boardId(4, 4), movingColour: PlayerColour.Black }
-    const second = MoveUpdateService.addMainlineMove(first, [0], secondMove, createInitialBoardPosition(), clockSnapshot)
-    const takenBack = MoveUpdateService.takeBack(second, [0, 0], 1)
+    const second = MoveUpdateService.addMainlineMove(first.root.children[0]!, secondMove, createInitialBoardPosition(), clockSnapshot)
+    const takenBack = MoveUpdateService.takeBack(second.root.children[0]!.children[0]!, 1)
 
     expect(getNode(takenBack, [0]).mainlineChildIndex).toBeNull()
     expect(getNode(takenBack, [0]).children).toHaveLength(0)

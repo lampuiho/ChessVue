@@ -90,7 +90,7 @@ function createGame(): IGame {
   const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null });
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
-  const updatedTree = MoveUpdateService.addMainlineMove(moveTree, [], MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
+  const updatedTree = MoveUpdateService.addMainlineMove(moveTree.root, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
 
   return {
     schemaVersion: 1,
