@@ -1,5 +1,23 @@
-import { MoveKind, PieceKind, PlayerColour, type IAnalysisLine, type IBoardPosition, type IEnginePositionState, type IEngineRegistrationRequest, type IMove } from '@/contracts';
+import { MoveKind, PieceKind, PlayerColour, type IAnalysisLine, type IBoardPosition, type IEngineAnalysisUpdate, type IEnginePositionState, type IEngineRegistrationRequest, type IMove } from '@/contracts';
 import { GameRuleService } from '@/domain';
+import { Deferred } from '@/utility/async/Deferred';
+
+export interface IUciLineWaiter {
+  predicate(line: string): boolean;
+  resolve(line: string): void;
+  reject(error: unknown): void;
+}
+export interface IUciSession<TProcess> {
+  initialised: boolean;
+  isStopping: boolean;
+  process: TProcess | null;
+  positionState: IEnginePositionState | null;
+  analysisCallback: ((update: IEngineAnalysisUpdate) => void) | null;
+  analysisLines: Map<number, IAnalysisLine>;
+  playerMoveDeferred: Deferred<IMove> | null;
+  waiters: IUciLineWaiter[];
+  detachProcessListeners: (() => void) | null;
+}
 
 function pieceToFenToken(kind: PieceKind, colour: PlayerColour): string {
   const token = kind === PieceKind.King ? 'k' : kind === PieceKind.Queen ? 'q' : kind === PieceKind.Rook ? 'r' : kind === PieceKind.Bishop ? 'b' : kind === PieceKind.Knight ? 'n' : 'p';
@@ -104,4 +122,44 @@ export function buildRegistrationCommand(request: IEngineRegistrationRequest): s
   const namePart = request.name === null ? '' : ` name ${request.name}`;
   const codePart = request.code === null ? '' : ` code ${request.code}`;
   return `register${namePart}${codePart}`;
+}
+export function createUciSession<TProcess>(): IUciSession<TProcess> {
+  return {
+    initialised: false,
+    isStopping: false,
+    process: null,
+    positionState: null,
+    analysisCallback: null,
+    analysisLines: new Map(),
+    playerMoveDeferred: null,
+    waiters: [],
+    detachProcessListeners: null,
+  };
+}
+export function stopUciSession<TProcess>(session: IUciSession<TProcess>, message = 'Engine stopped.'): IUciSession<TProcess> {
+  session.isStopping = true;
+  session.initialised = false;
+  session.positionState = null;
+  session.analysisCallback = null;
+  session.analysisLines.clear();
+  session.waiters.splice(0).forEach((waiter) => waiter.reject(new Error(message)));
+  session.playerMoveDeferred?.reject(new Error(message));
+  session.playerMoveDeferred = null;
+  session.detachProcessListeners?.();
+  session.detachProcessListeners = null;
+  session.process = null;
+  session.isStopping = false;
+  return session;
+}
+export function failUciSession<TProcess>(session: IUciSession<TProcess>, error: unknown): IUciSession<TProcess> {
+  session.initialised = false;
+  session.positionState = null;
+  session.waiters.splice(0).forEach((waiter) => waiter.reject(error));
+  session.playerMoveDeferred?.reject(error);
+  session.playerMoveDeferred = null;
+  session.analysisCallback = null;
+  session.analysisLines.clear();
+  session.detachProcessListeners = null;
+  session.process = null;
+  return session;
 }
