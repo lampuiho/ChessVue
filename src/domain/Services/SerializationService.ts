@@ -1,10 +1,10 @@
 import {
-  gameWorkspaceSchema,
+  gameSchema,
   settingsSnapshotSchema,
   gameSessionSnapshotSchema,
   uiLayoutStateSchema,
+  type IGame,
   type IGameSessionSnapshot,
-  type IGameWorkspace,
   type IMoveNode,
   type IMoveTree,
   type ISettingsSnapshot,
@@ -68,18 +68,18 @@ function getNodeAtPath(tree: IMoveTree, path: MovePath, selectorName: string): I
 function validateMoveTree(tree: IMoveTree): void {
   validateMoveNode(tree.root);
 }
-function normaliseWorkspace(workspace: IGameWorkspace): IGameWorkspace {
+function normaliseGame(game: IGame): IGame {
   return {
-    ...structuredClone(workspace),
-    boardRoot: normaliseBoardPosition(workspace.boardRoot),
-    moveTree: normaliseMoveTree(workspace.moveTree),
+    ...structuredClone(game),
+    boardRoot: normaliseBoardPosition(game.boardRoot),
+    moveTree: normaliseMoveTree(game.moveTree),
   };
 }
-function validateWorkspace(workspace: IGameWorkspace): void {
-  validateMoveTree(workspace.moveTree);
-  getNodeAtPath(workspace.moveTree, workspace.highlightPath, 'Saved game highlightPath');
-  if (workspace.livePath !== null) getNodeAtPath(workspace.moveTree, workspace.livePath, 'Saved game livePath');
-  if (PositionIdentityService.buildPositionKey(workspace.moveTree.root.position) !== PositionIdentityService.buildPositionKey(workspace.boardRoot)) {
+function validateGame(game: IGame): void {
+  validateMoveTree(game.moveTree);
+  getNodeAtPath(game.moveTree, game.highlightPath, 'Saved game highlightPath');
+  if (game.livePath !== null) getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
+  if (PositionIdentityService.buildPositionKey(game.moveTree.root.position) !== PositionIdentityService.buildPositionKey(game.boardRoot)) {
     throw new SerializationError('Saved game boardRoot must match the move-tree root position.');
   }
 }
@@ -102,11 +102,11 @@ function migrateUiLayoutState(input: unknown): IUiLayoutState {
   requireSchemaVersionOne(input, 'UI layout state');
   return parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), input);
 }
-function migrateGame(input: unknown): IGameWorkspace {
+function migrateGame(input: unknown): IGame {
   requireSchemaVersionOne(input, 'Saved game');
-  const workspace = normaliseWorkspace(parseWithSchema('Saved game', (value) => gameWorkspaceSchema.parse(value), input));
-  validateWorkspace(workspace);
-  return workspace;
+  const game = normaliseGame(parseWithSchema('Saved game', (value) => gameSchema.parse(value), input));
+  validateGame(game);
+  return game;
 }
 
 export const SerializationService = {
@@ -129,12 +129,12 @@ export const SerializationService = {
   deserialiseUiLayoutState(raw: string): IUiLayoutState {
     return this.migrateUiLayoutState(parseJson(raw));
   },
-  serialiseGame(workspace: IGameWorkspace): string {
-    const normalisedWorkspace = normaliseWorkspace(parseWithSchema('Saved game', (value) => gameWorkspaceSchema.parse(value), workspace));
-    validateWorkspace(normalisedWorkspace);
-    return JSON.stringify(normalisedWorkspace, null, 2);
+  serialiseGame(game: IGame): string {
+    const normalisedGame = normaliseGame(parseWithSchema('Saved game', (value) => gameSchema.parse(value), game));
+    validateGame(normalisedGame);
+    return JSON.stringify(normalisedGame, null, 2);
   },
-  deserialiseGame(raw: string): IGameWorkspace {
+  deserialiseGame(raw: string): IGame {
     return this.migrateGame(parseJson(raw));
   },
   migrateSettingsSnapshot,

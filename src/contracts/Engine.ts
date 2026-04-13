@@ -68,9 +68,6 @@ export interface IAssignedEngine {
   protocol: EngineProtocol
   options: IEngineOptionMap
 }
-export interface IAnalysisAssignment {
-  assignedEngines: IAssignedEngine[]
-}
 export interface IEnginePositionState {
   rootPosition: IBoardPosition
   movesFromRoot: IMove[]
@@ -122,10 +119,6 @@ export const assignedEngineSchema = z.object({
   clientType: engineClientTypeSchema.default(EngineClientType.Uci),
   protocol: engineProtocolSchema,
   options: engineOptionMapSchema,
-})
-
-export const analysisAssignmentSchema = z.object({
-  assignedEngines: z.array(assignedEngineSchema).max(4),
 })
 
 export const enginePositionStateSchema = z.object({

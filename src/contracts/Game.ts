@@ -1,25 +1,24 @@
 import { z } from 'zod'
-import { analysisAssignmentSchema, assignedEngineSchema, type IAnalysisAssignment, type IAssignedEngine } from './Engine'
+import { gameAnalysisSchema, type IGameAnalysis } from './Analysis'
+import { assignedEngineSchema, type IAssignedEngine } from './Engine'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { movePathSchema, moveTreeSchema, type IMoveTree, type MovePath } from './Move'
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
 
-export const enum WorkspaceKind {
-  LiveGame = 'liveGame',
-  FreeAnalysisSetup = 'freeAnalysisSetup',
-}
-export const enum InteractionContext {
-  CurrentPosition = 'currentPosition',
-  HistoryReview = 'historyReview',
-  InGameAnalysis = 'inGameAnalysis',
+export const enum GameState {
+  LiveWhiteTurn = 'liveWhiteTurn',
+  LiveBlackTurn = 'liveBlackTurn',
+  PausedWhiteTurn = 'pausedWhiteTurn',
+  PausedBlackTurn = 'pausedBlackTurn',
+  LiveAnalysisFromWhiteTurnWhiteMove = 'liveAnalysisFromWhiteTurnWhiteMove',
+  LiveAnalysisFromWhiteTurnBlackMove = 'liveAnalysisFromWhiteTurnBlackMove',
+  LiveAnalysisFromBlackTurnWhiteMove = 'liveAnalysisFromBlackTurnWhiteMove',
+  LiveAnalysisFromBlackTurnBlackMove = 'liveAnalysisFromBlackTurnBlackMove',
+  AnalysisWhiteMove = 'analysisWhiteMove',
+  AnalysisBlackMove = 'analysisBlackMove',
   BoardEdit = 'boardEdit',
-}
-export const enum ClockStateKind {
-  None = 'none',
-  Running = 'running',
-  Paused = 'paused',
-  Expired = 'expired',
+  Checkmate = 'checkmate',
 }
 export const enum ResultState {
   Ongoing = 'ongoing',
@@ -39,16 +38,32 @@ export const enum PlayerType {
   Local = 'local',
   Engine = 'engine',
 }
+export const enum PlayerActivityState {
+  Active = 'active',
+  NonActive = 'nonActive',
+}
 export const enum DrawOfferDirection {
   Incoming = 'incoming',
   Outgoing = 'outgoing',
 }
-export const workspaceKinds = [WorkspaceKind.LiveGame, WorkspaceKind.FreeAnalysisSetup] as const
-export const interactionContexts = [InteractionContext.CurrentPosition, InteractionContext.HistoryReview, InteractionContext.InGameAnalysis, InteractionContext.BoardEdit] as const
-export const clockStateKinds = [ClockStateKind.None, ClockStateKind.Running, ClockStateKind.Paused, ClockStateKind.Expired] as const
+export const gameStates = [
+  GameState.LiveWhiteTurn,
+  GameState.LiveBlackTurn,
+  GameState.PausedWhiteTurn,
+  GameState.PausedBlackTurn,
+  GameState.LiveAnalysisFromWhiteTurnWhiteMove,
+  GameState.LiveAnalysisFromWhiteTurnBlackMove,
+  GameState.LiveAnalysisFromBlackTurnWhiteMove,
+  GameState.LiveAnalysisFromBlackTurnBlackMove,
+  GameState.AnalysisWhiteMove,
+  GameState.AnalysisBlackMove,
+  GameState.BoardEdit,
+  GameState.Checkmate,
+] as const
 export const resultStates = [ResultState.Ongoing, ResultState.Drawn, ResultState.WhiteWon, ResultState.BlackWon, ResultState.Abandoned] as const
 export const resultReasons = [ResultReason.RuleResolved, ResultReason.Timeout, ResultReason.Resignation, ResultReason.DrawAgreement, ResultReason.Abandoned] as const
 export const playerTypes = [PlayerType.Local, PlayerType.Engine] as const
+export const playerActivityStates = [PlayerActivityState.Active, PlayerActivityState.NonActive] as const
 export const drawOfferDirections = [DrawOfferDirection.Incoming, DrawOfferDirection.Outgoing] as const
 
 export interface IDrawOfferState {
@@ -56,11 +71,18 @@ export interface IDrawOfferState {
   respondingColour: PlayerColour
   direction: DrawOfferDirection
 }
-export interface IPlayerSlot {
+export interface IPlayerRuntime {
+  activityState: PlayerActivityState
+}
+export interface IPlayer {
   colour: PlayerColour
   type: PlayerType
   displayName: string
-  assignedEngine: IAssignedEngine | null
+  $?: IPlayerRuntime
+}
+export interface IEnginePlayer extends IPlayer {
+  type: PlayerType.Engine
+  assignedEngine: IAssignedEngine
 }
 export interface ICapturedPieceGroup {
   pieceKind: PieceKind
@@ -75,17 +97,16 @@ export interface IGameMetadata {
 export interface ILiveAnalysisOptions {
   showLiveAnalysisMoves: boolean
 }
-export interface IGameWorkspace {
+export interface IGameRuntime {}
+export interface IGame {
   schemaVersion: number
   metadata: IGameMetadata
-  workspaceKind: WorkspaceKind
-  interactionContext: InteractionContext
-  clockState: ClockStateKind
+  gameState: GameState
   resultState: ResultState
   resultReason: ResultReason | null
   drawOfferState: IDrawOfferState | null
-  whitePlayer: IPlayerSlot | null
-  blackPlayer: IPlayerSlot | null
+  whitePlayer: IPlayer | IEnginePlayer | null
+  blackPlayer: IPlayer | IEnginePlayer | null
   boardRoot: IBoardPosition
   moveTree: IMoveTree
   livePath: MovePath | null
@@ -93,7 +114,8 @@ export interface IGameWorkspace {
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
   liveAnalysisOptions: ILiveAnalysisOptions
-  analysisAssignment: IAnalysisAssignment
+  analysis: IGameAnalysis
+  $?: IGameRuntime
 }
 export interface ICreateGameRequest {
   name: string
@@ -116,16 +138,11 @@ export interface IStartGameFromSetupRequest {
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
 }
-export interface IReassignPlayerRequest {
-  playerType: PlayerType | null
-  engineId: string | null
-}
-export const workspaceKindSchema = z.enum(workspaceKinds)
-export const interactionContextSchema = z.enum(interactionContexts)
-export const clockStateKindSchema = z.enum(clockStateKinds)
+export const gameStateSchema = z.enum(gameStates)
 export const resultStateSchema = z.enum(resultStates)
 export const resultReasonSchema = z.enum(resultReasons).nullable()
 export const playerTypeSchema = z.enum(playerTypes)
+export const playerActivityStateSchema = z.enum(playerActivityStates)
 export const drawOfferDirectionSchema = z.enum(drawOfferDirections)
 
 export const drawOfferStateSchema = z.object({
@@ -134,12 +151,23 @@ export const drawOfferStateSchema = z.object({
   direction: drawOfferDirectionSchema,
 })
 
-export const playerSlotSchema = z.object({
-  colour: playerColourSchema,
-  type: playerTypeSchema,
-  displayName: z.string().min(1),
-  assignedEngine: assignedEngineSchema.nullable(),
+export const playerRuntimeSchema = z.object({
+  activityState: playerActivityStateSchema,
 })
+
+export const playerSchema = z.discriminatedUnion('type', [
+  z.object({
+    colour: playerColourSchema,
+    type: z.literal(PlayerType.Local),
+    displayName: z.string().min(1),
+  }),
+  z.object({
+    colour: playerColourSchema,
+    type: z.literal(PlayerType.Engine),
+    displayName: z.string().min(1),
+    assignedEngine: assignedEngineSchema,
+  }),
+])
 
 export const capturedPieceGroupSchema = z.object({
   pieceKind: pieceKindSchema,
@@ -157,17 +185,15 @@ export const liveAnalysisOptionsSchema = z.object({
   showLiveAnalysisMoves: z.boolean(),
 })
 
-export const gameWorkspaceSchema = z.object({
+export const gameSchema = z.object({
   schemaVersion: z.literal(1),
   metadata: gameMetadataSchema,
-  workspaceKind: workspaceKindSchema,
-  interactionContext: interactionContextSchema,
-  clockState: clockStateKindSchema,
+  gameState: gameStateSchema,
   resultState: resultStateSchema,
   resultReason: resultReasonSchema,
   drawOfferState: drawOfferStateSchema.nullable(),
-  whitePlayer: playerSlotSchema.nullable(),
-  blackPlayer: playerSlotSchema.nullable(),
+  whitePlayer: playerSchema.nullable(),
+  blackPlayer: playerSchema.nullable(),
   boardRoot: boardPositionSchema,
   moveTree: moveTreeSchema,
   livePath: movePathSchema.nullable(),
@@ -175,7 +201,7 @@ export const gameWorkspaceSchema = z.object({
   timeControl: timeControlSchema,
   clockSnapshot: clockSnapshotSchema,
   liveAnalysisOptions: liveAnalysisOptionsSchema,
-  analysisAssignment: analysisAssignmentSchema,
+  analysis: gameAnalysisSchema,
 })
 
 export const createGameRequestSchema = z.object({
@@ -199,9 +225,4 @@ export const startGameFromSetupRequestSchema = z.object({
   analysisEngineIds: z.array(z.string().min(1)).max(4),
   showLiveAnalysisMoves: z.boolean(),
   timeControl: timeControlSchema,
-})
-
-export const reassignPlayerRequestSchema = z.object({
-  playerType: playerTypeSchema.nullable(),
-  engineId: z.string().min(1).nullable(),
 })

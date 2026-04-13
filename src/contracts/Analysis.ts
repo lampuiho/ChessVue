@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
+import { assignedEngineSchema, type IAssignedEngine } from './Engine'
 import { moveSchema, type IMove } from './Move'
 
 export interface IAnalysisLine {
@@ -10,21 +10,18 @@ export interface IAnalysisLine {
   pv: IMove[]
 }
 export interface IAnalysisSnapshot {
-  gameId: string
-  engineId: string
+  assignedEngine: IAssignedEngine
+  positionKey: string
   updatedAt: string
   bestMove: IMove | null
   lines: IAnalysisLine[]
   isComplete: boolean
 }
+export interface IGameAnalysis {
+  snapshots: IAnalysisSnapshot[]
+}
 export interface IVisibleAnalysisSnapshot {
   engineSnapshots: IAnalysisSnapshot[]
-}
-export interface IEngineAnalysisUpdate {
-  position: IBoardPosition
-  bestMove: IMove | null
-  lines: IAnalysisLine[]
-  isFinal: boolean
 }
 export const analysisLineSchema = z.object({
   depth: z.number().int().min(0),
@@ -34,21 +31,18 @@ export const analysisLineSchema = z.object({
 })
 
 export const analysisSnapshotSchema = z.object({
-  gameId: z.string().min(1),
-  engineId: z.string().min(1),
+  assignedEngine: assignedEngineSchema,
+  positionKey: z.string().min(1),
   updatedAt: z.string().datetime({ offset: true }),
   bestMove: moveSchema.nullable(),
   lines: z.array(analysisLineSchema),
   isComplete: z.boolean(),
 })
 
-export const visibleAnalysisSnapshotSchema = z.object({
-  engineSnapshots: z.array(analysisSnapshotSchema),
+export const gameAnalysisSchema = z.object({
+  snapshots: z.array(analysisSnapshotSchema),
 })
 
-export const engineAnalysisUpdateSchema = z.object({
-  position: boardPositionSchema,
-  bestMove: moveSchema.nullable(),
-  lines: z.array(analysisLineSchema),
-  isFinal: z.boolean(),
+export const visibleAnalysisSnapshotSchema = z.object({
+  engineSnapshots: z.array(analysisSnapshotSchema),
 })

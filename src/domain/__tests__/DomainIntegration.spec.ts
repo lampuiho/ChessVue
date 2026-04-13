@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  ClockStateKind,
-  InteractionContext,
+  GameState,
   PlayerColour,
   PlayerType,
   ResultState,
   TimeControlPreset,
-  WorkspaceKind,
   type IMoveNode,
   type IMoveTree,
   type MovePath,
@@ -49,9 +47,7 @@ describe('Domain integration', () => {
         createdAt: '2026-01-01T12:00:00.000Z',
         updatedAt: '2026-01-01T12:00:05.000Z',
       },
-      workspaceKind: WorkspaceKind.LiveGame,
-      interactionContext: InteractionContext.CurrentPosition,
-      clockState: ClockStateKind.Running,
+      gameState: GameState.LiveBlackTurn,
       resultState: ResultState.Ongoing,
       resultReason: null,
       drawOfferState: null,
@@ -59,13 +55,11 @@ describe('Domain integration', () => {
         colour: PlayerColour.White,
         type: PlayerType.Local,
         displayName: 'White',
-        assignedEngine: null,
       },
       blackPlayer: {
         colour: PlayerColour.Black,
         type: PlayerType.Local,
         displayName: 'Black',
-        assignedEngine: null,
       },
       boardRoot: rootPosition,
       moveTree: nextTree,
@@ -74,7 +68,7 @@ describe('Domain integration', () => {
       timeControl,
       clockSnapshot: nextClock,
       liveAnalysisOptions: { showLiveAnalysisMoves: false },
-      analysisAssignment: { assignedEngines: [] },
+      analysis: { snapshots: [] },
     };
 
     const restored = SerializationService.deserialiseGame(SerializationService.serialiseGame(workspace));

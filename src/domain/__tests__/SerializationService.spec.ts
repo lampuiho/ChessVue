@@ -4,8 +4,7 @@ import {
   BoardOrientation,
   EngineClientType,
   EngineProtocol,
-  ClockStateKind,
-  InteractionContext,
+  GameState,
   PlayerColour,
   PlayerType,
   PromotionPolicy,
@@ -13,9 +12,8 @@ import {
   TakebackPolicy,
   ThemeMode,
   TimeControlPreset,
-  WorkspaceKind,
   type IGameSessionSnapshot,
-  type IGameWorkspace,
+  type IGame,
   type ISettingsSnapshot,
   type IMoveNode,
   type IMoveTree,
@@ -85,7 +83,7 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     },
   };
 }
-function createWorkspace(): IGameWorkspace {
+function createGame(): IGame {
   const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 };
   const rootPosition = createInitialBoardPosition();
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl);
@@ -104,9 +102,7 @@ function createWorkspace(): IGameWorkspace {
       createdAt: '2026-01-01T12:00:00.000Z',
       updatedAt: '2026-01-01T12:00:05.000Z',
     },
-    workspaceKind: WorkspaceKind.LiveGame,
-    interactionContext: InteractionContext.CurrentPosition,
-    clockState: ClockStateKind.Running,
+    gameState: GameState.LiveBlackTurn,
     resultState: ResultState.Ongoing,
     resultReason: null,
     drawOfferState: null,
@@ -114,13 +110,11 @@ function createWorkspace(): IGameWorkspace {
       colour: PlayerColour.White,
       type: PlayerType.Local,
       displayName: 'White',
-      assignedEngine: null,
     },
     blackPlayer: {
       colour: PlayerColour.Black,
       type: PlayerType.Local,
       displayName: 'Black',
-      assignedEngine: null,
     },
     boardRoot: rootPosition,
     moveTree: updatedTree,
@@ -131,8 +125,8 @@ function createWorkspace(): IGameWorkspace {
     liveAnalysisOptions: {
       showLiveAnalysisMoves: false,
     },
-    analysisAssignment: {
-      assignedEngines: [],
+    analysis: {
+      snapshots: [],
     },
   };
 }
@@ -169,16 +163,16 @@ describe('SerializationService', () => {
   });
 
   it('round-trips saved games without persisting runtime metadata', () => {
-    const workspace = createWorkspace();
-    getNode(workspace.moveTree, workspace.livePath!).move = {
-      ...getNode(workspace.moveTree, workspace.livePath!).move!,
+    const game = createGame();
+    getNode(game.moveTree, game.livePath!).move = {
+      ...getNode(game.moveTree, game.livePath!).move!,
       $: {
         san: 'e4',
         uci: 'e2e4',
       },
     };
 
-    const serialised = SerializationService.serialiseGame(workspace);
+    const serialised = SerializationService.serialiseGame(game);
     const restored = SerializationService.deserialiseGame(serialised);
 
     expect(serialised).not.toContain('"$"');
@@ -188,9 +182,9 @@ describe('SerializationService', () => {
   });
 
   it('rejects broken move-tree payloads', () => {
-    const workspace = createWorkspace();
-    workspace.moveTree.root.mainlineChildIndex = 1;
+    const game = createGame();
+    game.moveTree.root.mainlineChildIndex = 1;
 
-    expect(() => SerializationService.serialiseGame(workspace)).toThrow(SerializationError);
+    expect(() => SerializationService.serialiseGame(game)).toThrow(SerializationError);
   });
 })
