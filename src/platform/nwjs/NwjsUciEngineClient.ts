@@ -2,16 +2,12 @@ import { defineStore } from 'pinia';
 
 import { EngineAnalysisSearchMode, MoveKind, PieceKind, PlayerColour, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
 import { GameRuleService, PositionIdentityService } from '@/domain';
+import { Deferred } from '@/utility/async/Deferred';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '../contracts';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 
-interface IDeferred<T> {
-  promise: Promise<T>;
-  resolve(value: T): void;
-  reject(error: unknown): void;
-}
 interface ILineWaiter {
   predicate(line: string): boolean;
   resolve(line: string): void;
@@ -25,7 +21,7 @@ interface IUciSession {
   positionState: IEnginePositionState | null;
   analysisCallback: ((update: IEngineAnalysisUpdate) => void) | null;
   analysisLines: Map<number, IAnalysisLine>;
-  playerMoveDeferred: IDeferred<IMove> | null;
+  playerMoveDeferred: Deferred<IMove> | null;
   waiters: ILineWaiter[];
   detachProcessListeners: (() => void) | null;
 }
@@ -35,19 +31,7 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 type IRuntimeAssignedEngine = IAssignedEngine & {
   $: IAssignedEngineRuntime;
 };
-type IAssignedUciEngine = IAssignedEngine & {
-  $: IAssignedUciEngineRuntime;
-};
-
-function createDeferred<T>(): IDeferred<T> {
-  let resolve!: (value: T) => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((promiseResolve, promiseReject) => {
-    resolve = promiseResolve;
-    reject = promiseReject;
-  });
-  return { promise, resolve, reject };
-}
+type IAssignedUciEngine = IAssignedEngine & { $: IAssignedUciEngineRuntime; };
 function pieceToFenToken(kind: PieceKind, colour: PlayerColour): string {
   const token = kind === PieceKind.King ? 'k' : kind === PieceKind.Queen ? 'q' : kind === PieceKind.Rook ? 'r' : kind === PieceKind.Bishop ? 'b' : kind === PieceKind.Knight ? 'n' : 'p';
   return colour === PlayerColour.White ? token.toUpperCase() : token;
@@ -232,13 +216,13 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     async function startPlayerTurn(engine: IAssignedEngine): Promise<void> {
       await initialiseEngine(engine);
       const session = _requireSession(engine);
-      session.playerMoveDeferred = createDeferred<IMove>();
+      session.playerMoveDeferred = new Deferred<IMove>();
       await _writeCommand(_requireProcessHandle(engine), 'go');
     }
     async function awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
       const session = _requireSession(engine);
       if (session.playerMoveDeferred === null) throw new Error(`No player turn is active for engine ${engine.displayName}.`);
-      const movePromise = session.playerMoveDeferred.promise;
+      const movePromise = session.playerMoveDeferred;
       session.playerMoveDeferred = null;
       return movePromise;
     }
