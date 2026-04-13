@@ -45,9 +45,6 @@ function createDeferred<T>(): IDeferred<T> {
   });
   return { promise, resolve, reject };
 }
-function getEngineKey(engine: IAssignedEngine): string {
-  return engine.assignedEngineId;
-}
 function pieceToFenToken(kind: PieceKind, colour: PlayerColour): string {
   const token = kind === PieceKind.King ? 'k' : kind === PieceKind.Queen ? 'q' : kind === PieceKind.Rook ? 'r' : kind === PieceKind.Bishop ? 'b' : kind === PieceKind.Knight ? 'n' : 'p';
   return colour === PlayerColour.White ? token.toUpperCase() : token;
@@ -159,7 +156,8 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
   return defineStore('nwjsUciEngineClient', () => {
     const childProcess = getNodeChildProcess();
     let nextProcessHandleId = 1;
-    const sessionByEngineId = new Map<string, IUciSession>();
+    const sessionByEngine = new WeakMap<IAssignedEngine, IUciSession>();
+    const processByHandle = new Map<ProcessHandle, ISpawnedProcess>();
 
     async function initialiseEngine(engine: IAssignedEngine): Promise<void> {
       const session = _getOrCreateSession(engine);
@@ -232,6 +230,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
       runtimeEngine.$ = { ...(runtimeEngine.$ ?? {}), processHandle: null };
       _detachProcess(session);
       session.isStopping = false;
+      if (session.processHandle !== null) processByHandle.delete(session.processHandle);
       session.process = null;
       session.processHandle = null;
     }
@@ -266,6 +265,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
       });
       session.process = process;
       session.processHandle = processHandle;
+      processByHandle.set(processHandle, process);
       runtimeEngine.$ = { ...(runtimeEngine.$ ?? {}), processHandle };
       return processHandle;
     }
@@ -285,6 +285,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
         session.playerMoveDeferred = null;
         session.analysisCallback = null;
         session.analysisLines.clear();
+        if (session.processHandle !== null) processByHandle.delete(session.processHandle);
         session.process = null;
         session.processHandle = null;
         (engine as IRuntimeAssignedEngine).$ = { ...((engine as IRuntimeAssignedEngine).$ ?? {}), processHandle: null };
@@ -361,17 +362,15 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal) {
     }
     function _requireProcess(processHandle: ProcessHandle | null): ISpawnedProcess {
       if (processHandle === null) throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', 'Engine process handle is unavailable.');
-      for (const session of sessionByEngineId.values()) {
-        if (session.processHandle === processHandle && session.process !== null) return session.process;
-      }
+      const process = processByHandle.get(processHandle);
+      if (process !== undefined) return process;
       throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine process is not available for handle ${processHandle}.`);
     }
     function _getOrCreateSession(engine: IAssignedEngine): IUciSession {
-      const engineId = getEngineKey(engine);
-      const existingSession = sessionByEngineId.get(engineId);
+      const existingSession = sessionByEngine.get(engine);
       if (existingSession !== undefined) return existingSession;
       const session: IUciSession = { initialised: false, isStopping: false, processHandle: null, process: null, lineBuffer: '', positionState: null, analysisCallback: null, analysisLines: new Map(), playerMoveDeferred: null, waiters: [], detachProcessListeners: null };
-      sessionByEngineId.set(engineId, session);
+      sessionByEngine.set(engine, session);
       return session;
     }
 

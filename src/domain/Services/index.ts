@@ -1,3 +1,4 @@
+export * from './EngineProfileService';
 export * from './EngineRuntimeService';
 export * from './GameRuleService';
 export * from './MoveNotationService';

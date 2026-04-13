@@ -2,20 +2,20 @@ import { EngineAvailability, type IAssignedEngine, type IEngineAnalysisRequest, 
 import { usePlatformService } from '@/platform';
 import type { IEngineAnalysisUpdate } from '@/platform';
 
-interface IAssignedEngineRuntimeState {
+interface IAssignedEngineRuntime {
   processHandle: string | null;
   availability: EngineAvailability;
   lastError: string | null;
+  analysisCallbacks: Set<(update: IEngineAnalysisUpdate) => void>;
 }
-type IRuntimeAssignedEngine = IAssignedEngine & { $?: IAssignedEngineRuntimeState };
-const _analysisCallbacksByEngineId = new Map<string, Set<(update: IEngineAnalysisUpdate) => void>>();
+type IRuntimeAssignedEngine = IAssignedEngine & { $?: IAssignedEngineRuntime };
 
-function getRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntimeState | null {
+function getRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntime | null {
   return (engine as IRuntimeAssignedEngine).$ ?? null;
 }
-function getOrCreateRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntimeState {
+function getOrCreateRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntime {
   const runtimeEngine = engine as IRuntimeAssignedEngine;
-  runtimeEngine.$ ??= { processHandle: null, availability: EngineAvailability.Unavailable, lastError: null };
+  runtimeEngine.$ ??= { processHandle: null, availability: EngineAvailability.Unavailable, lastError: null, analysisCallbacks: new Set() };
   return runtimeEngine.$;
 }
 function setRuntimeAvailability(engine: IAssignedEngine, availability: EngineAvailability, lastError: string | null = null): void {
@@ -61,10 +61,10 @@ export const EngineRuntimeService = {
   },
   async startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void> {
     const engineClient = getEngineClient(engine);
-    _analysisCallbacksByEngineId.set(engine.assignedEngineId, _analysisCallbacksByEngineId.get(engine.assignedEngineId) ?? new Set());
+    const runtimeState = getOrCreateRuntimeState(engine);
     await this.ensureReady(engine);
     await runEngineOperation(engine, () => engineClient.startAnalysis(engine, request, (update) => {
-      for (const callback of _analysisCallbacksByEngineId.get(engine.assignedEngineId) ?? []) callback(update);
+      for (const callback of runtimeState.analysisCallbacks) callback(update);
     }));
   },
   async stopAnalysis(engine: IAssignedEngine): Promise<void> {
@@ -77,21 +77,19 @@ export const EngineRuntimeService = {
     await runEngineOperation(engine, () => engineClient.startPlayerTurn(engine));
   },
   subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void {
-    const callbacks = _analysisCallbacksByEngineId.get(engine.assignedEngineId) ?? new Set<(update: IEngineAnalysisUpdate) => void>();
-    callbacks.add(onUpdate);
-    _analysisCallbacksByEngineId.set(engine.assignedEngineId, callbacks);
+    const runtimeState = getOrCreateRuntimeState(engine);
+    runtimeState.analysisCallbacks.add(onUpdate);
     return () => {
-      callbacks.delete(onUpdate);
-      if (callbacks.size === 0) _analysisCallbacksByEngineId.delete(engine.assignedEngineId);
+      runtimeState.analysisCallbacks.delete(onUpdate);
     };
   },
   async awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
     const engineClient = getEngineClient(engine);
     return runEngineOperation(engine, () => engineClient.awaitPlayerTurnMove(engine));
   },
-  getRuntime(engine: IAssignedEngine): IAssignedEngineRuntimeState | null {
+  getRuntime(engine: IAssignedEngine): IAssignedEngineRuntime | null {
     const runtimeState = getRuntimeState(engine);
-    return runtimeState === null ? null : { ...runtimeState };
+    return runtimeState === null ? null : { ...runtimeState, analysisCallbacks: new Set(runtimeState.analysisCallbacks) };
   },
   async restartEngine(engine: IAssignedEngine): Promise<void> {
     const engineClient = getEngineClient(engine);
@@ -103,7 +101,7 @@ export const EngineRuntimeService = {
     await runEngineOperation(engine, () => engineClient.stopEngine(engine));
     const runtimeState = getOrCreateRuntimeState(engine);
     runtimeState.processHandle = null;
-    _analysisCallbacksByEngineId.delete(engine.assignedEngineId);
+    runtimeState.analysisCallbacks.clear();
     setRuntimeAvailability(engine, EngineAvailability.Unavailable, null);
   },
 };

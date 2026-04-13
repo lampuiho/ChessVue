@@ -57,12 +57,11 @@ export interface IEngineRecord {
   id: string
   displayName: string
   executablePath: string
+  clientType: EngineClientType
   protocol: EngineProtocol
   options: IEngineOptionMap
 }
 export interface IAssignedEngine {
-  assignedEngineId: string
-  sourceProfileId: string | null
   displayName: string
   executablePath: string
   clientType: EngineClientType
@@ -81,7 +80,6 @@ export interface IEnginePositionState {
 export interface IEngineRuntimeSession {
   sessionId: string
   gameId: string
-  assignedEngineId: string
   role: EngineRole
   availability: EngineAvailability
   targetPositionState: IEnginePositionState | null
@@ -113,13 +111,12 @@ export const engineRecordSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
   executablePath: z.string(),
+  clientType: engineClientTypeSchema.default(EngineClientType.Uci),
   protocol: engineProtocolSchema,
   options: engineOptionMapSchema,
 })
 
 export const assignedEngineSchema = z.object({
-  assignedEngineId: z.string().min(1),
-  sourceProfileId: z.string().min(1).nullable(),
   displayName: z.string().min(1),
   executablePath: z.string(),
   clientType: engineClientTypeSchema.default(EngineClientType.Uci),
@@ -141,7 +138,6 @@ export const enginePositionStateSchema = z.object({
 export const engineRuntimeSessionSchema = z.object({
   sessionId: z.string().min(1),
   gameId: z.string().min(1),
-  assignedEngineId: z.string().min(1),
   role: engineRoleSchema,
   availability: engineAvailabilitySchema,
   targetPositionState: enginePositionStateSchema.nullable(),

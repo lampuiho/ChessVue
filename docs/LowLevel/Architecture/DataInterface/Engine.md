@@ -4,6 +4,7 @@
 Define configured engine records, copied in-game engine snapshots, and engine analysis request or update types.
 
 ## Types
+- `enum EngineClientType`
 - `enum EngineProtocol`
 - `enum EngineAvailability`
 - `enum EngineAnalysisSearchMode`
@@ -20,6 +21,10 @@ Define configured engine records, copied in-game engine snapshots, and engine an
 
 ## Data Structures
 ```ts
+enum EngineClientType {
+  Uci = "uci"
+}
+
 enum EngineProtocol {
   Uci = "uci"
 }
@@ -36,16 +41,17 @@ enum EngineAnalysisSearchMode {
   Infinite = "infinite"
 }
 
-interface IEngineOptionMap {
-  [optionName: string]: string | number | boolean
-}
-
 interface IEngineRecord {
   id: string
   displayName: string
   executablePath: string
+  clientType: EngineClientType
   protocol: EngineProtocol
   options: IEngineOptionMap
+}
+
+interface IEngineOptionMap {
+  [optionName: string]: string | number | boolean
 }
 
 interface IAssignedEngineRuntime {
@@ -57,6 +63,7 @@ interface IAssignedEngineRuntime {
 interface IAssignedEngine {
   displayName: string
   executablePath: string
+  clientType: EngineClientType
   protocol: EngineProtocol
   options: IEngineOptionMap
   $?: IAssignedEngineRuntime
@@ -94,7 +101,8 @@ interface IEngineRegistrationRequest {
 - Assigned-engine snapshots live in saved game data and are copied by value from the selected reusable engine profile.
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.
-- Creating an assigned engine from a profile copies the display name, executable path, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later or when the reusable profile is deleted.
+- `clientType` identifies which platform engine client is responsible for the profile or assigned-engine snapshot.
+- Creating an assigned engine from a profile copies the display name, executable path, client type, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later or when the reusable profile is deleted.
 - `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis snapshots.
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and carries the current process handle, availability, and last error for that engine instance.

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   AnalysisBranchExitBehaviour,
   BoardOrientation,
+  EngineClientType,
+  EngineProtocol,
   ClockStateKind,
   InteractionContext,
   PlayerColour,
@@ -55,7 +57,14 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     },
     analysis: {
       resumeLiveAnalysisAfterRestore: true,
-      engineInventory: [],
+      engineInventory: [{
+        id: 'engine-1',
+        displayName: 'Stockfish',
+        executablePath: 'stockfish.exe',
+        clientType: EngineClientType.Uci,
+        protocol: EngineProtocol.Uci,
+        options: { Threads: 1 },
+      }],
     },
     appearance: {
       themeMode: ThemeMode.System,

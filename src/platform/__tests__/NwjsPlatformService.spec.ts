@@ -217,8 +217,6 @@ class FakeNwjsEnvironment {
 
 function createAssignedEngine(): IAssignedEngine {
   return {
-    assignedEngineId: 'assigned-engine-1',
-    sourceProfileId: 'profile-1',
     displayName: 'Stockfish',
     executablePath: 'stockfish.exe',
     clientType: EngineClientType.Uci,
