@@ -1,5 +1,5 @@
 import { EngineAvailability, type IAssignedEngine, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove } from '@/contracts';
-import { EngineClientType, usePlatformService } from '@/platform';
+import { usePlatformService } from '@/platform';
 import type { IEngineAnalysisUpdate } from '@/platform';
 
 interface IAssignedEngineRuntimeState {
@@ -24,6 +24,9 @@ function setRuntimeAvailability(engine: IAssignedEngine, availability: EngineAva
   runtimeState.availability = availability;
   runtimeState.lastError = lastError;
 }
+function getEngineClient(engine: IAssignedEngine) {
+  return usePlatformService().getEngineClient(engine.clientType);
+}
 async function runEngineOperation<T>(engine: IAssignedEngine, operation: () => Promise<T>): Promise<T> {
   try {
     const result = await operation();
@@ -38,7 +41,7 @@ async function runEngineOperation<T>(engine: IAssignedEngine, operation: () => P
 
 export const EngineRuntimeService = {
   async ensureReady(engine: IAssignedEngine): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     setRuntimeAvailability(engine, EngineAvailability.Starting, null);
     await runEngineOperation(engine, async () => {
       await engineClient.initialiseEngine(engine);
@@ -47,17 +50,17 @@ export const EngineRuntimeService = {
     });
   },
   async registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     await this.ensureReady(engine);
     await runEngineOperation(engine, () => engineClient.registerEngine(engine, request));
   },
   async syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     await this.ensureReady(engine);
     await runEngineOperation(engine, () => engineClient.syncPosition(engine, positionState));
   },
   async startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     _analysisCallbacksByEngineId.set(engine.assignedEngineId, _analysisCallbacksByEngineId.get(engine.assignedEngineId) ?? new Set());
     await this.ensureReady(engine);
     await runEngineOperation(engine, () => engineClient.startAnalysis(engine, request, (update) => {
@@ -65,11 +68,11 @@ export const EngineRuntimeService = {
     }));
   },
   async stopAnalysis(engine: IAssignedEngine): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     await runEngineOperation(engine, () => engineClient.stopAnalysis(engine));
   },
   async startPlayerTurn(engine: IAssignedEngine): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     await this.ensureReady(engine);
     await runEngineOperation(engine, () => engineClient.startPlayerTurn(engine));
   },
@@ -83,7 +86,7 @@ export const EngineRuntimeService = {
     };
   },
   async awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     return runEngineOperation(engine, () => engineClient.awaitPlayerTurnMove(engine));
   },
   getRuntime(engine: IAssignedEngine): IAssignedEngineRuntimeState | null {
@@ -91,12 +94,12 @@ export const EngineRuntimeService = {
     return runtimeState === null ? null : { ...runtimeState };
   },
   async restartEngine(engine: IAssignedEngine): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     setRuntimeAvailability(engine, EngineAvailability.Starting, null);
     await runEngineOperation(engine, () => engineClient.restartEngine(engine));
   },
   async stopEngine(engine: IAssignedEngine): Promise<void> {
-    const engineClient = usePlatformService().getEngineClient(EngineClientType.Uci);
+    const engineClient = getEngineClient(engine);
     await runEngineOperation(engine, () => engineClient.stopEngine(engine));
     const runtimeState = getOrCreateRuntimeState(engine);
     runtimeState.processHandle = null;

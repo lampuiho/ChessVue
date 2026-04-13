@@ -5,6 +5,9 @@ import { moveSchema, type IMove } from './Move'
 export const enum EngineProtocol {
   Uci = 'uci',
 }
+export const enum EngineClientType {
+  Uci = 'uci',
+}
 export const enum EngineRole {
   Player = 'player',
   Analysis = 'analysis',
@@ -31,6 +34,7 @@ export const enum EngineSessionEventKind {
   RegistrationError = 'registrationError',
 }
 export const engineProtocols = [EngineProtocol.Uci] as const
+export const engineClientTypes = [EngineClientType.Uci] as const
 export const engineRoles = [EngineRole.Player, EngineRole.Analysis] as const
 export const engineAvailabilities = [EngineAvailability.Ready, EngineAvailability.Starting, EngineAvailability.Running, EngineAvailability.Unavailable, EngineAvailability.Failed] as const
 export const engineSearchModes = [EngineSearchMode.Infinite] as const
@@ -61,6 +65,7 @@ export interface IAssignedEngine {
   sourceProfileId: string | null
   displayName: string
   executablePath: string
+  clientType: EngineClientType
   protocol: EngineProtocol
   options: IEngineOptionMap
 }
@@ -96,6 +101,7 @@ export interface IEngineSessionEvent {
   detail: string | null
 }
 export const engineProtocolSchema = z.enum(engineProtocols)
+export const engineClientTypeSchema = z.enum(engineClientTypes)
 export const engineRoleSchema = z.enum(engineRoles)
 export const engineAvailabilitySchema = z.enum(engineAvailabilities)
 export const engineSearchModeSchema = z.enum(engineSearchModes)
@@ -116,6 +122,7 @@ export const assignedEngineSchema = z.object({
   sourceProfileId: z.string().min(1).nullable(),
   displayName: z.string().min(1),
   executablePath: z.string(),
+  clientType: engineClientTypeSchema.default(EngineClientType.Uci),
   protocol: engineProtocolSchema,
   options: engineOptionMapSchema,
 })

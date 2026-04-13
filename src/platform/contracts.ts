@@ -1,14 +1,12 @@
 import type { IAnalysisLine } from '@/contracts/Analysis';
 import type { ResolvedThemeMode } from '@/contracts/Appearance';
 import type { IBoardPosition } from '@/contracts/ChessboardState';
-import type { IAssignedEngine, IEngineAnalysisRequest, IEnginePositionState, IEngineRegistrationRequest } from '@/contracts/Engine';
+import { EngineClientType, type IAssignedEngine, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest } from '@/contracts/Engine';
 import type { IMove } from '@/contracts/Move';
 import type { IPlatformError } from '@/contracts/PlatformError';
 
 export type ProcessHandle = string;
-export enum EngineClientType {
-  Uci = 'uci',
-}
+export { EngineClientType };
 export const enum PlatformEventKey {
   AppCloseRequested = 'appCloseRequested',
   AppFocusReturned = 'appFocusReturned',

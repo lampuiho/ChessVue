@@ -5,7 +5,7 @@ import { PassThrough, Writable } from 'node:stream';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EngineProtocol, EngineSearchMode, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
+import { EngineClientType, EngineProtocol, EngineSearchMode, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
 import { GameRuleService, PositionIdentityService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
 import type { IEngineAnalysisUpdate } from '@/platform';
@@ -221,6 +221,7 @@ function createAssignedEngine(): IAssignedEngine {
     sourceProfileId: 'profile-1',
     displayName: 'Stockfish',
     executablePath: 'stockfish.exe',
+    clientType: EngineClientType.Uci,
     protocol: EngineProtocol.Uci,
     options: { Threads: 1 },
   };
@@ -242,7 +243,6 @@ let _originalMatchMedia: typeof window.matchMedia;
 let _originalCreateElement: typeof document.createElement;
 let _originalRequire: unknown;
 let usePlatformService: typeof import('@/platform')['usePlatformService'];
-let _engineClientType: typeof import('@/platform')['EngineClientType'];
 
 describe('usePlatformService', () => {
   beforeEach(async () => {
@@ -265,7 +265,7 @@ describe('usePlatformService', () => {
       throw new Error(`Unsupported test module: ${moduleName}.`);
     }) as any;
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => environment.mediaQuery });
-    ({ usePlatformService, EngineClientType: _engineClientType } = await import('@/platform'));
+    ({ usePlatformService } = await import('@/platform'));
   });
   afterEach(async () => {
     const nwjsUtility = await import('@/utility/nwjs/NwjsUtility');
@@ -357,7 +357,7 @@ describe('usePlatformService', () => {
 
   it('maps engine state to UCI commands and parses analysis plus player moves through one process', async () => {
     const platform = usePlatformService();
-    const client = platform.getEngineClient(_engineClientType.Uci);
+    const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const positionState = createEnginePositionState();
     const updates: IEngineAnalysisUpdate[] = [];
