@@ -17,6 +17,9 @@ import {
   type IGameSessionSnapshot,
   type IGameWorkspace,
   type ISettingsSnapshot,
+  type IMoveNode,
+  type IMoveTree,
+  type MovePath,
 } from '@/contracts';
 import {
   GameRuleService,
@@ -31,6 +34,11 @@ import { createInitialBoardPosition } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
+function getNode(tree: IMoveTree, path: MovePath): IMoveNode {
+  let currentNode = tree.root;
+  for (const childIndex of path) currentNode = currentNode.children[childIndex]!;
+  return currentNode;
+}
 function createSettingsSnapshot(): ISettingsSnapshot {
   return {
     schemaVersion: 1,
@@ -86,8 +94,7 @@ function createWorkspace(): IGameWorkspace {
   const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null });
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
-  const updatedTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
-  const liveNodeId = updatedTree.nodeById[updatedTree.rootId]!.mainlineChildId!;
+  const updatedTree = MoveUpdateService.addMainlineMove(moveTree, [], MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
 
   return {
     schemaVersion: 1,
@@ -117,8 +124,8 @@ function createWorkspace(): IGameWorkspace {
     },
     boardRoot: rootPosition,
     moveTree: updatedTree,
-    liveNodeId,
-    visibleNodeId: liveNodeId,
+    livePath: [0],
+    highlightPath: [0],
     timeControl,
     clockSnapshot: nextClock,
     liveAnalysisOptions: {
@@ -163,8 +170,8 @@ describe('SerializationService', () => {
 
   it('round-trips saved games without persisting runtime metadata', () => {
     const workspace = createWorkspace();
-    workspace.moveTree.nodeById[workspace.liveNodeId!]!.move = {
-      ...workspace.moveTree.nodeById[workspace.liveNodeId!]!.move!,
+    getNode(workspace.moveTree, workspace.livePath!).move = {
+      ...getNode(workspace.moveTree, workspace.livePath!).move!,
       $: {
         san: 'e4',
         uci: 'e2e4',
@@ -176,15 +183,14 @@ describe('SerializationService', () => {
 
     expect(serialised).not.toContain('"$"');
     expect(serialised).not.toContain('"fen"');
-    expect(restored.moveTree.nodeById[restored.liveNodeId!]!.move?.$).toBeUndefined();
-    expect(PositionIdentityService.buildPositionKey(restored.boardRoot)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.nodeById[restored.moveTree.rootId]!.position));
+    expect(getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
+    expect(PositionIdentityService.buildPositionKey(restored.boardRoot)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.root.position));
   });
 
   it('rejects broken move-tree payloads', () => {
     const workspace = createWorkspace();
-    const rootNode = workspace.moveTree.nodeById[workspace.moveTree.rootId]!;
-    rootNode.childIds.push('missing-node');
+    workspace.moveTree.root.mainlineChildIndex = 1;
 
     expect(() => SerializationService.serialiseGame(workspace)).toThrow(SerializationError);
   });
-});
+})

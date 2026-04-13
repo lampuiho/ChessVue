@@ -8,6 +8,9 @@ import {
   ResultState,
   TimeControlPreset,
   WorkspaceKind,
+  type IMoveNode,
+  type IMoveTree,
+  type MovePath,
 } from '@/contracts';
 import {
   GameRuleService,
@@ -20,6 +23,12 @@ import { createInitialBoardPosition } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
+function getNode(tree: IMoveTree, path: MovePath): IMoveNode {
+  let currentNode = tree.root;
+  for (const childIndex of path) currentNode = currentNode.children[childIndex]!;
+  return currentNode;
+}
+
 describe('Domain integration', () => {
   it('replays a move through rules, clocks, move tree, and serialisation', () => {
     const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 2000 };
@@ -30,8 +39,7 @@ describe('Domain integration', () => {
     const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
     const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null });
     const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
-    const nextTree = MoveUpdateService.addMainlineMove(moveTree, moveTree.rootId, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
-    const nodeId = nextTree.nodeById[nextTree.rootId]!.mainlineChildId!;
+    const nextTree = MoveUpdateService.addMainlineMove(moveTree, [], MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
 
     const workspace = {
       schemaVersion: 1,
@@ -61,8 +69,8 @@ describe('Domain integration', () => {
       },
       boardRoot: rootPosition,
       moveTree: nextTree,
-      liveNodeId: nodeId,
-      visibleNodeId: nodeId,
+      livePath: [0],
+      highlightPath: [0],
       timeControl,
       clockSnapshot: nextClock,
       liveAnalysisOptions: { showLiveAnalysisMoves: false },
@@ -71,8 +79,8 @@ describe('Domain integration', () => {
 
     const restored = SerializationService.deserialiseGame(SerializationService.serialiseGame(workspace));
 
-    expect(restored.moveTree.nodeById[nodeId]!.move?.$).toBeUndefined();
+    expect(getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
     expect(restored.clockSnapshot.activeColour).toBe(PlayerColour.Black);
-    expect(restored.moveTree.nodeById[nodeId]!.clockSnapshot?.activeColour).toBe(PlayerColour.Black);
+    expect(getNode(restored.moveTree, restored.livePath!).clockSnapshot?.activeColour).toBe(PlayerColour.Black);
   });
 });

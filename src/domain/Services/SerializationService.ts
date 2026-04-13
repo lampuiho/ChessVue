@@ -5,9 +5,11 @@ import {
   uiLayoutStateSchema,
   type IGameSessionSnapshot,
   type IGameWorkspace,
+  type IMoveNode,
   type IMoveTree,
   type ISettingsSnapshot,
   type IUiLayoutState,
+  type MovePath,
 } from '../../contracts';
 import { normaliseBoardPosition } from '@/utility/chess/BoardUtility';
 
@@ -29,116 +31,55 @@ function parseWithSchema<T>(artefactName: string, parse: (input: unknown) => T, 
   }
 }
 function requireSchemaVersionOne(input: unknown, artefactName: string): Record<string, unknown> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw new SerializationError(`${artefactName} payload must be an object.`, input);
-  }
-
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) throw new SerializationError(`${artefactName} payload must be an object.`, input);
   const schemaVersion = (input as { schemaVersion?: unknown }).schemaVersion;
-  if (schemaVersion !== 1) {
-    throw new SerializationError(`${artefactName} schema version is unsupported.`, schemaVersion);
-  }
-
+  if (schemaVersion !== 1) throw new SerializationError(`${artefactName} schema version is unsupported.`, schemaVersion);
   return input as Record<string, unknown>;
 }
-function normaliseMoveTree(tree: IMoveTree): IMoveTree {
-  const normalisedTree: IMoveTree = {
-    rootId: tree.rootId,
-    nodeById: {},
+function normaliseMoveNode(node: IMoveNode): IMoveNode {
+  return {
+    branchKind: node.branchKind,
+    move: node.move === null ? null : structuredClone(node.move),
+    position: normaliseBoardPosition(node.position),
+    clockSnapshot: node.clockSnapshot === null ? null : structuredClone(node.clockSnapshot),
+    plyIndex: node.plyIndex,
+    mainlineChildIndex: node.mainlineChildIndex,
+    children: node.children.map((child) => normaliseMoveNode(child)),
   };
-
-  for (const [nodeId, node] of Object.entries(tree.nodeById)) {
-    normalisedTree.nodeById[nodeId] = {
-      ...structuredClone(node),
-      position: normaliseBoardPosition(node.position),
-      childIds: [...node.childIds],
-      clockSnapshot: node.clockSnapshot === null ? null : structuredClone(node.clockSnapshot),
-    };
+}
+function normaliseMoveTree(tree: IMoveTree): IMoveTree {
+  return { root: normaliseMoveNode(tree.root) };
+}
+function validateMoveNode(node: IMoveNode): void {
+  if (node.mainlineChildIndex !== null && (node.mainlineChildIndex < 0 || node.mainlineChildIndex >= node.children.length)) {
+    throw new SerializationError('Move tree mainline child index must reference an existing child.', node.mainlineChildIndex);
   }
-
-  return normalisedTree;
+  for (const child of node.children) validateMoveNode(child);
+}
+function getNodeAtPath(tree: IMoveTree, path: MovePath, selectorName: string): IMoveNode {
+  let currentNode = tree.root;
+  for (const childIndex of path) {
+    const childNode = currentNode.children[childIndex];
+    if (childNode === undefined) throw new SerializationError(`${selectorName} must reference an existing move-tree node.`, path);
+    currentNode = childNode;
+  }
+  return currentNode;
 }
 function validateMoveTree(tree: IMoveTree): void {
-  const root = tree.nodeById[tree.rootId];
-  if (root === undefined) {
-    throw new SerializationError('Move tree rootId must reference an existing node.');
-  }
-
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
-
-  const visit = (nodeId: string) => {
-    if (visiting.has(nodeId)) {
-      throw new SerializationError('Move tree contains a cycle.', nodeId);
-    }
-
-    if (visited.has(nodeId)) {
-      return;
-    }
-
-    const node = tree.nodeById[nodeId];
-    if (node === undefined) {
-      throw new SerializationError('Move tree references a missing node.', nodeId);
-    }
-
-    if (node.id !== nodeId) {
-      throw new SerializationError('Move tree node id does not match its record key.', { nodeId, nodeRecordId: node.id });
-    }
-
-    if (node.mainlineChildId !== null && !node.childIds.includes(node.mainlineChildId)) {
-      throw new SerializationError('Move tree mainline child must be one of the node childIds.', nodeId);
-    }
-
-    visiting.add(nodeId);
-
-    for (const childId of node.childIds) {
-      const child = tree.nodeById[childId];
-      if (child === undefined) {
-        throw new SerializationError('Move tree references a missing child node.', { nodeId, childId });
-      }
-
-      if (child.parentId !== nodeId) {
-        throw new SerializationError('Move tree child parentId does not match the parent node.', { nodeId, childId, parentId: child.parentId });
-      }
-
-      visit(childId);
-    }
-
-    visiting.delete(nodeId);
-    visited.add(nodeId);
-  };
-
-  visit(tree.rootId);
-
-  if (visited.size !== Object.keys(tree.nodeById).length) {
-    throw new SerializationError('Move tree contains unreachable nodes.');
-  }
+  validateMoveNode(tree.root);
 }
 function normaliseWorkspace(workspace: IGameWorkspace): IGameWorkspace {
-  const normalisedBoardRoot = normaliseBoardPosition(workspace.boardRoot);
-  const normalisedMoveTree = normaliseMoveTree(workspace.moveTree);
-
   return {
     ...structuredClone(workspace),
-    boardRoot: normalisedBoardRoot,
-    moveTree: normalisedMoveTree,
+    boardRoot: normaliseBoardPosition(workspace.boardRoot),
+    moveTree: normaliseMoveTree(workspace.moveTree),
   };
 }
 function validateWorkspace(workspace: IGameWorkspace): void {
   validateMoveTree(workspace.moveTree);
-
-  if (workspace.moveTree.nodeById[workspace.visibleNodeId] === undefined) {
-    throw new SerializationError('Saved game visibleNodeId must reference an existing move-tree node.');
-  }
-
-  if (workspace.liveNodeId !== null && workspace.moveTree.nodeById[workspace.liveNodeId] === undefined) {
-    throw new SerializationError('Saved game liveNodeId must reference an existing move-tree node when present.');
-  }
-
-  const rootNode = workspace.moveTree.nodeById[workspace.moveTree.rootId];
-  if (rootNode === undefined) {
-    throw new SerializationError('Saved game boardRoot must match an existing move-tree root position.');
-  }
-  if (PositionIdentityService.buildPositionKey(rootNode.position) !== PositionIdentityService.buildPositionKey(workspace.boardRoot)) {
+  getNodeAtPath(workspace.moveTree, workspace.highlightPath, 'Saved game highlightPath');
+  if (workspace.livePath !== null) getNodeAtPath(workspace.moveTree, workspace.livePath, 'Saved game livePath');
+  if (PositionIdentityService.buildPositionKey(workspace.moveTree.root.position) !== PositionIdentityService.buildPositionKey(workspace.boardRoot)) {
     throw new SerializationError('Saved game boardRoot must match the move-tree root position.');
   }
 }
@@ -167,6 +108,7 @@ function migrateGame(input: unknown): IGameWorkspace {
   validateWorkspace(workspace);
   return workspace;
 }
+
 export const SerializationService = {
   serialiseSettings(snapshot: ISettingsSnapshot): string {
     return JSON.stringify(parseWithSchema('Settings', (value) => settingsSnapshotSchema.parse(value), snapshot), null, 2);

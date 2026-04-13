@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { clockSnapshotSchema, type IClockSnapshot } from './TimeControl'
 import { boardIdSchema, pieceKindSchema, playerColourSchema, type BoardId, type PieceKind, type PlayerColour } from './Chess'
+
 export const enum MoveKind {
   Normal = 'normal',
   Castle = 'castle',
@@ -16,7 +17,9 @@ export const enum MoveBranchKind {
 export const moveKinds = [MoveKind.Normal, MoveKind.Castle, MoveKind.EnPassant, MoveKind.Promotion] as const
 export const moveBranchKinds = [MoveBranchKind.Mainline, MoveBranchKind.Variation, MoveBranchKind.Analysis] as const
 
-export interface IMoveMetadata {
+export type MovePath = number[]
+
+export interface IMoveMeta {
   san?: string
   uci?: string
 }
@@ -26,48 +29,63 @@ export interface IMove {
   kind: MoveKind
   movingColour: PlayerColour
   promotionPiece?: PieceKind | null
-  $?: IMoveMetadata
+  $?: IMoveMeta
+}
+export interface IPromoMove extends IMove {
+  kind: MoveKind.Promotion
+  promotionPiece: PieceKind
+}
+export interface IMoveNodeRuntime {
+  parent?: IMoveNode
 }
 export interface IMoveNode {
-  id: string
-  parentId: string | null
-  childIds: string[]
   branchKind: MoveBranchKind
   move: IMove | null
   position: IBoardPosition
   clockSnapshot: IClockSnapshot | null
   plyIndex: number
-  mainlineChildId: string | null
+  mainlineChildIndex: number | null
+  children: IMoveNode[]
+  $?: IMoveNodeRuntime
 }
 export interface IMoveTree {
-  rootId: string
-  nodeById: Record<string, IMoveNode>
+  root: IMoveNode
 }
 export const moveKindSchema = z.enum(moveKinds)
 export const moveBranchKindSchema = z.enum(moveBranchKinds)
+export const movePathSchema = z.array(z.number().int().min(0))
 
 export const moveSchema: z.ZodType<IMove> = z.object({
   from: boardIdSchema,
   to: boardIdSchema,
   kind: moveKindSchema,
   movingColour: playerColourSchema,
-  promotionPiece: pieceKindSchema.nullable(),
+  promotionPiece: pieceKindSchema.nullable().optional(),
 })
-export const moveNodeSchema = z.lazy(() =>
+type IMoveInput = z.input<typeof moveSchema>
+interface IMoveNodeInput {
+  branchKind: MoveBranchKind
+  move: IMoveInput | null
+  position: z.input<typeof boardPositionSchema>
+  clockSnapshot: z.input<typeof clockSnapshotSchema> | null
+  plyIndex: number
+  mainlineChildIndex: number | null
+  children: IMoveNodeInput[]
+}
+interface IMoveTreeInput {
+  root: IMoveNodeInput
+}
+export const moveNodeSchema: z.ZodType<IMoveNode, z.ZodTypeDef, IMoveNodeInput> = z.lazy(() =>
   z.object({
-    id: z.string().uuid(),
-    parentId: z.string().uuid().nullable(),
-    childIds: z.array(z.string().uuid()),
     branchKind: moveBranchKindSchema,
     move: moveSchema.nullable(),
     position: boardPositionSchema,
     clockSnapshot: clockSnapshotSchema.nullable(),
     plyIndex: z.number().int().min(0),
-    mainlineChildId: z.string().uuid().nullable(),
+    mainlineChildIndex: z.number().int().min(0).nullable(),
+    children: z.array(moveNodeSchema),
   }),
 )
-
-export const moveTreeSchema = z.object({
-  rootId: z.string().uuid(),
-  nodeById: z.record(z.string().uuid(), moveNodeSchema),
+export const moveTreeSchema: z.ZodType<IMoveTree, z.ZodTypeDef, IMoveTreeInput> = z.object({
+  root: moveNodeSchema,
 })

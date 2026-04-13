@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { analysisAssignmentSchema, assignedEngineSchema, type IAnalysisAssignment, type IAssignedEngine } from './Engine'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
-import { moveTreeSchema, type IMoveTree } from './Move'
+import { movePathSchema, moveTreeSchema, type IMoveTree, type MovePath } from './Move'
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
 
@@ -88,8 +88,8 @@ export interface IGameWorkspace {
   blackPlayer: IPlayerSlot | null
   boardRoot: IBoardPosition
   moveTree: IMoveTree
-  liveNodeId: string | null
-  visibleNodeId: string
+  livePath: MovePath | null
+  highlightPath: MovePath
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
   liveAnalysisOptions: ILiveAnalysisOptions
@@ -170,8 +170,8 @@ export const gameWorkspaceSchema = z.object({
   blackPlayer: playerSlotSchema.nullable(),
   boardRoot: boardPositionSchema,
   moveTree: moveTreeSchema,
-  liveNodeId: z.string().uuid().nullable(),
-  visibleNodeId: z.string().uuid(),
+  livePath: movePathSchema.nullable(),
+  highlightPath: movePathSchema,
   timeControl: timeControlSchema,
   clockSnapshot: clockSnapshotSchema,
   liveAnalysisOptions: liveAnalysisOptionsSchema,
