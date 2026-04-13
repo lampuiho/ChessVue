@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { EngineAnalysisSearchMode, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
 import { PositionIdentityService } from '@/domain';
 import { Deferred } from '@/utility/async/Deferred';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
@@ -14,32 +14,48 @@ type IUciSession = IBaseUciSession<ISpawnedProcess>;
 interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
   session: IUciSession;
 }
+type IAssignedUciEngine = IAssignedEngine & {
+  clientType: EngineClientType.Uci;
+  $?: IAssignedUciEngineRuntime;
+};
 type IRuntimeAssignedEngine = IAssignedEngine & {
   $: IAssignedEngineRuntime;
 };
-type IAssignedUciEngine = IAssignedEngine & { $: IAssignedUciEngineRuntime; };
+type IRuntimeAssignedUciEngine = IAssignedUciEngine & {
+  $: IAssignedUciEngineRuntime;
+};
 function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail: string | null = null): IPlatformError {
   return { kind, operation, message, detail };
 }
-function isRuntimeAssignedUciEngine(engine: IAssignedEngine): engine is IAssignedUciEngine {
-  return !!((engine as IAssignedUciEngine).$)?.session;
+function isAssignedEngineUci(engine: IAssignedEngine): engine is IAssignedUciEngine {
+  return engine.clientType === EngineClientType.Uci;
+}
+function isRuntimeAssignedUciEngine(engine: IAssignedUciEngine): engine is IRuntimeAssignedUciEngine {
+  return !!engine.$;
 }
 function isRuntimeAssignedEngine(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
   return !!engine.$;
+}
+function requireAssignedUciEngine(engine: IAssignedEngine): IAssignedUciEngine {
+  if (isAssignedEngineUci(engine)) return engine;
+  throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', 'Engine client type is not UCI.');
 }
 function requireRuntimeAssignedEngine(engine: IAssignedEngine): IRuntimeAssignedEngine {
   if (isRuntimeAssignedEngine(engine)) return engine;
   throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine runtime is not available for ${engine.displayName}.`);
 }
-function requireRuntimeAssignedUciEngine(engine: IAssignedEngine): IAssignedUciEngine {
-  if (isRuntimeAssignedUciEngine(engine)) return engine;
+function requireRuntimeAssignedUciEngine(engine: IAssignedEngine): IRuntimeAssignedUciEngine {
+  const assignedUciEngine = requireAssignedUciEngine(engine);
+  if (isRuntimeAssignedUciEngine(assignedUciEngine)) return assignedUciEngine;
   throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine runtime is not available for ${engine.displayName}.`);
 }
 function _initialiseAssignedEngineSession(engine: IAssignedEngine): IUciSession {
-  if (isRuntimeAssignedUciEngine(engine)) return engine.$.session;
-  const runtimeEngine = requireRuntimeAssignedEngine(engine) as IAssignedEngine & { $: IAssignedUciEngineRuntime; };
-  runtimeEngine.$ = { ...runtimeEngine.$, session: createUciSession<ISpawnedProcess>() };
-  if (isRuntimeAssignedUciEngine(runtimeEngine)) return runtimeEngine.$.session;
+  const assignedUciEngine = requireAssignedUciEngine(engine);
+  if (isRuntimeAssignedUciEngine(assignedUciEngine)) return assignedUciEngine.$.session;
+  const runtimeEngine = requireRuntimeAssignedEngine(assignedUciEngine);
+  const runtimeAssignedUciEngine = runtimeEngine as IRuntimeAssignedUciEngine;
+  runtimeAssignedUciEngine.$ = { ...runtimeAssignedUciEngine.$, session: createUciSession<ISpawnedProcess>() };
+  if (isRuntimeAssignedUciEngine(runtimeAssignedUciEngine)) return runtimeAssignedUciEngine.$.session;
   throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Failed to initialise engine runtime for ${engine.displayName}.`);
 }
 export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
