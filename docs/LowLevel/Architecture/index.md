@@ -124,6 +124,11 @@ The data-interface section defines the shared low-level types for:
   - UI-layout state
   - canonical saved-game payload based on `IGame`
 
+## Nullability Convention
+- Prefer optional properties over `| null` when the only meaning is "not present".
+- Prefer `undefined` over `null` for object, array, and lookup-return absence unless the contract needs to distinguish both values explicitly.
+- Presence checks for object-like values should normally be truthy or falsy checks rather than explicit `=== null` or `=== undefined` comparisons.
+
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.

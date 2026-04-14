@@ -37,9 +37,9 @@ export interface IEngineRecord {
   options: IEngineOptionMap
 }
 export interface IAssignedEngineRuntime {
-  processHandle: ProcessHandle | null
+  processHandle?: ProcessHandle
   availability: EngineAvailability
-  lastError: string | null
+  lastError?: string
 }
 export interface IAssignedEngine {
   displayName: string
@@ -62,13 +62,13 @@ export interface IEngineAnalysisRequest {
 export interface IEngineAnalysisUpdate {
   position: IBoardPosition
   positionKey: string
-  bestMove: IMove | null
+  bestMove?: IMove
   lines: IAnalysisLine[]
   isFinal: boolean
 }
 export interface IEngineRegistrationRequest {
-  name: string | null
-  code: string | null
+  name?: string
+  code?: string
   registerLater: boolean
 }
 export const engineProtocolSchema = z.enum(engineProtocols)
@@ -108,7 +108,7 @@ export const engineAnalysisRequestSchema = z.object({
 })
 
 export const engineRegistrationRequestSchema = z.object({
-  name: z.string().nullable(),
-  code: z.string().nullable(),
+  name: z.string().nullable().optional().transform((value) => value ?? undefined),
+  code: z.string().nullable().optional().transform((value) => value ?? undefined),
   registerLater: z.boolean(),
 })

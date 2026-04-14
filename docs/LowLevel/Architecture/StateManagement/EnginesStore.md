@@ -6,7 +6,7 @@ Expose configured engine inventory for UI-facing selection flows and construct e
 ## Public Interface
 ```ts
 listConfiguredEngines(): IEngineRecord[]
-getEngine(engineId: string): IEngineRecord | null
+getEngine(engineId: string): IEngineRecord | undefined
 createPlayer(engineId: string, colour: PlayerColour): Promise<IEnginePlayer>
 validateAnalysisSelection(engineIds: string[]): void
 ```

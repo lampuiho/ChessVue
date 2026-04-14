@@ -5,15 +5,15 @@ import { moveSchema, type IMove } from './Move'
 
 export interface IAnalysisLine {
   depth: number
-  scoreCp: number | null
-  scoreMate: number | null
+  scoreCp?: number
+  scoreMate?: number
   pv: IMove[]
 }
 export interface IAnalysisSnapshot {
   assignedEngine: IAssignedEngine
   positionKey: string
   updatedAt: string
-  bestMove: IMove | null
+  bestMove?: IMove
   lines: IAnalysisLine[]
   isComplete: boolean
 }
@@ -25,8 +25,8 @@ export interface IVisibleAnalysisSnapshot {
 }
 export const analysisLineSchema = z.object({
   depth: z.number().int().min(0),
-  scoreCp: z.number().int().nullable(),
-  scoreMate: z.number().int().nullable(),
+  scoreCp: z.number().int().nullable().optional().transform((value) => value ?? undefined),
+  scoreMate: z.number().int().nullable().optional().transform((value) => value ?? undefined),
   pv: z.array(moveSchema),
 })
 
@@ -34,7 +34,7 @@ export const analysisSnapshotSchema = z.object({
   assignedEngine: assignedEngineSchema,
   positionKey: z.string().min(1),
   updatedAt: z.string().datetime({ offset: true }),
-  bestMove: moveSchema.nullable(),
+  bestMove: moveSchema.nullable().optional().transform((value) => value ?? undefined),
   lines: z.array(analysisLineSchema),
   isComplete: z.boolean(),
 })

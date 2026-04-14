@@ -38,8 +38,8 @@ export function createInitialBoardPosition(): IBoardPosition {
   for (let file = 0; file < 8; file += 1) {
     const whitePawnBoardId = coordsToBoardId(file, 1);
     const blackPawnBoardId = coordsToBoardId(file, 6);
-    if (whitePawnBoardId !== null) board[whitePawnBoardId] = { kind: PieceKind.Pawn, colour: PlayerColour.White };
-    if (blackPawnBoardId !== null) board[blackPawnBoardId] = { kind: PieceKind.Pawn, colour: PlayerColour.Black };
+    if (whitePawnBoardId !== undefined) board[whitePawnBoardId] = { kind: PieceKind.Pawn, colour: PlayerColour.White };
+    if (blackPawnBoardId !== undefined) board[blackPawnBoardId] = { kind: PieceKind.Pawn, colour: PlayerColour.Black };
   }
   board[0] = { kind: PieceKind.Rook, colour: PlayerColour.White };
   board[1] = { kind: PieceKind.Knight, colour: PlayerColour.White };
@@ -61,7 +61,6 @@ export function createInitialBoardPosition(): IBoardPosition {
     board,
     sideToMove: PlayerColour.White,
     castlingAvailability: createDefaultCastlingAvailability(),
-    enPassantTarget: null,
     halfMoveClock: 0,
     fullMoveNumber: 1,
   });
@@ -69,12 +68,12 @@ export function createInitialBoardPosition(): IBoardPosition {
 export function getOpponentColour(colour: PlayerColour): PlayerColour {
   return colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
 }
-export function findKingBoardId(position: IBoardPosition, colour: PlayerColour): BoardId | null {
+export function findKingBoardId(position: IBoardPosition, colour: PlayerColour): BoardId | undefined {
   for (let boardId = 0; boardId < position.board.length; boardId += 1) {
     const piece = position.board[boardId];
     if (piece?.kind === PieceKind.King && piece.colour === colour) return boardId;
   }
-  return null;
+  return;
 }
 export function createSparseBoard(pieces: Array<{ boardId: BoardId; piece: IChessPiece }>, sideToMove: PlayerColour = PlayerColour.White): IBoardPosition {
   const board: IBoardPosition['board'] = Array(64).fill(undefined);
@@ -88,7 +87,6 @@ export function createSparseBoard(pieces: Array<{ boardId: BoardId; piece: IChes
       blackKingSide: false,
       blackQueenSide: false,
     },
-    enPassantTarget: null,
     halfMoveClock: 0,
     fullMoveNumber: 1,
   });

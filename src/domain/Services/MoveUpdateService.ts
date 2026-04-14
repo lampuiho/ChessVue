@@ -9,15 +9,15 @@ function getTree(node: IMoveNode): IMoveTree {
   return { root: getRootNode(node) };
 }
 function markPathBranchKind(node: IMoveNode, branchKind: MoveBranchKind): void {
-  let currentNode: IMoveNode | null = node;
-  while (currentNode !== null) {
+  let currentNode: IMoveNode | undefined = node;
+  while (currentNode) {
     currentNode.branchKind = branchKind;
-    currentNode = currentNode.mainlineChildIndex === null ? null : currentNode.children[currentNode.mainlineChildIndex] ?? null;
+    currentNode = currentNode.mainlineChildIndex === undefined ? undefined : currentNode.children[currentNode.mainlineChildIndex];
   }
 }
 function pruneDescendants(node: IMoveNode): IMoveTree {
   node.children = [];
-  node.mainlineChildIndex = null;
+  node.mainlineChildIndex = undefined;
   return getTree(node);
 }
 function getAncestorNode(node: IMoveNode, distance: number): IMoveNode {
@@ -29,36 +29,36 @@ function getAncestorNode(node: IMoveNode, distance: number): IMoveNode {
   }
   return currentNode;
 }
-function createChildNode(parentNode: IMoveNode, branchKind: MoveBranchKind, move: IMove, position: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveNode {
+function createChildNode(parentNode: IMoveNode, branchKind: MoveBranchKind, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveNode {
   return {
     branchKind,
     move: structuredClone(move),
     position: structuredClone(position),
-    clockSnapshot: clockSnapshot === null ? null : structuredClone(clockSnapshot),
+    clockSnapshot: clockSnapshot === undefined ? undefined : structuredClone(clockSnapshot),
     plyIndex: parentNode.plyIndex + 1,
-    mainlineChildIndex: null,
+    mainlineChildIndex: undefined,
     children: [],
     $: { parent: parentNode },
   };
 }
 
 export const MoveUpdateService = {
-  createMoveTree(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree {
+  createMoveTree(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
     return {
       root: {
         branchKind: MoveBranchKind.Mainline,
-        move: null,
+        move: undefined,
         position: structuredClone(boardRoot),
-        clockSnapshot: clockSnapshot === null ? null : structuredClone(clockSnapshot),
+        clockSnapshot: clockSnapshot === undefined ? undefined : structuredClone(clockSnapshot),
         plyIndex: 0,
-        mainlineChildIndex: null,
+        mainlineChildIndex: undefined,
         children: [],
       },
     };
   },
-  addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree {
+  addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
     const previousMainlineChildIndex = parentNode.mainlineChildIndex;
-    if (previousMainlineChildIndex !== null) markPathBranchKind(parentNode.children[previousMainlineChildIndex]!, MoveBranchKind.Variation);
+    if (previousMainlineChildIndex !== undefined) markPathBranchKind(parentNode.children[previousMainlineChildIndex]!, MoveBranchKind.Variation);
     parentNode.children.push(createChildNode(parentNode, MoveBranchKind.Mainline, move, position, clockSnapshot));
     parentNode.mainlineChildIndex = parentNode.children.length - 1;
     return getTree(parentNode);
@@ -78,7 +78,7 @@ export const MoveUpdateService = {
     const childIndex = parentNode.children.indexOf(childNode);
     if (childIndex < 0) throw new Error('Child node does not belong to the supplied parent node.');
     const previousMainlineChildIndex = parentNode.mainlineChildIndex;
-    if (previousMainlineChildIndex !== null && previousMainlineChildIndex !== childIndex) markPathBranchKind(parentNode.children[previousMainlineChildIndex]!, MoveBranchKind.Variation);
+    if (previousMainlineChildIndex !== undefined && previousMainlineChildIndex !== childIndex) markPathBranchKind(parentNode.children[previousMainlineChildIndex]!, MoveBranchKind.Variation);
     parentNode.mainlineChildIndex = childIndex;
     markPathBranchKind(childNode, MoveBranchKind.Mainline);
     return getTree(parentNode);
@@ -86,7 +86,7 @@ export const MoveUpdateService = {
   pruneFutureMoves(node: IMoveNode): IMoveTree {
     return pruneDescendants(node);
   },
-  replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree {
+  replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
     return this.createMoveTree(boardRoot, clockSnapshot);
   },
 };

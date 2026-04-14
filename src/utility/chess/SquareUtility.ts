@@ -11,8 +11,8 @@ export function boardIdToCoords(boardId: BoardId): { file: number; rank: number 
     rank: Math.floor(boardId / 8),
   };
 }
-export function coordsToBoardId(file: number, rank: number): BoardId | null {
-  if (file < 0 || file > 7 || rank < 0 || rank > 7) return null;
+export function coordsToBoardId(file: number, rank: number): BoardId | undefined {
+  if (file < 0 || file > 7 || rank < 0 || rank > 7) return;
   return (rank * 8) + file;
 }
 export function boardIdToNotation(boardId: BoardId): string {

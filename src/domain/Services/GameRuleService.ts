@@ -57,9 +57,9 @@ function addSlidingMoves(position: IBoardPosition, from: BoardId, colour: Player
 
     while (true) {
       const target = coordsToBoardId(file, rank)
-      if (target === null) break
+      if (target === undefined) break
       if (isOccupiedByColour(position, target, colour)) break
-      accumulator.push({ from, to: target, kind: MoveKind.Normal, movingColour: colour, promotionPiece: null })
+      accumulator.push({ from, to: target, kind: MoveKind.Normal, movingColour: colour })
       if (isOccupied(position, target)) break
       file += direction.file
       rank += direction.rank
@@ -71,31 +71,31 @@ function addPawnMoves(position: IBoardPosition, from: BoardId, colour: PlayerCol
   const direction = getForwardDirection(colour)
   const oneForward = coordsToBoardId(origin.file, origin.rank + direction)
 
-  if (oneForward !== null && !isOccupied(position, oneForward)) {
+  if (oneForward !== undefined && !isOccupied(position, oneForward)) {
     const isPromotion = boardIdToCoords(oneForward).rank === getPromotionRank(colour)
-    accumulator.push({ from, to: oneForward, kind: isPromotion ? MoveKind.Promotion : MoveKind.Normal, movingColour: colour, promotionPiece: null })
+    accumulator.push({ from, to: oneForward, kind: isPromotion ? MoveKind.Promotion : MoveKind.Normal, movingColour: colour })
 
     if (origin.rank === getPawnHomeRank(colour)) {
       const twoForward = coordsToBoardId(origin.file, origin.rank + (direction * 2))
-      if (twoForward !== null && !isOccupied(position, twoForward)) accumulator.push({ from, to: twoForward, kind: MoveKind.Normal, movingColour: colour, promotionPiece: null })
+      if (twoForward !== undefined && !isOccupied(position, twoForward)) accumulator.push({ from, to: twoForward, kind: MoveKind.Normal, movingColour: colour })
     }
   }
 
   for (const fileOffset of [-1, 1]) {
     const target = coordsToBoardId(origin.file + fileOffset, origin.rank + direction)
-    if (target === null) continue
+    if (target === undefined) continue
     const targetPiece = getPiece(position, target)
     const isPromotion = boardIdToCoords(target).rank === getPromotionRank(colour)
 
     if (targetPiece !== undefined && targetPiece.colour !== colour) {
-      accumulator.push({ from, to: target, kind: isPromotion ? MoveKind.Promotion : MoveKind.Normal, movingColour: colour, promotionPiece: null })
+      accumulator.push({ from, to: target, kind: isPromotion ? MoveKind.Promotion : MoveKind.Normal, movingColour: colour })
     }
 
     if (position.enPassantTarget === target) {
       const capturedBoardId = coordsToBoardId(origin.file + fileOffset, origin.rank)
-      const capturedPiece = capturedBoardId === null ? undefined : getPiece(position, capturedBoardId)
+      const capturedPiece = capturedBoardId === undefined ? undefined : getPiece(position, capturedBoardId)
       if (capturedPiece?.kind === PieceKind.Pawn && capturedPiece.colour !== colour) {
-        accumulator.push({ from, to: target, kind: MoveKind.EnPassant, movingColour: colour, promotionPiece: null })
+        accumulator.push({ from, to: target, kind: MoveKind.EnPassant, movingColour: colour })
       }
     }
   }
@@ -105,8 +105,8 @@ function addKnightMoves(position: IBoardPosition, from: BoardId, colour: PlayerC
 
   for (const offset of knightOffsets) {
     const target = coordsToBoardId(origin.file + offset.file, origin.rank + offset.rank)
-    if (target === null || isOccupiedByColour(position, target, colour)) continue
-    accumulator.push({ from, to: target, kind: MoveKind.Normal, movingColour: colour, promotionPiece: null })
+    if (target === undefined || isOccupiedByColour(position, target, colour)) continue
+    accumulator.push({ from, to: target, kind: MoveKind.Normal, movingColour: colour })
   }
 }
 function addKingMoves(position: IBoardPosition, from: BoardId, colour: PlayerColour, accumulator: ICandidateMove[]): void {
@@ -114,8 +114,8 @@ function addKingMoves(position: IBoardPosition, from: BoardId, colour: PlayerCol
 
   for (const offset of kingOffsets) {
     const target = coordsToBoardId(origin.file + offset.file, origin.rank + offset.rank)
-    if (target === null || isOccupiedByColour(position, target, colour)) continue
-    accumulator.push({ from, to: target, kind: MoveKind.Normal, movingColour: colour, promotionPiece: null })
+    if (target === undefined || isOccupiedByColour(position, target, colour)) continue
+    accumulator.push({ from, to: target, kind: MoveKind.Normal, movingColour: colour })
   }
 
   const enemyColour = getOpponentColour(colour)
@@ -125,27 +125,27 @@ function addKingMoves(position: IBoardPosition, from: BoardId, colour: PlayerCol
 
   const kingSidePath = [coordsToBoardId(5, homeRank), coordsToBoardId(6, homeRank)]
   const queenSidePath = [coordsToBoardId(3, homeRank), coordsToBoardId(2, homeRank)]
-  const kingSideClear = kingSidePath.every((boardId) => boardId !== null && !isOccupied(position, boardId))
-  const queenSideClear = [coordsToBoardId(1, homeRank), ...queenSidePath].every((boardId) => boardId !== null && !isOccupied(position, boardId))
+  const kingSideClear = kingSidePath.every((boardId) => boardId !== undefined && !isOccupied(position, boardId))
+  const queenSideClear = [coordsToBoardId(1, homeRank), ...queenSidePath].every((boardId) => boardId !== undefined && !isOccupied(position, boardId))
   const rookKingSide = coordsToBoardId(7, homeRank)
   const rookQueenSide = coordsToBoardId(0, homeRank)
 
   if ((colour === PlayerColour.White ? position.castlingAvailability.whiteKingSide : position.castlingAvailability.blackKingSide)
-    && rookKingSide !== null
+    && rookKingSide !== undefined
     && getPiece(position, rookKingSide)?.kind === PieceKind.Rook
     && kingSideClear
-    && kingSidePath.every((boardId) => boardId !== null && !isSquareAttacked(position, boardId, enemyColour))) {
+    && kingSidePath.every((boardId) => boardId !== undefined && !isSquareAttacked(position, boardId, enemyColour))) {
     const target = coordsToBoardId(6, homeRank)
-    if (target !== null) accumulator.push({ from, to: target, kind: MoveKind.Castle, movingColour: colour, promotionPiece: null })
+    if (target !== undefined) accumulator.push({ from, to: target, kind: MoveKind.Castle, movingColour: colour })
   }
 
   if ((colour === PlayerColour.White ? position.castlingAvailability.whiteQueenSide : position.castlingAvailability.blackQueenSide)
-    && rookQueenSide !== null
+    && rookQueenSide !== undefined
     && getPiece(position, rookQueenSide)?.kind === PieceKind.Rook
     && queenSideClear
-    && queenSidePath.every((boardId) => boardId !== null && !isSquareAttacked(position, boardId, enemyColour))) {
+    && queenSidePath.every((boardId) => boardId !== undefined && !isSquareAttacked(position, boardId, enemyColour))) {
     const target = coordsToBoardId(2, homeRank)
-    if (target !== null) accumulator.push({ from, to: target, kind: MoveKind.Castle, movingColour: colour, promotionPiece: null })
+    if (target !== undefined) accumulator.push({ from, to: target, kind: MoveKind.Castle, movingColour: colour })
   }
 }
 function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour): ICandidateMove[] {
@@ -186,7 +186,7 @@ function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: P
 
   for (const fileOffset of [-1, 1]) {
     const attackerBoardId = coordsToBoardId(targetCoords.file + fileOffset, pawnRank)
-    if (attackerBoardId !== null) {
+    if (attackerBoardId !== undefined) {
       const attacker = getPiece(position, attackerBoardId)
       if (attacker?.colour === byColour && attacker.kind === PieceKind.Pawn) return true
     }
@@ -194,7 +194,7 @@ function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: P
 
   for (const offset of knightOffsets) {
     const attackerBoardId = coordsToBoardId(targetCoords.file + offset.file, targetCoords.rank + offset.rank)
-    if (attackerBoardId !== null) {
+    if (attackerBoardId !== undefined) {
       const attacker = getPiece(position, attackerBoardId)
       if (attacker?.colour === byColour && attacker.kind === PieceKind.Knight) return true
     }
@@ -206,7 +206,7 @@ function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: P
 
     while (true) {
       const attackerBoardId = coordsToBoardId(file, rank)
-      if (attackerBoardId === null) break
+      if (attackerBoardId === undefined) break
       const attacker = getPiece(position, attackerBoardId)
       if (attacker !== undefined) {
         if (attacker.colour === byColour && (attacker.kind === PieceKind.Bishop || attacker.kind === PieceKind.Queen)) return true
@@ -223,7 +223,7 @@ function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: P
 
     while (true) {
       const attackerBoardId = coordsToBoardId(file, rank)
-      if (attackerBoardId === null) break
+      if (attackerBoardId === undefined) break
       const attacker = getPiece(position, attackerBoardId)
       if (attacker !== undefined) {
         if (attacker.colour === byColour && (attacker.kind === PieceKind.Rook || attacker.kind === PieceKind.Queen)) return true
@@ -236,7 +236,7 @@ function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: P
 
   for (const offset of kingOffsets) {
     const attackerBoardId = coordsToBoardId(targetCoords.file + offset.file, targetCoords.rank + offset.rank)
-    if (attackerBoardId !== null) {
+    if (attackerBoardId !== undefined) {
       const attacker = getPiece(position, attackerBoardId)
       if (attacker?.colour === byColour && attacker.kind === PieceKind.King) return true
     }
@@ -278,7 +278,7 @@ function updateCastlingAvailability(position: IBoardPosition, move: ICandidateMo
 function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBoardPosition {
   const movingPiece = getPiece(position, move.from)
   if (movingPiece === undefined) throw new Error(`No piece found on ${move.from}`)
-  if (move.kind === MoveKind.Promotion && move.promotionPiece === null) throw new Error('Promotion piece selection is required before applying a promotion move.')
+  if (move.kind === MoveKind.Promotion && move.promotionPiece === undefined) throw new Error('Promotion piece selection is required before applying a promotion move.')
 
   const nextPosition = cloneBoardPosition(position)
   nextPosition.board[move.from] = undefined
@@ -288,7 +288,7 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
     const fromCoords = boardIdToCoords(move.from)
     const toCoords = boardIdToCoords(move.to)
     const capturedBoardId = coordsToBoardId(toCoords.file, fromCoords.rank)
-    if (capturedBoardId !== null) {
+    if (capturedBoardId !== undefined) {
       nextPosition.board[capturedBoardId] = undefined
       isCapture = true
     }
@@ -299,7 +299,7 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
     const isKingSide = boardIdToCoords(move.to).file === 6
     const rookFrom = coordsToBoardId(isKingSide ? 7 : 0, homeRank)
     const rookTo = coordsToBoardId(isKingSide ? 5 : 3, homeRank)
-    if (rookFrom !== null && rookTo !== null) {
+    if (rookFrom !== undefined && rookTo !== undefined) {
       const rook = getPiece(position, rookFrom)
       if (rook !== undefined) {
         nextPosition.board[rookFrom] = undefined
@@ -312,7 +312,7 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
     ? { kind: move.promotionPiece!, colour: movingPiece.colour }
     : movingPiece
   nextPosition.castlingAvailability = updateCastlingAvailability(position, move)
-  nextPosition.enPassantTarget = null
+  nextPosition.enPassantTarget = undefined
 
   const fromCoords = boardIdToCoords(move.from)
   const toCoords = boardIdToCoords(move.to)
@@ -329,7 +329,7 @@ function isLegalCandidate(position: IBoardPosition, move: ICandidateMove): boole
   const movingPiece = getPiece(position, move.from)
   if (movingPiece === undefined || movingPiece.colour !== move.movingColour) return false
 
-  const promotionResolvedMoves = move.kind === MoveKind.Promotion && move.promotionPiece === null
+  const promotionResolvedMoves = move.kind === MoveKind.Promotion && move.promotionPiece === undefined
     ? promotionPieces.map((piece) => ({ ...move, promotionPiece: piece }))
     : [move]
 
@@ -341,7 +341,7 @@ function isLegalCandidate(position: IBoardPosition, move: ICandidateMove): boole
 function moveMatches(candidate: Pick<IMove, 'from' | 'to' | 'kind' | 'movingColour' | 'promotionPiece'>, move: IMove): boolean {
   if (candidate.from !== move.from || candidate.to !== move.to || candidate.kind !== move.kind || candidate.movingColour !== move.movingColour) return false
   if (candidate.kind !== MoveKind.Promotion) return candidate.promotionPiece === move.promotionPiece
-  return move.promotionPiece === null || (move.promotionPiece !== undefined && promotionPieces.includes(move.promotionPiece))
+  return move.promotionPiece === undefined || promotionPieces.includes(move.promotionPiece)
 }
 function hasInsufficientMaterial(position: IBoardPosition): boolean {
   const pieces = position.board
@@ -372,7 +372,7 @@ export const GameRuleService = {
   requiresPromotionSelection(position: IBoardPosition, move: IMove): boolean {
     const piece = getPiece(position, move.from);
     if (piece?.kind !== PieceKind.Pawn) return false;
-    return boardIdToCoords(move.to).rank === getPromotionRank(piece.colour) && move.promotionPiece === null;
+    return boardIdToCoords(move.to).rank === getPromotionRank(piece.colour) && move.promotionPiece === undefined;
   },
   applyMove(position: IBoardPosition, move: IMove): IBoardPosition {
     const legalMoves = this.generateLegalMoves(position);
@@ -400,12 +400,12 @@ export const GameRuleService = {
     if (legalMoves.length > 0) {
       return {
         resultState: ResultState.Ongoing,
-        resultReason: null,
+        resultReason: undefined,
       };
     }
 
     const kingBoardId = findKingBoardId(position, position.sideToMove);
-    if (kingBoardId !== null && isSquareAttacked(position, kingBoardId, getOpponentColour(position.sideToMove))) {
+    if (kingBoardId !== undefined && isSquareAttacked(position, kingBoardId, getOpponentColour(position.sideToMove))) {
       return {
         resultState: position.sideToMove === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon,
         resultReason: ResultReason.RuleResolved,

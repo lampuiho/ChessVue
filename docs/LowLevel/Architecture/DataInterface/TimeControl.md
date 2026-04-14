@@ -22,28 +22,28 @@ enum TimeControlPreset {
 }
 
 interface ITimeControl {
-  preset: TimeControlPreset | null
-  initialMs: number | null
+  preset?: TimeControlPreset
+  initialMs?: number
   incrementMs: number
 }
 
 interface IPlayerClock {
-  remainingMs: number | null
+  remainingMs?: number
   isRunning: boolean
 }
 
 interface IClockSnapshot {
   white: IPlayerClock
   black: IPlayerClock
-  activeColour: PlayerColour | null
-  startedAtUtc: string | null
-  pausedAtUtc: string | null
-  lastMoveAtUtc: string | null
+  activeColour?: PlayerColour
+  startedAtUtc?: string
+  pausedAtUtc?: string
+  lastMoveAtUtc?: string
 }
 ```
 
 ## Rules
-- `null` timing values represent untimed play.
+- Omitted timing values represent untimed play.
 - Relative timestamps, not UI tick counters, are the source of truth for remaining time.
 - `gameState` on `IGame` tells consumers whether a snapshot is actively running, paused, or outside live clock consumption.
 - `IClockSnapshot` stores timing data only. It does not replace `gameState` as the authority for whether the game is in live play, live analysis, board edit, or checkmate.

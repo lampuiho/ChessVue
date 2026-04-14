@@ -4,7 +4,7 @@ import { usePlatformService } from '@/platform';
 import { SerializationService } from './SerializationService';
 
 const _settingsPath = 'settings.json';
-let _cachedSettings: ISettingsSnapshot | null = null;
+let _cachedSettings: ISettingsSnapshot | undefined;
 
 function isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
@@ -21,7 +21,7 @@ function createDefaultSettingsSnapshot(): ISettingsSnapshot {
     },
     gameDefaults: {
       quickNewGameName: 'New Game',
-      defaultTimeControl: { preset: TimeControlPreset.Untimed, initialMs: null, incrementMs: 0 },
+      defaultTimeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
       defaultWhitePlayerType: PlayerType.Local,
       defaultBlackPlayerType: PlayerType.Local,
     },
@@ -53,7 +53,7 @@ function cacheAcceptedSettings(snapshot: ISettingsSnapshot): ISettingsSnapshot {
 
 export const UserSettingService = {
   async getSettingsOrDefault(): Promise<ISettingsSnapshot> {
-    if (_cachedSettings !== null) return structuredClone(_cachedSettings);
+    if (_cachedSettings !== undefined) return structuredClone(_cachedSettings);
     const storageAdapter = usePlatformService().getStorageAdapter();
     try {
       return cacheAcceptedSettings(SerializationService.deserialiseSettings(await storageAdapter.readTextFile(_settingsPath)));

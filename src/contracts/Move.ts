@@ -28,7 +28,7 @@ export interface IMove {
   to: BoardId
   kind: MoveKind
   movingColour: PlayerColour
-  promotionPiece?: PieceKind | null
+  promotionPiece?: PieceKind
   $?: IMoveMeta
 }
 export interface IPromoMove extends IMove {
@@ -40,11 +40,11 @@ export interface IMoveNodeRuntime {
 }
 export interface IMoveNode {
   branchKind: MoveBranchKind
-  move: IMove | null
+  move?: IMove
   position: IBoardPosition
-  clockSnapshot: IClockSnapshot | null
+  clockSnapshot?: IClockSnapshot
   plyIndex: number
-  mainlineChildIndex: number | null
+  mainlineChildIndex?: number
   children: IMoveNode[]
   $?: IMoveNodeRuntime
 }
@@ -55,21 +55,22 @@ export const moveKindSchema = z.enum(moveKinds)
 export const moveBranchKindSchema = z.enum(moveBranchKinds)
 export const movePathSchema = z.array(z.number().int().min(0))
 
-export const moveSchema: z.ZodType<IMove> = z.object({
+type IMoveSchemaInput = Omit<IMove, 'promotionPiece'> & { promotionPiece?: PieceKind | null }
+export const moveSchema: z.ZodType<IMove, z.ZodTypeDef, IMoveSchemaInput> = z.object({
   from: boardIdSchema,
   to: boardIdSchema,
   kind: moveKindSchema,
   movingColour: playerColourSchema,
-  promotionPiece: pieceKindSchema.nullable().optional(),
+  promotionPiece: pieceKindSchema.nullable().optional().transform((value) => value ?? undefined),
 })
-type IMoveInput = z.input<typeof moveSchema>
+type IMoveInput = IMoveSchemaInput
 interface IMoveNodeInput {
   branchKind: MoveBranchKind
-  move: IMoveInput | null
+  move?: IMoveInput | null
   position: z.input<typeof boardPositionSchema>
-  clockSnapshot: z.input<typeof clockSnapshotSchema> | null
+  clockSnapshot?: z.input<typeof clockSnapshotSchema> | null
   plyIndex: number
-  mainlineChildIndex: number | null
+  mainlineChildIndex?: number | null
   children: IMoveNodeInput[]
 }
 interface IMoveTreeInput {
@@ -78,11 +79,11 @@ interface IMoveTreeInput {
 export const moveNodeSchema: z.ZodType<IMoveNode, z.ZodTypeDef, IMoveNodeInput> = z.lazy(() =>
   z.object({
     branchKind: moveBranchKindSchema,
-    move: moveSchema.nullable(),
+    move: moveSchema.nullable().optional().transform((value) => value ?? undefined),
     position: boardPositionSchema,
-    clockSnapshot: clockSnapshotSchema.nullable(),
+    clockSnapshot: clockSnapshotSchema.nullable().optional().transform((value) => value ?? undefined),
     plyIndex: z.number().int().min(0),
-    mainlineChildIndex: z.number().int().min(0).nullable(),
+    mainlineChildIndex: z.number().int().min(0).nullable().optional().transform((value) => value ?? undefined),
     children: z.array(moveNodeSchema),
   }),
 )

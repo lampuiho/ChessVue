@@ -20,7 +20,7 @@ interface IBoardPosition {
   board: (IChessPiece | undefined)[]
   sideToMove: PlayerColour
   castlingAvailability: ICastlingAvailability
-  enPassantTarget: BoardId | null
+  enPassantTarget?: BoardId
   halfMoveClock: number
   fullMoveNumber: number
 }
@@ -31,3 +31,4 @@ interface IBoardPosition {
 - `SerializationService` persists `IBoardPosition` inside `IGame`.
 - `GamesStore` keys persisted analysis snapshots by derived structural position identity, not stored FEN.
 - `board` is always a `64`-entry array indexed directly by `BoardId`.
+- An omitted `enPassantTarget` means no en-passant capture is currently available.

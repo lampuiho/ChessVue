@@ -12,7 +12,7 @@ export interface IBoardPosition {
   board: (IChessPiece | undefined)[]
   sideToMove: PlayerColour
   castlingAvailability: ICastlingAvailability
-  enPassantTarget: BoardId | null
+  enPassantTarget?: BoardId
   halfMoveClock: number
   fullMoveNumber: number
 }
@@ -25,12 +25,13 @@ export const castlingAvailabilitySchema = z.object({
 const boardEntrySchema: z.ZodType<IChessPiece | undefined, z.ZodTypeDef, IChessPiece | null | undefined> = z.union([chessPieceSchema, z.null(), z.undefined()])
   .transform((entry) => entry ?? undefined)
 const boardSchema: z.ZodType<IBoardPosition['board'], z.ZodTypeDef, Array<IChessPiece | null | undefined>> = z.array(boardEntrySchema).length(64)
+type IBoardPositionInput = Omit<IBoardPosition, 'board' | 'enPassantTarget'> & { board: Array<IChessPiece | null | undefined>; enPassantTarget?: BoardId | null }
 
-export const boardPositionSchema: z.ZodType<IBoardPosition, z.ZodTypeDef, Omit<IBoardPosition, 'board'> & { board: Array<IChessPiece | null | undefined> }> = z.object({
+export const boardPositionSchema: z.ZodType<IBoardPosition, z.ZodTypeDef, IBoardPositionInput> = z.object({
   board: boardSchema,
   sideToMove: playerColourSchema,
   castlingAvailability: castlingAvailabilitySchema,
-  enPassantTarget: z.number().int().min(0).max(63).nullable(),
+  enPassantTarget: z.number().int().min(0).max(63).nullable().optional().transform((value) => value ?? undefined),
   halfMoveClock: z.number().int().min(0),
   fullMoveNumber: z.number().int().min(1),
 })

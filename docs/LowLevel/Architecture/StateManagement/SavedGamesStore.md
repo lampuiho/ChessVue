@@ -9,7 +9,7 @@ listSavedGames(): Promise<ISavedGameGroup[]>
 getLoadFilePath(gameId: string, saveName?: string): Promise<string>
 getRecentGamePath(gameId: string): Promise<string>
 exportGame(gameId: string): Promise<string>
-importGame(): Promise<string | null>
+importGame(): Promise<string | undefined>
 ```
 
 ## Responsibilities

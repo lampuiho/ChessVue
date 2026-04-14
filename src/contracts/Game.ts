@@ -103,13 +103,13 @@ export interface IGame {
   metadata: IGameMetadata
   gameState: GameState
   resultState: ResultState
-  resultReason: ResultReason | null
-  drawOfferState: IDrawOfferState | null
-  whitePlayer: IPlayer | IEnginePlayer | null
-  blackPlayer: IPlayer | IEnginePlayer | null
+  resultReason?: ResultReason
+  drawOfferState?: IDrawOfferState
+  whitePlayer?: IPlayer | IEnginePlayer
+  blackPlayer?: IPlayer | IEnginePlayer
   boardRoot: IBoardPosition
   moveTree: IMoveTree
-  livePath: MovePath | null
+  livePath?: MovePath
   highlightPath: MovePath
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
@@ -119,10 +119,10 @@ export interface IGame {
 }
 export interface ICreateGameRequest {
   name: string
-  whitePlayerType: PlayerType | null
-  blackPlayerType: PlayerType | null
-  whiteEngineId: string | null
-  blackEngineId: string | null
+  whitePlayerType?: PlayerType
+  blackPlayerType?: PlayerType
+  whiteEngineId?: string
+  blackEngineId?: string
   analysisEngineIds: string[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
@@ -132,15 +132,15 @@ export interface IStartGameFromSetupRequest {
   name?: string
   whitePlayerType: PlayerType
   blackPlayerType: PlayerType
-  whiteEngineId: string | null
-  blackEngineId: string | null
+  whiteEngineId?: string
+  blackEngineId?: string
   analysisEngineIds: string[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
 }
 export const gameStateSchema = z.enum(gameStates)
 export const resultStateSchema = z.enum(resultStates)
-export const resultReasonSchema = z.enum(resultReasons).nullable()
+export const resultReasonSchema = z.enum(resultReasons).nullable().optional().transform((value) => value ?? undefined)
 export const playerTypeSchema = z.enum(playerTypes)
 export const playerActivityStateSchema = z.enum(playerActivityStates)
 export const drawOfferDirectionSchema = z.enum(drawOfferDirections)
@@ -191,12 +191,12 @@ export const gameSchema = z.object({
   gameState: gameStateSchema,
   resultState: resultStateSchema,
   resultReason: resultReasonSchema,
-  drawOfferState: drawOfferStateSchema.nullable(),
-  whitePlayer: playerSchema.nullable(),
-  blackPlayer: playerSchema.nullable(),
+  drawOfferState: drawOfferStateSchema.nullable().optional().transform((value) => value ?? undefined),
+  whitePlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  blackPlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
   boardRoot: boardPositionSchema,
   moveTree: moveTreeSchema,
-  livePath: movePathSchema.nullable(),
+  livePath: movePathSchema.nullable().optional().transform((value) => value ?? undefined),
   highlightPath: movePathSchema,
   timeControl: timeControlSchema,
   clockSnapshot: clockSnapshotSchema,
@@ -206,10 +206,10 @@ export const gameSchema = z.object({
 
 export const createGameRequestSchema = z.object({
   name: z.string().min(1),
-  whitePlayerType: playerTypeSchema.nullable(),
-  blackPlayerType: playerTypeSchema.nullable(),
-  whiteEngineId: z.string().min(1).nullable(),
-  blackEngineId: z.string().min(1).nullable(),
+  whitePlayerType: playerTypeSchema.nullable().optional().transform((value) => value ?? undefined),
+  blackPlayerType: playerTypeSchema.nullable().optional().transform((value) => value ?? undefined),
+  whiteEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
+  blackEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
   analysisEngineIds: z.array(z.string().min(1)).max(4),
   showLiveAnalysisMoves: z.boolean(),
   timeControl: timeControlSchema,
@@ -220,8 +220,8 @@ export const startGameFromSetupRequestSchema = z.object({
   name: z.string().min(1).optional(),
   whitePlayerType: playerTypeSchema,
   blackPlayerType: playerTypeSchema,
-  whiteEngineId: z.string().min(1).nullable(),
-  blackEngineId: z.string().min(1).nullable(),
+  whiteEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
+  blackEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
   analysisEngineIds: z.array(z.string().min(1)).max(4),
   showLiveAnalysisMoves: z.boolean(),
   timeControl: timeControlSchema,

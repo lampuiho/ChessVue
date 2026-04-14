@@ -7,7 +7,7 @@ Validate and apply legal chess moves for the baseline standard game flow.
 ```ts
 interface IRuleResult {
   resultState: ResultState
-  resultReason: ResultReason | null
+  resultReason?: ResultReason
 }
 
 generateLegalMoves(position: IBoardPosition): IMove[]

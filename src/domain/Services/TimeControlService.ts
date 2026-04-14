@@ -20,7 +20,7 @@ function cloneClockSnapshot(snapshot: IClockSnapshot): IClockSnapshot {
   };
 }
 function isUntimed(timeControl: ITimeControl): boolean {
-  return timeControl.initialMs === null || timeControl.preset === TimeControlPreset.Untimed;
+  return timeControl.initialMs === undefined || timeControl.preset === TimeControlPreset.Untimed;
 }
 function getClock(snapshot: IClockSnapshot, colour: PlayerColour) {
   return colour === PlayerColour.White ? snapshot.white : snapshot.black;
@@ -28,13 +28,13 @@ function getClock(snapshot: IClockSnapshot, colour: PlayerColour) {
 function materialiseElapsed(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
   const nextSnapshot = cloneClockSnapshot(snapshot);
 
-  if (nextSnapshot.activeColour === null || nextSnapshot.startedAtUtc === null) {
+  if (nextSnapshot.activeColour === undefined || nextSnapshot.startedAtUtc === undefined) {
     return nextSnapshot;
   }
 
   const activeClock = getClock(nextSnapshot, nextSnapshot.activeColour);
 
-  if (activeClock.remainingMs === null || activeClock.isRunning === false) {
+  if (activeClock.remainingMs === undefined || activeClock.isRunning === false) {
     return nextSnapshot;
   }
 
@@ -48,25 +48,17 @@ export const TimeControlService = {
   initialiseClockSnapshot(timeControl: ITimeControl): IClockSnapshot {
     if (isUntimed(timeControl)) {
       return {
-        white: { remainingMs: null, isRunning: false },
-        black: { remainingMs: null, isRunning: false },
-        activeColour: null,
-        startedAtUtc: null,
-        pausedAtUtc: null,
-        lastMoveAtUtc: null,
+        white: { isRunning: false },
+        black: { isRunning: false },
       };
     }
 
     return {
       white: { remainingMs: timeControl.initialMs, isRunning: false },
       black: { remainingMs: timeControl.initialMs, isRunning: false },
-      activeColour: null,
-      startedAtUtc: null,
-      pausedAtUtc: null,
-      lastMoveAtUtc: null,
     };
   },
-  getRemainingTime(snapshot: IClockSnapshot, nowUtc: string): Record<PlayerColour, number | null> {
+  getRemainingTime(snapshot: IClockSnapshot, nowUtc: string): Record<PlayerColour, number | undefined> {
     const materialised = materialiseElapsed(snapshot, nowUtc);
 
     return {
@@ -77,7 +69,7 @@ export const TimeControlService = {
   startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: string): IClockSnapshot {
     const nextSnapshot = cloneClockSnapshot(snapshot);
 
-    if (getClock(nextSnapshot, activeColour).remainingMs === null) {
+    if (getClock(nextSnapshot, activeColour).remainingMs === undefined) {
       return nextSnapshot;
     }
 
@@ -85,13 +77,13 @@ export const TimeControlService = {
     nextSnapshot.black.isRunning = activeColour === PlayerColour.Black;
     nextSnapshot.activeColour = activeColour;
     nextSnapshot.startedAtUtc = nowUtc;
-    nextSnapshot.pausedAtUtc = null;
+    nextSnapshot.pausedAtUtc = undefined;
     nextSnapshot.lastMoveAtUtc = nextSnapshot.lastMoveAtUtc ?? nowUtc;
 
     return nextSnapshot;
   },
   pauseClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
-    if (snapshot.activeColour === null || snapshot.startedAtUtc === null) {
+    if (snapshot.activeColour === undefined || snapshot.startedAtUtc === undefined) {
       return cloneClockSnapshot(snapshot);
     }
 
@@ -99,18 +91,18 @@ export const TimeControlService = {
     nextSnapshot.white.isRunning = false;
     nextSnapshot.black.isRunning = false;
     nextSnapshot.pausedAtUtc = nowUtc;
-    nextSnapshot.startedAtUtc = null;
+    nextSnapshot.startedAtUtc = undefined;
 
     return nextSnapshot;
   },
   resumeClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
-    if (snapshot.activeColour === null) {
+    if (snapshot.activeColour === undefined) {
       return cloneClockSnapshot(snapshot);
     }
 
     const activeClock = getClock(snapshot, snapshot.activeColour);
 
-    if (activeClock.remainingMs === null || activeClock.isRunning) {
+    if (activeClock.remainingMs === undefined || activeClock.isRunning) {
       return cloneClockSnapshot(snapshot);
     }
 
@@ -118,7 +110,7 @@ export const TimeControlService = {
     nextSnapshot.white.isRunning = nextSnapshot.activeColour === PlayerColour.White;
     nextSnapshot.black.isRunning = nextSnapshot.activeColour === PlayerColour.Black;
     nextSnapshot.startedAtUtc = nowUtc;
-    nextSnapshot.pausedAtUtc = null;
+    nextSnapshot.pausedAtUtc = undefined;
 
     return nextSnapshot;
   },
@@ -130,7 +122,7 @@ export const TimeControlService = {
     const materialised = materialiseElapsed(snapshot, nowUtc);
     const moverClock = getClock(materialised, mover);
 
-    if (moverClock.remainingMs === null) {
+    if (moverClock.remainingMs === undefined) {
       return materialised;
     }
 
@@ -143,7 +135,7 @@ export const TimeControlService = {
 
     materialised.activeColour = nextActiveColour;
     materialised.startedAtUtc = nowUtc;
-    materialised.pausedAtUtc = null;
+    materialised.pausedAtUtc = undefined;
     materialised.lastMoveAtUtc = nowUtc;
 
     return materialised;

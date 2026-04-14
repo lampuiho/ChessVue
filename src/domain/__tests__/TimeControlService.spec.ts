@@ -3,16 +3,15 @@ import {PlayerColour, TimeControlPreset,} from '@/contracts';
 import { TimeControlService } from '..';
 
 describe('TimeControlService', () => {
-  it('initialises untimed snapshots with null clocks', () => {
+  it('initialises untimed snapshots with omitted clocks', () => {
     const snapshot = TimeControlService.initialiseClockSnapshot({
       preset: TimeControlPreset.Untimed,
-      initialMs: null,
       incrementMs: 0,
     })
 
-    expect(snapshot.white.remainingMs).toBeNull()
-    expect(snapshot.black.remainingMs).toBeNull()
-    expect(snapshot.activeColour).toBeNull()
+    expect(snapshot.white.remainingMs).toBeUndefined()
+    expect(snapshot.black.remainingMs).toBeUndefined()
+    expect(snapshot.activeColour).toBeUndefined()
   })
 
   it('tracks running time from UTC timestamps', () => {
@@ -74,4 +73,3 @@ describe('TimeControlService', () => {
     expect(TimeControlService.getRemainingTime(started, '2026-01-01T12:00:02.000Z').white).toBe(0)
   })
 })
-

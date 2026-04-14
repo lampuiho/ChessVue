@@ -10,7 +10,7 @@ export interface IRecentGameEntry {
   gameId: string
   displayName: string
   sourceKind: RecentGameSourceKind
-  filePath: string | null
+  filePath?: string
   lastSavedAtUtc: string
 }
 export interface IRecentGamesSnapshot {
@@ -22,11 +22,11 @@ export const recentGameEntrySchema = z.object({
   gameId: z.string().min(1),
   displayName: z.string().min(1),
   sourceKind: recentGameSourceKindSchema,
-  filePath: z.string().nullable(),
+  filePath: z.string().nullable().optional().transform((value) => value ?? undefined),
   lastSavedAtUtc: z.string().datetime({ offset: true }),
 }).superRefine((entry, context) => {
-  if (entry.sourceKind === RecentGameSourceKind.Autosave && entry.filePath !== null) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Autosave recent game entries must not include a file path.' })
-  if (entry.sourceKind === RecentGameSourceKind.SaveFile && entry.filePath === null) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Save-file recent game entries must include a file path.' })
+  if (entry.sourceKind === RecentGameSourceKind.Autosave && !!entry.filePath) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Autosave recent game entries must not include a file path.' })
+  if (entry.sourceKind === RecentGameSourceKind.SaveFile && !entry.filePath) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Save-file recent game entries must include a file path.' })
 })
 
 export const recentGamesSnapshotSchema = z.object({

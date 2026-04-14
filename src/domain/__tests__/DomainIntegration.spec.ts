@@ -35,7 +35,7 @@ describe('Domain integration', () => {
     const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
     const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock);
     const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
-    const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null });
+    const nextPosition = GameRuleService.applyMove(rootPosition, move);
     const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
     const nextTree = MoveUpdateService.addMainlineMove(moveTree.root, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
 
@@ -49,8 +49,6 @@ describe('Domain integration', () => {
       },
       gameState: GameState.LiveBlackTurn,
       resultState: ResultState.Ongoing,
-      resultReason: null,
-      drawOfferState: null,
       whitePlayer: {
         colour: PlayerColour.White,
         type: PlayerType.Local,

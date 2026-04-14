@@ -2,13 +2,13 @@ import { getMockNodeChildProcess, getMockNodeFs, getMockNodePath } from './NwjsM
 
 type NodeRequire = <T = unknown>(moduleName: string) => T;
 
-function _getNodeRequire(): NodeRequire | null {
+function _getNodeRequire(): NodeRequire | undefined {
   const globalObject = globalThis as typeof globalThis & { require?: NodeRequire };
-  return globalObject.require ?? null;
+  return globalObject.require;
 }
-function _getNodeModule<T>(moduleName: string): T | null {
+function _getNodeModule<T>(moduleName: string): T | undefined {
   const requireFunction = _getNodeRequire();
-  if (requireFunction === null) return null;
+  if (!requireFunction) return;
   try {
     return requireFunction<T>(moduleName);
   } catch (error) {

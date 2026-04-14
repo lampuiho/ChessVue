@@ -34,7 +34,7 @@ interface IMove {
   to: BoardId
   kind: MoveKind
   movingColour: PlayerColour
-  promotionPiece?: PieceKind | null
+  promotionPiece?: PieceKind
   $?: {
     san?: string
     uci?: string
@@ -54,11 +54,11 @@ interface IPromoMove : IMove {
 
 interface IMoveNode {
   branchKind: MoveBranchKind
-  move: IMove | null
+  move?: IMove
   position: IBoardPosition
-  clockSnapshot: IClockSnapshot | null
+  clockSnapshot?: IClockSnapshot
   plyIndex: number
-  mainlineChildIndex: number | null
+  mainlineChildIndex?: number
   children: IMoveNode[]
   $?: IMoveNodeRuntime
 }
@@ -72,7 +72,8 @@ interface IMoveTree {
 - Persisted move trees are single-direction nested structures rooted at `root`.
 - `mainlineChildIndex` selects the main continuation from the node's local `children` array and lets `MoveUpdateService` rewrite the main continuation without global node identity.
 - Analysis-only branches remain in the tree even when the visible screen returns to the live node.
-- `clockSnapshot` is stored on the root node and on live/mainline nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may store `null`.
+- Omitted `move`, `clockSnapshot`, `mainlineChildIndex`, or `promotionPiece` fields mean that value is not applicable for the current node or move.
+- `clockSnapshot` is stored on the root node and on live or mainline nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may omit it.
 - `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
 - `IMove` stays structural. SAN and UCI are runtime-only metadata and are not part of the canonical persisted shape.
 - `IMoveNode.$` is runtime-only. Hydration rebuilds `$.parent` and any later runtime helpers, and persistence strips all `$` data.

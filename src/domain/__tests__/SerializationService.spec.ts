@@ -49,7 +49,7 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     },
     gameDefaults: {
       quickNewGameName: 'New Game',
-      defaultTimeControl: { preset: TimeControlPreset.Untimed, initialMs: null, incrementMs: 0 },
+      defaultTimeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
       defaultWhitePlayerType: PlayerType.Local,
       defaultBlackPlayerType: PlayerType.Local,
     },
@@ -87,7 +87,7 @@ function createGame(): IGame {
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl);
   const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock);
   const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
-  const nextPosition = GameRuleService.applyMove(rootPosition, { ...move, promotionPiece: null });
+  const nextPosition = GameRuleService.applyMove(rootPosition, move);
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
   const updatedTree = MoveUpdateService.addMainlineMove(moveTree.root, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
@@ -102,8 +102,6 @@ function createGame(): IGame {
     },
     gameState: GameState.LiveBlackTurn,
     resultState: ResultState.Ongoing,
-    resultReason: null,
-    drawOfferState: null,
     whitePlayer: {
       colour: PlayerColour.White,
       type: PlayerType.Local,

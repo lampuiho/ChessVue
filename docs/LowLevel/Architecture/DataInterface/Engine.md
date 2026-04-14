@@ -55,9 +55,9 @@ interface IEngineOptionMap {
 }
 
 interface IAssignedEngineRuntime {
-  processHandle: ProcessHandle | null
+  processHandle?: ProcessHandle
   availability: EngineAvailability
-  lastError: string | null
+  lastError?: string
 }
 
 interface IAssignedEngine {
@@ -84,14 +84,14 @@ interface IEngineAnalysisRequest {
 interface IEngineAnalysisUpdate {
   position: IBoardPosition
   positionKey: string
-  bestMove: IMove | null
+  bestMove?: IMove
   lines: IAnalysisLine[]
   isFinal: boolean
 }
 
 interface IEngineRegistrationRequest {
-  name: string | null
-  code: string | null
+  name?: string
+  code?: string
   registerLater: boolean
 }
 ```
@@ -120,6 +120,7 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.
 - `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process handle, availability, and last error for that engine instance.
+- Omitted `processHandle`, `lastError`, `bestMove`, `name`, and `code` fields mean those values are currently unavailable or intentionally not supplied.
 - Concrete `EngineClient` implementations may refine `IAssignedEngine.$` through inherited runtime interfaces when they need client-private protocol-session state.
 - Those refinements remain private to the owning concrete client implementation. Higher layers depend only on the shared minimum runtime fields plus the documented service and client APIs.
 - Client-private runtime fields such as a concrete UCI session object, current synced position, analysis callback, ordered analysis slots, attached listener references, or pending player-move state are valid concrete `EngineClient` refinements and are not part of the shared contract.

@@ -127,7 +127,7 @@ Each entry must define:
   - `GameRuleService._getForwardDirection`
   - `MoveNotationService._boardIdToNotation`
 - Classification: `pure`.
-- Validation or failure semantics: helpers perform only structural coordinate conversion and deterministic notation mapping. Out-of-range coordinates return `null` rather than coercing to a board id.
+- Validation or failure semantics: helpers perform only structural coordinate conversion and deterministic notation mapping. Out-of-range coordinates return `undefined` rather than coercing to a board id.
 
 ## Platform Host Support
 ### NwjsUtility

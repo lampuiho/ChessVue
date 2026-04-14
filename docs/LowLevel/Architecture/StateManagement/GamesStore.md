@@ -18,22 +18,22 @@ loadGame(filePath: string): Promise<IGame>
 startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void>
 insertGame(game: IGame): Promise<IGame>
 deleteGame(gameId: string): Promise<void>
-getGame(gameId: string): IGame | null
+getGame(gameId: string): IGame | undefined
 listGames(): IGame[]
-makeMove(game: IGame, move: IMove): Promise<IMove | null>
+makeMove(game: IGame, move: IMove): Promise<IMove | undefined>
 takeBack(game: IGame, moveCount?: number): Promise<void>
 navigateToNode(game: IGame, node: IMoveNode): void
-getVisibleAnalysis(game: IGame): IVisibleAnalysisSnapshot | null
+getVisibleAnalysis(game: IGame): IVisibleAnalysisSnapshot | undefined
 syncClock(game: IGame, nowUtc: string): Promise<void>
 pauseGame(game: IGame, reason: PauseReason): Promise<void>
 resumeGame(game: IGame, reason: PauseReason): Promise<void>
-reassignPlayer(game: IGame, colour: PlayerColour, player: IPlayer | null): Promise<void>
+reassignPlayer(game: IGame, colour: PlayerColour, player?: IPlayer): Promise<void>
 addAnalysisEngine(game: IGame, engineId: string): Promise<void>
 removeAnalysisEngine(game: IGame, engineIndex: number): Promise<void>
 refreshAnalysis(game: IGame): Promise<void>
 retryAnalysis(game: IGame, engineIndex: number): Promise<void>
 stopAnalysis(game: IGame, engineIndex?: number): Promise<void>
-requestPlayerMove(game: IGame): Promise<IMove | null>
+requestPlayerMove(game: IGame): Promise<IMove | undefined>
 enterInGameAnalysis(game: IGame): Promise<void>
 exitInGameAnalysis(game: IGame): void
 enterBoardEdit(game: IGame): void
@@ -73,7 +73,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `getVisibleAnalysis` projects the currently relevant snapshots for the highlighted position from `game.analysis`. It is a read model, not a second store boundary.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = true`, selecting a rendered engine suggestion reuses the same state-specific move dispatch as board move entry. Live states commit a real move, live-analysis states remain analysis-only, and non-live analysis states apply ordinary analysis moves.
 - `pauseGame` and `resumeGame` apply only to timed `Live*Turn` states that still have `resultState = ongoing`, and they track pause ownership so menu return cannot resume a manually paused game.
-- `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to `null` or a concrete `IPlayer`, clears obsolete seat-specific runtime intent, transitions a live game to `AnalysisWhiteMove` or `AnalysisBlackMove` when either side becomes unassigned, anchors that transition to the currently highlighted position and branch context, and otherwise preserves the same game.
+- `reassignPlayer` is the explicit per-game player reassignment boundary. It updates one seat to an omitted value or a concrete `IPlayer`, clears obsolete seat-specific runtime intent, transitions a live game to `AnalysisWhiteMove` or `AnalysisBlackMove` when either side becomes unassigned, anchors that transition to the currently highlighted position and branch context, and otherwise preserves the same game.
 - `offerDraw` creates or updates `drawOfferState` after the local-versus-local confirmation step or directly for non-local opponents. `acceptDrawOffer` finalises the game as a draw, `declineDrawOffer` clears the unresolved offer while the game continues, and both are valid for the local response dialog or any later non-local participant callback integration.
 - `withdrawDrawOffer` is the explicit non-local outgoing-offer boundary. It clears an unresolved outgoing `drawOfferState` without ending the game and is the store action behind pressing a lit `Draw` control when the pending offer direction is `DrawOfferDirection.Outgoing`.
 - `addAnalysisEngine` and `removeAnalysisEngine` mutate the current game's ordered analysis snapshot list only. Add validates against duplicates and the engine-count limit, then snapshots the selected reusable profile into a new analysis row with the copied `IAssignedEngine`. Remove targets the current row index, removes that persisted snapshot row from `game.analysis`, and tears down any active runtime owned by that copied engine.

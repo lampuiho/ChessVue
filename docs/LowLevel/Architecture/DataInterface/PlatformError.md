@@ -27,7 +27,7 @@ interface IPlatformError {
   kind: PlatformErrorKind
   operation: string
   message: string
-  detail: string | null
+  detail?: string
 }
 ```
 

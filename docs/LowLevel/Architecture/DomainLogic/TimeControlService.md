@@ -6,7 +6,7 @@ Calculate timed and untimed clock behaviour independently of UI tick loops.
 ## Public Interface
 ```ts
 initialiseClockSnapshot(timeControl: ITimeControl): IClockSnapshot
-getRemainingTime(snapshot: IClockSnapshot, nowUtc: string): Record<PlayerColour, number | null>
+getRemainingTime(snapshot: IClockSnapshot, nowUtc: string): Record<PlayerColour, number | undefined>
 startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: string): IClockSnapshot
 pauseClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot
 resumeClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot

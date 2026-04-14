@@ -107,8 +107,8 @@ type IAppModalState =
       payload: {
         gameId: string
         colour: PlayerColour
-        currentPlayerType: PlayerType | null
-        currentAssignedEngine: IAssignedEngine | null
+        currentPlayerType?: PlayerType
+        currentAssignedEngine?: IAssignedEngine
       }
     }
   | {

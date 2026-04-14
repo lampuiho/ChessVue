@@ -39,9 +39,9 @@ function requireSchemaVersionOne(input: unknown, artefactName: string): Record<s
 function normaliseMoveNode(node: IMoveNode): IMoveNode {
   return {
     branchKind: node.branchKind,
-    move: node.move === null ? null : structuredClone(node.move),
+    move: node.move === undefined ? undefined : structuredClone(node.move),
     position: normaliseBoardPosition(node.position),
-    clockSnapshot: node.clockSnapshot === null ? null : structuredClone(node.clockSnapshot),
+    clockSnapshot: node.clockSnapshot === undefined ? undefined : structuredClone(node.clockSnapshot),
     plyIndex: node.plyIndex,
     mainlineChildIndex: node.mainlineChildIndex,
     children: node.children.map((child) => normaliseMoveNode(child)),
@@ -51,7 +51,7 @@ function normaliseMoveTree(tree: IMoveTree): IMoveTree {
   return { root: normaliseMoveNode(tree.root) };
 }
 function validateMoveNode(node: IMoveNode): void {
-  if (node.mainlineChildIndex !== null && (node.mainlineChildIndex < 0 || node.mainlineChildIndex >= node.children.length)) {
+  if (node.mainlineChildIndex !== undefined && (node.mainlineChildIndex < 0 || node.mainlineChildIndex >= node.children.length)) {
     throw new SerializationError('Move tree mainline child index must reference an existing child.', node.mainlineChildIndex);
   }
   for (const child of node.children) validateMoveNode(child);
@@ -78,13 +78,13 @@ function normaliseGame(game: IGame): IGame {
 function validateGame(game: IGame): void {
   validateMoveTree(game.moveTree);
   getNodeAtPath(game.moveTree, game.highlightPath, 'Saved game highlightPath');
-  if (game.livePath !== null) getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
+  if (game.livePath !== undefined) getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
   if (PositionIdentityService.buildPositionKey(game.moveTree.root.position) !== PositionIdentityService.buildPositionKey(game.boardRoot)) {
     throw new SerializationError('Saved game boardRoot must match the move-tree root position.');
   }
 }
 function validateGameSession(snapshot: IGameSessionSnapshot): void {
-  if (snapshot.activeGameId !== null && !snapshot.openGameIds.includes(snapshot.activeGameId)) {
+  if (snapshot.activeGameId !== undefined && !snapshot.openGameIds.includes(snapshot.activeGameId)) {
     throw new SerializationError('Active game id must be included in the open game id list.');
   }
 }

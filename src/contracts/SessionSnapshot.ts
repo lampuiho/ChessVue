@@ -22,7 +22,7 @@ export interface IUiLayoutState {
 export interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
-  activeGameId: string | null
+  activeGameId?: string
   activeRoute:
     | '/home'
     | `/game/${string}`
@@ -45,6 +45,6 @@ export const uiLayoutStateSchema = z.object({
 export const gameSessionSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
   openGameIds: z.array(z.string().min(1)),
-  activeGameId: z.string().min(1).nullable(),
+  activeGameId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
   activeRoute: activeRouteSchema,
 })

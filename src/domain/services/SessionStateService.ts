@@ -13,7 +13,6 @@ function createDefaultGameSessionSnapshot(): IGameSessionSnapshot {
   return {
     schemaVersion: 1,
     openGameIds: [],
-    activeGameId: null,
     activeRoute: '/home',
   };
 }

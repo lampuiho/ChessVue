@@ -1,7 +1,7 @@
 export interface ISpawnedProcess {
-  stdin: NodeJS.WritableStream | null;
-  stdout: NodeJS.ReadableStream | null;
-  stderr: NodeJS.ReadableStream | null;
+  stdin?: NodeJS.WritableStream;
+  stdout?: NodeJS.ReadableStream;
+  stderr?: NodeJS.ReadableStream;
   once(eventName: string, listener: (...args: any[]) => void): this;
   on(eventName: string, listener: (...args: any[]) => void): this;
   removeListener(eventName: string, listener: (...args: any[]) => void): this;

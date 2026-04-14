@@ -20,22 +20,22 @@ function pieceSymbol(kind: PieceKind): string {
       return ''
   }
 }
-function promotionSuffix(piece: PieceKind | null | undefined): string {
-  if (piece === null || piece === undefined) return '=?'
+function promotionSuffix(piece?: PieceKind): string {
+  if (piece === undefined) return '=?'
   return `=${pieceSymbol(piece)}`
 }
 function getPiece(position: IBoardPosition, boardId: number) {
   return position.board[boardId]
 }
 function buildCheckSuffix(position: IBoardPosition, move: IMove): string {
-  const resolvedMove = move.kind === MoveKind.Promotion && move.promotionPiece === null
+  const resolvedMove = move.kind === MoveKind.Promotion && move.promotionPiece === undefined
     ? { ...move, promotionPiece: PieceKind.Queen }
     : move
   const nextPosition = GameRuleService.applyMove(position, resolvedMove)
   const result = GameRuleService.resolveResult(nextPosition)
   const opponent = getOpponentColour(move.movingColour)
   const opponentKingBoardId = findKingBoardId(nextPosition, opponent)
-  if (opponentKingBoardId === null) return ''
+  if (opponentKingBoardId === undefined) return ''
   const attackerPosition: IBoardPosition = { ...nextPosition, sideToMove: move.movingColour }
   const attacksKing = GameRuleService.generateLegalMoves(attackerPosition).some((candidate) => candidate.to === opponentKingBoardId)
   if (!attacksKing) return ''
@@ -60,7 +60,7 @@ function getDisambiguation(position: IBoardPosition, move: IMove, legalMoves: IM
 export const MoveNotationService = {
   buildSan(position: IBoardPosition, move: IMove): string {
     const legalMoves = GameRuleService.generateLegalMoves(position)
-    if (!GameRuleService.isMoveLegal(position, { ...move, promotionPiece: move.promotionPiece ?? null })) {
+    if (!GameRuleService.isMoveLegal(position, move)) {
       throw new Error('Cannot build SAN for an illegal move.')
     }
 
@@ -80,7 +80,7 @@ export const MoveNotationService = {
     return `${piecePrefix}${pawnCapturePrefix}${disambiguation}${capture ? 'x' : ''}${boardIdToNotation(move.to)}${promotionText}${buildCheckSuffix(position, move)}`
   },
   buildUci(move: IMove): string {
-    const promotionToken = move.promotionPiece === null || move.promotionPiece === undefined ? '' : pieceSymbol(move.promotionPiece).toLowerCase()
+    const promotionToken = move.promotionPiece === undefined ? '' : pieceSymbol(move.promotionPiece).toLowerCase()
     return `${boardIdToNotation(move.from)}${boardIdToNotation(move.to)}${promotionToken}`
   },
   decorateMove(position: IBoardPosition, move: IMove): IMove {

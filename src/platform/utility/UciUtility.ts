@@ -10,13 +10,13 @@ export interface IUciLineWaiter {
 export interface IUciSession<TProcess> {
   initialised: boolean;
   isStopping: boolean;
-  process: TProcess | null;
-  positionState: IEnginePositionState | null;
-  analysisCallback: ((update: IEngineAnalysisUpdate) => void) | null;
+  process?: TProcess;
+  positionState?: IEnginePositionState;
+  analysisCallback?: (update: IEngineAnalysisUpdate) => void;
   analysisLines: Map<number, IAnalysisLine>;
-  playerMoveDeferred: Deferred<IMove> | null;
+  playerMoveDeferred?: Deferred<IMove>;
   waiters: IUciLineWaiter[];
-  detachProcessListeners: (() => void) | null;
+  detachProcessListeners?: () => void;
 }
 
 function pieceToFenToken(kind: PieceKind, colour: PlayerColour): string {
@@ -50,7 +50,7 @@ function buildFenBoard(position: IBoardPosition): string {
 }
 export function buildFen(position: IBoardPosition): string {
   const castling = [position.castlingAvailability.whiteKingSide ? 'K' : '', position.castlingAvailability.whiteQueenSide ? 'Q' : '', position.castlingAvailability.blackKingSide ? 'k' : '', position.castlingAvailability.blackQueenSide ? 'q' : ''].join('') || '-';
-  const enPassant = position.enPassantTarget === null ? '-' : boardIdToNotation(position.enPassantTarget);
+  const enPassant = position.enPassantTarget === undefined ? '-' : boardIdToNotation(position.enPassantTarget);
   const sideToMove = position.sideToMove === PlayerColour.White ? 'w' : 'b';
   return `${buildFenBoard(position)} ${sideToMove} ${castling} ${enPassant} ${position.halfMoveClock} ${position.fullMoveNumber}`;
 }
@@ -63,12 +63,12 @@ export function buildPositionCommand(positionState: IEnginePositionState): strin
   if (moves.length === 0) return `position fen ${buildFen(positionState.rootPosition)}`;
   return `position fen ${buildFen(positionState.rootPosition)} moves ${moves.join(' ')}`;
 }
-function parsePromotionPiece(token: string | undefined): PieceKind | null {
+function parsePromotionPiece(token: string | undefined): PieceKind | undefined {
   if (token === 'q') return PieceKind.Queen;
   if (token === 'r') return PieceKind.Rook;
   if (token === 'b') return PieceKind.Bishop;
   if (token === 'n') return PieceKind.Knight;
-  return null;
+  return;
 }
 export function parseUciMove(position: IBoardPosition, raw: string): IMove {
   const uci = raw.trim().toLowerCase();
@@ -76,7 +76,7 @@ export function parseUciMove(position: IBoardPosition, raw: string): IMove {
   for (const candidate of legalMoves) {
     const candidatePrefix = `${boardIdToNotation(candidate.from)}${boardIdToNotation(candidate.to)}`;
     if (!uci.startsWith(candidatePrefix)) continue;
-    if (candidate.kind !== MoveKind.Promotion) return { ...candidate, promotionPiece: null };
+    if (candidate.kind !== MoveKind.Promotion) return candidate;
     return { ...candidate, promotionPiece: parsePromotionPiece(uci[4]) ?? PieceKind.Queen };
   }
   throw new Error(`Engine move is not legal in the current position: ${raw}.`);
@@ -91,75 +91,70 @@ function applyPv(position: IBoardPosition, rawMoves: string[]): IMove[] {
   }
   return moves;
 }
-function findTokenValue(tokens: string[], label: string): string | null {
+function findTokenValue(tokens: string[], label: string): string | undefined {
   const index = tokens.indexOf(label);
-  return index < 0 || index + 1 >= tokens.length ? null : tokens[index + 1]!;
+  return index < 0 || index + 1 >= tokens.length ? undefined : tokens[index + 1]!;
 }
-export function parseInfoLine(position: IBoardPosition, line: string): { multiPv: number; analysisLine: IAnalysisLine } | null {
+export function parseInfoLine(position: IBoardPosition, line: string): { multiPv: number; analysisLine: IAnalysisLine } | undefined {
   const tokens = line.trim().split(/\s+/);
-  if (tokens[0] !== 'info' || !tokens.includes('pv') || !tokens.includes('depth') || !tokens.includes('score')) return null;
+  if (tokens[0] !== 'info' || !tokens.includes('pv') || !tokens.includes('depth') || !tokens.includes('score')) return;
   const depth = Number.parseInt(findTokenValue(tokens, 'depth') ?? '', 10);
-  if (!Number.isInteger(depth)) return null;
+  if (!Number.isInteger(depth)) return;
   const scoreIndex = tokens.indexOf('score');
   const scoreKind = tokens[scoreIndex + 1];
   const scoreValue = Number.parseInt(tokens[scoreIndex + 2] ?? '', 10);
   const pvIndex = tokens.indexOf('pv');
   const multiPv = Number.parseInt(findTokenValue(tokens, 'multipv') ?? '1', 10);
-  if (scoreKind === undefined || pvIndex < 0 || Number.isNaN(scoreValue)) return null;
+  if (scoreKind === undefined || pvIndex < 0 || Number.isNaN(scoreValue)) return;
   return {
     multiPv: Number.isInteger(multiPv) && multiPv > 0 ? multiPv : 1,
-    analysisLine: { depth, scoreCp: scoreKind === 'cp' ? scoreValue : null, scoreMate: scoreKind === 'mate' ? scoreValue : null, pv: applyPv(position, tokens.slice(pvIndex + 1)) },
+    analysisLine: { depth, scoreCp: scoreKind === 'cp' ? scoreValue : undefined, scoreMate: scoreKind === 'mate' ? scoreValue : undefined, pv: applyPv(position, tokens.slice(pvIndex + 1)) },
   };
 }
 export function parseBestMoveLine(position: IBoardPosition, line: string): IMove | null | undefined {
   const tokens = line.trim().split(/\s+/);
-  if (tokens[0] !== 'bestmove' || tokens[1] === undefined) return undefined;
+  if (tokens[0] !== 'bestmove' || tokens[1] === undefined) return;
   if (tokens[1] === '(none)') return null;
   return parseUciMove(position, tokens[1]);
 }
 export function buildRegistrationCommand(request: IEngineRegistrationRequest): string {
   if (request.registerLater) return 'register later';
-  const namePart = request.name === null ? '' : ` name ${request.name}`;
-  const codePart = request.code === null ? '' : ` code ${request.code}`;
+  const namePart = request.name === undefined ? '' : ` name ${request.name}`;
+  const codePart = request.code === undefined ? '' : ` code ${request.code}`;
   return `register${namePart}${codePart}`;
 }
 export function createUciSession<TProcess>(): IUciSession<TProcess> {
   return {
     initialised: false,
     isStopping: false,
-    process: null,
-    positionState: null,
-    analysisCallback: null,
     analysisLines: new Map(),
-    playerMoveDeferred: null,
     waiters: [],
-    detachProcessListeners: null,
   };
 }
 export function stopUciSession<TProcess>(session: IUciSession<TProcess>, message = 'Engine stopped.'): IUciSession<TProcess> {
   session.isStopping = true;
   session.initialised = false;
-  session.positionState = null;
-  session.analysisCallback = null;
+  session.positionState = undefined;
+  session.analysisCallback = undefined;
   session.analysisLines.clear();
   session.waiters.splice(0).forEach((waiter) => waiter.reject(new Error(message)));
   session.playerMoveDeferred?.reject(new Error(message));
-  session.playerMoveDeferred = null;
+  session.playerMoveDeferred = undefined;
   session.detachProcessListeners?.();
-  session.detachProcessListeners = null;
-  session.process = null;
+  session.detachProcessListeners = undefined;
+  session.process = undefined;
   session.isStopping = false;
   return session;
 }
 export function failUciSession<TProcess>(session: IUciSession<TProcess>, error: unknown): IUciSession<TProcess> {
   session.initialised = false;
-  session.positionState = null;
+  session.positionState = undefined;
   session.waiters.splice(0).forEach((waiter) => waiter.reject(error));
   session.playerMoveDeferred?.reject(error);
-  session.playerMoveDeferred = null;
-  session.analysisCallback = null;
+  session.playerMoveDeferred = undefined;
+  session.analysisCallback = undefined;
   session.analysisLines.clear();
-  session.detachProcessListeners = null;
-  session.process = null;
+  session.detachProcessListeners = undefined;
+  session.process = undefined;
   return session;
 }

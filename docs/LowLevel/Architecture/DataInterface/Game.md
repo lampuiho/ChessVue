@@ -117,13 +117,13 @@ interface IGame {
   metadata: IGameMetadata
   gameState: GameState
   resultState: ResultState
-  resultReason: ResultReason | null
-  drawOfferState: IDrawOfferState | null
-  whitePlayer: IPlayer | null
-  blackPlayer: IPlayer | null
+  resultReason?: ResultReason
+  drawOfferState?: IDrawOfferState
+  whitePlayer?: IPlayer
+  blackPlayer?: IPlayer
   boardRoot: IBoardPosition
   moveTree: IMoveTree
-  livePath: MovePath | null
+  livePath?: MovePath
   highlightPath: MovePath
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
@@ -134,10 +134,10 @@ interface IGame {
 
 interface ICreateGameRequest {
   name: string
-  whitePlayerType: PlayerType | null
-  blackPlayerType: PlayerType | null
-  whiteEngineId: string | null
-  blackEngineId: string | null
+  whitePlayerType?: PlayerType
+  blackPlayerType?: PlayerType
+  whiteEngineId?: string
+  blackEngineId?: string
   analysisEngineIds: string[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
@@ -148,8 +148,8 @@ interface IStartGameFromSetupRequest {
   name?: string
   whitePlayerType: PlayerType
   blackPlayerType: PlayerType
-  whiteEngineId: string | null
-  blackEngineId: string | null
+  whiteEngineId?: string
+  blackEngineId?: string
   analysisEngineIds: string[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
@@ -165,6 +165,7 @@ interface IStartGameFromSetupRequest {
 - `GameState.BoardEdit` is a free-edit state only and is never combined with live play.
 - `GameState.Checkmate` is the only board state that blocks further moves by state alone.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
+- Omitted `resultReason`, `drawOfferState`, `whitePlayer`, `blackPlayer`, `livePath`, and request-side player or engine fields represent absence rather than a distinct `null` state.
 - Draw, resignation, timeout, and abandonment do not create an extra generic terminal state. They end live play and leave the game in one of the analysis states.
 - Player seats persist copied in-game engine payloads rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
 - `IPlayer.type = engine` is the discriminator for treating the player as `IEnginePlayer`.

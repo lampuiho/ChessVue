@@ -10,13 +10,13 @@ saveGameSession(): Promise<void>
 getLayoutStateOrDefault(): Promise<IUiLayoutState>
 saveLayoutState(): Promise<void>
 setActiveRoute(route: IGameSessionSnapshot["activeRoute"]): void
-setActiveGame(gameId: string | null): void
+setActiveGame(gameId?: string): void
 openTab(gameId: string): void
 closeTab(gameId: string): void
 setLayoutState(layout: IUiLayoutState): void
 togglePanel(panel: "history" | "analysis", isVisible?: boolean): void
 setSectionCollapsed(section: "history" | "analysis", isCollapsed?: boolean): void
-getModalState(): IAppModalState | null
+getModalState(): IAppModalState | undefined
 showModal(modal: IAppModalState): void
 hideModal(): void
 getAnalysisEngineExpandedByIndex(): boolean[]

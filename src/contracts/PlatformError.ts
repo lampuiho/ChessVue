@@ -25,7 +25,7 @@ export interface IPlatformError {
   kind: PlatformErrorKind;
   operation: string;
   message: string;
-  detail: string | null;
+  detail?: string;
 }
 export const platformErrorKindSchema = z.enum(platformErrorKinds);
 
@@ -33,5 +33,5 @@ export const platformErrorSchema = z.object({
   kind: platformErrorKindSchema,
   operation: z.string().min(1),
   message: z.string().min(1),
-  detail: z.string().nullable(),
+  detail: z.string().nullable().optional().transform((value) => value ?? undefined),
 });

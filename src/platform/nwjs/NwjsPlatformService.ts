@@ -15,7 +15,7 @@ interface IEventRegistration<TCallback> {
   callback: TCallback;
 }
 
-function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail: string | null = null): IPlatformError {
+function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
   return { kind, operation, message, detail };
 }
 export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
@@ -115,7 +115,7 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
     }
     function _registerCallback<TCallback>(registrations: IEventRegistration<TCallback>[], eventKey: PlatformEventKey, owner: string, callback: TCallback, debugLabel?: string): () => void {
       const registrationId = `platform-registration-${nextRegistrationId++}`;
-      const entry: IEventRegistration<TCallback> = { registration: { registrationId, eventKey, owner, debugLabel: debugLabel ?? null, registeredAtUtc: new Date().toISOString() }, callback };
+      const entry: IEventRegistration<TCallback> = { registration: { registrationId, eventKey, owner, debugLabel, registeredAtUtc: new Date().toISOString() }, callback };
       registrations.push(entry);
       return () => {
         const index = registrations.findIndex((candidate) => candidate.registration.registrationId === registrationId);

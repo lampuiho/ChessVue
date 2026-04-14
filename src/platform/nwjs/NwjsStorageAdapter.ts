@@ -10,17 +10,17 @@ interface IFileDialogInput extends HTMLInputElement {
   oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null;
 }
 
-function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail: string | null = null): IPlatformError {
+function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
   return { kind, operation, message, detail };
 }
 function normalisePath(path: string): string {
   return path.replace(/\\/g, '/');
 }
 function mapNodeError(error: unknown, operation: string, fallbackMessage: string): IPlatformError {
-  const code = typeof error === 'object' && error !== null && 'code' in error ? String((error as { code: unknown }).code) : null;
+  const code = typeof error === 'object' && error !== null && 'code' in error ? String((error as { code: unknown }).code) : undefined;
   if (code === 'ENOENT') return createPlatformError(PlatformErrorKind.NotFound, operation, fallbackMessage);
   if (code === 'EACCES' || code === 'EPERM') return createPlatformError(PlatformErrorKind.PermissionDenied, operation, fallbackMessage);
-  return createPlatformError(PlatformErrorKind.InvalidDocument, operation, fallbackMessage, error instanceof Error ? error.message : null);
+  return createPlatformError(PlatformErrorKind.InvalidDocument, operation, fallbackMessage, error instanceof Error ? error.message : undefined);
 }
 async function _resolveFileDialog(input: IFileDialogInput, operation: 'showSaveDialog' | 'showOpenDialog'): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -56,8 +56,8 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
       const input = _createFileInput();
       input.type = 'file';
       if (suggestedPath !== undefined) input.setAttribute('nwsaveas', pathModule.basename(suggestedPath));
-      const workingDirectory = suggestedPath === undefined ? null : pathModule.dirname(suggestedPath);
-      if (workingDirectory !== null) input.setAttribute('nwworkingdir', workingDirectory);
+      const workingDirectory = suggestedPath === undefined ? undefined : pathModule.dirname(suggestedPath);
+      if (workingDirectory !== undefined) input.setAttribute('nwworkingdir', workingDirectory);
       return _resolveFileDialog(input, 'showSaveDialog');
     }
     async function showOpenDialog(startDirectory?: string): Promise<string> {
@@ -71,7 +71,7 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
         const entries = await fs.promises.readdir(targetPath, { withFileTypes: true });
         return await Promise.all(entries.map(async (entry) => {
           const entryPath = pathModule.join(targetPath, entry.name);
-          const lastModifiedUtc = entry.isDirectory() ? null : (await fs.promises.stat(entryPath)).mtime.toISOString();
+          const lastModifiedUtc = entry.isDirectory() ? undefined : (await fs.promises.stat(entryPath)).mtime.toISOString();
           return { path: normalisePath(entryPath), name: entry.name, isDirectory: entry.isDirectory(), lastModifiedUtc };
         }));
       } catch (error) {

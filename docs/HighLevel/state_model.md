@@ -31,7 +31,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 ## Result Fields
 - `resultState` records outcome only.
 - `resultReason` records why that outcome happened.
-- `null` result reason is valid only while the result is ongoing.
+- An omitted `resultReason` is valid only while the result is ongoing.
 - Draw, resignation, timeout, and abandonment do not create an extra generic terminal state. They end live play and leave the game in `AnalysisWhiteMove` or `AnalysisBlackMove`.
 - `Checkmate` is the only state that blocks further moves by state alone.
 
@@ -130,7 +130,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 
 ### Draw Offer State
 - A live game may carry unresolved `drawOfferState`.
-- `drawOfferState = null` means no unresolved draw offer exists for the current game.
+- An omitted `drawOfferState` means no unresolved draw offer exists for the current game.
 - Local-local draw negotiation still uses explicit `drawOffer` and `drawResolve` dialogs, but the unresolved offer remains game-owned state until it is accepted or declined.
 - For non-local opponents, any unresolved incoming or outgoing draw offer keeps the `Draw` control in its lit pending-offer state without introducing a dialog-hosted response step.
 - While that non-local pending-offer indicator is lit, pressing `Draw` accepts an incoming offer or withdraws an outgoing offer.

@@ -11,14 +11,14 @@ function buildCastlingField(position: IBoardPosition): string {
 export const PositionIdentityService = {
   buildPositionKey(position: IBoardPosition): string {
     const pieceTokens = position.board
-      .map((piece, boardId) => piece === undefined ? null : `${boardId}:${piece.kind}:${piece.colour}`)
-      .filter((token): token is string => token !== null);
+      .map((piece, boardId) => piece === undefined ? undefined : `${boardId}:${piece.kind}:${piece.colour}`)
+      .filter((token): token is string => token !== undefined);
 
     return [
       pieceTokens.join('|'),
       position.sideToMove,
       buildCastlingField(position),
-      position.enPassantTarget === null ? '-' : position.enPassantTarget.toString(),
+      position.enPassantTarget === undefined ? '-' : position.enPassantTarget.toString(),
     ].join(' ');
   },
 };

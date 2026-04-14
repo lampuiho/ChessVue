@@ -29,7 +29,7 @@ interface IUiLayoutState {
 interface IGameSessionSnapshot {
   schemaVersion: number
   openGameIds: string[]
-  activeGameId: string | null
+  activeGameId?: string
   activeRoute:
     | "/home"
     | `/game/${string}`
@@ -47,7 +47,7 @@ interface IGameSessionSnapshot {
 - `IUiLayoutState` persists visibility plus fold state for all committed foldable sections, including shared history-panel and analysis-panel collapse state and analysis-engine groups by rendered row index for the active game.
 - `analysisEngineExpandedByIndex[index] = true` means the analysis-engine row at that rendered index for the active game is expanded, `false` means collapsed, and a missing entry defaults to expanded.
 - The rendered row order is derived from `IGame.analysis.snapshots` for the active game and is recalculated whenever the active game changes.
-- `IGameSessionSnapshot.activeGameId` identifies the selected open game tab only; it is not part of layout persistence.
+- `IGameSessionSnapshot.activeGameId` identifies the selected open game tab only when present; it is not part of layout persistence.
 - `IGameSessionSnapshot.activeRoute` stores the canonical committed route directly as a route string rather than through an enum-backed route object.
 - `IGameSessionSnapshot.activeRoute` is limited to the committed route family and does not store redirect-only aliases such as `/settings`.
 - `session.restorePreviousSession` controls whether `IGameSessionSnapshot` is used during startup restore, but it does not block loading `IUiLayoutState`.

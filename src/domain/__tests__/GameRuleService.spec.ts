@@ -32,7 +32,6 @@ describe('GameRuleService', () => {
       to: boardId(5, 1),
       kind: MoveKind.Normal,
       movingColour: PlayerColour.White,
-      promotionPiece: null,
     }
 
     expect(GameRuleService.isMoveLegal(position, illegalMove)).toBe(false)

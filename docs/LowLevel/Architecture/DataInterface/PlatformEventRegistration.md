@@ -21,7 +21,7 @@ interface IPlatformEventRegistration {
   registrationId: string
   eventKey: PlatformEventKey
   owner: string
-  debugLabel: string | null
+  debugLabel?: string
   registeredAtUtc: string
 }
 ```

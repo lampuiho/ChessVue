@@ -11,7 +11,7 @@ interface IFileSystemEntry {
   path: string
   name: string
   isDirectory: boolean
-  lastModifiedUtc: string | null
+  lastModifiedUtc?: string
 }
 
 showSaveDialog(suggestedPath?: string): Promise<string>

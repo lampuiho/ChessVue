@@ -5,14 +5,14 @@ Own the move-tree operations shared by live play, history review, setup, and ana
 
 ## Public Interface
 ```ts
-createMoveTree(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree
-addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree
+createMoveTree(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
+addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
 addAnalysisMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition): IMoveTree
 getPosition(node: IMoveNode): IBoardPosition
 takeBack(fromNode: IMoveNode, moveCount: number): IMoveTree
 rewriteMainline(parentNode: IMoveNode, childNode: IMoveNode): IMoveTree
 pruneFutureMoves(node: IMoveNode): IMoveTree
-replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot: IClockSnapshot | null): IMoveTree
+replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
 ```
 
 ## Responsibilities

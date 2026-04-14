@@ -227,7 +227,7 @@ function createAssignedEngine(): IAssignedEngine {
 function createEnginePositionState(): IEnginePositionState {
   const rootPosition = createInitialBoardPosition();
   const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
-  const resolvedMove = { ...move, promotionPiece: null };
+  const resolvedMove = { ...move };
   return {
     rootPosition,
     movesFromRoot: [resolvedMove],
@@ -360,7 +360,7 @@ describe('usePlatformService', () => {
     const engine = createAssignedEngine();
     const positionState = createEnginePositionState();
     const updates: IEngineAnalysisUpdate[] = [];
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, lastError: null };
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable };
 
     const syncPromise = client.syncPosition(engine, positionState);
     const process = environment.latestProcess();
@@ -394,7 +394,7 @@ describe('usePlatformService', () => {
     const engine = createAssignedEngine();
     const positionState = createEnginePositionState();
     const staleHandle = await manager.spawnProcess(engine.executablePath);
-    engine.$ = { processHandle: staleHandle, availability: EngineAvailability.Ready, lastError: null };
+    engine.$ = { processHandle: staleHandle, availability: EngineAvailability.Ready };
 
     await manager.stopProcess(staleHandle);
     await EngineRuntimeService.syncPosition(engine, positionState);
@@ -409,7 +409,7 @@ describe('usePlatformService', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, lastError: null };
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready };
 
     await expect(client.awaitPlayerTurnMove(engine)).rejects.toMatchObject({
       kind: PlatformErrorKind.ProcessStartFailed,

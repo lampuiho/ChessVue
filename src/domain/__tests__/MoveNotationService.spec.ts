@@ -21,7 +21,7 @@ describe('MoveNotationService', () => {
         blackQueenSide: false,
       },
     })
-    const castleMove: IMove = { from: boardId(4, 0), to: boardId(6, 0), kind: MoveKind.Castle, movingColour: PlayerColour.White, promotionPiece: null }
+    const castleMove: IMove = { from: boardId(4, 0), to: boardId(6, 0), kind: MoveKind.Castle, movingColour: PlayerColour.White }
     expect(MoveNotationService.buildSan(castlePosition, castleMove)).toBe('O-O')
 
     const capturePosition = createSparseBoard([
@@ -30,7 +30,7 @@ describe('MoveNotationService', () => {
       { boardId: boardId(6, 6), piece: { kind: PieceKind.Knight, colour: PlayerColour.Black } },
       { boardId: boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ], PlayerColour.White)
-    const captureMove: IMove = { from: boardId(3, 3), to: boardId(6, 6), kind: MoveKind.Normal, movingColour: PlayerColour.White, promotionPiece: null }
+    const captureMove: IMove = { from: boardId(3, 3), to: boardId(6, 6), kind: MoveKind.Normal, movingColour: PlayerColour.White }
     expect(MoveNotationService.buildSan(capturePosition, captureMove)).toBe('Bxg7')
 
     const promotionPosition = createSparseBoard([
@@ -46,7 +46,7 @@ describe('MoveNotationService', () => {
       { boardId: boardId(7, 5), piece: { kind: PieceKind.Queen, colour: PlayerColour.White } },
       { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ], PlayerColour.White)
-    const mateMove: IMove = { from: boardId(7, 5), to: boardId(6, 6), kind: MoveKind.Normal, movingColour: PlayerColour.White, promotionPiece: null }
+    const mateMove: IMove = { from: boardId(7, 5), to: boardId(6, 6), kind: MoveKind.Normal, movingColour: PlayerColour.White }
     expect(MoveNotationService.buildSan(matePosition, mateMove)).toBe('Qg7#')
   })
 
@@ -57,7 +57,7 @@ describe('MoveNotationService', () => {
       { boardId: boardId(0, 3), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
       { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ], PlayerColour.White)
-    const move: IMove = { from: boardId(0, 1), to: boardId(0, 2), kind: MoveKind.Normal, movingColour: PlayerColour.White, promotionPiece: null }
+    const move: IMove = { from: boardId(0, 1), to: boardId(0, 2), kind: MoveKind.Normal, movingColour: PlayerColour.White }
     const decoratedMove = MoveNotationService.decorateMove(position, move)
 
     expect(MoveNotationService.buildSan(position, move)).toBe('R2a3')

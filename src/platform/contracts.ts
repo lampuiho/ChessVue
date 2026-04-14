@@ -14,14 +14,14 @@ export interface IPlatformEventRegistration {
   registrationId: string;
   eventKey: PlatformEventKey;
   owner: string;
-  debugLabel: string | null;
+  debugLabel?: string;
   registeredAtUtc: string;
 }
 export interface IFileSystemEntry {
   path: string;
   name: string;
   isDirectory: boolean;
-  lastModifiedUtc: string | null;
+  lastModifiedUtc?: string;
 }
 export interface IStorageAdapter {
   showSaveDialog(suggestedPath?: string): Promise<string>;

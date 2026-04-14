@@ -4,7 +4,7 @@ export interface ISavedGameFileEntry {
   gameId: string;
   saveName: string;
   filePath: string;
-  savedAtUtc: string | null;
+  savedAtUtc?: string;
   isAutosave: boolean;
 }
 export interface ISavedGameGroup {
@@ -28,8 +28,8 @@ function isJsonFile(entry: IFileSystemEntry): boolean {
   return !entry.isDirectory && entry.name.toLowerCase().endsWith('.json');
 }
 function compareSaveEntries(left: ISavedGameFileEntry, right: ISavedGameFileEntry): number {
-  const leftTime = left.savedAtUtc === null ? Number.NEGATIVE_INFINITY : Date.parse(left.savedAtUtc);
-  const rightTime = right.savedAtUtc === null ? Number.NEGATIVE_INFINITY : Date.parse(right.savedAtUtc);
+  const leftTime = !left.savedAtUtc ? Number.NEGATIVE_INFINITY : Date.parse(left.savedAtUtc);
+  const rightTime = !right.savedAtUtc ? Number.NEGATIVE_INFINITY : Date.parse(right.savedAtUtc);
   if (leftTime !== rightTime) return rightTime - leftTime;
   if (left.isAutosave !== right.isAutosave) return left.isAutosave ? -1 : 1;
   return left.saveName.localeCompare(right.saveName);
@@ -69,8 +69,8 @@ export const SavedGameIndexService = {
       return { gameId: entry.name, gameFolderPath, saves } satisfies ISavedGameGroup;
     }).filter((group) => group.saves.length > 0).sort((left, right) => left.gameId.localeCompare(right.gameId));
   },
-  getLatestSaveEntry(entries: ISavedGameFileEntry[]): ISavedGameFileEntry | null {
-    if (entries.length === 0) return null;
-    return [...entries].sort(compareSaveEntries)[0] ?? null;
+  getLatestSaveEntry(entries: ISavedGameFileEntry[]): ISavedGameFileEntry | undefined {
+    if (entries.length === 0) return;
+    return [...entries].sort(compareSaveEntries)[0];
   },
 };
