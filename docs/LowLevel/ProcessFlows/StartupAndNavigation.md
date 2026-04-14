@@ -86,8 +86,22 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._startAnalysisSessions` |
-| `GamesStore._bindAnalysisCallbacks` |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._registerAnalysisSubscription` |
+| `GamesStore._startAnalysisSearch` |
+
+| `GamesStore._syncAnalysisPosition` |
+| --- |
+| `EngineRuntimeService.syncPosition` |
+
+| `GamesStore._registerAnalysisSubscription` |
+| --- |
+| `EngineRuntimeService.subscribeToAnalysis` |
+
+| `GamesStore._startAnalysisSearch` |
+| --- |
+| `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -102,7 +116,21 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.requestPlayerMove` |
 | --- |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncPlayerTurnPosition` |
+| `GamesStore._startPlayerTurnSearch` |
+| `GamesStore._awaitPlayerTurnMove` |
+
+| `GamesStore._syncPlayerTurnPosition` |
+| --- |
+| `EngineRuntimeService.syncPosition` |
+
+| `GamesStore._startPlayerTurnSearch` |
+| --- |
 | `EngineRuntimeService.startPlayerTurn` |
+
+| `GamesStore._awaitPlayerTurnMove` |
+| --- |
 | `EngineRuntimeService.awaitPlayerTurnMove` |
 
 | `GamesStore._handlePlayerTurnMove` |
@@ -239,8 +267,10 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._startAnalysisSessions` |
-| `GamesStore._bindAnalysisCallbacks` |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._registerAnalysisSubscription` |
+| `GamesStore._startAnalysisSearch` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -255,8 +285,10 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.requestPlayerMove` |
 | --- |
-| `EngineRuntimeService.startPlayerTurn` |
-| `EngineRuntimeService.awaitPlayerTurnMove` |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncPlayerTurnPosition` |
+| `GamesStore._startPlayerTurnSearch` |
+| `GamesStore._awaitPlayerTurnMove` |
 
 | `GamesStore._handlePlayerTurnMove` |
 | --- |

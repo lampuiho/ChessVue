@@ -177,8 +177,22 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._startAnalysisSessions |
-| GamesStore._bindAnalysisCallbacks |
+| GamesStore._buildEnginePositionState |
+| GamesStore._syncAnalysisPosition |
+| GamesStore._registerAnalysisSubscription |
+| GamesStore._startAnalysisSearch |
+
+| GamesStore._syncAnalysisPosition |
+| --- |
+| EngineRuntimeService.syncPosition |
+
+| GamesStore._registerAnalysisSubscription |
+| --- |
+| EngineRuntimeService.subscribeToAnalysis |
+
+| GamesStore._startAnalysisSearch |
+| --- |
+| EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -193,7 +207,21 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.requestPlayerMove |
 | --- |
+| GamesStore._buildEnginePositionState |
+| GamesStore._syncPlayerTurnPosition |
+| GamesStore._startPlayerTurnSearch |
+| GamesStore._awaitPlayerTurnMove |
+
+| GamesStore._syncPlayerTurnPosition |
+| --- |
+| EngineRuntimeService.syncPosition |
+
+| GamesStore._startPlayerTurnSearch |
+| --- |
 | EngineRuntimeService.startPlayerTurn |
+
+| GamesStore._awaitPlayerTurnMove |
+| --- |
 | EngineRuntimeService.awaitPlayerTurnMove |
 
 | GamesStore._handlePlayerTurnMove |
@@ -292,8 +320,10 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._startAnalysisSessions |
-| GamesStore._bindAnalysisCallbacks |
+| GamesStore._buildEnginePositionState |
+| GamesStore._syncAnalysisPosition |
+| GamesStore._registerAnalysisSubscription |
+| GamesStore._startAnalysisSearch |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -308,8 +338,10 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.requestPlayerMove |
 | --- |
-| EngineRuntimeService.startPlayerTurn |
-| EngineRuntimeService.awaitPlayerTurnMove |
+| GamesStore._buildEnginePositionState |
+| GamesStore._syncPlayerTurnPosition |
+| GamesStore._startPlayerTurnSearch |
+| GamesStore._awaitPlayerTurnMove |
 
 | GamesStore._handlePlayerTurnMove |
 | --- |

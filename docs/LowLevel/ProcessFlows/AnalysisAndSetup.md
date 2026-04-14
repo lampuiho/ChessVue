@@ -40,8 +40,22 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._registerAnalysisSubscription` |
+| `GamesStore._startAnalysisSearch` |
+
+| `GamesStore._syncAnalysisPosition` |
+| --- |
+| `EngineRuntimeService.syncPosition` |
+
+| `GamesStore._registerAnalysisSubscription` |
+| --- |
+| `EngineRuntimeService.subscribeToAnalysis` |
+
+| `GamesStore._startAnalysisSearch` |
+| --- |
 | `EngineRuntimeService.startAnalysis` |
-| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -82,8 +96,22 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._registerAnalysisSubscription` |
+| `GamesStore._startAnalysisSearch` |
+
+| `GamesStore._syncAnalysisPosition` |
+| --- |
+| `EngineRuntimeService.syncPosition` |
+
+| `GamesStore._registerAnalysisSubscription` |
+| --- |
+| `EngineRuntimeService.subscribeToAnalysis` |
+
+| `GamesStore._startAnalysisSearch` |
+| --- |
 | `EngineRuntimeService.startAnalysis` |
-| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -120,8 +148,10 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `EngineRuntimeService.startAnalysis` |
-| `GamesStore._bindAnalysisCallbacks` |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._registerAnalysisSubscription` |
+| `GamesStore._startAnalysisSearch` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -144,8 +174,22 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 | GamesStore.refreshAnalysis |
 | --- |
+| GamesStore._buildEnginePositionState |
+| GamesStore._syncAnalysisPosition |
+| GamesStore._registerAnalysisSubscription |
+| GamesStore._startAnalysisSearch |
+
+| GamesStore._syncAnalysisPosition |
+| --- |
+| EngineRuntimeService.syncPosition |
+
+| GamesStore._registerAnalysisSubscription |
+| --- |
+| EngineRuntimeService.subscribeToAnalysis |
+
+| GamesStore._startAnalysisSearch |
+| --- |
 | EngineRuntimeService.startAnalysis |
-| GamesStore._bindAnalysisCallbacks |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -156,6 +200,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 - UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in non-live analysis states, and in live or live-analysis states only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
 - State gate: `GamesStore.refreshAnalysis` accepts live states, live-analysis states, and non-live analysis states. It is blocked while `gameState = GameState.BoardEdit`.
+- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit lower-layer mutation sequence behind `syncPosition`, analysis subscription registration, analysis search start, and malformed-analysis handling.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
@@ -197,7 +242,21 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | GamesStore.retryAnalysis |
 | --- |
 | GamesStore._restartSingleAnalysisSession |
-| GamesStore._bindAnalysisCallbacks |
+| GamesStore._syncAnalysisPosition |
+| GamesStore._registerAnalysisSubscription |
+| GamesStore._startAnalysisSearch |
+
+| GamesStore._syncAnalysisPosition |
+| --- |
+| EngineRuntimeService.syncPosition |
+
+| GamesStore._registerAnalysisSubscription |
+| --- |
+| EngineRuntimeService.subscribeToAnalysis |
+
+| GamesStore._startAnalysisSearch |
+| --- |
+| EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -212,6 +271,7 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 - Failure handling: malformed analysis output keeps the existing baseline rule and is discarded per message without stopping the session.
 - Unexpected-exit handling: if an analysis-engine process terminates unexpectedly, only that engine row is marked unavailable or disconnected, the last valid analysis snapshot remains visible, and no blocking dialog is opened.
 - Retry rule: retry remains manual through `AnalysisPanel.retryRequested`; the baseline does not invent timeout, auto-reconnect, or backoff behaviour.
+- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit restart, stop, malformed-output, and unexpected-exit runtime mutations.
 - Requirement verification: `Pass`. Stop, crash, malformed-output discard, and retry behaviour are explicit at the runtime-owner boundary and preserve last-known visible output.
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel

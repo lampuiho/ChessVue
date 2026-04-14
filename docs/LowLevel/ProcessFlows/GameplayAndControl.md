@@ -44,8 +44,22 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._registerAnalysisSubscription` |
+| `GamesStore._startAnalysisSearch` |
+
+| `GamesStore._syncAnalysisPosition` |
+| --- |
+| `EngineRuntimeService.syncPosition` |
+
+| `GamesStore._registerAnalysisSubscription` |
+| --- |
+| `EngineRuntimeService.subscribeToAnalysis` |
+
+| `GamesStore._startAnalysisSearch` |
+| --- |
 | `EngineRuntimeService.startAnalysis` |
-| `GamesStore._bindAnalysisCallbacks` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -86,15 +100,18 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `EngineRuntimeService.startAnalysis` |
-| `GamesStore._bindAnalysisCallbacks` |
+| `GamesStore._buildEnginePositionState` |
+| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._registerAnalysisSubscription` |
+| `GamesStore._startAnalysisSearch` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `GamesStore._applyAnalysisUpdate` |
 
 - State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit`, paused live states, and `Checkmate` block live move progression.
-- Continuous analysis update loop: the layer-2 engine runtime path -> `GameView._handleAnalysisRuntimeUpdate` -> `GamesStore._applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
+- Continuous analysis update loop: `GamesStore._buildEnginePositionState` -> `GamesStore._syncAnalysisPosition` -> `EngineRuntimeService.syncPosition` -> `GamesStore._registerAnalysisSubscription` -> `EngineRuntimeService.subscribeToAnalysis` -> `GamesStore._startAnalysisSearch` -> `EngineRuntimeService.startAnalysis` -> `GameView._handleAnalysisRuntimeUpdate` -> `GamesStore._applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
+- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer mutation sequence behind `syncPosition`, `subscribeToAnalysis`, `startAnalysis`, and streamed runtime updates.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
 ### SCN-MOVE-02 - Illegal Move Attempt
@@ -161,7 +178,21 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
 | GamesStore.requestPlayerMove |
 | --- |
+| GamesStore._buildEnginePositionState |
+| GamesStore._syncPlayerTurnPosition |
+| GamesStore._startPlayerTurnSearch |
+| GamesStore._awaitPlayerTurnMove |
+
+| GamesStore._syncPlayerTurnPosition |
+| --- |
+| EngineRuntimeService.syncPosition |
+
+| GamesStore._startPlayerTurnSearch |
+| --- |
 | EngineRuntimeService.startPlayerTurn |
+
+| GamesStore._awaitPlayerTurnMove |
+| --- |
 | EngineRuntimeService.awaitPlayerTurnMove |
 
 | GamesStore.makeMove |
@@ -184,6 +215,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 - Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.
 - Runtime-error rule: malformed player-turn output or other unexpected runtime exceptions are logged and surfaced through the owning standard error-handling path without inventing automatic reconnect, automatic stop, or timeout behaviour.
 - Unexpected-exit rule: process termination is the only automatic disconnect trigger. The owning flow marks the affected seat unavailable or disconnected, pauses the live game immediately, and opens the standard runtime error dialog.
+- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit runtime-service and engine-client mutation steps behind player-turn preparation, search start, awaited completion, malformed output, and unexpected exit.
 
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 
