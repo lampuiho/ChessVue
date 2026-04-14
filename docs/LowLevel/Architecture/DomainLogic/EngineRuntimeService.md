@@ -20,7 +20,7 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 
 ## Responsibilities
 - coordinate engine sessions in a game-facing shape so layer 3 consumes one runtime service instead of platform adapters
-- keep runtime engine state, analysis subscriptions, availability, and last-error bookkeeping in layer 2
+- keep runtime engine lifecycle state, availability, and last-error bookkeeping in layer 2
 - compose `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation without layering one platform service through another
 - expose typed streamed analysis updates plus promise-shaped player-turn completion without leaking UCI or engine-communication semantics upward
 - support position supersession and deterministic new-game-boundary handling for analysis refresh and player-engine turns
@@ -45,7 +45,9 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - `EngineRuntimeService` is a session-oriented coordinator, not a raw parser or command-builder hub.
 - `EngineRuntimeService` owns process start, stop, restart, and unexpected-exit handling through `ProcessManager`.
 - `EngineRuntimeService` binds runtime process state directly onto `IAssignedEngine.$`, including the `processHandle` returned by `ProcessManager`.
-- `EngineClient` owns UCI mapping, engine-facing FEN, engine-output interpretation, and protocol sequencing behind this service.
+- `EngineRuntimeService` relies on the shared `IAssignedEngineRuntime` fields under `engine.$` and does not need to refine that runtime namespace for its documented ownership.
+- `EngineClient` owns UCI mapping, engine-facing FEN, engine-output interpretation, protocol sequencing, and protocol-session state behind this service.
+- Streamed analysis is surfaced through the client-owned protocol session. `EngineRuntimeService` coordinates when that lower-layer analysis path is started, stopped, or consumed, but it is not the owner of protocol-session caches such as analysis callbacks or analysis lines.
 - `isRuntimeAlive(...)` is the only public runtime-health polling surface. Detailed runtime state stays internal on `engine.$`.
 - `startPlayerTurn` has no response timeout in the baseline. If the process stays alive but does not produce a valid move, the turn remains pending until a valid move arrives or the session exits unexpectedly.
 - Player-turn completion is exposed as `awaitPlayerTurnMove(...)`, even if the implementation uses internal callbacks to resolve that promise.

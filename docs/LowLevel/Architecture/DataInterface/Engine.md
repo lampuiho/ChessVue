@@ -105,7 +105,12 @@ interface IEngineRegistrationRequest {
 - Creating an assigned engine from a profile copies the display name, executable path, client type, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later or when the reusable profile is deleted.
 - `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis snapshots.
 - The baseline permits at most four concurrent analysis engines per game.
-- `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and carries the current process handle, availability, and last error for that engine instance.
+- `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.
+- `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process handle, availability, and last error for that engine instance.
+- Concrete `EngineClient` implementations may refine `IAssignedEngine.$` through inherited runtime interfaces when they need client-private protocol-session state.
+- Those refinements remain private to the owning concrete client implementation. Higher layers depend only on the shared minimum runtime fields plus the documented service and client APIs.
+- Protocol-session fields such as a concrete UCI session object, analysis callback, analysis-line cache, waiter list, or pending player-move deferred are valid concrete `EngineClient`-private refinements and are not part of the shared contract.
+- `EngineRuntimeService` relies on the shared minimum runtime fields only. It does not need to refine `IAssignedEngine.$` for its documented ownership.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
 - `IEnginePositionState` is the engine-facing projection of ChessVue move-tree state and lets the engine client decide whether it can continue the current line or must establish a new game boundary.
 - `IEngineAnalysisUpdate` is an app-facing streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes.

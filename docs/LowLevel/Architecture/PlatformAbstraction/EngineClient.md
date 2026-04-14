@@ -24,6 +24,7 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 - translate engine output into app-meaningful analysis updates and awaited player moves before anything crosses the layer boundary
 - isolate protocol-specific handshakes, move encoding, principal-variation parsing, and new-game-boundary rules from the rest of the architecture
 - keep per-engine protocol conversation deterministic even when positions are superseded or searches are restarted
+- own protocol-session state for the concrete engine conversation, including any analysis callback, analysis-line cache, waiter list, and pending player-move state needed by that client
 
 ## Dependencies
 - host-specific engine communication capability
@@ -35,6 +36,9 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 - If another protocol is ever introduced later, the protocol switch belongs inside `EngineClient`, not in `EngineRuntimeService`, stores, or views.
 - `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires.
 - `EngineClient` acts on the in-game `IAssignedEngine` object and any runtime process handle already bound under `engine.$` by `EngineRuntimeService`.
+- Concrete clients may narrow `IAssignedEngine` to protocol-specific subtypes and refine `engine.$` with richer client-private runtime state.
+- That client-private refinement may include fields such as a protocol session object, analysis callback, analysis-line cache, line waiters, or pending player-move deferred.
+- Those client-private fields remain internal to the concrete client implementation. They are not part of the shared `IAssignedEngineRuntime` contract and must not be relied on by upper layers.
 - `syncPosition(...)` receives ChessVue root-and-moves state, and the client decides whether it can continue the same game line or must establish a fresh game boundary.
 - During the rewrite phase, `EngineClient` owns the full protocol conversation over mocked `NW.js`-style engine communication hooks.
 - `EngineClient` does not call `ProcessManager`; layer-2 composition keeps process lifecycle and protocol conversation separate so layer-1 modules do not call one another.
