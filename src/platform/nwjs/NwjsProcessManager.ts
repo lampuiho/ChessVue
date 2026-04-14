@@ -78,7 +78,7 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
     }
     function _getSession(processHandle: ProcessHandle): IProcessSession {
       const session = sessionByHandle.get(processHandle);
-      if (session === undefined) throw createPlatformError(PlatformErrorKind.NotFound, 'process', `Process handle was not found: ${processHandle}.`);
+      if (session === undefined) throw createPlatformError(PlatformErrorKind.InvalidProcessHandle, 'process', `Process handle is no longer valid: ${processHandle}.`);
       return session;
     }
 

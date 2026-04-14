@@ -6,7 +6,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
-import { GameRuleService, PositionIdentityService } from '@/domain';
+import { EngineRuntimeService, GameRuleService, PositionIdentityService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
 import type { IEngineAnalysisUpdate } from '@/platform';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
@@ -386,5 +386,34 @@ describe('usePlatformService', () => {
     expect(updates[2]!.positionKey).toBe(PositionIdentityService.buildPositionKey(positionState.currentPosition));
     expect(bestMove.from).toBe(boardId(4, 6));
     expect(bestMove.to).toBe(boardId(4, 4));
+  });
+
+  it('restarts once through EngineRuntimeService when a stored process handle becomes stale', async () => {
+    const platform = usePlatformService();
+    const manager = platform.getProcessManager();
+    const engine = createAssignedEngine();
+    const positionState = createEnginePositionState();
+    const staleHandle = await manager.spawnProcess(engine.executablePath);
+    engine.$ = { processHandle: staleHandle, availability: EngineAvailability.Ready, lastError: null };
+
+    await manager.stopProcess(staleHandle);
+    await EngineRuntimeService.syncPosition(engine, positionState);
+
+    const restartedProcess = environment.latestProcess();
+    expect(engine.$?.processHandle).not.toBe(staleHandle);
+    expect(restartedProcess.getCommandLog()).toContain('uci');
+    expect(restartedProcess.getCommandLog()).toContain('position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4');
+  });
+  it('throws when a session-dependent action runs before initialiseEngine creates a session', async () => {
+    const platform = usePlatformService();
+    const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, lastError: null };
+
+    await expect(client.awaitPlayerTurnMove(engine)).rejects.toMatchObject({
+      kind: PlatformErrorKind.ProcessStartFailed,
+      message: 'Engine session is not initialised for Stockfish.',
+    });
   });
 });

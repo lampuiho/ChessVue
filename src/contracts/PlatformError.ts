@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
 export const enum PlatformErrorKind {
   Cancelled = 'cancelled',
@@ -6,6 +6,7 @@ export const enum PlatformErrorKind {
   AlreadyExists = 'alreadyExists',
   PermissionDenied = 'permissionDenied',
   InvalidDocument = 'invalidDocument',
+  InvalidProcessHandle = 'invalidProcessHandle',
   ProcessStartFailed = 'processStartFailed',
   UnexpectedExit = 'unexpectedExit',
 }
@@ -15,21 +16,22 @@ export const platformErrorKinds = [
   PlatformErrorKind.AlreadyExists,
   PlatformErrorKind.PermissionDenied,
   PlatformErrorKind.InvalidDocument,
+  PlatformErrorKind.InvalidProcessHandle,
   PlatformErrorKind.ProcessStartFailed,
   PlatformErrorKind.UnexpectedExit,
-] as const
+] as const;
 
 export interface IPlatformError {
-  kind: PlatformErrorKind
-  operation: string
-  message: string
-  detail: string | null
+  kind: PlatformErrorKind;
+  operation: string;
+  message: string;
+  detail: string | null;
 }
-export const platformErrorKindSchema = z.enum(platformErrorKinds)
+export const platformErrorKindSchema = z.enum(platformErrorKinds);
 
 export const platformErrorSchema = z.object({
   kind: platformErrorKindSchema,
   operation: z.string().min(1),
   message: z.string().min(1),
   detail: z.string().nullable(),
-})
+});
