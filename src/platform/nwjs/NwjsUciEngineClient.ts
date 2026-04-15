@@ -70,7 +70,8 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       session.initialised = true;
     }
     async function registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void> {
-      await initialiseEngine(engine);
+      const session = _requireSession(engine);
+      if (!session.initialised) throw createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine session is not initialised for ${engine.displayName}.`);
       await _writeCommand(_requireProcessHandle(engine), buildRegistrationCommand(request));
     }
     async function syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {

@@ -416,4 +416,17 @@ describe('usePlatformService', () => {
       message: 'Engine session is not initialised for Stockfish.',
     });
   });
+  it('does not implicitly initialise when registerEngine is called directly', async () => {
+    const platform = usePlatformService();
+    const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, lastError: null };
+
+    await expect(client.registerEngine(engine, { name: 'tester', code: '1234', registerLater: false })).rejects.toMatchObject({
+      kind: PlatformErrorKind.ProcessStartFailed,
+      message: 'Engine session is not initialised for Stockfish.',
+    });
+    expect(environment.latestProcess().getCommandLog()).toEqual([]);
+  });
 });
