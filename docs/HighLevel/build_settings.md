@@ -50,10 +50,11 @@ The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 ## Persistence Runtime
 | Setting Area | Baseline Decision |
 | --- | --- |
-| Autosave backend | File-backed internal save beneath `session.saveRootPath` via `SavedGameDocumentService` |
-| File save/load | User-selected desktop file paths through layer-2 persistence services backed by `StorageAdapter` |
+| Autosave backend | File-backed internal save beneath user-configurable `session.saveRootPath` through `SavedGameIndexService` path composition plus `SerializationService` file writes |
+| File save/load | User-selected desktop file paths through `SerializationService`, backed by `StorageAdapter` |
 | Canonical game format | One internal JSON saved game payload |
-| Session restore | Persisted separately from settings and per-game saved-game payloads through `SessionStateService` |
+| App-owned file paths | Build config supplies the concrete paths for `settings.json`, `game-session.json`, and `layout-state.json` |
+| Session restore | Persisted separately from settings and per-game saved-game payloads through `SerializationService` |
 | Schema versioning | Required on every persisted artefact type |
 | Migration strategy | Migrate on read, resave on next normal save cycle |
 | Corrupt payload handling | Isolate bad payloads and fall back safely |

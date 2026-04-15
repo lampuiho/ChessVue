@@ -45,12 +45,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `GamesStore.saveGame` |
 | --- |
 | `SavedGameIndexService.getAutosaveFilePath` |
-| `SerializationService.serialiseGame` |
-| `SavedGameDocumentService.writeDocument` |
-
-| `SerializationService.serialiseGame` |
-| --- |
-| `SerializationService._normalisePayload` |
+| `SerializationService.writeGameDocument` |
 
 - Settings coverage: `session.autosaveAfterMoveCount` gates move-threshold autosave, while `session.autosaveOnClose` separately gates close-trigger autosave. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., { autosave: true })` is the only workspace-save owner for both trigger kinds.
 - Requirement verification: `Pass`. Autosave writes the dedicated internal save entry beneath the configured save root, leaves recent-game projection to later on-demand queries, and leaves in-memory game state intact when a write fails.
@@ -77,7 +72,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGamesStore.listSavedGames |
 | --- |
 | SavedGamesStore._resolveSaveRoot |
-| SavedGameDocumentService.listManagedSaveEntries |
+| SerializationService.listManagedSaveEntries |
 | SavedGameIndexService.projectSaveGroups |
 
 - Route coverage: save routes through /saved-games/save/:name, opens directly into the selected game's save surface, and does not use the shared dialog family.
@@ -101,12 +96,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GamesStore._validateSaveName |
 | GamesStore._buildPersistedWorkspace |
 | SavedGameIndexService.getNamedSaveFilePath |
-| SerializationService.serialiseGame |
-| SavedGameDocumentService.writeDocument |
-
-| SerializationService.serialiseGame |
-| --- |
-| SerializationService._normalisePayload |
+| SerializationService.writeGameDocument |
 
 - UI surface coverage: overwrite confirmation uses the shared dialog shell, while the save-name field and Cancel or Save action row remain route-owned by SavedGamesView.
 - Requirement verification: `Pass`. Internal named-save writes stay inside `GamesStore` once the save route has resolved the target name, overwrite confirmation is explicit, and later recent-list queries can observe the new save without any same-layer store call.
@@ -133,7 +123,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGamesStore.listSavedGames |
 | --- |
 | SavedGamesStore._resolveSaveRoot |
-| SavedGameDocumentService.listManagedSaveEntries |
+| SerializationService.listManagedSaveEntries |
 | SavedGameIndexService.projectSaveGroups |
 
 #### Flow B - Load The Selected Internal Save
@@ -153,8 +143,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | GamesStore.loadGame |
 | --- |
-| SavedGameDocumentService.readDocument |
-| SerializationService.deserialiseGame |
+| SerializationService.readGameDocument |
 | GamesStore._remapDuplicateIdIfNeeded |
 | GamesStore._hydrateWorkspace |
 
@@ -168,7 +157,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | UiStateStore.saveGameSession |
 | --- |
-| SessionStateService.saveGameSession |
+| SerializationService.writeGameSessionDocument |
 
 #### Flow C - Resume Analysis For The Loaded Workspace
 | `SavedGamesView.onLoadRequested` |
@@ -258,17 +247,12 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGamesStore.exportGame |
 | --- |
 | SavedGamesStore._buildDefaultExportName |
-| SavedGameDocumentService.selectExportFile |
+| SerializationService.selectExportFile |
 
 | GamesStore.saveGame |
 | --- |
 | GamesStore._buildPersistedWorkspace |
-| SerializationService.serialiseGame |
-| SavedGameDocumentService.writeDocument |
-
-| SerializationService.serialiseGame |
-| --- |
-| SerializationService._normalisePayload |
+| SerializationService.writeGameDocument |
 
 | GamesStore.resumeGame |
 | --- |
@@ -292,12 +276,11 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | SavedGamesStore.importGame |
 | --- |
-| SavedGameDocumentService.selectImportFile |
+| SerializationService.selectImportFile |
 
 | GamesStore.loadGame |
 | --- |
-| SavedGameDocumentService.readDocument |
-| SerializationService.deserialiseGame |
+| SerializationService.readGameDocument |
 | GamesStore._remapDuplicateIdIfNeeded |
 | GamesStore._hydrateWorkspace |
 
@@ -311,7 +294,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | UiStateStore.saveGameSession |
 | --- |
-| SessionStateService.saveGameSession |
+| SerializationService.writeGameSessionDocument |
 
 #### Flow B - Resume Analysis For The Imported Workspace
 | `MenuBar.importGameRequested` |
@@ -368,12 +351,11 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | SavedGamesStore.importGame |
 | --- |
-| SavedGameDocumentService.selectImportFile |
+| SerializationService.selectImportFile |
 
 | GamesStore.loadGame |
 | --- |
-| SavedGameDocumentService.readDocument |
-| SerializationService.deserialiseGame |
+| SerializationService.readGameDocument |
 
 | UiStateStore.showModal |
 | --- |
@@ -579,7 +561,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `GamesStore._assertGameExists` |
 | `GamesStore._disposePlatformEventSubscriptions` |
 | `GamesStore._stopGameSessions` |
-| `SavedGameDocumentService.deleteDocument` |
+| `SerializationService.deleteDocument` |
 
 | `UiStateStore.closeTab` |
 | --- |
@@ -587,7 +569,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `UiStateStore.saveGameSession` |
 | --- |
-| `SessionStateService.saveGameSession` |
+| `SerializationService.writeGameSessionDocument` |
 
 - Requirement verification: `Pass`. Deletion removes runtime, persistence, and tab state together.
 

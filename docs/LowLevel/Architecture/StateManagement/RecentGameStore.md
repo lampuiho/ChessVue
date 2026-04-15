@@ -19,7 +19,6 @@ getRecentGames(): Promise<IRecentGameEntry[]>
 
 ## Dependencies
 - `SavedGameIndexService`
-- `SavedGameDocumentService`
 - `SerializationService`
 
 ## Scenario Coverage
@@ -28,6 +27,6 @@ getRecentGames(): Promise<IRecentGameEntry[]>
 - `SCN-NAV-03`
 
 ## Notes
-- `RecentGameStore` consumes only layer-2 save-index, document, and serialisation services. It does not resolve `StorageAdapter` directly.
+- `RecentGameStore` consumes only layer-2 save-index and serialisation services. It does not resolve `StorageAdapter` directly.
 - `getRecentGames()` is the authoritative read path for `HomeView`; any short-lived cache must be treated as disposable and non-authoritative.
 - Loading a recent entry's saved target belongs to `GamesStore` after `SavedGamesStore` resolves the full path; `RecentGameStore` owns only the projected recent-entry metadata.

@@ -33,9 +33,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [TimeControlService](DomainLogic/TimeControlService.md)
 - [EngineRuntimeService](DomainLogic/EngineRuntimeService.md)
 - [SavedGameIndexService](DomainLogic/SavedGameIndexService.md)
-- [SavedGameDocumentService](DomainLogic/SavedGameDocumentService.md)
 - [SerializationService](DomainLogic/SerializationService.md)
-- [SessionStateService](DomainLogic/SessionStateService.md)
 - [PlatformEventService](DomainLogic/PlatformEventService.md)
 - [UserSettingService](DomainLogic/UserSettingService.md)
 
@@ -132,8 +130,8 @@ The data-interface section defines the shared low-level types for:
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveUpdateService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
-- `GamesStore` owns move timing, non-local turn waiting, analysis coordination, and persisted analysis snapshots at layer 3, `EnginesStore` exposes configured engine profiles plus engine-backed player creation for selection flows, and `EngineRuntimeService` owns the lower-layer game-facing engine runtime path by composing `ProcessManager` and `EngineClient`.
-- `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SavedGameDocumentService`, `SerializationService`, `SessionStateService`, and `UserSettingService` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SavedGameDocumentService` owning saved-game document I/O and picker boundaries, `SerializationService` owning canonical payload conversion, `SessionStateService` owning session and layout document I/O, and `UserSettingService` owning settings pathing, validation, caching, persistence, and initial system-theme reads behind the layer-2 boundary.
+- `GamesStore` owns move timing, non-local turn waiting, analysis coordination, persisted analysis snapshots at layer 3, and copying selected reusable engine profiles into assigned-engine snapshots, `EnginesStore` exposes configured engine profiles for selection flows, and `EngineRuntimeService` owns the lower-layer game-facing engine runtime path by composing `ProcessManager` and `EngineClient`.
+- `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SerializationService`, and `UserSettingService` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` executing workspace save or load, `SavedGamesStore` owning browse and target-resolution workflows, `SavedGameIndexService` owning save-folder rules, `SerializationService` owning canonical payload conversion plus storage-backed persistence I/O and picker boundaries, `UiStateStore` owning session and layout persistence through build-config paths, and `UserSettingService` owning accepted settings validation, caching, persistence, and initial system-theme reads behind the layer-2 boundary.
 - `Router`, `HomeView`, `GameView`, `SavedGamesView`, `SettingsView`, and shell components own route and screen composition only.
 
 ## Explicit Non-Baseline Exclusions

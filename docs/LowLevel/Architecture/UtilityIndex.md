@@ -40,14 +40,14 @@ Each entry must define:
 - Validation or failure semantics: invalid or stale route targets are coerced to the nearest committed fallback without mutating persisted settings or workspace payloads.
 
 ## Persistence And Saved Documents
-### SavedGameDocumentUtility
+### PersistenceDocumentUtility
 - Purpose: share canonical managed-save enumeration, saved-document access, and duplicate-identity repair around saved-game workflows.
 - Touched contract models: `IGame`, canonical saved-game document text.
-- Allowed importers: `SavedGameDocumentService`, `GamesStore`, `RecentGameStore`.
+- Allowed importers: `SerializationService`, `GamesStore`, `RecentGameStore`.
 - Owner-private delegates:
-  - `SavedGameDocumentService._enumerateManagedSaveEntries`
-  - `SavedGameDocumentService._writeSavedGameDocument`
-  - `SavedGameDocumentService._readSavedGameDocument`
+  - `SerializationService._listManagedSaveEntries`
+  - `SerializationService._writeGameDocument`
+  - `SerializationService._readGameDocument`
   - `GamesStore._remapDuplicateIdIfNeeded`
   - `RecentGameStore._enumerateRecentSaveTargets`
 - Classification: `mixed`.
@@ -68,13 +68,13 @@ Each entry must define:
 ### StandardErrorHandlingUtility
 - Purpose: share normalisation of runtime and platform exceptions into logging plus caller-owned user-facing error presentation policy.
 - Touched contract models: `IPlatformError` and the shared runtime-error presentation payload owned by the handling path.
-- Allowed importers: `EngineRuntimeService`, `EnginesStore`, `GamesStore`, `SavedGameDocumentService`, `SessionStateService`, `UserSettingService`.
+- Allowed importers: `EngineRuntimeService`, `EnginesStore`, `GamesStore`, `SerializationService`, `UiStateStore`, `UserSettingService`.
 - Owner-private delegates:
   - `EngineRuntimeService._handleRuntimeError`
   - `EnginesStore._handlePlayerTurnRuntimeError`
   - `GamesStore._handleRuntimeError`
-  - `SavedGameDocumentService._handlePlatformError`
-  - `SessionStateService._handlePlatformError`
+  - `SerializationService._handlePlatformError`
+  - `UiStateStore._handlePersistenceError`
   - `UserSettingService._handlePlatformError`
 - Classification: `mixed`.
 - Validation or failure semantics: every handled error is logged. The owning caller decides whether the error remains local state such as an analysis-engine unavailable row or is escalated into a user-facing runtime dialog. Blocking runtime dialogs may be rendered through `RuntimeErrorDialogMountUtility`, a private presentation-only helper that mounts a dedicated Vue app inside the shared dialog shell without adding a new public modal contract.

@@ -1,7 +1,7 @@
 # UserSettingService
 
 ## Purpose
-Own the canonical user-settings file rules plus loading, caching, validation, default fallback, and persistence for the committed settings snapshot.
+Own accepted settings loading, caching, validation, default fallback, and persistence for the committed settings snapshot.
 
 ## Public Interface
 ```ts
@@ -13,8 +13,7 @@ resetSettings(): Promise<ISettingsSnapshot>
 ```
 
 ## Responsibilities
-- keep the canonical settings-file location and pathing rules in one layer-2 service
-- lazily read the settings snapshot through `StorageAdapter` and deserialise or migrate it through `SerializationService`
+- lazily read the settings snapshot through `SerializationService` using the build-config settings path
 - expose the current system theme to higher layer settings flows without leaking `SystemThemeAdapter` to layer 3
 - fall back to the authoritative default snapshot when the stored settings file is missing, corrupt, or no longer valid
 - validate accepted settings snapshots before exposing them to layer 3 or writing them back to storage
@@ -22,7 +21,6 @@ resetSettings(): Promise<ISettingsSnapshot>
 - persist accepted settings independently from saved games, session state, and UI-layout state
 
 ## Dependencies
-- `StorageAdapter`
 - `SerializationService`
 - `SystemThemeAdapter`
 
@@ -47,6 +45,5 @@ resetSettings(): Promise<ISettingsSnapshot>
 - `getSettingsOrDefault()` is the lazy first-read boundary. Missing or invalid files resolve to the default accepted snapshot without requiring an eager bootstrap phase.
 - `getSystemTheme()` is the layer-2 initial read path used by `SettingsStore._resolveThemeMode` when `appearance.themeMode = ThemeMode.System`.
 - Validation and defaulting belong here so the accepted snapshot stays consistent whether it was first read from a view setup path, applied from the settings screen, saved explicitly, or reset to defaults.
-- In the first desktop implementation, `UserSettingService` resolves `settings.json` relative to the executable or app root.
-- That executable-root policy is a concrete desktop implementation choice owned by this service layer, not by `StorageAdapter`.
+- Build config owns the concrete settings-file path. `UserSettingService` does not decide that path; it only uses it.
 - Future non-desktop implementations may persist accepted settings elsewhere without changing the shared path-based adapter contract.

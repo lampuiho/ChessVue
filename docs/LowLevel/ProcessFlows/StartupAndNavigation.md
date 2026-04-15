@@ -28,12 +28,12 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `UiStateStore.getLayoutStateOrDefault` |
 | --- |
-| `SessionStateService.getLayoutStateOrDefault` |
+| `SerializationService.readUiLayoutDocument` |
 | `UiStateStore._coerceLayoutState` |
 
 | `RecentGameStore.getRecentGames` |
 | --- |
-| `SavedGameDocumentService.listManagedSaveEntries` |
+| `SerializationService.listManagedSaveEntries` |
 | `SavedGameIndexService.projectSaveGroups` |
 | `RecentGameStore._projectRecentEntries` |
 | `RecentGameStore._sortMostRecentFirst` |
@@ -59,7 +59,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `UiStateStore.getGameSessionOrDefault` |
 | --- |
-| `SessionStateService.getGameSessionOrDefault` |
+| `SerializationService.readGameSessionDocument` |
 | `UiStateStore._coerceOpenTabs` |
 | `UiStateStore._coerceActiveRoute` |
 
@@ -71,8 +71,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.restorePersistedGames` |
 | --- |
-| `SavedGameDocumentService.readDocument` |
-| `SerializationService.deserialiseGame` |
+| `SerializationService.readGameDocument` |
 | `GamesStore._hydrateWorkspace` |
 | `GamesStore._repairMissingActiveGame` |
 
@@ -179,17 +178,17 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `UiStateStore.getLayoutStateOrDefault` |
 | --- |
-| `SessionStateService.getLayoutStateOrDefault` |
+| `SerializationService.readUiLayoutDocument` |
 | `UiStateStore._resetInvalidLayoutState` |
 
 | `UiStateStore.getGameSessionOrDefault` |
 | --- |
-| `SessionStateService.getGameSessionOrDefault` |
+| `SerializationService.readGameSessionDocument` |
 | `UiStateStore._resetInvalidGameSession` |
 
 | `RecentGameStore.getRecentGames` |
 | --- |
-| `SavedGameDocumentService.listManagedSaveEntries` |
+| `SerializationService.listManagedSaveEntries` |
 | `SavedGameIndexService.projectSaveGroups` |
 | `RecentGameStore._skipInvalidRecentTarget` |
 
@@ -200,8 +199,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.restorePersistedGames` |
 | --- |
-| `SavedGameDocumentService.readDocument` |
-| `SerializationService.deserialiseGame` |
+| `SerializationService.readGameDocument` |
 | `GamesStore._skipCorruptDocument` |
 
 - Requirement verification: `Pass`. Corrupt settings, game-session, UI-layout, recent-save targets, or game payloads fall back independently through lazy reads, and corrupt core game payloads are isolated instead of crashing app entry.
@@ -232,7 +230,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `UiStateStore.saveGameSession` |
 | --- |
-| `SessionStateService.saveGameSession` |
+| `SerializationService.writeGameSessionDocument` |
 
 - Requirement verification: `Pass`. The game becomes active immediately, and persistence failure can be surfaced without discarding the in-memory workspace.
 
@@ -420,8 +418,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.loadGame` |
 | --- |
-| `SavedGameDocumentService.readDocument` |
-| `SerializationService.deserialiseGame` |
+| `SerializationService.readGameDocument` |
 | `GamesStore._remapDuplicateIdIfNeeded` |
 | `GamesStore._hydrateWorkspace` |
 
@@ -447,8 +444,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.loadGame` |
 | --- |
-| `SavedGameDocumentService.readDocument` |
-| `SerializationService.deserialiseGame` |
+| `SerializationService.readGameDocument` |
 | `GamesStore._remapDuplicateIdIfNeeded` |
 | `GamesStore._hydrateWorkspace` |
 

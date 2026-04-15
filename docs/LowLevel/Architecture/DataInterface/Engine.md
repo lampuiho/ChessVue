@@ -117,7 +117,7 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.
 - `clientType` identifies which platform engine client is responsible for the profile or assigned-engine snapshot.
-- Creating an assigned engine from a profile copies the display name, executable path, client type, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later or when the reusable profile is deleted.
+- When a selected reusable engine profile is assigned to a game, `GamesStore` copies the display name, executable path, client type, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later or when the reusable profile is deleted.
 - `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis snapshots.
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.

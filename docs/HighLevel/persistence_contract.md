@@ -118,6 +118,12 @@ Only after that game state is restored may live analysis resume.
 - user preferences and default behaviours
 - engine inventory records
 
+## Persistence Boundary
+- `SerializationService` is the single layer-2 storage-backed persistence boundary for settings, game-session, UI-layout, and saved-game files.
+- `SerializationService` stays path-agnostic in the sense that callers supply explicit file paths; it does not decide which concrete file is being used.
+- `SavedGameIndexService` remains the pure owner of user-configurable managed-save root rules and managed-save file-path composition beneath `session.saveRootPath`.
+- Build config owns the concrete app-managed file paths for settings, game-session, and UI-layout artefacts.
+
 ## On-Demand Recent Games Projection
 - `HomeView` recent entries are projected on demand from the available managed saves instead of being stored as a separate persisted artefact.
 - That projection still keeps at most one recent entry per canonical `gameId`.
@@ -130,6 +136,7 @@ Only after that game state is restored may live analysis resume.
 - ChessVue creates one folder per canonical game beneath that root.
 - Each game folder may contain one autosave entry plus user-named save files that use the same canonical saved-game payload.
 - Platform adapters may emulate the folder structure differently when the host does not expose normal directories, but the contract remains folder-based.
+- The managed save root remains user-configurable. It is not moved into build config.
 
 ## Analysis Persistence Rule
 The baseline contract persists saved analysis snapshots directly inside the saved game payload.

@@ -52,7 +52,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - read, deserialise, migrate, and hydrate a saved game into the open-game collection once the owning flow has selected a source file
 - transition a prepared non-live analysis game into a live game without losing its prepared root or move tree
 - persist each game's live-analysis display preference alongside the rest of the game state
-- capture copied in-game engine snapshots from reusable engine profiles when seating player engines or analysis engines by reading the accepted engine inventory through `UserSettingService`
+- capture copied in-game engine snapshots from reusable engine profiles supplied by the owning UI selection flow when seating player engines or analysis engines
 - enforce allowed actions from `GameState`, `ResultState`, and accepted gameplay or session policies
 - coordinate legal move application, move-tree updates, notation, position identity, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
@@ -99,7 +99,6 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `MoveUpdateService`
 - `PositionIdentityService`
 - `SavedGameIndexService`
-- `SavedGameDocumentService`
 - `PlatformEventService`
 - `SerializationService`
 - `TimeControlService`
@@ -129,7 +128,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `GamesStore._canRequestPlayerMove` is the internal gate behind non-local move generation and must remain a strict state check rather than a best-effort hint.
 - `SavedGamesStore` owns save browsing, recent-target resolution, and external picker flows. `GamesStore` owns serialising the current game and hydrating a saved game once the target path is known.
-- `GamesStore` uses `SavedGameDocumentService` for raw saved-game document reads, writes, and deletes while keeping game serialisation and hydration in-store.
-- `GamesStore` does not call sibling stores directly. Any player selection coming from `EnginesStore` is bridged through presentation as a concrete `IPlayer` value.
+- `GamesStore` uses `SerializationService` for saved-game document reads, writes, and deletes while keeping workspace save or load sequencing and hydration in-store.
+- `GamesStore` does not call sibling stores directly. Any engine-profile selection coming from `EnginesStore` is bridged through presentation as a selected reusable profile or equivalent seat-selection result.
 - Analysis-engine row identity is the current row index in `game.analysis.snapshots`; duplicate copied engines are blocked so row-targeted actions stay unambiguous.
 - Flow docs continue to show owner-private functions such as `GamesStore._hydrateWorkspace`, `GamesStore._loadRequestedDocuments`, and `GamesStore._hydrateWorkspaceCollection`. If those share implementation, that implementation is documented under [UtilityIndex.md](../UtilityIndex.md).

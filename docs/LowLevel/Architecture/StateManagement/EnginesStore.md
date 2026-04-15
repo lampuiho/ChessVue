@@ -1,25 +1,23 @@
 # EnginesStore
 
 ## Purpose
-Expose configured engine inventory for UI-facing selection flows and construct engine-backed `IEnginePlayer` values for seating.
+Expose configured engine inventory for UI-facing selection flows.
 
 ## Public Interface
 ```ts
 listConfiguredEngines(): IEngineRecord[]
 getEngine(engineId: string): IEngineRecord | undefined
-createPlayer(engineId: string, colour: PlayerColour): Promise<IEnginePlayer>
 validateAnalysisSelection(engineIds: string[]): void
 ```
 
 ## Responsibilities
-- read configured engine profiles when creating or validating assigned engine participants
-- construct engine-backed `IEnginePlayer` values from accepted engine profiles so presentation can seat them into a game without same-layer store calls
+- read configured engine profiles when creating or validating selection options for assigned engine participants
 - enforce the four-engine analysis cap
-- preserve copied player-engine and analysis-engine configuration for the lifetime of that assignment unless the user explicitly unseats and reseats the engine
+- leave copied player-engine and analysis-engine assignment ownership to `GamesStore` once the UI has selected a reusable profile
 
 ## Runtime Gating Notes
 - Engine-profile editing is owned by `SettingsStore`; already assigned games keep their captured engine snapshots until the user explicitly reassigns them.
-- `createPlayer(...)` returns an engine-backed `IEnginePlayer` with copied launch configuration from the selected reusable profile. Later profile edits or profile deletion do not mutate already seated players.
+- UI selection flows read reusable engine profiles from `EnginesStore` and pass the selected profile to `GamesStore`, which owns copying that profile into the game's persisted assigned-engine snapshot.
 - Analysis-runtime and player-move orchestration are owned by `GamesStore` through layer-2 services, not by this store.
 
 ## Dependencies
@@ -35,4 +33,4 @@ validateAnalysisSelection(engineIds: string[]): void
 ## Notes
 - `EnginesStore` is intentionally inventory-facing. It does not own live turn waiting, analysis refresh timing, or engine-process orchestration.
 - `GamesStore` remains responsible for analysis coordination and non-local move waiting on the current game.
-- Presentation bridges `EnginesStore.createPlayer(...)` into `GamesStore.reassignPlayer(...)` so the no-sibling-store-call rule stays intact.
+- Presentation bridges `EnginesStore` profile selection into `GamesStore` assignment flows so the no-sibling-store-call rule stays intact.
