@@ -40,6 +40,8 @@ export interface IAssignedEngineRuntime {
   processHandle?: ProcessHandle
   availability: EngineAvailability
   lastError?: string
+  analysisCallback?: (update: IEngineAnalysisUpdate) => void
+  analysisLines: Map<number, IAnalysisLine>
 }
 export interface IAssignedEngine {
   displayName: string

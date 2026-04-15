@@ -91,11 +91,13 @@ If the user selects more than the supported concurrent analysis engines, the app
 - Analysis engines stream incremental results over time.
 - The latest valid output from an engine replaces its earlier displayed result for that same position.
 - Protocol parsing remains an internal engine-boundary concern owned by `EngineClient`; upper layers consume app-facing analysis updates and awaited moves rather than raw engine lines.
-- If the engine stops unexpectedly, the last valid displayed result remains visible until replaced.
+- If the engine stops unexpectedly, the next attempted runtime operation fails explicitly for that engine. The last valid displayed result remains visible until replaced.
 
 ## Failure and Retry Behaviour
 - Engine start failure must be isolated to the affected engine.
-- Unexpected engine stop marks that engine as unavailable for the current session.
+- Unexpected engine stop is detected when the next runtime operation checks or uses that process handle and fails for that engine.
+- The explicit initialisation path is `EngineRuntimeService.ensureReady(...)`. Other runtime actions assert that a live, already initialised engine exists.
+- If a runtime action finds that a previously stored process handle has gone stale, that action may retry once by re-running the same explicit initialisation path before continuing.
 - The user may retry engine start manually.
 - Automatic reconnect or backoff retry is not part of the baseline and is deferred to [ideas.md](ideas.md).
 

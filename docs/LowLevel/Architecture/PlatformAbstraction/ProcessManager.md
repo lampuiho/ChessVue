@@ -8,14 +8,14 @@ Own local child-process lifecycle for engine sessions.
 type ProcessHandle = string
 
 spawnProcess(executablePath: string, args?: string[]): Promise<ProcessHandle>
-subscribeToUnexpectedExit(processHandle: ProcessHandle, onUnexpectedExit: (error: IPlatformError) => void): () => void
+assertProcessHandleOpen(processHandle: ProcessHandle): void
 stopProcess(processHandle: ProcessHandle): Promise<void>
 restartProcess(processHandle: ProcessHandle, executablePath: string, args?: string[]): Promise<ProcessHandle>
 ```
 
 ## Responsibilities
 - start and stop engine processes on demand
-- surface unexpected post-start process termination to the owning layer-2 runtime service
+- surface stale or closed process handles through an explicit validity check used by the owning runtime paths
 - isolate failures to the affected session
 - stop related processes when games close or engine assignments change
 - stay at the process-lifecycle boundary only; protocol-specific I/O and UCI commands belong outside this service
@@ -29,8 +29,8 @@ restartProcess(processHandle: ProcessHandle, executablePath: string, args?: stri
 - `EngineRuntimeService` is the owning caller for `ProcessManager` in the baseline architecture.
 - `ProcessHandle` is an opaque platform-owned token. Layer 2 binds that handle into the runtime-only `$` namespace of the relevant copied in-game engine object rather than leaking process identity into persisted game state.
 - `spawnProcess` and `restartProcess` reject with `IPlatformError` of kind `processStartFailed` when the host cannot create the process.
-- Post-start termination is treated separately as `unexpectedExit` so callers can distinguish launch failure from runtime failure.
-- `subscribeToUnexpectedExit(...)` reports only post-start termination for the subscribed session and does not replace the launch-failure rejection path.
+- `assertProcessHandleOpen(...)` throws `IPlatformError` of kind `invalidProcessHandle` when the stored process handle is no longer valid.
+- Post-start termination is observed by later process-handle checks or engine I/O failures rather than through a callback subscription contract.
 
 ## Lifecycle Example
 `ProcessManager` only sees process creation and termination boundaries.
@@ -39,7 +39,7 @@ Example lower-level usage:
 
 ```text
 spawn process -> stockfish.exe
-detect unexpected exit -> runtime error
+assert process handle open -> continue or throw invalid process handle
 stop process -> session closed
 ```
 

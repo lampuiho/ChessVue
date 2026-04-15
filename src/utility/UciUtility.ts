@@ -12,8 +12,6 @@ export interface IUciSession<TProcess> {
   isStopping: boolean;
   process?: TProcess;
   positionState?: IEnginePositionState;
-  analysisCallback?: (update: IEngineAnalysisUpdate) => void;
-  analysisLines: Map<number, IAnalysisLine>;
   playerMoveDeferred?: Deferred<IMove>;
   waiters: IUciLineWaiter[];
   detachProcessListeners?: () => void;
@@ -111,10 +109,11 @@ export function parseInfoLine(position: IBoardPosition, line: string): { multiPv
     analysisLine: { depth, scoreCp: scoreKind === 'cp' ? scoreValue : undefined, scoreMate: scoreKind === 'mate' ? scoreValue : undefined, pv: applyPv(position, tokens.slice(pvIndex + 1)) },
   };
 }
-export function parseBestMoveLine(position: IBoardPosition, line: string): IMove | null | undefined {
+export function parseBestMoveLine(position: IBoardPosition, line: string): IMove | undefined {
   const tokens = line.trim().split(/\s+/);
-  if (tokens[0] !== 'bestmove' || tokens[1] === undefined) return;
-  if (tokens[1] === '(none)') return null;
+  if (tokens[0] !== 'bestmove'
+    || !tokens[1]
+    || tokens[1] === '(none)') return;
   return parseUciMove(position, tokens[1]);
 }
 export function buildRegistrationCommand(request: IEngineRegistrationRequest): string {
@@ -127,7 +126,6 @@ export function createUciSession<TProcess>(): IUciSession<TProcess> {
   return {
     initialised: false,
     isStopping: false,
-    analysisLines: new Map(),
     waiters: [],
   };
 }
@@ -135,8 +133,6 @@ export function stopUciSession<TProcess>(session: IUciSession<TProcess>, message
   session.isStopping = true;
   session.initialised = false;
   session.positionState = undefined;
-  session.analysisCallback = undefined;
-  session.analysisLines.clear();
   session.waiters.splice(0).forEach((waiter) => waiter.reject(new Error(message)));
   session.playerMoveDeferred?.reject(new Error(message));
   session.playerMoveDeferred = undefined;
@@ -152,8 +148,6 @@ export function failUciSession<TProcess>(session: IUciSession<TProcess>, error: 
   session.waiters.splice(0).forEach((waiter) => waiter.reject(error));
   session.playerMoveDeferred?.reject(error);
   session.playerMoveDeferred = undefined;
-  session.analysisCallback = undefined;
-  session.analysisLines.clear();
   session.detachProcessListeners = undefined;
   session.process = undefined;
   return session;

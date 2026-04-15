@@ -24,7 +24,7 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 - translate engine output into app-meaningful analysis updates and awaited player moves before anything crosses the layer boundary
 - isolate protocol-specific handshakes, move encoding, principal-variation parsing, and new-game-boundary rules from the rest of the architecture
 - keep per-engine protocol conversation deterministic even when positions are superseded or searches are restarted
-- own client-private runtime state for the concrete engine conversation, including optional session initialisation, process-listener attachment, current synced position, streamed analysis state, and pending player-turn state
+- own client-private runtime state for the concrete engine conversation, including optional session initialisation, process-listener attachment, current synced position, and pending player-turn state
 
 ## Dependencies
 - host-specific engine communication capability
@@ -37,11 +37,12 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 - `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires.
 - `EngineClient` acts on the in-game `IAssignedEngine` object and any runtime process handle already bound under `engine.$` by `EngineRuntimeService`.
 - Concrete clients may narrow `IAssignedEngine` to protocol-specific subtypes and refine `engine.$` with richer client-private runtime state.
-- That client-private refinement may include fields such as a protocol session object, current synced position, analysis callback, ordered analysis slots, attached listener references, or pending player-move state.
+- That client-private refinement may include fields such as a protocol session object, current synced position, attached listener references, or pending player-move state.
 - Those client-private fields remain internal to the concrete client implementation. They are not part of the shared `IAssignedEngineRuntime` contract and must not be relied on by upper layers.
-- `session` is optional until `_initialiseSessionIfMissing(...)` runs after base runtime state already exists.
-- Client-private runtime state is created only through explicit mutation steps. Suggested owner-private names include `_initialiseSessionIfMissing`, `_attachProcessListeners`, `_detachProcessListeners`, `_storeSyncedPositionState`, `_setAnalysisCallback`, `_clearAnalysisState`, `_storeAnalysisSlot`, `_createPendingPlayerTurn`, `_clearPendingPlayerTurn`, `_resetSessionAfterStop`, and `_resetSessionAfterFailure`.
-- The default runtime design here is object-attached state with explicit fields and ordered slots. It does not use hidden side tables or `Map`-shaped runtime caches in the design docs.
+- `session` is optional until `initialiseEngine(...)` creates and initialises it after base runtime state already exists.
+- `registerEngine(...)`, `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` require an already initialised session and must not initialise the engine implicitly.
+- Client-private runtime state is created only through explicit mutation steps. Suggested owner-private names include `_initialiseAssignedEngineSession`, `_attachProcessListeners`, `_detachProcessListeners`, `_storeSyncedPositionState`, `_clearAnalysisState`, `_storeAnalysisSlot`, `_createPendingPlayerTurn`, `_clearPendingPlayerTurn`, `_resetSessionAfterStop`, and `_resetSessionAfterFailure`.
+- The default runtime design here is explicit object-attached state. It does not use hidden side tables.
 - The runtime ownership breakdown and state-mutation order are defined in [../../ProcessFlows/EngineRuntimeOwnership.md](../../ProcessFlows/EngineRuntimeOwnership.md).
 - `syncPosition(...)` receives ChessVue root-and-moves state, and the client decides whether it can continue the same game line or must establish a fresh game boundary.
 - During the rewrite phase, `EngineClient` owns the full protocol conversation over mocked `NW.js`-style engine communication hooks.

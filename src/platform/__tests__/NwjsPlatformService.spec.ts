@@ -306,18 +306,11 @@ describe('usePlatformService', () => {
     const firstProcess = environment.latestProcess();
     const secondHandle = await manager.spawnProcess('stockfish.exe');
     const secondProcess = environment.latestProcess();
-    const unexpectedExits: string[] = [];
-
-    manager.subscribeToUnexpectedExit(firstHandle, (error) => {
-      unexpectedExits.push(`first:${error.kind}`);
-    });
-    manager.subscribeToUnexpectedExit(secondHandle, (error) => {
-      unexpectedExits.push(`second:${error.kind}`);
-    });
 
     firstProcess.emit('exit', 1, null);
 
-    expect(unexpectedExits).toEqual(['first:unexpectedExit']);
+    expect(() => manager.assertProcessHandleOpen(firstHandle)).toThrowError(/Process handle is no longer valid/);
+    expect(() => manager.assertProcessHandleOpen(secondHandle)).not.toThrow();
     secondProcess.emit('exit', 0, null);
   });
 
@@ -360,8 +353,9 @@ describe('usePlatformService', () => {
     const engine = createAssignedEngine();
     const positionState = createEnginePositionState();
     const updates: IEngineAnalysisUpdate[] = [];
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable };
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
 
+    await client.initialiseEngine(engine);
     const syncPromise = client.syncPosition(engine, positionState);
     const process = environment.latestProcess();
     process.queueResponse('go infinite', [
@@ -388,29 +382,44 @@ describe('usePlatformService', () => {
     expect(bestMove.to).toBe(boardId(4, 4));
   });
 
-  it('restarts once through EngineRuntimeService when a stored process handle becomes stale', async () => {
+  it('reinitialises through EngineRuntimeService when a stored process handle becomes stale', async () => {
     const platform = usePlatformService();
     const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const positionState = createEnginePositionState();
     const staleHandle = await manager.spawnProcess(engine.executablePath);
-    engine.$ = { processHandle: staleHandle, availability: EngineAvailability.Ready };
+    engine.$ = { processHandle: staleHandle, availability: EngineAvailability.Ready, analysisLines: new Map() };
 
+    await client.initialiseEngine(engine);
     await manager.stopProcess(staleHandle);
     await EngineRuntimeService.syncPosition(engine, positionState);
 
-    const restartedProcess = environment.latestProcess();
+    expect(engine.$?.processHandle).toBeDefined();
     expect(engine.$?.processHandle).not.toBe(staleHandle);
-    expect(restartedProcess.getCommandLog()).toContain('uci');
-    expect(restartedProcess.getCommandLog()).toContain('position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4');
+    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+    expect(environment.latestProcess().getCommandLog()).toContain('uci');
   });
   it('throws when a session-dependent action runs before initialiseEngine creates a session', async () => {
     const platform = usePlatformService();
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready };
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
 
+    const positionState = createEnginePositionState();
+    await expect(client.syncPosition(engine, positionState)).rejects.toMatchObject({
+      kind: PlatformErrorKind.ProcessStartFailed,
+      message: 'Engine session is not initialised for Stockfish.',
+    });
+    await expect(client.startAnalysis(engine, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, () => undefined)).rejects.toMatchObject({
+      kind: PlatformErrorKind.ProcessStartFailed,
+      message: 'Engine session is not initialised for Stockfish.',
+    });
+    await expect(client.startPlayerTurn(engine)).rejects.toMatchObject({
+      kind: PlatformErrorKind.ProcessStartFailed,
+      message: 'Engine session is not initialised for Stockfish.',
+    });
     await expect(client.awaitPlayerTurnMove(engine)).rejects.toMatchObject({
       kind: PlatformErrorKind.ProcessStartFailed,
       message: 'Engine session is not initialised for Stockfish.',
@@ -421,7 +430,7 @@ describe('usePlatformService', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, lastError: null };
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
 
     await expect(client.registerEngine(engine, { name: 'tester', code: '1234', registerLater: false })).rejects.toMatchObject({
       kind: PlatformErrorKind.ProcessStartFailed,

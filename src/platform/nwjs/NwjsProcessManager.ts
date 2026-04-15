@@ -9,8 +9,6 @@ import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 
 interface IProcessSession {
   process: ISpawnedProcess;
-  exitSubscribers: Map<string, (error: IPlatformError) => void>;
-  isStopping: boolean;
 }
 
 function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
@@ -20,7 +18,6 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
   return defineStore('nwjsProcessManager', () => {
     const childProcess = getNodeChildProcess();
     let nextHandleId = 1;
-    let nextSubscriptionId = 1;
     const sessionByHandle = new Map<ProcessHandle, IProcessSession>();
 
     async function spawnProcess(executablePath: string, args: string[] = []): Promise<ProcessHandle> {
@@ -29,16 +26,11 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
       return new Promise<ProcessHandle>((resolve, reject) => {
         const handleSpawn = () => {
           cleanup();
-          sessionByHandle.set(handle, { process, exitSubscribers: new Map(), isStopping: false });
+          sessionByHandle.set(handle, { process });
           processRegistry.set(handle, process);
-          process.once('exit', (code: number | null, signal: NodeJS.Signals | null) => {
-            const session = sessionByHandle.get(handle);
-            if (session === undefined) return;
+          process.once('exit', (_code: number | null, _signal: NodeJS.Signals | null) => {
             sessionByHandle.delete(handle);
             processRegistry.delete(handle);
-            if (session.isStopping) return;
-            const error = createPlatformError(PlatformErrorKind.UnexpectedExit, 'spawnProcess', `Process exited unexpectedly: ${executablePath}.`, `code=${code ?? 'null'} signal=${signal ?? 'null'}`);
-            for (const subscriber of session.exitSubscribers.values()) subscriber(error);
           });
           resolve(handle);
         };
@@ -54,17 +46,11 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
         process.once('error', handleError);
       });
     }
-    function subscribeToUnexpectedExit(processHandle: ProcessHandle, onUnexpectedExit: (error: IPlatformError) => void): () => void {
-      const session = _getSession(processHandle);
-      const subscriptionId = `unexpected-exit-${nextSubscriptionId++}`;
-      session.exitSubscribers.set(subscriptionId, onUnexpectedExit);
-      return () => {
-        session.exitSubscribers.delete(subscriptionId);
-      };
+    function assertProcessHandleOpen(processHandle: ProcessHandle): void {
+      _getSession(processHandle);
     }
     async function stopProcess(processHandle: ProcessHandle): Promise<void> {
       const session = _getSession(processHandle);
-      session.isStopping = true;
       await new Promise<void>((resolve) => {
         session.process.once('exit', () => resolve());
         session.process.kill();
@@ -82,7 +68,7 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
       return session;
     }
 
-    const processManager = { spawnProcess, subscribeToUnexpectedExit, stopProcess, restartProcess } satisfies IProcessManager;
+    const processManager = { spawnProcess, assertProcessHandleOpen, stopProcess, restartProcess } satisfies IProcessManager;
     return processManager;
   });
 }

@@ -1,7 +1,6 @@
 import type { ResolvedThemeMode } from '@/contracts/Appearance';
 import { EngineClientType, type IAssignedEngine, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEnginePositionState, type IEngineRegistrationRequest, type ProcessHandle } from '@/contracts/Engine';
 import type { IMove } from '@/contracts/Move';
-import type { IPlatformError } from '@/contracts/PlatformError';
 
 export type { IEngineAnalysisUpdate, ProcessHandle };
 export { EngineClientType };
@@ -34,7 +33,7 @@ export interface IStorageAdapter {
 }
 export interface IProcessManager {
   spawnProcess(executablePath: string, args?: string[]): Promise<ProcessHandle>;
-  subscribeToUnexpectedExit(processHandle: ProcessHandle, onUnexpectedExit: (error: IPlatformError) => void): () => void;
+  assertProcessHandleOpen(processHandle: ProcessHandle): void;
   stopProcess(processHandle: ProcessHandle): Promise<void>;
   restartProcess(processHandle: ProcessHandle, executablePath: string, args?: string[]): Promise<ProcessHandle>;
 }
@@ -46,12 +45,12 @@ export interface IEngineClient {
   initialiseEngine(engine: IAssignedEngine): Promise<void>;
   /** Requires engine.$ to already hold an initialised session; does not initialise the engine. */
   registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void>;
-  /** Mutates engine.$ by updating the cached session position state. */
+  /** Requires engine.$ to already hold an initialised session, then mutates the cached session position state. */
   syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void>;
-  /** Mutates engine.$ by replacing the active analysis callback and clearing cached analysis lines. */
+  /** Requires engine.$ to already hold an initialised session, then replaces the active analysis callback and clears cached analysis lines. */
   startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void>;
   stopAnalysis(engine: IAssignedEngine): Promise<void>;
-  /** Mutates engine.$ by creating a new pending player-move state. */
+  /** Requires engine.$ to already hold an initialised session, then creates a new pending player-move state. */
   startPlayerTurn(engine: IAssignedEngine): Promise<void>;
   /** Mutates engine.$ by consuming and clearing the pending player-move state. */
   awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>;

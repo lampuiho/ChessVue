@@ -58,6 +58,8 @@ interface IAssignedEngineRuntime {
   processHandle?: ProcessHandle
   availability: EngineAvailability
   lastError?: string
+  analysisCallback?: (update: IEngineAnalysisUpdate) => void
+  analysisLines: Map<number, IAnalysisLine>
 }
 
 interface IAssignedEngine {
@@ -119,13 +121,13 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis snapshots.
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.
-- `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process handle, availability, and last error for that engine instance.
+- `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process handle, availability, last error, active analysis callback, and cached analysis lines for that engine instance.
 - Omitted `processHandle`, `lastError`, `bestMove`, `name`, and `code` fields mean those values are currently unavailable or intentionally not supplied.
 - Concrete `EngineClient` implementations may refine `IAssignedEngine.$` through inherited runtime interfaces when they need client-private protocol-session state.
 - Those refinements remain private to the owning concrete client implementation. Higher layers depend only on the shared minimum runtime fields plus the documented service and client APIs.
-- Client-private runtime fields such as a concrete UCI session object, current synced position, analysis callback, ordered analysis slots, attached listener references, or pending player-move state are valid concrete `EngineClient` refinements and are not part of the shared contract.
+- Client-private runtime fields such as a concrete UCI session object, current synced position, attached listener references, or pending player-move state are valid concrete `EngineClient` refinements and are not part of the shared contract.
 - `EngineRuntimeService` relies on the shared minimum runtime fields only. It does not need to refine `IAssignedEngine.$` for its documented ownership.
-- The baseline runtime design uses explicit object-attached fields and ordered lists for client-private runtime state. It does not rely on hidden side tables or `Map`-shaped runtime caches in the design docs.
+- The baseline runtime design uses explicit object-attached fields for shared runtime state and explicit object-attached fields for client-private runtime state. It does not rely on hidden side tables.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
 - `IEnginePositionState` is the engine-facing projection of ChessVue move-tree state and lets the engine client decide whether it can continue the current line or must establish a new game boundary.
 - `IEngineAnalysisUpdate` is an app-facing streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes.

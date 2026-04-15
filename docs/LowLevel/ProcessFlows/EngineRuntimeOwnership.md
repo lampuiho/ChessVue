@@ -5,24 +5,22 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 
 ## Ownership Summary
 - `GamesStore` decides when analysis or player-turn runtime work should happen.
-- `EngineRuntimeService` owns only base runtime state on `IAssignedEngine.$`, explicit analysis-subscriber registration and teardown, process lifecycle, unexpected-exit subscription, runtime availability, and runtime last-error updates.
-- `EngineClient` owns only client-private runtime state such as optional protocol session initialisation, process-listener attachment, synced-position state, streamed analysis state, pending player-turn state, protocol I/O, and protocol parsing.
-- `IAssignedUciEngineRuntime.session` is optional until the client runs `_initialiseSessionIfMissing(...)` after base runtime state already exists.
-- Runtime state changes must happen through explicit owner-private steps. No flow in this document relies on hidden mutation, side tables, or `Map`-shaped runtime caches.
+- `EngineRuntimeService` owns only base runtime state on `IAssignedEngine.$`, explicit analysis-callback registration and teardown, process lifecycle, process-handle validity checks, runtime availability, and runtime last-error updates.
+- `EngineClient` owns only client-private runtime state such as optional protocol session initialisation, process-listener attachment, synced-position state, pending player-turn state, protocol I/O, and protocol parsing.
+- `IAssignedUciEngineRuntime.session` is optional until `EngineClient.initialiseEngine(...)` creates and initialises it after base runtime state already exists.
+- Runtime state changes must happen through explicit owner-private steps. No flow in this document relies on hidden mutation or side tables.
 
 ## Owner And Mutable State
 - `EngineRuntimeService` may mutate:
   - `engine.$.processHandle`
   - `engine.$.availability`
   - `engine.$.lastError`
-  - the object-attached analysis-subscriber list for that engine
-  - the object-attached unexpected-exit unsubscribe handle for that engine
+  - `engine.$.analysisCallback`
+  - `engine.$.analysisLines`
 - `EngineClient` may mutate:
   - `engine.$.session`
   - the object-attached process-listener references for that engine
   - the current synced position state for that engine
-  - the current analysis callback for that engine
-  - the ordered analysis slots for that engine
   - the pending player-turn state for that engine
 - `GamesStore` does not mutate lower-layer runtime state directly. It requests runtime work through explicit service calls.
 
@@ -51,21 +49,18 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 | `EngineRuntimeService.syncPosition` |
 | --- |
 | `EngineRuntimeService._assertBaseRuntime` |
-| `EngineRuntimeService._ensureProcessHandleOpenOrRestartOnce` |
-| `EngineRuntimeService._bindUnexpectedExit` |
-| `EngineRuntimeService._setAvailabilityStarting` |
-| `EngineRuntimeService._clearLastError` |
-| `EngineClient.initialiseEngine` |
+| `EngineRuntimeService._assertProcessHandleOpen` |
+| `EngineRuntimeService._retryInitialiseOnInvalidProcessHandle` |
 | `EngineRuntimeService._setAvailabilityReady` |
 | `EngineClient.syncPosition` |
 
 | `EngineRuntimeService.subscribeToAnalysis` |
 | --- |
-| `EngineRuntimeService._registerAnalysisSubscriber` |
+| `EngineRuntimeService._registerAnalysisCallback` |
 
 | `EngineClient.initialiseEngine` |
 | --- |
-| `EngineClient._initialiseSessionIfMissing` |
+| `EngineClient._initialiseAssignedEngineSession` |
 | `EngineClient._attachProcessListeners` |
 | `EngineClient._sendHandshake` |
 | `EngineClient._sendConfiguredOptions` |
@@ -73,7 +68,7 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 
 | `EngineClient.syncPosition` |
 | --- |
-| `EngineClient._initialiseSessionIfMissing` |
+| `EngineClient._requireInitialisedSession` |
 | `EngineClient._storeSyncedPositionState` |
 | `EngineClient._sendNewGameBoundaryIfRequired` |
 | `EngineClient._sendPositionCommand` |
@@ -81,12 +76,15 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ### Start Analysis Search
 | `EngineRuntimeService.startAnalysis` |
 | --- |
+| `EngineRuntimeService._assertBaseRuntime` |
+| `EngineRuntimeService._assertProcessHandleOpen` |
+| `EngineRuntimeService._retryInitialiseOnInvalidProcessHandle` |
 | `EngineRuntimeService._setAvailabilityRunning` |
 | `EngineClient.startAnalysis` |
 
 | `EngineClient.startAnalysis` |
 | --- |
-| `EngineClient._initialiseSessionIfMissing` |
+| `EngineClient._requireInitialisedSession` |
 | `EngineClient._setAnalysisCallback` |
 | `EngineClient._clearAnalysisState` |
 | `EngineClient._sendAnalysisOptions` |
@@ -114,17 +112,13 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ### Unregister Analysis Subscription
 | `GameView._disposeAnalysisRuntimeBinding` |
 | --- |
-| `EngineRuntimeService._unregisterAnalysisSubscriber` |
+| `EngineRuntimeService._unregisterAnalysisCallback` |
 
 ### Streamed Analysis Update
 | `EngineClient._handleAnalysisInfoLine` |
 | --- |
 | `EngineClient._storeAnalysisSlot` |
 | `EngineClient._emitAnalysisUpdate` |
-
-| `EngineRuntimeService._forwardAnalysisUpdate` |
-| --- |
-| `GamesStore._applyAnalysisUpdate` |
 
 ### Malformed Analysis Output
 | `EngineClient._handleAnalysisInfoLine` |
@@ -158,12 +152,15 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ### Begin Player-Turn Search
 | `EngineRuntimeService.startPlayerTurn` |
 | --- |
+| `EngineRuntimeService._assertBaseRuntime` |
+| `EngineRuntimeService._assertProcessHandleOpen` |
+| `EngineRuntimeService._retryInitialiseOnInvalidProcessHandle` |
 | `EngineRuntimeService._setAvailabilityRunning` |
 | `EngineClient.startPlayerTurn` |
 
 | `EngineClient.startPlayerTurn` |
 | --- |
-| `EngineClient._initialiseSessionIfMissing` |
+| `EngineClient._requireInitialisedSession` |
 | `EngineClient._createPendingPlayerTurn` |
 | `EngineClient._sendStartPlayerTurnCommand` |
 
@@ -195,10 +192,9 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 | `EngineRuntimeService.stopEngine` |
 | --- |
 | `EngineClient.stopEngine` |
-| `EngineRuntimeService._unbindUnexpectedExit` |
 | `ProcessManager.stopProcess` |
 | `EngineRuntimeService._clearProcessHandle` |
-| `EngineRuntimeService._clearAnalysisSubscribers` |
+| `EngineRuntimeService._clearAnalysisState` |
 | `EngineRuntimeService._setAvailabilityUnavailable` |
 | `EngineRuntimeService._clearLastError` |
 
@@ -213,35 +209,22 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 | `EngineRuntimeService.restartEngine` |
 | --- |
 | `EngineClient.stopEngine` |
-| `EngineRuntimeService._unbindUnexpectedExit` |
 | `ProcessManager.restartProcess` |
-| `EngineRuntimeService._bindUnexpectedExit` |
 | `EngineRuntimeService._setAvailabilityStarting` |
 | `EngineRuntimeService._clearLastError` |
 | `EngineClient.initialiseEngine` |
 | `EngineRuntimeService._setAvailabilityReady` |
 
-## Unexpected Exit
+## Operation-Time Process Failure
 
-### Process Exit While Runtime Is Active
-| `ProcessManager._notifyUnexpectedExit` |
+### Process Handle Becomes Stale Before Or During A Runtime Operation
+| `EngineRuntimeService.syncPosition` |
 | --- |
-| `EngineClient._handleProcessExit` |
-| `EngineRuntimeService._handleUnexpectedExit` |
+| `EngineRuntimeService._assertProcessHandleOpen` |
+| `EngineRuntimeService._catchInvalidProcessHandle` |
+| `EngineRuntimeService.ensureReady` |
+| `EngineClient.initialiseEngine` |
+| `EngineClient.syncPosition` |
 
-| `EngineClient._handleProcessExit` |
-| --- |
-| `EngineClient._detachProcessListeners` |
-| `EngineClient._resetSessionAfterFailure` |
-| `EngineClient._clearAnalysisState` |
-| `EngineClient._clearPendingPlayerTurn` |
-
-| `EngineRuntimeService._handleUnexpectedExit` |
-| --- |
-| `EngineRuntimeService._unbindUnexpectedExit` |
-| `EngineRuntimeService._clearProcessHandle` |
-| `EngineRuntimeService._setAvailabilityFailed` |
-| `EngineRuntimeService._setLastError` |
-
-- Failure rule: unexpected exit is the only automatic disconnect trigger. Runtime state changes are explicit on both the service side and the client side.
-- Recovery rule: base runtime absence is treated as a violated precondition and is surfaced as failure. A stale or closed `processHandle` may use one restart-oriented ensure path before that failure is surfaced.
+- Failure rule: post-start engine termination is surfaced when the next runtime operation checks or uses the stored process handle. Runtime state changes are explicit on the service side and the client side.
+- Recovery rule: `registerEngine(...)`, `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may recover once by re-running `ensureReady(...)` only after `invalidProcessHandle`. Base-runtime absence or missing initialisation is still surfaced as failure.
