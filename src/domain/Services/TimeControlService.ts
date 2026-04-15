@@ -45,6 +45,7 @@ function materialiseElapsed(snapshot: IClockSnapshot, nowUtc: string): IClockSna
   return nextSnapshot;
 }
 export const TimeControlService = {
+  /** Does not mutate timeControl; returns a new clock snapshot. */
   initialiseClockSnapshot(timeControl: ITimeControl): IClockSnapshot {
     if (isUntimed(timeControl)) {
       return {
@@ -58,6 +59,7 @@ export const TimeControlService = {
       black: { remainingMs: timeControl.initialMs, isRunning: false },
     };
   },
+  /** Does not mutate snapshot; returns remaining time from a materialised clone. */
   getRemainingTime(snapshot: IClockSnapshot, nowUtc: string): Record<PlayerColour, number | undefined> {
     const materialised = materialiseElapsed(snapshot, nowUtc);
 
@@ -66,6 +68,7 @@ export const TimeControlService = {
       black: materialised.black.remainingMs,
     };
   },
+  /** Does not mutate snapshot; returns a new snapshot with running flags and timestamps updated. */
   startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: string): IClockSnapshot {
     const nextSnapshot = cloneClockSnapshot(snapshot);
 
@@ -82,6 +85,7 @@ export const TimeControlService = {
 
     return nextSnapshot;
   },
+  /** Does not mutate snapshot; returns a new paused snapshot. */
   pauseClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
     if (snapshot.activeColour === undefined || snapshot.startedAtUtc === undefined) {
       return cloneClockSnapshot(snapshot);
@@ -95,6 +99,7 @@ export const TimeControlService = {
 
     return nextSnapshot;
   },
+  /** Does not mutate snapshot; returns a new resumed snapshot when resuming is valid. */
   resumeClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
     if (snapshot.activeColour === undefined) {
       return cloneClockSnapshot(snapshot);
@@ -114,6 +119,7 @@ export const TimeControlService = {
 
     return nextSnapshot;
   },
+  /** Does not mutate snapshot or timeControl; returns a new snapshot with elapsed time and turn state applied. */
   applyMove(snapshot: IClockSnapshot, mover: PlayerColour, nowUtc: string, timeControl: ITimeControl): IClockSnapshot {
     if (isUntimed(timeControl)) {
       return cloneClockSnapshot(snapshot);
@@ -140,6 +146,7 @@ export const TimeControlService = {
 
     return materialised;
   },
+  /** Does not mutate snapshot. */
   hasExpired(snapshot: IClockSnapshot, nowUtc: string): boolean {
     const remaining = this.getRemainingTime(snapshot, nowUtc);
 

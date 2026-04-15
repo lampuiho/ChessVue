@@ -43,6 +43,7 @@ function createChildNode(parentNode: IMoveNode, branchKind: MoveBranchKind, move
 }
 
 export const MoveUpdateService = {
+  /** Does not mutate boardRoot or clockSnapshot; returns a new move tree with cloned root state. */
   createMoveTree(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
     return {
       root: {
@@ -56,6 +57,7 @@ export const MoveUpdateService = {
       },
     };
   },
+  /** Mutates parentNode and its descendants by appending a child, updating mainlineChildIndex, and rewriting branchKind along the old mainline path. */
   addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
     const previousMainlineChildIndex = parentNode.mainlineChildIndex;
     if (previousMainlineChildIndex !== undefined) markPathBranchKind(parentNode.children[previousMainlineChildIndex]!, MoveBranchKind.Variation);
@@ -63,17 +65,21 @@ export const MoveUpdateService = {
     parentNode.mainlineChildIndex = parentNode.children.length - 1;
     return getTree(parentNode);
   },
+  /** Mutates parentNode by appending a new analysis child; move and position are cloned into the created node. */
   addAnalysisMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition): IMoveTree {
     parentNode.children.push(createChildNode(parentNode, MoveBranchKind.Analysis, move, position, parentNode.clockSnapshot));
     return getTree(parentNode);
   },
+  /** Does not mutate node; returns a cloned board position. */
   getPosition(node: IMoveNode): IBoardPosition {
     return structuredClone(node.position);
   },
+  /** Mutates fromNode or one of its ancestors by pruning descendant nodes and clearing mainlineChildIndex. */
   takeBack(fromNode: IMoveNode, moveCount: number): IMoveTree {
     if (moveCount <= 0) return getTree(fromNode);
     return pruneDescendants(getAncestorNode(fromNode, moveCount));
   },
+  /** Mutates parentNode and the affected child paths by changing mainlineChildIndex and rewriting branchKind values in place. */
   rewriteMainline(parentNode: IMoveNode, childNode: IMoveNode): IMoveTree {
     const childIndex = parentNode.children.indexOf(childNode);
     if (childIndex < 0) throw new Error('Child node does not belong to the supplied parent node.');
@@ -83,9 +89,11 @@ export const MoveUpdateService = {
     markPathBranchKind(childNode, MoveBranchKind.Mainline);
     return getTree(parentNode);
   },
+  /** Mutates node by deleting all descendant children and clearing mainlineChildIndex. */
   pruneFutureMoves(node: IMoveNode): IMoveTree {
     return pruneDescendants(node);
   },
+  /** Does not mutate boardRoot or clockSnapshot; returns a replacement tree with cloned root state. */
   replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
     return this.createMoveTree(boardRoot, clockSnapshot);
   },

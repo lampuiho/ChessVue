@@ -130,20 +130,24 @@ async function runRetryableEngineOperation<T>(engine: IAssignedEngine, successAv
 }
 
 export const EngineRuntimeService = {
+  /** Mutates engine.$ by creating or refreshing runtime state, including processHandle, availability, and lastError. */
   async ensureReady(engine: IAssignedEngine): Promise<void> {
     const runtimeState = createBaseRuntime(engine);
     await runEngineOperation(runtimeState, EngineAvailability.Ready, async () => {
       await initialiseEngineOnce(engine, runtimeState);
     });
   },
+  /** Mutates engine.$ the same way as ensureReady before delegating registration to the platform client. */
   async registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void> {
     const engineClient = getEngineClient(engine);
     await runReadyEngineOperation(engine, EngineAvailability.Ready, () => engineClient.registerEngine(engine, request));
   },
+  /** Mutates engine.$ the same way as ensureReady, then updates nested platform session state for the synced position. */
   async syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {
     const engineClient = getEngineClient(engine);
     await runReadyEngineOperation(engine, EngineAvailability.Ready, () => engineClient.syncPosition(engine, positionState));
   },
+  /** Mutates engine.$ the same way as ensureReady, then updates nested platform session analysis state used for live callbacks. */
   async startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void> {
     const engineState = getEngineRuntimeState(engine);
     const engineClient = getEngineClient(engine);
@@ -151,14 +155,17 @@ export const EngineRuntimeService = {
       for (const callback of engineState.analysisSubscribers) callback(update);
     }));
   },
+  /** May mutate engine.$ by recovering from a stale process handle and by updating runtime availability. */
   async stopAnalysis(engine: IAssignedEngine): Promise<void> {
     const engineClient = getEngineClient(engine);
     await runRetryableEngineOperation(engine, EngineAvailability.Ready, true, () => engineClient.stopAnalysis(engine));
   },
+  /** Mutates engine.$ the same way as ensureReady, then updates nested platform session player-turn state. */
   async startPlayerTurn(engine: IAssignedEngine): Promise<void> {
     const engineClient = getEngineClient(engine);
     await runReadyEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine));
   },
+  /** Mutates hidden engine-internal state by storing onUpdate in a symbol-backed subscriber list attached to engine. */
   subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void {
     const engineState = getEngineRuntimeState(engine);
     if (!engineState.analysisSubscribers.includes(onUpdate)) engineState.analysisSubscribers.push(onUpdate);
@@ -167,10 +174,12 @@ export const EngineRuntimeService = {
       if (callbackIndex >= 0) engineState.analysisSubscribers.splice(callbackIndex, 1);
     };
   },
+  /** May mutate engine.$ by recovering from a stale process handle and by updating runtime availability. */
   async awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
     const engineClient = getEngineClient(engine);
     return runRetryableEngineOperation(engine, EngineAvailability.Ready, true, () => engineClient.awaitPlayerTurnMove(engine));
   },
+  /** Does not mutate engine. */
   isRuntimeAlive(engine: IAssignedEngine): boolean {
     const runtimeState = getRuntimeState(engine);
     return !!runtimeState
@@ -178,6 +187,7 @@ export const EngineRuntimeService = {
       && runtimeState.availability !== EngineAvailability.Unavailable
       && runtimeState.availability !== EngineAvailability.Failed;
   },
+  /** Mutates engine.$ by replacing processHandle and runtime status, and resets hidden unexpected-exit tracking on engine. */
   async restartEngine(engine: IAssignedEngine): Promise<void> {
     const engineClient = getEngineClient(engine);
     const processManager = usePlatformService().getProcessManager();
@@ -203,6 +213,7 @@ export const EngineRuntimeService = {
     bindUnexpectedExit(engine, runtimeState);
     await runEngineOperation(runtimeState, EngineAvailability.Ready, () => engineClient.initialiseEngine(engine));
   },
+  /** Mutates engine.$ by clearing processHandle and setting availability unavailable, and clears hidden analysis and exit-subscription state on engine. */
   async stopEngine(engine: IAssignedEngine): Promise<void> {
     const engineClient = getEngineClient(engine);
     const runtimeState = getRuntimeState(engine);

@@ -361,19 +361,23 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
   return false;
 }
 export const GameRuleService = {
+  /** Does not mutate position; returns legal moves derived from a normalised copy. */
   generateLegalMoves(position: IBoardPosition): IMove[] {
     const normalisedPosition = normaliseBoardPosition(position);
     return generatePseudoLegalMoves(normalisedPosition, normalisedPosition.sideToMove)
       .filter((candidate) => isLegalCandidate(normalisedPosition, candidate));
   },
+  /** Does not mutate position or move. */
   isMoveLegal(position: IBoardPosition, move: IMove): boolean {
     return this.generateLegalMoves(position).some((candidate) => moveMatches(candidate, move));
   },
+  /** Does not mutate position or move. */
   requiresPromotionSelection(position: IBoardPosition, move: IMove): boolean {
     const piece = getPiece(position, move.from);
     if (piece?.kind !== PieceKind.Pawn) return false;
     return boardIdToCoords(move.to).rank === getPromotionRank(piece.colour) && move.promotionPiece === undefined;
   },
+  /** Does not mutate position or move; returns a new board position with the move applied. */
   applyMove(position: IBoardPosition, move: IMove): IBoardPosition {
     const legalMoves = this.generateLegalMoves(position);
     const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move));
@@ -388,6 +392,7 @@ export const GameRuleService = {
       promotionPiece: move.promotionPiece,
     });
   },
+  /** Does not mutate position. */
   resolveResult(position: IBoardPosition) {
     if (hasInsufficientMaterial(position)) {
       return {
