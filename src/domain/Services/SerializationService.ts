@@ -1,4 +1,5 @@
 import {
+  PlatformErrorKind,
   gameSchema,
   settingsSnapshotSchema,
   gameSessionSnapshotSchema,
@@ -7,11 +8,12 @@ import {
   type IGameSessionSnapshot,
   type IMoveNode,
   type IMoveTree,
+  type IPlatformError,
   type ISettingsSnapshot,
   type IUiLayoutState,
   type MovePath,
 } from '../../contracts';
-import { normaliseBoardPosition } from '@/utility/chess/BoardUtility';
+import { usePlatformService, type IFileSystemEntry } from '@/platform';
 
 import { SerializationError } from '../errors/SerializationError';
 import { PositionIdentityService } from './PositionIdentityService';
@@ -36,20 +38,6 @@ function requireSchemaVersionOne(input: unknown, artefactName: string): Record<s
   if (schemaVersion !== 1) throw new SerializationError(`${artefactName} schema version is unsupported.`, schemaVersion);
   return input as Record<string, unknown>;
 }
-function normaliseMoveNode(node: IMoveNode): IMoveNode {
-  return {
-    branchKind: node.branchKind,
-    move: node.move === undefined ? undefined : structuredClone(node.move),
-    position: normaliseBoardPosition(node.position),
-    clockSnapshot: node.clockSnapshot === undefined ? undefined : structuredClone(node.clockSnapshot),
-    plyIndex: node.plyIndex,
-    mainlineChildIndex: node.mainlineChildIndex,
-    children: node.children.map((child) => normaliseMoveNode(child)),
-  };
-}
-function normaliseMoveTree(tree: IMoveTree): IMoveTree {
-  return { root: normaliseMoveNode(tree.root) };
-}
 function validateMoveNode(node: IMoveNode): void {
   if (node.mainlineChildIndex !== undefined && (node.mainlineChildIndex < 0 || node.mainlineChildIndex >= node.children.length)) {
     throw new SerializationError('Move tree mainline child index must reference an existing child.', node.mainlineChildIndex);
@@ -67,13 +55,6 @@ function getNodeAtPath(tree: IMoveTree, path: MovePath, selectorName: string): I
 }
 function validateMoveTree(tree: IMoveTree): void {
   validateMoveNode(tree.root);
-}
-function normaliseGame(game: IGame): IGame {
-  return {
-    ...structuredClone(game),
-    boardRoot: normaliseBoardPosition(game.boardRoot),
-    moveTree: normaliseMoveTree(game.moveTree),
-  };
 }
 function validateGame(game: IGame): void {
   validateMoveTree(game.moveTree);
@@ -104,35 +85,103 @@ function migrateUiLayoutState(input: unknown): IUiLayoutState {
 }
 function migrateGame(input: unknown): IGame {
   requireSchemaVersionOne(input, 'Saved game');
-  const game = normaliseGame(parseWithSchema('Saved game', (value) => gameSchema.parse(value), input));
+  const game = parseWithSchema('Saved game', (value) => gameSchema.parse(value), input);
   validateGame(game);
   return game;
 }
+function stripRuntimeMetadata<T>(input: T): T {
+  if (Array.isArray(input)) return input.map((item) => stripRuntimeMetadata(item)) as T;
+  if (typeof input !== 'object' || input === null) return input;
+  const output: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (key === '$') continue;
+    output[key] = stripRuntimeMetadata(value);
+  }
+  return output as T;
+}
+function isPlatformError(error: unknown): error is IPlatformError {
+  return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
+}
+async function writeDocument(path: string, raw: string, overwrite: boolean): Promise<void> {
+  await usePlatformService().getStorageAdapter().writeTextFile(path, raw, overwrite);
+}
 
 export const SerializationService = {
+  async readSettingsDocument(path: string): Promise<ISettingsSnapshot> {
+    return this.deserialiseSettings(await usePlatformService().getStorageAdapter().readTextFile(path));
+  },
+  async writeSettingsDocument(path: string, snapshot: ISettingsSnapshot): Promise<void> {
+    await writeDocument(path, this.serialiseSettings(snapshot), true);
+  },
+  async readGameSessionDocument(path: string): Promise<IGameSessionSnapshot> {
+    return this.deserialiseGameSession(await usePlatformService().getStorageAdapter().readTextFile(path));
+  },
+  async writeGameSessionDocument(path: string, snapshot: IGameSessionSnapshot): Promise<void> {
+    await writeDocument(path, this.serialiseGameSession(snapshot), true);
+  },
+  async readUiLayoutDocument(path: string): Promise<IUiLayoutState> {
+    return this.deserialiseUiLayoutState(await usePlatformService().getStorageAdapter().readTextFile(path));
+  },
+  async writeUiLayoutDocument(path: string, state: IUiLayoutState): Promise<void> {
+    await writeDocument(path, this.serialiseUiLayoutState(state), true);
+  },
+  async readGameDocument(filePath: string): Promise<IGame> {
+    return this.deserialiseGame(await usePlatformService().getStorageAdapter().readTextFile(filePath));
+  },
+  async writeGameDocument(filePath: string, game: IGame, overwrite: boolean = false): Promise<void> {
+    await writeDocument(filePath, this.serialiseGame(game), overwrite);
+  },
+  async deleteDocument(filePath: string): Promise<void> {
+    await usePlatformService().getStorageAdapter().deleteFile(filePath);
+  },
+  async listManagedSaveEntries(rootPath: string): Promise<ReadonlyMap<string, IFileSystemEntry[]>> {
+    const storageAdapter = usePlatformService().getStorageAdapter();
+    try {
+      const entriesByDirectory = new Map<string, IFileSystemEntry[]>();
+      const rootEntries = await storageAdapter.listDirectory(rootPath);
+      entriesByDirectory.set(rootPath, rootEntries);
+      for (const entry of rootEntries) {
+        if (!entry.isDirectory) continue;
+        entriesByDirectory.set(entry.path, await storageAdapter.listDirectory(entry.path));
+      }
+      return entriesByDirectory;
+    } catch (error) {
+      if (isPlatformError(error) && error.kind === PlatformErrorKind.NotFound) return new Map();
+      throw error;
+    }
+  },
+  async selectImportFile(startDirectory?: string): Promise<string> {
+    return usePlatformService().getStorageAdapter().showOpenDialog(startDirectory);
+  },
+  async selectExportFile(suggestedPath?: string): Promise<string> {
+    return usePlatformService().getStorageAdapter().showSaveDialog(suggestedPath);
+  },
   serialiseSettings(snapshot: ISettingsSnapshot): string {
-    return JSON.stringify(parseWithSchema('Settings', (value) => settingsSnapshotSchema.parse(value), snapshot), null, 2);
+    const persistedSnapshot = stripRuntimeMetadata(parseWithSchema('Settings', (value) => settingsSnapshotSchema.parse(value), snapshot));
+    return JSON.stringify(persistedSnapshot, null, 2);
   },
   deserialiseSettings(raw: string): ISettingsSnapshot {
     return this.migrateSettingsSnapshot(parseJson(raw));
   },
   serialiseGameSession(snapshot: IGameSessionSnapshot): string {
     validateGameSession(snapshot);
-    return JSON.stringify(parseWithSchema('Game session', (value) => gameSessionSnapshotSchema.parse(value), snapshot), null, 2);
+    const persistedSnapshot = stripRuntimeMetadata(parseWithSchema('Game session', (value) => gameSessionSnapshotSchema.parse(value), snapshot));
+    return JSON.stringify(persistedSnapshot, null, 2);
   },
   deserialiseGameSession(raw: string): IGameSessionSnapshot {
     return this.migrateGameSessionSnapshot(parseJson(raw));
   },
   serialiseUiLayoutState(state: IUiLayoutState): string {
-    return JSON.stringify(parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), state), null, 2);
+    const persistedState = stripRuntimeMetadata(parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), state));
+    return JSON.stringify(persistedState, null, 2);
   },
   deserialiseUiLayoutState(raw: string): IUiLayoutState {
     return this.migrateUiLayoutState(parseJson(raw));
   },
   serialiseGame(game: IGame): string {
-    const normalisedGame = normaliseGame(parseWithSchema('Saved game', (value) => gameSchema.parse(value), game));
-    validateGame(normalisedGame);
-    return JSON.stringify(normalisedGame, null, 2);
+    const persistedGame = parseWithSchema('Saved game', (value) => gameSchema.parse(value), stripRuntimeMetadata(game));
+    validateGame(persistedGame);
+    return JSON.stringify(persistedGame, null, 2);
   },
   deserialiseGame(raw: string): IGame {
     return this.migrateGame(parseJson(raw));

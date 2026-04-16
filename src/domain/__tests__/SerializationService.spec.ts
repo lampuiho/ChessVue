@@ -160,6 +160,8 @@ describe('SerializationService', () => {
 
   it('round-trips saved games without persisting runtime metadata', () => {
     const game = createGame();
+    (game as IGame & { $?: { isHydrated: boolean } }).$ = { isHydrated: true };
+    ((game.whitePlayer as unknown) as { $?: unknown }).$ = { isSelected: true };
     getNode(game.moveTree, game.livePath!).move = {
       ...getNode(game.moveTree, game.livePath!).move!,
       $: {
@@ -173,6 +175,8 @@ describe('SerializationService', () => {
 
     expect(serialised).not.toContain('"$"');
     expect(serialised).not.toContain('"fen"');
+    expect((restored as IGame & { $?: unknown }).$).toBeUndefined();
+    expect((restored.whitePlayer as typeof restored.whitePlayer & { $?: unknown }).$).toBeUndefined();
     expect(getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
     expect(PositionIdentityService.buildPositionKey(restored.boardRoot)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.root.position));
   });

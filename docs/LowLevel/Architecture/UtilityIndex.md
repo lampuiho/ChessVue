@@ -108,12 +108,11 @@ Each entry must define:
 ### ChessBoardUtility
 - Purpose: share public board-structure helpers used by domain services and tests without exposing a `domain/internal` module surface.
 - Touched contract models: `IBoardPosition`, `ICastlingAvailability`, `IChessPiece`, `BoardId`, `PlayerColour`.
-- Allowed importers: `GameRuleService`, `MoveNotationService`, `SerializationService`, domain tests, platform tests.
+- Allowed importers: `GameRuleService`, `MoveNotationService`, domain tests, platform tests.
 - Owner-private delegates:
   - `GameRuleService._cloneBoardPosition`
   - `GameRuleService._findKingBoardId`
   - `GameRuleService._getOpponentColour`
-  - `SerializationService._normaliseBoardPosition`
 - Classification: `pure`.
 - Validation or failure semantics: helpers preserve structural board shape only. They do not invent missing pieces, infer legality, or mutate caller-owned board arrays in place.
 

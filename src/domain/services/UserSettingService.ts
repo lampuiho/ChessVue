@@ -1,9 +1,9 @@
 import { AnalysisBranchExitBehaviour, BoardOrientation, PlatformErrorKind, PlayerType, PromotionPolicy, ResolvedThemeMode, TakebackPolicy, ThemeMode, TimeControlPreset, type IPlatformError, type ISettingsSnapshot } from '@/contracts';
+import { BuildConfig } from '@/config/BuildConfig';
 import { usePlatformService } from '@/platform';
 
 import { SerializationService } from './SerializationService';
 
-const _settingsPath = 'settings.json';
 let _cachedSettings: ISettingsSnapshot | undefined;
 
 function isPlatformError(error: unknown): error is IPlatformError {
@@ -54,9 +54,8 @@ function cacheAcceptedSettings(snapshot: ISettingsSnapshot): ISettingsSnapshot {
 export const UserSettingService = {
   async getSettingsOrDefault(): Promise<ISettingsSnapshot> {
     if (_cachedSettings !== undefined) return structuredClone(_cachedSettings);
-    const storageAdapter = usePlatformService().getStorageAdapter();
     try {
-      return cacheAcceptedSettings(SerializationService.deserialiseSettings(await storageAdapter.readTextFile(_settingsPath)));
+      return cacheAcceptedSettings(await SerializationService.readSettingsDocument(BuildConfig.persistence.settingsPath));
     } catch (error) {
       if (!(isPlatformError(error) && error.kind === PlatformErrorKind.NotFound)) console.error('[UserSettingService] Falling back to default settings.', error);
       return cacheAcceptedSettings(createDefaultSettingsSnapshot());
@@ -70,12 +69,12 @@ export const UserSettingService = {
   },
   async saveSettings(snapshot: ISettingsSnapshot): Promise<ISettingsSnapshot> {
     const acceptedSettings = SerializationService.deserialiseSettings(SerializationService.serialiseSettings(snapshot));
-    await usePlatformService().getStorageAdapter().writeTextFile(_settingsPath, SerializationService.serialiseSettings(acceptedSettings), true);
+    await SerializationService.writeSettingsDocument(BuildConfig.persistence.settingsPath, acceptedSettings);
     return cacheAcceptedSettings(acceptedSettings);
   },
   async resetSettings(): Promise<ISettingsSnapshot> {
     const defaultSettings = createDefaultSettingsSnapshot();
-    await usePlatformService().getStorageAdapter().writeTextFile(_settingsPath, SerializationService.serialiseSettings(defaultSettings), true);
+    await SerializationService.writeSettingsDocument(BuildConfig.persistence.settingsPath, defaultSettings);
     return cacheAcceptedSettings(defaultSettings);
   },
 };

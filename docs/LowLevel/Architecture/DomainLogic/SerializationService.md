@@ -1,7 +1,7 @@
 # SerializationService
 
 ## Purpose
-Own canonical persisted payload conversion plus the layer-2 storage-backed persistence boundary for all persisted artefacts.
+Own canonical persisted payload validation, migration, and the layer-2 storage-backed persistence boundary for all persisted artefacts.
 
 ## Public Interface
 ```ts
@@ -44,7 +44,7 @@ migrateGame(input: unknown): IGame
 - validate board-root consistency through structural position identity rather than stored FEN
 - validate nested move-tree structure, `mainlineChildIndex`, and persisted `livePath` / `highlightPath`
 - validate persisted `IGame.analysis`, including ordered snapshot shape and embedded copied-engine payload shape
-- stop at canonical payload validation and normalised data output; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` / `WorkspaceRestoreUtility` after successful deserialisation
+- stop at canonical payload validation, migration, and runtime-only `$` stripping; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` / `WorkspaceRestoreUtility` after successful deserialisation
 - remain path-agnostic in the sense that callers supply the concrete file path; `SerializationService` never decides which specific file is being read or written
 
 ## Scenario Coverage

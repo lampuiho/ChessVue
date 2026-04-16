@@ -6,7 +6,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
-import { EngineRuntimeService, GameRuleService, PositionIdentityService } from '@/domain';
+import { EngineRuntimeService, GameRuleService, PositionIdentityService, SerializationService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
 import type { IEngineAnalysisUpdate } from '@/platform';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
@@ -235,6 +235,9 @@ function createEnginePositionState(): IEnginePositionState {
     requiresNewGameBoundary: true,
   };
 }
+function normaliseTestPath(targetPath: string): string {
+  return targetPath.replace(/\\/g, '/');
+}
 
 let environment: FakeNwjsEnvironment;
 let _originalMatchMedia: typeof window.matchMedia;
@@ -297,6 +300,47 @@ describe('usePlatformService', () => {
 
     environment.queueDialogSelection(path.join(environment.rootPath, 'exports', 'game-1.json'));
     expect(await storage.showSaveDialog(savePath)).toContain('game-1.json');
+  });
+
+  it('routes persisted file operations through SerializationService', async () => {
+    const platform = usePlatformService();
+    const storage = platform.getStorageAdapter();
+    const saveRoot = path.join(environment.rootPath, 'saves');
+    const gameDirectory = path.join(saveRoot, 'game-1');
+    const autosavePath = path.join(gameDirectory, 'auto.json');
+    const sessionPath = path.join(environment.rootPath, 'game-session.json');
+    const layoutPath = path.join(environment.rootPath, 'layout-state.json');
+    const sessionSnapshot = {
+      schemaVersion: 1,
+      openGameIds: ['game-1'],
+      activeGameId: 'game-1',
+      activeRoute: '/game/game-1' as const,
+    };
+    const layoutState = {
+      schemaVersion: 1,
+      showHistoryPanel: true,
+      showAnalysisPanel: true,
+      historyCollapsed: false,
+      analysisCollapsed: false,
+      analysisEngineExpandedByIndex: [true, false],
+    };
+
+    await storage.ensureDirectory(gameDirectory);
+    await SerializationService.writeGameSessionDocument(sessionPath, sessionSnapshot);
+    await SerializationService.writeUiLayoutDocument(layoutPath, layoutState);
+    await storage.writeTextFile(autosavePath, '{"schemaVersion":1}', true);
+
+    expect(await SerializationService.readGameSessionDocument(sessionPath)).toEqual(sessionSnapshot);
+    expect(await SerializationService.readUiLayoutDocument(layoutPath)).toEqual(layoutState);
+    const entriesByDirectory = await SerializationService.listManagedSaveEntries(saveRoot);
+    const normalisedGameDirectory = normaliseTestPath(gameDirectory);
+    expect(entriesByDirectory.get(saveRoot)?.[0]).toMatchObject({ path: normalisedGameDirectory, name: 'game-1', isDirectory: true });
+    expect(entriesByDirectory.get(normalisedGameDirectory)?.[0]).toMatchObject({ path: normaliseTestPath(autosavePath), name: 'auto.json', isDirectory: false });
+
+    environment.queueDialogSelection(path.join(environment.rootPath, 'exports', 'game-1.json'));
+    expect(await SerializationService.selectExportFile(autosavePath)).toContain('game-1.json');
+    environment.queueDialogSelection(autosavePath);
+    expect(await SerializationService.selectImportFile(saveRoot)).toContain('auto.json');
   });
 
   it('isolates unexpected process exits per session', async () => {
