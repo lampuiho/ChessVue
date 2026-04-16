@@ -47,7 +47,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SavedGameIndexService.getAutosaveFilePath` |
 | `SerializationService.writeGameDocument` |
 
-- Settings coverage: `session.autosaveAfterMoveCount` gates move-threshold autosave, while `session.autosaveOnClose` separately gates close-trigger autosave. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., { autosave: true })` is the only workspace-save owner for both trigger kinds.
+- Settings coverage: `gameSession.autosaveAfterMoveCount` gates move-threshold autosave, while `gameSession.autosaveOnClose` separately gates close-trigger autosave. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., { autosave: true })` is the only workspace-save owner for both trigger kinds.
 - Requirement verification: `Pass`. Autosave writes the dedicated internal save entry beneath the configured save root, leaves recent-game projection to later on-demand queries, and leaves in-memory game state intact when a write fails.
 
 ### SCN-SAVE-02 - Open Internal Save View
@@ -76,7 +76,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGameIndexService.projectSaveGroups |
 
 - Route coverage: save routes through /saved-games/save/:name, opens directly into the selected game's save surface, and does not use the shared dialog family.
-- Settings coverage: session.autoPauseOnMenu decides whether a timed live game is paused before routing into the save view, and the remembered pause owner is what later allows safe auto-resume.
+- Settings coverage: gameSession.autoPauseOnMenu decides whether a timed live game is paused before routing into the save view, and the remembered pause owner is what later allows safe auto-resume.
 - Requirement verification: `Pass`. The save flow is route-level and browse-first until the user confirms a save name, `SavedGamesStore` owns the grouped save-browser data, and `GamesStore` does not take over until the save target has been chosen.
 
 ### SCN-SAVE-03 - Confirm Internal Save Write
@@ -226,7 +226,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GameView._requestPlayerMoveIfNeeded |
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
-- State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `session.autoPauseOnMenu` controls the route-entry pause branch only.
+- State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `gameSession.autoPauseOnMenu` controls the route-entry pause branch only.
 - Requirement verification: `Pass`. Internal load stays distinct from external import, `SavedGamesStore` resolves the selected file path, `GamesStore` performs the actual load, and home-screen recents remain query-derived instead of being updated through same-layer store calls.
 
 ### SCN-EXPORT-01 - Export Game to External File
@@ -260,7 +260,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | GamesStore._resumeClock |
 | GameView._resumeIfMenuOwnedPause |
 
-- Settings coverage: session.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens.
+- Settings coverage: gameSession.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens.
 - Requirement verification: `Pass`. External export stays distinct from internal save slots, `SavedGamesStore` owns destination selection, `GamesStore` writes the canonical saved-game payload once, and the flow returns through the menu-owned pause path without mutating game state beyond the export side effect.
 
 ### SCN-IMPORT-01 - Import Valid Game from External File
@@ -392,8 +392,9 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `UserSettingService.saveSettings` |
 | --- |
-| `UserSettingService._validateSettings` |
-| `UserSettingService._writeSettingsSnapshot` |
+| `SerializationService.serialiseSettings` |
+| `SerializationService.deserialiseSettings` |
+| `SerializationService.writeSettingsDocument` |
 | `UserSettingService._cacheAcceptedSettings` |
 
 #### Flow B - Save Accepted Settings
@@ -447,8 +448,8 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 | `UserSettingService.resetSettings` |
 | --- |
-| `UserSettingService._defaultSettings` |
-| `UserSettingService._writeSettingsSnapshot` |
+| `UserSettingService._createDefaultSettingsSnapshot` |
+| `SerializationService.writeSettingsDocument` |
 | `UserSettingService._cacheAcceptedSettings` |
 
 | `UiStateStore.hideModal` |

@@ -3,93 +3,93 @@ import { usePlatformService } from '@/platform';
 
 type IRuntimeAssignedEngine = IAssignedEngine & { $: IAssignedEngineRuntime };
 
-function hasRuntimeState(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
+function _hasRuntimeState(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
   return engine.$ !== undefined;
 }
-function getRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntime | undefined {
+function _getRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntime | undefined {
   return engine.$;
 }
-function ensureAnalysisState(runtimeState: IAssignedEngineRuntime): IAssignedEngineRuntime {
+function _ensureAnalysisState(runtimeState: IAssignedEngineRuntime): IAssignedEngineRuntime {
   if (!(runtimeState.analysisLines instanceof Map)) runtimeState.analysisLines = new Map();
   return runtimeState;
 }
-function createBaseRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
-  if (hasRuntimeState(engine)) return ensureAnalysisState(engine.$);
+function _createBaseRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
+  if (_hasRuntimeState(engine)) return _ensureAnalysisState(engine.$);
   const runtimeEngine = engine as IRuntimeAssignedEngine;
   runtimeEngine.$ = { availability: EngineAvailability.Unavailable, analysisLines: new Map() };
-  if (hasRuntimeState(runtimeEngine)) return runtimeEngine.$;
+  if (_hasRuntimeState(runtimeEngine)) return runtimeEngine.$;
   throw new Error(`Failed to initialise runtime state for ${engine.displayName}.`);
 }
-function assertBaseRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
-  const runtimeState = getRuntimeState(engine);
-  if (runtimeState) return ensureAnalysisState(runtimeState);
+function _assertBaseRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
+  const runtimeState = _getRuntimeState(engine);
+  if (runtimeState) return _ensureAnalysisState(runtimeState);
   throw new Error(`Engine runtime state is not available for ${engine.displayName}.`);
 }
-function setRuntimeAvailability(runtimeState: IAssignedEngineRuntime, availability: EngineAvailability, lastError?: string): void {
+function _setRuntimeAvailability(runtimeState: IAssignedEngineRuntime, availability: EngineAvailability, lastError?: string): void {
   runtimeState.availability = availability;
   runtimeState.lastError = lastError;
 }
-function clearAnalysisState(runtimeState: IAssignedEngineRuntime): void {
+function _clearAnalysisState(runtimeState: IAssignedEngineRuntime): void {
   runtimeState.analysisCallback = undefined;
   runtimeState.analysisLines.clear();
 }
-function isPlatformError(error: unknown): error is IPlatformError {
+function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && typeof (error as { kind?: unknown }).kind === 'string';
 }
-function isInvalidProcessHandleError(error: unknown): boolean {
-  return isPlatformError(error) && error.kind === PlatformErrorKind.InvalidProcessHandle;
+function _isInvalidProcessHandleError(error: unknown): boolean {
+  return _isPlatformError(error) && error.kind === PlatformErrorKind.InvalidProcessHandle;
 }
-function createEngineNotInitialisedError(engine: IAssignedEngine): IPlatformError {
+function _createEngineNotInitialisedError(engine: IAssignedEngine): IPlatformError {
   return { kind: PlatformErrorKind.ProcessStartFailed, operation: 'engineRuntime', message: `Engine process is not initialised for ${engine.displayName}.` };
 }
-async function initialiseEngine(engine: IAssignedEngine, runtimeState: IAssignedEngineRuntime): Promise<void> {
+async function _initialiseEngine(engine: IAssignedEngine, runtimeState: IAssignedEngineRuntime): Promise<void> {
   const processManager = usePlatformService().getProcessManager();
-  setRuntimeAvailability(runtimeState, EngineAvailability.Starting);
+  _setRuntimeAvailability(runtimeState, EngineAvailability.Starting);
   try {
     if (!runtimeState.processHandle) runtimeState.processHandle = await processManager.spawnProcess(engine.executablePath);
     else processManager.assertProcessHandleOpen(runtimeState.processHandle);
   } catch (error) {
-    if (!isInvalidProcessHandleError(error)) throw error;
+    if (!_isInvalidProcessHandleError(error)) throw error;
     runtimeState.processHandle = await processManager.spawnProcess(engine.executablePath);
   }
-  await getEngineClient(engine).initialiseEngine(engine);
+  await _getEngineClient(engine).initialiseEngine(engine);
 }
-function assertProcessHandleOpen(engine: IAssignedEngine, runtimeState: IAssignedEngineRuntime): void {
+function _assertProcessHandleOpen(engine: IAssignedEngine, runtimeState: IAssignedEngineRuntime): void {
   const processHandle = runtimeState.processHandle;
-  if (!processHandle) throw createEngineNotInitialisedError(engine);
+  if (!processHandle) throw _createEngineNotInitialisedError(engine);
   usePlatformService().getProcessManager().assertProcessHandleOpen(processHandle);
 }
-function getEngineClient(engine: IAssignedEngine) {
+function _getEngineClient(engine: IAssignedEngine) {
   return usePlatformService().getEngineClient(engine.clientType);
 }
-async function runEngineOperation<T>(runtimeState: IAssignedEngineRuntime, successAvailability: EngineAvailability, operation: () => Promise<T>): Promise<T> {
+async function _runEngineOperation<T>(runtimeState: IAssignedEngineRuntime, successAvailability: EngineAvailability, operation: () => Promise<T>): Promise<T> {
   try {
     const result = await operation();
-    setRuntimeAvailability(runtimeState, successAvailability);
+    _setRuntimeAvailability(runtimeState, successAvailability);
     return result;
   } catch (error) {
-    if (isInvalidProcessHandleError(error)) runtimeState.processHandle = undefined;
-    setRuntimeAvailability(runtimeState, EngineAvailability.Failed, error instanceof Error ? error.message : 'Unknown engine runtime failure.');
+    if (_isInvalidProcessHandleError(error)) runtimeState.processHandle = undefined;
+    _setRuntimeAvailability(runtimeState, EngineAvailability.Failed, error instanceof Error ? error.message : 'Unknown engine runtime failure.');
     throw error;
   }
 }
-async function runInitialisedEngineOperation<T>(engine: IAssignedEngine, successAvailability: EngineAvailability, operation: () => Promise<T>): Promise<T> {
-  const runtimeState = assertBaseRuntime(engine);
-  return runEngineOperation(runtimeState, successAvailability, async () => {
+async function _runInitialisedEngineOperation<T>(engine: IAssignedEngine, successAvailability: EngineAvailability, operation: () => Promise<T>): Promise<T> {
+  const runtimeState = _assertBaseRuntime(engine);
+  return _runEngineOperation(runtimeState, successAvailability, async () => {
     try {
-      assertProcessHandleOpen(engine, runtimeState);
+      _assertProcessHandleOpen(engine, runtimeState);
       return await operation();
     } catch (error) {
-      if (!isInvalidProcessHandleError(error)) throw error;
-      await initialiseEngine(engine, runtimeState);
+      if (!_isInvalidProcessHandleError(error)) throw error;
+      await _initialiseEngine(engine, runtimeState);
       return operation();
     }
   });
 }
-async function runLiveEngineOperation<T>(engine: IAssignedEngine, successAvailability: EngineAvailability, operation: () => Promise<T>): Promise<T> {
-  const runtimeState = assertBaseRuntime(engine);
-  return runEngineOperation(runtimeState, successAvailability, async () => {
-    assertProcessHandleOpen(engine, runtimeState);
+async function _runLiveEngineOperation<T>(engine: IAssignedEngine, successAvailability: EngineAvailability, operation: () => Promise<T>): Promise<T> {
+  const runtimeState = _assertBaseRuntime(engine);
+  return _runEngineOperation(runtimeState, successAvailability, async () => {
+    _assertProcessHandleOpen(engine, runtimeState);
     return operation();
   });
 }
@@ -97,40 +97,40 @@ async function runLiveEngineOperation<T>(engine: IAssignedEngine, successAvailab
 export const EngineRuntimeService = {
   /** Mutates engine.$ by creating or refreshing runtime state, including processHandle, availability, and lastError. */
   async ensureReady(engine: IAssignedEngine): Promise<void> {
-    const runtimeState = createBaseRuntime(engine);
-    await runEngineOperation(runtimeState, EngineAvailability.Ready, async () => {
-      await initialiseEngine(engine, runtimeState);
+    const runtimeState = _createBaseRuntime(engine);
+    await _runEngineOperation(runtimeState, EngineAvailability.Ready, async () => {
+      await _initialiseEngine(engine, runtimeState);
     });
   },
   /** Mutates engine.$ the same way as ensureReady before delegating registration to the platform client. */
   async registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void> {
-    const engineClient = getEngineClient(engine);
-    await runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.registerEngine(engine, request));
+    const engineClient = _getEngineClient(engine);
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.registerEngine(engine, request));
   },
   /** Mutates engine.$ the same way as ensureReady, then updates nested platform session state for the synced position. */
   async syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {
-    const engineClient = getEngineClient(engine);
-    await runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.syncPosition(engine, positionState));
+    const engineClient = _getEngineClient(engine);
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.syncPosition(engine, positionState));
   },
   /** Mutates engine.$ the same way as ensureReady, then updates shared analysis runtime state used for streamed callbacks. */
   async startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void> {
-    const runtimeState = assertBaseRuntime(engine);
-    const engineClient = getEngineClient(engine);
-    await runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startAnalysis(engine, request, runtimeState.analysisCallback ?? (() => {})));
+    const runtimeState = _assertBaseRuntime(engine);
+    const engineClient = _getEngineClient(engine);
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startAnalysis(engine, request, runtimeState.analysisCallback ?? (() => {})));
   },
   /** May mutate engine.$ by updating runtime availability when the process handle is stale or the stop fails. */
   async stopAnalysis(engine: IAssignedEngine): Promise<void> {
-    const engineClient = getEngineClient(engine);
-    await runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.stopAnalysis(engine));
+    const engineClient = _getEngineClient(engine);
+    await _runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.stopAnalysis(engine));
   },
   /** Mutates engine.$ the same way as ensureReady, then updates nested platform session player-turn state. */
   async startPlayerTurn(engine: IAssignedEngine): Promise<void> {
-    const engineClient = getEngineClient(engine);
-    await runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine));
+    const engineClient = _getEngineClient(engine);
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine));
   },
   /** Mutates engine.$ by registering one shared analysis callback. */
   subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void {
-    const runtimeState = createBaseRuntime(engine);
+    const runtimeState = _createBaseRuntime(engine);
     runtimeState.analysisCallback = onUpdate;
     return () => {
       if (runtimeState.analysisCallback === onUpdate) runtimeState.analysisCallback = undefined;
@@ -138,32 +138,32 @@ export const EngineRuntimeService = {
   },
   /** May mutate engine.$ by updating runtime availability when the process handle is stale or the wait fails. */
   async awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
-    const engineClient = getEngineClient(engine);
-    return runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.awaitPlayerTurnMove(engine));
+    const engineClient = _getEngineClient(engine);
+    return _runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.awaitPlayerTurnMove(engine));
   },
   /** Does not mutate engine. */
   isRuntimeAlive(engine: IAssignedEngine): boolean {
-    const runtimeState = getRuntimeState(engine);
+    const runtimeState = _getRuntimeState(engine);
     if (!runtimeState || !runtimeState.processHandle || runtimeState.availability === EngineAvailability.Unavailable || runtimeState.availability === EngineAvailability.Failed) return false;
     try {
       usePlatformService().getProcessManager().assertProcessHandleOpen(runtimeState.processHandle);
       return true;
     } catch (error) {
-      if (!isInvalidProcessHandleError(error)) throw error;
+      if (!_isInvalidProcessHandleError(error)) throw error;
       return false;
     }
   },
   /** Mutates engine.$ by replacing processHandle and runtime status. */
   async restartEngine(engine: IAssignedEngine): Promise<void> {
-    const engineClient = getEngineClient(engine);
+    const engineClient = _getEngineClient(engine);
     const processManager = usePlatformService().getProcessManager();
-    const runtimeState = createBaseRuntime(engine);
-    setRuntimeAvailability(runtimeState, EngineAvailability.Starting);
+    const runtimeState = _createBaseRuntime(engine);
+    _setRuntimeAvailability(runtimeState, EngineAvailability.Starting);
     if (runtimeState.processHandle) {
       try {
         await engineClient.stopEngine(engine);
       } catch (error) {
-        if (!isInvalidProcessHandleError(error)) throw error;
+        if (!_isInvalidProcessHandleError(error)) throw error;
       }
     }
     if (!runtimeState.processHandle) runtimeState.processHandle = await processManager.spawnProcess(engine.executablePath);
@@ -171,35 +171,35 @@ export const EngineRuntimeService = {
       try {
         runtimeState.processHandle = await processManager.restartProcess(runtimeState.processHandle, engine.executablePath);
       } catch (error) {
-        if (!isInvalidProcessHandleError(error)) throw error;
+        if (!_isInvalidProcessHandleError(error)) throw error;
         runtimeState.processHandle = await processManager.spawnProcess(engine.executablePath);
       }
     }
-    await runEngineOperation(runtimeState, EngineAvailability.Ready, () => engineClient.initialiseEngine(engine));
+    await _runEngineOperation(runtimeState, EngineAvailability.Ready, () => engineClient.initialiseEngine(engine));
   },
   /** Mutates engine.$ by clearing processHandle, analysis state, and setting availability unavailable. */
   async stopEngine(engine: IAssignedEngine): Promise<void> {
-    const engineClient = getEngineClient(engine);
-    const runtimeState = getRuntimeState(engine);
+    const engineClient = _getEngineClient(engine);
+    const runtimeState = _getRuntimeState(engine);
     if (!runtimeState) return;
     const processHandle = runtimeState.processHandle;
     if (!processHandle) {
-      clearAnalysisState(runtimeState);
-      setRuntimeAvailability(runtimeState, EngineAvailability.Unavailable);
+      _clearAnalysisState(runtimeState);
+      _setRuntimeAvailability(runtimeState, EngineAvailability.Unavailable);
       return;
     }
     try {
       await engineClient.stopEngine(engine);
     } catch (error) {
-      if (!isInvalidProcessHandleError(error)) throw error;
+      if (!_isInvalidProcessHandleError(error)) throw error;
     }
     try {
       await usePlatformService().getProcessManager().stopProcess(processHandle);
     } catch (error) {
-      if (!isInvalidProcessHandleError(error)) throw error;
+      if (!_isInvalidProcessHandleError(error)) throw error;
     }
     runtimeState.processHandle = undefined;
-    clearAnalysisState(runtimeState);
-    setRuntimeAvailability(runtimeState, EngineAvailability.Unavailable);
+    _clearAnalysisState(runtimeState);
+    _setRuntimeAvailability(runtimeState, EngineAvailability.Unavailable);
   },
 };

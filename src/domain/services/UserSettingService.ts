@@ -6,13 +6,13 @@ import { SerializationService } from './SerializationService';
 
 let _cachedSettings: ISettingsSnapshot | undefined;
 
-function isPlatformError(error: unknown): error is IPlatformError {
+function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
 }
-function createDefaultSettingsSnapshot(): ISettingsSnapshot {
+function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
   return {
     schemaVersion: 1,
-    session: {
+    gameSession: {
       restorePreviousSession: true,
       saveRootPath: 'saves',
       autosaveAfterMoveCount: 1,
@@ -46,7 +46,7 @@ function createDefaultSettingsSnapshot(): ISettingsSnapshot {
     },
   };
 }
-function cacheAcceptedSettings(snapshot: ISettingsSnapshot): ISettingsSnapshot {
+function _cacheAcceptedSettings(snapshot: ISettingsSnapshot): ISettingsSnapshot {
   _cachedSettings = structuredClone(snapshot);
   return structuredClone(_cachedSettings);
 }
@@ -55,14 +55,14 @@ export const UserSettingService = {
   async getSettingsOrDefault(): Promise<ISettingsSnapshot> {
     if (_cachedSettings !== undefined) return structuredClone(_cachedSettings);
     try {
-      return cacheAcceptedSettings(await SerializationService.readSettingsDocument(BuildConfig.persistence.settingsPath));
+      return _cacheAcceptedSettings(await SerializationService.readSettingsDocument(BuildConfig.persistence.settingsPath));
     } catch (error) {
-      if (!(isPlatformError(error) && error.kind === PlatformErrorKind.NotFound)) console.error('[UserSettingService] Falling back to default settings.', error);
-      return cacheAcceptedSettings(createDefaultSettingsSnapshot());
+      if (!(_isPlatformError(error) && error.kind === PlatformErrorKind.NotFound)) console.error('[UserSettingService] Falling back to default settings.', error);
+      return _cacheAcceptedSettings(_createDefaultSettingsSnapshot());
     }
   },
   getSettings(): ISettingsSnapshot {
-    return structuredClone(_cachedSettings ?? cacheAcceptedSettings(createDefaultSettingsSnapshot()));
+    return structuredClone(_cachedSettings ?? _cacheAcceptedSettings(_createDefaultSettingsSnapshot()));
   },
   getSystemTheme(): ResolvedThemeMode {
     return usePlatformService().getSystemThemeAdapter().getSystemTheme();
@@ -70,11 +70,11 @@ export const UserSettingService = {
   async saveSettings(snapshot: ISettingsSnapshot): Promise<ISettingsSnapshot> {
     const acceptedSettings = SerializationService.deserialiseSettings(SerializationService.serialiseSettings(snapshot));
     await SerializationService.writeSettingsDocument(BuildConfig.persistence.settingsPath, acceptedSettings);
-    return cacheAcceptedSettings(acceptedSettings);
+    return _cacheAcceptedSettings(acceptedSettings);
   },
   async resetSettings(): Promise<ISettingsSnapshot> {
-    const defaultSettings = createDefaultSettingsSnapshot();
+    const defaultSettings = _createDefaultSettingsSnapshot();
     await SerializationService.writeSettingsDocument(BuildConfig.persistence.settingsPath, defaultSettings);
-    return cacheAcceptedSettings(defaultSettings);
+    return _cacheAcceptedSettings(defaultSettings);
   },
 };

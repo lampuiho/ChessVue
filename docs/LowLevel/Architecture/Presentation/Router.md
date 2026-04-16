@@ -13,7 +13,7 @@ Define the baseline route map and route-guard responsibilities for the desktop s
 - `/settings/:category`
 
 ## Responsibilities
-- route startup to a restored session target only when `session.restorePreviousSession = true` and the stored session resolves to a valid route
+- route startup to a restored session target only when `gameSession.restorePreviousSession = true` and the stored session resolves to a valid route
 - fall back to `/home` whenever session restore is disabled, missing, corrupt, or no longer valid
 - reject invalid `/game/:id` routes and redirect to a valid fallback
 - allow route entry to the grouped saved-games load surface at `/saved-games/load`

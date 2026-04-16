@@ -521,7 +521,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GameView._resumeIfMenuOwnedPause` |
 | `GamesStore._resumeClock` |
 
-- Settings coverage: `session.autoPauseOnMenu` controls whether timed live games are paused for save, settings, and similar interrupting flows.
+- Settings coverage: `gameSession.autoPauseOnMenu` controls whether timed live games are paused for save, settings, and similar interrupting flows.
 - Requirement verification: `Pass`. Auto-pause is gated by settings, active clock state, and pause ownership.
 
 ## Game Controls

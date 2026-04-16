@@ -19,11 +19,11 @@ Only the user-editable choices listed below belong in the committed settings sch
 ## Settings Table
 | Setting | Purpose | Default | Validation | Persistence Owner |
 | --- | --- | --- | --- | --- |
-| `session.restorePreviousSession` | Reopen prior session when valid | `true` | Boolean | Settings snapshot |
-| `session.saveRootPath` | Root folder used for ChessVue's internal save/load files | `saves` | Non-empty relative or absolute path string | Settings snapshot |
-| `session.autosaveAfterMoveCount` | Write/update the internal autosave entry after this many committed ply | `1` | Non-negative integer; `0` disables move-count autosave | Settings snapshot |
-| `session.autosaveOnClose` | Write/update the internal autosave entry when closing the app or game shell | `true` | Boolean | Settings snapshot |
-| `session.autoPauseOnMenu` | Pause timed live games during interrupting menu flows | `true` | Boolean | Settings snapshot |
+| `gameSession.restorePreviousSession` | Reopen prior session when valid | `true` | Boolean | Settings snapshot |
+| `gameSession.saveRootPath` | Root folder used for ChessVue's internal save/load files | `saves` | Non-empty relative or absolute path string | Settings snapshot |
+| `gameSession.autosaveAfterMoveCount` | Write/update the internal autosave entry after this many committed ply | `1` | Non-negative integer; `0` disables move-count autosave | Settings snapshot |
+| `gameSession.autosaveOnClose` | Write/update the internal autosave entry when closing the app or game shell | `true` | Boolean | Settings snapshot |
+| `gameSession.autoPauseOnMenu` | Pause timed live games during interrupting menu flows | `true` | Boolean | Settings snapshot |
 | `gameDefaults.quickNewGameName` | Default display name seed for quick new game | `New Game` | Non-empty string | Settings snapshot |
 | `gameDefaults.defaultTimeControl` | Default time control used by quick new game | `untimed` | Built-in preset or valid custom time control object | Settings snapshot |
 | `gameDefaults.defaultWhitePlayerType` | Default player type for white in new game setup | `local` | `local` or `engine` | Settings snapshot |
@@ -54,13 +54,13 @@ The baseline built-in time presets are:
 Custom time controls are allowed where scenarios require them, but the quick new game default is `Untimed` unless the user changes it.
 
 ## Rules Derived From Settings
-- Startup restore attempts the stored game-session snapshot only when `session.restorePreviousSession = true`.
+- Startup restore attempts the stored game-session snapshot only when `gameSession.restorePreviousSession = true`.
 - When session restore is disabled, missing, corrupt, or no longer valid for routing, startup falls back to `/home`.
-- `session.saveRootPath` is the logical root for ChessVue's own save files. Internal saves are grouped into one folder per canonical game beneath that root. Browser-backed adapters may emulate this structure without changing the contract.
-- `session.autosaveAfterMoveCount` counts committed ply. `0` disables move-count autosave, while `1` means autosave after every committed move.
-- `session.autosaveOnClose` controls whether app or shell close writes the internal autosave entry separately from the move-count trigger.
-- `session.autoPauseOnMenu` controls timed-game auto-pause for settings, internal save/load views, import/export flows, and other interrupting menu flows.
-- Auto-resume after menu interruption is paired behaviour of `session.autoPauseOnMenu`; it is not a separate stored setting.
+- `gameSession.saveRootPath` is the logical root for ChessVue's own save files. Internal saves are grouped into one folder per canonical game beneath that root. Browser-backed adapters may emulate this structure without changing the contract.
+- `gameSession.autosaveAfterMoveCount` counts committed ply. `0` disables move-count autosave, while `1` means autosave after every committed move.
+- `gameSession.autosaveOnClose` controls whether app or shell close writes the internal autosave entry separately from the move-count trigger.
+- `gameSession.autoPauseOnMenu` controls timed-game auto-pause for settings, internal save/load views, import/export flows, and other interrupting menu flows.
+- Auto-resume after menu interruption is paired behaviour of `gameSession.autoPauseOnMenu`; it is not a separate stored setting.
 - `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, and `gameplay.analysisBranchExitBehaviour` define the behaviour of historical-node move actions.
 - `analysis.resumeLiveAnalysisAfterRestore` applies only after saved-game restore completes.
 - `analysis.engineInventory` validates only that profile names are unique within the saved profile list. Executable path and option values are stored as entered and are consumed later when a profile is used to create an engine participant.

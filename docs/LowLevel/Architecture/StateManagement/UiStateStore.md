@@ -53,7 +53,7 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 ## Notes
 - `UiStateStore` consumes `SerializationService` as the layer-2 session and layout persistence path; it does not resolve `StorageAdapter` directly.
 - Build config supplies the concrete `game-session.json` and `layout-state.json` paths used by this store.
-- `getLayoutStateOrDefault()` still returns the remembered layout when `session.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
+- `getLayoutStateOrDefault()` still returns the remembered layout when `gameSession.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
 - `getGameSessionOrDefault()` and `getLayoutStateOrDefault()` are lazy first-read boundaries intended for route or view setup paths rather than an eager startup phase.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis snapshot rows to derive the current mapping.

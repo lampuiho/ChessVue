@@ -9,7 +9,7 @@ Define the authoritative persisted settings schema from the baseline settings co
 - `enum AnalysisBranchExitBehaviour`
 - `enum PromotionPolicy`
 - `enum BoardOrientation`
-- `interface ISettingsSession`
+- `interface ISettingsGameSession`
 - `interface ISettingsGameDefaults`
 - `interface ISettingsGameplay`
 - `interface ISettingsAnalysis`
@@ -43,7 +43,7 @@ enum BoardOrientation {
   Black = "black"
 }
 
-interface ISettingsSession {
+interface ISettingsGameSession {
   restorePreviousSession: boolean
   saveRootPath: string
   autosaveAfterMoveCount: number
@@ -82,7 +82,7 @@ interface ISettingsAppearance {
 
 interface ISettingsSnapshot {
   schemaVersion: number
-  session: ISettingsSession
+  gameSession: ISettingsGameSession
   gameDefaults: ISettingsGameDefaults
   gameplay: ISettingsGameplay
   analysis: ISettingsAnalysis

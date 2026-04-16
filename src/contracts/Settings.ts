@@ -29,7 +29,7 @@ export const analysisBranchExitBehaviours = [AnalysisBranchExitBehaviour.ReturnT
 export const promotionPolicies = [PromotionPolicy.RequireExplicitSelection] as const
 export const boardOrientations = [BoardOrientation.White, BoardOrientation.Black] as const
 
-export interface ISettingsSession {
+export interface ISettingsGameSession {
   restorePreviousSession: boolean
   saveRootPath: string
   autosaveAfterMoveCount: number
@@ -63,7 +63,7 @@ export interface ISettingsAppearance {
 }
 export interface ISettingsSnapshot {
   schemaVersion: number
-  session: ISettingsSession
+  gameSession: ISettingsGameSession
   gameDefaults: ISettingsGameDefaults
   gameplay: ISettingsGameplay
   analysis: ISettingsAnalysis
@@ -74,7 +74,7 @@ export const takebackPolicySchema = z.enum(takebackPolicies)
 export const analysisBranchExitBehaviourSchema = z.enum(analysisBranchExitBehaviours)
 export const promotionPolicySchema = z.enum(promotionPolicies)
 export const boardOrientationSchema = z.enum(boardOrientations)
-export const settingsSessionSchema = z.object({
+export const settingsGameSessionSchema = z.object({
   restorePreviousSession: z.boolean(),
   saveRootPath: z.string().min(1),
   autosaveAfterMoveCount: z.number().int().min(0),
@@ -119,7 +119,7 @@ export const settingsAppearanceSchema = z.object({
 
 export const settingsSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
-  session: settingsSessionSchema,
+  gameSession: settingsGameSessionSchema,
   gameDefaults: settingsGameDefaultsSchema,
   gameplay: settingsGameplaySchema,
   analysis: settingsAnalysisSchema,

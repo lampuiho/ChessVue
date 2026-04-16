@@ -62,7 +62,7 @@ migrateGame(input: unknown): IGame
 
 ## Notes
 - `SerializationService` depends on `StorageAdapter` for raw file and dialog access, but stores still depend only on this layer-2 boundary rather than on the adapter directly.
-- `SerializationService` accepts explicit file paths from callers. Build config supplies app-owned settings, session, and layout file paths, while `SavedGameIndexService` supplies managed save or load file paths beneath user-configurable `session.saveRootPath`.
+- `SerializationService` accepts explicit file paths from callers. Build config supplies app-owned settings, session, and layout file paths, while `SavedGameIndexService` supplies managed save or load file paths beneath user-configurable `gameSession.saveRootPath`.
 - Recent-game history remains query-derived from available save targets and is not a serialised persisted artefact owned by this service.
 - All runtime-only `$` members are stripped from persisted output, including `IGame.$`, `IPlayer.$`, `IAssignedEngine.$`, `IMove.$`, `IMoveNode.$`, and any later runtime-only helpers added under that namespace.
 - Embedded copied engine payloads inside `IEnginePlayer.assignedEngine` and `analysis.snapshots[].assignedEngine` must satisfy the `IAssignedEngine` shape directly. Invalid embedded engine payloads are rejected as invalid saved-game payloads rather than silently repaired.

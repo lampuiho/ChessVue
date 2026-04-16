@@ -126,7 +126,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.loadLayoutState`
   - `UiStateStore.loadGameSession`
   - `RecentGameStore.loadRecentGames`
-  - `StorageAdapter.readTextFile`
+  - `UserSettingService.getSettingsOrDefault`
 
 ### SCN-SESSION-02 - Restore Previous Session
 - **Status**: Planned
@@ -150,7 +150,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.listGames`
   - `UiStateStore.setActiveGame`
   - `Router.beforeEachRouteGuard`
-  - `StorageAdapter.readTextFile`
+  - `SerializationService.readGameSessionDocument`
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
 - **Status**: Planned
@@ -170,8 +170,8 @@ Each scenario in this document uses the same structure:
   - `SerializationService.deserialiseGame`
   - `SerializationService.migrateGame`
   - `SettingsStore.resetSettings`
-  - `StorageAdapter.readTextFile`
-  - `StorageAdapter.writeTextFile`
+  - `UserSettingService.getSettingsOrDefault`
+  - `SerializationService.readGameDocument`
 
 ---
 
@@ -195,7 +195,7 @@ Each scenario in this document uses the same structure:
   - `MenuBar.quickNewGameRequested`
   - `GamesStore.createGame`
   - `UiStateStore.setActiveGame`
-  - `StorageAdapter.writeTextFile`
+  - `SerializationService.writeGameDocument`
 
 ### SCN-GAME-02 - Custom New Game with User Options
 - **Status**: Planned
@@ -600,7 +600,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Engine failures are isolated and recoverable, and the last streamed best line remains visible until replaced by a new search.
 - **Function Touchpoints**:
   - `GamesStore.stopAnalysis`
-  - `EngineRuntimeService.stopSession`
+  - `EngineRuntimeService.stopEngine`
   - `GamesStore.retryAnalysis`
   - `GamesStore.getVisibleAnalysis`
   - `UiStateStore.showModal`
@@ -881,21 +881,19 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Configured move-count threshold reached or close flow begins.
 - **Main Steps**:
   1. User commits moves or starts a close flow.
-  2. App checks `session.autosaveAfterMoveCount` using committed ply count and separately checks `session.autosaveOnClose` during close.
+  2. App checks `gameSession.autosaveAfterMoveCount` using committed ply count and separately checks `gameSession.autosaveOnClose` during close.
   3. When a trigger applies, app snapshots the current game workspace state, including active position/history node, clocks, and result state.
   4. App serializes the canonical saved-game payload.
   5. App writes or replaces the autosave entry for that game beneath the configured save root.
 - **Branch Paths**:
-  - `BR-SAVE-01-MOVE-COUNT-DISABLED`: `session.autosaveAfterMoveCount = 0` -> move commits do not write an autosave entry.
-  - `BR-SAVE-01-CLOSE-DISABLED`: `session.autosaveOnClose = false` -> close flow does not write an autosave entry.
+  - `BR-SAVE-01-MOVE-COUNT-DISABLED`: `gameSession.autosaveAfterMoveCount = 0` -> move commits do not write an autosave entry.
+  - `BR-SAVE-01-CLOSE-DISABLED`: `gameSession.autosaveOnClose = false` -> close flow does not write an autosave entry.
   - `BR-SAVE-01-WRITE-FAIL`: Autosave write fails -> keep in-memory state and surface recoverable failure for later retry.
 - **Postconditions**: The autosave entry is refreshed only when the configured trigger fires, and a later restore can reproduce the same game workspace state without depending on UI or engine runtime snapshots.
 - **Function Touchpoints**:
   - `GamesStore.saveGame`
   - `SavedGameIndexService.getAutosaveFilePath`
-  - `SerializationService.serialiseGame`
-  - `StorageAdapter.ensureDirectory`
-  - `StorageAdapter.writeTextFile`
+  - `SerializationService.writeGameDocument`
   - `SettingsStore.loadSettings`
 
 ### SCN-SAVE-02 - Open Internal Save View
@@ -934,7 +932,7 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Save view `Save` button.
 - **Main Steps**:
   1. User enters or selects a save name and clicks `Save`.
-  2. App resolves the target game folder beneath `session.saveRootPath`.
+  2. App resolves the target game folder beneath `gameSession.saveRootPath`.
   3. If the chosen save name matches an existing save entry for that game, app asks for overwrite confirmation.
   4. On confirm or when no collision exists, app snapshots the current game workspace state.
   5. App serializes the canonical saved-game payload and writes the internal save file.
@@ -948,9 +946,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
   - `GamesStore.saveGame`
   - `SavedGameIndexService.getNamedSaveFilePath`
-  - `SerializationService.serialiseGame`
-  - `StorageAdapter.ensureDirectory`
-  - `StorageAdapter.writeTextFile`
+  - `SerializationService.writeGameDocument`
 
 ### SCN-LOAD-01 - Load Valid Game from Internal Save View
 - **Status**: Planned
@@ -986,8 +982,7 @@ Each scenario in this document uses the same structure:
   - `SavedGamesStore.listSavedGames`
   - `SavedGamesStore.getLoadFilePath`
   - `SavedGameIndexService.projectSaveGroups`
-  - `StorageAdapter.readTextFile`
-  - `SerializationService.deserialiseGame`
+  - `SerializationService.readGameDocument`
   - `GamesStore.loadGame`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.saveGameSession`
@@ -1015,9 +1010,8 @@ Each scenario in this document uses the same structure:
   - `GameControlPanel.pauseRequested`
   - `SavedGamesStore.exportGame`
   - `GamesStore.saveGame`
-  - `StorageAdapter.showSaveDialog`
-  - `StorageAdapter.writeTextFile`
-  - `SerializationService.serialiseGame`
+  - `SerializationService.selectExportFile`
+  - `SerializationService.writeGameDocument`
 
 ### SCN-IMPORT-01 - Import Valid Game from External File
 - **Status**: Planned
@@ -1040,9 +1034,8 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `MenuBar.importGameRequested`
   - `SavedGamesStore.importGame`
-  - `StorageAdapter.showOpenDialog`
-  - `StorageAdapter.readTextFile`
-  - `SerializationService.deserialiseGame`
+  - `SerializationService.selectImportFile`
+  - `SerializationService.readGameDocument`
   - `GamesStore.loadGame`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.saveGameSession`
@@ -1061,10 +1054,9 @@ Each scenario in this document uses the same structure:
   - `BR-IMPORT-02-INCOMPLETE`: Required canonical payload sections missing -> reject as invalid document and preserve current session state.
 - **Postconditions**: No existing game data is overwritten by bad import.
 - **Function Touchpoints**:
-  - `StorageAdapter.showOpenDialog`
-  - `StorageAdapter.readTextFile`
+  - `SerializationService.selectImportFile`
+  - `SerializationService.readGameDocument`
   - `GamesStore.loadGame`
-  - `SerializationService.deserialiseGame`
   - `UiStateStore.showModal`
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
@@ -1198,7 +1190,7 @@ Each scenario in this document uses the same structure:
 - **Function Touchpoints**:
   - `GamesStore.deleteGame`
   - `GamesStore.listGames`
-  - `StorageAdapter.deleteFile`
+  - `SerializationService.deleteDocument`
   - `UiStateStore.showModal`
 
 ### SCN-LIFECYCLE-02 - Delete Active Game and Switch Context

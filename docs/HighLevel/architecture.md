@@ -116,7 +116,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### Platform Abstraction
 - Bootstrap selects one `IPlatformService` implementation for the active platform and injects it into the layer-2 service graph.
 - `StorageAdapter` exposes generic host storage, file-system, and file-dialog operations only.
-- `ProcessManager` starts, restarts, stops, and reports unexpected termination for local child processes as defined in [engine_runtime.md](engine_runtime.md).
+- `ProcessManager` starts, restarts, stops, and asserts handle validity for local child processes as defined in [engine_runtime.md](engine_runtime.md).
 - `SystemThemeAdapter` exposes the current OS theme only.
 - `EngineClient` translates between ChessVue engine structures and the active engine protocol and hides raw engine message formats from higher layers.
   It is consumed through `EngineRuntimeService`, not by layer-3 stores directly.

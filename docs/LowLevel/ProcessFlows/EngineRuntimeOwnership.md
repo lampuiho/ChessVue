@@ -5,9 +5,9 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 
 ## Ownership Summary
 - `GamesStore` decides when analysis or player-turn runtime work should happen.
-- `EngineRuntimeService` owns only base runtime state on `IAssignedEngine.$`, explicit analysis-callback registration and teardown, process lifecycle, process-handle validity checks, runtime availability, and runtime last-error updates.
-- `EngineClient` owns only client-private runtime state such as optional protocol session initialisation, process-listener attachment, synced-position state, pending player-turn state, protocol I/O, and protocol parsing.
-- `IAssignedUciEngineRuntime.session` is optional until `EngineClient.initialiseEngine(...)` creates and initialises it after base runtime state already exists.
+- `EngineRuntimeService` owns only base runtime state on `IAssignedEngine.$`, explicit analysis-callback registration and teardown, process lifecycle, per-operation process-handle validity checks, runtime availability, and runtime last-error updates.
+- `EngineClient` owns only client-private runtime state such as optional session initialisation, process-listener attachment, synced-position state, pending player-turn state, protocol I/O, and protocol parsing.
+- Client-private session state on `engine.$.session` is optional until `EngineClient.initialiseEngine(...)` creates and initialises it after base runtime state already exists.
 - Runtime state changes must happen through explicit owner-private steps. No flow in this document relies on hidden mutation or side tables.
 
 ## Owner And Mutable State
@@ -48,47 +48,55 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 
 | `EngineRuntimeService.syncPosition` |
 | --- |
+| `EngineRuntimeService._runInitialisedEngineOperation` |
+| `EngineClient.syncPosition` |
+
+| `EngineRuntimeService._runInitialisedEngineOperation` |
+| --- |
 | `EngineRuntimeService._assertBaseRuntime` |
 | `EngineRuntimeService._assertProcessHandleOpen` |
-| `EngineRuntimeService._retryInitialiseOnInvalidProcessHandle` |
-| `EngineRuntimeService._setAvailabilityReady` |
-| `EngineClient.syncPosition` |
+| `EngineRuntimeService._initialiseEngine` |
+| `EngineRuntimeService._runEngineOperation` |
 
 | `EngineRuntimeService.subscribeToAnalysis` |
 | --- |
-| `EngineRuntimeService._registerAnalysisCallback` |
+| `EngineRuntimeService._createBaseRuntime` |
+| `engine.$.analysisCallback = onUpdate` |
+| `return unsubscribe closure` |
+
+| `EngineRuntimeService._initialiseEngine` |
+| --- |
+| `EngineRuntimeService._setRuntimeAvailability` |
+| `ProcessManager.spawnProcess` or `ProcessManager.assertProcessHandleOpen` |
+| `EngineClient.initialiseEngine` |
 
 | `EngineClient.initialiseEngine` |
 | --- |
 | `EngineClient._initialiseAssignedEngineSession` |
-| `EngineClient._attachProcessListeners` |
-| `EngineClient._sendHandshake` |
-| `EngineClient._sendConfiguredOptions` |
-| `EngineClient._markSessionInitialised` |
+| `EngineClient._attachToProcess` |
+| `EngineClient._writeCommandAndWait` |
+| `EngineClient._writeCommand` |
 
 | `EngineClient.syncPosition` |
 | --- |
 | `EngineClient._requireInitialisedSession` |
-| `EngineClient._storeSyncedPositionState` |
-| `EngineClient._sendNewGameBoundaryIfRequired` |
-| `EngineClient._sendPositionCommand` |
+| `EngineClient.requiresNewGameBoundary` |
+| `EngineClient._writeCommandAndWait` |
+| `EngineClient._writeCommand` |
 
 ### Start Analysis Search
 | `EngineRuntimeService.startAnalysis` |
 | --- |
 | `EngineRuntimeService._assertBaseRuntime` |
-| `EngineRuntimeService._assertProcessHandleOpen` |
-| `EngineRuntimeService._retryInitialiseOnInvalidProcessHandle` |
-| `EngineRuntimeService._setAvailabilityRunning` |
+| `EngineRuntimeService._runInitialisedEngineOperation` |
 | `EngineClient.startAnalysis` |
 
 | `EngineClient.startAnalysis` |
 | --- |
 | `EngineClient._requireInitialisedSession` |
-| `EngineClient._setAnalysisCallback` |
-| `EngineClient._clearAnalysisState` |
-| `EngineClient._sendAnalysisOptions` |
-| `EngineClient._sendStartAnalysisCommand` |
+| `engine.$.analysisCallback = onUpdate` |
+| `engine.$.analysisLines.clear()` |
+| `EngineClient._writeCommand` |
 
 ### Stop Analysis Search
 | `GamesStore.stopAnalysis` |
@@ -101,31 +109,34 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 
 | `EngineRuntimeService.stopAnalysis` |
 | --- |
+| `EngineRuntimeService._runLiveEngineOperation` |
 | `EngineClient.stopAnalysis` |
-| `EngineRuntimeService._setAvailabilityReady` |
 
 | `EngineClient.stopAnalysis` |
 | --- |
-| `EngineClient._sendStopAnalysisCommand` |
-| `EngineClient._clearAnalysisState` |
+| `EngineClient._requireSession` |
+| `EngineClient._writeCommand` |
 
 ### Unregister Analysis Subscription
 | `GameView._disposeAnalysisRuntimeBinding` |
 | --- |
-| `EngineRuntimeService._unregisterAnalysisCallback` |
+| returned unsubscribe closure from `EngineRuntimeService.subscribeToAnalysis(...)` |
 
 ### Streamed Analysis Update
-| `EngineClient._handleAnalysisInfoLine` |
+| `EngineClient._consumeLine` |
 | --- |
-| `EngineClient._storeAnalysisSlot` |
-| `EngineClient._emitAnalysisUpdate` |
+| parse expected streamed analysis output |
+| update `engine.$.analysisLines` for the current engine |
+| `EngineClient._buildAnalysisUpdate` |
+| invoke `engine.$.analysisCallback` |
 
-### Malformed Analysis Output
-| `EngineClient._handleAnalysisInfoLine` |
+### Unexpected Analysis Output
+| `EngineClient._consumeLine` |
 | --- |
-| `EngineClient._discardMalformedAnalysisMessage` |
+| ignore non-terminal output that is irrelevant to the current awaited or streaming operation |
 
-- Failure rule: malformed analysis output does not mutate runtime availability, does not stop the process, does not clear `engine.$.lastError`, and does not clear the last valid visible result.
+- Failure rule: irrelevant non-terminal analysis output does not mutate runtime availability, does not stop the process, does not clear `engine.$.lastError`, and does not clear the last valid visible result.
+- Failure rule: positively identified unexpected engine output or session/process failure is surfaced through the client/runtime failure path rather than through silent repair.
 
 ## Player Turn Runtime
 
@@ -152,39 +163,34 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ### Begin Player-Turn Search
 | `EngineRuntimeService.startPlayerTurn` |
 | --- |
-| `EngineRuntimeService._assertBaseRuntime` |
-| `EngineRuntimeService._assertProcessHandleOpen` |
-| `EngineRuntimeService._retryInitialiseOnInvalidProcessHandle` |
-| `EngineRuntimeService._setAvailabilityRunning` |
+| `EngineRuntimeService._runInitialisedEngineOperation` |
 | `EngineClient.startPlayerTurn` |
 
 | `EngineClient.startPlayerTurn` |
 | --- |
 | `EngineClient._requireInitialisedSession` |
-| `EngineClient._createPendingPlayerTurn` |
-| `EngineClient._sendStartPlayerTurnCommand` |
+| create pending player-turn state |
+| `EngineClient._writeCommand` |
 
-### Await Player-Turn Move
+### Await Player-Turn Completion
 | `EngineRuntimeService.awaitPlayerTurnMove` |
 | --- |
+| `EngineRuntimeService._runLiveEngineOperation` |
 | `EngineClient.awaitPlayerTurnMove` |
-| `EngineRuntimeService._setAvailabilityReady` |
 
 | `EngineClient.awaitPlayerTurnMove` |
 | --- |
-| `EngineClient._awaitPendingPlayerTurn` |
-| `EngineClient._clearPendingPlayerTurn` |
+| `EngineClient._requireSession` |
+| await pending player-turn state |
+| clear pending player-turn state |
 
-### Malformed Player-Turn Output
-| `EngineClient._handleBestMoveLineForPlayerTurn` |
+### Unexpected Player-Turn Output
+| `EngineClient._consumeLine` |
 | --- |
-| `EngineClient._failPendingPlayerTurn` |
-| `EngineClient._clearPendingPlayerTurn` |
-| `EngineClient._resetSessionAfterFailure` |
-| `EngineRuntimeService._setAvailabilityFailed` |
-| `EngineRuntimeService._setLastError` |
+| ignore non-terminal output that is irrelevant to the current awaited move |
 
-- Failure rule: malformed player-turn output is a runtime failure. It clears the pending player-turn state and follows the owning runtime-error path rather than being discarded silently.
+- Failure rule: session/process failure rejects the pending player-turn state and follows the owning runtime-error path.
+- Failure rule: stricter handling for positively identified unexpected terminal output is deferred until a dedicated debugging pass.
 
 ## Runtime Stop And Restart
 
@@ -193,38 +199,35 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 | --- |
 | `EngineClient.stopEngine` |
 | `ProcessManager.stopProcess` |
-| `EngineRuntimeService._clearProcessHandle` |
 | `EngineRuntimeService._clearAnalysisState` |
-| `EngineRuntimeService._setAvailabilityUnavailable` |
-| `EngineRuntimeService._clearLastError` |
+| `EngineRuntimeService._setRuntimeAvailability` |
+| `engine.$.processHandle = undefined` |
 
 | `EngineClient.stopEngine` |
 | --- |
-| `EngineClient._detachProcessListeners` |
-| `EngineClient._resetSessionAfterStop` |
-| `EngineClient._clearAnalysisState` |
-| `EngineClient._clearPendingPlayerTurn` |
+| `EngineClient._requireProcessHandle` |
+| `EngineClient._getSession` |
+| client-private session stop helper |
 
 ### Restart Engine Runtime After Explicit Retry Or Config Change
 | `EngineRuntimeService.restartEngine` |
 | --- |
+| `EngineRuntimeService._createBaseRuntime` |
+| `EngineRuntimeService._setRuntimeAvailability` |
 | `EngineClient.stopEngine` |
-| `ProcessManager.restartProcess` |
-| `EngineRuntimeService._setAvailabilityStarting` |
-| `EngineRuntimeService._clearLastError` |
+| `ProcessManager.restartProcess` or `ProcessManager.spawnProcess` |
+| `EngineRuntimeService._runEngineOperation` |
 | `EngineClient.initialiseEngine` |
-| `EngineRuntimeService._setAvailabilityReady` |
 
 ## Operation-Time Process Failure
 
 ### Process Handle Becomes Stale Before Or During A Runtime Operation
 | `EngineRuntimeService.syncPosition` |
 | --- |
+| `EngineRuntimeService._runInitialisedEngineOperation` |
 | `EngineRuntimeService._assertProcessHandleOpen` |
-| `EngineRuntimeService._catchInvalidProcessHandle` |
-| `EngineRuntimeService.ensureReady` |
-| `EngineClient.initialiseEngine` |
+| `EngineRuntimeService._initialiseEngine` after `InvalidProcessHandle` |
 | `EngineClient.syncPosition` |
 
-- Failure rule: post-start engine termination is surfaced when the next runtime operation checks or uses the stored process handle. Runtime state changes are explicit on the service side and the client side.
-- Recovery rule: `registerEngine(...)`, `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may recover once by re-running `ensureReady(...)` only after `invalidProcessHandle`. Base-runtime absence or missing initialisation is still surfaced as failure.
+- Failure rule: post-start engine termination is surfaced when the next runtime operation checks or uses the stored process handle.
+- Recovery rule: `registerEngine(...)`, `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may recover once by re-running the explicit initialisation path only after `InvalidProcessHandle`. Base-runtime absence or missing initialisation is still surfaced as failure.

@@ -29,7 +29,7 @@ getLatestSaveEntry(entries: ISavedGameFileEntry[]): ISavedGameFileEntry | undefi
 
 ## Responsibilities
 - keep ChessVue's canonical save-root, game-folder, and file-naming conventions in one platform-independent place
-- decide how autosave and named-save file paths are composed from `session.saveRootPath`, `gameId`, and `saveName`
+- decide how autosave and named-save file paths are composed from `gameSession.saveRootPath`, `gameId`, and `saveName`
 - interpret generic directory entries from `StorageAdapter` into logical game/save groups and latest-save targets for the route-level save/load views
 - identify autosave entries without depending on UI code or file-system APIs
 - identify the latest loadable save entry for a selected game without depending on UI code or file-system APIs

@@ -144,7 +144,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._persistWorkspaceIfNeeded` |
 | `GameView._requestPlayerMoveIfNeeded` |
 
-- State/settings coverage: `session.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. When the restored route resolves to a game, `GameView.setup` lazily restores only the needed persisted game data. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
+- State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. When the restored route resolves to a game, `GameView.setup` lazily restores only the needed persisted game data. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
 - Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `GamesStore._hydrateWorkspace` then rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
 - Requirement verification: `Pass`. Session restore is lazy, route-driven, respects the restore setting, repairs invalid `activeGameId` values before the game view binds, and falls back deterministically to `/home` when restore cannot succeed.
 
@@ -171,9 +171,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `UserSettingService.getSettingsOrDefault` |
 | --- |
-| `SerializationService._parseJson` |
-| `SerializationService._migrateBySchemaVersion` |
-| `UserSettingService._migrateSnapshotOrDefault` |
+| `SerializationService.readSettingsDocument` |
+| `UserSettingService._createDefaultSettingsSnapshot` |
 | `UserSettingService._cacheAcceptedSettings` |
 
 | `UiStateStore.getLayoutStateOrDefault` |
@@ -375,7 +374,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 - UI surface coverage: `SettingsView` keeps category switching in a tab-style top strip, a secondary reset action area, and a primary bottom-right action row for `Cancel`, `Save`, and `Apply`.
 - Route coverage: settings category tabs map to `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, while invalid settings routes fall back to `/settings/session`.
-- State/settings coverage: `session.autoPauseOnMenu` applies only to timed `LiveWhiteTurn` and `LiveBlackTurn` contexts with `resultState = ongoing`. The stored pause owner prevents settings return from auto-resuming a manually paused game or a game paused for another reason such as live analysis. Accepted appearance updates reproject the root semantic CSS variables immediately, and system-theme subscription updates remain active only while `appearance.themeMode = ThemeMode.System`.
+- State/settings coverage: `gameSession.autoPauseOnMenu` applies only to timed `LiveWhiteTurn` and `LiveBlackTurn` contexts with `resultState = ongoing`. The stored pause owner prevents settings return from auto-resuming a manually paused game or a game paused for another reason such as live analysis. Accepted appearance updates reproject the root semantic CSS variables immediately, and system-theme subscription updates remain active only while `appearance.themeMode = ThemeMode.System`.
 - Requirement verification: `Pass`. Auto-pause remains policy-driven, dirty-form prompts stay in `UiStateStore` through the typed `AppModalKind.SettingsDirtyLeave` modal contract, and return routing does not depend on a still-valid game always existing.
 
 ### SCN-NAV-02 - Invalid Game Route Handling

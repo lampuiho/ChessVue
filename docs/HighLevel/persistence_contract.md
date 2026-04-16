@@ -121,7 +121,7 @@ Only after that game state is restored may live analysis resume.
 ## Persistence Boundary
 - `SerializationService` is the single layer-2 storage-backed persistence boundary for settings, game-session, UI-layout, and saved-game files.
 - `SerializationService` stays path-agnostic in the sense that callers supply explicit file paths; it does not decide which concrete file is being used.
-- `SavedGameIndexService` remains the pure owner of user-configurable managed-save root rules and managed-save file-path composition beneath `session.saveRootPath`.
+- `SavedGameIndexService` remains the pure owner of user-configurable managed-save root rules and managed-save file-path composition beneath `gameSession.saveRootPath`.
 - Build config owns the concrete app-managed file paths for settings, game-session, and UI-layout artefacts.
 
 ## On-Demand Recent Games Projection
@@ -131,7 +131,7 @@ Only after that game state is restored may live analysis resume.
 - File-path metadata needed to reopen a saved-file recent entry is derived from the selected saved target at query time.
 
 ## Internal Save File Organisation
-- `session.saveRootPath` defines the logical root for ChessVue's own save/load files.
+- `gameSession.saveRootPath` defines the logical root for ChessVue's own save/load files.
 - The default root is the relative path `saves`.
 - ChessVue creates one folder per canonical game beneath that root.
 - Each game folder may contain one autosave entry plus user-named save files that use the same canonical saved-game payload.
@@ -146,7 +146,7 @@ On restore, those persisted snapshots are restored with the game, and analysis m
 ## Internal Save Storage and External File Flows
 ### Autosave
 - Writes or replaces the dedicated autosave entry for one game using the canonical saved-game payload.
-- Triggered only by the configured move-count threshold in `session.autosaveAfterMoveCount` and the close trigger in `session.autosaveOnClose`.
+- Triggered only by the configured move-count threshold in `gameSession.autosaveAfterMoveCount` and the close trigger in `gameSession.autosaveOnClose`.
 - Settings, game-session state, and UI-layout state remain separate persisted artefacts rather than becoming part of the autosave trigger definition.
 
 ### Internal Save File
@@ -197,7 +197,7 @@ The app must isolate bad payloads instead of failing the whole launch or import 
 - Broader external formats are deferred to [ideas.md](ideas.md).
 
 ## Restore Policy Note
-- `session.restorePreviousSession` controls whether the game-session snapshot is used to reopen prior tabs and the active route.
+- `gameSession.restorePreviousSession` controls whether the game-session snapshot is used to reopen prior tabs and the active route.
 - That setting does not block loading UI-layout state; remembered panel visibility and fold state may still be restored independently.
 
 ## Non-Baseline Exclusions

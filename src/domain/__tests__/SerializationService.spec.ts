@@ -40,7 +40,7 @@ function getNode(tree: IMoveTree, path: MovePath): IMoveNode {
 function createSettingsSnapshot(): ISettingsSnapshot {
   return {
     schemaVersion: 1,
-    session: {
+    gameSession: {
       restorePreviousSession: true,
       saveRootPath: 'saves',
       autosaveAfterMoveCount: 1,
