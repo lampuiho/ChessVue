@@ -15,7 +15,7 @@ interface IEventRegistration<TCallback> {
   callback: TCallback;
 }
 
-function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
+function _createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
   return { kind, operation, message, detail };
 }
 export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
@@ -124,7 +124,7 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
     }
     function _toPlatformError(operation: string, error: unknown): IPlatformError {
       if (typeof error === 'object' && error !== null && 'kind' in error && 'message' in error) return { ...(error as IPlatformError), operation };
-      return createPlatformError(PlatformErrorKind.UnexpectedExit, operation, error instanceof Error ? error.message : 'Unknown platform event failure.');
+      return _createPlatformError(PlatformErrorKind.UnexpectedExit, operation, error instanceof Error ? error.message : 'Unknown platform event failure.');
     }
 
     const platformService = { getStorageAdapter, getProcessManager, getSystemThemeAdapter, getEngineClient, subscribeToAppCloseRequested, subscribeToAppFocusReturned, subscribeToSystemThemeChanged, getEventRegistrationSnapshot } satisfies IPlatformService;

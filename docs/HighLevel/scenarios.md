@@ -3,7 +3,7 @@
 ## Purpose
 This document translates high-level product features into actionable user scenarios.
 
-The goal is to map **user actions -> branch paths -> low-level function implications** so low-level design can define concrete function contracts with fewer gaps.
+The goal is to map **user actions -> branch paths -> implementation ownership implications** so low-level design can define concrete contracts with fewer gaps.
 
 This is a design artifact only. It introduces no runtime code/API changes.
 
@@ -17,7 +17,7 @@ This is a design artifact only. It introduces no runtime code/API changes.
 - **Analysis Contexts**:
   - `Free analysis / setup`: no live game progression, board editing allowed, can transition into a started game.
   - `In-game analysis mode`: entered from an active game, board editing not allowed, user can explore moves without progressing the live game.
-- **Function Touchpoints** reference low-level modules/functions to guide implementation interfaces.
+- **Implementation Touchpoints** reference likely responsible stores/services/modules. They are intentionally high level and should not be read as fixed function names.
 
 ## Rewrite Baseline
 - `Current` and `Planned` scenarios are rewrite input.
@@ -97,7 +97,7 @@ Each scenario in this document uses the same structure:
 - `Main Steps`
 - `Branch Paths`
 - `Postconditions`
-- `Function Touchpoints`
+- `Implementation Touchpoints`
 
 ---
 
@@ -119,7 +119,7 @@ Each scenario in this document uses the same structure:
   - `BR-SESSION-01-INIT-FAIL`: If any persisted read fails unexpectedly, app falls back to safe defaults and logs recoverable error.
   - `BR-SESSION-01-HOME-FALLBACK`: If the preferred home screen cannot be restored, app still shows a neutral landing state without auto-creating a game.
 - **Postconditions**: User can start a new game, load a game, or open settings without restart.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `Router.createRouterInstance`
   - `Router.setupRoutes`
   - `SettingsStore.loadSettings`
@@ -143,7 +143,7 @@ Each scenario in this document uses the same structure:
   - `BR-SESSION-02-MISSING-GAME`: Persisted `currentGameId` not found -> route to first valid game or home.
   - `BR-SESSION-02-PARTIAL-STATE`: UI state exists but games do not -> keep UI preferences, reset active game.
 - **Postconditions**: Prior session context is restored where valid; invalid pieces are safely repaired.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `UiStateStore.loadLayoutState`
   - `UiStateStore.loadGameSession`
   - `GamesStore.loadGame`
@@ -166,7 +166,7 @@ Each scenario in this document uses the same structure:
   - `BR-SESSION-03-SETTINGS-CORRUPT`: Settings payload invalid -> `resetSettings` fallback.
   - `BR-SESSION-03-GAME-MIGRATE`: Legacy game shape detected -> migrate before load.
 - **Postconditions**: App remains usable; bad persistence does not block launch.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `SerializationService.deserialiseGame`
   - `SerializationService.migrateGame`
   - `SettingsStore.resetSettings`
@@ -191,7 +191,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-01-CANCEL`: If confirmation modal exists and user cancels, no game is created.
   - `BR-GAME-01-PERSIST-FAIL`: If save-on-create fails, game remains in memory and user is warned.
 - **Postconditions**: New game context becomes active unless canceled.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.quickNewGameRequested`
   - `GamesStore.createGame`
   - `UiStateStore.setActiveGame`
@@ -214,7 +214,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-02-ENGINE-MISSING`: Selected required engine unavailable -> block creation until the setup is corrected.
   - `BR-GAME-02-FREE-ANALYSIS-START`: If either side is assigned `none`, initialize free analysis/setup permissions and enable engine analysis on moves when engines were configured at creation.
 - **Postconditions**: Game starts with validated custom settings, including the persisted per-game live-analysis move preference when the result is a live game.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.customNewGameRequested`
   - `NewGameModal.createRequested`
   - `GamesStore.createGame`
@@ -236,7 +236,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-03-ONE-TAB`: If only one game remains, tab bar hides.
   - `BR-GAME-03-INVALID-TARGET`: If selected game no longer exists, fallback to first valid game/home.
 - **Postconditions**: Navigation remains deterministic; hidden-tab rule is respected.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameTabs.tabSelected`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.getCurrentGameId`
@@ -263,7 +263,7 @@ Each scenario in this document uses the same structure:
   - `BR-NAV-01-NO-GAME-RETURN`: No active game available on return -> route to home/default.
   - `BR-NAV-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, settings open without pausing the clock.
 - **Postconditions**: Settings are persisted or intentionally discarded; navigation context remains clear.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.settingsRequested`
   - `GameControlPanel.pauseRequested`
   - `SettingsStore.loadSettings`
@@ -285,7 +285,7 @@ Each scenario in this document uses the same structure:
   - `BR-NAV-02-HAS-GAMES`: Redirect to first available game.
   - `BR-NAV-02-NO-GAMES`: Redirect to home/new-game prompt.
 - **Postconditions**: User never lands in broken game view.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `Router.beforeRouteEnterGuard`
   - `Router.beforeEachRouteGuard`
   - `GamesStore.getGame`
@@ -306,7 +306,7 @@ Each scenario in this document uses the same structure:
   - `BR-NAV-03-MISSING-ENTRY`: The selected recent entry no longer resolves -> reload the recent list and keep the user on `HomeView`.
   - `BR-NAV-03-LOAD-FAIL`: Referenced game file is invalid or unreadable -> route through the normal invalid-load error flow.
 - **Postconditions**: A valid recent entry opens as the active game; invalid recent entries are removed without breaking the home screen.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `RecentGameStore.loadRecentGames`
   - `SavedGamesStore.getRecentGamePath`
   - `SavedGameIndexService.getAutosaveFilePath`
@@ -333,7 +333,7 @@ Each scenario in this document uses the same structure:
   - `BR-MOVE-01-STALE-POS`: If position changed before submission (race), reject move and refresh legal map.
   - `BR-MOVE-01-GAME-OVER`: If move ends game, transition either to `Checkmate` or to non-live analysis with the recorded result, and stop further live moves.
 - **Postconditions**: Move is committed once, reflected across board/history/clock/analysis.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `Chessboard.moveAttempt`
   - `GameRuleService.generateLegalMoves`
   - `GameRuleService.isMoveLegal`
@@ -357,7 +357,7 @@ Each scenario in this document uses the same structure:
   - `BR-MOVE-02-SAME-SQUARE`: Click source again -> cancel selection.
   - `BR-MOVE-02-OUT-OF-TURN`: Attempt while not player turn -> no-op + warning.
 - **Postconditions**: No state mutation on invalid move.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `Chessboard.onSquareClick`
   - `GameRuleService.isMoveLegal`
   - `GamesStore.makeMove`
@@ -375,7 +375,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-MOVE-03-CANCEL`: User closes promotion UI -> no `IMove` is submitted.
 - **Postconditions**: Promotion move is explicit and deterministic.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `Chessboard.moveAttempt`
   - `GameRuleService.isMoveLegal`
   - `GamesStore.makeMove`
@@ -394,7 +394,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
 - **Postconditions**: Board and analysis context match selected history node.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `HistoryPanel.onNavigateNode`
   - `GamesStore.navigateToNode`
   - `MoveUpdateService.getPosition`
@@ -416,7 +416,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-02-CONFIRM-REWRITE`: Require confirmation before changing which continuation is marked as mainline.
   - `BR-HIST-02-DECLINE-REWRITE`: User declines rewrite -> move canceled, remain in review.
 - **Postconditions**: Mainline pointer changes to the new continuation, while the old continuation remains visible as a variation.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MoveUpdateService.takeback`
   - `MoveUpdateService.addMainlineMove`
   - `GamesStore.makeMove`
@@ -435,7 +435,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-03-AUTO-RETURN`: App auto-returns to live node after analysis move.
   - `BR-HIST-03-STAY-BRANCH`: App remains on branch until user explicitly returns.
 - **Postconditions**: Live game line preserved; analysis branch captured separately.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MoveUpdateService.addAnalysisMove`
   - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
@@ -455,7 +455,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-04-NO-CLEANUP`: Analysis did not originate from the latest live node, or live play resumed from a different node -> no automatic cleanup path runs.
   - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
 - **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MoveUpdateService.pruneFutureMoves`
   - `GamesStore.exitInGameAnalysis`
   - `GamesStore.makeMove`
@@ -478,7 +478,7 @@ Each scenario in this document uses the same structure:
   - `BR-FREE-ANALYSIS-01-ENGINE-NOT-RUNNING`: Engine start fails -> keep the setup context usable and show actionable error.
   - `BR-FREE-ANALYSIS-01-NO-ENGINES`: If no engines were configured, free analysis remains available without evaluation lines.
 - **Postconditions**: User can explore, analyze, and prepare a starting position before a real game begins.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.createGame`
   - `GamesStore.reassignPlayer`
   - `GamesStore.makeMove`
@@ -501,7 +501,7 @@ Each scenario in this document uses the same structure:
   - `BR-FREE-ANALYSIS-02-CLEAR-CONFIRM`: If history exists, app asks for confirmation before clearing it.
   - `BR-FREE-ANALYSIS-02-ENGINE-REFRESH-FAIL`: If engines cannot refresh on the edited position, keep the edited board and show evaluation as unavailable.
 - **Postconditions**: The edited position becomes the current free-analysis root and old move history is removed when confirmed.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
   - `MoveUpdateService.createMoveTree`
@@ -524,7 +524,7 @@ Each scenario in this document uses the same structure:
   - `BR-FREE-ANALYSIS-03-INVALID-ENGINE`: If a required engine for the started game is unavailable, block the transition until setup is corrected.
   - `BR-FREE-ANALYSIS-03-CANCEL`: User cancels start-game flow -> remain in free analysis / setup.
 - **Postconditions**: A real game begins from the prepared position, and the earlier free-analysis history remains available.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.startGameFromSetup`
   - `EnginesStore.getEngine`
   - `UiStateStore.showModal`
@@ -551,7 +551,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
   - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
 - **Postconditions**: The latest valid eval for the active position is available on the game-owned analysis data, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameView.onStartAnalysis`
   - `GamesStore.refreshAnalysis`
   - `GamesStore._applyAnalysisUpdate`
@@ -576,7 +576,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, engine rows still update independently without rendering move lists.
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `EnginesStore.listConfiguredEngines`
   - `GamesStore.refreshAnalysis`
   - `GamesStore._applyAnalysisUpdate`
@@ -598,7 +598,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-03-RETRY-SUCCESS`: Restart succeeds and analysis resumes.
   - `BR-ANALYSIS-03-RETRY-FAIL`: Restart fails repeatedly -> suggest settings edit/remove.
 - **Postconditions**: Engine failures are isolated and recoverable, and the last streamed best line remains visible until replaced by a new search.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.stopAnalysis`
   - `EngineRuntimeService.stopEngine`
   - `GamesStore.retryAnalysis`
@@ -623,7 +623,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `gameplay.takebackPolicy = analysisOnly`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
 - **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `AnalysisPanel.moveSelected`
   - `GameRuleService.isMoveLegal`
   - `MoveUpdateService.addAnalysisMove`
@@ -650,7 +650,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-05-START-FAIL`: Added engine cannot start for the current position -> keep the assignment with unavailable feedback and allow retry or removal.
   - `BR-ANALYSIS-05-BOARD-EDIT`: Current workspace is in `boardEdit` -> block live analysis start until board editing ends.
 - **Postconditions**: The current game's ordered copied analysis-engine rows update independently from other games, and those copied engines begin or end analysis accordingly.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `AnalysisPanel.analysisEngineAddRequested`
   - `AnalysisPanel.analysisEngineRemoveRequested`
   - `UiStateStore.showModal`
@@ -679,7 +679,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-01-BACKGROUND-THROTTLE`: App tab inactive -> recompute from timestamps on resume.
   - `BR-TIME-01-SYNC-DRIFT`: Drift detected -> normalize to authoritative relative time model.
 - **Postconditions**: Clock remains consistent through normal and throttled runtime conditions.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameView.onTimerTick`
   - `TimeControlService.getRemainingTime`
   - `TimeControlService.applyMove`
@@ -698,7 +698,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-02-DOUBLE-PAUSE`: Pause clicked while already paused -> no-op.
   - `BR-TIME-02-RESUME-GAME-OVER`: Resume attempt after game end -> blocked.
 - **Postconditions**: Pause state is explicit and non-destructive.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameControlPanel.pauseRequested`
   - `TimeControlService.getRemainingTime`
 
@@ -716,7 +716,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-03-NO-INCREMENT`: Preset has zero increment -> skip add step.
   - `BR-TIME-03-INVALID-CONFIG`: Invalid increment config -> fallback to preset default.
 - **Postconditions**: Clock math follows selected time-control policy.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `TimeControlService.applyMove`
 
   - `GamesStore.makeMove`
@@ -736,7 +736,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-04-LAG-COMPENSATE`: Negative time due to render lag -> clamp to zero and finalize once.
   - `BR-TIME-04-ANALYSIS-ONLY`: Analysis mode still allowed after timeout while game result remains fixed.
 - **Postconditions**: Timeout result is deterministic and prevents further live play.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameView.onTimerTick`
   - `TimeControlService.getRemainingTime`
   - `GamesStore.syncClock`
@@ -760,7 +760,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-05-NON-TIMED-GAME`: If the game has no active clock, no pause action is required.
   - `BR-TIME-05-ALREADY-PAUSED`: If the game is already paused, menu flow continues without changing pause state.
 - **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled, and normal play resumes automatically on return.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.saveGameRequested`
   - `MenuBar.settingsRequested`
   - `GameControlPanel.pauseRequested`
@@ -780,7 +780,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-01-NO-MOVES`: No moves available -> disable button/no-op.
   - `BR-CTRL-01-POLICY-BLOCK`: Takeback disabled by mode/rules -> show blocked reason.
 - **Postconditions**: Game state matches selected rewind point.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameControlPanel.takeBackRequested`
   - `GamesStore.takeBack`
   - `MoveUpdateService.takeback`
@@ -800,7 +800,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-02-CANCEL`: User cancels confirmation -> game continues.
   - `BR-CTRL-02-ALREADY-ENDED`: Resign action blocked if game already ended.
 - **Postconditions**: Result is final and clearly visible.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameControlPanel.resignRequested`
   - `UiStateStore.showModal`
   - `GamesStore.saveGame`
@@ -824,7 +824,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-03-NON-LOCAL-NO-RESPONSE`: The current non-local adapter exposes no draw-response callback -> keep game ongoing until the user withdraws the outgoing offer, accepts an incoming offer through the lit indicator path, or another result path resolves it.
   - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
 - **Postconditions**: Draw resolution is explicit and persisted.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameControlPanel.drawRequested`
   - `UiStateStore.showModal`
   - `GamesStore.offerDraw`
@@ -847,7 +847,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-04-LATEST-NODE-VARIATION`: When analysis started from the latest live node, exploratory continuations may remain visible as variations until a later real live move supersedes them.
   - `BR-CTRL-04-LIVE-CONFLICT`: Attempt to submit live move while in analysis mode -> block or force exit.
 - **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode always returns the screen to the live game position without a keep-or-discard prompt.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameControlPanel.enterInGameAnalysisRequested`
   - `MoveUpdateService.addAnalysisMove`
   - `GamesStore.exitInGameAnalysis`
@@ -867,7 +867,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-05-GO-TO-SETUP`: If the product offers a shortcut, user may leave the live game context and open free analysis / setup instead.
   - `BR-CTRL-05-CANCEL`: User dismisses the explanation and remains in in-game analysis mode.
 - **Postconditions**: Live-game analysis remains move-based only; board editing stays isolated to free analysis / setup.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
 
@@ -890,7 +890,7 @@ Each scenario in this document uses the same structure:
   - `BR-SAVE-01-CLOSE-DISABLED`: `gameSession.autosaveOnClose = false` -> close flow does not write an autosave entry.
   - `BR-SAVE-01-WRITE-FAIL`: Autosave write fails -> keep in-memory state and surface recoverable failure for later retry.
 - **Postconditions**: The autosave entry is refreshed only when the configured trigger fires, and a later restore can reproduce the same game workspace state without depending on UI or engine runtime snapshots.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.saveGame`
   - `SavedGameIndexService.getAutosaveFilePath`
   - `SerializationService.writeGameDocument`
@@ -916,7 +916,7 @@ Each scenario in this document uses the same structure:
   - `BR-SAVE-02-NO-CURRENT-GAME`: If no current game exists, the route is blocked or redirected because save requires one selected game.
   - `BR-SAVE-02-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, save proceeds without pausing the clock.
 - **Postconditions**: The user reaches a consistent route-level save surface without leaving the app context, and the save screen is ready for creating or replacing a save entry for the current game.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.saveGameRequested`
   - `GameControlPanel.pauseRequested`
   - `Router.push`
@@ -942,7 +942,7 @@ Each scenario in this document uses the same structure:
   - `BR-SAVE-03-IO-ERROR`: Save write fails -> show retry guidance and keep the save view open.
   - `BR-SAVE-03-EMPTY-NAME`: Save name is blank or invalid -> block save and keep focus in the text box.
 - **Postconditions**: The selected game has a new or replaced internal save entry in its game folder, and the same canonical payload is available for later internal load.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `UiStateStore.showModal`
   - `GamesStore.saveGame`
   - `SavedGameIndexService.getNamedSaveFilePath`
@@ -975,7 +975,7 @@ Each scenario in this document uses the same structure:
   - `BR-LOAD-01-NO-SELECTION`: User presses `Select` without a selected game on `/saved-games/load` -> keep the user on the grouped game list and block navigation.
   - `BR-LOAD-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, load proceeds without pausing the clock.
 - **Postconditions**: The selected internal save opens as an active game, whether reached through direct double-click latest-load or the nested `/saved-games/load/:name` save-list route, and live analysis resumes afterwards when engines are available.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.loadGameRequested`
   - `GameControlPanel.pauseRequested`
   - `Router.push`
@@ -1005,7 +1005,7 @@ Each scenario in this document uses the same structure:
   - `BR-EXPORT-01-IO-ERROR`: File write fails -> show retry guidance.
   - `BR-EXPORT-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, export proceeds without pausing the clock.
 - **Postconditions**: Export either succeeds once or fails with a clear recovery path, and the external file contains the same canonical payload shape used by internal save files.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.exportGameRequested`
   - `GameControlPanel.pauseRequested`
   - `SavedGamesStore.exportGame`
@@ -1031,7 +1031,7 @@ Each scenario in this document uses the same structure:
   - `BR-IMPORT-01-DUPLICATE-ID`: Imported game ID collides -> remap ID before insert.
   - `BR-IMPORT-01-MIGRATION`: Older schema detected -> migrate then persist upgraded format on the next normal save cycle.
 - **Postconditions**: Imported game is available and routable, the user first sees the restored game state from the selected file, and live analysis resumes afterwards when engines are available.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `MenuBar.importGameRequested`
   - `SavedGamesStore.importGame`
   - `SerializationService.selectImportFile`
@@ -1053,7 +1053,7 @@ Each scenario in this document uses the same structure:
   - `BR-IMPORT-02-UNSUPPORTED`: Unsupported format -> suggest accepted file types.
   - `BR-IMPORT-02-INCOMPLETE`: Required canonical payload sections missing -> reject as invalid document and preserve current session state.
 - **Postconditions**: No existing game data is overwritten by bad import.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `SerializationService.selectImportFile`
   - `SerializationService.readGameDocument`
   - `GamesStore.loadGame`
@@ -1073,7 +1073,7 @@ Each scenario in this document uses the same structure:
   - `BR-SETTINGS-01-INVALID-VALUE`: Value fails schema validation -> block save and show field errors.
   - `BR-SETTINGS-01-APPLY-FAIL`: Apply-on-save fails partially -> persist known-good subset.
 - **Postconditions**: Approved preferences are applied and persisted.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `SettingsView.onApply`
   - `SettingsView.onSave`
   - `SettingsStore.updateSettings`
@@ -1095,7 +1095,7 @@ Each scenario in this document uses the same structure:
   - `BR-SETTINGS-02-CANCEL`: User cancels reset -> no change.
   - `BR-SETTINGS-02-PERSIST-FAIL`: Reset applied in memory but persistence fails -> surface retry.
 - **Postconditions**: Settings match defined default schema unless canceled.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `SettingsView.onReset`
   - `SettingsStore.resetSettings`
   - `SettingsStore.saveSettings`
@@ -1116,7 +1116,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-ENGINE-01-DUPLICATE`: Duplicate engine profile name -> block save until the name is made unique.
 - **Postconditions**: Engine list contains unique named profiles staged through the settings draft. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `SettingsStore.updateSettings`
   - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
@@ -1139,7 +1139,7 @@ Each scenario in this document uses the same structure:
   - `BR-ENGINE-02-DUPLICATE-COPY`: Copied profile keeps a colliding name -> block save until renamed.
   - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged because their games already hold copied in-game engine payloads, while removing that profile from future assignment choices.
 - **Postconditions**: The saved engine profile list is updated for future assignments. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `SettingsStore.updateSettings`
   - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
@@ -1163,7 +1163,7 @@ Each scenario in this document uses the same structure:
   - `BR-ENGINE-03-TURN-IN-FLIGHT`: The replaced engine had an active turn search -> stop that turn-scoped session before the reassignment is committed.
   - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start for a newly due live turn -> keep the new assignment with unavailable feedback and allow a later retry or another reassignment.
 - **Postconditions**: Player reassignment updates only the current game. Live games preserve their existing time control and clock state when they stay live, while transitions to `free analysis / setup` preserve board and move-tree history for any later `start game from setup` flow.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `PlayerPanel.playerSelectionRequested`
   - `UiStateStore.showModal`
   - `EnginesStore.createPlayer`
@@ -1187,7 +1187,7 @@ Each scenario in this document uses the same structure:
   - `BR-LIFECYCLE-01-CANCEL`: User cancels deletion.
   - `BR-LIFECYCLE-01-NOT-FOUND`: Target missing at commit time -> no-op with refresh.
 - **Postconditions**: Deleted game is no longer listed/routable.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.deleteGame`
   - `GamesStore.listGames`
   - `SerializationService.deleteDocument`
@@ -1207,7 +1207,7 @@ Each scenario in this document uses the same structure:
   - `BR-LIFECYCLE-02-HAS-FALLBACK`: Another game exists -> switch to neighbor/first game.
   - `BR-LIFECYCLE-02-LAST-GAME`: No games remain -> route to home/new-game prompt.
 - **Postconditions**: No dangling `currentGameId` or invalid game route remains.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.deleteGame`
   - `GamesStore.listGames`
   - `UiStateStore.setActiveGame`
@@ -1230,7 +1230,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-01-MISSING-PRESET`: Preset missing -> fallback to default quick game.
 - **Postconditions**: Faster entry into common play modes.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.createGame`
   - `UiStateStore.setActiveGame`
 
@@ -1246,10 +1246,10 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-04-DUPLICATE-BOOKMARK`: Same FEN already bookmarked -> merge or increment counter.
 - **Postconditions**: Users can curate study points during play/analysis.
-- **Function Touchpoints**:
-  - `MoveUpdateService.getPosition`
-  - `GamesStore.getVisibleAnalysis`
-  - `StorageAdapter.writeTextFile`
+- **Implementation Touchpoints**:
+  - `GamesStore`
+  - `AnalysisStore`
+  - `SerializationService`
 
 ### SCN-IDEA-05 - Explain Evaluation Panel
 - **Status**: Idea
@@ -1263,7 +1263,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-05-NO-EXPLANATION`: Engine lacks explain mode -> show score-only fallback.
 - **Postconditions**: Better interpretability for non-expert users.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.getVisibleAnalysis`
   - `AnalysisPanel.renderAnalysisLines`
 
@@ -1279,7 +1279,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-06-STACK-EMPTY`: Undo/redo unavailable at stack bounds.
 - **Postconditions**: Exploration becomes faster than manual node clicking.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore.navigateToNode`
   - `MoveUpdateService.addAnalysisMove`
 
@@ -1295,7 +1295,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-07-MAX-RETRY`: Retry limit reached -> disable engine and notify user.
 - **Postconditions**: Better resilience for unstable engine binaries.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GamesStore._pollAnalysisSessionHealth`
   - `GamesStore.refreshAnalysis`
   - `GamesStore.getVisibleAnalysis`
@@ -1312,7 +1312,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-08-UNSUPPORTED-ENGINE`: Selected engine cannot handle variant -> warn and continue without engine.
 - **Postconditions**: Variant choice consistently affects rules, setup, and engine compatibility.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `GameRuleService.isMoveLegal`
   - `GameRuleService.generateLegalMoves`
   - `SerializationService.serialiseGame`
@@ -1330,7 +1330,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-09-PERSIST-PREF`: Panel preference save fails -> use in-memory-only layout state.
 - **Postconditions**: Core tasks remain usable on mobile aspect ratios.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `UiStateStore.saveLayoutState`
 
 ### SCN-IDEA-10 - Batch Import/Export Games
@@ -1345,11 +1345,10 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-10-PARTIAL-BATCH-FAIL`: Some items fail; successful items still committed.
 - **Postconditions**: Power users can migrate larger game sets efficiently.
-- **Function Touchpoints**:
-  - `StorageAdapter.readTextFile`
-  - `StorageAdapter.writeTextFile`
-  - `GamesStore.createGame`
-  - `GamesStore.listGames`
+- **Implementation Touchpoints**:
+  - `SavedGamesStore`
+  - `GamesStore`
+  - `SerializationService`
 
 ### SCN-IDEA-11 - Tab Switching Auto-Pause
 - **Status**: Idea
@@ -1363,7 +1362,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-IDEA-11-DISABLED`: If tab-switch auto-pause is disabled, tab change does not affect the clock.
 - **Postconditions**: Tab navigation can be reviewed later as an extension of menu auto-pause behavior.
-- **Function Touchpoints**:
+- **Implementation Touchpoints**:
   - `UiStateStore.setActiveGame`
   - `GameControlPanel.pauseRequested`
   - `TimeControlService.getRemainingTime`
@@ -1373,9 +1372,10 @@ Each scenario in this document uses the same structure:
 ## Coverage Notes
 - All major high-level features from `docs/HighLevel/plan.md` are represented by at least one scenario.
 - Every scenario includes at least one explicit non-happy-path branch.
-- All branch paths are tied to module-level function touchpoints for low-level design traceability.
+- All branch paths are tied to high-level implementation touchpoints for low-level design traceability.
 - The contract map above provides the baseline trace from each `Current` and `Planned` scenario to the four implementation-shaping contracts.
 - `Idea` scenarios are isolated in a dedicated review section, are catalogued in `ideas.md`, and are not implied implementation commitments.
+
 
 
 

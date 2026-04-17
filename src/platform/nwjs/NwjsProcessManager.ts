@@ -11,7 +11,7 @@ interface IProcessSession {
   process: ISpawnedProcess;
 }
 
-function createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
+function _createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
   return { kind, operation, message, detail };
 }
 export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
@@ -36,7 +36,7 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
         };
         const handleError = (error: Error & { code?: string }) => {
           cleanup();
-          reject(createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', `Process failed to start: ${executablePath}.`, error.message));
+          reject(_createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', `Process failed to start: ${executablePath}.`, error.message));
         };
         const cleanup = () => {
           process.removeListener('spawn', handleSpawn);
@@ -64,7 +64,7 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
     }
     function _getSession(processHandle: ProcessHandle): IProcessSession {
       const session = sessionByHandle.get(processHandle);
-      if (session === undefined) throw createPlatformError(PlatformErrorKind.InvalidProcessHandle, 'process', `Process handle is no longer valid: ${processHandle}.`);
+      if (session === undefined) throw _createPlatformError(PlatformErrorKind.InvalidProcessHandle, 'process', `Process handle is no longer valid: ${processHandle}.`);
       return session;
     }
 
