@@ -1,6 +1,6 @@
 import { MoveKind, PieceKind, PlayerColour, type IAnalysisLine, type IBoardPosition, type IEngineAnalysisUpdate, type IEnginePositionState, type IEngineRegistrationRequest, type IMove } from '@/contracts';
-import { GameRuleService } from '@/domain';
 import { Deferred } from '@/utility/async/Deferred';
+import { applyMove, generateLegalMoves } from '@/utility/chess';
 
 export interface IUciLineWaiter {
   predicate(line: string): boolean;
@@ -70,7 +70,7 @@ function parsePromotionPiece(token: string | undefined): PieceKind | undefined {
 }
 export function parseUciMove(position: IBoardPosition, raw: string): IMove {
   const uci = raw.trim().toLowerCase();
-  const legalMoves = GameRuleService.generateLegalMoves(position);
+  const legalMoves = generateLegalMoves(position);
   for (const candidate of legalMoves) {
     const candidatePrefix = `${boardIdToNotation(candidate.from)}${boardIdToNotation(candidate.to)}`;
     if (!uci.startsWith(candidatePrefix)) continue;
@@ -85,7 +85,7 @@ function applyPv(position: IBoardPosition, rawMoves: string[]): IMove[] {
   for (const rawMove of rawMoves) {
     const move = parseUciMove(currentPosition, rawMove);
     moves.push(move);
-    currentPosition = GameRuleService.applyMove(currentPosition, move);
+    currentPosition = applyMove(currentPosition, move);
   }
   return moves;
 }

@@ -14,8 +14,8 @@ import {
   type MovePath,
 } from '@/contracts';
 import type { IFileSystemEntry, IWriteTextFileOptions } from '@/contracts/platform';
-import { PositionIdentityService } from '@/domain';
 import { usePlatformService } from '@/platform';
+import { buildPositionKey } from '@/utility/chess';
 
 import { SerializationError } from '../errors/SerializationError';
 
@@ -61,7 +61,7 @@ function _validateGame(game: IGame): void {
   _validateMoveTree(game.moveTree);
   _getNodeAtPath(game.moveTree, game.highlightPath, 'Saved game highlightPath');
   if (game.livePath !== undefined) _getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
-  if (PositionIdentityService.buildPositionKey(game.moveTree.root.position) !== PositionIdentityService.buildPositionKey(game.boardRoot)) {
+  if (buildPositionKey(game.moveTree.root.position) !== buildPositionKey(game.boardRoot)) {
     throw new SerializationError('Saved game boardRoot must match the move-tree root position.');
   }
 }

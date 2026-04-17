@@ -2,8 +2,8 @@ import { defineStore } from 'pinia';
 
 import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
-import { PositionIdentityService } from '@/domain';
 import { Deferred } from '@/utility/async/Deferred';
+import { buildPositionKey } from '@/utility/chess';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 import { buildPositionCommand, buildRegistrationCommand, createUciSession, failUciSession, type IUciLineWaiter, type IUciSession as IBaseUciSession, parseBestMoveLine, parseInfoLine, stopUciSession } from '../../utility/UciUtility';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
@@ -163,7 +163,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     }
     function _buildAnalysisUpdate(positionState: IEnginePositionState, analysisLines: Map<number, IAnalysisLine>, isFinal: boolean, bestMove: IMove | undefined): IEngineAnalysisUpdate {
       const lines = [...analysisLines.entries()].sort((left, right) => left[0] - right[0]).map(([, line]) => line);
-      return { position: structuredClone(positionState.currentPosition), positionKey: PositionIdentityService.buildPositionKey(positionState.currentPosition), bestMove: bestMove ?? lines[0]?.pv[0], lines, isFinal };
+      return { position: structuredClone(positionState.currentPosition), positionKey: buildPositionKey(positionState.currentPosition), bestMove: bestMove ?? lines[0]?.pv[0], lines, isFinal };
     }
     function _waitForLine(session: IUciSession, predicate: (line: string) => boolean): Promise<string> {
       return new Promise<string>((resolve, reject) => {
