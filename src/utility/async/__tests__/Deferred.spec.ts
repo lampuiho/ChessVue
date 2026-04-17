@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Deferred } from '../async/Deferred';
+import { Deferred } from '../Deferred';
 
 describe('Deferred', () => {
   it('is awaitable and resolves to the provided value', async () => {
