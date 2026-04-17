@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineProtocol, GameState, PlatformErrorKind, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IEnginePositionState, type IGame } from '@/contracts';
 import { EngineRuntimeService, GameRuleService, MoveUpdateService, PositionIdentityService, SerializationService, TimeControlService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
-import type { IEngineAnalysisUpdate } from '@/platform';
+import type { IEngineAnalysisUpdate } from '@/contracts/platform';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);

@@ -1,10 +1,9 @@
 import { defineStore } from 'pinia';
 
 import { PlatformErrorKind, type IPlatformError } from '@/contracts';
+import type { IFileSystemEntry, IStorageAdapter, IWriteTextFileOptions } from '@/contracts/platform';
 import { getNodeFs, getNodePath } from '@/utility/nwjs/NodeUtility';
 import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
-
-import type { IFileSystemEntry, IStorageAdapter, IWriteTextFileOptions } from '../contracts';
 
 interface IFileDialogInput extends HTMLInputElement {
   oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null;

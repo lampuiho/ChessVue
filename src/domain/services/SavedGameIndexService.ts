@@ -1,17 +1,5 @@
-import type { IFileSystemEntry } from '@/platform';
-
-export interface ISavedGameFileEntry {
-  gameId: string;
-  saveName: string;
-  filePath: string;
-  savedAtUtc?: string;
-  isAutosave: boolean;
-}
-export interface ISavedGameGroup {
-  gameId: string;
-  gameFolderPath: string;
-  saves: ISavedGameFileEntry[];
-}
+import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
+import type { IFileSystemEntry } from '@/contracts/platform';
 
 function normalisePath(targetPath: string): string {
   const normalisedPath = targetPath.replace(/\\/g, '/').replace(/\/+/g, '/');

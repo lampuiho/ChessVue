@@ -1,4 +1,4 @@
-import { PlayerColour, TimeControlPreset, type IClockSnapshot, type ITimeControl } from '../../contracts';
+import { PlayerColour, TimeControlPreset, type IClockSnapshot, type ITimeControl } from '@/contracts';
 
 function parseUtc(utc: string): number {
   const parsed = Date.parse(utc);

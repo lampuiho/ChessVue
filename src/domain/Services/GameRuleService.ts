@@ -1,4 +1,4 @@
-import { MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '../../contracts';
+import { MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '@/contracts';
 
 import { cloneBoardPosition, findKingBoardId, getOpponentColour, normaliseBoardPosition } from '@/utility/chess/BoardUtility';
 import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank, getPromotionRank } from '@/utility/chess/SquareUtility';

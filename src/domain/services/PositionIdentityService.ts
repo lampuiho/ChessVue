@@ -1,4 +1,4 @@
-import type { IBoardPosition } from '../../contracts';
+import type { IBoardPosition } from '@/contracts';
 
 function buildCastlingField(position: IBoardPosition): string {
   return [

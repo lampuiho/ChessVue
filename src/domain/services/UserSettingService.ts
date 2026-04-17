@@ -1,8 +1,7 @@
 import { AnalysisBranchExitBehaviour, BoardOrientation, PlatformErrorKind, PlayerType, PromotionPolicy, ResolvedThemeMode, TakebackPolicy, ThemeMode, TimeControlPreset, type IPlatformError, type ISettingsSnapshot } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
+import { SerializationService } from '@/domain';
 import { usePlatformService } from '@/platform';
-
-import { SerializationService } from './SerializationService';
 
 let _cachedSettings: ISettingsSnapshot | undefined;
 

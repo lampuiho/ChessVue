@@ -1,5 +1,6 @@
 import { ResolvedThemeMode } from '@/contracts';
-import { usePlatformService, type IPlatformEventRegistration } from '@/platform';
+import type { IPlatformEventRegistration } from '@/contracts/platform';
+import { usePlatformService } from '@/platform';
 
 export const PlatformEventService = {
   subscribeToAppCloseRequested(owner: string, onCloseRequested: () => Promise<void> | void, debugLabel?: string): () => void {

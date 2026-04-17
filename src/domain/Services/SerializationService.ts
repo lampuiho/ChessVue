@@ -12,11 +12,12 @@ import {
   type ISettingsSnapshot,
   type IUiLayoutState,
   type MovePath,
-} from '../../contracts';
-import { usePlatformService, type IFileSystemEntry, type IWriteTextFileOptions } from '@/platform';
+} from '@/contracts';
+import type { IFileSystemEntry, IWriteTextFileOptions } from '@/contracts/platform';
+import { PositionIdentityService } from '@/domain';
+import { usePlatformService } from '@/platform';
 
 import { SerializationError } from '../errors/SerializationError';
-import { PositionIdentityService } from './PositionIdentityService';
 
 function _parseJson(raw: string): unknown {
   try {

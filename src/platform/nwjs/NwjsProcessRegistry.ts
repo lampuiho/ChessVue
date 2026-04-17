@@ -1,6 +1,5 @@
+import type { ProcessHandle } from '@/contracts/platform';
 import type { ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
-
-import type { ProcessHandle } from '../contracts';
 
 export interface INwjsProcessRegistry {
   get(processHandle: ProcessHandle): ISpawnedProcess | undefined;

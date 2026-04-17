@@ -1,4 +1,4 @@
-import { MoveBranchKind, type IBoardPosition, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree } from '../../contracts';
+import { MoveBranchKind, type IBoardPosition, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree } from '@/contracts';
 
 function getRootNode(node: IMoveNode): IMoveNode {
   let currentNode = node;

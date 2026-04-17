@@ -1,7 +1,6 @@
 import { PlatformErrorKind, type IPlatformError } from '@/contracts';
+import type { ProcessHandle } from '@/contracts/platform';
 import type { ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
-
-import type { ProcessHandle } from '../contracts';
 
 function _createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
   return { kind, operation, message, detail };

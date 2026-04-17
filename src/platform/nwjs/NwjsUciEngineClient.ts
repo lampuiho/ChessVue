@@ -1,11 +1,10 @@
 import { defineStore } from 'pinia';
 
 import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
+import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { PositionIdentityService } from '@/domain';
 import { Deferred } from '@/utility/async/Deferred';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
-
-import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '../contracts';
 import { buildPositionCommand, buildRegistrationCommand, createUciSession, failUciSession, type IUciLineWaiter, type IUciSession as IBaseUciSession, parseBestMoveLine, parseInfoLine, stopUciSession } from '../../utility/UciUtility';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 import { attachProcessLineListeners, writeProcessLine } from './NwjsProcessLineUtility';

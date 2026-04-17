@@ -1,8 +1,8 @@
-import { MoveKind, PieceKind, ResultReason, ResultState, type IBoardPosition, type IMove } from '../../contracts';
+import { MoveKind, PieceKind, ResultReason, ResultState, type IBoardPosition, type IMove } from '@/contracts';
+import { GameRuleService } from '@/domain';
 
 import { findKingBoardId, getOpponentColour } from '@/utility/chess/BoardUtility';
 import { boardIdToCoords, boardIdToNotation } from '@/utility/chess/SquareUtility';
-import { GameRuleService } from './GameRuleService';
 
 function pieceSymbol(kind: PieceKind): string {
   switch (kind) {
