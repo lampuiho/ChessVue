@@ -138,8 +138,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | SavedGamesStore.getLoadFilePath |
 | --- |
 | SavedGamesStore._resolveSelectedSaveEntry |
-| SavedGameIndexService.getAutosaveFilePath |
-| SavedGameIndexService.getNamedSaveFilePath |
+| SavedGameIndexService.getLatestSaveEntryForGame |
 
 | GamesStore.loadGame |
 | --- |
@@ -227,7 +226,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
 - State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `gameSession.autoPauseOnMenu` controls the route-entry pause branch only.
-- Session-restore note: startup restore reuses the same game-hydration path but targets only the autosave files for the `gameId` values recorded in the persisted session snapshot.
+- Session-restore note: startup restore reuses the same game-hydration path but targets only the latest available managed save entry for each `gameId` recorded in the persisted session snapshot.
 - Requirement verification: `Pass`. Internal load stays distinct from external import, `SavedGamesStore` resolves the selected file path, `GamesStore` performs the actual load, and home-screen recents remain query-derived instead of being updated through same-layer store calls.
 
 ### SCN-EXPORT-01 - Export Game to External File
@@ -543,66 +542,61 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 ## Lifecycle Cleanup
 
-### SCN-LIFECYCLE-01 - Delete Inactive Game
+### SCN-LIFECYCLE-01 - Delete Managed Save Entry
 
 #### Flow
-| `GameTabs.deleteRequestedForInactiveGame` |
+| `SavedGamesView.deleteRequested` |
 | --- |
 | `UiStateStore.showModal` |
-| `GamesStore.deleteGame` |
-| `GamesStore._stopGameSessions` |
-| `GamesStore._removePersistedDocument` |
-| `UiStateStore.closeTab` |
-| `UiStateStore.saveGameSession` |
+| `SavedGamesStore.deleteSave` |
+| `SavedGamesStore.listSavedGames` |
 
 | `UiStateStore.showModal` |
 | --- |
 
-| `GamesStore.deleteGame` |
+| `SavedGamesStore.deleteSave` |
 | --- |
-| `GamesStore._assertGameExists` |
-| `GamesStore._disposePlatformEventSubscriptions` |
-| `GamesStore._stopGameSessions` |
+| `SavedGamesStore._resolveSelectedSaveEntry` |
 | `SerializationService.deleteDocument` |
 
-| `UiStateStore.closeTab` |
+| `SavedGamesStore.listSavedGames` |
 | --- |
-| `UiStateStore._coerceOpenTabs` |
+| `SavedGamesStore._resolveSaveRoot` |
+| `SerializationService.listManagedSaveEntries` |
+| `SavedGameIndexService.projectSaveGroups` |
 
-| `UiStateStore.saveGameSession` |
-| --- |
-| `SerializationService.writeGameSessionDocument` |
+- Requirement verification: `Pass`. Deletion of a managed save target stays inside the saved-games ownership boundary, refreshes the grouped save view, and does not require `GamesStore` to mutate the current in-memory workspace collection.
 
-- Requirement verification: `Pass`. Deletion removes runtime, persistence, and tab state together.
-
-### SCN-LIFECYCLE-02 - Delete Active Game and Switch Context
+### SCN-LIFECYCLE-02 - Delete Selected Save and Recoerce Saved-Games Context
 
 #### Flow
-| `GameTabs.deleteRequestedForActiveGame` |
+| `SavedGamesView.deleteRequestedForSelectedGame` |
 | --- |
 | `UiStateStore.showModal` |
-| `GamesStore.deleteGame` |
-| `GamesStore.listGames` |
-| `UiStateStore.setActiveGame` |
-| `Router._selectFallbackRoute` |
+| `SavedGamesStore.deleteSave` |
+| `SavedGamesStore.listSavedGames` |
+| `UiStateStore.setActiveRoute` |
+| `Router._selectSavedGamesFallback` |
 
 | `UiStateStore.showModal` |
 | --- |
 
-| `GamesStore.deleteGame` |
+| `SavedGamesStore.deleteSave` |
 | --- |
-| `GamesStore._assertGameExists` |
-| `GamesStore._disposePlatformEventSubscriptions` |
-| `GamesStore._selectFallbackGameId` |
+| `SavedGamesStore._resolveSelectedSaveEntry` |
+| `SerializationService.deleteDocument` |
 
-| `GamesStore.listGames` |
+| `SavedGamesStore.listSavedGames` |
 | --- |
+| `SavedGamesStore._resolveSaveRoot` |
+| `SerializationService.listManagedSaveEntries` |
+| `SavedGameIndexService.projectSaveGroups` |
 
-| `UiStateStore.setActiveGame` |
+| `UiStateStore.setActiveRoute` |
 | --- |
 | `UiStateStore._coerceActiveRoute` |
 
-- Requirement verification: `Pass`. Active-game deletion cannot leave a dangling route or session pointer.
+- Requirement verification: `Pass`. Deleting the selected managed save cannot leave the saved-games route pointing at missing selection state, and the fallback stays inside the saved-games surface instead of forcing `GamesStore` to remove an open workspace.
 
 
 

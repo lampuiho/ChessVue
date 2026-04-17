@@ -10,7 +10,7 @@ getDraftSettings(): ISettingsSnapshot
 getAppearanceProjection(): Promise<IAppearanceProjection>
 updateSettings(patch: Partial<ISettingsSnapshot>): void
 hasPendingChanges(): boolean
-applySettings(): void
+applySettings(): Promise<void>
 discardPendingSettings(): void
 saveSettings(): Promise<void>
 resetSettings(): Promise<void>
@@ -40,6 +40,7 @@ resetSettings(): Promise<void>
 - `SettingsStore` consumes `UserSettingService` for accepted settings reads and writes plus `PlatformEventService` for theme-change reactions; it does not resolve `IPlatformService`, `StorageAdapter`, or `SystemThemeAdapter` directly.
 - `getSettings()` is the lazy accepted-settings boundary. On first read it hydrates from `UserSettingService.getSettingsOrDefault()`, mirrors that snapshot into the editable draft, and caches the accepted state for later callers.
 - `getAppearanceProjection()` may trigger that same first-read path when needed by a view setup body, then resolves and caches the current `IAppearanceProjection` by calling `UserSettingService.getSystemTheme()` when `appearance.themeMode = ThemeMode.System`.
+- `applySettings()` persists the current draft through `UserSettingService.saveSettings(...)`, then re-syncs both accepted and draft state from the returned accepted snapshot so Apply and Save share the same persistence semantics.
 - Accepted engine-inventory changes update reusable engine profiles only. They do not directly mutate copied in-game engine payloads already held by open games or the runtime state currently bound to those copied engines.
 - The `restorePreviousSession => autosaveOnClose` rule is enforced by `UserSettingService`, so `SettingsStore` always edits and displays an already-coerced accepted snapshot.
 - The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.

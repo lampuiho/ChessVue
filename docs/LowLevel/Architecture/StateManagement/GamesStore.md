@@ -17,7 +17,6 @@ saveGame(game: IGame, options: ISaveGameOptions): Promise<string>
 loadGame(filePath: string): Promise<IGame>
 startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void>
 insertGame(game: IGame): Promise<IGame>
-deleteGame(gameId: string): Promise<void>
 getGame(gameId: string): IGame | undefined
 listGames(): IGame[]
 makeMove(game: IGame, move: IMove): Promise<IMove | undefined>
@@ -46,7 +45,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 ```
 
 ## Responsibilities
-- restore explicitly requested autosaved games into hydrated in-memory games during startup or session recovery
+- restore explicitly requested games into hydrated in-memory games during startup or session recovery by reopening the latest available managed save target for each remembered `gameId`
 - create live games or non-live analysis games from setup input
 - serialise and write the current game to autosave, managed-save, or external-file targets once the owning flow has selected that target
 - read, deserialise, migrate, and hydrate a saved game into the open-game collection once the owning flow has selected a source file
@@ -67,7 +66,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - own `livePath` and `highlightPath` selection on the game, while `MoveUpdateService` stays limited to tree mutation
 
 ## State And Settings Notes
-- `makeMove` is the game-state dispatcher for live play, history rewrite, non-live analysis branching, live-analysis moves, and rendered analysis suggestions selected from the analysis panel. Blocked states are rejected before domain mutation. Promotion choice is resolved before `makeMove` through board interaction, so the submitted `IMove` is already complete when the store sees it.
+- `makeMove` is the game-state dispatcher for live play, history rewrite, non-live analysis branching, live-analysis moves, and rendered analysis suggestions selected from the analysis panel. Blocked states are rejected by a throwing assertion before legality checks or domain mutation. Promotion choice is resolved before `makeMove` through board interaction, so the submitted `IMove` is already complete when the store sees it.
 - `makeMove` also owns the automatic pruning action for latest-node live-analysis continuations. When live play resumes from the same latest node that previously anchored an exited live-analysis session, `GamesStore._pruneLatestAnalysisContinuationIfNeeded` discards those exploratory descendants before the real move is appended.
 - `navigateToNode` is the public history-navigation boundary. It accepts a hydrated `IMoveNode` from the current hydrated tree, verifies membership by tracing `node.$.parent` back to the current root, derives the new `highlightPath`, updates the game selection, and then derives the resulting `gameState`. If the node is stale or no longer belongs to the current tree, the navigation request is ignored and the caller refreshes from current store state.
 - `getVisibleAnalysis` projects the currently relevant snapshots for the highlighted position from `game.analysis`. It is a read model, not a second store boundary.
@@ -84,7 +83,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `GamesStore._canRequestPlayerMove` is the generic live-game gate for any non-local player implementation. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
 - When `reassignPlayer` keeps the game live, `GamesStore` may immediately request the next move only if `GamesStore._canRequestPlayerMove` still reports that the resulting side to move is a non-local active player and there is no still-valid in-flight request for that same seat and turn.
 - When a restored game enters the open-game collection through a committed load, import, or reopen flow, `GamesStore` rebuilds the persisted game state first and then coordinates analysis refresh from the restored highlighted state when the relevant policy allows it.
-- `restoreAutosavedGames(...)` is a targeted reopen boundary. It restores only the autosave file for the supplied `gameId` values and does not enumerate every managed save on disk.
+- `restoreAutosavedGames(...)` remains the targeted reopen boundary, but it now resolves the latest available managed save entry for each supplied `gameId` rather than assuming an autosave-only source. It still reopens only the requested games.
 - Restore hydration belongs to `GamesStore`, not to `SerializationService`. That hydration rebuilds runtime-only move-tree references from the persisted nested tree and resolves `livePath` and `highlightPath` before the game becomes active live state.
 - `_setHighlightPathFromNode` is store-internal persisted-selector bookkeeping only. Public runtime navigation remains node-first and does not expose `MovePath` as an interaction contract.
 - Runnable game sessions may own app-close autosave and focus-return clock-reconciliation registrations through `PlatformEventService`. Untimed, paused, checkmate, or otherwise non-runnable contexts do not keep those registrations active.
@@ -123,13 +122,12 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `SCN-IMPORT-01`
 - `SCN-IMPORT-02`
 - `SCN-ENGINE-03`
-- `SCN-LIFECYCLE-01` and `SCN-LIFECYCLE-02`
 
 ## Notes
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `GamesStore._canRequestPlayerMove` is the internal gate behind non-local move generation and must remain a strict state check rather than a best-effort hint.
 - `SavedGamesStore` owns save browsing, recent-target resolution, and external picker flows. `GamesStore` owns serialising the current game and hydrating a saved game once the target path is known.
-- `GamesStore` uses `SerializationService` for saved-game document reads, writes, and deletes while keeping autosave-target selection, duplicate-id repair, workspace save or load sequencing, and hydration in-store.
+- `GamesStore` uses `SerializationService` for saved-game document reads and writes while keeping latest-save resolution, duplicate-id repair, workspace save or load sequencing, and hydration in-store.
 - `GamesStore` does not call sibling stores directly. Any engine-profile selection coming from `EnginesStore` is bridged through presentation as a selected reusable profile or equivalent seat-selection result.
 - Analysis-engine row identity is the current row index in `game.analysis.snapshots`; duplicate copied engines are blocked so row-targeted actions stay unambiguous.
-- Flow docs may refer to owner-private helpers such as duplicate-id repair, autosave path selection, and workspace hydration. Those helpers remain private to `GamesStore`; they are not shared utility-layer modules.
+- Flow docs may refer to owner-private helpers such as duplicate-id repair, latest-save resolution, and workspace hydration. Those helpers remain private to `GamesStore`; they are not shared utility-layer modules.

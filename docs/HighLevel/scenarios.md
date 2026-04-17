@@ -1174,43 +1174,44 @@ Each scenario in this document uses the same structure:
 
 ## Game Lifecycle Cleanup
 
-### SCN-LIFECYCLE-01 - Delete Inactive Game
+### SCN-LIFECYCLE-01 - Delete Managed Save Entry
 - **Status**: Planned
-- **Goal**: Remove stale game from collection.
-- **Preconditions**: More than one game exists; target game is not active.
-- **Entry Points**: Tab context menu or game list action.
+- **Goal**: Remove a managed save target from the saved-games surface.
+- **Preconditions**: A deletable managed save is selected in the saved-games UI.
+- **Entry Points**: Saved-games list or selected-save action.
 - **Main Steps**:
-  1. User triggers delete on inactive game.
+  1. User triggers delete on a managed save entry.
   2. App confirms deletion.
-  3. Game is removed from store and persistence.
+  3. Save target is removed from persistence.
+  4. Saved-games list refreshes.
 - **Branch Paths**:
   - `BR-LIFECYCLE-01-CANCEL`: User cancels deletion.
   - `BR-LIFECYCLE-01-NOT-FOUND`: Target missing at commit time -> no-op with refresh.
-- **Postconditions**: Deleted game is no longer listed/routable.
+- **Postconditions**: Deleted save target is no longer listed/selectable.
 - **Implementation Touchpoints**:
-  - `GamesStore.deleteGame`
-  - `GamesStore.listGames`
+  - `SavedGamesStore.deleteSave`
+  - `SavedGamesStore.listSavedGames`
   - `SerializationService.deleteDocument`
   - `UiStateStore.showModal`
 
-### SCN-LIFECYCLE-02 - Delete Active Game and Switch Context
+### SCN-LIFECYCLE-02 - Delete Selected Save and Switch Saved-Games Context
 - **Status**: Planned
-- **Goal**: Remove current game without leaving invalid route/state.
-- **Preconditions**: Active game selected; at least one additional game may exist.
-- **Entry Points**: Delete action on active game.
+- **Goal**: Remove the currently selected managed save without leaving invalid saved-games route or selection state.
+- **Preconditions**: A selected game/save is active inside the saved-games route.
+- **Entry Points**: Delete action on the selected save.
 - **Main Steps**:
-  1. User confirms delete active game.
-  2. App removes game.
-  3. App selects fallback game or home.
+  1. User confirms deletion.
+  2. App removes the selected managed save.
+  3. App selects fallback saved-games context.
   4. Router and UI state update.
 - **Branch Paths**:
-  - `BR-LIFECYCLE-02-HAS-FALLBACK`: Another game exists -> switch to neighbor/first game.
-  - `BR-LIFECYCLE-02-LAST-GAME`: No games remain -> route to home/new-game prompt.
-- **Postconditions**: No dangling `currentGameId` or invalid game route remains.
+  - `BR-LIFECYCLE-02-HAS-FALLBACK`: Another save group or save entry exists -> switch to fallback saved-games target.
+  - `BR-LIFECYCLE-02-LAST-GAME`: No matching save target remains -> route to grouped saved-games load view.
+- **Postconditions**: No dangling selected-save route remains.
 - **Implementation Touchpoints**:
-  - `GamesStore.deleteGame`
-  - `GamesStore.listGames`
-  - `UiStateStore.setActiveGame`
+  - `SavedGamesStore.deleteSave`
+  - `SavedGamesStore.listSavedGames`
+  - `UiStateStore.setActiveRoute`
   - `Router.beforeEachRouteGuard`
 
 ---

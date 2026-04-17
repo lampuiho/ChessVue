@@ -55,6 +55,8 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - Build config supplies the concrete `game-session.json` and `layout-state.json` paths used by this store.
 - `getLayoutStateOrDefault()` still returns the remembered layout when `gameSession.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
 - `getGameSessionOrDefault()` and `getLayoutStateOrDefault()` are lazy first-read boundaries intended for route or view setup paths rather than an eager startup phase.
+- `setActiveGame(...)` is selection-only. It updates `activeGameId` and the routed game target only when the supplied id is already open, and it never appends unknown ids into `openGameIds`.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis snapshot rows to derive the current mapping.
+- After initial lazy load, the store mutates the in-memory session and layout snapshots in place while preserving clone-on-read behaviour for callers and persistence writes.
 - Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. Those functions remain store-private and are not shared utility-layer modules.

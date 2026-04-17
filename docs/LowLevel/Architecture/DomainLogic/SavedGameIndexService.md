@@ -25,6 +25,7 @@ getAutosaveFilePath(rootPath: string, gameId: string): string
 getNamedSaveFilePath(rootPath: string, gameId: string, saveName: string): string
 projectSaveGroups(rootPath: string, entriesByDirectory: ReadonlyMap<string, IFileSystemEntry[]>): ISavedGameGroup[]
 getLatestSaveEntry(entries: ISavedGameFileEntry[]): ISavedGameFileEntry | undefined
+getLatestSaveEntryForGame(groups: readonly ISavedGameGroup[], gameId: string): ISavedGameFileEntry | undefined
 ```
 
 ## Responsibilities
@@ -33,6 +34,7 @@ getLatestSaveEntry(entries: ISavedGameFileEntry[]): ISavedGameFileEntry | undefi
 - interpret generic directory entries from `StorageAdapter` into logical game/save groups and latest-save targets for the route-level save/load views
 - identify autosave entries without depending on UI code or file-system APIs
 - identify the latest loadable save entry for a selected game without depending on UI code or file-system APIs
+- identify the latest loadable save entry for a remembered `gameId` from grouped save data without requiring callers to reimplement group lookup
 
 ## Dependencies
 - shared low-level data interfaces only
@@ -47,3 +49,4 @@ getLatestSaveEntry(entries: ISavedGameFileEntry[]): ISavedGameFileEntry | undefi
 - `SavedGameIndexService` performs no file I/O and opens no dialogs.
 - Folder enumeration and raw reads or writes belong to `StorageAdapter`; save grouping and path conventions belong here.
 - `getLatestSaveEntry(...)` is a pure query. It returns `undefined` when no entries are available, otherwise it picks the newest entry by `savedAtUtc`, and when timestamps are missing or equal it falls back to a deterministic ordering of autosave before named-save and then ascending `saveName`.
+- `getLatestSaveEntryForGame(...)` is a pure convenience query for grouped save data. It reuses the same latest-save ordering after locating the requested game's save group.
