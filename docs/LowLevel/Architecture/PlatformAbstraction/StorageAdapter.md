@@ -18,7 +18,10 @@ showSaveDialog(suggestedPath?: string): Promise<string>
 showOpenDialog(startDirectory?: string): Promise<string>
 listDirectory(path: string): Promise<IFileSystemEntry[]>
 ensureDirectory(path: string): Promise<void>
-writeTextFile(path: string, raw: string, overwrite?: boolean): Promise<void>
+writeTextFile(path: string, raw: string, options?: {
+  overwrite?: boolean
+  ensureParentDirectory?: boolean
+}): Promise<void>
 readTextFile(path: string): Promise<string>
 deleteFile(path: string): Promise<void>
 ```
@@ -40,6 +43,7 @@ deleteFile(path: string): Promise<void>
 - `ensureDirectory` rejects with `permissionDenied` when the requested directory cannot be created or confirmed.
 - `writeTextFile` rejects with `alreadyExists` when overwrite is required but not permitted by the caller.
 - `writeTextFile` rejects with `permissionDenied` when the selected destination cannot be written.
+- `writeTextFile` creates the parent directory only when `ensureParentDirectory = true`; otherwise a missing parent path remains a write failure.
 - `readTextFile` rejects with `invalidDocument` when the selected file cannot be read as a raw text document.
 - `readTextFile` may reject with `notFound` or `permissionDenied` when the host cannot reopen the selected file path.
 - `deleteFile` rejects with `notFound` or `permissionDenied` when the host cannot remove the selected path.

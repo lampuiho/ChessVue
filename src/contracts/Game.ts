@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { gameAnalysisSchema, type IGameAnalysis } from './Analysis'
-import { assignedEngineSchema, type IAssignedEngine } from './Engine'
+import { assignedEngineSchema, engineRecordSchema, type IAssignedEngine, type IEngineRecord } from './Engine'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
 import { movePathSchema, moveTreeSchema, type IMoveTree, type MovePath } from './Move'
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
@@ -119,22 +119,18 @@ export interface IGame {
 }
 export interface ICreateGameRequest {
   name: string
-  whitePlayerType?: PlayerType
-  blackPlayerType?: PlayerType
-  whiteEngineId?: string
-  blackEngineId?: string
-  analysisEngineIds: string[]
+  whitePlayer?: IPlayer
+  blackPlayer?: IPlayer
+  analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
   boardRoot?: IBoardPosition
 }
 export interface IStartGameFromSetupRequest {
   name?: string
-  whitePlayerType: PlayerType
-  blackPlayerType: PlayerType
-  whiteEngineId?: string
-  blackEngineId?: string
-  analysisEngineIds: string[]
+  whitePlayer?: IPlayer
+  blackPlayer?: IPlayer
+  analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
 }
@@ -206,11 +202,9 @@ export const gameSchema = z.object({
 
 export const createGameRequestSchema = z.object({
   name: z.string().min(1),
-  whitePlayerType: playerTypeSchema.nullable().optional().transform((value) => value ?? undefined),
-  blackPlayerType: playerTypeSchema.nullable().optional().transform((value) => value ?? undefined),
-  whiteEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
-  blackEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
-  analysisEngineIds: z.array(z.string().min(1)).max(4),
+  whitePlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  blackPlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  analysisEngineProfiles: z.array(engineRecordSchema).max(4),
   showLiveAnalysisMoves: z.boolean(),
   timeControl: timeControlSchema,
   boardRoot: boardPositionSchema.optional(),
@@ -218,11 +212,9 @@ export const createGameRequestSchema = z.object({
 
 export const startGameFromSetupRequestSchema = z.object({
   name: z.string().min(1).optional(),
-  whitePlayerType: playerTypeSchema,
-  blackPlayerType: playerTypeSchema,
-  whiteEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
-  blackEngineId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
-  analysisEngineIds: z.array(z.string().min(1)).max(4),
+  whitePlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  blackPlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  analysisEngineProfiles: z.array(engineRecordSchema).max(4),
   showLiveAnalysisMoves: z.boolean(),
   timeControl: timeControlSchema,
 })

@@ -4,7 +4,7 @@ import { PlatformErrorKind, type IPlatformError } from '@/contracts';
 import { getNodeFs, getNodePath } from '@/utility/nwjs/NodeUtility';
 import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
 
-import type { IFileSystemEntry, IStorageAdapter } from '../contracts';
+import type { IFileSystemEntry, IStorageAdapter, IWriteTextFileOptions } from '../contracts';
 
 interface IFileDialogInput extends HTMLInputElement {
   oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null;
@@ -85,7 +85,8 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
         throw _mapNodeError(error, 'ensureDirectory', `Directory could not be created: ${targetPath}.`);
       }
     }
-    async function writeTextFile(targetPath: string, raw: string, overwrite: boolean = false): Promise<void> {
+    async function writeTextFile(targetPath: string, raw: string, options: IWriteTextFileOptions = {}): Promise<void> {
+      const { overwrite = false, ensureParentDirectory = false } = options;
       try {
         if (!overwrite) await fs.promises.access(targetPath).then(() => {
           throw _createPlatformError(PlatformErrorKind.AlreadyExists, 'writeTextFile', `File already exists: ${targetPath}.`);
@@ -94,7 +95,7 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
           if (typeof error === 'object' && error !== null && 'code' in error && String((error as { code: unknown }).code) === 'ENOENT') return;
           throw error;
         });
-        await fs.promises.mkdir(pathModule.dirname(targetPath), { recursive: true });
+        if (ensureParentDirectory) await fs.promises.mkdir(pathModule.dirname(targetPath), { recursive: true });
         await fs.promises.writeFile(targetPath, raw, 'utf8');
       } catch (error) {
         if (typeof error === 'object' && error !== null && 'kind' in error) throw error;

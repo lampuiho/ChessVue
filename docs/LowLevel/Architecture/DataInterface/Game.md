@@ -134,11 +134,9 @@ interface IGame {
 
 interface ICreateGameRequest {
   name: string
-  whitePlayerType?: PlayerType
-  blackPlayerType?: PlayerType
-  whiteEngineId?: string
-  blackEngineId?: string
-  analysisEngineIds: string[]
+  whitePlayer?: IPlayer
+  blackPlayer?: IPlayer
+  analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
   boardRoot?: IBoardPosition
@@ -146,11 +144,9 @@ interface ICreateGameRequest {
 
 interface IStartGameFromSetupRequest {
   name?: string
-  whitePlayerType: PlayerType
-  blackPlayerType: PlayerType
-  whiteEngineId?: string
-  blackEngineId?: string
-  analysisEngineIds: string[]
+  whitePlayer?: IPlayer
+  blackPlayer?: IPlayer
+  analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves: boolean
   timeControl: ITimeControl
 }
@@ -165,11 +161,13 @@ interface IStartGameFromSetupRequest {
 - `GameState.BoardEdit` is a free-edit state only and is never combined with live play.
 - `GameState.Checkmate` is the only board state that blocks further moves by state alone.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
-- Omitted `resultReason`, `drawOfferState`, `whitePlayer`, `blackPlayer`, `livePath`, and request-side player or engine fields represent absence rather than a distinct `null` state.
+- Omitted `resultReason`, `drawOfferState`, `whitePlayer`, `blackPlayer`, `livePath`, and request-side player or engine-selection fields represent absence rather than a distinct `null` state.
 - Draw, resignation, timeout, and abandonment do not create an extra generic terminal state. They end live play and leave the game in one of the analysis states.
 - Player seats persist copied in-game engine payloads rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
 - `IPlayer.type = engine` is the discriminator for treating the player as `IEnginePlayer`.
 - `IEnginePlayer.assignedEngine` is the copied in-game engine payload for that seat.
+- `ICreateGameRequest.whitePlayer`, `ICreateGameRequest.blackPlayer`, `IStartGameFromSetupRequest.whitePlayer`, and `IStartGameFromSetupRequest.blackPlayer` carry the selected seat assignments directly. Omitted seat fields mean the seat is intentionally unassigned for analysis/setup flows.
+- `ICreateGameRequest.analysisEngineProfiles` and `IStartGameFromSetupRequest.analysisEngineProfiles` carry the selected reusable engine profiles for copied analysis-engine assignment.
 - `IPlayer.$.activityState` is intentionally minimal. `active` means the seat can still participate normally, while `nonActive` covers unavailable engines, disconnected non-local players, or any other seat that has left normal participation.
 - `$` is the runtime-only namespace. Anything under `$` is rebuilt in memory and is never persisted in the canonical saved-game payload.
 - Turn ownership, move waiting, and move permissions are derived from `gameState`, not stored on `IPlayer`.

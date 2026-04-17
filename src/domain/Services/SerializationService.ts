@@ -13,7 +13,7 @@ import {
   type IUiLayoutState,
   type MovePath,
 } from '../../contracts';
-import { usePlatformService, type IFileSystemEntry } from '@/platform';
+import { usePlatformService, type IFileSystemEntry, type IWriteTextFileOptions } from '@/platform';
 
 import { SerializationError } from '../errors/SerializationError';
 import { PositionIdentityService } from './PositionIdentityService';
@@ -102,8 +102,8 @@ function _stripRuntimeMetadata<T>(input: T): T {
 function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
 }
-async function _writeDocument(path: string, raw: string, overwrite: boolean): Promise<void> {
-  await usePlatformService().getStorageAdapter().writeTextFile(path, raw, overwrite);
+async function _writeDocument(path: string, raw: string, options: IWriteTextFileOptions): Promise<void> {
+  await usePlatformService().getStorageAdapter().writeTextFile(path, raw, options);
 }
 
 export const SerializationService = {
@@ -111,25 +111,25 @@ export const SerializationService = {
     return this.deserialiseSettings(await usePlatformService().getStorageAdapter().readTextFile(path));
   },
   async writeSettingsDocument(path: string, snapshot: ISettingsSnapshot): Promise<void> {
-    await _writeDocument(path, this.serialiseSettings(snapshot), true);
+    await _writeDocument(path, this.serialiseSettings(snapshot), { overwrite: true });
   },
   async readGameSessionDocument(path: string): Promise<IGameSessionSnapshot> {
     return this.deserialiseGameSession(await usePlatformService().getStorageAdapter().readTextFile(path));
   },
   async writeGameSessionDocument(path: string, snapshot: IGameSessionSnapshot): Promise<void> {
-    await _writeDocument(path, this.serialiseGameSession(snapshot), true);
+    await _writeDocument(path, this.serialiseGameSession(snapshot), { overwrite: true });
   },
   async readUiLayoutDocument(path: string): Promise<IUiLayoutState> {
     return this.deserialiseUiLayoutState(await usePlatformService().getStorageAdapter().readTextFile(path));
   },
   async writeUiLayoutDocument(path: string, state: IUiLayoutState): Promise<void> {
-    await _writeDocument(path, this.serialiseUiLayoutState(state), true);
+    await _writeDocument(path, this.serialiseUiLayoutState(state), { overwrite: true });
   },
   async readGameDocument(filePath: string): Promise<IGame> {
     return this.deserialiseGame(await usePlatformService().getStorageAdapter().readTextFile(filePath));
   },
   async writeGameDocument(filePath: string, game: IGame, overwrite: boolean = false): Promise<void> {
-    await _writeDocument(filePath, this.serialiseGame(game), overwrite);
+    await _writeDocument(filePath, this.serialiseGame(game), { overwrite, ensureParentDirectory: true });
   },
   async deleteDocument(filePath: string): Promise<void> {
     await usePlatformService().getStorageAdapter().deleteFile(filePath);

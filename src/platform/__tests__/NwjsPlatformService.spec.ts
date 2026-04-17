@@ -5,8 +5,8 @@ import { PassThrough, Writable } from 'node:stream';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAssignedEngine, type IEnginePositionState } from '@/contracts';
-import { EngineRuntimeService, GameRuleService, PositionIdentityService, SerializationService } from '@/domain';
+import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineProtocol, GameState, PlatformErrorKind, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IEnginePositionState, type IGame } from '@/contracts';
+import { EngineRuntimeService, GameRuleService, MoveUpdateService, PositionIdentityService, SerializationService, TimeControlService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
 import type { IEngineAnalysisUpdate } from '@/platform';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
@@ -235,6 +235,39 @@ function createEnginePositionState(): IEnginePositionState {
     requiresNewGameBoundary: true,
   };
 }
+function createPersistedGame(): IGame {
+  const rootPosition = createInitialBoardPosition();
+  const timeControl = { preset: TimeControlPreset.Untimed, incrementMs: 0 };
+  const clockSnapshot = TimeControlService.initialiseClockSnapshot(timeControl);
+  return {
+    schemaVersion: 1,
+    metadata: {
+      id: 'game-1',
+      name: 'Example Game',
+      createdAt: '2026-01-01T12:00:00.000Z',
+      updatedAt: '2026-01-01T12:00:00.000Z',
+    },
+    gameState: GameState.AnalysisWhiteMove,
+    resultState: ResultState.Ongoing,
+    whitePlayer: {
+      colour: PlayerColour.White,
+      type: PlayerType.Local,
+      displayName: 'White',
+    },
+    blackPlayer: {
+      colour: PlayerColour.Black,
+      type: PlayerType.Local,
+      displayName: 'Black',
+    },
+    boardRoot: rootPosition,
+    moveTree: MoveUpdateService.createMoveTree(rootPosition, clockSnapshot),
+    highlightPath: [],
+    timeControl,
+    clockSnapshot,
+    liveAnalysisOptions: { showLiveAnalysisMoves: false },
+    analysis: { snapshots: [] },
+  };
+}
 function normaliseTestPath(targetPath: string): string {
   return targetPath.replace(/\\/g, '/');
 }
@@ -328,7 +361,7 @@ describe('usePlatformService', () => {
     await storage.ensureDirectory(gameDirectory);
     await SerializationService.writeGameSessionDocument(sessionPath, sessionSnapshot);
     await SerializationService.writeUiLayoutDocument(layoutPath, layoutState);
-    await storage.writeTextFile(autosavePath, '{"schemaVersion":1}', true);
+    await storage.writeTextFile(autosavePath, '{"schemaVersion":1}', { overwrite: true });
 
     expect(await SerializationService.readGameSessionDocument(sessionPath)).toEqual(sessionSnapshot);
     expect(await SerializationService.readUiLayoutDocument(layoutPath)).toEqual(layoutState);
@@ -341,6 +374,13 @@ describe('usePlatformService', () => {
     expect(await SerializationService.selectExportFile(autosavePath)).toContain('game-1.json');
     environment.queueDialogSelection(autosavePath);
     expect(await SerializationService.selectImportFile(saveRoot)).toContain('auto.json');
+  });
+  it('creates managed-save parent folders through SerializationService when writing a game document', async () => {
+    const savePath = path.join(environment.rootPath, 'saves', 'game-1', 'auto.json');
+
+    await SerializationService.writeGameDocument(savePath, createPersistedGame(), true);
+
+    expect(await usePlatformService().getStorageAdapter().readTextFile(savePath)).toContain('"schemaVersion": 1');
   });
 
   it('isolates unexpected process exits per session', async () => {
