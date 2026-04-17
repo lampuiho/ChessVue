@@ -66,15 +66,19 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow B - Restore The Routed Game Lazily
 | `GameView.setup` |
 | --- |
-| `GamesStore.restoreAutosavedGames` |
+| `SavedGamesStore.restoreGames` |
+| `GamesStore.insertGame` |
 | `UiStateStore.setActiveGame` |
 
-| `GamesStore.restoreAutosavedGames` |
+| `SavedGamesStore.restoreGames` |
 | --- |
 | `SerializationService.listManagedSaveEntries` |
 | `SavedGameIndexService.projectSaveGroups` |
 | `SavedGameIndexService.getLatestSaveEntryForGame` |
 | `SerializationService.readGameDocument` |
+
+| `GamesStore.insertGame` |
+| --- |
 | `GamesStore._repairDuplicateGameId` |
 | `GamesStore._hydrateWorkspace` |
 
@@ -144,11 +148,10 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._assertMoveAllowed` |
 | `GamesStore._resolveMoveContext` |
 | `GamesStore._applyMoveByContext` |
-| `GamesStore._persistWorkspaceIfNeeded` |
 | `GameView._requestPlayerMoveIfNeeded` |
 
-- State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. Because session restore depends on prior tabs being reopenable, accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`. When the restored route resolves to a game, `GameView.setup` lazily restores only the requested remembered `gameId` values from that session snapshot and resolves each one to its latest available managed save target instead of reopening every save on disk. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
-- Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `GamesStore._hydrateWorkspace` then rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
+- State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. Because session restore depends on prior tabs being reopenable, accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`. When the restored route resolves to a game, `GameView.setup` lazily restores only the requested remembered `gameId` values from that session snapshot, asks `SavedGamesStore.restoreGames(...)` for the latest available managed save payload for each one, then feeds each payload into `GamesStore.insertGame(...)`. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
+- Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `SavedGamesStore.restoreGames(...)` owns restore lookup and document reads, while `GamesStore.insertGame(...)` rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
 - Requirement verification: `Pass`. Session restore is lazy, route-driven, respects the restore setting, repairs invalid `activeGameId` values before the game view binds, and falls back deterministically to `/home` when restore cannot succeed.
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
@@ -197,13 +200,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow B - Corrupt Restored Game Payload
 | `GameView.setup` |
 | --- |
-| `GamesStore.restoreAutosavedGames` |
+| `SavedGamesStore.restoreGames` |
 
-| `GamesStore.restoreAutosavedGames` |
+| `SavedGamesStore.restoreGames` |
 | --- |
 | `SavedGameIndexService.getLatestSaveEntryForGame` |
 | `SerializationService.readGameDocument` |
-| `GamesStore._skipCorruptDocument` |
+| `SavedGamesStore._skipCorruptDocument` |
 
 - Requirement verification: `Pass`. Corrupt settings, game-session, UI-layout, recent-save targets, or game payloads fall back independently through lazy reads, and corrupt core game payloads are isolated instead of crashing app entry.
 
@@ -222,7 +225,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._buildDefaultCreateRequest` |
 | `GamesStore._validateCreateRequest` |
 | `GamesStore._createWorkspace` |
-| `GamesStore._persistWorkspace` |
 
 | `UiStateStore.openTab` |
 | --- |
@@ -235,7 +237,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | --- |
 | `SerializationService.writeGameSessionDocument` |
 
-- Requirement verification: `Pass`. The game becomes active immediately, and persistence failure can be surfaced without discarding the in-memory workspace.
+- Requirement verification: `Pass`. The game becomes active immediately, and session-route persistence remains decoupled from workspace creation.
 
 ### SCN-GAME-02 - Custom New Game with User Options
 
@@ -300,7 +302,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._assertMoveAllowed` |
 | `GamesStore._resolveMoveContext` |
 | `GamesStore._applyMoveByContext` |
-| `GamesStore._persistWorkspaceIfNeeded` |
 | `GameView._requestPlayerMoveIfNeeded` |
 
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
@@ -409,19 +410,18 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow A - Reopen An Autosaved Recent Game
 | `HomeView.onRecentGameSelected` |
 | --- |
-| `SavedGamesStore.getRecentGamePath` |
-| `GamesStore.loadGame` |
+| `SavedGamesStore.loadRecentGame` |
+| `GamesStore.insertGame` |
 | `UiStateStore.openTab` |
 | `UiStateStore.setActiveGame` |
 
-| `SavedGamesStore.getRecentGamePath` |
+| `SavedGamesStore.loadRecentGame` |
 | --- |
 | `SavedGamesStore._resolveRecentTarget` |
-| `SavedGameIndexService.getAutosaveFilePath` |
-
-| `GamesStore.loadGame` |
-| --- |
 | `SerializationService.readGameDocument` |
+
+| `GamesStore.insertGame` |
+| --- |
 | `GamesStore._remapDuplicateIdIfNeeded` |
 | `GamesStore._hydrateWorkspace` |
 
@@ -436,18 +436,18 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow B - Reopen A Saved-File Recent Game
 | `HomeView.onRecentGameSelected` |
 | --- |
-| `SavedGamesStore.getRecentGamePath` |
-| `GamesStore.loadGame` |
+| `SavedGamesStore.loadRecentGame` |
+| `GamesStore.insertGame` |
 | `UiStateStore.openTab` |
 | `UiStateStore.setActiveGame` |
 
-| `SavedGamesStore.getRecentGamePath` |
+| `SavedGamesStore.loadRecentGame` |
 | --- |
 | `SavedGamesStore._resolveRecentTarget` |
-
-| `GamesStore.loadGame` |
-| --- |
 | `SerializationService.readGameDocument` |
+
+| `GamesStore.insertGame` |
+| --- |
 | `GamesStore._remapDuplicateIdIfNeeded` |
 | `GamesStore._hydrateWorkspace` |
 
@@ -465,7 +465,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `RecentGameStore.getRecentGames` |
 
 - UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
-- Ownership coverage: `SavedGamesStore` owns recent-target path resolution, `GamesStore` owns loading that saved file into the live session, and `RecentGameStore` remains limited to on-demand recent-list projection.
+- Ownership coverage: `SavedGamesStore` owns recent-target resolution and saved-document load, `GamesStore.insertGame(...)` owns turning that payload into the live session workspace, and `RecentGameStore` remains limited to on-demand recent-list projection.
 - Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references disappear on the next recent-list query without needing eager cleanup writes.
 
 

@@ -34,12 +34,14 @@ getLatestSaveEntryForGame(groups: readonly ISavedGameGroup[], gameId: string): I
 - interpret generic directory entries from `StorageAdapter` into logical game/save groups and latest-save targets for the route-level save/load views
 - identify autosave entries without depending on UI code or file-system APIs
 - identify the latest loadable save entry for a selected game without depending on UI code or file-system APIs
-- identify the latest loadable save entry for a remembered `gameId` from grouped save data without requiring callers to reimplement group lookup
+- identify the latest loadable save entry for a remembered or UI-selected `gameId` from grouped save data without requiring callers to reimplement group lookup
 
 ## Dependencies
 - shared low-level data interfaces only
 
 ## Scenario Coverage
+- `SCN-SESSION-02`
+- `SCN-NAV-03`
 - `SCN-SAVE-01`
 - `SCN-SAVE-02`
 - `SCN-SAVE-03`

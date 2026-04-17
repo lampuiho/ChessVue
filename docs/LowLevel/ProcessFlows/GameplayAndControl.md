@@ -3,6 +3,8 @@
 ## Scope
 This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 
+Persistence note: this document focuses on active-game mutation. When a flow needs the resulting workspace persisted, presentation follows up with `SavedGamesStore.saveGame(...)`; that caller-owned save step is shown only where persistence behaviour is itself part of the scenario or materially affects the branch.
+
 ## Move Execution
 
 ### SCN-MOVE-01 - Legal Move on Board
@@ -20,7 +22,6 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._applyMoveByContext` |
 | `GamesStore._updateClockAfterMove` |
 | `GamesStore._commitLiveMove` |
-| `GamesStore._persistWorkspaceIfNeeded` |
 
 | `GameRuleService.isMoveLegal` |
 | --- |
@@ -82,7 +83,6 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._resolveMoveContext` |
 | `GamesStore._applyMoveByContext` |
 | `GamesStore._commitAnalysisMove` |
-| `GamesStore._persistWorkspaceIfNeeded` |
 
 | `GameRuleService.isMoveLegal` |
 | --- |
@@ -238,7 +238,6 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._assertPlayerReassignmentAllowed` |
 | `GamesStore._captureVisibleSetupAnchor` |
 | `GamesStore._applyPlayerReassignment` |
-| `GamesStore._persistWorkspaceIfNeeded` |
 
 | `GameView._refreshRuntimeAfterPlayerReassignment` |
 | --- |
@@ -367,7 +366,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `TimeControlService.applyMove` |
 | `MoveUpdateService.addMainlineMove` |
 | `GameView._requestPlayerMoveIfNeeded` |
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 
 | `GamesStore.makeMove` |
 | --- |
@@ -379,10 +378,10 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `MoveUpdateService.pruneFutureMoves` |
 | --- |
 
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 | --- |
-| `GamesStore._buildPersistedWorkspace` |
-| `GamesStore._persistWorkspace` |
+| `SavedGameIndexService.getAutosaveFilePath` |
+| `SerializationService.writeGameDocument` |
 
 - UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. The pruning action is automatic and is triggered by the next real live move from the same latest node after in-game analysis exit.
 - Runtime selector coverage: `GamesStore` compares the current live move against the stored in-game-analysis entry anchor and runs the automatic pruning action through `MoveUpdateService.pruneFutureMoves` only when live play resumes from that same latest node. After pruning and move commit, the store reacquires the surviving live and visible nodes from the new tree.
@@ -472,7 +471,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore.syncClock` |
 | `TimeControlService.getRemainingTime` |
 | `TimeControlService.hasExpired` |
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 | `GameView._openTimeoutModalIfNeeded` |
 
 | `GamesStore.syncClock` |
@@ -480,7 +479,6 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._reconcileClock` |
 | `GamesStore._finaliseTimeoutIfNeeded` |
 | `GamesStore._lockLiveMoves` |
-| `GamesStore._persistWorkspace` |
 
 | `TimeControlService.getRemainingTime` |
 | --- |
@@ -488,9 +486,10 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `TimeControlService.hasExpired` |
 | --- |
 
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 | --- |
-| `GamesStore._buildPersistedWorkspace` |
+| `SavedGameIndexService.getAutosaveFilePath` |
+| `SerializationService.writeGameDocument` |
 
 | `GameView._openTimeoutModalIfNeeded` |
 | --- |
@@ -553,7 +552,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | --- |
 | `UiStateStore.showModal` |
 | `GamesStore.resignGame` |
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 
 | `UiStateStore.showModal` |
 | --- |
@@ -562,12 +561,11 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | --- |
 | `GamesStore._assertResultMutable` |
 | `GamesStore._finaliseResult` |
-| `GamesStore._persistWorkspace` |
 
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 | --- |
-| `GamesStore._buildPersistedWorkspace` |
-| `GamesStore._persistWorkspace` |
+| `SavedGameIndexService.getAutosaveFilePath` |
+| `SerializationService.writeGameDocument` |
 
 - Requirement verification: `Pass`. Confirmation and final result persistence are both covered.
 
@@ -580,7 +578,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore.offerDraw` |
 | `UiStateStore.showModal` |
 | `GamesStore.acceptDrawOffer` |
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 
 | `UiStateStore.showModal` |
 | --- |
@@ -601,16 +599,17 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | --- |
 | `GamesStore.offerDraw` |
 | `GamesStore._setDrawOfferState` |
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 
 | `GamesStore.offerDraw` |
 | --- |
 | `GamesStore._assertResultMutable` |
 | `GamesStore._setDrawOfferState` |
 
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 | --- |
-| `GamesStore._buildPersistedWorkspace` |
+| `SavedGameIndexService.getAutosaveFilePath` |
+| `SerializationService.writeGameDocument` |
 
 #### Flow C - Accept An Incoming Non-Local Offer
 | `GameControlPanel.drawRequested` |
@@ -618,7 +617,7 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore.acceptDrawOffer` |
 | `GamesStore._finaliseResult` |
 | `GamesStore._clearDrawOfferStateIfNeeded` |
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 
 | `GamesStore.acceptDrawOffer` |
 | --- |
@@ -626,25 +625,27 @@ This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
 | `GamesStore._finaliseResult` |
 | `GamesStore._clearDrawOfferStateIfNeeded` |
 
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 | --- |
-| `GamesStore._buildPersistedWorkspace` |
+| `SavedGameIndexService.getAutosaveFilePath` |
+| `SerializationService.writeGameDocument` |
 
 #### Flow D - Withdraw An Outgoing Non-Local Offer
 | `GameControlPanel.drawRequested` |
 | --- |
 | `GamesStore.withdrawDrawOffer` |
 | `GamesStore._clearDrawOfferStateIfNeeded` |
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 
 | `GamesStore.withdrawDrawOffer` |
 | --- |
 | `GamesStore._withdrawNonLocalDrawOffer` |
 | `GamesStore._clearDrawOfferStateIfNeeded` |
 
-| `GamesStore.saveGame` |
+| `SavedGamesStore.saveGame` |
 | --- |
-| `GamesStore._buildPersistedWorkspace` |
+| `SavedGameIndexService.getAutosaveFilePath` |
+| `SerializationService.writeGameDocument` |
 
 - UI surface coverage: local-local resolution uses the shared dialog shell. Non-local opponents use the LED-like pending-offer indicator on `GameControlPanel`.
 - Requirement verification: `Pass`. The baseline keeps local-local resolution explicit while letting engine-backed non-local participation define the same indicator-based model that a future adapter can reuse.

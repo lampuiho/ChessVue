@@ -40,7 +40,7 @@ Each entry must define:
 - Validation or failure semantics: invalid or stale route targets are coerced to the nearest committed fallback without mutating persisted settings or workspace payloads.
 
 ## Persistence And Saved Documents
-- Managed-save enumeration, duplicate-id repair, latest-save target selection, and workspace hydration remain owner-private helpers inside `SavedGamesStore`, `RecentGameStore`, and `GamesStore`.
+- Managed-save enumeration and latest-save target selection remain owner-private helpers inside `SavedGamesStore` and `RecentGameStore`, while duplicate-id repair and workspace hydration remain owner-private helpers inside `GamesStore`.
 - Direct `SerializationService.readGameDocument(...)` and `SerializationService.writeGameDocument(...)` calls do not need a contract-aware utility wrapper when the wrapper adds no shared behaviour beyond pass-through.
 
 ## Error Handling

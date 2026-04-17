@@ -3,6 +3,8 @@
 ## Scope
 This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
+Persistence note: this document focuses on setup and analysis mutation rules. Any later persistence of the changed `IGame` payload is caller-owned and runs through `SavedGamesStore.saveGame(...)`, so save steps are omitted here unless persistence itself is the subject of the scenario.
+
 ## Free Analysis / Setup
 
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
@@ -358,7 +360,6 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | --- |
 | `GamesStore._assertAnalysisRosterMutable` |
 | `GamesStore._mutateAnalysisEngineRoster` |
-| `GamesStore._persistWorkspaceIfNeeded` |
 
 | `EnginesStore.validateAnalysisSelection` |
 | --- |
@@ -373,7 +374,6 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 | `GamesStore.removeAnalysisEngine` |
 | --- |
 | `GamesStore._mutateAnalysisEngineRoster` |
-| `GamesStore._persistWorkspaceIfNeeded` |
 
 | `GamesStore.stopAnalysis` |
 | --- |

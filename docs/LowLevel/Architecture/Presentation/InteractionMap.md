@@ -24,7 +24,7 @@ Read-side rule:
 - Custom new game opens `NewGameModal`, which owns form composition but not game-creation decisions.
 - The same landing surface also owns direct actions for quick new, load, and settings.
 - When recent entries exist, the same landing surface also owns recent-game reopening from a list positioned below the primary action row.
-- `RecentGameStore` owns on-demand recent-entry loading and latest-save deduping, while `SavedGamesStore` resolves the saved target path and `GamesStore` performs the actual reopen; `HomeView` only triggers the load and selection interactions.
+- `RecentGameStore` owns on-demand recent-entry loading and latest-save deduping, while `SavedGamesStore` performs the saved-document load and `GamesStore.insertGame(...)` performs the active-workspace reopen; `HomeView` only triggers the load and selection interactions.
 
 ### Shell Navigation
 - `MenuBar` owns shell-level actions for quick new, custom new, load, save, settings, and delete.
@@ -34,8 +34,8 @@ Read-side rule:
 
 ### Saved Games Navigation
 - `SavedGamesView` owns the route-level save/load surface for `/saved-games/save/:name`, `/saved-games/load`, and `/saved-games/load/:name`.
-- `SavedGamesView` forwards grouped-game selection, latest-save path resolution, and external picker requests to `SavedGamesStore`, then forwards the confirmed save or load execution to `GamesStore`.
-- `SavedGamesStore` owns latest-save choice, save grouping, route-specific path resolution, and external picker flows, while `GamesStore` owns the actual workspace serialisation and hydration after a target is chosen; the view stays display and routing focused.
+- `SavedGamesView` forwards grouped-game selection, latest-save load requests, save requests, delete requests, and external picker requests to `SavedGamesStore`, then forwards any returned saved-game payloads into `GamesStore.insertGame(...)`.
+- `SavedGamesStore` owns latest-save choice, save grouping, route-specific document load or save flows, close-trigger autosave registration, and external picker flows, while `GamesStore` owns only active-workspace creation, insertion, hydration, and gameplay mutation after a payload is already available; the view stays display and routing focused.
 
 ### Board And Move Input
 - `Chessboard` owns board interaction entry points such as click-click move input, drag-drop, selection clearing, and board-edit confirmation.

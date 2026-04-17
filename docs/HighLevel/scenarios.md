@@ -146,7 +146,8 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `UiStateStore.loadLayoutState`
   - `UiStateStore.loadGameSession`
-  - `GamesStore.loadGame`
+  - `SavedGamesStore.restoreGames`
+  - `GamesStore.insertGame`
   - `GamesStore.listGames`
   - `UiStateStore.setActiveGame`
   - `Router.beforeEachRouteGuard`
@@ -185,17 +186,15 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User clicks `New Game`.
   2. App uses default `NewGameOptions`.
-  3. Game is created and persisted.
+  3. Game is created in memory and opened immediately.
   4. App routes to new game and sets active tab.
 - **Branch Paths**:
   - `BR-GAME-01-CANCEL`: If confirmation modal exists and user cancels, no game is created.
-  - `BR-GAME-01-PERSIST-FAIL`: If save-on-create fails, game remains in memory and user is warned.
 - **Postconditions**: New game context becomes active unless canceled.
 - **Implementation Touchpoints**:
   - `MenuBar.quickNewGameRequested`
   - `GamesStore.createGame`
   - `UiStateStore.setActiveGame`
-  - `SerializationService.writeGameDocument`
 
 ### SCN-GAME-02 - Custom New Game with User Options
 - **Status**: Planned
@@ -308,9 +307,9 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: A valid recent entry opens as the active game; invalid recent entries are removed without breaking the home screen.
 - **Implementation Touchpoints**:
   - `RecentGameStore.loadRecentGames`
-  - `SavedGamesStore.getRecentGamePath`
-  - `SavedGameIndexService.getAutosaveFilePath`
-  - `GamesStore.loadGame`
+  - `SavedGamesStore.loadRecentGame`
+  - `SavedGameIndexService.getLatestSaveEntryForGame`
+  - `GamesStore.insertGame`
   - `SerializationService.deserialiseGame`
   - `UiStateStore.setActiveGame`
 
@@ -459,7 +458,7 @@ Each scenario in this document uses the same structure:
   - `MoveUpdateService.pruneFutureMoves`
   - `GamesStore.exitInGameAnalysis`
   - `GamesStore.makeMove`
-  - `GamesStore.saveGame`
+  - `SavedGamesStore.saveGame`
 
 ---
 ## Free Analysis / Setup
@@ -505,7 +504,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
   - `MoveUpdateService.createMoveTree`
-  - `GamesStore.saveGame`
+  - `SavedGamesStore.saveGame`
   - `GamesStore.refreshAnalysis`
   - `GamesStore._clearGameAnalysis`
 
@@ -740,7 +739,7 @@ Each scenario in this document uses the same structure:
   - `GameView.onTimerTick`
   - `TimeControlService.getRemainingTime`
   - `GamesStore.syncClock`
-  - `GamesStore.saveGame`
+  - `SavedGamesStore.saveGame`
   - `UiStateStore.showModal`
 
 
@@ -803,7 +802,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `GameControlPanel.resignRequested`
   - `UiStateStore.showModal`
-  - `GamesStore.saveGame`
+  - `SavedGamesStore.saveGame`
 
 ### SCN-CTRL-03 - Draw Offer Flow
 - **Status**: Planned
@@ -831,7 +830,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.acceptDrawOffer`
   - `GamesStore.declineDrawOffer`
   - `GamesStore.withdrawDrawOffer`
-  - `GamesStore.saveGame`
+  - `SavedGamesStore.saveGame`
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Planned
 - **Goal**: Enter a mode from an active game where the user controls both sides for exploration without progressing the live game.
@@ -891,7 +890,7 @@ Each scenario in this document uses the same structure:
   - `BR-SAVE-01-WRITE-FAIL`: Autosave write fails -> keep in-memory state and surface recoverable failure for later retry.
 - **Postconditions**: The autosave entry is refreshed only when the configured trigger fires, and a later restore can reproduce the same game workspace state without depending on UI or engine runtime snapshots.
 - **Implementation Touchpoints**:
-  - `GamesStore.saveGame`
+  - `SavedGamesStore.saveGame`
   - `SavedGameIndexService.getAutosaveFilePath`
   - `SerializationService.writeGameDocument`
   - `SettingsStore.loadSettings`
@@ -944,7 +943,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: The selected game has a new or replaced internal save entry in its game folder, and the same canonical payload is available for later internal load.
 - **Implementation Touchpoints**:
   - `UiStateStore.showModal`
-  - `GamesStore.saveGame`
+  - `SavedGamesStore.saveGame`
   - `SavedGameIndexService.getNamedSaveFilePath`
   - `SerializationService.writeGameDocument`
 
@@ -964,7 +963,7 @@ Each scenario in this document uses the same structure:
   8. Choosing `Select` routes to `/saved-games/load/:name` for the selected game.
   9. The game-save listing screen shows that game's saves and replaces the bottom-right `Select` action with `Load`.
   10. User selects a save entry and clicks `Load`, or arrives by double-click latest-save behaviour from the grouped list.
-  11. App resolves the selected internal save to a concrete file path, then `GamesStore` reads the raw save document, deserializes and migrates the payload inside the state-management boundary, and restores the saved game workspace state immediately.
+  11. App resolves the selected internal save to a concrete save entry, `SavedGamesStore` reads the raw save document, deserializes and migrates the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)` to restore the active workspace state immediately.
   12. Game is loaded into store and opened.
   13. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
   14. When the user returns to the game screen, app auto-resumes if the pause came from this load flow.
@@ -980,10 +979,10 @@ Each scenario in this document uses the same structure:
   - `GameControlPanel.pauseRequested`
   - `Router.push`
   - `SavedGamesStore.listSavedGames`
-  - `SavedGamesStore.getLoadFilePath`
+  - `SavedGamesStore.loadGame`
   - `SavedGameIndexService.projectSaveGroups`
   - `SerializationService.readGameDocument`
-  - `GamesStore.loadGame`
+  - `GamesStore.insertGame`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.saveGameSession`
 
@@ -1009,7 +1008,6 @@ Each scenario in this document uses the same structure:
   - `MenuBar.exportGameRequested`
   - `GameControlPanel.pauseRequested`
   - `SavedGamesStore.exportGame`
-  - `GamesStore.saveGame`
   - `SerializationService.selectExportFile`
   - `SerializationService.writeGameDocument`
 
@@ -1022,7 +1020,7 @@ Each scenario in this document uses the same structure:
   1. User chooses import action.
   2. App opens a normal OS file picker.
   3. User selects a file.
-  4. `SavedGamesStore` resolves the selected external file path, then `GamesStore` reads the raw document, deserializes and migrates the payload inside the state-management boundary.
+  4. `SavedGamesStore` resolves the selected external file path, reads the raw document, deserializes and migrates the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)`.
   5. App restores the saved game workspace state immediately, including current position/history node, clock state, and result state.
   6. Game is loaded into store and opened.
   7. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
@@ -1036,7 +1034,7 @@ Each scenario in this document uses the same structure:
   - `SavedGamesStore.importGame`
   - `SerializationService.selectImportFile`
   - `SerializationService.readGameDocument`
-  - `GamesStore.loadGame`
+  - `GamesStore.insertGame`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.saveGameSession`
 
@@ -1047,7 +1045,7 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Menu `Import Game`.
 - **Main Steps**:
   1. User selects file.
-  2. App reads the raw document, then deserialization or validation fails inside the state-management boundary.
+  2. App reads the raw document, then deserialization or validation fails inside the saved-game loading boundary before active-workspace insertion.
   3. App displays precise error and keeps current session intact.
 - **Branch Paths**:
   - `BR-IMPORT-02-UNSUPPORTED`: Unsupported format -> suggest accepted file types.
@@ -1056,7 +1054,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `SerializationService.selectImportFile`
   - `SerializationService.readGameDocument`
-  - `GamesStore.loadGame`
+  - `SavedGamesStore.importGame`
   - `UiStateStore.showModal`
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
