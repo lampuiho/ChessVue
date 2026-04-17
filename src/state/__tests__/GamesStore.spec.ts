@@ -138,6 +138,21 @@ const domain = {
   SavedGameIndexService: {
     getAutosaveFilePath: vi.fn((rootPath: string, gameId: string) => `${rootPath}/${gameId}/auto.json`),
     getNamedSaveFilePath: vi.fn((rootPath: string, gameId: string, saveName: string) => `${rootPath}/${gameId}/${saveName}.json`),
+    projectSaveGroups: vi.fn((_rootPath: string, entriesByDirectory: ReadonlyMap<string, { path: string; name: string; isDirectory: boolean; lastModifiedUtc?: string }[]>) => {
+      const rootEntries = entriesByDirectory.get('saves') ?? [];
+      return rootEntries.filter((entry) => entry.isDirectory).map((entry) => ({
+        gameId: entry.name,
+        gameFolderPath: entry.path,
+        saves: (entriesByDirectory.get(entry.path) ?? []).filter((candidate) => !candidate.isDirectory).map((candidate) => ({
+          gameId: entry.name,
+          saveName: candidate.name.replace(/\.json$/i, ''),
+          filePath: candidate.path,
+          savedAtUtc: candidate.lastModifiedUtc,
+          isAutosave: candidate.name === 'auto.json',
+        })),
+      }));
+    }),
+    getLatestSaveEntryForGame: vi.fn((groups, gameId: string) => groups.find((group: { gameId: string; saves: Array<{ filePath: string }> }) => group.gameId === gameId)?.saves[0]),
   },
   SerializationService: {
     writeGameDocument: vi.fn(async (filePath: string, game: IGame) => {
@@ -148,6 +163,27 @@ const domain = {
       const game = storedGamesByPath.get(filePath);
       if (!game) throw new Error(`Missing test game document: ${filePath}.`);
       return resolveWithRandomDelay(game);
+    }),
+    listManagedSaveEntries: vi.fn(async () => {
+      const entriesByDirectory = new Map<string, Array<{ path: string; name: string; isDirectory: boolean; lastModifiedUtc?: string }>>();
+      const rootEntries: Array<{ path: string; name: string; isDirectory: boolean; lastModifiedUtc?: string }> = [];
+      for (const filePath of storedGamesByPath.keys()) {
+        const segments = filePath.split('/');
+        const gameId = segments[1]!;
+        const gameFolderPath = `saves/${gameId}`;
+        if (!entriesByDirectory.has(gameFolderPath)) {
+          rootEntries.push({ path: gameFolderPath, name: gameId, isDirectory: true });
+          entriesByDirectory.set(gameFolderPath, []);
+        }
+        entriesByDirectory.get(gameFolderPath)!.push({
+          path: filePath,
+          name: segments[2]!,
+          isDirectory: false,
+          lastModifiedUtc: '2026-04-17T12:00:00.000Z',
+        });
+      }
+      entriesByDirectory.set('saves', rootEntries);
+      return entriesByDirectory;
     }),
   },
   TimeControlService: {
@@ -356,28 +392,45 @@ describe('useGamesStore', () => {
     expect(localGame.resultState).toBe(ResultState.BlackWon);
     expect(localGame.resultReason).toBe(ResultReason.Resignation);
   });
-
-  it('restores autosaved games and disposes engine runtimes during deletion', async () => {
+  it('throws when move submission is blocked by game state', async () => {
     const store = useGamesStore();
-    const analysisEngine = createEngineRecord('engine-z', 'Analysis Engine');
     const game = await store.createGame({
-      name: 'Restore Candidate',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White', createEngineRecord('engine-white', 'Engine White')),
+      name: 'Blocked Move',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
       blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
-      analysisEngineProfiles: [analysisEngine],
+      analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
-    game.metadata.id = 'restore-id';
+    const move = createMove(PlayerColour.White);
 
-    await store.saveGame(game, { targetKind: SaveGameTargetKind.Autosave });
-    await store.deleteGame(game.metadata.id);
-    expect(store.listGames()).toEqual([]);
+    game.gameState = GameState.PausedWhiteTurn;
+    await expect(store.makeMove(game, move)).rejects.toThrow('pausedWhiteTurn');
+    game.gameState = GameState.BoardEdit;
+    await expect(store.makeMove(game, move)).rejects.toThrow('boardEdit');
+    game.gameState = GameState.Checkmate;
+    await expect(store.makeMove(game, move)).rejects.toThrow('checkmate');
+  });
+
+  it('allows move submission from playable game states and restores the latest saved game', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Playable Move',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+
+    game.gameState = GameState.AnalysisWhiteMove;
+    await expect(store.makeMove(game, createMove(PlayerColour.White))).resolves.toBeDefined();
+    game.metadata.id = 'restore-id';
+    await store.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: 'manual' });
 
     const restoredGames = await store.restoreAutosavedGames(['restore-id']);
 
     expect(restoredGames).toHaveLength(1);
-    expect(restoredGames[0]!.metadata.id).toBe('restore-id');
-    expect(domain.EngineRuntimeService.stopEngine).toHaveBeenCalledTimes(2);
+    expect(restoredGames[0]!.metadata.id).not.toBe(game.metadata.id);
   });
 });

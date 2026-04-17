@@ -45,5 +45,6 @@ describe('SavedGameIndexService', () => {
     expect(groups[0]!.saves.map((save) => save.saveName)).toEqual(['auto', 'manual']);
     expect(groups[0]!.saves[0]!.filePath).toBe('saves/game-a/auto.json');
     expect(SavedGameIndexService.getLatestSaveEntry(groups[0]!.saves)?.saveName).toBe('auto');
+    expect(SavedGameIndexService.getLatestSaveEntryForGame(groups, 'game-a')?.saveName).toBe('auto');
   });
 });

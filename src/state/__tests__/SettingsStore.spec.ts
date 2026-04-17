@@ -58,10 +58,11 @@ describe('useSettingsStore', () => {
     expect((await store.getAppearanceProjection()).resolvedThemeMode).toBe(ResolvedThemeMode.Light);
     store.updateSettings({ appearance: { themeMode: ThemeMode.Dark } as ISettingsSnapshot['appearance'] });
     expect(store.hasPendingChanges()).toBe(true);
-    store.applySettings();
+    await store.applySettings();
     expect((await store.getAppearanceProjection()).resolvedThemeMode).toBe(ResolvedThemeMode.Dark);
     store.discardPendingSettings();
     expect(store.getDraftSettings().appearance.themeMode).toBe(ThemeMode.Dark);
+    expect(domain.UserSettingService.saveSettings).toHaveBeenCalledTimes(1);
   });
 
   it('saves and resets settings through the mocked domain service', async () => {

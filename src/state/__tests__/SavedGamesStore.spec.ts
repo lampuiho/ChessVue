@@ -18,9 +18,11 @@ const domain = {
   SavedGameIndexService: {
     projectSaveGroups: vi.fn((_rootPath: string) => structuredClone(saveGroups)),
     getLatestSaveEntry: vi.fn((entries) => structuredClone(entries[entries.length - 1])),
+    getLatestSaveEntryForGame: vi.fn((groups, gameId: string) => structuredClone(groups.find((group: ISavedGameGroup) => group.gameId === gameId)?.saves.slice(-1)[0])),
   },
   SerializationService: {
     listManagedSaveEntries: vi.fn(() => resolveWithRandomDelay(new Map())),
+    deleteDocument: vi.fn(async (_filePath: string) => resolveWithRandomDelay(undefined)),
     selectExportFile: vi.fn((suggestedPath?: string) => resolveWithRandomDelay(`exports/${suggestedPath}`)),
     selectImportFile: vi.fn(async () => resolveWithRandomDelay('imports/game-a.json')),
   },
@@ -42,7 +44,9 @@ describe('useSavedGamesStore', () => {
     ];
     domain.SavedGameIndexService.projectSaveGroups.mockClear();
     domain.SavedGameIndexService.getLatestSaveEntry.mockClear();
+    domain.SavedGameIndexService.getLatestSaveEntryForGame.mockClear();
     domain.SerializationService.listManagedSaveEntries.mockClear();
+    domain.SerializationService.deleteDocument.mockClear();
     domain.SerializationService.selectExportFile.mockClear();
     domain.SerializationService.selectImportFile.mockClear();
     domain.UserSettingService.getSettingsOrDefault.mockClear();
@@ -54,10 +58,13 @@ describe('useSavedGamesStore', () => {
     const store = useSavedGamesStore();
 
     expect(await store.listSavedGames()).toEqual(saveGroups);
+    expect(await store.getRestoreFilePaths(['game-a'])).toEqual(['saves/game-a/manual.json']);
     expect(await store.getLoadFilePath('game-a', 'manual')).toBe('saves/game-a/manual.json');
     expect(await store.getRecentGamePath('game-a')).toBe('saves/game-a/manual.json');
+    await store.deleteSave('game-a', 'manual');
     expect(await store.exportGame('game-a')).toBe('exports/game-a.json');
     expect(await store.importGame()).toBe('imports/game-a.json');
+    expect(domain.SerializationService.deleteDocument).toHaveBeenCalledWith('saves/game-a/manual.json');
   });
 
   it('returns undefined when import selection fails', async () => {

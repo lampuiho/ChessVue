@@ -61,4 +61,9 @@ export const SavedGameIndexService = {
     if (entries.length === 0) return;
     return [...entries].sort(compareSaveEntries)[0];
   },
+  getLatestSaveEntryForGame(groups: readonly ISavedGameGroup[], gameId: string): ISavedGameFileEntry | undefined {
+    const group = groups.find((candidate) => candidate.gameId === gameId);
+    if (!group) return;
+    return this.getLatestSaveEntry(group.saves);
+  },
 };

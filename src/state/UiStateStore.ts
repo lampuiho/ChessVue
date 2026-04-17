@@ -89,6 +89,14 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
   function _getLayoutState(): IUiLayoutState {
     return structuredClone(_layoutState.value ?? createDefaultLayoutState());
   }
+  function _getMutableGameSession(): IGameSessionSnapshot {
+    _gameSession.value ??= createDefaultGameSession();
+    return _gameSession.value;
+  }
+  function _getMutableLayoutState(): IUiLayoutState {
+    _layoutState.value ??= createDefaultLayoutState();
+    return _layoutState.value;
+  }
   async function getGameSessionOrDefault(): Promise<IGameSessionSnapshot> {
     if (_gameSession.value) return _getGameSession();
     if (_gameSessionPromise) return _gameSessionPromise;
@@ -126,44 +134,42 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     await SerializationService.writeUiLayoutDocument(BuildConfig.persistence.layoutStatePath, _getLayoutState());
   }
   function setActiveRoute(route: IGameSessionSnapshot['activeRoute']): void {
-    _gameSession.value = { ..._getGameSession(), activeRoute: route };
+    _getMutableGameSession().activeRoute = route;
   }
   function setActiveGame(gameId?: string): void {
-    const currentSnapshot = _getGameSession();
-    const openGameIds = gameId && !currentSnapshot.openGameIds.includes(gameId) ? [...currentSnapshot.openGameIds, gameId] : currentSnapshot.openGameIds;
-    _gameSession.value = coerceGameSessionSnapshot({ ...currentSnapshot, openGameIds, activeGameId: gameId });
+    const currentSnapshot = _getMutableGameSession();
+    currentSnapshot.activeGameId = gameId && currentSnapshot.openGameIds.includes(gameId) ? gameId : undefined;
+    if (currentSnapshot.activeGameId) {
+      currentSnapshot.activeRoute = `/game/${currentSnapshot.activeGameId}`;
+      return;
+    }
+    currentSnapshot.activeRoute = coerceActiveRoute(currentSnapshot.activeRoute, currentSnapshot.openGameIds, currentSnapshot.activeGameId);
   }
   function openTab(gameId: string): void {
-    const currentSnapshot = _getGameSession();
-    _gameSession.value = coerceGameSessionSnapshot({
-      ...currentSnapshot,
-      openGameIds: [...currentSnapshot.openGameIds, gameId],
-      activeGameId: gameId,
-      activeRoute: `/game/${gameId}`,
-    });
+    const currentSnapshot = _getMutableGameSession();
+    currentSnapshot.openGameIds = coerceOpenGameIds([...currentSnapshot.openGameIds, gameId]);
+    currentSnapshot.activeGameId = gameId;
+    currentSnapshot.activeRoute = `/game/${gameId}`;
   }
   function closeTab(gameId: string): void {
-    const currentSnapshot = _getGameSession();
-    _gameSession.value = coerceGameSessionSnapshot({
-      ...currentSnapshot,
-      openGameIds: currentSnapshot.openGameIds.filter((candidate) => candidate !== gameId),
-      activeGameId: currentSnapshot.activeGameId === gameId ? undefined : currentSnapshot.activeGameId,
-    });
+    const currentSnapshot = _getMutableGameSession();
+    currentSnapshot.openGameIds = currentSnapshot.openGameIds.filter((candidate) => candidate !== gameId);
+    if (currentSnapshot.activeGameId === gameId) currentSnapshot.activeGameId = undefined;
+    currentSnapshot.activeGameId = coerceActiveGameId(currentSnapshot.openGameIds, currentSnapshot.activeGameId);
+    currentSnapshot.activeRoute = coerceActiveRoute(currentSnapshot.activeRoute, currentSnapshot.openGameIds, currentSnapshot.activeGameId);
   }
   function setLayoutState(layout: IUiLayoutState): void {
     _layoutState.value = structuredClone(layout);
   }
   function togglePanel(panel: 'history' | 'analysis', isVisible?: boolean): void {
-    const currentLayout = _getLayoutState();
+    const currentLayout = _getMutableLayoutState();
     if (panel === 'history') currentLayout.showHistoryPanel = isVisible ?? !currentLayout.showHistoryPanel;
     if (panel === 'analysis') currentLayout.showAnalysisPanel = isVisible ?? !currentLayout.showAnalysisPanel;
-    _layoutState.value = currentLayout;
   }
   function setSectionCollapsed(section: 'history' | 'analysis', isCollapsed?: boolean): void {
-    const currentLayout = _getLayoutState();
+    const currentLayout = _getMutableLayoutState();
     if (section === 'history') currentLayout.historyCollapsed = isCollapsed ?? !currentLayout.historyCollapsed;
     if (section === 'analysis') currentLayout.analysisCollapsed = isCollapsed ?? !currentLayout.analysisCollapsed;
-    _layoutState.value = currentLayout;
   }
   function getModalState(): IAppModalState | undefined {
     return _modalState.value ? structuredClone(_modalState.value) : undefined;
@@ -178,10 +184,9 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     return [..._getLayoutState().analysisEngineExpandedByIndex];
   }
   function setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void {
-    const currentLayout = _getLayoutState();
+    const currentLayout = _getMutableLayoutState();
     while (currentLayout.analysisEngineExpandedByIndex.length <= index) currentLayout.analysisEngineExpandedByIndex.push(true);
     currentLayout.analysisEngineExpandedByIndex[index] = isExpanded ?? !currentLayout.analysisEngineExpandedByIndex[index];
-    _layoutState.value = currentLayout;
   }
 
   return {

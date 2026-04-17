@@ -58,6 +58,27 @@ describe('useUiStateStore', () => {
       activeRoute: '/settings/appearance',
     });
   });
+  it('keeps setActiveGame selection-only and persists mutated session state', async () => {
+    storedGameSession = createGameSessionSnapshot({
+      openGameIds: ['game-1'],
+      activeGameId: 'game-1',
+      activeRoute: '/game/game-1',
+    });
+    const store = useUiStateStore();
+
+    await store.getGameSessionOrDefault();
+    store.setActiveGame('missing');
+    store.openTab('game-2');
+    store.setActiveGame('game-1');
+    await store.saveGameSession();
+
+    expect(storedGameSession).toEqual({
+      schemaVersion: 1,
+      openGameIds: ['game-1', 'game-2'],
+      activeGameId: 'game-1',
+      activeRoute: '/game/game-1',
+    });
+  });
 
   it('coerces persisted routes and persists layout state with modal updates', async () => {
     storedGameSession = createGameSessionSnapshot({

@@ -285,6 +285,24 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (gameIndex >= 0) _games.value.splice(gameIndex, 1, game);
     else _games.value.push(game);
   }
+  function _assertMoveAllowed(game: IGame): void {
+    switch (game.gameState) {
+      case GameState.LiveWhiteTurn:
+      case GameState.LiveBlackTurn:
+      case GameState.AnalysisWhiteMove:
+      case GameState.AnalysisBlackMove:
+      case GameState.LiveAnalysisFromWhiteTurnWhiteMove:
+      case GameState.LiveAnalysisFromWhiteTurnBlackMove:
+      case GameState.LiveAnalysisFromBlackTurnWhiteMove:
+      case GameState.LiveAnalysisFromBlackTurnBlackMove:
+        return;
+      case GameState.PausedWhiteTurn:
+      case GameState.PausedBlackTurn:
+      case GameState.BoardEdit:
+      case GameState.Checkmate:
+        throw new Error(`Move submission is not allowed while gameState is ${game.gameState}.`);
+    }
+  }
   function _disposeAnalysisSubscription(engine: IAssignedEngine): void {
     const dispose = _analysisDisposers.get(engine);
     if (dispose) dispose();
@@ -388,21 +406,22 @@ export const useGamesStore = defineStore('gamesStore', () => {
     await _refreshRuntimeRegistrations(hydratedGame);
     return hydratedGame;
   }
-
   async function restoreAutosavedGames(gameIds: string[]): Promise<IGame[]> {
     if (gameIds.length === 0) return [];
     const settings = await UserSettingService.getSettingsOrDefault();
+    const saveGroups = SavedGameIndexService.projectSaveGroups(
+      settings.gameSession.saveRootPath,
+      await SerializationService.listManagedSaveEntries(settings.gameSession.saveRootPath),
+    );
     const restoredGames: IGame[] = [];
     for (const gameId of gameIds) {
-      const autosavePath = SavedGameIndexService.getAutosaveFilePath(settings.gameSession.saveRootPath, gameId);
-      try {
-        restoredGames.push(await _hydrateAndInsertGame(await SerializationService.readGameDocument(autosavePath)));
-      } catch (error) {
-        logHandledError('GamesStore', 'restoreAutosavedGames', error);
-      }
+      const latestSaveEntry = SavedGameIndexService.getLatestSaveEntryForGame(saveGroups, gameId);
+      if (!latestSaveEntry) throw new Error(`Saved game entry not found for ${gameId}.`);
+      restoredGames.push(await _hydrateAndInsertGame(await SerializationService.readGameDocument(latestSaveEntry.filePath)));
     }
     return restoredGames;
   }
+
   async function createGame(request: ICreateGameRequest): Promise<IGame> {
     const nowUtc = getNowUtc();
     const boardRoot = structuredClone(request.boardRoot ?? createInitialBoardPosition());
@@ -469,20 +488,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
   async function insertGame(game: IGame): Promise<IGame> {
     return _hydrateAndInsertGame(game);
   }
-  async function deleteGame(gameId: string): Promise<void> {
-    const game = getGame(gameId);
-    if (!game) return;
-    getGameRuntime(game).appCloseUnsubscribe?.();
-    getGameRuntime(game).focusReturnUnsubscribe?.();
-    if (isEnginePlayer(game.whitePlayer)) await stopAssignedEngine(game.whitePlayer.assignedEngine);
-    if (isEnginePlayer(game.blackPlayer)) await stopAssignedEngine(game.blackPlayer.assignedEngine);
-    for (const snapshot of game.analysis.snapshots) {
-      _disposeAnalysisSubscription(snapshot.assignedEngine);
-      await stopAssignedEngine(snapshot.assignedEngine);
-    }
-    const gameIndex = _getGameIndex(gameId);
-    if (gameIndex >= 0) _games.value.splice(gameIndex, 1);
-  }
   function getGame(gameId: string): IGame | undefined {
     return _games.value.find((game) => game.metadata.id === gameId);
   }
@@ -490,6 +495,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return _games.value;
   }
   async function makeMove(game: IGame, move: IMove): Promise<IMove | undefined> {
+    _assertMoveAllowed(game);
     const parentNode = getSelectedNode(game);
     if (!GameRuleService.isMoveLegal(parentNode.position, move)) return;
     const wasLiveState = isLiveState(game.gameState);
@@ -694,7 +700,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     loadGame,
     startGameFromSetup,
     insertGame,
-    deleteGame,
     getGame,
     listGames,
     makeMove,

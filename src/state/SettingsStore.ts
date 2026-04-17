@@ -98,9 +98,12 @@ export const useSettingsStore = defineStore('settingsStore', () => {
   function hasPendingChanges(): boolean {
     return JSON.stringify(_getDraftSettings()) !== JSON.stringify(_getAcceptedSettings());
   }
-  function applySettings(): void {
-    _acceptedSettings.value = _getDraftSettings();
-    void _refreshAppearanceProjection();
+  async function applySettings(): Promise<void> {
+    await _ensureInitialised();
+    const acceptedSettings = await UserSettingService.saveSettings(_getDraftSettings());
+    _acceptedSettings.value = cloneSettings(acceptedSettings);
+    _draftSettings.value = cloneSettings(acceptedSettings);
+    await _refreshAppearanceProjection();
   }
   function discardPendingSettings(): void {
     _draftSettings.value = _getAcceptedSettings();
