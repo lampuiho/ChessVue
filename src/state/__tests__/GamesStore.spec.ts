@@ -15,7 +15,6 @@ import {
   PlayerType,
   ResultReason,
   ResultState,
-  SaveGameTargetKind,
   TimeControlPreset,
   type IAssignedEngine,
   type IClockSnapshot,
@@ -276,7 +275,7 @@ describe('useGamesStore', () => {
     vi.restoreAllMocks();
   });
 
-  it('creates, saves, loads, and mutates live games through mocked domain services', async () => {
+  it('creates, inserts, and mutates live games through mocked domain services', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Workspace Game',
@@ -307,15 +306,16 @@ describe('useGamesStore', () => {
     await store.withdrawDrawOffer(game);
     expect(game.drawOfferState).toBeUndefined();
 
-    const savedPath = await store.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: 'manual' });
-    const loaded = await store.loadGame(savedPath);
+    const insertedPayload = stripRuntimeMetadata(game);
+    insertedPayload.metadata.id = game.metadata.id;
+    const inserted = await store.insertGame(insertedPayload);
     await store.takeBack(game, 1);
 
-    expect(savedPath).toBe(`saves/${game.metadata.id}/manual.json`);
-    expect(loaded.metadata.id).not.toBe(game.metadata.id);
+    expect(inserted.metadata.id).not.toBe(game.metadata.id);
     expect(store.listGames()).toHaveLength(2);
     expect(game.livePath).toEqual([]);
     expect(game.resultState).toBe(ResultState.Ongoing);
+    expect(domain.PlatformEventService.subscribeToAppCloseRequested).not.toHaveBeenCalled();
   });
 
   it('manages analysis engines, visible analysis, and board editing with mocked engine services', async () => {
@@ -412,7 +412,7 @@ describe('useGamesStore', () => {
     await expect(store.makeMove(game, move)).rejects.toThrow('checkmate');
   });
 
-  it('allows move submission from playable game states and restores the latest saved game', async () => {
+  it('allows move submission from playable game states and inserts duplicate ids with repair', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Playable Move',
@@ -425,12 +425,11 @@ describe('useGamesStore', () => {
 
     game.gameState = GameState.AnalysisWhiteMove;
     await expect(store.makeMove(game, createMove(PlayerColour.White))).resolves.toBeDefined();
-    game.metadata.id = 'restore-id';
-    await store.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: 'manual' });
+    const insertedPayload = stripRuntimeMetadata(game);
+    insertedPayload.metadata.id = game.metadata.id;
+    const insertedGame = await store.insertGame(insertedPayload);
 
-    const restoredGames = await store.restoreAutosavedGames(['restore-id']);
-
-    expect(restoredGames).toHaveLength(1);
-    expect(restoredGames[0]!.metadata.id).not.toBe(game.metadata.id);
+    expect(insertedGame.metadata.id).not.toBe(game.metadata.id);
+    expect(store.listGames()).toHaveLength(2);
   });
 });

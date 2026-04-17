@@ -25,7 +25,7 @@ import {
   type IMoveNode,
   type MovePath,
 } from '@/contracts';
-import { SaveGameTargetKind, type ISaveGameOptions, type PauseReason } from '@/contracts/state';
+import type { PauseReason } from '@/contracts/state';
 import {
   EngineRuntimeService,
   GameRuleService,
@@ -33,17 +33,13 @@ import {
   MoveNotationService,
   PlatformEventService,
   PositionIdentityService,
-  SavedGameIndexService,
-  SerializationService,
   TimeControlService,
-  UserSettingService,
 } from '@/domain';
 import { createInitialBoardPosition, getOpponentColour } from '@/utility/chess/BoardUtility';
 import { logHandledError } from '@/utility/errors';
 
 interface IGameStoreRuntime {
   pauseReasons?: PauseReason[];
-  appCloseUnsubscribe?: () => void;
   focusReturnUnsubscribe?: () => void;
 }
 
@@ -162,7 +158,7 @@ async function stopAssignedEngine(engine?: IAssignedEngine): Promise<void> {
     logHandledError('GamesStore', 'stopEngine', error);
   }
 }
-function updateMetadata(game: IGame): void {
+function setGameUpdateTimeNow(game: IGame): void {
   game.metadata.updatedAt = getNowUtc();
 }
 function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): IMoveNode {
@@ -308,25 +304,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (dispose) dispose();
     _analysisDisposers.delete(engine);
   }
-  async function _refreshRuntimeRegistrations(game: IGame): Promise<void> {
+  function _refreshRuntimeRegistrations(game: IGame): void {
     const runtime = getGameRuntime(game);
-    runtime.appCloseUnsubscribe?.();
     runtime.focusReturnUnsubscribe?.();
-    runtime.appCloseUnsubscribe = undefined;
     runtime.focusReturnUnsubscribe = undefined;
     if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
-    const settings = await UserSettingService.getSettingsOrDefault();
     runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, getNowUtc()), `sync-clock-${game.metadata.id}`);
-    if (settings.gameSession.autosaveOnClose) runtime.appCloseUnsubscribe = PlatformEventService.subscribeToAppCloseRequested('GamesStore', async () => {
-      await saveGame(game, { targetKind: SaveGameTargetKind.Autosave });
-    }, `autosave-${game.metadata.id}`);
-  }
-  function _getSavePath(game: IGame, options: ISaveGameOptions, saveRootPath: string): string {
-    switch (options.targetKind) {
-      case SaveGameTargetKind.Autosave: return SavedGameIndexService.getAutosaveFilePath(saveRootPath, game.metadata.id);
-      case SaveGameTargetKind.ManagedSave: return SavedGameIndexService.getNamedSaveFilePath(saveRootPath, game.metadata.id, options.saveName!);
-      case SaveGameTargetKind.ExternalFile: return options.filePath!;
-    }
   }
   function _resolveAnalysisSnapshot(game: IGame, engine: IAssignedEngine): IAnalysisSnapshot | undefined {
     return game.analysis.snapshots.find((snapshot) => snapshot.assignedEngine === engine);
@@ -341,7 +324,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       snapshot.bestMove = update.bestMove ? structuredClone(update.bestMove) : undefined;
       snapshot.lines = structuredClone(update.lines);
       snapshot.isComplete = update.isFinal;
-      updateMetadata(game);
+      setGameUpdateTimeNow(game);
     });
     _analysisDisposers.set(engine, dispose);
   }
@@ -389,37 +372,15 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.resultState = resolvedResult.resultState;
     game.resultReason = resolvedResult.resultReason;
     updateGameStateAfterPosition(game, nextPosition.sideToMove);
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
     return nextNode;
-  }
-  async function _maybeAutosave(game: IGame): Promise<void> {
-    const settings = await UserSettingService.getSettingsOrDefault();
-    const autosaveAfterMoveCount = settings.gameSession.autosaveAfterMoveCount;
-    if (autosaveAfterMoveCount <= 0) return;
-    const moveCount = (game.livePath ?? []).length;
-    if (moveCount > 0 && moveCount % autosaveAfterMoveCount === 0) await saveGame(game, { targetKind: SaveGameTargetKind.Autosave });
   }
   async function _hydrateAndInsertGame(game: IGame): Promise<IGame> {
     const hydratedGame = hydrateGame(_repairDuplicateGameId(game, _getExistingGameIds()));
     _normalisePlayers(hydratedGame);
     _replaceGame(hydratedGame);
-    await _refreshRuntimeRegistrations(hydratedGame);
+    _refreshRuntimeRegistrations(hydratedGame);
     return hydratedGame;
-  }
-  async function restoreAutosavedGames(gameIds: string[]): Promise<IGame[]> {
-    if (gameIds.length === 0) return [];
-    const settings = await UserSettingService.getSettingsOrDefault();
-    const saveGroups = SavedGameIndexService.projectSaveGroups(
-      settings.gameSession.saveRootPath,
-      await SerializationService.listManagedSaveEntries(settings.gameSession.saveRootPath),
-    );
-    const restoredGames: IGame[] = [];
-    for (const gameId of gameIds) {
-      const latestSaveEntry = SavedGameIndexService.getLatestSaveEntryForGame(saveGroups, gameId);
-      if (!latestSaveEntry) throw new Error(`Saved game entry not found for ${gameId}.`);
-      restoredGames.push(await _hydrateAndInsertGame(await SerializationService.readGameDocument(latestSaveEntry.filePath)));
-    }
-    return restoredGames;
   }
 
   async function createGame(request: ICreateGameRequest): Promise<IGame> {
@@ -451,18 +412,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (insertedGame.analysis.snapshots.length > 0) await _refreshAnalysisForGame(insertedGame);
     return insertedGame;
   }
-  async function saveGame(game: IGame, options: ISaveGameOptions): Promise<string> {
-    const settings = await UserSettingService.getSettingsOrDefault();
-    const targetPath = _getSavePath(game, options, settings.gameSession.saveRootPath);
-    await SerializationService.writeGameDocument(targetPath, game, options.overwrite ?? options.targetKind !== SaveGameTargetKind.Autosave);
-    return targetPath;
-  }
-  async function loadGame(filePath: string): Promise<IGame> {
-    const loadedGame = await _hydrateAndInsertGame(await SerializationService.readGameDocument(filePath));
-    const settings = await UserSettingService.getSettingsOrDefault();
-    if (settings.analysis.resumeLiveAnalysisAfterRestore && loadedGame.analysis.snapshots.length > 0) await _refreshAnalysisForGame(loadedGame);
-    return loadedGame;
-  }
   async function startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void> {
     game.metadata.name = request.name ?? game.metadata.name;
     game.whitePlayer = clonePlayer(request.whitePlayer);
@@ -481,8 +430,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
       game.livePath = undefined;
       game.gameState = getAnalysisState(getSelectedNode(game).position.sideToMove);
     }
-    updateMetadata(game);
-    await _refreshRuntimeRegistrations(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
     await _refreshAnalysisForGame(game);
   }
   async function insertGame(game: IGame): Promise<IGame> {
@@ -503,8 +452,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const nextClockSnapshot = shouldCommitLiveMove ? TimeControlService.applyMove(game.clockSnapshot, move.movingColour, getNowUtc(), game.timeControl) : undefined;
     _finaliseMove(game, parentNode, move, nextClockSnapshot, !shouldCommitLiveMove);
     if (!shouldCommitLiveMove && wasLiveState) game.gameState = getLiveAnalysisState(move.movingColour, getSelectedNode(game).position.sideToMove);
-    await _refreshRuntimeRegistrations(game);
-    await _maybeAutosave(game);
+    _refreshRuntimeRegistrations(game);
     await _refreshAnalysisForGame(game);
     return move;
   }
@@ -518,7 +466,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;
     updateGameStateAfterPosition(game, positionColour);
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
     await _refreshAnalysisForGame(game);
   }
   function navigateToNode(game: IGame, node: IMoveNode): void {
@@ -543,8 +492,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.resultState = expiredColour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
     game.resultReason = ResultReason.Timeout;
     game.gameState = getAnalysisState(getOpponentColour(expiredColour));
-    updateMetadata(game);
-    await _refreshRuntimeRegistrations(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
   }
   async function pauseGame(game: IGame, reason: PauseReason): Promise<void> {
     if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
@@ -552,8 +501,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, getNowUtc());
     game.gameState = getPausedState(getSelectedNode(game).position.sideToMove);
-    updateMetadata(game);
-    await _refreshRuntimeRegistrations(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
   }
   async function resumeGame(game: IGame, reason: PauseReason): Promise<void> {
     if (!isPausedState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
@@ -562,8 +511,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if ((runtime.pauseReasons ?? []).length > 0) return;
     game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, getNowUtc());
     game.gameState = getLiveState(getSelectedNode(game).position.sideToMove);
-    updateMetadata(game);
-    await _refreshRuntimeRegistrations(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
   }
   async function reassignPlayer(game: IGame, colour: PlayerColour, player?: IPlayer): Promise<void> {
     if (colour === PlayerColour.White) game.whitePlayer = clonePlayer(player);
@@ -574,15 +523,15 @@ export const useGamesStore = defineStore('gamesStore', () => {
       game.livePath = undefined;
       game.gameState = getAnalysisState(selectedNode.position.sideToMove);
     }
-    updateMetadata(game);
-    await _refreshRuntimeRegistrations(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
   }
   async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord): Promise<void> {
     if (game.analysis.snapshots.some((snapshot) => snapshot.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
     if (game.analysis.snapshots.length >= 4) throw new Error('A game cannot have more than four analysis engines.');
     const snapshot = createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(getSelectedNode(game).position), getNowUtc());
     game.analysis.snapshots.push(snapshot);
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
     await _refreshAnalysisForGame(game, game.analysis.snapshots.length - 1);
   }
   async function removeAnalysisEngine(game: IGame, engineIndex: number): Promise<void> {
@@ -591,7 +540,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _disposeAnalysisSubscription(snapshot.assignedEngine);
     await stopAssignedEngine(snapshot.assignedEngine);
     game.analysis.snapshots.splice(engineIndex, 1);
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
   }
   async function refreshAnalysis(game: IGame): Promise<void> {
     await _refreshAnalysisForGame(game);
@@ -630,19 +579,19 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const liveNode = getLiveNode(game);
     game.highlightPath = getPathToNode(liveNode);
     game.gameState = getLiveAnalysisState(liveNode.position.sideToMove, liveNode.position.sideToMove);
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
   }
   function exitInGameAnalysis(game: IGame): void {
     if (!isLiveAnalysisState(game.gameState)) return;
     const liveNode = getLiveNode(game);
     game.highlightPath = getPathToNode(liveNode);
     game.gameState = getLiveState(liveNode.position.sideToMove);
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
   }
   function enterBoardEdit(game: IGame): void {
     if (isLiveState(game.gameState) || isPausedState(game.gameState) || isLiveAnalysisState(game.gameState)) return;
     game.gameState = GameState.BoardEdit;
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
   }
   async function confirmBoardEdit(game: IGame, boardRoot: IGame['boardRoot']): Promise<void> {
     const nextClockSnapshot = TimeControlService.initialiseClockSnapshot(game.timeControl);
@@ -654,7 +603,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;
     game.gameState = getAnalysisState(boardRoot.sideToMove);
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
     await _refreshAnalysisForGame(game);
   }
   async function resignGame(game: IGame, colour: PlayerColour): Promise<void> {
@@ -662,8 +611,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.resultReason = ResultReason.Resignation;
     game.gameState = getAnalysisState(getOpponentColour(colour));
     game.drawOfferState = undefined;
-    updateMetadata(game);
-    await _refreshRuntimeRegistrations(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
   }
   async function offerDraw(game: IGame): Promise<void> {
     const selectedNode = getSelectedNode(game);
@@ -673,7 +622,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       respondingColour: getOpponentColour(offeringColour),
       direction: DrawOfferDirection.Outgoing,
     };
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
   }
   async function acceptDrawOffer(game: IGame): Promise<void> {
     if (!game.drawOfferState) return;
@@ -681,23 +630,20 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.resultReason = ResultReason.DrawAgreement;
     game.gameState = getAnalysisState(getSelectedNode(game).position.sideToMove);
     game.drawOfferState = undefined;
-    updateMetadata(game);
-    await _refreshRuntimeRegistrations(game);
+    setGameUpdateTimeNow(game);
+    _refreshRuntimeRegistrations(game);
   }
   async function declineDrawOffer(game: IGame): Promise<void> {
     game.drawOfferState = undefined;
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
   }
   async function withdrawDrawOffer(game: IGame): Promise<void> {
     if (game.drawOfferState?.direction === DrawOfferDirection.Outgoing) game.drawOfferState = undefined;
-    updateMetadata(game);
+    setGameUpdateTimeNow(game);
   }
 
   return {
-    restoreAutosavedGames,
     createGame,
-    saveGame,
-    loadGame,
     startGameFromSetup,
     insertGame,
     getGame,
