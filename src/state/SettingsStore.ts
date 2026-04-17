@@ -1,13 +1,35 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { shallowRef } from 'vue';
 
-import { ThemeMode, type IAppearanceProjection, type ISettingsSnapshot } from '@/contracts';
+import { ResolvedThemeMode, ThemeMode, type IAppearanceProjection, type ISettingsSnapshot } from '@/contracts';
 import { PlatformEventService, UserSettingService } from '@/domain';
-import { buildAppearanceProjection, resolveThemeMode } from '@/utility/state';
 
 function cloneSettings(snapshot: ISettingsSnapshot): ISettingsSnapshot {
   return structuredClone(snapshot);
 }
+const lightVariables = {
+  '--surface-app': '#f4efe3',
+  '--surface-panel': '#fffaf0',
+  '--surface-dialog': '#fffdf7',
+  '--border-subtle': '#d6c7a7',
+  '--text-primary': '#2f2617',
+  '--text-muted': '#6c5d43',
+  '--accent': '#b6692d',
+  '--danger': '#a53030',
+  '--focus-ring': '#d18a2f',
+} satisfies IAppearanceProjection['cssVariables'];
+const darkVariables = {
+  '--surface-app': '#171b1f',
+  '--surface-panel': '#222931',
+  '--surface-dialog': '#29323b',
+  '--border-subtle': '#465465',
+  '--text-primary': '#eef2f6',
+  '--text-muted': '#b2bfcb',
+  '--accent': '#d7a24d',
+  '--danger': '#f06b6b',
+  '--focus-ring': '#f2c46d',
+} satisfies IAppearanceProjection['cssVariables'];
+
 function mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISettingsSnapshot>): ISettingsSnapshot {
   return {
     ...currentSettings,
@@ -19,11 +41,25 @@ function mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISetti
     appearance: patch.appearance ? { ...currentSettings.appearance, ...patch.appearance } : { ...currentSettings.appearance },
   };
 }
+function resolveThemeMode(settings: ISettingsSnapshot, systemTheme: ResolvedThemeMode): ResolvedThemeMode {
+  switch (settings.appearance.themeMode) {
+    case ThemeMode.Light: return ResolvedThemeMode.Light;
+    case ThemeMode.Dark: return ResolvedThemeMode.Dark;
+    default: return systemTheme;
+  }
+}
+function buildAppearanceProjection(settings: ISettingsSnapshot, resolvedThemeMode: ResolvedThemeMode): IAppearanceProjection {
+  return {
+    themeMode: settings.appearance.themeMode,
+    resolvedThemeMode,
+    cssVariables: resolvedThemeMode === ResolvedThemeMode.Dark ? { ...darkVariables } : { ...lightVariables },
+  };
+}
 
 export const useSettingsStore = defineStore('settingsStore', () => {
-  const _acceptedSettings = ref<ISettingsSnapshot>();
-  const _draftSettings = ref<ISettingsSnapshot>();
-  const _appearanceProjection = ref<IAppearanceProjection>();
+  const _acceptedSettings = shallowRef<ISettingsSnapshot>();
+  const _draftSettings = shallowRef<ISettingsSnapshot>();
+  const _appearanceProjection = shallowRef<IAppearanceProjection>();
   let _initialisePromise: Promise<void> | undefined;
   let _disposeThemeSubscription: (() => void) | undefined;
 

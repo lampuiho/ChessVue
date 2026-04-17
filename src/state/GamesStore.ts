@@ -15,6 +15,7 @@ import {
   type IClockSnapshot,
   type ICreateGameRequest,
   type IEnginePlayer,
+  type IEnginePositionState,
   type IEngineRecord,
   type IGame,
   type IPlayer,
@@ -38,11 +39,6 @@ import {
 } from '@/domain';
 import { createInitialBoardPosition, getOpponentColour } from '@/utility/chess/BoardUtility';
 import {
-  buildEnginePositionState,
-  getNodeAtPath,
-  getPathToNode,
-  hydrateGame,
-  isNodeInTree,
   listManagedSaveGroups,
   logHandledError,
   readGameDocument,
@@ -174,6 +170,99 @@ async function stopAssignedEngine(engine?: IAssignedEngine): Promise<void> {
 function updateMetadata(game: IGame): void {
   game.metadata.updatedAt = getNowUtc();
 }
+function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): IMoveNode {
+  const hydratedMove = node.move ? MoveNotationService.decorateMove(parent?.position ?? node.position, node.move) : undefined;
+  const hydratedNode: IMoveNode = {
+    branchKind: node.branchKind,
+    move: hydratedMove,
+    position: structuredClone(node.position),
+    clockSnapshot: node.clockSnapshot ? structuredClone(node.clockSnapshot) : undefined,
+    plyIndex: node.plyIndex,
+    mainlineChildIndex: node.mainlineChildIndex,
+    children: [],
+    $: parent ? { parent } : undefined,
+  };
+  hydratedNode.children = node.children.map((child) => hydrateMoveNode(child, hydratedNode));
+  return hydratedNode;
+}
+function getNodeAtPath(tree: IGame['moveTree'], path: MovePath): IMoveNode {
+  let currentNode = tree.root;
+  for (const childIndex of path) {
+    const nextNode = currentNode.children[childIndex];
+    if (!nextNode) throw new Error('Move path does not exist in the hydrated tree.');
+    currentNode = nextNode;
+  }
+  return currentNode;
+}
+function getPathToNode(node: IMoveNode): MovePath {
+  const path: MovePath = [];
+  let currentNode: IMoveNode | undefined = node;
+  while (currentNode?.$?.parent) {
+    const parentNode: IMoveNode = currentNode.$.parent;
+    const childIndex = parentNode.children.indexOf(currentNode);
+    if (childIndex < 0) throw new Error('Node is no longer attached to the hydrated tree.');
+    path.unshift(childIndex);
+    currentNode = parentNode;
+  }
+  return path;
+}
+function isNodeInTree(tree: IGame['moveTree'], node: IMoveNode): boolean {
+  let currentNode: IMoveNode | undefined = node;
+  while (currentNode?.$?.parent) currentNode = currentNode.$.parent;
+  return currentNode === tree.root;
+}
+function hydrateGame(game: IGame): IGame {
+  return {
+    ...structuredClone(game),
+    moveTree: { root: hydrateMoveNode(game.moveTree.root) },
+    boardRoot: structuredClone(game.boardRoot),
+    livePath: game.livePath ? [...game.livePath] : undefined,
+    highlightPath: [...game.highlightPath],
+    timeControl: structuredClone(game.timeControl),
+    clockSnapshot: structuredClone(game.clockSnapshot),
+    analysis: structuredClone(game.analysis),
+  };
+}
+function getMovesFromPath(game: IGame, path: MovePath): IMove[] {
+  const moves: IMove[] = [];
+  let currentNode = game.moveTree.root;
+  for (const childIndex of path) {
+    const nextNode = currentNode.children[childIndex];
+    if (!nextNode?.move) throw new Error(`Move path is invalid for game ${game.metadata.id}.`);
+    moves.push(structuredClone(nextNode.move));
+    currentNode = nextNode;
+  }
+  return moves;
+}
+function buildEnginePositionState(game: IGame, path: MovePath = game.highlightPath, previous?: IEnginePositionState): IEnginePositionState {
+  const currentNode = getNodeAtPath(game.moveTree, path);
+  const movesFromRoot = getMovesFromPath(game, path);
+  const requiresNewGameBoundary = !previous
+    || JSON.stringify(previous.rootPosition) !== JSON.stringify(game.boardRoot)
+    || JSON.stringify(previous.movesFromRoot) !== JSON.stringify(movesFromRoot);
+  return {
+    rootPosition: structuredClone(game.boardRoot),
+    movesFromRoot,
+    currentPosition: structuredClone(currentNode.position),
+    requiresNewGameBoundary,
+  };
+}
+function cloneAnalysisSnapshotForRead(snapshot: IAnalysisSnapshot): IAnalysisSnapshot {
+  return {
+    assignedEngine: {
+      displayName: snapshot.assignedEngine.displayName,
+      executablePath: snapshot.assignedEngine.executablePath,
+      clientType: snapshot.assignedEngine.clientType,
+      protocol: snapshot.assignedEngine.protocol,
+      options: structuredClone(snapshot.assignedEngine.options),
+    },
+    positionKey: snapshot.positionKey,
+    updatedAt: snapshot.updatedAt,
+    bestMove: snapshot.bestMove ? structuredClone(snapshot.bestMove) : undefined,
+    lines: structuredClone(snapshot.lines),
+    isComplete: snapshot.isComplete,
+  };
+}
 
 export const useGamesStore = defineStore('gamesStore', () => {
   const _games = ref<IGame[]>([]);
@@ -239,6 +328,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     snapshot.updatedAt = getNowUtc();
     snapshot.lines = [];
     snapshot.isComplete = false;
+    await EngineRuntimeService.ensureReady(snapshot.assignedEngine);
     await EngineRuntimeService.syncPosition(snapshot.assignedEngine, positionState);
     await EngineRuntimeService.startAnalysis(snapshot.assignedEngine, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
   }
@@ -430,7 +520,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const positionKey = PositionIdentityService.buildPositionKey(selectedNode.position);
     const engineSnapshots = game.analysis.snapshots.filter((snapshot) => snapshot.positionKey === positionKey);
     if (engineSnapshots.length === 0) return;
-    return { engineSnapshots: structuredClone(engineSnapshots) };
+    return { engineSnapshots: engineSnapshots.map((snapshot) => cloneAnalysisSnapshotForRead(snapshot)) };
   }
   async function syncClock(game: IGame, nowUtc: string): Promise<void> {
     if (!isLiveState(game.gameState) && !isPausedState(game.gameState)) return;
@@ -516,6 +606,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (!isEnginePlayer(player)) return;
     const engine = player.assignedEngine;
     const positionState = buildEnginePositionState(game, game.livePath ?? []);
+    await EngineRuntimeService.ensureReady(engine);
     await EngineRuntimeService.syncPosition(engine, positionState);
     await EngineRuntimeService.startPlayerTurn(engine);
     const move = await EngineRuntimeService.awaitPlayerTurnMove(engine);

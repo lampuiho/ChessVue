@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { shallowRef } from 'vue';
 
 import { PlatformErrorKind, type IAppModalState, type IGameSessionSnapshot, type IUiLayoutState } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
 import { SerializationService } from '@/domain';
-import { coerceGameSessionSnapshot, logHandledError } from '@/utility/state';
+import { logHandledError } from '@/utility/state';
 
 function createDefaultGameSession(): IGameSessionSnapshot {
   return {
@@ -23,11 +23,63 @@ function createDefaultLayoutState(): IUiLayoutState {
     analysisEngineExpandedByIndex: [],
   };
 }
+const settingsRoutePattern = /^\/settings\/(session|gameplay|appearance|engines)$/;
+const gameRoutePattern = /^\/game\/(.+)$/;
+const saveRoutePattern = /^\/saved-games\/save\/(.+)$/;
+const loadSelectionRoutePattern = /^\/saved-games\/load\/(.+)$/;
+
+function isGameRoute(route: string): route is `/game/${string}` {
+  return gameRoutePattern.test(route);
+}
+function getGameRouteId(route: `/game/${string}`): string {
+  return route.slice('/game/'.length);
+}
+function isValidCommittedRoute(route: string): route is IGameSessionSnapshot['activeRoute'] {
+  return route === '/home'
+    || route === '/saved-games/load'
+    || settingsRoutePattern.test(route)
+    || saveRoutePattern.test(route)
+    || loadSelectionRoutePattern.test(route)
+    || gameRoutePattern.test(route);
+}
+function coerceOpenGameIds(openGameIds: readonly string[], availableGameIds?: ReadonlySet<string>): string[] {
+  const uniqueIds = [...new Set(openGameIds.filter((gameId) => gameId.length > 0))];
+  if (!availableGameIds) return uniqueIds;
+  return uniqueIds.filter((gameId) => availableGameIds.has(gameId));
+}
+function coerceActiveGameId(openGameIds: readonly string[], activeGameId?: string): string | undefined {
+  if (activeGameId && openGameIds.includes(activeGameId)) return activeGameId;
+  return openGameIds[0];
+}
+function selectFallbackRoute(openGameIds: readonly string[], activeGameId?: string): IGameSessionSnapshot['activeRoute'] {
+  if (activeGameId && openGameIds.includes(activeGameId)) return `/game/${activeGameId}`;
+  return '/home';
+}
+function validateGameRoute(route: IGameSessionSnapshot['activeRoute'], openGameIds: readonly string[]): IGameSessionSnapshot['activeRoute'] | undefined {
+  if (!isGameRoute(route)) return route;
+  const gameId = getGameRouteId(route);
+  return openGameIds.includes(gameId) ? route : undefined;
+}
+function coerceActiveRoute(route: string, openGameIds: readonly string[], activeGameId?: string): IGameSessionSnapshot['activeRoute'] {
+  if (!isValidCommittedRoute(route)) return selectFallbackRoute(openGameIds, activeGameId);
+  if (isGameRoute(route)) return validateGameRoute(route, openGameIds) ?? selectFallbackRoute(openGameIds, activeGameId);
+  return route;
+}
+function coerceGameSessionSnapshot(snapshot: IGameSessionSnapshot, availableGameIds?: ReadonlySet<string>): IGameSessionSnapshot {
+  const openGameIds = coerceOpenGameIds(snapshot.openGameIds, availableGameIds);
+  const activeGameId = coerceActiveGameId(openGameIds, snapshot.activeGameId);
+  return {
+    schemaVersion: snapshot.schemaVersion,
+    openGameIds,
+    activeGameId,
+    activeRoute: coerceActiveRoute(snapshot.activeRoute, openGameIds, activeGameId),
+  };
+}
 
 export const useUiStateStore = defineStore('uiStateStore', () => {
-  const _gameSession = ref<IGameSessionSnapshot>();
-  const _layoutState = ref<IUiLayoutState>();
-  const _modalState = ref<IAppModalState>();
+  const _gameSession = shallowRef<IGameSessionSnapshot>();
+  const _layoutState = shallowRef<IUiLayoutState>();
+  const _modalState = shallowRef<IAppModalState>();
   let _gameSessionPromise: Promise<IGameSessionSnapshot> | undefined;
   let _layoutStatePromise: Promise<IUiLayoutState> | undefined;
 
