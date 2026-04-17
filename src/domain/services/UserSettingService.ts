@@ -8,7 +8,7 @@ function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
 }
 function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
-  return {
+  return _coerceSettingsSnapshot({
     schemaVersion: 1,
     gameSession: {
       restorePreviousSession: true,
@@ -42,10 +42,15 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
       showCoordinates: true,
       highlightLastMove: true,
     },
-  };
+  });
+}
+function _coerceSettingsSnapshot(snapshot: ISettingsSnapshot): ISettingsSnapshot {
+  const acceptedSnapshot = structuredClone(snapshot);
+  if (acceptedSnapshot.gameSession.restorePreviousSession) acceptedSnapshot.gameSession.autosaveOnClose = true;
+  return acceptedSnapshot;
 }
 function _cacheAcceptedSettings(snapshot: ISettingsSnapshot): ISettingsSnapshot {
-  _cachedSettings = structuredClone(snapshot);
+  _cachedSettings = _coerceSettingsSnapshot(snapshot);
   return structuredClone(_cachedSettings);
 }
 function _parseJson(raw: string): unknown {
@@ -62,10 +67,10 @@ function _stripRuntimeMetadata<T>(input: T): T {
   return output as T;
 }
 function _deserialiseSettings(raw: string): ISettingsSnapshot {
-  return settingsSnapshotSchema.parse(_parseJson(raw));
+  return _coerceSettingsSnapshot(settingsSnapshotSchema.parse(_parseJson(raw)));
 }
 function _serialiseSettings(snapshot: ISettingsSnapshot): string {
-  return JSON.stringify(_stripRuntimeMetadata(settingsSnapshotSchema.parse(snapshot)), null, 2);
+  return JSON.stringify(_stripRuntimeMetadata(_coerceSettingsSnapshot(settingsSnapshotSchema.parse(snapshot))), null, 2);
 }
 async function _readSettingsDocument(path: string): Promise<ISettingsSnapshot> {
   return _deserialiseSettings(await usePlatformService().getStorageAdapter().readTextFile(path));
@@ -91,12 +96,12 @@ export const UserSettingService = {
     return usePlatformService().getSystemThemeAdapter().getSystemTheme();
   },
   async saveSettings(snapshot: ISettingsSnapshot): Promise<ISettingsSnapshot> {
-    const acceptedSettings = _deserialiseSettings(_serialiseSettings(snapshot));
+    const acceptedSettings = _coerceSettingsSnapshot(_deserialiseSettings(_serialiseSettings(snapshot)));
     await _writeSettingsDocument(BuildConfig.persistence.settingsPath, acceptedSettings);
     return _cacheAcceptedSettings(acceptedSettings);
   },
   async resetSettings(): Promise<ISettingsSnapshot> {
-    const defaultSettings = _createDefaultSettingsSnapshot();
+    const defaultSettings = _coerceSettingsSnapshot(_createDefaultSettingsSnapshot());
     await _writeSettingsDocument(BuildConfig.persistence.settingsPath, defaultSettings);
     return _cacheAcceptedSettings(defaultSettings);
   },

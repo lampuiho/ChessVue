@@ -66,14 +66,14 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow B - Restore The Routed Game Lazily
 | `GameView.setup` |
 | --- |
-| `GamesStore.restorePersistedGames` |
+| `GamesStore.restoreAutosavedGames` |
 | `UiStateStore.setActiveGame` |
 
-| `GamesStore.restorePersistedGames` |
+| `GamesStore.restoreAutosavedGames` |
 | --- |
 | `SerializationService.readGameDocument` |
+| `GamesStore._repairDuplicateGameId` |
 | `GamesStore._hydrateWorkspace` |
-| `GamesStore._repairMissingActiveGame` |
 
 | `UiStateStore.setActiveGame` |
 | --- |
@@ -144,7 +144,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._persistWorkspaceIfNeeded` |
 | `GameView._requestPlayerMoveIfNeeded` |
 
-- State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. When the restored route resolves to a game, `GameView.setup` lazily restores only the needed persisted game data. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
+- State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. Because session restore depends on autosaved tabs being reopenable, accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`. When the restored route resolves to a game, `GameView.setup` lazily restores only the requested autosaved game IDs from that session snapshot instead of scanning every managed save on disk. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
 - Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `GamesStore._hydrateWorkspace` then rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
 - Requirement verification: `Pass`. Session restore is lazy, route-driven, respects the restore setting, repairs invalid `activeGameId` values before the game view binds, and falls back deterministically to `/home` when restore cannot succeed.
 
@@ -194,9 +194,9 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow B - Corrupt Restored Game Payload
 | `GameView.setup` |
 | --- |
-| `GamesStore.restorePersistedGames` |
+| `GamesStore.restoreAutosavedGames` |
 
-| `GamesStore.restorePersistedGames` |
+| `GamesStore.restoreAutosavedGames` |
 | --- |
 | `SerializationService.readGameDocument` |
 | `GamesStore._skipCorruptDocument` |

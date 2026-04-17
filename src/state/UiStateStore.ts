@@ -4,7 +4,7 @@ import { shallowRef } from 'vue';
 import { PlatformErrorKind, type IAppModalState, type IGameSessionSnapshot, type IUiLayoutState } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
 import { SerializationService } from '@/domain';
-import { logHandledError } from '@/utility/state';
+import { logHandledError } from '@/utility/errors';
 
 function createDefaultGameSession(): IGameSessionSnapshot {
   return {

@@ -57,4 +57,4 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `getGameSessionOrDefault()` and `getLayoutStateOrDefault()` are lazy first-read boundaries intended for route or view setup paths rather than an eager startup phase.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis snapshot rows to derive the current mapping.
-- Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. If they share implementation with routing logic, that implementation is documented under `SessionNavigationUtility` in [UtilityIndex.md](../UtilityIndex.md).
+- Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. Those functions remain store-private and are not shared utility-layer modules.

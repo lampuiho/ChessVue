@@ -47,7 +47,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 | `SavedGameIndexService.getAutosaveFilePath` |
 | `SerializationService.writeGameDocument` |
 
-- Settings coverage: `gameSession.autosaveAfterMoveCount` gates move-threshold autosave, while `gameSession.autosaveOnClose` separately gates close-trigger autosave. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., { autosave: true })` is the only workspace-save owner for both trigger kinds.
+- Settings coverage: `gameSession.autosaveAfterMoveCount` gates move-threshold autosave, while `gameSession.autosaveOnClose` gates close-trigger autosave. Accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`, so reopenable prior-session tabs always have close-trigger autosave available. Runnable session ownership decides when the app-close callback is registered or disposed. `GamesStore.saveGame(..., { autosave: true })` is the only workspace-save owner for both trigger kinds.
 - Requirement verification: `Pass`. Autosave writes the dedicated internal save entry beneath the configured save root, leaves recent-game projection to later on-demand queries, and leaves in-memory game state intact when a write fails.
 
 ### SCN-SAVE-02 - Open Internal Save View
@@ -227,6 +227,7 @@ Case 2: autosave after quitting. When a runnable game session starts, it registe
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
 - State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `gameSession.autoPauseOnMenu` controls the route-entry pause branch only.
+- Session-restore note: startup restore reuses the same game-hydration path but targets only the autosave files for the `gameId` values recorded in the persisted session snapshot.
 - Requirement verification: `Pass`. Internal load stays distinct from external import, `SavedGamesStore` resolves the selected file path, `GamesStore` performs the actual load, and home-screen recents remain query-derived instead of being updated through same-layer store calls.
 
 ### SCN-EXPORT-01 - Export Game to External File

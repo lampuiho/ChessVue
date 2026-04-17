@@ -16,6 +16,7 @@ getRecentGames(): Promise<IRecentGameEntry[]>
 - pick the newest available autosave or saved-file target for each canonical `gameId` through `SavedGameIndexService.getLatestSaveEntry(...)`
 - drop missing or invalid targets naturally on the next query instead of requiring eager cleanup writes
 - avoid treating the full recent-games list as long-lived authoritative reactive store state
+- keep managed-save enumeration and recent-entry projection as store-private helpers instead of a shared utility wrapper
 
 ## Dependencies
 - `SavedGameIndexService`

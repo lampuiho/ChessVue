@@ -34,17 +34,12 @@ import {
   PlatformEventService,
   PositionIdentityService,
   SavedGameIndexService,
+  SerializationService,
   TimeControlService,
   UserSettingService,
 } from '@/domain';
 import { createInitialBoardPosition, getOpponentColour } from '@/utility/chess/BoardUtility';
-import {
-  listManagedSaveGroups,
-  logHandledError,
-  readGameDocument,
-  repairDuplicateGameId,
-  writeGameDocument,
-} from '@/utility/state';
+import { logHandledError } from '@/utility/errors';
 
 interface IGameStoreRuntime {
   pauseReasons?: PauseReason[];
@@ -263,6 +258,17 @@ function cloneAnalysisSnapshotForRead(snapshot: IAnalysisSnapshot): IAnalysisSna
     isComplete: snapshot.isComplete,
   };
 }
+function _repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>): IGame {
+  if (!existingGameIds.has(game.metadata.id)) return game;
+  return {
+    ...game,
+    metadata: {
+      ...game.metadata,
+      id: crypto.randomUUID(),
+      updatedAt: getNowUtc(),
+    },
+  };
+}
 
 export const useGamesStore = defineStore('gamesStore', () => {
   const _games = ref<IGame[]>([]);
@@ -376,23 +382,23 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (moveCount > 0 && moveCount % autosaveAfterMoveCount === 0) await saveGame(game, { targetKind: SaveGameTargetKind.Autosave });
   }
   async function _hydrateAndInsertGame(game: IGame): Promise<IGame> {
-    const hydratedGame = hydrateGame(repairDuplicateGameId(game, _getExistingGameIds()));
+    const hydratedGame = hydrateGame(_repairDuplicateGameId(game, _getExistingGameIds()));
     _normalisePlayers(hydratedGame);
     _replaceGame(hydratedGame);
     await _refreshRuntimeRegistrations(hydratedGame);
     return hydratedGame;
   }
 
-  async function restorePersistedGames(gameIds?: string[]): Promise<IGame[]> {
+  async function restoreAutosavedGames(gameIds: string[]): Promise<IGame[]> {
+    if (gameIds.length === 0) return [];
     const settings = await UserSettingService.getSettingsOrDefault();
-    const targetGameIds = gameIds ?? (await listManagedSaveGroups(settings.gameSession.saveRootPath)).map((group) => group.gameId);
     const restoredGames: IGame[] = [];
-    for (const gameId of targetGameIds) {
+    for (const gameId of gameIds) {
       const autosavePath = SavedGameIndexService.getAutosaveFilePath(settings.gameSession.saveRootPath, gameId);
       try {
-        restoredGames.push(await _hydrateAndInsertGame(await readGameDocument(autosavePath)));
+        restoredGames.push(await _hydrateAndInsertGame(await SerializationService.readGameDocument(autosavePath)));
       } catch (error) {
-        logHandledError('GamesStore', 'restorePersistedGames', error);
+        logHandledError('GamesStore', 'restoreAutosavedGames', error);
       }
     }
     return restoredGames;
@@ -429,11 +435,11 @@ export const useGamesStore = defineStore('gamesStore', () => {
   async function saveGame(game: IGame, options: ISaveGameOptions): Promise<string> {
     const settings = await UserSettingService.getSettingsOrDefault();
     const targetPath = _getSavePath(game, options, settings.gameSession.saveRootPath);
-    await writeGameDocument(targetPath, game, options.overwrite ?? options.targetKind !== SaveGameTargetKind.Autosave);
+    await SerializationService.writeGameDocument(targetPath, game, options.overwrite ?? options.targetKind !== SaveGameTargetKind.Autosave);
     return targetPath;
   }
   async function loadGame(filePath: string): Promise<IGame> {
-    const loadedGame = await _hydrateAndInsertGame(await readGameDocument(filePath));
+    const loadedGame = await _hydrateAndInsertGame(await SerializationService.readGameDocument(filePath));
     const settings = await UserSettingService.getSettingsOrDefault();
     if (settings.analysis.resumeLiveAnalysisAfterRestore && loadedGame.analysis.snapshots.length > 0) await _refreshAnalysisForGame(loadedGame);
     return loadedGame;
@@ -682,7 +688,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
 
   return {
-    restorePersistedGames,
+    restoreAutosavedGames,
     createGame,
     saveGame,
     loadGame,

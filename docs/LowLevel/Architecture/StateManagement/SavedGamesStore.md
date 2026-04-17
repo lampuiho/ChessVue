@@ -21,6 +21,7 @@ importGame(): Promise<string | undefined>
 - enumerate managed-save directory contents through `SerializationService` before projecting them through `SavedGameIndexService`
 - use `SavedGameIndexService` for save-root, folder, and file-path logic
 - keep saved-game menu data, latest-save choice, and file-path lookup inside one owning store even when later caller-owned sequencing also updates open tabs, active route, or runtime restart state
+- keep grouped save enumeration as a store-private helper instead of routing that logic through a shared utility wrapper
 
 ## Dependencies
 - `SavedGameIndexService`

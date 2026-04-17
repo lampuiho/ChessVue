@@ -2,10 +2,12 @@ import { defineStore } from 'pinia';
 
 import type { ISavedGameGroup } from '@/contracts/domain';
 import { SavedGameIndexService, SerializationService, UserSettingService } from '@/domain';
-import { listManagedSaveGroups } from '@/utility/state';
 
 async function getSaveRootPath(): Promise<string> {
   return (await UserSettingService.getSettingsOrDefault()).gameSession.saveRootPath;
+}
+async function _listManagedSaveGroups(rootPath: string): Promise<ISavedGameGroup[]> {
+  return SavedGameIndexService.projectSaveGroups(rootPath, await SerializationService.listManagedSaveEntries(rootPath));
 }
 function getTargetEntry(groups: ISavedGameGroup[], gameId: string, saveName?: string) {
   const group = groups.find((candidate) => candidate.gameId === gameId);
@@ -19,7 +21,7 @@ function getTargetEntry(groups: ISavedGameGroup[], gameId: string, saveName?: st
 
 export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   async function listSavedGames(): Promise<ISavedGameGroup[]> {
-    return listManagedSaveGroups(await getSaveRootPath());
+    return _listManagedSaveGroups(await getSaveRootPath());
   }
   async function getLoadFilePath(gameId: string, saveName?: string): Promise<string> {
     return getTargetEntry(await listSavedGames(), gameId, saveName).filePath;

@@ -59,6 +59,7 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - `gameSession.saveRootPath` is the logical root for ChessVue's own save files. Internal saves are grouped into one folder per canonical game beneath that root. Browser-backed adapters may emulate this structure without changing the contract.
 - `gameSession.autosaveAfterMoveCount` counts committed ply. `0` disables move-count autosave, while `1` means autosave after every committed move.
 - `gameSession.autosaveOnClose` controls whether app or shell close writes the internal autosave entry separately from the move-count trigger.
+- Accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`.
 - `gameSession.autoPauseOnMenu` controls timed-game auto-pause for settings, internal save/load views, import/export flows, and other interrupting menu flows.
 - Auto-resume after menu interruption is paired behaviour of `gameSession.autoPauseOnMenu`; it is not a separate stored setting.
 - `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, and `gameplay.analysisBranchExitBehaviour` define the behaviour of historical-node move actions.

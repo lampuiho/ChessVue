@@ -147,6 +147,7 @@ On restore, those persisted snapshots are restored with the game, and analysis m
 ### Autosave
 - Writes or replaces the dedicated autosave entry for one game using the canonical saved-game payload.
 - Triggered only by the configured move-count threshold in `gameSession.autosaveAfterMoveCount` and the close trigger in `gameSession.autosaveOnClose`.
+- When `gameSession.restorePreviousSession = true`, accepted settings coerce `gameSession.autosaveOnClose = true` so reopening the prior session can rely on targeted autosave files for the remembered tab set.
 - Settings, game-session state, and UI-layout state remain separate persisted artefacts rather than becoming part of the autosave trigger definition.
 
 ### Internal Save File
@@ -173,6 +174,7 @@ On restore, those persisted snapshots are restored with the game, and analysis m
 ## Corrupt or Partial Payload Handling
 ### Game Session Snapshot
 - If corrupt, discard the bad game-session snapshot and keep valid settings, valid UI-layout state, and valid games.
+- If valid, startup restore uses the remembered `openGameIds` only as targeted autosave lookup inputs; it does not enumerate and reopen every managed save on disk.
 
 ### UI Layout State
 - If corrupt, discard the bad UI-layout state and fall back to layout defaults without affecting valid settings or valid saved games.
@@ -198,6 +200,7 @@ The app must isolate bad payloads instead of failing the whole launch or import 
 
 ## Restore Policy Note
 - `gameSession.restorePreviousSession` controls whether the game-session snapshot is used to reopen prior tabs and the active route.
+- Startup restore is lazy and targeted: only the autosaved games referenced by that session snapshot are reopened.
 - That setting does not block loading UI-layout state; remembered panel visibility and fold state may still be restored independently.
 
 ## Non-Baseline Exclusions

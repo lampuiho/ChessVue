@@ -400,6 +400,15 @@ describe('State Layer', () => {
     store.updateSettings({ appearance: { themeMode: ThemeMode.System } as ISettingsSnapshot['appearance'] });
     await store.saveSettings();
     expect((await store.getAppearanceProjection()).resolvedThemeMode).toBe('dark');
+    await UserSettingService.saveSettings({
+      ...await UserSettingService.getSettingsOrDefault(),
+      gameSession: {
+        ...(await UserSettingService.getSettingsOrDefault()).gameSession,
+        restorePreviousSession: true,
+        autosaveOnClose: false,
+      },
+    });
+    expect((await UserSettingService.getSettingsOrDefault()).gameSession.autosaveOnClose).toBe(true);
     await store.resetSettings();
     expect((await store.getSettings()).appearance.themeMode).toBe(ThemeMode.System);
   });
@@ -596,7 +605,7 @@ describe('State Layer', () => {
     expect(enginePlayerGame.gameState).toBe(GameState.LiveBlackTurn);
   });
 
-  it('supports resigning, draw acceptance, player reassignment, and persisted autosave restore', async () => {
+  it('supports resigning, draw acceptance, player reassignment, and autosaved game restore', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Restore Candidate',
@@ -630,7 +639,8 @@ describe('State Layer', () => {
     expect(game.resultReason).toBe(ResultReason.Resignation);
 
     await store.deleteGame(game.metadata.id);
-    const restoredGames = await store.restorePersistedGames(['restore-id']);
+    expect(await store.restoreAutosavedGames([])).toEqual([]);
+    const restoredGames = await store.restoreAutosavedGames(['restore-id']);
     expect(restoredGames).toHaveLength(1);
     expect(restoredGames[0]!.metadata.id).toBe('restore-id');
   });
