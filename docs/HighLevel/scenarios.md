@@ -493,14 +493,14 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User enters board-editing mode from free analysis / setup.
   2. User adds, removes, or relocates pieces to define a new position.
-  3. User confirms the edited position.
-  4. App replaces the current board state with the edited position.
-  5. App clears existing move history and treats the edited board as the new root position.
-  6. If engines were configured at creation, app requests analysis for the edited position.
+  3. On the first actual board edit, app clears existing move history and treats the edited board as the new root position.
+  4. Later board edits in the same board-edit session continue mutating that new root directly.
+  5. User leaves board-editing mode through the same board-edit control.
+  6. If engines were configured at creation, app requests analysis for the edited position after board editing ends.
 - **Branch Paths**:
-  - `BR-FREE-ANALYSIS-02-CLEAR-CONFIRM`: If history exists, app asks for confirmation before clearing it.
+  - `BR-FREE-ANALYSIS-02-FIRST-EDIT-CLEAR`: If history exists, the first actual board edit discards it immediately as the edited board becomes the new root.
   - `BR-FREE-ANALYSIS-02-ENGINE-REFRESH-FAIL`: If engines cannot refresh on the edited position, keep the edited board and show evaluation as unavailable.
-- **Postconditions**: The edited position becomes the current free-analysis root and old move history is removed when confirmed.
+- **Postconditions**: The edited position becomes the current free-analysis root through direct board edits, old move history is removed on the first edit, and analysis resumes after board editing ends.
 - **Implementation Touchpoints**:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`

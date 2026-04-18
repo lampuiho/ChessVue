@@ -46,7 +46,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - `PausedLiveAnalysisFrom*` means the same live-analysis context exists while live clock progression remains paused.
 - In `LiveAnalysisFromWhiteTurnBlackMove`, for example, White was due to move when live analysis started, but the current analysis board has Black to move.
 - `AnalysisWhiteMove` and `AnalysisBlackMove` cover free analysis/setup and post-result non-live analysis.
-- `BoardEdit` is direct free edit from the current visible board and is never a live state.
+- `BoardEdit` is direct free edit from the current visible board, applies board changes immediately, and is never a live state.
 
 ## Game And Player Ownership
 - `IGame` owns the seated `IPlayer` values for white and black.
@@ -90,7 +90,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 | Make analysis move | No | No | Yes | No | Yes | No | No |
 | Navigate history | Yes | No | Yes | No | Yes | No | Yes |
 | Enter board edit | No | No | No | No | Yes | Already active | No |
-| Start or stop analysis engines | Yes | Yes | Yes | Yes | Yes | After edit confirm | Yes |
+| Start or stop analysis engines | Yes | Yes | Yes | Yes | Yes | After board edit ends | Yes |
 | Reassign players | Yes | Yes | Yes | Yes | Yes | No | Review only |
 | Background engine evaluation | N/A | Current in-flight search may finish only | N/A | Current in-flight search may finish only | N/A | N/A | N/A |
 | Pause or resume clock | Timed only | Resume only | Pause or resume only when clocked live analysis is active | Resume only | No | No | No |
@@ -124,7 +124,8 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 ### Non-Live Analysis And Setup
 - `AnalysisWhiteMove` and `AnalysisBlackMove` allow legal move exploration for both colours.
 - Board editing is available only from non-live analysis.
-- Confirming a board edit replaces the current board root and clears prior move history for that game.
+- The first direct board edit in a `BoardEdit` session replaces the current board root and clears prior move history for that game.
+- Later board edits in the same `BoardEdit` session continue mutating that new root without a separate confirm step.
 - Reaching non-live analysis from player reassignment keeps the visible board context and prior move tree available for review and later restart.
 
 ### Pausing And Interruptions

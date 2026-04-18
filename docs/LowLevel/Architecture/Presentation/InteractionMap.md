@@ -38,7 +38,7 @@ Read-side rule:
 - `SavedGamesStore` owns latest-save choice, save grouping, route-specific document load or save flows, close-trigger autosave registration, and external picker flows, while `GamesStore` owns only active-workspace creation, insertion, hydration, and gameplay mutation after a payload is already available; the view stays display and routing focused.
 
 ### Board And Move Input
-- `Chessboard` owns board interaction entry points such as click-click move input, drag-drop, selection clearing, and board-edit confirmation.
+- `Chessboard` owns board interaction entry points such as click-click move input, drag-drop, selection clearing, and direct board-edit piece placement or removal.
 - `BoardGrid`, `SquareSurface`, `ChessPiece`, `AnalysisChessPieceButton`, and `ButtonGroup` own the board and piece render surfaces.
 - `GameView` forwards board events to `GamesStore`, which remains the mutation boundary.
 
@@ -60,7 +60,7 @@ Read-side rule:
   - pause and resume
   - resign and draw
   - enter and exit in-game analysis
-  - enter and confirm board edit
+  - enter, leave, and toggle board edit
   - start game from setup
 - `PanelSurface`, `ButtonGroup`, and `SidePanelButton` own control markup.
 - `PlayerPanel` remains display-focused for players, clocks, and engine status, with the explicit exception that clicking a displayed player label for a baseline reassignable seat opens the player-selection flow for that side.

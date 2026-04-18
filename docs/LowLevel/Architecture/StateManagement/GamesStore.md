@@ -33,7 +33,6 @@ requestPlayerMove(game: IGame): Promise<IMove | undefined>
 enterInGameAnalysis(game: IGame): Promise<void>
 exitInGameAnalysis(game: IGame): void
 enterBoardEdit(game: IGame): void
-confirmBoardEdit(game: IGame, boardRoot: IBoardPosition): Promise<void>
 resignGame(game: IGame, colour: PlayerColour): Promise<void>
 offerDraw(game: IGame): Promise<void>
 acceptDrawOffer(game: IGame): Promise<void>
@@ -86,6 +85,8 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - Player reassignment and analysis-engine management remain valid while paused as explicit non-play exceptions to the paused gameplay lock.
 - If a player-engine turn search resolves while the game is paused, `GamesStore` records deferred output only. Once pause clears back to a playable live state, it revalidates the deferred move against the current live position before committing it; stale deferred output is discarded and the normal player-move gate decides whether to request a fresh search instead.
 - If an analysis search resolves while the game is paused, `GamesStore` may still persist the latest valid snapshot for read-only display, but it must not treat that completion as permission to unlock interaction or mutate live game state.
+- `enterBoardEdit` is the public toggle for the direct-edit session. Entering board edit from non-live analysis stops analysis first, while calling the same action again leaves `BoardEdit` and restores ordinary non-live analysis so analysis refresh may resume.
+- While `gameState = BoardEdit`, board interactions apply direct board edits immediately. The first actual board edit clears prior move history and promotes the edited board to the new root; later board edits in the same session continue mutating that root without a separate confirm action.
 - After `addMainlineMove` or `addAnalysisMove`, the store derives the new child lineage from the selected parent plus the appended child index, then reacquires the hydrated node from the returned tree before committing game selection.
 - After `takeBack`, `rewriteMainline`, or latest-node analysis cleanup through `pruneFutureMoves`, the store derives the surviving live and highlighted lineage from the pre-mutation selected node and the documented coercion rules, then reacquires the corresponding hydrated nodes from the returned tree.
 

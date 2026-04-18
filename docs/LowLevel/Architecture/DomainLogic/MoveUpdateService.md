@@ -24,7 +24,7 @@ replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMo
 - support the store-owned automatic pruning action by removing superseded descendant continuations when live-play rules decide they should be discarded
 - carry root and live/mainline node clock snapshots alongside the stored positions
 - operate on hydrated nodes whose runtime-only `$` metadata provides parent traversal
-- clear prior move history after confirmed board edit
+- clear prior move history when the first direct board edit promotes the edited board to the new root
 - stay ownership-limited to tree mutation only; workspace navigation and live or visible selection remain store-owned concerns
 
 ## Scenario Coverage

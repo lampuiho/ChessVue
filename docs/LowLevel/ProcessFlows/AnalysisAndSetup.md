@@ -78,23 +78,45 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore._assertBoardEditAllowed` |
 | `GamesStore._enterBoardEditContext` |
 
-#### Flow B - Confirm Board Edit
-| `BoardEdit.confirmRequested` |
+#### Flow B - Apply The First Direct Board Edit
+| `Chessboard.boardEditMoveSubmitted` |
 | --- |
-| `GamesStore.confirmBoardEdit` |
+| `GamesStore.makeMove` |
 | `MoveUpdateService.replaceBoardRoot` |
-| `GamesStore._clearGameAnalysis` |
+| `GamesStore._clearPreparedMoveHistory` |
+| `GamesStore._applyBoardEditMove` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._assertMoveAllowed` |
+| `GamesStore._applyBoardEditMove` |
+
+| `MoveUpdateService.replaceBoardRoot` |
+| --- |
+
+| `GamesStore._clearPreparedMoveHistory` |
+| --- |
+
+#### Flow C - Apply Later Direct Board Edits In The Same Session
+| `Chessboard.boardEditMoveSubmitted` |
+| --- |
+| `GamesStore.makeMove` |
+| `GamesStore._applyBoardEditMove` |
+
+| `GamesStore.makeMove` |
+| --- |
+| `GamesStore._assertMoveAllowed` |
+| `GamesStore._applyBoardEditMove` |
+
+#### Flow D - Leave Board Edit And Resume Analysis
+| `GameControlPanel.boardEditRequested` |
+| --- |
+| `GamesStore.enterBoardEdit` |
 | `GamesStore.refreshAnalysis` |
 
-| `GamesStore.confirmBoardEdit` |
+| `GamesStore.enterBoardEdit` |
 | --- |
-| `GamesStore._replaceWorkspaceRoot` |
-
-| `MoveUpdateService.replaceBoardRoot` |
-| --- |
-
-| `GamesStore._clearGameAnalysis` |
-| --- |
+| `GamesStore._toggleBoardEditContext` |
 
 | `GamesStore.refreshAnalysis` |
 | --- |
@@ -121,8 +143,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
-- Process note: because board editing is restricted to non-live analysis, `GamesStore.confirmBoardEdit` replaces the root through `MoveUpdateService.replaceBoardRoot(..., undefined)` and clears prior move history in one mutation.
-- Requirement verification: `Pass`. The public surface covers edit entry, confirm, history clearing, analysis suspension during edit, and analysis refresh afterwards.
+- Process note: because board editing is restricted to non-live analysis, the first direct board edit replaces the root through `MoveUpdateService.replaceBoardRoot(..., undefined)` and clears prior move history before the edit is applied. Later direct board edits in the same board-edit session continue mutating that new root.
+- Control note: the same board-edit control toggles the mode on and off. Leaving board edit does not perform a second confirm step; it only ends the direct-edit session and allows analysis refresh to resume.
+- Requirement verification: `Pass`. The public surface covers edit entry, direct board mutation, first-edit history clearing, analysis suspension during edit, and analysis refresh after board edit ends.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 
