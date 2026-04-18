@@ -2,9 +2,10 @@ import { z } from 'zod'
 import { gameAnalysisSchema, type IGameAnalysis } from './Analysis'
 import { assignedEngineSchema, engineRecordSchema, type IAssignedEngine, type IEngineRecord } from './Engine'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
-import { movePathSchema, moveTreeSchema, type IMoveTree, type MovePath } from './Move'
+import { movePathSchema, moveTreeSchema, type IMove, type IMoveTree, type MovePath } from './Move'
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
+import { type PauseReason } from './state'
 
 export const enum GameState {
   LiveWhiteTurn = 'liveWhiteTurn',
@@ -105,7 +106,11 @@ export interface IGameMetadata {
 export interface ILiveAnalysisOptions {
   showLiveAnalysisMoves: boolean
 }
-export interface IGameRuntime {}
+export interface IGameRuntime {
+  pauseReasons?: PauseReason[]
+  focusReturnUnsubscribe?: () => void
+  deferredPlayerMove?: IMove
+}
 export interface IGame {
   schemaVersion: number
   metadata: IGameMetadata

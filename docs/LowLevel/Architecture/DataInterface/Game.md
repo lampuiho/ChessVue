@@ -114,7 +114,11 @@ interface ILiveAnalysisOptions {
   showLiveAnalysisMoves: boolean
 }
 
-interface IGameRuntime {}
+interface IGameRuntime {
+  pauseReasons?: PauseReason[]
+  focusReturnUnsubscribe?: () => void
+  deferredPlayerMove?: IMove
+}
 
 interface IGame {
   schemaVersion: number
@@ -175,6 +179,7 @@ interface IStartGameFromSetupRequest {
 - `ICreateGameRequest.analysisEngineProfiles` and `IStartGameFromSetupRequest.analysisEngineProfiles` carry the selected reusable engine profiles for copied analysis-engine assignment.
 - `IPlayer.$.activityState` is intentionally minimal. `active` means the seat can still participate normally, while `nonActive` covers unavailable engines, disconnected non-local players, or any other seat that has left normal participation.
 - `$` is the runtime-only namespace. Anything under `$` is rebuilt in memory and is never persisted in the canonical saved-game payload.
+- `IGame.$` owns game-scoped runtime concerns such as active pause reasons, focus-return teardown, and any deferred player-engine move waiting for resume-time revalidation.
 - Turn ownership, move waiting, and move permissions are derived from `gameState`, not stored on `IPlayer`.
 - Engine runtime details such as `processHandle`, availability, and last error live on `IEnginePlayer.assignedEngine.$`, not on `IPlayer.$`.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGame`.

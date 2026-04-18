@@ -550,7 +550,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-01-LIVE-SCORE-ONLY`: In any `liveGame` context, the current game's live-analysis preference may keep the panel score-only instead of rendering PV moves.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
   - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
-  - `BR-ANALYSIS-01-PAUSED`: If live play is paused after analysis search has already started, the current search may finish and update the latest snapshot read-only, but paused state does not allow new user-triggered analysis actions or move commits.
+  - `BR-ANALYSIS-01-PAUSED`: If live play is paused after analysis search has already started, the current search may finish and update the latest snapshot read-only. Paused state still blocks move commits and move-target clicks, but non-gameplay analysis controls such as refresh, retry, stop, and engine-roster management remain allowed.
 - **Postconditions**: The latest valid eval for the active position is available on the game-owned analysis data, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
 - **Implementation Touchpoints**:
   - `GameView.onStartAnalysis`
@@ -576,7 +576,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
   - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, engine rows still update independently without rendering move lists.
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
-  - `BR-ANALYSIS-02-PAUSED`: If live play is paused after multi-engine search has already started, each current search may finish independently, but the paused game surface remains read-only.
+  - `BR-ANALYSIS-02-PAUSED`: If live play is paused after multi-engine search has already started, each current search may finish independently and update read-only snapshots, while move-target clicks remain blocked until resume.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
 - **Implementation Touchpoints**:
   - `EnginesStore.listConfiguredEngines`
@@ -652,7 +652,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-05-LIMIT`: Adding the engine would exceed the supported concurrent analysis-engine limit -> reject and explain the limit.
   - `BR-ANALYSIS-05-START-FAIL`: Added engine cannot start for the current position -> keep the assignment with unavailable feedback and allow retry or removal.
   - `BR-ANALYSIS-05-BOARD-EDIT`: Current workspace is in `boardEdit` -> block live analysis start until board editing ends.
-  - `BR-ANALYSIS-05-PAUSED`: Current workspace is paused live -> block add or remove actions until resume, while any already running engine searches may finish read-only.
+  - `BR-ANALYSIS-05-PAUSED`: Current workspace is paused live -> keep move-target clicks blocked, but still allow add, remove, refresh, retry, and stop actions because those analysis controls are treated as non-gameplay management.
 - **Postconditions**: The current game's ordered copied analysis-engine rows update independently from other games, and those copied engines begin or end analysis accordingly.
 - **Implementation Touchpoints**:
   - `AnalysisPanel.analysisEngineAddRequested`

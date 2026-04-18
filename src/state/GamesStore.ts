@@ -19,6 +19,7 @@ import {
   type IEnginePositionState,
   type IEngineRecord,
   type IGame,
+  type IGameRuntime,
   type IPlayer,
   type IStartGameFromSetupRequest,
   type IVisibleAnalysisSnapshot,
@@ -37,11 +38,6 @@ import {
 } from '@/domain';
 import { createInitialBoardPosition, getOpponentColour } from '@/utility/chess/BoardUtility';
 import { logHandledError } from '@/utility/errors';
-
-interface IGameStoreRuntime {
-  pauseReasons?: PauseReason[];
-  focusReturnUnsubscribe?: () => void;
-}
 
 function getNowUtc(): string {
   return new Date().toISOString();
@@ -78,10 +74,10 @@ function createGameMetadata(name: string, nowUtc: string) {
     updatedAt: nowUtc,
   };
 }
-function getGameRuntime(game: IGame): IGameStoreRuntime {
-  const runtime = game.$ as IGameStoreRuntime | undefined;
+function getGameRuntime(game: IGame): IGameRuntime {
+  const runtime = game.$ as IGameRuntime | undefined;
   if (runtime) return runtime;
-  const nextRuntime: IGameStoreRuntime = {};
+  const nextRuntime: IGameRuntime = {};
   game.$ = nextRuntime;
   return nextRuntime;
 }
@@ -111,6 +107,9 @@ function isAnyLiveAnalysisState(state: GameState): boolean {
 }
 function isAnalysisState(state: GameState): boolean {
   return state === GameState.AnalysisWhiteMove || state === GameState.AnalysisBlackMove || isAnyLiveAnalysisState(state);
+}
+function isTimedGame(game: IGame): boolean {
+  return game.timeControl.initialMs !== undefined && game.timeControl.preset !== 'untimed';
 }
 function getAnalysisState(colour: PlayerColour): GameState {
   return colour === PlayerColour.White ? GameState.AnalysisWhiteMove : GameState.AnalysisBlackMove;
@@ -148,11 +147,20 @@ function getSelectedNode(game: IGame): IMoveNode {
 function getLiveNode(game: IGame): IMoveNode {
   return getNodeAtPath(game.moveTree, game.livePath ?? []);
 }
+function pathsEqual(left: MovePath | undefined, right: MovePath | undefined): boolean {
+  if ((left?.length ?? 0) !== (right?.length ?? 0)) return false;
+  return JSON.stringify(left ?? []) === JSON.stringify(right ?? []);
+}
 function getSideToMovePlayer(game: IGame, positionColour: PlayerColour): IPlayer | undefined {
   return positionColour === PlayerColour.White ? game.whitePlayer : game.blackPlayer;
 }
 function isEnginePlayer(player?: IPlayer): player is IEnginePlayer {
   return player?.type === PlayerType.Engine;
+}
+function hasRunningClock(snapshot: IClockSnapshot): boolean {
+  return snapshot.activeColour !== undefined
+    && snapshot.startedAtUtc !== undefined
+    && (snapshot.white.isRunning || snapshot.black.isRunning);
 }
 function updateGameStateAfterPosition(game: IGame, positionColour: PlayerColour): void {
   if (game.resultState !== ResultState.Ongoing) {
@@ -306,6 +314,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (gameIndex >= 0) _games.value.splice(gameIndex, 1, game);
     else _games.value.push(game);
   }
+  function _assertNotPausedForAction(game: IGame, action: string): void {
+    if (!isPausedState(game.gameState)) return;
+    throw new Error(`${action} is not allowed while gameState is ${game.gameState}.`);
+  }
   function _assertMoveAllowed(game: IGame): void {
     switch (game.gameState) {
       case GameState.LiveWhiteTurn:
@@ -328,6 +340,31 @@ export const useGamesStore = defineStore('gamesStore', () => {
         throw new Error(`Move submission is not allowed while gameState is ${game.gameState}.`);
     }
   }
+  function _canPauseForReason(game: IGame, reason: PauseReason): boolean {
+    if (reason === PauseReason.Analysis) return true;
+    return isTimedGame(game) && hasRunningClock(game.clockSnapshot);
+  }
+  function _canRequestPlayerMove(game: IGame): boolean {
+    if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing || !game.livePath) return false;
+    const liveNode = getLiveNode(game);
+    return isEnginePlayer(getSideToMovePlayer(game, liveNode.position.sideToMove));
+  }
+  function _clearDeferredPlayerMove(game: IGame): void {
+    getGameRuntime(game).deferredPlayerMove = undefined;
+  }
+  async function _flushDeferredPlayerMove(game: IGame): Promise<IMove | undefined> {
+    const runtime = getGameRuntime(game);
+    const deferredPlayerMove = runtime.deferredPlayerMove;
+    if (!deferredPlayerMove) return;
+    runtime.deferredPlayerMove = undefined;
+    if (!_canRequestPlayerMove(game)) return;
+    const liveNode = getLiveNode(game);
+    if (GameRuleService.isMoveLegal(liveNode.position, deferredPlayerMove)) {
+      await makeMove(game, deferredPlayerMove);
+      return deferredPlayerMove;
+    }
+    if (_canRequestPlayerMove(game)) return requestPlayerMove(game);
+  }
   function _disposeAnalysisSubscription(engine: IAssignedEngine): void {
     const dispose = _analysisDisposers.get(engine);
     if (dispose) dispose();
@@ -337,7 +374,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const runtime = getGameRuntime(game);
     runtime.focusReturnUnsubscribe?.();
     runtime.focusReturnUnsubscribe = undefined;
-    if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
+    if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing || !isTimedGame(game)) return;
     runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, getNowUtc()), `sync-clock-${game.metadata.id}`);
   }
   function _resolveAnalysisSnapshot(game: IGame, engine: IAssignedEngine): IAnalysisSnapshot | undefined {
@@ -477,15 +514,17 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const parentNode = getSelectedNode(game);
     if (!GameRuleService.isMoveLegal(parentNode.position, move)) return;
     const wasLiveState = isLiveState(game.gameState);
-    const shouldCommitLiveMove = isLiveState(game.gameState) && JSON.stringify(game.highlightPath) === JSON.stringify(game.livePath ?? []);
+    const shouldCommitLiveMove = isLiveState(game.gameState) && pathsEqual(game.highlightPath, game.livePath ?? []);
     const nextClockSnapshot = shouldCommitLiveMove ? TimeControlService.applyMove(game.clockSnapshot, move.movingColour, getNowUtc(), game.timeControl) : undefined;
     _finaliseMove(game, parentNode, move, nextClockSnapshot, !shouldCommitLiveMove);
+    if (shouldCommitLiveMove) _clearDeferredPlayerMove(game);
     if (!shouldCommitLiveMove && wasLiveState) game.gameState = getLiveAnalysisState(move.movingColour, getSelectedNode(game).position.sideToMove);
     _refreshRuntimeRegistrations(game);
     await _refreshAnalysisForGame(game);
     return move;
   }
   async function takeBack(game: IGame, moveCount: number = 1): Promise<void> {
+    _assertNotPausedForAction(game, 'Takeback');
     const targetNode = getSelectedNode(game);
     game.moveTree = MoveUpdateService.takeBack(targetNode, moveCount);
     const fallbackNode = targetNode.$?.parent ? getNodeAtPath(game.moveTree, getPathToNode(targetNode.$.parent)) : game.moveTree.root;
@@ -500,9 +539,20 @@ export const useGamesStore = defineStore('gamesStore', () => {
     await _refreshAnalysisForGame(game);
   }
   function navigateToNode(game: IGame, node: IMoveNode): void {
+    _assertNotPausedForAction(game, 'History navigation');
     if (!isNodeInTree(game.moveTree, node)) return;
-    game.highlightPath = getPathToNode(node);
-    if (isLiveState(game.gameState) || isPausedState(game.gameState)) return;
+    const nextPath = getPathToNode(node);
+    const isLiveNode = pathsEqual(nextPath, game.livePath ?? []);
+    const liveNode = game.livePath ? getLiveNode(game) : undefined;
+    game.highlightPath = nextPath;
+    if (isLiveState(game.gameState) && liveNode) {
+      game.gameState = isLiveNode ? getLiveState(node.position.sideToMove) : getLiveAnalysisState(liveNode.position.sideToMove, node.position.sideToMove);
+      return;
+    }
+    if (isLiveAnalysisState(game.gameState) && liveNode) {
+      game.gameState = isLiveNode ? getLiveState(liveNode.position.sideToMove) : getLiveAnalysisState(liveNode.position.sideToMove, node.position.sideToMove);
+      return;
+    }
     updateGameStateAfterPosition(game, node.position.sideToMove);
   }
   function getVisibleAnalysis(game: IGame): IVisibleAnalysisSnapshot | undefined {
@@ -526,6 +576,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   async function pauseGame(game: IGame, reason: PauseReason): Promise<void> {
     const runtime = getGameRuntime(game);
+    if (!_canPauseForReason(game, reason)) return;
     if (isPausedState(game.gameState)) {
       runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
       return;
@@ -539,6 +590,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _refreshRuntimeRegistrations(game);
   }
   async function resumeGame(game: IGame, reason: PauseReason): Promise<void> {
+    if (reason !== PauseReason.Analysis && !isTimedGame(game)) return;
     if (!isPausedState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
     const runtime = getGameRuntime(game);
     runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== reason);
@@ -548,6 +600,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     else game.gameState = getLiveAnalysisState(getLiveAnchorColour(game), getSelectedNode(game).position.sideToMove);
     setGameUpdateTimeNow(game);
     _refreshRuntimeRegistrations(game);
+    if (isLiveState(game.gameState)) await _flushDeferredPlayerMove(game);
   }
   async function reassignPlayer(game: IGame, colour: PlayerColour, player?: IPlayer): Promise<void> {
     if (colour === PlayerColour.White) game.whitePlayer = clonePlayer(player);
@@ -596,7 +649,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     }
   }
   async function requestPlayerMove(game: IGame): Promise<IMove | undefined> {
-    if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
+    if (!_canRequestPlayerMove(game)) return;
     const liveNode = getLiveNode(game);
     const player = getSideToMovePlayer(game, liveNode.position.sideToMove);
     if (!isEnginePlayer(player)) return;
@@ -606,10 +659,16 @@ export const useGamesStore = defineStore('gamesStore', () => {
     await EngineRuntimeService.syncPosition(engine, positionState);
     await EngineRuntimeService.startPlayerTurn(engine);
     const move = await EngineRuntimeService.awaitPlayerTurnMove(engine);
+    if (isPausedState(game.gameState)) {
+      getGameRuntime(game).deferredPlayerMove = structuredClone(move);
+      return move;
+    }
+    if (!_canRequestPlayerMove(game)) return;
     await makeMove(game, move);
     return move;
   }
   async function enterInGameAnalysis(game: IGame): Promise<void> {
+    _assertNotPausedForAction(game, 'In-game analysis entry');
     if (!isLiveState(game.gameState)) return;
     const liveNode = getLiveNode(game);
     await pauseGame(game, PauseReason.Analysis);
@@ -630,10 +689,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
         game.gameState = getLiveState(liveNode.position.sideToMove);
       }
       _refreshRuntimeRegistrations(game);
+      if (isLiveState(game.gameState)) void _flushDeferredPlayerMove(game);
     } else game.gameState = getLiveState(liveNode.position.sideToMove);
     setGameUpdateTimeNow(game);
   }
   function enterBoardEdit(game: IGame): void {
+    _assertNotPausedForAction(game, 'Board edit entry');
     if (isLiveState(game.gameState) || isPausedState(game.gameState) || isAnyLiveAnalysisState(game.gameState)) return;
     game.gameState = GameState.BoardEdit;
     setGameUpdateTimeNow(game);
@@ -652,6 +713,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     await _refreshAnalysisForGame(game);
   }
   async function resignGame(game: IGame, colour: PlayerColour): Promise<void> {
+    _assertNotPausedForAction(game, 'Resignation');
     game.resultState = colour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
     game.resultReason = ResultReason.Resignation;
     game.gameState = getAnalysisState(getOpponentColour(colour));
@@ -660,6 +722,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _refreshRuntimeRegistrations(game);
   }
   async function offerDraw(game: IGame): Promise<void> {
+    _assertNotPausedForAction(game, 'Draw offer');
     const selectedNode = getSelectedNode(game);
     const offeringColour = selectedNode.position.sideToMove;
     game.drawOfferState = {
@@ -670,6 +733,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     setGameUpdateTimeNow(game);
   }
   async function acceptDrawOffer(game: IGame): Promise<void> {
+    _assertNotPausedForAction(game, 'Draw acceptance');
     if (!game.drawOfferState) return;
     game.resultState = ResultState.Drawn;
     game.resultReason = ResultReason.DrawAgreement;
@@ -679,10 +743,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _refreshRuntimeRegistrations(game);
   }
   async function declineDrawOffer(game: IGame): Promise<void> {
+    _assertNotPausedForAction(game, 'Draw decline');
     game.drawOfferState = undefined;
     setGameUpdateTimeNow(game);
   }
   async function withdrawDrawOffer(game: IGame): Promise<void> {
+    _assertNotPausedForAction(game, 'Draw withdrawal');
     if (game.drawOfferState?.direction === DrawOfferDirection.Outgoing) game.drawOfferState = undefined;
     setGameUpdateTimeNow(game);
   }
