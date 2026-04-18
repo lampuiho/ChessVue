@@ -155,7 +155,7 @@ interface IStartGameFromSetupRequest {
 ## Rules
 - `GameState` is the single authoritative playable-state enum. It replaces separate workspace, interaction, clock, and turn-waiting axes.
 - `GameState.LiveWhiteTurn` and `GameState.LiveBlackTurn` are the only normal live-play states.
-- `GameState.PausedWhiteTurn` and `GameState.PausedBlackTurn` are timed live states paused by user or app flow.
+- `GameState.PausedWhiteTurn` and `GameState.PausedBlackTurn` are timed live states paused by user or app flow. While active, the game surface is locked for user actions other than resume, although already running engine searches may still complete under the paused runtime rules.
 - `GameState.LiveAnalysisFrom*` means the game still has a committed live turn anchor, but the visible board is exploring analysis moves instead of progressing the live node.
 - `GameState.AnalysisWhiteMove` and `GameState.AnalysisBlackMove` are non-live analysis states used for free analysis/setup and for post-result analysis after non-checkmate terminal results.
 - `GameState.BoardEdit` is a free-edit state only and is never combined with live play.

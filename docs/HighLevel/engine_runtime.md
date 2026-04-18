@@ -64,6 +64,10 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - If player reassignment changes a side to `none`, the previous live game ends, live player-engine sessions stop, and the workspace continues as `freeAnalysisSetup` while preserving the move tree.
 - If player reassignment results in both sides being assigned again, live play restarts from the preserved setup/history with a newly chosen time control and fresh live clock state.
 - After that restarted live game is created, the normal live-state gate decides whether the side to move should immediately receive an engine turn.
+- If a timed live game is paused while a player-engine turn search or analysis search is already in flight, that current search may continue until it reaches a best line or move result.
+- Analysis output produced while paused may update the stored analysis snapshot for read-only display, but it must not unlock paused interaction.
+- A player-engine move produced while paused is stored as deferred output tied to the evaluated position and side to move, and it must not mutate the game tree or clocks until the game resumes.
+- On resume, deferred player-engine output must be revalidated against the live position and turn before commit. Stale deferred output is discarded and replaced by a fresh request when the live-game gate still requires engine play.
 
 ## Player Move Contract
 - Engine-backed move generation is exposed to the game flow as a simple async request/response boundary.
@@ -90,6 +94,7 @@ If the user selects more than the supported concurrent analysis engines, the app
 ## Search and Streaming Behaviour
 - Analysis engines stream incremental results over time.
 - The latest valid output from an engine replaces its earlier displayed result for that same position.
+- Paused live play does not permit new user-triggered analysis or move application, but an already running engine search may still complete and publish its last valid output under the paused rules above.
 - Protocol parsing remains an internal engine-boundary concern owned by `EngineClient`; upper layers consume app-facing analysis updates and awaited moves rather than raw engine lines.
 - If the engine stops unexpectedly, the next attempted runtime operation fails explicitly for that engine. The last valid displayed result remains visible until replaced.
 

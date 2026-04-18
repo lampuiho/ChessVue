@@ -61,6 +61,7 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - `gameSession.autosaveOnClose` controls whether app or shell close writes the internal autosave entry separately from the move-count trigger.
 - Accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`.
 - `gameSession.autoPauseOnMenu` controls timed-game auto-pause for settings, internal save/load views, import/export flows, and other interrupting menu flows.
+- When `gameSession.autoPauseOnMenu` pauses a timed live game, the game surface becomes interaction-locked until the paired auto-resume path or an explicit manual resume clears that pause.
 - Auto-resume after menu interruption is paired behaviour of `gameSession.autoPauseOnMenu`; it is not a separate stored setting.
 - `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, and `gameplay.analysisBranchExitBehaviour` define the behaviour of historical-node move actions.
 - `analysis.resumeLiveAnalysisAfterRestore` applies only after saved-game restore completes.

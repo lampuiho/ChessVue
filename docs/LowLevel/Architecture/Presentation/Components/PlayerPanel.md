@@ -16,6 +16,6 @@ Render player slots, clock state, and engine status for both sides.
 ## Notes
 - Gameplay actions such as pause, resign, draw, and takeback are centralised in `GameControlPanel`.
 - Captured material is rendered as grouped icons in the player strip rather than as a separate control surface.
-- `PlayerPanel` stays read-heavy, but each displayed player label for a baseline reassignable seat acts as the explicit click target for reassigning that side to unassigned, `PlayerType.Local`, or a configured engine profile.
+- `PlayerPanel` stays read-heavy, but each displayed player label for a baseline reassignable seat acts as the explicit click target for reassigning that side to unassigned, `PlayerType.Local`, or a configured engine profile. This reassignment affordance remains available while paused because it is treated as a game-configuration change rather than gameplay input.
 - Keeping `PlayerPanel` display-focused outside that explicit player-reassignment affordance reduces duplicated controls and unnecessary template depth.
 - `PlayerPanel` contains no HTML or template markup and binds player state into `PanelSurface`, `StatusCard`, and `ClockDisplay`.

@@ -29,10 +29,12 @@ Render the latest visible analysis snapshot for the active position.
 - Live and live-analysis states default to score-only rows because `liveAnalysisOptions.showLiveAnalysisMoves` defaults to `false`.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = true`, live states may expose individual engine move targets, and selecting one commits an ordinary live move through `GamesStore.makeMove`.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = true`, live-analysis states may expose individual engine move targets, and selecting one applies analysis moves without advancing the live node.
+- Paused live play keeps visible analysis rows read-only for move selection, but background analysis updates, refresh, retry, stop, and analysis-engine management remain available because they are not treated as gameplay actions.
 - Each engine group may be folded independently without affecting the other engine groups.
 - The panel title row exposes a right-aligned `+` button for adding an analysis engine to the current game.
 - Each assigned engine group exposes a right-aligned `-` button on that engine title row for removing it from the current game, separate from retry or stop runtime actions.
 - Persisted analysis snapshots may remain visible when live engines are unavailable.
 - The panel rerenders when `GamesStore` exposes a newer visible snapshot for the same engine and highlighted position, so stronger scores replace weaker ones during an active search.
 - Selecting a move inside a suggested line always follows the same move-dispatch rules as ordinary move entry for the current game state. Non-live analysis and live-analysis states apply analysis moves, while live states commit a real move.
+- In paused live play, `moveSelected` is not emitted even if a read-only line is visible.
 - `AnalysisPanel` contains no HTML or template markup and binds engine view models into common panel, status, list, and message components.

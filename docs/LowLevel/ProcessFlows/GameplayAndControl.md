@@ -208,9 +208,19 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.pauseGame` |
 | `GameView._openRuntimeErrorDialog` |
 
+#### Flow C - Player Turn Completes While Paused
+| `GamesStore._awaitPlayerTurnMove` |
+| --- |
+| `GamesStore._storeDeferredPlayerMove` |
+
+| `GamesStore._storeDeferredPlayerMove` |
+| --- |
+| `GamesStore._captureDeferredPlayerMoveContext` |
+
 - Runtime distinction: analysis search keeps streaming updates over time, while a player-engine turn waits only for the final awaited move and then ends that turn-scoped search.
 - State gate: `GamesStore.requestPlayerMove` is valid only for `LiveWhiteTurn` or `LiveBlackTurn` with `resultState = ongoing` when the side to move is assigned to an active non-local player.
 - Guardrails: player-engine turn generation is blocked in non-live analysis, live analysis, board edit, paused live games, and `Checkmate`.
+- Paused completion rule: if an already-started player-engine turn resolves while the game is paused, the result is recorded as deferred output only. `GamesStore.makeMove(...)` is not called until resume clears the paused state and the deferred result is revalidated against the live position and side to move.
 - Completion rule: the player-engine turn completes only when `EngineRuntimeService.awaitPlayerTurnMove(...)` resolves with a valid move. The baseline defines no no-response timeout.
 - Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.
 - Runtime-error rule: malformed player-turn output or other unexpected runtime exceptions are logged and surfaced through the owning standard error-handling path without inventing automatic reconnect, automatic stop, or timeout behaviour.
@@ -245,7 +255,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.refreshAnalysis` |
 | `GameView._requestPlayerMoveIfNeeded` |
 
-- State coverage: player reassignment is valid in live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model.
+- State coverage: player reassignment is valid in live states, paused live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model.
 - Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate.
 
 ## History And Branching
@@ -270,7 +280,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.getVisibleAnalysis` |
 
 - Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
-- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state and suppresses `GameView._requestPlayerMoveIfNeeded`; returning to the live node restores the matching live or paused live state.
+- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state and suppresses `GameView._requestPlayerMoveIfNeeded`; returning to the live node restores the matching live or paused live state. Paused live games block history navigation until resume.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the same visible node.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
@@ -441,7 +451,10 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.requestPlayerMove` |
 
 - State coverage: pause and resume are valid only for timed `LiveWhiteTurn` or `LiveBlackTurn` states with `resultState = ongoing`.
-- Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally.
+- Paused-surface rule: once paused, the game surface blocks history navigation, move entry, takeback, draw, resign, in-game-analysis entry, and board edit until resume.
+- Paused-exception rule: player reassignment and analysis-engine management remain allowed while paused because they are treated as configuration actions rather than gameplay actions.
+- Deferred-engine rule: analysis searches may finish while paused and update read-only snapshots, while any player-engine move that resolves during pause is held as deferred output and revalidated on resume before commit.
+- Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally, and paused live play is interaction-locked apart from resume.
 
 ### SCN-TIME-03 - Increment Applied After Move
 
@@ -521,6 +534,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._resumeClock` |
 
 - Settings coverage: `gameSession.autoPauseOnMenu` controls whether timed live games are paused for save, settings, and similar interrupting flows.
+- Interruption rule: while the menu-owned pause is active, the game surface is inert and any player-engine move that becomes ready remains deferred until the paired resume path revalidates it.
 - Requirement verification: `Pass`. Auto-pause is gated by settings, active clock state, and pause ownership.
 
 ## Game Controls
@@ -544,6 +558,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 
 - Requirement verification: `Pass`. Takeback policy and clock recomputation remain inside one mutation boundary.
+- State gate: paused live play blocks takeback through the same paused-state assertion boundary used by other game-surface mutations.
 
 ### SCN-CTRL-02 - Resign Game
 
@@ -568,6 +583,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `SerializationService.writeGameDocument` |
 
 - Requirement verification: `Pass`. Confirmation and final result persistence are both covered.
+- State gate: paused live play blocks resignation until resume restores an interactive live state.
 
 ### SCN-CTRL-03 - Draw Offer Flow
 
@@ -648,6 +664,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `SerializationService.writeGameDocument` |
 
 - UI surface coverage: local-local resolution uses the shared dialog shell. Non-local opponents use the LED-like pending-offer indicator on `GameControlPanel`.
+- State gate: paused live play blocks offer, accept, decline, and withdraw actions until resume; any pending-offer indicator is read-only while paused.
 - Requirement verification: `Pass`. The baseline keeps local-local resolution explicit while letting engine-backed non-local participation define the same indicator-based model that a future adapter can reuse.
 
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
@@ -677,7 +694,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._restoreLiveNode` |
 | `GamesStore._resumeAfterAnalysisIfOwned` |
 
-- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Exiting the mode is prompt-free and restores the live node immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
+- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Paused live games must resume before analysis entry is allowed. Exiting the mode is prompt-free and restores the live node immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode

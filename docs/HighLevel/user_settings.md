@@ -16,7 +16,7 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Restore previous session on launch | Reopens prior session when valid. |
 | Autosave enabled | Controls whether meaningful state changes are persisted automatically. |
 | Autosave debounce | Reduces excessive write frequency during rapid changes. |
-| Auto-pause on menu interruption | Applies to timed live games during settings, save, and similar flows. |
+| Auto-pause on menu interruption | Applies to timed live games during settings, save, and similar flows, locking game interaction until the paired return or an explicit resume. |
 
 ## 2. Gameplay Policies
 | Setting | Baseline Notes |

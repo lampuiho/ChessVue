@@ -73,7 +73,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | SavedGameIndexService.projectSaveGroups |
 
 - Route coverage: save routes through /saved-games/save/:name, opens directly into the selected game's save surface, and does not use the shared dialog family.
-- Settings coverage: gameSession.autoPauseOnMenu decides whether a timed live game is paused before routing into the save view, and the remembered pause owner is what later allows safe auto-resume.
+- Settings coverage: gameSession.autoPauseOnMenu decides whether a timed live game is paused before routing into the save view, and the remembered pause owner is what later allows safe auto-resume. While the save route is open, that paused game remains interaction-locked and any player-engine move that becomes ready stays deferred until return.
 - Requirement verification: `Pass`. The save flow is route-level and browse-first until the user confirms a save name, `SavedGamesStore` owns both the grouped save-browser data and the eventual save write, and `GamesStore` is not involved because the active `IGame` payload is already in hand.
 
 ### SCN-SAVE-03 - Confirm Internal Save Write
@@ -219,7 +219,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | GameView._requestPlayerMoveIfNeeded |
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
-- State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `gameSession.autoPauseOnMenu` controls the route-entry pause branch only.
+- State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `gameSession.autoPauseOnMenu` controls the route-entry pause branch only. Any player-engine move that became ready on the previously active paused game during the load flow remains deferred until that game's paired resume path revalidates it.
 - Session-restore note: startup restore reuses the same saved-document load plus `GamesStore.insertGame(...)` hydration path but targets only the latest available managed save entry for each `gameId` recorded in the persisted session snapshot.
 - Requirement verification: `Pass`. Internal load stays distinct from external import, `SavedGamesStore` performs the actual saved-document load, `GamesStore.insertGame(...)` performs runtime insertion and hydration, and home-screen recents remain query-derived instead of being updated through same-layer store calls.
 
@@ -249,7 +249,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | GamesStore._resumeClock |
 | GameView._resumeIfMenuOwnedPause |
 
-- Settings coverage: gameSession.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens.
+- Settings coverage: gameSession.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens. While paused for export, the game surface is interaction-locked and any player-engine move that becomes ready remains deferred until return.
 - Requirement verification: `Pass`. External export stays distinct from internal save slots, `SavedGamesStore` owns both destination selection and canonical saved-game payload write, and the flow returns through the menu-owned pause path without mutating game state beyond the export side effect.
 
 ### SCN-IMPORT-01 - Import Valid Game from External File

@@ -37,7 +37,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 
 ## State Meaning
 - `Live*Turn` means the visible board is the committed live node and the named side is due to move.
-- `Paused*Turn` means the same live board state exists but live clock progression is intentionally suspended.
+- `Paused*Turn` means the same live board state exists but live clock progression is intentionally suspended and gameplay interaction is locked until resume, with explicit management exceptions for player reassignment and analysis-engine actions.
 - `LiveAnalysisFrom*` means the game still has a committed live turn anchor, but the visible board is exploring analysis moves instead of progressing the live node.
 - In `LiveAnalysisFromWhiteTurnBlackMove`, for example, White was due to move when live analysis started, but the current analysis board has Black to move.
 - `AnalysisWhiteMove` and `AnalysisBlackMove` cover free analysis/setup and post-result non-live analysis.
@@ -83,17 +83,20 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 | --- | --- | --- | --- | --- | --- | --- |
 | Make live move | Yes | No | No | No | No | No |
 | Make analysis move | No | No | Yes | Yes | No | No |
-| Navigate history | Yes | Yes | Yes | Yes | No | Yes |
+| Navigate history | Yes | No | Yes | Yes | No | Yes |
 | Enter board edit | No | No | No | Yes | Already active | No |
 | Start or stop analysis engines | Yes | Yes | Yes | Yes | After edit confirm | Yes |
+| Reassign players | Yes | Yes | Yes | Yes | No | Review only |
+| Background engine evaluation | N/A | Current in-flight search may finish only | N/A | N/A | N/A | N/A |
 | Pause or resume clock | Timed only | Resume only | No | No | No | No |
-| Resign or offer draw | Yes | Yes | No | No | No | No |
-| Prune future moves | Policy-driven | Policy-driven | Yes | Yes | No | Review only |
+| Resign or offer draw | Yes | No | No | No | No | No |
+| Prune future moves | Policy-driven | No | Yes | Yes | No | Review only |
 
 ## Analysis Panel Rendering
 | State Family | Analysis score or status | Analysis move list | Move-target click result |
 | --- | --- | --- | --- |
 | Live | Yes | Only when `showLiveAnalysisMoves = true` | Commit a normal live move |
+| Paused Live | Yes | Read-only only when already supported by the current UI | No move commit |
 | Live Analysis | Yes | Only when `showLiveAnalysisMoves = true` | Apply analysis moves without advancing the live node |
 | Analysis | Yes | Yes | Apply analysis moves |
 | Checkmate | Yes | Yes | No move commit |
@@ -105,7 +108,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - From a non-live highlighted line, making a move follows the takeback and branch rules defined in [settings_contract.md](settings_contract.md).
 
 ### Live Analysis
-- Entering live analysis is allowed only from a live or paused live state, and from timeout-ended games when post-timeout analysis is allowed.
+- Entering live analysis is allowed only from a live state, and from timeout-ended games when post-timeout analysis is allowed.
 - If the game clock is running, the app must pause it before entering a `LiveAnalysisFrom*` state.
 - Live analysis gives the user move control for both colours, but those moves do not advance the live node.
 - Exiting live analysis returns the board highlight to the live node by default.
@@ -120,6 +123,10 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 
 ### Pausing And Interruptions
 - Menu-driven interruptions in timed games follow the auto-pause behaviour from [settings_contract.md](settings_contract.md).
+- While paused, gameplay interaction on the game surface is read-only apart from `Resume`. The user may still leave the game surface for menu or route flows.
+- While paused, gameplay actions inside the game tab are blocked apart from `Resume`, but player reassignment and analysis-engine management remain allowed as explicit non-play exceptions.
+- If a player-engine turn search or analysis search was already in flight when pause began, that current search may finish, but no move, clock, or move-tree mutation may be committed while the game remains paused.
+- A player-engine move produced while paused is deferred until resume, then revalidated against the live position and side to move before commit. If it is stale, it is discarded and a fresh engine turn may be requested instead.
 - Auto-resume is allowed only when the same interruption flow caused the pause.
 - Manual pause remains paused until the user explicitly resumes.
 
@@ -133,11 +140,12 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - An omitted `drawOfferState` means no unresolved draw offer exists for the current game.
 - Local-local draw negotiation still uses explicit `drawOffer` and `drawResolve` dialogs, but the unresolved offer remains game-owned state until it is accepted or declined.
 - For non-local opponents, any unresolved incoming or outgoing draw offer keeps the `Draw` control in its lit pending-offer state without introducing a dialog-hosted response step.
-- While that non-local pending-offer indicator is lit, pressing `Draw` accepts an incoming offer or withdraws an outgoing offer.
+- While that non-local pending-offer indicator is lit, pressing `Draw` accepts an incoming offer or withdraws an outgoing offer only when the game is in a playable live state. In paused live play the indicator is read-only until resume.
 
 ## Clock Rules
 - Clocks apply only to live and paused live states.
 - Live analysis, non-live analysis, board edit, and checkmate never consume live clock time.
+- Paused live states suspend clock consumption but do not require an already running engine search to stop before it yields its current best line.
 - UI timer loops are render cadence only; authoritative remaining-time reads come from relative timing data through the time-control service.
 - Clock drift must be corrected from relative timing data rather than UI tick counts.
 - Timeout finalises the result once, then leaves live play for analysis.

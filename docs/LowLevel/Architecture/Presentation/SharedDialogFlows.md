@@ -32,6 +32,7 @@ This document covers the dialog-hosted flows that do not need their own dedicate
 ## Coverage Notes
 - Draw flow is intentionally split into `AppModalKind.DrawOffer` and `AppModalKind.DrawResolve` so the baseline local-versus-local response step is visible in design.
 - `AppModalKind.StartGameFromSetup` owns live-game-only choices gathered from a prepared setup workspace, including the persisted `showLiveAnalysisMoves` preference for the resulting live game.
+- `AppModalKind.PlayerSelection` and `AppModalKind.AnalysisEngineSelection` remain available while paused because those flows are treated as configuration changes rather than gameplay actions.
 - Non-local opponents skip the dialog-hosted response step and instead use the draw control's LED-like pending-offer indicator for any unresolved offer, where the lit state switches the next `Draw` press into `accept` for `DrawOfferDirection.Incoming` or `withdraw` for `DrawOfferDirection.Outgoing`.
 - In-game analysis exit is prompt-free in the baseline. The mode restores the live node immediately, and any exploratory continuation from the latest live node is cleaned up later by the next real live move if it becomes superseded.
 - Timeout, settings-dirty-leave, and blocked-action dialogs are notifications or confirmations only; they do not move business logic into presentation.

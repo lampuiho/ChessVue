@@ -392,6 +392,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
+  - `BR-HIST-01-PAUSED`: Game is paused -> block history navigation until the game resumes.
 - **Postconditions**: Board and analysis context match selected history node.
 - **Implementation Touchpoints**:
   - `HistoryPanel.onNavigateNode`
@@ -549,6 +550,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-01-LIVE-SCORE-ONLY`: In any `liveGame` context, the current game's live-analysis preference may keep the panel score-only instead of rendering PV moves.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
   - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
+  - `BR-ANALYSIS-01-PAUSED`: If live play is paused after analysis search has already started, the current search may finish and update the latest snapshot read-only, but paused state does not allow new user-triggered analysis actions or move commits.
 - **Postconditions**: The latest valid eval for the active position is available on the game-owned analysis data, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
 - **Implementation Touchpoints**:
   - `GameView.onStartAnalysis`
@@ -574,6 +576,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
   - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, engine rows still update independently without rendering move lists.
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
+  - `BR-ANALYSIS-02-PAUSED`: If live play is paused after multi-engine search has already started, each current search may finish independently, but the paused game surface remains read-only.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
 - **Implementation Touchpoints**:
   - `EnginesStore.listConfiguredEngines`
@@ -621,6 +624,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-04-LIVE-SCORE-ONLY`: In any live-game context where `showLiveAnalysisMoves = false`, no move target is rendered from the analysis panel.
   - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `gameplay.takebackPolicy = analysisOnly`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
+  - `BR-ANALYSIS-04-PAUSED`: In paused live play, analysis results are read-only and clicking any suggested move is blocked until resume.
 - **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.
 - **Implementation Touchpoints**:
   - `AnalysisPanel.moveSelected`
@@ -648,6 +652,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-05-LIMIT`: Adding the engine would exceed the supported concurrent analysis-engine limit -> reject and explain the limit.
   - `BR-ANALYSIS-05-START-FAIL`: Added engine cannot start for the current position -> keep the assignment with unavailable feedback and allow retry or removal.
   - `BR-ANALYSIS-05-BOARD-EDIT`: Current workspace is in `boardEdit` -> block live analysis start until board editing ends.
+  - `BR-ANALYSIS-05-PAUSED`: Current workspace is paused live -> block add or remove actions until resume, while any already running engine searches may finish read-only.
 - **Postconditions**: The current game's ordered copied analysis-engine rows update independently from other games, and those copied engines begin or end analysis accordingly.
 - **Implementation Touchpoints**:
   - `AnalysisPanel.analysisEngineAddRequested`
@@ -690,13 +695,15 @@ Each scenario in this document uses the same structure:
 - **Entry Points**: Game control `Pause`.
 - **Main Steps**:
   1. User clicks `Pause`.
-  2. App suspends timer updates and marks paused state.
+  2. App suspends timer updates, marks paused state, and locks the game surface for all game actions except `Resume`.
   3. User clicks `Resume`.
   4. App restores active timer without losing elapsed data.
+  5. If a player-engine move became ready while paused, app revalidates that deferred move against the current live position and commits it only after pause state clears; stale deferred output is discarded and replaced by a fresh engine request when needed.
 - **Branch Paths**:
   - `BR-TIME-02-DOUBLE-PAUSE`: Pause clicked while already paused -> no-op.
   - `BR-TIME-02-RESUME-GAME-OVER`: Resume attempt after game end -> blocked.
-- **Postconditions**: Pause state is explicit and non-destructive.
+  - `BR-TIME-02-ANALYSIS-READY-WHILE-PAUSED`: An analysis engine finishes while paused -> latest evaluation may update read-only, but no gameplay mutation occurs.
+- **Postconditions**: Pause state is explicit and non-destructive, the game surface stays locked while paused, and any engine output produced during pause is deferred or read-only until resume.
 - **Implementation Touchpoints**:
   - `GameControlPanel.pauseRequested`
   - `TimeControlService.getRemainingTime`
@@ -753,12 +760,14 @@ Each scenario in this document uses the same structure:
   2. App checks whether auto-pause-on-menu is enabled for timed games.
   3. If enabled, app pauses the game before opening the interrupted flow.
   4. User completes or cancels the menu/modal flow.
-  5. When the user returns to the game screen, app auto-resumes the clock if the pause came from this auto-pause flow.
+  5. While paused, the game surface remains non-interactive apart from the eventual resume path, although any already running engine search may still finish under paused rules.
+  6. When the user returns to the game screen, app auto-resumes the clock if the pause came from this auto-pause flow.
 - **Branch Paths**:
   - `BR-TIME-05-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, the menu action proceeds without changing the clock state.
   - `BR-TIME-05-NON-TIMED-GAME`: If the game has no active clock, no pause action is required.
   - `BR-TIME-05-ALREADY-PAUSED`: If the game is already paused, menu flow continues without changing pause state.
-- **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled, and normal play resumes automatically on return.
+  - `BR-TIME-05-ENGINE-READY-WHILE-AWAY`: A player engine or analysis engine finishes during the interruption -> keep analysis output read-only and defer any player move until the paired resume path revalidates it.
+- **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled, the paused game surface remains inert during the interruption, and normal play resumes automatically on return.
 - **Implementation Touchpoints**:
   - `MenuBar.saveGameRequested`
   - `MenuBar.settingsRequested`
@@ -778,6 +787,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-CTRL-01-NO-MOVES`: No moves available -> disable button/no-op.
   - `BR-CTRL-01-POLICY-BLOCK`: Takeback disabled by mode/rules -> show blocked reason.
+  - `BR-CTRL-01-PAUSED`: Game is paused -> block takeback until resume.
 - **Postconditions**: Game state matches selected rewind point.
 - **Implementation Touchpoints**:
   - `GameControlPanel.takeBackRequested`
@@ -798,6 +808,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-CTRL-02-CANCEL`: User cancels confirmation -> game continues.
   - `BR-CTRL-02-ALREADY-ENDED`: Resign action blocked if game already ended.
+  - `BR-CTRL-02-PAUSED`: Game is paused -> resign action is blocked until resume.
 - **Postconditions**: Result is final and clearly visible.
 - **Implementation Touchpoints**:
   - `GameControlPanel.resignRequested`
@@ -822,6 +833,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-03-DECLINED`: Local opponent declines in the draw-resolution dialog -> game continues.
   - `BR-CTRL-03-NON-LOCAL-NO-RESPONSE`: The current non-local adapter exposes no draw-response callback -> keep game ongoing until the user withdraws the outgoing offer, accepts an incoming offer through the lit indicator path, or another result path resolves it.
   - `BR-CTRL-03-REPEAT-OFFER`: Repeated offer in short window -> throttled/blocked.
+  - `BR-CTRL-03-PAUSED`: Game is paused -> offer, accept, and withdraw draw actions are blocked until resume.
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Implementation Touchpoints**:
   - `GameControlPanel.drawRequested`
@@ -834,7 +846,7 @@ Each scenario in this document uses the same structure:
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Planned
 - **Goal**: Enter a mode from an active game where the user controls both sides for exploration without progressing the live game.
-- **Preconditions**: Active game is open.
+- **Preconditions**: Active game is open and not paused, unless the flow is a timeout-ended review state that explicitly allows post-timeout analysis.
 - **Entry Points**: Control panel `Analysis Mode` from a live game.
 - **Main Steps**:
   1. User enters in-game analysis mode.
@@ -845,6 +857,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-CTRL-04-LATEST-NODE-VARIATION`: When analysis started from the latest live node, exploratory continuations may remain visible as variations until a later real live move supersedes them.
   - `BR-CTRL-04-LIVE-CONFLICT`: Attempt to submit live move while in analysis mode -> block or force exit.
+  - `BR-CTRL-04-PAUSED`: If the game is paused, block in-game analysis entry until resume.
 - **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode always returns the screen to the live game position without a keep-or-discard prompt.
 - **Implementation Touchpoints**:
   - `GameControlPanel.enterInGameAnalysisRequested`
@@ -909,7 +922,8 @@ Each scenario in this document uses the same structure:
   6. The right panel shows details for the selected save entry.
   7. The save-name text box at the bottom of the list receives focus on open.
   8. The bottom-right action row shows `Cancel` and `Save`.
-  9. When the user returns to the game screen, app auto-resumes if the pause came from this save flow.
+  9. While the save flow is open, the paused game surface stays inert and any player-engine move that becomes ready remains deferred until return.
+  10. When the user returns to the game screen, app auto-resumes if the pause came from this save flow.
 - **Branch Paths**:
   - `BR-SAVE-02-CANCEL`: User leaves the save view -> no save is written.
   - `BR-SAVE-02-NO-CURRENT-GAME`: If no current game exists, the route is blocked or redirected because save requires one selected game.
@@ -966,7 +980,8 @@ Each scenario in this document uses the same structure:
   11. App resolves the selected internal save to a concrete save entry, `SavedGamesStore` reads the raw save document, deserializes and migrates the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)` to restore the active workspace state immediately.
   12. Game is loaded into store and opened.
   13. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
-  14. When the user returns to the game screen, app auto-resumes if the pause came from this load flow.
+  14. While the load flow is open, any already-running player-engine search from the previously active timed game may finish but must not mutate that paused game until return.
+  15. When the user returns to the game screen, app auto-resumes if the pause came from this load flow.
 - **Branch Paths**:
   - `BR-LOAD-01-CANCEL`: User leaves either load route or presses `Cancel` -> no load occurs.
   - `BR-LOAD-01-DUPLICATE-ID`: Loaded game ID collides with an already open or persisted game -> remap ID before insert.
@@ -998,7 +1013,8 @@ Each scenario in this document uses the same structure:
   4. App opens a normal OS save dialog.
   5. User selects destination and file name.
   6. App serializes and writes the external file.
-  7. When the user returns to the game screen, app auto-resumes if the pause came from this export flow.
+  7. While the export flow is open, the paused game surface stays inert and any player-engine move that becomes ready remains deferred until return.
+  8. When the user returns to the game screen, app auto-resumes if the pause came from this export flow.
 - **Branch Paths**:
   - `BR-EXPORT-01-CANCEL`: User cancels the OS save dialog -> no write.
   - `BR-EXPORT-01-IO-ERROR`: File write fails -> show retry guidance.
