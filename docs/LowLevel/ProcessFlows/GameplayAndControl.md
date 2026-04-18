@@ -109,7 +109,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GamesStore._applyAnalysisUpdate` |
 
-- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit`, paused live states, and `Checkmate` block live move progression.
+- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit`, paused live states, paused live-analysis states, and `Checkmate` block live move progression.
 - Continuous analysis update loop: `GamesStore._buildEnginePositionState` -> `GamesStore._syncAnalysisPosition` -> `EngineRuntimeService.syncPosition` -> `GamesStore._registerAnalysisSubscription` -> `EngineRuntimeService.subscribeToAnalysis` -> `GamesStore._startAnalysisSearch` -> `EngineRuntimeService.startAnalysis` -> `GameView._handleAnalysisRuntimeUpdate` -> `GamesStore._applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer mutation sequence behind `syncPosition`, `subscribeToAnalysis`, `startAnalysis`, and streamed runtime updates.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
@@ -450,7 +450,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.getGame` |
 | `GamesStore.requestPlayerMove` |
 
-- State coverage: pause and resume are valid only for timed `LiveWhiteTurn` or `LiveBlackTurn` states with `resultState = ongoing`.
+- State coverage: pause and resume are valid only for ongoing live-family states. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state.
 - Paused-surface rule: once paused, the game surface blocks history navigation, move entry, takeback, draw, resign, in-game-analysis entry, and board edit until resume.
 - Paused-exception rule: player reassignment and analysis-engine management remain allowed while paused because they are treated as configuration actions rather than gameplay actions.
 - Deferred-engine rule: analysis searches may finish while paused and update read-only snapshots, while any player-engine move that resolves during pause is held as deferred output and revalidated on resume before commit.
@@ -694,7 +694,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._restoreLiveNode` |
 | `GamesStore._resumeAfterAnalysisIfOwned` |
 
-- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Paused live games must resume before analysis entry is allowed. Exiting the mode is prompt-free and restores the live node immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
+- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. For ongoing live games, analysis entry uses the matching `PausedLiveAnalysisFrom*` state so the analysis anchor and visible side-to-move remain explicit while the live clock is paused. Exiting the mode is prompt-free and restores the live node immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode

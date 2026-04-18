@@ -5,6 +5,7 @@ import {
   DrawOfferDirection,
   EngineAnalysisSearchMode,
   GameState,
+  PauseReason,
   PlayerActivityState,
   PlayerColour,
   PlayerType,
@@ -25,7 +26,6 @@ import {
   type IMoveNode,
   type MovePath,
 } from '@/contracts';
-import type { PauseReason } from '@/contracts/state';
 import {
   EngineRuntimeService,
   GameRuleService,
@@ -88,8 +88,11 @@ function getGameRuntime(game: IGame): IGameStoreRuntime {
 function isLiveState(state: GameState): boolean {
   return state === GameState.LiveWhiteTurn || state === GameState.LiveBlackTurn;
 }
-function isPausedState(state: GameState): boolean {
+function isPausedLiveState(state: GameState): boolean {
   return state === GameState.PausedWhiteTurn || state === GameState.PausedBlackTurn;
+}
+function isPausedState(state: GameState): boolean {
+  return isPausedLiveState(state) || isPausedLiveAnalysisState(state);
 }
 function isLiveAnalysisState(state: GameState): boolean {
   return state === GameState.LiveAnalysisFromWhiteTurnWhiteMove
@@ -97,8 +100,17 @@ function isLiveAnalysisState(state: GameState): boolean {
     || state === GameState.LiveAnalysisFromBlackTurnWhiteMove
     || state === GameState.LiveAnalysisFromBlackTurnBlackMove;
 }
+function isPausedLiveAnalysisState(state: GameState): boolean {
+  return state === GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove
+    || state === GameState.PausedLiveAnalysisFromWhiteTurnBlackMove
+    || state === GameState.PausedLiveAnalysisFromBlackTurnWhiteMove
+    || state === GameState.PausedLiveAnalysisFromBlackTurnBlackMove;
+}
+function isAnyLiveAnalysisState(state: GameState): boolean {
+  return isLiveAnalysisState(state) || isPausedLiveAnalysisState(state);
+}
 function isAnalysisState(state: GameState): boolean {
-  return state === GameState.AnalysisWhiteMove || state === GameState.AnalysisBlackMove || isLiveAnalysisState(state);
+  return state === GameState.AnalysisWhiteMove || state === GameState.AnalysisBlackMove || isAnyLiveAnalysisState(state);
 }
 function getAnalysisState(colour: PlayerColour): GameState {
   return colour === PlayerColour.White ? GameState.AnalysisWhiteMove : GameState.AnalysisBlackMove;
@@ -109,16 +121,25 @@ function getLiveState(colour: PlayerColour): GameState {
 function getPausedState(colour: PlayerColour): GameState {
   return colour === PlayerColour.White ? GameState.PausedWhiteTurn : GameState.PausedBlackTurn;
 }
-function getLiveAnalysisState(liveColour: PlayerColour, currentColour: PlayerColour): GameState {
-  if (liveColour === PlayerColour.White) return currentColour === PlayerColour.White ? GameState.LiveAnalysisFromWhiteTurnWhiteMove : GameState.LiveAnalysisFromWhiteTurnBlackMove;
-  return currentColour === PlayerColour.White ? GameState.LiveAnalysisFromBlackTurnWhiteMove : GameState.LiveAnalysisFromBlackTurnBlackMove;
+function getLiveAnalysisState(liveColour: PlayerColour, currentColour: PlayerColour, isPaused: boolean = false): GameState {
+  if (liveColour === PlayerColour.White) {
+    if (currentColour === PlayerColour.White) return isPaused ? GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove : GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    return isPaused ? GameState.PausedLiveAnalysisFromWhiteTurnBlackMove : GameState.LiveAnalysisFromWhiteTurnBlackMove;
+  }
+  if (currentColour === PlayerColour.White) return isPaused ? GameState.PausedLiveAnalysisFromBlackTurnWhiteMove : GameState.LiveAnalysisFromBlackTurnWhiteMove;
+  return isPaused ? GameState.PausedLiveAnalysisFromBlackTurnBlackMove : GameState.LiveAnalysisFromBlackTurnBlackMove;
 }
 function getLiveAnchorColour(game: IGame): PlayerColour {
-  if (game.gameState === GameState.LiveAnalysisFromWhiteTurnWhiteMove || game.gameState === GameState.LiveAnalysisFromWhiteTurnBlackMove) return PlayerColour.White;
+  if (
+    game.gameState === GameState.LiveAnalysisFromWhiteTurnWhiteMove
+    || game.gameState === GameState.LiveAnalysisFromWhiteTurnBlackMove
+    || game.gameState === GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove
+    || game.gameState === GameState.PausedLiveAnalysisFromWhiteTurnBlackMove
+  ) return PlayerColour.White;
   return PlayerColour.Black;
 }
 function getSelectedPath(game: IGame): MovePath {
-  if (isLiveState(game.gameState) || isPausedState(game.gameState)) return game.livePath ? [...game.livePath] : [];
+  if (isLiveState(game.gameState) || isPausedLiveState(game.gameState)) return game.livePath ? [...game.livePath] : [];
   return [...game.highlightPath];
 }
 function getSelectedNode(game: IGame): IMoveNode {
@@ -140,12 +161,16 @@ function updateGameStateAfterPosition(game: IGame, positionColour: PlayerColour)
       : getAnalysisState(positionColour);
     return;
   }
-  if (isLiveState(game.gameState) || isPausedState(game.gameState)) {
+  if (isLiveState(game.gameState)) {
     game.gameState = getLiveState(positionColour);
     return;
   }
-  if (isLiveAnalysisState(game.gameState)) {
-    game.gameState = getLiveAnalysisState(getLiveAnchorColour(game), positionColour);
+  if (isPausedLiveState(game.gameState)) {
+    game.gameState = getPausedState(positionColour);
+    return;
+  }
+  if (isAnyLiveAnalysisState(game.gameState)) {
+    game.gameState = getLiveAnalysisState(getLiveAnchorColour(game), positionColour, isPausedLiveAnalysisState(game.gameState));
     return;
   }
   game.gameState = getAnalysisState(positionColour);
@@ -292,6 +317,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
       case GameState.LiveAnalysisFromBlackTurnWhiteMove:
       case GameState.LiveAnalysisFromBlackTurnBlackMove:
         return;
+      case GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove:
+      case GameState.PausedLiveAnalysisFromWhiteTurnBlackMove:
+      case GameState.PausedLiveAnalysisFromBlackTurnWhiteMove:
+      case GameState.PausedLiveAnalysisFromBlackTurnBlackMove:
       case GameState.PausedWhiteTurn:
       case GameState.PausedBlackTurn:
       case GameState.BoardEdit:
@@ -484,7 +513,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return { engineSnapshots: engineSnapshots.map((snapshot) => cloneAnalysisSnapshotForRead(snapshot)) };
   }
   async function syncClock(game: IGame, nowUtc: string): Promise<void> {
-    if (!isLiveState(game.gameState) && !isPausedState(game.gameState)) return;
+    if (!isLiveState(game.gameState) && !isPausedLiveState(game.gameState)) return;
     if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return;
     const remainingTime = TimeControlService.getRemainingTime(game.clockSnapshot, nowUtc);
     const expiredColour = (remainingTime.white ?? 1) <= 0 ? PlayerColour.White : PlayerColour.Black;
@@ -496,11 +525,16 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _refreshRuntimeRegistrations(game);
   }
   async function pauseGame(game: IGame, reason: PauseReason): Promise<void> {
-    if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
     const runtime = getGameRuntime(game);
+    if (isPausedState(game.gameState)) {
+      runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
+      return;
+    }
+    if ((!isLiveState(game.gameState) && !isLiveAnalysisState(game.gameState)) || game.resultState !== ResultState.Ongoing) return;
     runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, getNowUtc());
-    game.gameState = getPausedState(getSelectedNode(game).position.sideToMove);
+    if (isLiveState(game.gameState)) game.gameState = getPausedState(getSelectedNode(game).position.sideToMove);
+    else game.gameState = getLiveAnalysisState(getLiveAnchorColour(game), getSelectedNode(game).position.sideToMove, true);
     setGameUpdateTimeNow(game);
     _refreshRuntimeRegistrations(game);
   }
@@ -510,7 +544,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== reason);
     if ((runtime.pauseReasons ?? []).length > 0) return;
     game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, getNowUtc());
-    game.gameState = getLiveState(getSelectedNode(game).position.sideToMove);
+    if (isPausedLiveState(game.gameState)) game.gameState = getLiveState(getSelectedNode(game).position.sideToMove);
+    else game.gameState = getLiveAnalysisState(getLiveAnchorColour(game), getSelectedNode(game).position.sideToMove);
     setGameUpdateTimeNow(game);
     _refreshRuntimeRegistrations(game);
   }
@@ -575,21 +610,31 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return move;
   }
   async function enterInGameAnalysis(game: IGame): Promise<void> {
-    if (!isLiveState(game.gameState) && !isPausedState(game.gameState)) return;
+    if (!isLiveState(game.gameState)) return;
     const liveNode = getLiveNode(game);
+    await pauseGame(game, PauseReason.Analysis);
     game.highlightPath = getPathToNode(liveNode);
-    game.gameState = getLiveAnalysisState(liveNode.position.sideToMove, liveNode.position.sideToMove);
+    game.gameState = getLiveAnalysisState(liveNode.position.sideToMove, liveNode.position.sideToMove, true);
     setGameUpdateTimeNow(game);
   }
   function exitInGameAnalysis(game: IGame): void {
-    if (!isLiveAnalysisState(game.gameState)) return;
+    if (!isAnyLiveAnalysisState(game.gameState)) return;
     const liveNode = getLiveNode(game);
     game.highlightPath = getPathToNode(liveNode);
-    game.gameState = getLiveState(liveNode.position.sideToMove);
+    if (isPausedLiveAnalysisState(game.gameState)) {
+      const runtime = getGameRuntime(game);
+      runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== PauseReason.Analysis);
+      if ((runtime.pauseReasons ?? []).length > 0) game.gameState = getPausedState(liveNode.position.sideToMove);
+      else {
+        game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, getNowUtc());
+        game.gameState = getLiveState(liveNode.position.sideToMove);
+      }
+      _refreshRuntimeRegistrations(game);
+    } else game.gameState = getLiveState(liveNode.position.sideToMove);
     setGameUpdateTimeNow(game);
   }
   function enterBoardEdit(game: IGame): void {
-    if (isLiveState(game.gameState) || isPausedState(game.gameState) || isLiveAnalysisState(game.gameState)) return;
+    if (isLiveState(game.gameState) || isPausedState(game.gameState) || isAnyLiveAnalysisState(game.gameState)) return;
     game.gameState = GameState.BoardEdit;
     setGameUpdateTimeNow(game);
   }

@@ -317,6 +317,31 @@ describe('useGamesStore', () => {
     expect(game.resultState).toBe(ResultState.Ongoing);
     expect(domain.PlatformEventService.subscribeToAppCloseRequested).not.toHaveBeenCalled();
   });
+  it('tracks paused live-analysis states across analysis entry and pause or resume transitions', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Paused Analysis',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: true,
+      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
+    });
+
+    await store.enterInGameAnalysis(game);
+    expect(game.gameState).toBe(GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove);
+
+    await store.resumeGame(game, PauseReason.Analysis);
+    expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnWhiteMove);
+
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnBlackMove;
+    game.highlightPath = [0];
+    appendChild(game.moveTree.root, createMove(PlayerColour.White), createBoardPosition(PlayerColour.Black), MoveBranchKind.Analysis);
+    await store.pauseGame(game, PauseReason.Menu);
+    expect(game.gameState).toBe(GameState.PausedLiveAnalysisFromWhiteTurnBlackMove);
+    await store.resumeGame(game, PauseReason.Menu);
+    expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnBlackMove);
+  });
 
   it('manages analysis engines, visible analysis, and board editing with mocked engine services', async () => {
     const store = useGamesStore();
@@ -406,6 +431,8 @@ describe('useGamesStore', () => {
 
     game.gameState = GameState.PausedWhiteTurn;
     await expect(store.makeMove(game, move)).rejects.toThrow('pausedWhiteTurn');
+    game.gameState = GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove;
+    await expect(store.makeMove(game, move)).rejects.toThrow('pausedLiveAnalysisFromWhiteTurnWhiteMove');
     game.gameState = GameState.BoardEdit;
     await expect(store.makeMove(game, move)).rejects.toThrow('boardEdit');
     game.gameState = GameState.Checkmate;
