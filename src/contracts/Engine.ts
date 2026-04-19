@@ -110,7 +110,7 @@ export const engineAnalysisRequestSchema = z.object({
 })
 
 export const engineRegistrationRequestSchema = z.object({
-  name: z.string().nullable().optional().transform((value) => value ?? undefined),
-  code: z.string().nullable().optional().transform((value) => value ?? undefined),
+  name: z.string().optional(),
+  code: z.string().optional(),
   registerLater: z.boolean(),
 })

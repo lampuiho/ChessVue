@@ -20,8 +20,8 @@ export interface ISaveGameOptions {
 export const saveGameTargetKindSchema = z.enum(saveGameTargetKinds);
 export const saveGameOptionsSchema = z.object({
   targetKind: saveGameTargetKindSchema,
-  saveName: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
-  filePath: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
+  saveName: z.string().min(1).optional(),
+  filePath: z.string().min(1).optional(),
   overwrite: z.boolean().optional(),
 }).superRefine((options, context) => {
   if (options.targetKind === SaveGameTargetKind.Autosave && !!options.saveName) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Autosave options must not include a save name.' });

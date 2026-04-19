@@ -22,7 +22,7 @@ export const recentGameEntrySchema = z.object({
   gameId: z.string().min(1),
   displayName: z.string().min(1),
   sourceKind: recentGameSourceKindSchema,
-  filePath: z.string().nullable().optional().transform((value) => value ?? undefined),
+  filePath: z.string().optional(),
   lastSavedAtUtc: z.string().datetime({ offset: true }),
 }).superRefine((entry, context) => {
   if (entry.sourceKind === RecentGameSourceKind.Autosave && !!entry.filePath) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Autosave recent game entries must not include a file path.' })

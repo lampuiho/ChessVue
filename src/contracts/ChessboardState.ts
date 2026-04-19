@@ -31,7 +31,7 @@ export const boardPositionSchema: z.ZodType<IBoardPosition, z.ZodTypeDef, IBoard
   board: boardSchema,
   sideToMove: playerColourSchema,
   castlingAvailability: castlingAvailabilitySchema,
-  enPassantTarget: z.number().int().min(0).max(63).nullable().optional().transform((value) => value ?? undefined),
+  enPassantTarget: z.number().int().min(0).max(63).optional(),
   halfMoveClock: z.number().int().min(0),
   fullMoveNumber: z.number().int().min(1),
 })

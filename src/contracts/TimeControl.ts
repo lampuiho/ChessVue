@@ -29,21 +29,21 @@ export interface IClockSnapshot {
 }
 export const timeControlPresetSchema = z.enum(timeControlPresets)
 export const timeControlSchema = z.object({
-  preset: timeControlPresetSchema.nullable().optional().transform((value) => value ?? undefined),
-  initialMs: z.number().int().min(0).nullable().optional().transform((value) => value ?? undefined),
+  preset: timeControlPresetSchema.optional(),
+  initialMs: z.number().int().min(0).optional(),
   incrementMs: z.number().int().min(0),
 })
 
 export const playerClockSchema = z.object({
-  remainingMs: z.number().int().min(0).nullable().optional().transform((value) => value ?? undefined),
+  remainingMs: z.number().int().min(0).optional(),
   isRunning: z.boolean(),
 })
 
 export const clockSnapshotSchema = z.object({
   white: playerClockSchema,
   black: playerClockSchema,
-  activeColour: playerColourSchema.nullable().optional().transform((value) => value ?? undefined),
-  startedAtUtc: z.string().datetime({ offset: true }).nullable().optional().transform((value) => value ?? undefined),
-  pausedAtUtc: z.string().datetime({ offset: true }).nullable().optional().transform((value) => value ?? undefined),
-  lastMoveAtUtc: z.string().datetime({ offset: true }).nullable().optional().transform((value) => value ?? undefined),
+  activeColour: playerColourSchema.optional(),
+  startedAtUtc: z.string().datetime({ offset: true }).optional(),
+  pausedAtUtc: z.string().datetime({ offset: true }).optional(),
+  lastMoveAtUtc: z.string().datetime({ offset: true }).optional(),
 })

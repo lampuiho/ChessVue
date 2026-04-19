@@ -52,10 +52,6 @@ export const enum DrawOfferDirection {
   Incoming = 'incoming',
   Outgoing = 'outgoing',
 }
-export const enum TakebackPolicy {
-  RewriteMainline = 'rewriteMainline',
-  AnalysisOnly = 'analysisOnly',
-}
 export const gameStates = [
   GameState.LiveWhiteTurn,
   GameState.LiveBlackTurn,
@@ -79,7 +75,6 @@ export const resultReasons = [ResultReason.RuleResolved, ResultReason.Timeout, R
 export const playerTypes = [PlayerType.Local, PlayerType.Engine] as const
 export const playerActivityStates = [PlayerActivityState.Active, PlayerActivityState.NonActive] as const
 export const drawOfferDirections = [DrawOfferDirection.Incoming, DrawOfferDirection.Outgoing] as const
-export const takebackPolicies = [TakebackPolicy.RewriteMainline, TakebackPolicy.AnalysisOnly] as const
 
 export interface IDrawOfferState {
   offeringColour: PlayerColour
@@ -109,11 +104,9 @@ export interface IGameMetadata {
   createdAt: string
   updatedAt: string
 }
-export interface ILiveAnalysisOptions {
-  showLiveAnalysisMoves: boolean
-}
 export interface IGameplayOptions {
-  takebackPolicy: TakebackPolicy
+  allowTakeback?: boolean;
+  showLiveAnalysisMoves?: boolean;
 }
 export interface IGameRuntime {
   currentPosition: IBoardPosition;
@@ -138,7 +131,6 @@ export interface IGame {
   highlightPath: MovePath;
   timeControl: ITimeControl;
   clockSnapshot: IClockSnapshot;
-  liveAnalysisOptions: ILiveAnalysisOptions;
   gameplayOptions: IGameplayOptions;
   analysis: IGameAnalysis;
   $?: IGameRuntime;
@@ -162,11 +154,10 @@ export interface IStartGameFromSetupRequest {
 }
 export const gameStateSchema = z.enum(gameStates)
 export const resultStateSchema = z.enum(resultStates)
-export const resultReasonSchema = z.enum(resultReasons).nullable().optional().transform((value) => value ?? undefined)
+export const resultReasonSchema = z.enum(resultReasons).optional()
 export const playerTypeSchema = z.enum(playerTypes)
 export const playerActivityStateSchema = z.enum(playerActivityStates)
 export const drawOfferDirectionSchema = z.enum(drawOfferDirections)
-export const takebackPolicySchema = z.enum(takebackPolicies)
 
 export const drawOfferStateSchema = z.object({
   offeringColour: playerColourSchema,
@@ -204,11 +195,9 @@ export const gameMetadataSchema = z.object({
   updatedAt: z.string().datetime({ offset: true }),
 })
 
-export const liveAnalysisOptionsSchema = z.object({
-  showLiveAnalysisMoves: z.boolean(),
-})
 export const gameplayOptionsSchema = z.object({
-  takebackPolicy: takebackPolicySchema,
+  takebackPolicy: z.boolean(),
+  showLiveAnalysisMoves: z.boolean(),
 })
 
 export const gameSchema = z.object({
@@ -217,24 +206,23 @@ export const gameSchema = z.object({
   gameState: gameStateSchema,
   resultState: resultStateSchema,
   resultReason: resultReasonSchema,
-  drawOfferState: drawOfferStateSchema.nullable().optional().transform((value) => value ?? undefined),
-  whitePlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
-  blackPlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  drawOfferState: drawOfferStateSchema.optional(),
+  whitePlayer: playerSchema.optional(),
+  blackPlayer: playerSchema.optional(),
   boardRoot: boardPositionSchema,
   moveTree: moveTreeSchema,
-  livePath: movePathSchema.nullable().optional().transform((value) => value ?? undefined),
+  livePath: movePathSchema.optional(),
   highlightPath: movePathSchema,
   timeControl: timeControlSchema,
   clockSnapshot: clockSnapshotSchema,
-  liveAnalysisOptions: liveAnalysisOptionsSchema,
-  gameplayOptions: gameplayOptionsSchema.optional().transform((value) => value ?? { takebackPolicy: TakebackPolicy.RewriteMainline }),
+  gameplayOptions: gameplayOptionsSchema.optional(),
   analysis: gameAnalysisSchema,
 })
 
 export const createGameRequestSchema = z.object({
   name: z.string().min(1),
-  whitePlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
-  blackPlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  whitePlayer: playerSchema.optional(),
+  blackPlayer: playerSchema.optional(),
   analysisEngineProfiles: z.array(engineRecordSchema).max(4),
   showLiveAnalysisMoves: z.boolean(),
   timeControl: timeControlSchema,
@@ -243,8 +231,8 @@ export const createGameRequestSchema = z.object({
 
 export const startGameFromSetupRequestSchema = z.object({
   name: z.string().min(1).optional(),
-  whitePlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
-  blackPlayer: playerSchema.nullable().optional().transform((value) => value ?? undefined),
+  whitePlayer: playerSchema.optional(),
+  blackPlayer: playerSchema.optional(),
   analysisEngineProfiles: z.array(engineRecordSchema).max(4),
   showLiveAnalysisMoves: z.boolean(),
   timeControl: timeControlSchema,

@@ -45,5 +45,5 @@ export const platformErrorSchema = z.object({
   kind: platformErrorKindSchema,
   operation: z.string().min(1),
   message: z.string().min(1),
-  detail: z.string().nullable().optional().transform((value) => value ?? undefined),
+  detail: z.string().optional(),
 });

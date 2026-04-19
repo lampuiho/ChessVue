@@ -213,8 +213,8 @@ export const appModalStateSchema = z.discriminatedUnion('kind', [
     payload: z.object({
       gameId: z.string().min(1),
       colour: playerColourSchema,
-      currentPlayerType: playerTypeSchema.nullable().optional().transform((value) => value ?? undefined),
-      currentAssignedEngine: assignedEngineSchema.nullable().optional().transform((value) => value ?? undefined),
+      currentPlayerType: playerTypeSchema.optional(),
+      currentAssignedEngine: assignedEngineSchema.optional(),
     }),
   }),
   z.object({

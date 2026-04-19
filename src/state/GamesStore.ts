@@ -273,7 +273,7 @@ function hydrateGame(game: IGame): IGame {
     timeControl: structuredClone(game.timeControl),
     clockSnapshot: structuredClone(game.clockSnapshot),
     liveAnalysisOptions: structuredClone(game.liveAnalysisOptions),
-    gameplayOptions: structuredClone(game.gameplayOptions ?? { takebackPolicy: TakebackPolicy.RewriteMainline }),
+    gameplayOptions: structuredClone(game.gameplayOptions ?? { allowTakeback: TakebackPolicy.RewriteMainline }),
     analysis: structuredClone(game.analysis),
     $: createGameRuntime(),
   };
@@ -640,7 +640,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       analysis: {
         snapshots: request.analysisEngineProfiles.map((engineProfile) => createAnalysisSnapshot(engineProfile, initialPositionKey, nowUtc)),
       },
-      gameplayOptions: { takebackPolicy: TakebackPolicy.RewriteMainline },
+      gameplayOptions: { allowTakeback: TakebackPolicy.RewriteMainline },
       $: createGameRuntime(),
     };
     const insertedGame = await _hydrateAndInsertGame(game);
@@ -694,7 +694,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
 
       if (_isOngoingLiveGame(game)) {
         if (_isLiveHistoryReview(game)) {
-          if (game.gameplayOptions.takebackPolicy === TakebackPolicy.RewriteMainline) _commitHistoryRewriteMove(game, parentNode, move);
+          if (game.gameplayOptions.allowTakeback === TakebackPolicy.RewriteMainline) _commitHistoryRewriteMove(game, parentNode, move);
           else _commitLiveHistoryAnalysisMove(game, parentNode, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
           return;
         } else {
@@ -715,7 +715,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
 
     if (isLiveTurnReadyForMove(game)) return _commitResolvedLiveMove(game, move);
     else if (_isLiveHistoryReviewMove(game)) {
-      if (game.gameplayOptions.takebackPolicy === TakebackPolicy.RewriteMainline) _commitHistoryRewriteMove(game, parentNode, move);
+      if (game.gameplayOptions.allowTakeback === TakebackPolicy.RewriteMainline) _commitHistoryRewriteMove(game, parentNode, move);
       else _commitLiveHistoryAnalysisMove(game, parentNode, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
     } else {
       const resultState = game.resultState;

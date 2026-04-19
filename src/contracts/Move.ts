@@ -61,7 +61,7 @@ export const moveSchema: z.ZodType<IMove, z.ZodTypeDef, IMoveSchemaInput> = z.ob
   to: boardIdSchema,
   kind: moveKindSchema,
   movingColour: playerColourSchema,
-  promotionPiece: pieceKindSchema.nullable().optional().transform((value) => value ?? undefined),
+  promotionPiece: pieceKindSchema.optional(),
 })
 type IMoveInput = IMoveSchemaInput
 interface IMoveNodeInput {
@@ -79,11 +79,11 @@ interface IMoveTreeInput {
 export const moveNodeSchema: z.ZodType<IMoveNode, z.ZodTypeDef, IMoveNodeInput> = z.lazy(() =>
   z.object({
     branchKind: moveBranchKindSchema,
-    move: moveSchema.nullable().optional().transform((value) => value ?? undefined),
+    move: moveSchema.optional(),
     position: boardPositionSchema,
-    clockSnapshot: clockSnapshotSchema.nullable().optional().transform((value) => value ?? undefined),
+    clockSnapshot: clockSnapshotSchema.optional(),
     plyIndex: z.number().int().min(0),
-    mainlineChildIndex: z.number().int().min(0).nullable().optional().transform((value) => value ?? undefined),
+    mainlineChildIndex: z.number().int().min(0).optional(),
     children: z.array(moveNodeSchema),
   }),
 )

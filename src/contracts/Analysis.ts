@@ -25,8 +25,8 @@ export interface IVisibleAnalysisSnapshot {
 }
 export const analysisLineSchema = z.object({
   depth: z.number().int().min(0),
-  scoreCp: z.number().int().nullable().optional().transform((value) => value ?? undefined),
-  scoreMate: z.number().int().nullable().optional().transform((value) => value ?? undefined),
+  scoreCp: z.number().int().optional(),
+  scoreMate: z.number().int().optional(),
   pv: z.array(moveSchema),
 })
 
@@ -34,7 +34,7 @@ export const analysisSnapshotSchema = z.object({
   assignedEngine: assignedEngineSchema,
   positionKey: z.string().min(1),
   updatedAt: z.string().datetime({ offset: true }),
-  bestMove: moveSchema.nullable().optional().transform((value) => value ?? undefined),
+  bestMove: moveSchema.optional(),
   lines: z.array(analysisLineSchema),
   isComplete: z.boolean(),
 })

@@ -45,6 +45,6 @@ export const uiLayoutStateSchema = z.object({
 export const gameSessionSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
   openGameIds: z.array(z.string().min(1)),
-  activeGameId: z.string().min(1).nullable().optional().transform((value) => value ?? undefined),
+  activeGameId: z.string().min(1).optional(),
   activeRoute: activeRouteSchema,
 })
