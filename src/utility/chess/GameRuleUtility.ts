@@ -282,17 +282,6 @@ function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBo
   nextPosition.sideToMove = getOpponentColour(movingPiece.colour);
   return normaliseBoardPosition(nextPosition);
 }
-function isLegalCandidate(position: IBoardPosition, move: ICandidateMove): boolean {
-  const movingPiece = getPiece(position, move.from);
-  if (movingPiece === undefined || movingPiece.colour !== move.movingColour) return false;
-  const promotionResolvedMoves = move.kind === MoveKind.Promotion && move.promotionPiece === undefined
-    ? promotionPieces.map((piece) => ({ ...move, promotionPiece: piece }))
-    : [move];
-  return promotionResolvedMoves.some((resolvedMove) => {
-    const nextPosition = applyCandidateMove(position, resolvedMove);
-    return !isSquareAttacked(nextPosition, findKingBoardId(nextPosition, move.movingColour)!, getOpponentColour(move.movingColour));
-  });
-}
 function moveMatches(candidate: Pick<IMove, 'from' | 'to' | 'kind' | 'movingColour' | 'promotionPiece'>, move: IMove): boolean {
   if (candidate.from !== move.from || candidate.to !== move.to || candidate.kind !== move.kind || candidate.movingColour !== move.movingColour) return false;
   if (candidate.kind !== MoveKind.Promotion) return candidate.promotionPiece === move.promotionPiece;
@@ -314,13 +303,21 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
   return false;
 }
 
+export function isMoveLegal(position: IBoardPosition, move: IMove): boolean {
+  const movingPiece = getPiece(position, move.from);
+  if (movingPiece === undefined || movingPiece.colour !== move.movingColour) return false;
+  const promotionResolvedMoves = move.kind === MoveKind.Promotion && move.promotionPiece === undefined
+    ? promotionPieces.map((piece) => ({ ...move, promotionPiece: piece }))
+    : [move];
+  return promotionResolvedMoves.some((resolvedMove) => {
+    const nextPosition = applyCandidateMove(position, resolvedMove);
+    return !isSquareAttacked(nextPosition, findKingBoardId(nextPosition, move.movingColour)!, getOpponentColour(move.movingColour));
+  });
+}
 export function generateLegalMoves(position: IBoardPosition): IMove[] {
   const normalisedPosition = normaliseBoardPosition(position);
   return generatePseudoLegalMoves(normalisedPosition, normalisedPosition.sideToMove)
-    .filter((candidate) => isLegalCandidate(normalisedPosition, candidate));
-}
-export function isMoveLegal(position: IBoardPosition, move: IMove): boolean {
-  return generateLegalMoves(position).some((candidate) => moveMatches(candidate, move));
+    .filter((candidate) => isMoveLegal(normalisedPosition, candidate));
 }
 export function requiresPromotionSelection(position: IBoardPosition, move: IMove): boolean {
   const piece = getPiece(position, move.from);

@@ -24,7 +24,6 @@ export const enum GameState {
   AnalysisWhiteMove = 'analysisWhiteMove',
   AnalysisBlackMove = 'analysisBlackMove',
   BoardEdit = 'boardEdit',
-  Checkmate = 'checkmate',
 }
 export const enum ResultState {
   Ongoing = 'ongoing',
@@ -68,7 +67,6 @@ export const gameStates = [
   GameState.AnalysisWhiteMove,
   GameState.AnalysisBlackMove,
   GameState.BoardEdit,
-  GameState.Checkmate,
 ] as const
 export const resultStates = [ResultState.Ongoing, ResultState.Drawn, ResultState.WhiteWon, ResultState.BlackWon, ResultState.Abandoned] as const
 export const resultReasons = [ResultReason.RuleResolved, ResultReason.Timeout, ResultReason.Resignation, ResultReason.DrawAgreement, ResultReason.Abandoned] as const
@@ -123,8 +121,8 @@ export interface IGame {
   resultState: ResultState;
   resultReason?: ResultReason;
   drawOfferState?: IDrawOfferState;
-  whitePlayer?: IPlayer | IEnginePlayer;
-  blackPlayer?: IPlayer | IEnginePlayer;
+  whitePlayer?: IPlayer;
+  blackPlayer?: IPlayer;
   rootPosition: IBoardPosition;
   moveTree: IMoveTree;
   livePath?: MovePath;

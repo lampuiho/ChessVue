@@ -516,7 +516,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const nextClockSnapshot = TimeControlService.applyMove(baseClockSnapshot, move.movingColour, getNowUtc(), game.timeControl);
     _finaliseMove(game, parentNode, move, nextClockSnapshot);
     _clearPlayerTurnRuntime(game);
-    _armPendingPlayerTurn(game);
   }
   function _commitHistoryRewriteMove(game: IGame, parentNode: IMoveNode, move: IMove): void {
     const parentPath = getPathToNode(parentNode);

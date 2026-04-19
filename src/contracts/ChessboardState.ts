@@ -2,6 +2,13 @@ import { z } from 'zod'
 
 import { chessPieceSchema, playerColourSchema, type BoardId, type IChessPiece, type PlayerColour } from './Chess'
 
+export const enum CheckState {
+  None = 'none',
+  CheckBlack = 'checkBlack',
+  CheckmateBlack = 'checkmateBlack',
+  CheckWhite = 'checkWhite',
+  CheckmateWhite = 'checkmateWhite',
+}
 export interface ICastlingAvailability {
   whiteKingSide: boolean
   whiteQueenSide: boolean
@@ -9,12 +16,13 @@ export interface ICastlingAvailability {
   blackQueenSide: boolean
 }
 export interface IBoardPosition {
-  board: (IChessPiece | undefined)[]
-  sideToMove: PlayerColour
-  castlingAvailability: ICastlingAvailability
-  enPassantTarget?: BoardId
-  halfMoveClock: number
-  fullMoveNumber: number
+  board: (IChessPiece | undefined)[];
+  sideToMove: PlayerColour;
+  castlingAvailability: ICastlingAvailability;
+  enPassantTarget?: BoardId;
+  halfMoveClock: number;
+  fullMoveNumber: number;
+  checkState: CheckState;
 }
 export const castlingAvailabilitySchema = z.object({
   whiteKingSide: z.boolean(),
@@ -27,6 +35,7 @@ const boardEntrySchema: z.ZodType<IChessPiece | undefined, z.ZodTypeDef, IChessP
 const boardSchema: z.ZodType<IBoardPosition['board'], z.ZodTypeDef, Array<IChessPiece | null | undefined>> = z.array(boardEntrySchema).length(64)
 type IBoardPositionInput = Omit<IBoardPosition, 'board' | 'enPassantTarget'> & { board: Array<IChessPiece | null | undefined>; enPassantTarget?: BoardId | null }
 
+const checkStateSchema = z.enum([CheckState.None, CheckState.CheckBlack, CheckState.CheckmateBlack, CheckState.CheckWhite, CheckState.CheckmateWhite]);
 export const boardPositionSchema: z.ZodType<IBoardPosition, z.ZodTypeDef, IBoardPositionInput> = z.object({
   board: boardSchema,
   sideToMove: playerColourSchema,
@@ -34,4 +43,5 @@ export const boardPositionSchema: z.ZodType<IBoardPosition, z.ZodTypeDef, IBoard
   enPassantTarget: z.number().int().min(0).max(63).optional(),
   halfMoveClock: z.number().int().min(0),
   fullMoveNumber: z.number().int().min(1),
+  checkState: checkStateSchema,
 })
