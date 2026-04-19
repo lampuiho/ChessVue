@@ -138,7 +138,8 @@ export interface ICreateGameRequest {
   whitePlayer?: IPlayer
   blackPlayer?: IPlayer
   analysisEngineProfiles: IEngineRecord[]
-  showLiveAnalysisMoves: boolean
+  showLiveAnalysisMoves?: boolean;
+  allowTakeBack?: boolean;
   timeControl: ITimeControl
   boardRoot?: IBoardPosition
 }
@@ -147,7 +148,8 @@ export interface IStartGameFromSetupRequest {
   whitePlayer?: IPlayer
   blackPlayer?: IPlayer
   analysisEngineProfiles: IEngineRecord[]
-  showLiveAnalysisMoves: boolean
+  showLiveAnalysisMoves?: boolean
+  allowTakeBack?: boolean;
   timeControl: ITimeControl
 }
 export const gameStateSchema = z.enum(gameStates)

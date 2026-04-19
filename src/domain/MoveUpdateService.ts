@@ -58,17 +58,19 @@ export const MoveUpdateService = {
     };
   },
   /** Mutates parentNode and its descendants by appending a child, updating mainlineChildIndex, and rewriting branchKind along the old mainline path. */
-  addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
+  addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot) {
     const previousMainlineChildIndex = parentNode.mainlineChildIndex;
     if (previousMainlineChildIndex !== undefined) markPathBranchKind(parentNode.children[previousMainlineChildIndex]!, MoveBranchKind.Variation);
-    parentNode.children.push(createChildNode(parentNode, MoveBranchKind.Mainline, move, position, clockSnapshot));
-    parentNode.mainlineChildIndex = parentNode.children.length - 1;
-    return getTree(parentNode);
+    const node = createChildNode(parentNode, MoveBranchKind.Mainline, move, position, clockSnapshot);
+    parentNode.mainlineChildIndex = parentNode.children.length;
+    parentNode.children.push(node);
+    return node;
   },
   /** Mutates parentNode by appending a new analysis child; move and position are cloned into the created node. */
-  addAnalysisMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition): IMoveTree {
-    parentNode.children.push(createChildNode(parentNode, MoveBranchKind.Analysis, move, position, parentNode.clockSnapshot));
-    return getTree(parentNode);
+  addAnalysisMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition) {
+    const node = createChildNode(parentNode, MoveBranchKind.Analysis, move, position, parentNode.clockSnapshot);
+    parentNode.children.push(node);
+    return node;
   },
   /** Does not mutate node; returns a cloned board position. */
   getPosition(node: IMoveNode): IBoardPosition {

@@ -329,6 +329,7 @@ export function applyMove(position: IBoardPosition, move: IMove): IBoardPosition
   const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move));
   if (!matchingMove) throw new Error('Cannot apply an illegal move.');
   if (requiresPromotionSelection(position, move)) throw new Error('Promotion piece selection is required before applying a promotion move.');
+  //TODO: update check state of the position
   return applyCandidateMove(position, {
     from: matchingMove.from,
     to: matchingMove.to,
