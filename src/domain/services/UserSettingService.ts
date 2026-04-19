@@ -1,4 +1,4 @@
-import { AnalysisBranchExitBehaviour, BoardOrientation, PlatformErrorKind, PlayerType, PromotionPolicy, ResolvedThemeMode, TakebackPolicy, ThemeMode, TimeControlPreset, settingsSnapshotSchema, type IPlatformError, type ISettingsSnapshot } from '@/contracts';
+import { AnalysisBranchExitBehaviour, BoardOrientation, PlatformErrorKind, PlayerType, PromotionPolicy, ResolvedThemeMode, ThemeMode, TimeControlPreset, settingsSnapshotSchema, type IPlatformError, type ISettingsSnapshot } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
 import { usePlatformService } from '@/platform';
 
@@ -24,8 +24,6 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
       defaultBlackPlayerType: PlayerType.Local,
     },
     gameplay: {
-      takebackPolicy: TakebackPolicy.RewriteMainline,
-      confirmMainlineRewrite: true,
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
       promotionPolicy: PromotionPolicy.RequireExplicitSelection,
     },

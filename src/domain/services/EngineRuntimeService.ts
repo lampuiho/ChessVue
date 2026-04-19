@@ -1,5 +1,6 @@
-import { EngineAvailability, PlatformErrorKind, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAvailability, PlatformError, PlatformErrorKind, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
 import { usePlatformService } from '@/platform';
+import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
 
 type IRuntimeAssignedEngine = IAssignedEngine & { $: IAssignedEngineRuntime };
 
@@ -33,14 +34,11 @@ function _clearAnalysisState(runtimeState: IAssignedEngineRuntime): void {
   runtimeState.analysisCallback = undefined;
   runtimeState.analysisLines.clear();
 }
-function _isPlatformError(error: unknown): error is IPlatformError {
-  return typeof error === 'object' && error !== null && 'kind' in error && typeof (error as { kind?: unknown }).kind === 'string';
-}
 function _isInvalidProcessHandleError(error: unknown): boolean {
-  return _isPlatformError(error) && error.kind === PlatformErrorKind.InvalidProcessHandle;
+  return isPlatformError(error) && error.kind === PlatformErrorKind.InvalidProcessHandle;
 }
 function _createEngineNotInitialisedError(engine: IAssignedEngine): IPlatformError {
-  return { kind: PlatformErrorKind.ProcessStartFailed, operation: 'engineRuntime', message: `Engine process is not initialised for ${engine.displayName}.` };
+  return new PlatformError({ kind: PlatformErrorKind.ProcessStartFailed, operation: 'engineRuntime', message: `Engine process is not initialised for ${engine.displayName}.` });
 }
 async function _initialiseEngine(engine: IAssignedEngine, runtimeState: IAssignedEngineRuntime): Promise<void> {
   const processManager = usePlatformService().getProcessManager();

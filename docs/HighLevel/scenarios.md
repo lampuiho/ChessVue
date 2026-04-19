@@ -404,7 +404,7 @@ Each scenario in this document uses the same structure:
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
 - **Status**: Planned
 - **Goal**: Convert review position into new active mainline when rules allow takeback.
-- **Preconditions**: User is on prior node; takeback policy enabled.
+- **Preconditions**: User is on prior node; the current game's takeback policy allows live-mainline rewrite.
 - **Entry Points**: Move made from a non-terminal historical node.
 - **Main Steps**:
   1. User navigates to old node.
@@ -622,7 +622,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-ANALYSIS-04-MOVE-STALE`: Selected move path is no longer legal from the current node -> reject and refresh eval list.
   - `BR-ANALYSIS-04-LIVE-SCORE-ONLY`: In any live-game context where `showLiveAnalysisMoves = false`, no move target is rendered from the analysis panel.
-  - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `gameplay.takebackPolicy = analysisOnly`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
+  - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `game.gameplayOptions.takebackPolicy = analysisOnly`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
   - `BR-ANALYSIS-04-PAUSED`: In paused live play, analysis results are read-only and clicking any suggested move is blocked until resume.
 - **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.

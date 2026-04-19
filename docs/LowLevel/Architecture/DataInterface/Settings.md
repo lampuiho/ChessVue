@@ -5,7 +5,6 @@ Define the authoritative persisted settings schema from the baseline settings co
 
 ## Interfaces
 - `enum ThemeMode`
-- `enum TakebackPolicy`
 - `enum AnalysisBranchExitBehaviour`
 - `enum PromotionPolicy`
 - `enum BoardOrientation`
@@ -22,11 +21,6 @@ enum ThemeMode {
   System = "system",
   Light = "light",
   Dark = "dark"
-}
-
-enum TakebackPolicy {
-  RewriteMainline = "rewriteMainline",
-  AnalysisOnly = "analysisOnly"
 }
 
 enum AnalysisBranchExitBehaviour {
@@ -59,8 +53,6 @@ interface ISettingsGameDefaults {
 }
 
 interface ISettingsGameplay {
-  takebackPolicy: TakebackPolicy
-  confirmMainlineRewrite: boolean
   analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
   promotionPolicy: PromotionPolicy
 }

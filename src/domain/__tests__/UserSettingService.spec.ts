@@ -7,7 +7,6 @@ import {
   PlayerType,
   PromotionPolicy,
   ResolvedThemeMode,
-  TakebackPolicy,
   ThemeMode,
   TimeControlPreset,
   type ISettingsSnapshot,
@@ -36,8 +35,6 @@ function createSettingsSnapshot(): ISettingsSnapshot {
       defaultBlackPlayerType: PlayerType.Local,
     },
     gameplay: {
-      takebackPolicy: TakebackPolicy.RewriteMainline,
-      confirmMainlineRewrite: true,
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
       promotionPolicy: PromotionPolicy.RequireExplicitSelection,
     },

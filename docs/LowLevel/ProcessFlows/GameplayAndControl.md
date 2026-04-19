@@ -22,6 +22,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._applyMoveByContext` |
 | `GamesStore._updateClockAfterMove` |
 | `GamesStore._commitLiveMove` |
+| `GamesStore._refreshAnalysisForGame` *(background)* |
 
 | `GameRuleService.isMoveLegal` |
 | --- |
@@ -40,7 +41,6 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameView._handleCommittedMoveResult` |
 | --- |
 | `GamesStore.getGame` |
-| `GamesStore.refreshAnalysis` |
 | `GameView._requestPlayerMoveIfNeeded` |
 
 | `GamesStore.refreshAnalysis` |
@@ -83,6 +83,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._resolveMoveContext` |
 | `GamesStore._applyMoveByContext` |
 | `GamesStore._commitAnalysisMove` |
+| `GamesStore._refreshAnalysisForGame` *(background)* |
 
 | `GameRuleService.isMoveLegal` |
 | --- |
@@ -96,7 +97,6 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameView._refreshVisibleAnalysisAfterCommittedMove` |
 | --- |
 | `GamesStore.getGame` |
-| `GamesStore.refreshAnalysis` |
 
 | `GamesStore.refreshAnalysis` |
 | --- |
@@ -289,7 +289,6 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `Chessboard.moveSubmittedFromHistory` |
 | --- |
 | `GamesStore.makeMove` |
-| `UserSettingService.getSettings` |
 | `TimeControlService.applyMove` |
 | `MoveUpdateService.addMainlineMove` |
 | `MoveUpdateService.rewriteMainline` |
@@ -298,13 +297,9 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.makeMove` |
 | --- |
 | `GamesStore._applyHistoryRewritePolicy` |
-| `GamesStore._confirmMainlineRewriteIfNeeded` |
 | `GamesStore._updateClockAfterMove` |
 | `GamesStore._promoteNewContinuation` |
 | `GamesStore._restoreCurrentPositionAfterRewrite` |
-
-| `UserSettingService.getSettings` |
-| --- |
 
 | `TimeControlService.applyMove` |
 | --- |
@@ -317,7 +312,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `MoveUpdateService.rewriteMainline` |
 | --- |
 
-- Settings coverage: `gameplay.takebackPolicy = rewriteMainline` routes this flow into live mainline mutation. `gameplay.confirmMainlineRewrite` decides whether `_confirmMainlineRewriteIfNeeded` is a no-op or a blocking prompt.
+- Per-game coverage: `game.gameplayOptions.takebackPolicy = rewriteMainline` routes this flow into live mainline mutation.
 - Requirement verification: `Pass`. The public surface can keep the old future as a variation while promoting the new continuation.
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
@@ -363,7 +358,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.navigateToNode` |
 | --- |
 
-- Settings coverage: `gameplay.takebackPolicy = TakebackPolicy.AnalysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the game returns to the live node immediately or stays on the analysis branch.
+- Per-game coverage: `game.gameplayOptions.takebackPolicy = analysisOnly` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the game returns to the live node immediately or stays on the analysis branch.
 - Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
 
 ### SCN-HIST-04 - Automatic Pruning After Live Move From The Latest Node
@@ -394,7 +389,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `SerializationService.writeGameDocument` |
 
 - UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. The pruning action is automatic and is triggered by the next real live move from the same latest node after in-game analysis exit.
-- Runtime selector coverage: `GamesStore` compares the current live move against the stored in-game-analysis entry anchor and runs the automatic pruning action through `MoveUpdateService.pruneFutureMoves` only when live play resumes from that same latest node. After pruning and move commit, the store reacquires the surviving live and visible nodes from the new tree.
+- Runtime selector coverage: `GamesStore` keeps `livePath` fixed throughout in-game analysis and runs the automatic pruning action through `MoveUpdateService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. After pruning and move commit, the store reacquires the surviving live and visible nodes from the new tree.
 - Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but the automatic pruning action discards them once real play supersedes them.
 
 ## Time Control

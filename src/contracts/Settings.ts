@@ -8,10 +8,6 @@ export const enum ThemeMode {
   Light = 'light',
   Dark = 'dark',
 }
-export const enum TakebackPolicy {
-  RewriteMainline = 'rewriteMainline',
-  AnalysisOnly = 'analysisOnly',
-}
 export const enum AnalysisBranchExitBehaviour {
   ReturnToLiveNode = 'returnToLiveNode',
   StayOnBranch = 'stayOnBranch',
@@ -24,7 +20,6 @@ export const enum BoardOrientation {
   Black = 'black',
 }
 export const themeModes = [ThemeMode.System, ThemeMode.Light, ThemeMode.Dark] as const
-export const takebackPolicies = [TakebackPolicy.RewriteMainline, TakebackPolicy.AnalysisOnly] as const
 export const analysisBranchExitBehaviours = [AnalysisBranchExitBehaviour.ReturnToLiveNode, AnalysisBranchExitBehaviour.StayOnBranch] as const
 export const promotionPolicies = [PromotionPolicy.RequireExplicitSelection] as const
 export const boardOrientations = [BoardOrientation.White, BoardOrientation.Black] as const
@@ -43,8 +38,6 @@ export interface ISettingsGameDefaults {
   defaultBlackPlayerType: PlayerType
 }
 export interface ISettingsGameplay {
-  takebackPolicy: TakebackPolicy
-  confirmMainlineRewrite: boolean
   analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
   promotionPolicy: PromotionPolicy
 }
@@ -70,7 +63,6 @@ export interface ISettingsSnapshot {
   appearance: ISettingsAppearance
 }
 export const themeModeSchema = z.enum(themeModes)
-export const takebackPolicySchema = z.enum(takebackPolicies)
 export const analysisBranchExitBehaviourSchema = z.enum(analysisBranchExitBehaviours)
 export const promotionPolicySchema = z.enum(promotionPolicies)
 export const boardOrientationSchema = z.enum(boardOrientations)
@@ -90,8 +82,6 @@ export const settingsGameDefaultsSchema = z.object({
 })
 
 export const settingsGameplaySchema = z.object({
-  takebackPolicy: takebackPolicySchema,
-  confirmMainlineRewrite: z.boolean(),
   analysisBranchExitBehaviour: analysisBranchExitBehaviourSchema,
   promotionPolicy: promotionPolicySchema,
 })

@@ -88,8 +88,6 @@ export function createSettingsSnapshot(): ISettingsSnapshot {
       defaultBlackPlayerType: PlayerType.Local,
     },
     gameplay: {
-      takebackPolicy: TakebackPolicy.RewriteMainline,
-      confirmMainlineRewrite: true,
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
       promotionPolicy: PromotionPolicy.RequireExplicitSelection,
     },
@@ -239,6 +237,7 @@ export function createGame(overrides: Partial<IGame> = {}): IGame {
     timeControl: structuredClone(overrides.timeControl ?? { preset: TimeControlPreset.Untimed, incrementMs: 0 }),
     clockSnapshot,
     liveAnalysisOptions: structuredClone(overrides.liveAnalysisOptions ?? { showLiveAnalysisMoves: false }),
+    gameplayOptions: structuredClone(overrides.gameplayOptions ?? { takebackPolicy: TakebackPolicy.RewriteMainline }),
     analysis: structuredClone(overrides.analysis ?? { snapshots: [] }),
     $: overrides.$ ? structuredClone(overrides.$) : undefined,
   };

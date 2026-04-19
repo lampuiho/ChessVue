@@ -6,6 +6,7 @@ import { movePathSchema, moveTreeSchema, type IMove, type IMoveTree, type MovePa
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
 import { type PauseReason } from './state'
+import type { Deferred } from '@/utility/async/Deferred'
 
 export const enum GameState {
   LiveWhiteTurn = 'liveWhiteTurn',
@@ -51,6 +52,10 @@ export const enum DrawOfferDirection {
   Incoming = 'incoming',
   Outgoing = 'outgoing',
 }
+export const enum TakebackPolicy {
+  RewriteMainline = 'rewriteMainline',
+  AnalysisOnly = 'analysisOnly',
+}
 export const gameStates = [
   GameState.LiveWhiteTurn,
   GameState.LiveBlackTurn,
@@ -74,6 +79,7 @@ export const resultReasons = [ResultReason.RuleResolved, ResultReason.Timeout, R
 export const playerTypes = [PlayerType.Local, PlayerType.Engine] as const
 export const playerActivityStates = [PlayerActivityState.Active, PlayerActivityState.NonActive] as const
 export const drawOfferDirections = [DrawOfferDirection.Incoming, DrawOfferDirection.Outgoing] as const
+export const takebackPolicies = [TakebackPolicy.RewriteMainline, TakebackPolicy.AnalysisOnly] as const
 
 export interface IDrawOfferState {
   offeringColour: PlayerColour
@@ -106,29 +112,36 @@ export interface IGameMetadata {
 export interface ILiveAnalysisOptions {
   showLiveAnalysisMoves: boolean
 }
+export interface IGameplayOptions {
+  takebackPolicy: TakebackPolicy
+}
 export interface IGameRuntime {
+  currentPosition: IBoardPosition;
   pauseReasons?: PauseReason[]
   focusReturnUnsubscribe?: () => void
   deferredPlayerMove?: IMove
+  pendingPlayerTurnPromise?: Deferred<IMove>;
+  pendingPlayerTurnHandlePromise?: Promise<void>
 }
 export interface IGame {
-  schemaVersion: number
-  metadata: IGameMetadata
-  gameState: GameState
-  resultState: ResultState
-  resultReason?: ResultReason
-  drawOfferState?: IDrawOfferState
-  whitePlayer?: IPlayer | IEnginePlayer
-  blackPlayer?: IPlayer | IEnginePlayer
-  boardRoot: IBoardPosition
-  moveTree: IMoveTree
-  livePath?: MovePath
-  highlightPath: MovePath
-  timeControl: ITimeControl
-  clockSnapshot: IClockSnapshot
-  liveAnalysisOptions: ILiveAnalysisOptions
-  analysis: IGameAnalysis
-  $?: IGameRuntime
+  schemaVersion: number;
+  metadata: IGameMetadata;
+  gameState: GameState;
+  resultState: ResultState;
+  resultReason?: ResultReason;
+  drawOfferState?: IDrawOfferState;
+  whitePlayer?: IPlayer | IEnginePlayer;
+  blackPlayer?: IPlayer | IEnginePlayer;
+  rootPosition: IBoardPosition;
+  moveTree: IMoveTree;
+  livePath?: MovePath;
+  highlightPath: MovePath;
+  timeControl: ITimeControl;
+  clockSnapshot: IClockSnapshot;
+  liveAnalysisOptions: ILiveAnalysisOptions;
+  gameplayOptions: IGameplayOptions;
+  analysis: IGameAnalysis;
+  $?: IGameRuntime;
 }
 export interface ICreateGameRequest {
   name: string
@@ -153,6 +166,7 @@ export const resultReasonSchema = z.enum(resultReasons).nullable().optional().tr
 export const playerTypeSchema = z.enum(playerTypes)
 export const playerActivityStateSchema = z.enum(playerActivityStates)
 export const drawOfferDirectionSchema = z.enum(drawOfferDirections)
+export const takebackPolicySchema = z.enum(takebackPolicies)
 
 export const drawOfferStateSchema = z.object({
   offeringColour: playerColourSchema,
@@ -193,6 +207,9 @@ export const gameMetadataSchema = z.object({
 export const liveAnalysisOptionsSchema = z.object({
   showLiveAnalysisMoves: z.boolean(),
 })
+export const gameplayOptionsSchema = z.object({
+  takebackPolicy: takebackPolicySchema,
+})
 
 export const gameSchema = z.object({
   schemaVersion: z.literal(1),
@@ -210,6 +227,7 @@ export const gameSchema = z.object({
   timeControl: timeControlSchema,
   clockSnapshot: clockSnapshotSchema,
   liveAnalysisOptions: liveAnalysisOptionsSchema,
+  gameplayOptions: gameplayOptionsSchema.optional().transform((value) => value ?? { takebackPolicy: TakebackPolicy.RewriteMainline }),
   analysis: gameAnalysisSchema,
 })
 

@@ -28,8 +28,6 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `gameDefaults.defaultTimeControl` | Default time control used by quick new game | `untimed` | Built-in preset or valid custom time control object | Settings snapshot |
 | `gameDefaults.defaultWhitePlayerType` | Default player type for white in new game setup | `local` | `local` or `engine` | Settings snapshot |
 | `gameDefaults.defaultBlackPlayerType` | Default player type for black in new game setup | `local` | `local` or `engine` | Settings snapshot |
-| `gameplay.takebackPolicy` | Decide whether moving from history rewrites live mainline or stays analysis-only | `rewriteMainline` | `rewriteMainline` or `analysisOnly` | Settings snapshot |
-| `gameplay.confirmMainlineRewrite` | Require confirmation before changing the main continuation | `true` | Boolean | Settings snapshot |
 | `gameplay.analysisBranchExitBehaviour` | Decide what happens after analysis-only branch creation from history | `returnToLiveNode` | `returnToLiveNode` or `stayOnBranch` | Settings snapshot |
 | `gameplay.promotionPolicy` | Decide how promotion is resolved | `requireExplicitSelection` | `requireExplicitSelection` only in baseline | Settings snapshot |
 | `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
@@ -63,7 +61,7 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - `gameSession.autoPauseOnMenu` controls timed-game auto-pause for settings, internal save/load views, import/export flows, and other interrupting menu flows.
 - When `gameSession.autoPauseOnMenu` pauses a timed live game, the game surface becomes interaction-locked until the paired auto-resume path or an explicit manual resume clears that pause.
 - Auto-resume after menu interruption is paired behaviour of `gameSession.autoPauseOnMenu`; it is not a separate stored setting.
-- `gameplay.takebackPolicy`, `gameplay.confirmMainlineRewrite`, and `gameplay.analysisBranchExitBehaviour` define the behaviour of historical-node move actions.
+- `gameplay.analysisBranchExitBehaviour` defines the global default exit behaviour after analysis-only historical-node moves. Whether a game rewrites live mainline or stays analysis-only is persisted per game.
 - `analysis.resumeLiveAnalysisAfterRestore` applies only after saved-game restore completes.
 - `analysis.engineInventory` validates only that profile names are unique within the saved profile list. Executable path and option values are stored as entered and are consumed later when a profile is used to create an engine participant.
 - `appearance.themeMode = system` follows the active OS theme, while `light` and `dark` force the corresponding built-in UI theme.
@@ -84,5 +82,6 @@ The following are intentionally excluded from the baseline settings contract and
 - Settings are stored in the user settings snapshot defined in [persistence_contract.md](persistence_contract.md).
 - Per-game engine assignment belongs to the saved game payload, not to the global settings schema.
 - The per-game `showLiveAnalysisMoves` preference also belongs to the saved game payload, not to the global settings schema.
+- The per-game `takebackPolicy` preference also belongs to the saved game payload, not to the global settings schema.
 - Session shell restoration belongs to session persistence, even when the behaviour is controlled by settings.
 - Remembered panel visibility and foldable-section state belong to persisted UI/session state, not to the consciously saved settings schema.

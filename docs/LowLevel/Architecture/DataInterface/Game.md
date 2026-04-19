@@ -10,6 +10,7 @@ Define the canonical game model used by `GamesStore`, related services, and pers
 - `enum PlayerType`
 - `enum PlayerActivityState`
 - `enum DrawOfferDirection`
+- `enum TakebackPolicy`
 
 ## Interfaces
 - `interface IDrawOfferState`
@@ -19,6 +20,8 @@ Define the canonical game model used by `GamesStore`, related services, and pers
 - `interface ICapturedPieceGroup`
 - `interface IGameMetadata`
 - `interface ILiveAnalysisOptions`
+- `interface IGameplayOptions`
+- `interface IDeferredPromise`
 - `interface IGameRuntime`
 - `interface IGame`
 - `interface ICreateGameRequest`
@@ -76,6 +79,11 @@ enum DrawOfferDirection {
   Outgoing = "outgoing"
 }
 
+enum TakebackPolicy {
+  RewriteMainline = "rewriteMainline",
+  AnalysisOnly = "analysisOnly"
+}
+
 interface IDrawOfferState {
   offeringColour: PlayerColour
   respondingColour: PlayerColour
@@ -114,10 +122,23 @@ interface ILiveAnalysisOptions {
   showLiveAnalysisMoves: boolean
 }
 
+interface IGameplayOptions {
+  takebackPolicy: TakebackPolicy
+}
+
+interface IDeferredPromise<T> {
+  promise: Promise<T>
+  resolve: (value: T | PromiseLike<T>) => void
+  reject: (reason?: unknown) => void
+}
+
 interface IGameRuntime {
   pauseReasons?: PauseReason[]
   focusReturnUnsubscribe?: () => void
   deferredPlayerMove?: IMove
+  pendingPlayerTurnPromise?: IDeferredPromise<IMove | undefined>
+  pendingPlayerTurnHandlerPromise?: Promise<IMove | undefined>
+  pendingPlayerTurnRequestPromise?: Promise<void>
 }
 
 interface IGame {
@@ -136,6 +157,7 @@ interface IGame {
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
   liveAnalysisOptions: ILiveAnalysisOptions
+  gameplayOptions: IGameplayOptions
   analysis: IGameAnalysis
   $?: IGameRuntime
 }
@@ -179,7 +201,9 @@ interface IStartGameFromSetupRequest {
 - `ICreateGameRequest.analysisEngineProfiles` and `IStartGameFromSetupRequest.analysisEngineProfiles` carry the selected reusable engine profiles for copied analysis-engine assignment.
 - `IPlayer.$.activityState` is intentionally minimal. `active` means the seat can still participate normally, while `nonActive` covers unavailable engines, disconnected non-local players, or any other seat that has left normal participation.
 - `$` is the runtime-only namespace. Anything under `$` is rebuilt in memory and is never persisted in the canonical saved-game payload.
-- `IGame.$` owns game-scoped runtime concerns such as active pause reasons, focus-return teardown, and any deferred player-engine move waiting for resume-time revalidation.
+- `IGame.$` owns game-scoped runtime concerns such as active pause reasons, focus-return teardown, a deferred live-turn move captured while paused, the deferred live-turn move promise for the current turn, its awaiting handler, and one in-flight engine-turn request promise.
+- `IGame.$` is runtime-only but expected to be explicitly initialised during game creation or hydration. Missing runtime state is a bug, not a fallback path.
+- `gameplayOptions.takebackPolicy` is persisted per game, not stored in the global settings snapshot. New games default to `rewriteMainline` until a game-specific override exists.
 - Turn ownership, move waiting, and move permissions are derived from `gameState`, not stored on `IPlayer`.
 - Engine runtime details such as `processHandle`, availability, and last error live on `IEnginePlayer.assignedEngine.$`, not on `IPlayer.$`.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGame`.

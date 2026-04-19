@@ -54,8 +54,6 @@ function createSettingsSnapshot(): ISettingsSnapshot {
       defaultBlackPlayerType: PlayerType.Local,
     },
     gameplay: {
-      takebackPolicy: TakebackPolicy.RewriteMainline,
-      confirmMainlineRewrite: true,
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
       promotionPolicy: PromotionPolicy.RequireExplicitSelection,
     },
@@ -120,6 +118,9 @@ function createGame(): IGame {
     clockSnapshot: nextClock,
     liveAnalysisOptions: {
       showLiveAnalysisMoves: false,
+    },
+    gameplayOptions: {
+      takebackPolicy: TakebackPolicy.RewriteMainline,
     },
     analysis: {
       snapshots: [],

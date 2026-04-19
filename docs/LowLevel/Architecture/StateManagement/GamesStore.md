@@ -16,7 +16,7 @@ startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<vo
 insertGame(game: IGame): Promise<IGame>
 getGame(gameId: string): IGame | undefined
 listGames(): IGame[]
-makeMove(game: IGame, move: IMove): Promise<IMove | undefined>
+makeMove(game: IGame, move: IMove): IMove | undefined
 takeBack(game: IGame, moveCount?: number): Promise<void>
 navigateToNode(game: IGame, node: IMoveNode): void
 getVisibleAnalysis(game: IGame): IVisibleAnalysisSnapshot | undefined
@@ -46,7 +46,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - transition a prepared non-live analysis game into a live game without losing its prepared root or move tree
 - persist each game's live-analysis display preference alongside the rest of the game state
 - capture copied in-game engine snapshots from reusable engine profiles supplied by the owning UI selection flow when seating player engines or analysis engines
-- enforce allowed actions from `GameState`, `ResultState`, and accepted gameplay or session policies
+- enforce allowed actions from `GameState`, `ResultState`, and accepted gameplay or session policies, including each game's persisted takeback policy
 - coordinate legal move application, move-tree updates, notation, position identity, and clock changes
 - reconcile live clocks on timer ticks or focus return so timeout finalisation stays inside the store boundary
 - register and tear down session-owned focus-return callbacks through the layer-2 platform-event boundary when a game session becomes runnable or is torn down
@@ -60,8 +60,9 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - own `livePath` and `highlightPath` selection on the game, while `MoveUpdateService` stays limited to tree mutation
 
 ## State And Settings Notes
-- `makeMove` is the game-state dispatcher for live play, history rewrite, non-live analysis branching, live-analysis moves, and rendered analysis suggestions selected from the analysis panel. Blocked states are rejected by a throwing assertion before legality checks or domain mutation. That blocked set includes paused live-analysis states as well as paused live states. Promotion choice is resolved before `makeMove` through board interaction, so the submitted `IMove` is already complete when the store sees it.
-- `makeMove` also owns the automatic pruning action for latest-node live-analysis continuations. When live play resumes from the same latest node that previously anchored an exited live-analysis session, `GamesStore._pruneLatestAnalysisContinuationIfNeeded` discards those exploratory descendants before the real move is appended.
+- `makeMove` is the synchronous game-state dispatcher for live play, history rewrite, non-live analysis branching, live-analysis moves, and rendered analysis suggestions selected from the analysis panel. Blocked states are rejected by a throwing assertion before legality checks or domain mutation. That blocked set includes paused live-analysis states as well as paused live states. Promotion choice is resolved before `makeMove` through board interaction, so the submitted `IMove` is already complete when the store sees it.
+- `makeMove` starts per-position analysis refresh in the background after a committed move. Callers do not await analysis restart before reading the updated game state.
+- `makeMove` also owns the automatic pruning action for latest-node live-analysis continuations. When live play resumes from the current live node and that node still has exploratory descendants, `GamesStore._pruneLatestAnalysisContinuationIfNeeded` discards those descendants before the real move is appended.
 - `navigateToNode` is the public history-navigation boundary. It accepts a hydrated `IMoveNode` from the current hydrated tree, verifies membership by tracing `node.$.parent` back to the current root, derives the new `highlightPath`, updates the game selection, and then derives the resulting `gameState`. Moving away from the live node enters the matching `LiveAnalysisFrom*` state, while selecting the live node restores the matching live state. Paused live and paused live-analysis states reject this action through the paused-state assertion boundary. If the node is stale or no longer belongs to the current tree, the navigation request is ignored and the caller refreshes from current store state.
 - `getVisibleAnalysis` projects the currently relevant snapshots for the highlighted position from `game.analysis`. It is a read model, not a second store boundary.
 - When `liveAnalysisOptions.showLiveAnalysisMoves = true`, selecting a rendered engine suggestion reuses the same state-specific move dispatch as board move entry. Live states commit a real move, live-analysis states remain analysis-only, and non-live analysis states apply ordinary analysis moves.
@@ -75,7 +76,9 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `createGame` and `startGameFromSetup` accept selected seat assignments directly through request `IPlayer` fields and selected analysis-engine profiles through request `IEngineRecord` fields. They create live states only when both sides are assigned. When either side is unassigned, they create `AnalysisWhiteMove` or `AnalysisBlackMove` based on the prepared board side to move. When they create a live game, they also persist the per-game `liveAnalysisOptions.showLiveAnalysisMoves` choice, which defaults to `false`.
 - `reassignPlayer` never starts a fresh live game. Once a game is outside live play, the separate `startGameFromSetup` flow owns collecting fresh settings and creating a new live clock state.
 - `GamesStore._canRequestPlayerMove` is the generic live-game gate for any non-local player implementation. It depends only on playable live state and the side-to-move assignment, not on a separate engine-vs-engine mode.
-- When `reassignPlayer` keeps the game live, `GamesStore` may immediately request the next move only if `GamesStore._canRequestPlayerMove` still reports that the resulting side to move is a non-local active player and there is no still-valid in-flight request for that same seat and turn.
+- `IGame.$.pendingPlayerTurnPromise` is a deferred move promise for the current live turn and is armed for every live turn, including local turns. Engine turns resolve it from `EngineRuntimeService.awaitPlayerTurnMove(...)`, while local turns resolve it from board move submission.
+- `GamesStore` only creates the async pending-turn handler when a non-local player turn is actually requested. Local move submission commits synchronously after resolving the same deferred turn promise.
+- When `reassignPlayer` keeps the game live, `GamesStore` may immediately request the next move only if `GamesStore._canRequestPlayerMove` still reports that the resulting side to move is a non-local active player and there is no unresolved in-flight engine-turn request already owned by that game runtime.
 - When a restored or loaded game enters the open-game collection through a committed reopen, internal load, recent reopen, or import flow, `GamesStore.insertGame(...)` rebuilds the persisted game state first and then coordinates analysis refresh from the restored highlighted state when the relevant policy allows it.
 - Restore hydration belongs to `GamesStore`, not to `SerializationService` or `SavedGamesStore`. That hydration rebuilds runtime-only move-tree references from the persisted nested tree and resolves `livePath` and `highlightPath` before the game becomes active live state.
 - `_setHighlightPathFromNode` is store-internal persisted-selector bookkeeping only. Public runtime navigation remains node-first and does not expose `MovePath` as an interaction contract.
@@ -83,7 +86,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - When `liveAnalysisOptions.showLiveAnalysisMoves = false`, live and live-analysis states stay score-only in the analysis panel. When the toggle is enabled, analysis-panel clicks still reuse the normal move-dispatch path rather than introducing a panel-specific rule.
 - Paused-state assertion boundaries apply to paused gameplay mutations, including move submission, history navigation, takeback, draw actions, resignation, in-game-analysis entry, and board-edit entry. Those blocked requests throw rather than silently no-op, and the error message includes the blocked `gameState`.
 - Player reassignment and analysis-engine management remain valid while paused as explicit non-play exceptions to the paused gameplay lock.
-- If a player-engine turn search resolves while the game is paused, `GamesStore` records deferred output only. Once pause clears back to a playable live state, it revalidates the deferred move against the current live position before committing it; stale deferred output is discarded and the normal player-move gate decides whether to request a fresh search instead.
+- If a live-turn move resolves while the game is paused, `GamesStore` records deferred output only. Once pause clears back to a playable live state, it revalidates the deferred move against the current live position before committing it; stale deferred output is discarded and the normal player-move gate decides whether to request a fresh engine search instead.
 - If an analysis search resolves while the game is paused, `GamesStore` may still persist the latest valid snapshot for read-only display, but it must not treat that completion as permission to unlock interaction or mutate live game state.
 - `enterBoardEdit` is the public toggle for the direct-edit session. Entering board edit from non-live analysis stops analysis first, while calling the same action again leaves `BoardEdit` and restores ordinary non-live analysis so analysis refresh may resume.
 - While `gameState = BoardEdit`, board interactions apply direct board edits immediately. The first actual board edit clears prior move history and promotes the edited board to the new root; later board edits in the same session continue mutating that root without a separate confirm action.
