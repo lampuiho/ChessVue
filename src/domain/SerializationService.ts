@@ -17,7 +17,7 @@ import type { IFileSystemEntry, IWriteTextFileOptions } from '@/contracts/platfo
 import { usePlatformService } from '@/platform';
 import { buildPositionKey } from '@/utility/chess';
 
-import { SerializationError } from '../errors/SerializationError';
+import { SerializationError } from '../contracts/errors/SerializationError';
 
 function _parseJson(raw: string): unknown {
   try {
