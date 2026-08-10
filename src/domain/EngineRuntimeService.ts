@@ -1,4 +1,4 @@
-import { EngineAvailability, PlatformError, PlatformErrorKind, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEnginePositionState, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAvailability, PlatformError, PlatformErrorKind, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IGame, type IMove, type IPlatformError } from '@/contracts';
 import { usePlatformService } from '@/platform';
 import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
 
@@ -101,9 +101,9 @@ export const EngineRuntimeService = {
     });
   },
   /** Mutates engine.$ the same way as ensureReady, then updates nested platform session state for the synced position. */
-  async syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {
+  async syncPosition(engine: IAssignedEngine, game: IGame): Promise<void> {
     const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.syncPosition(engine, positionState));
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.syncPosition(engine, game));
   },
   /** Mutates engine.$ the same way as ensureReady, then updates shared analysis runtime state used for streamed callbacks. */
   async startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void> {

@@ -88,7 +88,6 @@ describe('EngineRuntimeService', () => {
           awaitPlayerTurnMove,
           stopEngine,
           restartEngine: vi.fn(),
-          requiresNewGameBoundary: vi.fn(() => false),
         }),
       }),
     }));

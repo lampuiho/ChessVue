@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
-import { moveSchema, type IMove } from './Move'
+import type { IBoardPosition } from './ChessboardState'
+import type { IMove } from './Move'
 import type { IAnalysisLine } from './Analysis'
 
 export type ProcessHandle = string
@@ -66,12 +66,6 @@ export interface IAssignedEngine {
   options: IEngineOptionMap
   $?: IAssignedEngineRuntime
 }
-export interface IEnginePositionState {
-  rootPosition: IBoardPosition
-  movesFromRoot: IMove[]
-  currentPosition: IBoardPosition
-  requiresNewGameBoundary: boolean
-}
 export interface IEngineAnalysisRequest {
   multiPv: number
   searchMode: EngineAnalysisSearchMode
@@ -105,13 +99,6 @@ export const assignedEngineSchema = z.object({
   clientType: engineClientTypeSchema.default(EngineClientType.Uci),
   protocol: engineProtocolSchema,
   options: engineOptionMapSchema,
-})
-
-export const enginePositionStateSchema = z.object({
-  rootPosition: boardPositionSchema,
-  movesFromRoot: z.array(moveSchema),
-  currentPosition: boardPositionSchema,
-  requiresNewGameBoundary: z.boolean(),
 })
 
 export const engineAnalysisRequestSchema = z.object({

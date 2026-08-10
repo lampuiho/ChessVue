@@ -92,7 +92,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -122,7 +121,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.requestPlayerMove` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncPlayerTurnPosition` |
 | `GamesStore._startPlayerTurnSearch` |
 | `GamesStore._awaitPlayerTurnMove` |
@@ -270,7 +268,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -288,7 +285,6 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.requestPlayerMove` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncPlayerTurnPosition` |
 | `GamesStore._startPlayerTurnSearch` |
 | `GamesStore._awaitPlayerTurnMove` |

@@ -5,7 +5,7 @@ import { PassThrough, Writable } from 'node:stream';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, vi } from 'vitest';
 
-import { EngineClientType, EngineProtocol, GameState, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IEnginePositionState, type IGame } from '@/contracts';
+import { EngineClientType, EngineProtocol, GameState, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IGame } from '@/contracts';
 import { GameRuleService, MoveHistoryService, TimeControlService } from '@/domain';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
@@ -222,16 +222,12 @@ export function createAssignedEngine(): IAssignedEngine {
     options: { Threads: 1 },
   };
 }
-export function createEnginePositionState(): IEnginePositionState {
-  const rootPosition = GameRuleService.createInitialBoardPosition();
-  const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
-  const resolvedMove = { ...move };
-  return {
-    rootPosition,
-    movesFromRoot: [resolvedMove],
-    currentPosition: GameRuleService.applyMove(rootPosition, resolvedMove),
-    requiresNewGameBoundary: true,
-  };
+export function createEngineGame(): IGame {
+  const game = createPersistedGame();
+  const move = GameRuleService.generateLegalMoves(game.rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
+  MoveHistoryService.addAnalysisMove(game.moveTree.root, move, GameRuleService.applyMove(game.rootPosition, move));
+  game.highlightPath = [0];
+  return game;
 }
 export function createPersistedGame(): IGame {
   const rootPosition = GameRuleService.createInitialBoardPosition();

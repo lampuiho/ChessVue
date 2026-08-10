@@ -17,7 +17,6 @@ import {
   type IClockSnapshot,
   type ICreateGameRequest,
   type IEnginePlayer,
-  type IEnginePositionState,
   type IEngineRecord,
   type IGame,
   type IGameRuntime,
@@ -284,30 +283,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _syncMoveNodeHighlights(hydratedGame);
     return hydratedGame;
   }
-  function getMovesFromPath(game: IGame, path: MovePath): IMove[] {
-    const moves: IMove[] = [];
-    let currentNode = game.moveTree.root;
-    for (const childIndex of path) {
-      const nextNode = currentNode.children[childIndex];
-      if (!nextNode?.move) throw new Error(`Move path is invalid for game ${game.metadata.id}.`);
-      moves.push(nextNode.move);
-      currentNode = nextNode;
-    }
-    return moves;
-  }
-  function buildEnginePositionState(game: IGame, path: MovePath = game.highlightPath, previous?: IEnginePositionState): IEnginePositionState {
-    const currentNode = _getCurrentNodeOfPath(game.moveTree, path);
-    const movesFromRoot = getMovesFromPath(game, path);
-    const requiresNewGameBoundary = !previous
-      || JSON.stringify(previous.rootPosition) !== JSON.stringify(game.rootPosition)
-      || JSON.stringify(previous.movesFromRoot) !== JSON.stringify(movesFromRoot);
-    return {
-      rootPosition: game.rootPosition,
-      movesFromRoot,
-      currentPosition: currentNode.position,
-      requiresNewGameBoundary,
-    };
-  }
   function cloneAnalysisSnapshotForRead(snapshot: IAnalysisSnapshot): IAnalysisSnapshot {
     return {
       assignedEngine: {
@@ -455,14 +430,14 @@ export const useGamesStore = defineStore('gamesStore', () => {
     snapshot.isComplete = isComplete;
   }
   async function _startAnalysisSnapshot(game: IGame, snapshot: IAnalysisSnapshot): Promise<void> {
-    const positionState = buildEnginePositionState(game, game.highlightPath);
+    const position = _getCurrentNode(game).position;
     _subscribeToAnalysis(game, snapshot.assignedEngine);
-    snapshot.positionKey = PositionIdentityService.buildPositionKey(positionState.currentPosition);
+    snapshot.positionKey = PositionIdentityService.buildPositionKey(position);
     snapshot.updatedAt = getNowUtc();
     _resetAnalysisSnapshot(snapshot);
     if (snapshot.assignedEngine.$) snapshot.assignedEngine.$.lastError = undefined;
     await EngineRuntimeService.ensureReady(snapshot.assignedEngine);
-    await EngineRuntimeService.syncPosition(snapshot.assignedEngine, positionState);
+    await EngineRuntimeService.syncPosition(snapshot.assignedEngine, game);
     await EngineRuntimeService.startAnalysis(snapshot.assignedEngine, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
   }
   async function _refreshAnalysisForGame(game: IGame, engineIndex?: number): Promise<void> {
@@ -579,8 +554,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   function _requestPlayerMove(game: IGame) {
     async function _requestEngineMove(game: IGame, engine: IAssignedEngine): Promise<IMove> {
       await EngineRuntimeService.ensureReady(engine);
-      const positionState = buildEnginePositionState(game, game.livePath ?? []);
-      await EngineRuntimeService.syncPosition(engine, positionState);
+      await EngineRuntimeService.syncPosition(engine, game);
       await EngineRuntimeService.startPlayerTurn(engine);
       const move = await EngineRuntimeService.awaitPlayerTurnMove(engine);
       return move;

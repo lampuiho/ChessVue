@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
 
-import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineOptionMeta, type IEnginePositionState, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineOptionMeta, type IGame, type IMove, type IPlatformError } from '@/contracts';
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
 import { buildPositionKey } from '@/utility/chess';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
-import { buildPositionCommand, buildRegisterCommand, parseBestMoveLine, parseInfoLine, parseOptionLines } from '../../utility/UciUtility';
+import { buildIsReadyCommand, buildPositionCommand, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciNewGameCommand, parseBestMoveLine, parseInfoLine, parseOptionLines } from '../../utility/UciUtility';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 import { attachProcessLineListeners, writeProcessLine } from './NwjsProcessLineUtility';
 
@@ -17,10 +17,12 @@ interface IUciLineWaiter {
 interface IUciSession {
   initialised: boolean;
   isStopping: boolean;
+  gameId?: string;
   optionLines: string[];
   options: IEngineOptionMeta[];
+  position?: IBoardPosition;
   process?: ISpawnedProcess;
-  positionState?: IEnginePositionState;
+  rootPosition?: IBoardPosition;
   playerMoveDeferred?: Deferred<IMove>;
   waiters: IUciLineWaiter[];
   detachProcessListeners?: () => void;
@@ -57,7 +59,9 @@ function _failUciSession(session: IUciSession, error: unknown): IUciSession {
   session.initialised = false;
   session.optionLines = [];
   session.options = [];
-  session.positionState = undefined;
+  session.gameId = undefined;
+  session.position = undefined;
+  session.rootPosition = undefined;
   session.waiters.splice(0).forEach((waiter) => waiter.reject(error));
   session.playerMoveDeferred?.reject(error);
   session.playerMoveDeferred = undefined;
@@ -97,7 +101,9 @@ function _stopUciSession(session: IUciSession, message = 'Engine stopped.'): IUc
   session.initialised = false;
   session.optionLines = [];
   session.options = [];
-  session.positionState = undefined;
+  session.gameId = undefined;
+  session.position = undefined;
+  session.rootPosition = undefined;
   session.waiters.splice(0).forEach((waiter) => waiter.reject(new Error(message)));
   session.playerMoveDeferred?.reject(new Error(message));
   session.playerMoveDeferred = undefined;
@@ -119,22 +125,24 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       if (session.initialised) return;
       session.optionLines = [];
       session.options = [];
-      await _writeCommandAndWait(session, processHandle, 'uci', (line) => line === 'uciok');
+      await _writeCommandAndWait(session, processHandle, buildUciCommand(), (line) => line === 'uciok');
       session.options = parseOptionLines(session.optionLines);
       session.optionLines = [];
-      for (const [optionName, value] of Object.entries(engine.options)) await _writeCommand(processHandle, `setoption name ${optionName} value ${String(value)}`);
-      await _writeCommandAndWait(session, processHandle, 'isready', (line) => line === 'readyok');
+      for (const [optionName, value] of Object.entries(engine.options)) await _writeCommand(processHandle, buildSetOptionCommand(optionName, value));
+      await _writeCommandAndWait(session, processHandle, buildIsReadyCommand(), (line) => line === 'readyok');
       session.initialised = true;
     }
-    async function syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {
+    async function syncPosition(engine: IAssignedEngine, game: IGame): Promise<void> {
       const session = _requireInitialisedSession(engine);
       const processHandle = _requireProcessHandle(engine);
-      if (!session.positionState || requiresNewGameBoundary(positionState)) {
-        await _writeCommand(processHandle, 'ucinewgame');
-        await _writeCommandAndWait(session, processHandle, 'isready', (line) => line === 'readyok');
+      if (_requiresNewGameBoundary(session, game)) {
+        await _writeCommand(processHandle, buildUciNewGameCommand());
+        await _writeCommandAndWait(session, processHandle, buildIsReadyCommand(), (line) => line === 'readyok');
       }
-      session.positionState = structuredClone(positionState);
-      await _writeCommand(processHandle, buildPositionCommand(positionState));
+      session.gameId = game.metadata.id;
+      session.rootPosition = game.rootPosition;
+      session.position = _getHighlightedPosition(game);
+      await _writeCommand(processHandle, buildPositionCommand(game));
     }
     async function startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void> {
       if (request.searchMode !== EngineAnalysisSearchMode.Infinite) throw new Error(`Unsupported engine search mode: ${request.searchMode}.`);
@@ -142,12 +150,12 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       const runtimeState = _requireRuntimeState(engine);
       runtimeState.analysisCallback = onUpdate;
       runtimeState.analysisLines.clear();
-      await _writeCommand(_requireProcessHandle(engine), `setoption name MultiPV value ${request.multiPv}`);
+      await _writeCommand(_requireProcessHandle(engine), buildSetOptionCommand('MultiPV', request.multiPv));
       await _writeCommand(_requireProcessHandle(engine), 'go infinite');
     }
     async function stopAnalysis(engine: IAssignedEngine): Promise<void> {
       _requireSession(engine);
-      await _writeCommand(_requireProcessHandle(engine), 'stop');
+      await _writeCommand(_requireProcessHandle(engine), buildStopCommand());
     }
     async function startPlayerTurn(engine: IAssignedEngine): Promise<void> {
       const session = _requireInitialisedSession(engine);
@@ -169,9 +177,6 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     async function restartEngine(engine: IAssignedEngine): Promise<void> {
       await stopEngine(engine);
       await initialiseEngine(engine);
-    }
-    function requiresNewGameBoundary(positionState: IEnginePositionState): boolean {
-      return positionState.requiresNewGameBoundary;
     }
     function _attachToProcess(engine: IAssignedEngine, processHandle: ProcessHandle, session: IUciSession): void {
       const runtimeState = _requireRuntimeAssignedEngine(engine).$;
@@ -204,28 +209,37 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
         return;
       }
       const runtimeState = _requireRuntimeState(engine);
-      if (session.positionState && session.playerMoveDeferred) {
-        const bestMove = parseBestMoveLine(session.positionState.currentPosition, line);
+      if (session.position && session.playerMoveDeferred) {
+        const bestMove = parseBestMoveLine(session.position, line);
         if (bestMove) session.playerMoveDeferred.resolve(bestMove);
         return;
       }
-      if (session.positionState && runtimeState.analysisCallback) {
-        const parsedInfo = parseInfoLine(session.positionState.currentPosition, line);
+      if (session.position && runtimeState.analysisCallback) {
+        const parsedInfo = parseInfoLine(session.position, line);
         if (parsedInfo) {
           runtimeState.analysisLines.set(parsedInfo.multiPv, parsedInfo.analysisLine);
-          runtimeState.analysisCallback(_buildAnalysisUpdate(session.positionState, runtimeState.analysisLines, false, undefined));
+          runtimeState.analysisCallback(_buildAnalysisUpdate(session.position, runtimeState.analysisLines, false, undefined));
           return;
         }
-        const analysisBestMove = parseBestMoveLine(session.positionState.currentPosition, line);
+        const analysisBestMove = parseBestMoveLine(session.position, line);
         if (analysisBestMove) {
-          runtimeState.analysisCallback(_buildAnalysisUpdate(session.positionState, runtimeState.analysisLines, true, analysisBestMove));
+          runtimeState.analysisCallback(_buildAnalysisUpdate(session.position, runtimeState.analysisLines, true, analysisBestMove));
           return;
         }
       }
     }
-    function _buildAnalysisUpdate(positionState: IEnginePositionState, analysisLines: Map<number, IAnalysisLine>, isFinal: boolean, bestMove: IMove | undefined): IEngineAnalysisUpdate {
+    function _buildAnalysisUpdate(position: IBoardPosition, analysisLines: Map<number, IAnalysisLine>, isFinal: boolean, bestMove: IMove | undefined): IEngineAnalysisUpdate {
       const lines = [...analysisLines.entries()].sort((left, right) => left[0] - right[0]).map(([, line]) => line);
-      return { position: structuredClone(positionState.currentPosition), positionKey: buildPositionKey(positionState.currentPosition), bestMove: bestMove ?? lines[0]?.pv[0], lines, isFinal };
+      return { position: structuredClone(position), positionKey: buildPositionKey(position), bestMove: bestMove ?? lines[0]?.pv[0], lines, isFinal };
+    }
+    function _getHighlightedPosition(game: IGame): IBoardPosition {
+      let node = game.moveTree.root;
+      for (const childIndex of game.highlightPath) {
+        const child = node.children[childIndex];
+        if (!child) throw new Error(`Highlighted move path is invalid for game ${game.metadata.id}.`);
+        node = child;
+      }
+      return node.position;
     }
     function _waitForLine(session: IUciSession, predicate: (line: string) => boolean): Promise<string> {
       return new Promise<string>((resolve, reject) => {
@@ -266,11 +280,14 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     function _requireRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntime {
       return _requireRuntimeAssignedEngine(engine).$;
     }
+    function _requiresNewGameBoundary(session: IUciSession, game: IGame): boolean {
+      return session.gameId !== game.metadata.id || session.rootPosition !== game.rootPosition;
+    }
     function _getSession(engine: IAssignedEngine): IUciSession | undefined {
       const assignedUciEngine = _requireAssignedUciEngine(engine);
       return assignedUciEngine.$?.session;
     }
 
-    return { getOptions, initialiseEngine, syncPosition, startAnalysis, stopAnalysis, startPlayerTurn, awaitPlayerTurnMove, stopEngine, restartEngine, requiresNewGameBoundary } satisfies IEngineClient;
+    return { getOptions, initialiseEngine, syncPosition, startAnalysis, stopAnalysis, startPlayerTurn, awaitPlayerTurnMove, stopEngine, restartEngine } satisfies IEngineClient;
   });
 }

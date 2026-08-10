@@ -29,7 +29,6 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ### Prepare Analysis Runtime
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -80,7 +79,6 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 | `EngineClient.syncPosition` |
 | --- |
 | `EngineClient._requireInitialisedSession` |
-| `EngineClient.requiresNewGameBoundary` |
 | `EngineClient._writeCommandAndWait` |
 | `EngineClient._writeCommand` |
 
@@ -143,7 +141,6 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ### Prepare Player-Turn Runtime
 | `GamesStore.requestPlayerMove` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncPlayerTurnPosition` |
 | `GamesStore._startPlayerTurnSearch` |
 | `GamesStore._awaitPlayerTurnMove` |

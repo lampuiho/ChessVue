@@ -7,14 +7,13 @@ Own the full engine-protocol conversation with the engine while hiding protocol-
 ```ts
 getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[]
 initialiseEngine(engine: IAssignedEngine): Promise<void>
-syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void>
+syncPosition(engine: IAssignedEngine, game: IGame): Promise<void>
 startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
 startPlayerTurn(engine: IAssignedEngine): Promise<void>
 awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>
 stopEngine(engine: IAssignedEngine): Promise<void>
 restartEngine(engine: IAssignedEngine): Promise<void>
-requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 ```
 
 ## Responsibilities
@@ -47,10 +46,10 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 - Client-private runtime state is created only through explicit mutation steps. Suggested owner-private names include `_initialiseAssignedEngineSession`, `_attachProcessListeners`, `_detachProcessListeners`, `_storeSyncedPositionState`, `_clearAnalysisState`, `_storeAnalysisSlot`, `_createPendingPlayerTurn`, `_clearPendingPlayerTurn`, `_resetSessionAfterStop`, and `_resetSessionAfterFailure`.
 - The default runtime design here is explicit object-attached state. It does not use hidden side tables.
 - The runtime ownership breakdown and state-mutation order are defined in [../../ProcessFlows/EngineRuntimeOwnership.md](../../ProcessFlows/EngineRuntimeOwnership.md).
-- `syncPosition(...)` receives ChessVue root-and-moves state, and the client decides whether it can continue the same game line or must establish a fresh game boundary.
+- `syncPosition(...)` receives the canonical `IGame`. The client derives its root, highlighted move path, current position, and whether a fresh protocol game boundary is required.
 - During the rewrite phase, `EngineClient` owns the full protocol conversation over mocked `NW.js`-style engine communication hooks.
 - `EngineClient` does not call `ProcessManager`; layer-2 composition keeps process lifecycle and protocol conversation separate so layer-1 modules do not call one another.
-- UCI move strings and engine-facing FEN are engine-boundary details only; they are derived lazily here and are not part of the canonical data contracts.
+- UCI move strings and engine-facing FEN are engine-boundary details only. Move strings are read from or lazily cached in `IMove.$.uci`; FEN is derived when the position command is built.
 - Flow docs never expose `EngineClient` private helpers directly. If `_mapBoardPositionToProtocolPosition` or `_shouldReuseCurrentGameLine` ever become meaningfully shared with higher-level engine-position preparation, that shared behaviour should be documented in [UtilityIndex.md](../UtilityIndex.md); until then those helpers remain owner-private.
 
 Example internal protocol responsibilities:

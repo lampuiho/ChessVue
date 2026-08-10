@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, PlatformErrorKind } from '@/contracts';
 import { EngineRuntimeService, PositionIdentityService } from '@/domain';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
-import { createAssignedEngine, createEnginePositionState, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
+import { createAssignedEngine, createEngineGame, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
 
 const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironment();
 
@@ -33,12 +33,12 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    const positionState = createEnginePositionState();
+    const game = createEngineGame();
     const updates: IEngineAnalysisUpdate[] = [];
     engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
 
     await client.initialiseEngine(engine);
-    const syncPromise = client.syncPosition(engine, positionState);
+    const syncPromise = client.syncPosition(engine, game);
     const process = getEnvironment().latestProcess();
     process.queueResponse('go infinite', [
       'info depth 14 multipv 1 score cp 34 pv e7e5 g1f3',
@@ -59,7 +59,7 @@ describe('NwjsUciEngineClient', () => {
     expect(commandLog).toContain('ucinewgame');
     expect(commandLog).toContain('position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4');
     expect(updates).toHaveLength(3);
-    expect(updates[2]!.positionKey).toBe(PositionIdentityService.buildPositionKey(positionState.currentPosition));
+    expect(updates[2]!.positionKey).toBe(PositionIdentityService.buildPositionKey(game.moveTree.root.children[0]!.position));
     expect(bestMove.from).toBe(getBoardId(4, 6));
     expect(bestMove.to).toBe(getBoardId(4, 4));
   });
@@ -68,13 +68,13 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    const positionState = createEnginePositionState();
+    const game = createEngineGame();
     const staleHandle = await manager.spawnProcess(engine.executablePath);
     engine.$ = { processHandle: staleHandle, availability: EngineAvailability.Ready, analysisLines: new Map() };
 
     await client.initialiseEngine(engine);
     await manager.stopProcess(staleHandle);
-    await EngineRuntimeService.syncPosition(engine, positionState);
+    await EngineRuntimeService.syncPosition(engine, game);
 
     expect(engine.$?.processHandle).toBeDefined();
     expect(engine.$?.processHandle).not.toBe(staleHandle);
@@ -87,9 +87,9 @@ describe('NwjsUciEngineClient', () => {
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
-    const positionState = createEnginePositionState();
+    const game = createEngineGame();
 
-    await expect(client.syncPosition(engine, positionState)).rejects.toMatchObject({
+    await expect(client.syncPosition(engine, game)).rejects.toMatchObject({
       kind: PlatformErrorKind.ProcessStartFailed,
       message: 'Engine session is not initialised for Stockfish.',
     });

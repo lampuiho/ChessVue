@@ -16,7 +16,6 @@ Define configured engine records, copied in-game engine snapshots, and engine an
 - `interface IEngineOptionMeta`
 - `interface IAssignedEngineRuntime`
 - `interface IAssignedEngine`
-- `interface IEnginePositionState`
 - `interface IEngineAnalysisRequest`
 - `interface IEngineAnalysisUpdate`
 
@@ -89,13 +88,6 @@ interface IAssignedEngine {
   $?: IAssignedEngineRuntime
 }
 
-interface IEnginePositionState {
-  rootPosition: IBoardPosition
-  movesFromRoot: IMove[]
-  currentPosition: IBoardPosition
-  requiresNewGameBoundary: boolean
-}
-
 interface IEngineAnalysisRequest {
   multiPv: number
   searchMode: EngineAnalysisSearchMode
@@ -145,6 +137,6 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `EngineRuntimeService` relies on the shared minimum runtime fields only. It does not need to refine `IAssignedEngine.$` for its documented ownership.
 - The baseline runtime design uses explicit object-attached fields for shared runtime state and explicit object-attached fields for client-private runtime state. It does not rely on hidden side tables.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
-- `IEnginePositionState` is the engine-facing projection of ChessVue move-tree state and lets the engine client decide whether it can continue the current line or must establish a new game boundary.
+- Position sync receives the canonical `IGame`. The concrete engine client derives the root position, highlighted move path, current position, and protocol-specific new-game boundary internally without an intermediate projection contract.
 - `IEngineAnalysisUpdate` is an app-facing streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes.
 - `executablePath` and `options` are user-managed profile values and are not strictly validated at settings-edit time beyond being storable in the profile record.

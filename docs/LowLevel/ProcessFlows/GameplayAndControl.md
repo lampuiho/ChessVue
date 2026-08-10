@@ -45,7 +45,6 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -100,7 +99,6 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -110,7 +108,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._applyAnalysisUpdate` |
 
 - State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit`, paused live states, paused live-analysis states, and `Checkmate` block live move progression.
-- Continuous analysis update loop: `GamesStore._buildEnginePositionState` -> `GamesStore._syncAnalysisPosition` -> `EngineRuntimeService.syncPosition` -> `GamesStore._registerAnalysisSubscription` -> `EngineRuntimeService.subscribeToAnalysis` -> `GamesStore._startAnalysisSearch` -> `EngineRuntimeService.startAnalysis` -> `GameView._handleAnalysisRuntimeUpdate` -> `GamesStore._applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
+- Continuous analysis update loop: `GamesStore._syncAnalysisPosition` -> `EngineRuntimeService.syncPosition` -> `GamesStore._registerAnalysisSubscription` -> `EngineRuntimeService.subscribeToAnalysis` -> `GamesStore._startAnalysisSearch` -> `EngineRuntimeService.startAnalysis` -> `GameView._handleAnalysisRuntimeUpdate` -> `GamesStore._applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer mutation sequence behind `syncPosition`, `subscribeToAnalysis`, `startAnalysis`, and streamed runtime updates.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
@@ -178,7 +176,6 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 | GamesStore.requestPlayerMove |
 | --- |
-| GamesStore._buildEnginePositionState |
 | GamesStore._syncPlayerTurnPosition |
 | GamesStore._startPlayerTurnSearch |
 | GamesStore._awaitPlayerTurnMove |

@@ -21,7 +21,6 @@ import {
   type IClockSnapshot,
   type IEngineAnalysisUpdate,
   type IEnginePlayer,
-  type IEnginePositionState,
   type IEngineRecord,
   type IGame,
   type IMove,
@@ -57,7 +56,7 @@ const domain = {
       engine.$.availability = EngineAvailability.Ready;
       await randomDelay();
     }),
-    syncPosition: vi.fn(async (_engine: IAssignedEngine, _positionState: IEnginePositionState) => {
+    syncPosition: vi.fn(async (_engine: IAssignedEngine, _game: IGame) => {
       await randomDelay();
     }),
     startAnalysis: vi.fn(async (engine: IAssignedEngine, request: { multiPv: number; searchMode: EngineAnalysisSearchMode }) => {

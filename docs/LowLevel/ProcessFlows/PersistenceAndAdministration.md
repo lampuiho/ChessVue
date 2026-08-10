@@ -160,7 +160,6 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._buildEnginePositionState |
 | GamesStore._syncAnalysisPosition |
 | GamesStore._registerAnalysisSubscription |
 | GamesStore._startAnalysisSearch |
@@ -190,7 +189,6 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.requestPlayerMove |
 | --- |
-| GamesStore._buildEnginePositionState |
 | GamesStore._syncPlayerTurnPosition |
 | GamesStore._startPlayerTurnSearch |
 | GamesStore._awaitPlayerTurnMove |
@@ -292,7 +290,6 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._buildEnginePositionState |
 | GamesStore._syncAnalysisPosition |
 | GamesStore._registerAnalysisSubscription |
 | GamesStore._startAnalysisSearch |
@@ -310,7 +307,6 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.requestPlayerMove |
 | --- |
-| GamesStore._buildEnginePositionState |
 | GamesStore._syncPlayerTurnPosition |
 | GamesStore._startPlayerTurnSearch |
 | GamesStore._awaitPlayerTurnMove |

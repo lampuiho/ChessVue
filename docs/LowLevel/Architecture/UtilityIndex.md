@@ -89,11 +89,12 @@ Each entry must define:
 ### UciUtility
 - Purpose: generate UCI protocol commands and parse UCI protocol output into shared engine, analysis, board, and move contracts.
 - Location: `src/utility/UciUtility.ts`.
-- Touched contract models: `IEngineOptionMeta`, `IAnalysisLine`, `IBoardPosition`, `IEnginePositionState`, and `IMove`.
+- Command-builder surface: `buildDebugCommand`, `buildIsReadyCommand`, `buildPonderHitCommand`, `buildPositionCommand`, `buildQuitCommand`, `buildRegisterCommand`, `buildSetOptionCommand`, `buildStopCommand`, `buildUciCommand`, `buildUciMove`, and `buildUciNewGameCommand`.
+- Touched contract models: `IEngineOptionMeta`, `IAnalysisLine`, `IBoardPosition`, `IGame`, and `IMove`.
 - Allowed importers: concrete UCI engine clients and utility tests.
 - Owner-private delegates: `NwjsUciEngineClient` handshake, position-sync, analysis-line, and best-move handlers.
-- Classification: `pure`.
-- Validation or failure semantics: non-option handshake lines are ignored by option-list parsing; malformed UCI option declarations and unsupported option types throw rather than creating partial metadata.
+- Classification: `mixed`; command construction and parsing are deterministic, while `buildUciMove(...)` may populate the runtime-only `IMove.$.uci` cache.
+- Validation or failure semantics: invalid highlighted paths, malformed UCI moves or option declarations, and unsupported option types throw rather than creating partial protocol data. Non-option handshake lines are ignored by option-list parsing.
 
 ### NwjsUtility
 - Purpose: share typed access to the shared `nw` host object used by the concrete NW.js platform implementation.

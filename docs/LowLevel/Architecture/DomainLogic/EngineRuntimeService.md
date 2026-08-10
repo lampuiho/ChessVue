@@ -6,7 +6,7 @@ Own the layer-2 game-facing engine runtime boundary consumed by `GamesStore` for
 ## Public Interface
 ```ts
 ensureReady(engine: IAssignedEngine): Promise<void>
-syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void>
+syncPosition(engine: IAssignedEngine, game: IGame): Promise<void>
 startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
 startPlayerTurn(engine: IAssignedEngine): Promise<void>

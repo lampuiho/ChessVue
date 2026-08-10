@@ -1,4 +1,5 @@
-import type { IAssignedEngine, IEngineAnalysisRequest, IEngineAnalysisUpdate, IEngineOptionMeta, IEnginePositionState } from '../Engine';
+import type { IAssignedEngine, IEngineAnalysisRequest, IEngineAnalysisUpdate, IEngineOptionMeta } from '../Engine';
+import type { IGame } from '../Game';
 import type { IMove } from '../Move';
 
 export interface IEngineClient {
@@ -7,7 +8,7 @@ export interface IEngineClient {
   /** Mutates engine.$ by attaching or updating the platform runtime session and marking it initialised. */
   initialiseEngine(engine: IAssignedEngine): Promise<void>;
   /** Requires engine.$ to already hold an initialised session, then mutates the cached session position state. */
-  syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void>;
+  syncPosition(engine: IAssignedEngine, game: IGame): Promise<void>;
   /** Requires engine.$ to already hold an initialised session, then replaces the active analysis callback and clears cached analysis lines. */
   startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void>;
   stopAnalysis(engine: IAssignedEngine): Promise<void>;
@@ -19,5 +20,4 @@ export interface IEngineClient {
   stopEngine(engine: IAssignedEngine): Promise<void>;
   /** Mutates engine.$ by clearing prior session state and then reinitialising it. */
   restartEngine(engine: IAssignedEngine): Promise<void>;
-  requiresNewGameBoundary(positionState: IEnginePositionState): boolean;
 }

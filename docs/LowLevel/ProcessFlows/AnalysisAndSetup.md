@@ -42,7 +42,6 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -120,7 +119,6 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -173,7 +171,6 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._buildEnginePositionState` |
 | `GamesStore._syncAnalysisPosition` |
 | `GamesStore._registerAnalysisSubscription` |
 | `GamesStore._startAnalysisSearch` |
@@ -199,7 +196,6 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._buildEnginePositionState |
 | GamesStore._syncAnalysisPosition |
 | GamesStore._registerAnalysisSubscription |
 | GamesStore._startAnalysisSearch |

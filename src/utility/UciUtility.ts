@@ -1,4 +1,4 @@
-import { EngineOptionType, MoveKind, PieceKind, PlayerColour, type BoardId, type IAnalysisLine, type IBoardPosition, type IEngineOptionMeta, type IEnginePositionState, type IMove } from '@/contracts';
+import { EngineOptionType, MoveKind, PieceKind, PlayerColour, type BoardId, type IAnalysisLine, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove } from '@/contracts';
 import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank } from '@/utility/chess/SquareUtility';
 
 // #region Public methods
@@ -7,23 +7,54 @@ export function boardIdToNotation(boardId: number): string {
   const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
   return `${fileNames[boardId % 8]}${Math.floor(boardId / 8) + 1}`;
 }
+export function buildDebugCommand(enabled: boolean): string {
+  return `debug ${enabled ? 'on' : 'off'}`;
+}
 export function buildFen(position: IBoardPosition): string {
   const castling = [position.castlingAvailability.whiteKingSide ? 'K' : '', position.castlingAvailability.whiteQueenSide ? 'Q' : '', position.castlingAvailability.blackKingSide ? 'k' : '', position.castlingAvailability.blackQueenSide ? 'q' : ''].join('') || '-';
   const enPassant = position.enPassantTarget === undefined ? '-' : boardIdToNotation(position.enPassantTarget);
   const sideToMove = position.sideToMove === PlayerColour.White ? 'w' : 'b';
   return `${_buildFenBoard(position)} ${sideToMove} ${castling} ${enPassant} ${position.halfMoveClock} ${position.fullMoveNumber}`;
 }
-export function buildPositionCommand(positionState: IEnginePositionState): string {
-  const moves = positionState.movesFromRoot.map((move) => buildUciMove(move));
-  if (moves.length === 0) return `position fen ${buildFen(positionState.rootPosition)}`;
-  return `position fen ${buildFen(positionState.rootPosition)} moves ${moves.join(' ')}`;
+export function buildIsReadyCommand(): string {
+  return 'isready';
+}
+export function buildPonderHitCommand(): string {
+  return 'ponderhit';
+}
+/** Builds the UCI position command from the game root and highlighted move-tree path. */
+export function buildPositionCommand(game: IGame): string {
+  const moves = _getMovesFromHighlightedPath(game).map((move) => buildUciMove(move));
+  if (moves.length === 0) return `position fen ${buildFen(game.rootPosition)}`;
+  return `position fen ${buildFen(game.rootPosition)} moves ${moves.join(' ')}`;
+}
+export function buildQuitCommand(): string {
+  return 'quit';
 }
 export function buildRegisterCommand(): string {
   return 'register later';
 }
+export function buildSetOptionCommand(name: string, value?: string | number | boolean): string {
+  if (name.trim().length === 0) throw new Error('UCI option name is required.');
+  if (value === undefined) return `setoption name ${name}`;
+  return `setoption name ${name} value ${String(value)}`;
+}
+export function buildStopCommand(): string {
+  return 'stop';
+}
+export function buildUciCommand(): string {
+  return 'uci';
+}
 export function buildUciMove(move: IMove): string {
+  if (move.$?.uci !== undefined) return move.$.uci;
   const promotionToken = move.promotionPiece === PieceKind.Queen ? 'q' : move.promotionPiece === PieceKind.Rook ? 'r' : move.promotionPiece === PieceKind.Bishop ? 'b' : move.promotionPiece === PieceKind.Knight ? 'n' : '';
-  return `${boardIdToNotation(move.from)}${boardIdToNotation(move.to)}${promotionToken}`;
+  const uci = `${boardIdToNotation(move.from)}${boardIdToNotation(move.to)}${promotionToken}`;
+  move.$ ??= {};
+  move.$.uci = uci;
+  return uci;
+}
+export function buildUciNewGameCommand(): string {
+  return 'ucinewgame';
 }
 export function parseBestMoveLine(line: string, colour: PlayerColour, enPassantTarget?: BoardId): IMove | undefined {
   const tokens = line.trim().split(/\s+/);
@@ -103,6 +134,17 @@ function _buildFenBoard(position: IBoardPosition): string {
 function _findTokenValue(tokens: string[], label: string): string | undefined {
   const index = tokens.indexOf(label);
   return index < 0 || index + 1 >= tokens.length ? undefined : tokens[index + 1]!;
+}
+function _getMovesFromHighlightedPath(game: IGame): IMove[] {
+  const moves: IMove[] = [];
+  let node = game.moveTree.root;
+  for (const childIndex of game.highlightPath) {
+    const child = node.children[childIndex];
+    if (!child?.move) throw new Error(`Highlighted move path is invalid for game ${game.metadata.id}.`);
+    moves.push(child.move);
+    node = child;
+  }
+  return moves;
 }
 function _getNextEnPassantTarget(move: IMove): BoardId | undefined {
   if (move.kind !== MoveKind.Normal) return;
