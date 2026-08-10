@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { MoveKind, PieceKind, PlayerColour, type IMove } from '@/contracts';
-import { MoveNotationService } from '..';
-import { createSparseBoard, normaliseBoardPosition } from '@/utility/chess';
+import { GameRuleService, MoveNotationService } from '..';
+import { createSparseBoard } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
 describe('MoveNotationService', () => {
   it('builds SAN for castling, captures, promotion, check, and mate', () => {
-    const castlePosition = normaliseBoardPosition({
+    const castlePosition = {
       ...createSparseBoard([
       { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
       { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
@@ -20,9 +20,9 @@ describe('MoveNotationService', () => {
         blackKingSide: false,
         blackQueenSide: false,
       },
-    })
+    };
     const castleMove: IMove = { from: boardId(4, 0), to: boardId(6, 0), kind: MoveKind.Castle, movingColour: PlayerColour.White }
-    expect(MoveNotationService.buildSan(castlePosition, castleMove)).toBe('O-O')
+    expect(MoveNotationService.buildSan(castlePosition, castleMove, GameRuleService.applyMove(castlePosition, castleMove), GameRuleService.generateLegalMoves(castlePosition))).toBe('O-O')
 
     const capturePosition = createSparseBoard([
       { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
@@ -31,7 +31,7 @@ describe('MoveNotationService', () => {
       { boardId: boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ], PlayerColour.White)
     const captureMove: IMove = { from: boardId(3, 3), to: boardId(6, 6), kind: MoveKind.Normal, movingColour: PlayerColour.White }
-    expect(MoveNotationService.buildSan(capturePosition, captureMove)).toBe('Bxg7')
+    expect(MoveNotationService.buildSan(capturePosition, captureMove, GameRuleService.applyMove(capturePosition, captureMove), GameRuleService.generateLegalMoves(capturePosition))).toBe('Bxg7')
 
     const promotionPosition = createSparseBoard([
       { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
@@ -39,7 +39,7 @@ describe('MoveNotationService', () => {
       { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ], PlayerColour.White)
     const promotionMove: IMove = { from: boardId(4, 6), to: boardId(4, 7), kind: MoveKind.Promotion, movingColour: PlayerColour.White, promotionPiece: PieceKind.Queen }
-    expect(MoveNotationService.buildSan(promotionPosition, promotionMove)).toBe('e8=Q+')
+    expect(MoveNotationService.buildSan(promotionPosition, promotionMove, GameRuleService.applyMove(promotionPosition, promotionMove), GameRuleService.generateLegalMoves(promotionPosition))).toBe('e8=Q+')
 
     const matePosition = createSparseBoard([
       { boardId: boardId(5, 5), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
@@ -47,7 +47,7 @@ describe('MoveNotationService', () => {
       { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ], PlayerColour.White)
     const mateMove: IMove = { from: boardId(7, 5), to: boardId(6, 6), kind: MoveKind.Normal, movingColour: PlayerColour.White }
-    expect(MoveNotationService.buildSan(matePosition, mateMove)).toBe('Qg7#')
+    expect(MoveNotationService.buildSan(matePosition, mateMove, GameRuleService.applyMove(matePosition, mateMove), GameRuleService.generateLegalMoves(matePosition))).toBe('Qg7#')
   })
 
   it('builds SAN disambiguation and runtime decoration', () => {
@@ -58,9 +58,11 @@ describe('MoveNotationService', () => {
       { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
     ], PlayerColour.White)
     const move: IMove = { from: boardId(0, 1), to: boardId(0, 2), kind: MoveKind.Normal, movingColour: PlayerColour.White }
-    const decoratedMove = MoveNotationService.decorateMove(position, move)
+    const legalMoves = GameRuleService.generateLegalMoves(position)
+    const nextPosition = GameRuleService.applyMove(position, move)
+    const decoratedMove = MoveNotationService.decorateMove(position, move, nextPosition, legalMoves)
 
-    expect(MoveNotationService.buildSan(position, move)).toBe('R2a3')
+    expect(MoveNotationService.buildSan(position, move, nextPosition, legalMoves)).toBe('R2a3')
     expect(decoratedMove.$).toEqual({
       san: 'R2a3',
       uci: 'a2a3',

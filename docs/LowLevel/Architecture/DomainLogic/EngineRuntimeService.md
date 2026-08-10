@@ -6,7 +6,6 @@ Own the layer-2 game-facing engine runtime boundary consumed by `GamesStore` for
 ## Public Interface
 ```ts
 ensureReady(engine: IAssignedEngine): Promise<void>
-registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void>
 syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void>
 startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
@@ -51,7 +50,7 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - `EngineRuntimeService` owns only the mutable service state named in the runtime process-flow doc: base runtime creation, `processHandle`, `availability`, `lastError`, and analysis-callback registration and teardown.
 - Base runtime existence is a precondition, not a lazy recovery path, for runtime actions that require it. If that precondition is violated, the service should assert and surface the failure rather than silently creating missing runtime state mid-flow.
 - `ensureReady(...)` is the only runtime path that may spawn a missing engine process. Other runtime actions must first assert that a live process already exists.
-- `registerEngine(...)`, `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may retry once through `ensureReady(...)` only when the stored process handle proves stale with `invalidProcessHandle`. They do not hide missing-initialisation failures.
+- `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may retry once through `ensureReady(...)` only when the stored process handle proves stale with `invalidProcessHandle`. They do not hide missing-initialisation failures.
 - `EngineClient` owns UCI mapping, engine-facing FEN, engine-output interpretation, protocol sequencing, and client-private runtime state behind this service.
 - Streamed analysis is surfaced through the shared runtime state on `engine.$`. `EngineRuntimeService` coordinates when that lower-layer analysis path is started, stopped, or subscribed to, but it is not the owner of client-private state such as `session`, current synced position, or pending player-turn state.
 - `isRuntimeAlive(...)` is the only public runtime-health polling surface. Detailed runtime state stays internal on `engine.$`.

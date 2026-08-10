@@ -53,7 +53,7 @@ Committed domain modules:
 
 - `GameRuleService`
 - `MoveNotationService`
-- `MoveUpdateService`
+- `MoveHistoryService`
 - `PositionIdentityService`
 - `TimeControlService`
 - `EngineRuntimeService`
@@ -126,7 +126,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### Domain Logic
 - `GameRuleService` validates and applies moves, resolves promotion choices, and detects terminal game results.
 - `MoveNotationService` owns notation mapping needed by committed gameplay, history, and engine-facing workflows.
-- `MoveUpdateService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
+- `MoveHistoryService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `PositionIdentityService` owns canonical position identity and equality rules used by analysis, restore, and serialisation workflows.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `GamesStore` for continuous analysis and player-engine turns, composing `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation without same-layer platform calls.

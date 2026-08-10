@@ -6,11 +6,9 @@ import {
   EngineClientType,
   EngineProtocol,
   MoveKind,
-  PlatformErrorKind,
   PlayerColour,
   type IAssignedEngine,
   type IEngineAnalysisRequest,
-  type IEngineRegistrationRequest,
   type IMove,
 } from '@/contracts';
 
@@ -20,7 +18,6 @@ const assertProcessHandleOpen = vi.fn();
 const stopProcess = vi.fn();
 const restartProcess = vi.fn();
 const initialiseEngine = vi.fn();
-const registerEngine = vi.fn();
 const syncPosition = vi.fn();
 const startAnalysis = vi.fn();
 const stopAnalysis = vi.fn();
@@ -46,9 +43,6 @@ function createAssignedEngine(): IAssignedEngine {
 function createAnalysisRequest(): IEngineAnalysisRequest {
   return { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite };
 }
-function createRegistrationRequest(): IEngineRegistrationRequest {
-  return { name: 'Tester', code: 'abcd', registerLater: false };
-}
 function createMove(): IMove {
   return {
     from: boardId(4, 1),
@@ -57,14 +51,6 @@ function createMove(): IMove {
     movingColour: PlayerColour.White,
   };
 }
-function createInvalidHandleError(message: string) {
-  return {
-    kind: PlatformErrorKind.InvalidProcessHandle,
-    operation: 'assertProcessHandleOpen',
-    message,
-  };
-}
-
 describe('EngineRuntimeService', () => {
   beforeEach(async () => {
     vi.resetModules();
@@ -73,7 +59,6 @@ describe('EngineRuntimeService', () => {
     stopProcess.mockReset();
     restartProcess.mockReset();
     initialiseEngine.mockReset();
-    registerEngine.mockReset();
     syncPosition.mockReset();
     startAnalysis.mockReset();
     stopAnalysis.mockReset();
@@ -93,7 +78,6 @@ describe('EngineRuntimeService', () => {
         }),
         getEngineClient: () => ({
           initialiseEngine,
-          registerEngine,
           syncPosition,
           startAnalysis,
           stopAnalysis,
@@ -115,22 +99,6 @@ describe('EngineRuntimeService', () => {
 
     expect(spawnProcess).toHaveBeenCalledWith('stockfish.exe');
     expect(initialiseEngine).toHaveBeenCalledWith(engine);
-    expect(engine.$?.processHandle).toBe('process-1');
-    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
-  });
-
-  it('reinitialises when the mocked process handle is stale during registration', async () => {
-    const engine = createAssignedEngine();
-    engine.$!.processHandle = 'stale-process';
-    assertProcessHandleOpen.mockImplementation(() => {
-      throw createInvalidHandleError('Closed handle.');
-    });
-
-    await EngineRuntimeService.registerEngine(engine, createRegistrationRequest());
-
-    expect(spawnProcess).toHaveBeenCalledWith('stockfish.exe');
-    expect(initialiseEngine).toHaveBeenCalledWith(engine);
-    expect(registerEngine).toHaveBeenCalledWith(engine, createRegistrationRequest());
     expect(engine.$?.processHandle).toBe('process-1');
     expect(engine.$?.availability).toBe(EngineAvailability.Ready);
   });

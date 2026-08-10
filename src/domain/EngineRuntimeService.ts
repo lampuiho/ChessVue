@@ -1,4 +1,4 @@
-import { EngineAvailability, PlatformError, PlatformErrorKind, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEnginePositionState, type IEngineRegistrationRequest, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAvailability, PlatformError, PlatformErrorKind, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEnginePositionState, type IMove, type IPlatformError } from '@/contracts';
 import { usePlatformService } from '@/platform';
 import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
 
@@ -99,11 +99,6 @@ export const EngineRuntimeService = {
     await _runEngineOperation(runtimeState, EngineAvailability.Ready, async () => {
       await _initialiseEngine(engine, runtimeState);
     });
-  },
-  /** Mutates engine.$ the same way as ensureReady before delegating registration to the platform client. */
-  async registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void> {
-    const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.registerEngine(engine, request));
   },
   /** Mutates engine.$ the same way as ensureReady, then updates nested platform session state for the synced position. */
   async syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void> {

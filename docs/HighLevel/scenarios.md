@@ -337,7 +337,7 @@ Each scenario in this document uses the same structure:
   - `GameRuleService.generateLegalMoves`
   - `GameRuleService.isMoveLegal`
   - `GamesStore.makeMove`
-  - `MoveUpdateService.addMainlineMove`
+  - `MoveHistoryService.addMainlineMove`
   - `TimeControlService.applyMove`
   - `GamesStore.refreshAnalysis`
   - `GamesStore._applyAnalysisUpdate` (subsequent engine response)
@@ -397,7 +397,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `HistoryPanel.onNavigateNode`
   - `GamesStore.navigateToNode`
-  - `MoveUpdateService.getPosition`
+  - `MoveHistoryService.getPosition`
   - `GamesStore.getVisibleAnalysis`
   - `GamesStore.getGame`
 
@@ -417,8 +417,8 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-02-DECLINE-REWRITE`: User declines rewrite -> move canceled, remain in review.
 - **Postconditions**: Mainline pointer changes to the new continuation, while the old continuation remains visible as a variation.
 - **Implementation Touchpoints**:
-  - `MoveUpdateService.takeback`
-  - `MoveUpdateService.addMainlineMove`
+  - `MoveHistoryService.takeback`
+  - `MoveHistoryService.addMainlineMove`
   - `GamesStore.makeMove`
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
@@ -436,7 +436,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-03-STAY-BRANCH`: App remains on branch until user explicitly returns.
 - **Postconditions**: Live game line preserved; analysis branch captured separately.
 - **Implementation Touchpoints**:
-  - `MoveUpdateService.addAnalysisMove`
+  - `MoveHistoryService.addAnalysisMove`
   - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
 
@@ -456,7 +456,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
 - **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs.
 - **Implementation Touchpoints**:
-  - `MoveUpdateService.pruneFutureMoves`
+  - `MoveHistoryService.pruneFutureMoves`
   - `GamesStore.exitInGameAnalysis`
   - `GamesStore.makeMove`
   - `SavedGamesStore.saveGame`
@@ -504,7 +504,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `UiStateStore.showModal`
   - `UiStateStore.hideModal`
-  - `MoveUpdateService.createMoveTree`
+  - `MoveHistoryService.createMoveTree`
   - `SavedGamesStore.saveGame`
   - `GamesStore.refreshAnalysis`
   - `GamesStore._clearGameAnalysis`
@@ -629,7 +629,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `AnalysisPanel.moveSelected`
   - `GameRuleService.isMoveLegal`
-  - `MoveUpdateService.addAnalysisMove`
+  - `MoveHistoryService.addAnalysisMove`
   - `GamesStore.navigateToNode`
   - `GamesStore.getGame`
   - `GamesStore.makeMove`
@@ -792,7 +792,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `GameControlPanel.takeBackRequested`
   - `GamesStore.takeBack`
-  - `MoveUpdateService.takeback`
+  - `MoveHistoryService.takeback`
   - `TimeControlService.applyMove` (recompute policy)
 
 ### SCN-CTRL-02 - Resign Game
@@ -861,7 +861,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode always returns the screen to the live game position without a keep-or-discard prompt.
 - **Implementation Touchpoints**:
   - `GameControlPanel.enterInGameAnalysisRequested`
-  - `MoveUpdateService.addAnalysisMove`
+  - `MoveHistoryService.addAnalysisMove`
   - `GamesStore.exitInGameAnalysis`
   - `GamesStore.navigateToNode`
   - `GamesStore.makeMove`
@@ -1296,7 +1296,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Exploration becomes faster than manual node clicking.
 - **Implementation Touchpoints**:
   - `GamesStore.navigateToNode`
-  - `MoveUpdateService.addAnalysisMove`
+  - `MoveHistoryService.addAnalysisMove`
 
 ### SCN-IDEA-07 - Auto-Reconnect Engine After Crash
 - **Status**: Idea

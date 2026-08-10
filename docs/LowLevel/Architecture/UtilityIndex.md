@@ -68,11 +68,10 @@ Each entry must define:
 - Touched contract models: `IBoardPosition`, `ICastlingAvailability`, `IChessPiece`, `BoardId`, `PlayerColour`.
 - Allowed importers: `GameRuleService`, `MoveNotationService`, domain tests, platform tests.
 - Owner-private delegates:
-  - `GameRuleService._cloneBoardPosition`
   - `GameRuleService._findKingBoardId`
   - `GameRuleService._getOpponentColour`
 - Classification: `pure`.
-- Validation or failure semantics: helpers preserve structural board shape only. They do not invent missing pieces, infer legality, or mutate caller-owned board arrays in place.
+- Validation or failure semantics: helpers preserve shared structural board concerns only. They do not invent missing pieces, infer legality, or clone caller-owned board arrays unless the owning service explicitly needs that behaviour.
 
 ### ChessSquareUtility
 - Purpose: share board-index, coordinate, notation, and pawn-direction helpers used by chess-rule and notation code without exposing a `domain/internal` module surface.

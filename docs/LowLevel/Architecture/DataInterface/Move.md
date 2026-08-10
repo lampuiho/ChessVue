@@ -5,7 +5,7 @@ Define move payloads and tree structures for live play, history review, and anal
 
 ## Types
 - `enum MoveKind`
-- `enum MoveBranchKind`
+- `enum MoveNodeKind`
 - `type MovePath`
 
 ## Interfaces
@@ -23,9 +23,8 @@ enum MoveKind {
   Promotion = "promotion"
 }
 
-enum MoveBranchKind {
-  Mainline = "mainline",
-  Variation = "variation",
+enum MoveNodeKind {
+  Live = "live",
   Analysis = "analysis"
 }
 
@@ -45,6 +44,7 @@ type MovePath = number[]
 
 interface IMoveNodeRuntime {
   parent?: IMoveNode
+  isHighlighted?: boolean
 }
 
 interface IPromoMove : IMove {
@@ -53,7 +53,7 @@ interface IPromoMove : IMove {
 }
 
 interface IMoveNode {
-  branchKind: MoveBranchKind
+  kind: MoveNodeKind
   move?: IMove
   position: IBoardPosition
   clockSnapshot?: IClockSnapshot
@@ -70,13 +70,14 @@ interface IMoveTree {
 
 ## Notes
 - Persisted move trees are single-direction nested structures rooted at `root`.
-- `mainlineChildIndex` selects the main continuation from the node's local `children` array and lets `MoveUpdateService` rewrite the main continuation without global node identity.
+- `mainlineChildIndex` selects the current live continuation from the node's local `children` array and lets `MoveHistoryService` rewrite that continuation without global node identity.
 - Analysis-only branches remain in the tree even when the visible screen returns to the live node.
 - Omitted `move`, `clockSnapshot`, `mainlineChildIndex`, or `promotionPiece` fields mean that value is not applicable for the current node or move.
-- `clockSnapshot` is stored on the root node and on live or mainline nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may omit it.
+- `clockSnapshot` is stored on the root node and on live nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may omit it.
 - `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
 - `IMove` stays structural. SAN and UCI are runtime-only metadata and are not part of the canonical persisted shape.
-- `IMoveNode.$` is runtime-only. Hydration rebuilds `$.parent` and any later runtime helpers, and persistence strips all `$` data.
+- `IMoveNode.kind` only distinguishes committed live nodes from analysis-only nodes. Alternative live continuations remain `live` nodes; `mainlineChildIndex` decides which continuation is currently authoritative.
+- `IMoveNode.$` is runtime-only. Hydration rebuilds `$.parent`, `$.isHighlighted`, and any later runtime helpers, and persistence strips all `$` data.
 - `MovePath` is the persisted selector used by workspace state to point to one node by traversal from the root.
 - Each `MovePath[index]` value is the zero-based index into the current node's `children` array at that traversal step.
 - Example: `[1, 0, 2]` means `root.children[1].children[0].children[2]`.

@@ -230,4 +230,4 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 | `EngineClient.syncPosition` |
 
 - Failure rule: post-start engine termination is surfaced when the next runtime operation checks or uses the stored process handle.
-- Recovery rule: `registerEngine(...)`, `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may recover once by re-running the explicit initialisation path only after `InvalidProcessHandle`. Base-runtime absence or missing initialisation is still surfaced as failure.
+- Recovery rule: `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may recover once by re-running the explicit initialisation path only after `InvalidProcessHandle`. Base-runtime absence or missing initialisation is still surfaced as failure.

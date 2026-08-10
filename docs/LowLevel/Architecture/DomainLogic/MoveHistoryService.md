@@ -1,18 +1,18 @@
-# MoveUpdateService
+# MoveHistoryService
 
 ## Purpose
 Own the move-tree operations shared by live play, history review, setup, and analysis branches.
 
 ## Public Interface
 ```ts
-createMoveTree(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
+createMoveTree(rootPosition: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
 addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
 addAnalysisMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition): IMoveTree
 getPosition(node: IMoveNode): IBoardPosition
 takeBack(fromNode: IMoveNode, moveCount: number): IMoveTree
 rewriteMainline(parentNode: IMoveNode, childNode: IMoveNode): IMoveTree
 pruneFutureMoves(node: IMoveNode): IMoveTree
-replaceBoardRoot(boardRoot: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
+replaceBoardRoot(rootPosition: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree
 ```
 
 ## Responsibilities

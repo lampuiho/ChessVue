@@ -3,11 +3,15 @@ import { z } from 'zod'
 import { assignedEngineSchema, type IAssignedEngine } from './Engine'
 import { moveSchema, type IMove } from './Move'
 
+export interface IAnalysisLineRuntime {
+  reference: number;
+}
 export interface IAnalysisLine {
   depth: number
   scoreCp?: number
   scoreMate?: number
   pv: IMove[]
+  $?: IAnalysisLineRuntime;
 }
 export interface IAnalysisSnapshot {
   assignedEngine: IAssignedEngine

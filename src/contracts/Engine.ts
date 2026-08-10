@@ -68,11 +68,6 @@ export interface IEngineAnalysisUpdate {
   lines: IAnalysisLine[]
   isFinal: boolean
 }
-export interface IEngineRegistrationRequest {
-  name?: string
-  code?: string
-  registerLater: boolean
-}
 export const engineProtocolSchema = z.enum(engineProtocols)
 export const engineClientTypeSchema = z.enum(engineClientTypes)
 export const engineAvailabilitySchema = z.enum(engineAvailabilities)
@@ -107,10 +102,4 @@ export const enginePositionStateSchema = z.object({
 export const engineAnalysisRequestSchema = z.object({
   multiPv: z.number().int().min(1),
   searchMode: engineAnalysisSearchModeSchema,
-})
-
-export const engineRegistrationRequestSchema = z.object({
-  name: z.string().optional(),
-  code: z.string().optional(),
-  registerLater: z.boolean(),
 })

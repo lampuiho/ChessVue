@@ -26,9 +26,9 @@ Render the latest visible analysis snapshot for the active position.
 - Each engine group always shows score and engine status for the active position.
 - Each engine group may additionally show up to `3` visible lines for the active position when the current workspace context allows rendered move targets.
 - Non-live analysis states expose individual move targets so the user can inspect any move along a suggested line.
-- Live and live-analysis states default to score-only rows because `liveAnalysisOptions.showLiveAnalysisMoves` defaults to `false`.
-- When `liveAnalysisOptions.showLiveAnalysisMoves = true`, live states may expose individual engine move targets, and selecting one commits an ordinary live move through `GamesStore.makeMove`.
-- When `liveAnalysisOptions.showLiveAnalysisMoves = true`, live-analysis states may expose individual engine move targets, and selecting one applies analysis moves without advancing the live node.
+- Live and live-analysis states default to score-only rows because `gameplayOptions.showLiveAnalysisMoves` defaults to `false`.
+- When `gameplayOptions.showLiveAnalysisMoves = true`, live states may expose individual engine move targets, and selecting one commits an ordinary live move through `GamesStore.makeMove`.
+- When `gameplayOptions.showLiveAnalysisMoves = true`, live-analysis states may expose individual engine move targets, and selecting one applies analysis moves without advancing the live node.
 - Paused live play keeps visible analysis rows read-only for move selection, but background analysis updates, refresh, retry, stop, and analysis-engine management remain available because they are not treated as gameplay actions.
 - Each engine group may be folded independently without affecting the other engine groups.
 - The panel title row exposes a right-aligned `+` button for adding an analysis engine to the current game.

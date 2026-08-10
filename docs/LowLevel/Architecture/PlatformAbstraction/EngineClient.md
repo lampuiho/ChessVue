@@ -6,7 +6,6 @@ Own the full engine-protocol conversation with the engine while hiding protocol-
 ## Public Interface
 ```ts
 initialiseEngine(engine: IAssignedEngine): Promise<void>
-registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void>
 syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void>
 startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
@@ -18,7 +17,7 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 ```
 
 ## Responsibilities
-- own protocol-specific session initialisation, ready handshakes, optional registration, option application, position sync, and search start or stop
+- own protocol-specific session initialisation, ready handshakes, fixed unlicensed registration deferral, option application, position sync, and search start or stop
 - talk to the engine through its own engine-communication boundary so upper layers never build or parse raw protocol strings
 - translate ChessVue board and move structures into engine-facing protocol payloads internally
 - translate engine output into app-meaningful analysis updates and awaited player moves before anything crosses the layer boundary
@@ -40,7 +39,8 @@ requiresNewGameBoundary(positionState: IEnginePositionState): boolean
 - That client-private refinement may include fields such as a protocol session object, current synced position, attached listener references, or pending player-move state.
 - Those client-private fields remain internal to the concrete client implementation. They are not part of the shared `IAssignedEngineRuntime` contract and must not be relied on by upper layers.
 - `session` is optional until `initialiseEngine(...)` creates and initialises it after base runtime state already exists.
-- `registerEngine(...)`, `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` require an already initialised session and must not initialise the engine implicitly.
+- `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` require an already initialised session and must not initialise the engine implicitly.
+- Licensed-engine credentials are out of scope. When a UCI engine reports `registration error`, the UCI client responds with `register later` without exposing registration through the generic client API.
 - Client-private runtime state is created only through explicit mutation steps. Suggested owner-private names include `_initialiseAssignedEngineSession`, `_attachProcessListeners`, `_detachProcessListeners`, `_storeSyncedPositionState`, `_clearAnalysisState`, `_storeAnalysisSlot`, `_createPendingPlayerTurn`, `_clearPendingPlayerTurn`, `_resetSessionAfterStop`, and `_resetSessionAfterFailure`.
 - The default runtime design here is explicit object-attached state. It does not use hidden side tables.
 - The runtime ownership breakdown and state-mutation order are defined in [../../ProcessFlows/EngineRuntimeOwnership.md](../../ProcessFlows/EngineRuntimeOwnership.md).
@@ -55,7 +55,7 @@ Example internal protocol responsibilities:
 ```text
 _sendUciHandshake
 _sendSetOption
-_sendRegister
+_sendRegisterLater
 _sendPosition
 _sendGoInfinite
 _sendGoMove

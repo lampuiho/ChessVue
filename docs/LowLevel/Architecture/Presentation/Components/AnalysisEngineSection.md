@@ -20,7 +20,7 @@ Render one engine's availability state, summary row, and analysis lines.
 - This keeps per-engine line rendering and controls self-contained.
 - Score and engine-state summary content remain visible even when move targets are hidden.
 - Non-live analysis states expose individual move targets so the user can inspect any move along the line.
-- Live and live-analysis states expose individual move targets only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
+- Live and live-analysis states expose individual move targets only when that game's `gameplayOptions.showLiveAnalysisMoves = true`.
 - Paused live play may still show score and status updates, but it does not expose clickable move targets.
 - In live states, a selected move target commits a normal live move.
 - In live-analysis or non-live analysis states, a selected move target applies as an analysis move without advancing the live node.

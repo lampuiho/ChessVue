@@ -6,7 +6,7 @@ import {
   EngineClientType,
   EngineProtocol,
   GameState,
-  MoveBranchKind,
+  MoveNodeKind,
   MoveKind,
   PlayerActivityState,
   PlayerColour,
@@ -14,7 +14,7 @@ import {
   PromotionPolicy,
   RecentGameSourceKind,
   ResultState,
-  TakebackPolicy,
+  CheckState,
   ThemeMode,
   TimeControlPreset,
   type IAnalysisSnapshot,
@@ -109,7 +109,7 @@ export function createSettingsSnapshot(): ISettingsSnapshot {
     },
   };
 }
-export function createBoardPosition(sideToMove: PlayerColour = PlayerColour.White): IGame['boardRoot'] {
+export function createBoardPosition(sideToMove: PlayerColour = PlayerColour.White): IGame['rootPosition'] {
   return {
     board: Array.from({ length: 64 }, () => undefined),
     sideToMove,
@@ -121,6 +121,7 @@ export function createBoardPosition(sideToMove: PlayerColour = PlayerColour.Whit
     },
     halfMoveClock: 0,
     fullMoveNumber: 1,
+    checkState: CheckState.None,
   };
 }
 export function createClockSnapshot(activeColour?: PlayerColour, isRunning: boolean = false): IClockSnapshot {
@@ -140,10 +141,10 @@ export function createMove(movingColour: PlayerColour = PlayerColour.White, from
     $: { san: `${from}-${to}`, uci: `${from}-${to}` },
   };
 }
-export function createMoveTree(rootPosition: IGame['boardRoot'] = createBoardPosition(), rootClockSnapshot?: IClockSnapshot): IMoveTree {
+export function createMoveTree(rootPosition: IGame['rootPosition'] = createBoardPosition(), rootClockSnapshot?: IClockSnapshot): IMoveTree {
   return {
     root: {
-      branchKind: MoveBranchKind.Mainline,
+      kind: MoveNodeKind.Live,
       position: structuredClone(rootPosition),
       clockSnapshot: rootClockSnapshot ? structuredClone(rootClockSnapshot) : undefined,
       plyIndex: 0,
@@ -171,9 +172,9 @@ export function getPathToNode(node: IMoveNode): number[] {
   }
   return path;
 }
-export function appendChild(parent: IMoveNode, move: IMove, position: IGame['boardRoot'], branchKind: MoveBranchKind, clockSnapshot?: IClockSnapshot): IMoveNode {
+export function appendChild(parent: IMoveNode, move: IMove, position: IGame['rootPosition'], kind: MoveNodeKind, clockSnapshot?: IClockSnapshot): IMoveNode {
   const child: IMoveNode = {
-    branchKind,
+    kind,
     move: structuredClone(move),
     position: structuredClone(position),
     clockSnapshot: clockSnapshot ? structuredClone(clockSnapshot) : undefined,
@@ -203,9 +204,9 @@ export function createAnalysisSnapshot(engine: IEngineRecord = createEngineRecor
   };
 }
 export function createGame(overrides: Partial<IGame> = {}): IGame {
-  const boardRoot = structuredClone(overrides.boardRoot ?? createBoardPosition());
-  const clockSnapshot = structuredClone(overrides.clockSnapshot ?? createClockSnapshot(boardRoot.sideToMove, false));
-  const moveTree = cloneTree(overrides.moveTree ?? createMoveTree(boardRoot, clockSnapshot));
+  const rootPosition = structuredClone(overrides.rootPosition ?? createBoardPosition());
+  const clockSnapshot = structuredClone(overrides.clockSnapshot ?? createClockSnapshot(rootPosition.sideToMove, false));
+  const moveTree = cloneTree(overrides.moveTree ?? createMoveTree(rootPosition, clockSnapshot));
   return {
     schemaVersion: 1,
     metadata: {
@@ -230,14 +231,13 @@ export function createGame(overrides: Partial<IGame> = {}): IGame {
       displayName: 'Black',
       $: { activityState: PlayerActivityState.Active },
     },
-    boardRoot,
+    rootPosition,
     moveTree,
     livePath: overrides.livePath ? [...overrides.livePath] : [],
     highlightPath: overrides.highlightPath ? [...overrides.highlightPath] : [],
     timeControl: structuredClone(overrides.timeControl ?? { preset: TimeControlPreset.Untimed, incrementMs: 0 }),
     clockSnapshot,
-    liveAnalysisOptions: structuredClone(overrides.liveAnalysisOptions ?? { showLiveAnalysisMoves: false }),
-    gameplayOptions: structuredClone(overrides.gameplayOptions ?? { takebackPolicy: TakebackPolicy.RewriteMainline }),
+    gameplayOptions: structuredClone(overrides.gameplayOptions ?? { allowTakeback: false, showLiveAnalysisMoves: false }),
     analysis: structuredClone(overrides.analysis ?? { snapshots: [] }),
     $: overrides.$ ? structuredClone(overrides.$) : undefined,
   };

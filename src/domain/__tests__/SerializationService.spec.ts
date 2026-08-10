@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AnalysisBranchExitBehaviour,
   BoardOrientation,
+  CheckState,
   EngineClientType,
   EngineProtocol,
   GameState,
@@ -9,7 +10,6 @@ import {
   PlayerType,
   PromotionPolicy,
   ResultState,
-  TakebackPolicy,
   ThemeMode,
   TimeControlPreset,
   type IGameSessionSnapshot,
@@ -22,13 +22,12 @@ import {
 import {
   GameRuleService,
   MoveNotationService,
-  MoveUpdateService,
+  MoveHistoryService,
   PositionIdentityService,
   SerializationError,
   SerializationService,
   TimeControlService,
 } from '..';
-import { createInitialBoardPosition } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -81,14 +80,15 @@ function createSettingsSnapshot(): ISettingsSnapshot {
 }
 function createGame(): IGame {
   const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 };
-  const rootPosition = createInitialBoardPosition();
+  const rootPosition = GameRuleService.createInitialBoardPosition();
+  rootPosition.checkState = CheckState.None;
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl);
-  const moveTree = MoveUpdateService.createMoveTree(rootPosition, rootClock);
+  const moveTree = MoveHistoryService.createMoveTree(rootPosition, rootClock);
   const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
   const nextPosition = GameRuleService.applyMove(rootPosition, move);
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
-  const updatedTree = MoveUpdateService.addMainlineMove(moveTree.root, MoveNotationService.decorateMove(rootPosition, move), nextPosition, nextClock);
+  MoveHistoryService.addMainlineMove(moveTree.root, MoveNotationService.decorateMove(rootPosition, move, nextPosition, GameRuleService.generateLegalMoves(rootPosition)), nextPosition, nextClock);
 
   return {
     schemaVersion: 1,
@@ -110,17 +110,15 @@ function createGame(): IGame {
       type: PlayerType.Local,
       displayName: 'Black',
     },
-    boardRoot: rootPosition,
-    moveTree: updatedTree,
+    rootPosition,
+    moveTree,
     livePath: [0],
     highlightPath: [0],
     timeControl,
     clockSnapshot: nextClock,
-    liveAnalysisOptions: {
-      showLiveAnalysisMoves: false,
-    },
     gameplayOptions: {
-      takebackPolicy: TakebackPolicy.RewriteMainline,
+      allowTakeback: true,
+      showLiveAnalysisMoves: false,
     },
     analysis: {
       snapshots: [],
@@ -179,7 +177,7 @@ describe('SerializationService', () => {
     expect((restored as IGame & { $?: unknown }).$).toBeUndefined();
     expect((restored.whitePlayer as typeof restored.whitePlayer & { $?: unknown }).$).toBeUndefined();
     expect(getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
-    expect(PositionIdentityService.buildPositionKey(restored.boardRoot)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.root.position));
+    expect(PositionIdentityService.buildPositionKey(restored.rootPosition)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.root.position));
   });
 
   it('rejects broken move-tree payloads', () => {

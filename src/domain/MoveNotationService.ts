@@ -1,6 +1,4 @@
-import { MoveKind, PieceKind, ResultReason, ResultState, type IBoardPosition, type IMove } from '@/contracts';
-import { applyMove, generateLegalMoves, isMoveLegal, resolveResult } from '@/utility/chess';
-import { findKingBoardId, getOpponentColour } from '@/utility/chess/BoardUtility';
+import { CheckState, MoveKind, PieceKind, type IBoardPosition, type IMove } from '@/contracts';
 import { boardIdToCoords, boardIdToNotation } from '@/utility/chess/SquareUtility';
 
 function pieceSymbol(kind: PieceKind): string {
@@ -26,23 +24,14 @@ function promotionSuffix(piece?: PieceKind): string {
 function getPiece(position: IBoardPosition, boardId: number) {
   return position.board[boardId]
 }
-function buildCheckSuffix(position: IBoardPosition, move: IMove): string {
-  const resolvedMove = move.kind === MoveKind.Promotion && move.promotionPiece === undefined
-    ? { ...move, promotionPiece: PieceKind.Queen }
-    : move;
-  const nextPosition = applyMove(position, resolvedMove);
-  const result = resolveResult(nextPosition);
-  const opponent = getOpponentColour(move.movingColour);
-  const opponentKingBoardId = findKingBoardId(nextPosition, opponent);
-  if (opponentKingBoardId === undefined) return '';
-  const attackerPosition: IBoardPosition = { ...nextPosition, sideToMove: move.movingColour }
-  const attacksKing = generateLegalMoves(attackerPosition).some((candidate) => candidate.to === opponentKingBoardId);
-  if (!attacksKing) return '';
-  return result.resultState !== ResultState.Ongoing && result.resultReason === ResultReason.RuleResolved ? '#' : '+';
+function buildCheckSuffix(nextPosition: IBoardPosition): string {
+  if (nextPosition.checkState === CheckState.CheckmateWhite || nextPosition.checkState === CheckState.CheckmateBlack) return '#';
+  if (nextPosition.checkState === CheckState.CheckWhite || nextPosition.checkState === CheckState.CheckBlack) return '+';
+  return '';
 }
 function getDisambiguation(position: IBoardPosition, move: IMove, legalMoves: IMove[]): string {
-  const movingPiece = getPiece(position, move.from);
-  if (movingPiece === undefined || movingPiece.kind === PieceKind.Pawn || movingPiece.kind === PieceKind.King) return '';
+  const movingPiece = getPiece(position, move.from)!;
+  if (movingPiece.kind === PieceKind.Pawn || movingPiece.kind === PieceKind.King) return '';
   const contenders = legalMoves.filter((candidate) => {
     if (candidate.to !== move.to || candidate.from === move.from) return false;
     const contenderPiece = getPiece(position, candidate.from);
@@ -57,34 +46,29 @@ function getDisambiguation(position: IBoardPosition, move: IMove, legalMoves: IM
   return boardIdToNotation(move.from);
 }
 export const MoveNotationService = {
-  buildSan(position: IBoardPosition, move: IMove): string {
-    const legalMoves = generateLegalMoves(position);
-    if (!isMoveLegal(position, move)) {
-      throw new Error('Cannot build SAN for an illegal move.');
-    }
+  buildSan(position: IBoardPosition, move: IMove, nextPosition: IBoardPosition, legalMoves: IMove[]): string {
     if (move.kind === MoveKind.Castle) {
       const castleText = boardIdToCoords(move.to).file === 6 ? 'O-O' : 'O-O-O';
-      return `${castleText}${buildCheckSuffix(position, move)}`;
+      return `${castleText}${buildCheckSuffix(nextPosition)}`;
     }
-    const movingPiece = getPiece(position, move.from);
-    if (movingPiece === undefined) throw new Error(`No piece found on ${move.from}.`);
+    const movingPiece = getPiece(position, move.from)!;
     const capture = move.kind === MoveKind.EnPassant || getPiece(position, move.to) !== undefined;
     const piecePrefix = movingPiece.kind === PieceKind.Pawn ? '' : pieceSymbol(movingPiece.kind);
     const pawnCapturePrefix = movingPiece.kind === PieceKind.Pawn && capture ? boardIdToNotation(move.from)[0]! : '';
     const disambiguation = getDisambiguation(position, move, legalMoves);
     const promotionText = move.kind === MoveKind.Promotion ? promotionSuffix(move.promotionPiece) : '';
-    return `${piecePrefix}${pawnCapturePrefix}${disambiguation}${capture ? 'x' : ''}${boardIdToNotation(move.to)}${promotionText}${buildCheckSuffix(position, move)}`;
+    return `${piecePrefix}${pawnCapturePrefix}${disambiguation}${capture ? 'x' : ''}${boardIdToNotation(move.to)}${promotionText}${buildCheckSuffix(nextPosition)}`;
   },
   buildUci(move: IMove): string {
     const promotionToken = move.promotionPiece === undefined ? '' : pieceSymbol(move.promotionPiece).toLowerCase();
     return `${boardIdToNotation(move.from)}${boardIdToNotation(move.to)}${promotionToken}`;
   },
-  decorateMove(position: IBoardPosition, move: IMove): IMove {
+  decorateMove(position: IBoardPosition, move: IMove, nextPosition: IBoardPosition, legalMoves: IMove[]): IMove {
     return {
       ...move,
       $: {
         ...move.$,
-        san: this.buildSan(position, move),
+        san: this.buildSan(position, move, nextPosition, legalMoves),
         uci: this.buildUci(move),
       },
     };

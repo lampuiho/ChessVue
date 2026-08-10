@@ -17,7 +17,6 @@ Define configured engine records, copied in-game engine snapshots, and engine an
 - `interface IEnginePositionState`
 - `interface IEngineAnalysisRequest`
 - `interface IEngineAnalysisUpdate`
-- `interface IEngineRegistrationRequest`
 
 ## Data Structures
 ```ts
@@ -91,11 +90,6 @@ interface IEngineAnalysisUpdate {
   isFinal: boolean
 }
 
-interface IEngineRegistrationRequest {
-  name?: string
-  code?: string
-  registerLater: boolean
-}
 ```
 
 ## Concrete Runtime Refinement Example
@@ -113,6 +107,7 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 
 ## Rules
 - Engine inventory lives in settings data.
+- Licensed-engine credentials are out of scope. A UCI engine that reports `registration error` receives the fixed `register later` response from the concrete UCI client.
 - Assigned-engine snapshots live in saved game data and are copied by value from the selected reusable engine profile.
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { gameAnalysisSchema, type IGameAnalysis } from './Analysis'
 import { assignedEngineSchema, engineRecordSchema, type IAssignedEngine, type IEngineRecord } from './Engine'
 import { boardPositionSchema, type IBoardPosition } from './ChessboardState'
-import { movePathSchema, moveTreeSchema, type IMove, type IMoveTree, type MovePath } from './Move'
+import { movePathSchema, moveTreeSchema, type IMove, type IMoveNode, type IMoveTree, type MovePath } from './Move'
 import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITimeControl } from './TimeControl'
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
 import { type PauseReason } from './state'
@@ -107,12 +107,15 @@ export interface IGameplayOptions {
   showLiveAnalysisMoves?: boolean;
 }
 export interface IGameRuntime {
-  currentPosition: IBoardPosition;
+  renderedPosition: IBoardPosition;
+  renderedNode: IMoveNode
+  livePosition?: IBoardPosition
+  liveNode?: IMoveNode
   pauseReasons?: PauseReason[]
   focusReturnUnsubscribe?: () => void
   deferredPlayerMove?: IMove
   pendingPlayerTurnPromise?: Deferred<IMove>;
-  pendingPlayerTurnHandlePromise?: Promise<void>
+  pendingPlayerTurnHandlePromise?: Promise<void>;
 }
 export interface IGame {
   schemaVersion: number;
@@ -139,9 +142,9 @@ export interface ICreateGameRequest {
   blackPlayer?: IPlayer
   analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves?: boolean;
-  allowTakeBack?: boolean;
+  allowTakeback?: boolean;
   timeControl: ITimeControl
-  boardRoot?: IBoardPosition
+  rootPosition?: IBoardPosition
 }
 export interface IStartGameFromSetupRequest {
   name?: string
@@ -149,7 +152,7 @@ export interface IStartGameFromSetupRequest {
   blackPlayer?: IPlayer
   analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves?: boolean
-  allowTakeBack?: boolean;
+  allowTakeback?: boolean;
   timeControl: ITimeControl
 }
 export const gameStateSchema = z.enum(gameStates)
@@ -196,8 +199,8 @@ export const gameMetadataSchema = z.object({
 })
 
 export const gameplayOptionsSchema = z.object({
-  takebackPolicy: z.boolean(),
-  showLiveAnalysisMoves: z.boolean(),
+  allowTakeback: z.boolean().optional(),
+  showLiveAnalysisMoves: z.boolean().optional(),
 })
 
 export const gameSchema = z.object({
@@ -209,7 +212,7 @@ export const gameSchema = z.object({
   drawOfferState: drawOfferStateSchema.optional(),
   whitePlayer: playerSchema.optional(),
   blackPlayer: playerSchema.optional(),
-  boardRoot: boardPositionSchema,
+  rootPosition: boardPositionSchema,
   moveTree: moveTreeSchema,
   livePath: movePathSchema.optional(),
   highlightPath: movePathSchema,
@@ -224,9 +227,10 @@ export const createGameRequestSchema = z.object({
   whitePlayer: playerSchema.optional(),
   blackPlayer: playerSchema.optional(),
   analysisEngineProfiles: z.array(engineRecordSchema).max(4),
-  showLiveAnalysisMoves: z.boolean(),
+  showLiveAnalysisMoves: z.boolean().optional(),
+  allowTakeback: z.boolean().optional(),
   timeControl: timeControlSchema,
-  boardRoot: boardPositionSchema.optional(),
+  rootPosition: boardPositionSchema.optional(),
 })
 
 export const startGameFromSetupRequestSchema = z.object({
@@ -234,6 +238,7 @@ export const startGameFromSetupRequestSchema = z.object({
   whitePlayer: playerSchema.optional(),
   blackPlayer: playerSchema.optional(),
   analysisEngineProfiles: z.array(engineRecordSchema).max(4),
-  showLiveAnalysisMoves: z.boolean(),
+  showLiveAnalysisMoves: z.boolean().optional(),
+  allowTakeback: z.boolean().optional(),
   timeControl: timeControlSchema,
 })

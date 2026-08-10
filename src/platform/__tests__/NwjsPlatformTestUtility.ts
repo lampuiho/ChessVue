@@ -6,8 +6,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, vi } from 'vitest';
 
 import { EngineClientType, EngineProtocol, GameState, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IEnginePositionState, type IGame } from '@/contracts';
-import { GameRuleService, MoveUpdateService, TimeControlService } from '@/domain';
-import { createInitialBoardPosition } from '@/utility/chess';
+import { GameRuleService, MoveHistoryService, TimeControlService } from '@/domain';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
@@ -224,7 +223,7 @@ export function createAssignedEngine(): IAssignedEngine {
   };
 }
 export function createEnginePositionState(): IEnginePositionState {
-  const rootPosition = createInitialBoardPosition();
+  const rootPosition = GameRuleService.createInitialBoardPosition();
   const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
   const resolvedMove = { ...move };
   return {
@@ -235,7 +234,7 @@ export function createEnginePositionState(): IEnginePositionState {
   };
 }
 export function createPersistedGame(): IGame {
-  const rootPosition = createInitialBoardPosition();
+  const rootPosition = GameRuleService.createInitialBoardPosition();
   const timeControl = { preset: TimeControlPreset.Untimed, incrementMs: 0 };
   const clockSnapshot = TimeControlService.initialiseClockSnapshot(timeControl);
   return {
@@ -258,12 +257,13 @@ export function createPersistedGame(): IGame {
       type: PlayerType.Local,
       displayName: 'Black',
     },
-    boardRoot: rootPosition,
-    moveTree: MoveUpdateService.createMoveTree(rootPosition, clockSnapshot),
+    rootPosition,
+    moveTree: MoveHistoryService.createMoveTree(rootPosition, clockSnapshot),
+    livePath: undefined,
     highlightPath: [],
     timeControl,
     clockSnapshot,
-    liveAnalysisOptions: { showLiveAnalysisMoves: false },
+    gameplayOptions: { showLiveAnalysisMoves: false, allowTakeback: false },
     analysis: { snapshots: [] },
   };
 }

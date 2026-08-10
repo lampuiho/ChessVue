@@ -62,7 +62,7 @@ function _validateGame(game: IGame): void {
   _getNodeAtPath(game.moveTree, game.highlightPath, 'Saved game highlightPath');
   if (game.livePath !== undefined) _getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
   if (buildPositionKey(game.moveTree.root.position) !== buildPositionKey(game.rootPosition)) {
-    throw new SerializationError('Saved game boardRoot must match the move-tree root position.');
+    throw new SerializationError('Saved game rootPosition must match the move-tree root position.');
   }
 }
 function _validateGameSession(snapshot: IGameSessionSnapshot): void {

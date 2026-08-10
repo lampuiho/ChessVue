@@ -1,11 +1,9 @@
-import type { IAssignedEngine, IEngineAnalysisRequest, IEngineAnalysisUpdate, IEnginePositionState, IEngineRegistrationRequest } from '../Engine';
+import type { IAssignedEngine, IEngineAnalysisRequest, IEngineAnalysisUpdate, IEnginePositionState } from '../Engine';
 import type { IMove } from '../Move';
 
 export interface IEngineClient {
   /** Mutates engine.$ by attaching or updating the platform runtime session and marking it initialised. */
   initialiseEngine(engine: IAssignedEngine): Promise<void>;
-  /** Requires engine.$ to already hold an initialised session; does not initialise the engine. */
-  registerEngine(engine: IAssignedEngine, request: IEngineRegistrationRequest): Promise<void>;
   /** Requires engine.$ to already hold an initialised session, then mutates the cached session position state. */
   syncPosition(engine: IAssignedEngine, positionState: IEnginePositionState): Promise<void>;
   /** Requires engine.$ to already hold an initialised session, then replaces the active analysis callback and clears cached analysis lines. */

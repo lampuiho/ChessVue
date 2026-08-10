@@ -86,17 +86,17 @@ describe('NwjsUciEngineClient', () => {
       message: 'Engine session is not initialised for Stockfish.',
     });
   });
-  it('does not implicitly initialise when registerEngine is called directly', async () => {
+  it('defers registration when the engine reports a registration error', async () => {
     const platform = getPlatformService();
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
+    const process = getEnvironment().latestProcess();
+    process.queueResponse('uci', ['registration error', 'uciok']);
 
-    await expect(client.registerEngine(engine, { name: 'tester', code: '1234', registerLater: false })).rejects.toMatchObject({
-      kind: PlatformErrorKind.ProcessStartFailed,
-      message: 'Engine session is not initialised for Stockfish.',
-    });
-    expect(getEnvironment().latestProcess().getCommandLog()).toEqual([]);
+    await client.initialiseEngine(engine);
+
+    expect(process.getCommandLog()).toContain('register later');
   });
 });

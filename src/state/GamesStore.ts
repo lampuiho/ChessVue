@@ -34,14 +34,14 @@ import {
 import {
   EngineRuntimeService,
   GameRuleService,
-  MoveUpdateService,
+  MoveHistoryService,
   MoveNotationService,
   PlatformEventService,
   PositionIdentityService,
   TimeControlService,
   UserSettingService,
 } from '@/domain';
-import { createInitialBoardPosition, getOpponentColour } from '@/utility/chess/BoardUtility';
+import { getOpponentColour } from '@/utility/chess/BoardUtility';
 import { logHandledError } from '@/utility/errors';
 import { Deferred } from '@/utility/async/Deferred';
 import Aborted from '@/contracts/errors/Aborted';
@@ -87,8 +87,27 @@ export const useGamesStore = defineStore('gamesStore', () => {
       updatedAt: nowUtc,
     };
   }
+  function _getRuntimeNodeOfPath(tree: IGame['moveTree'], path: MovePath): IMoveNode {
+    let currentNode = tree.root;
+    for (const childIndex of path) {
+      const nextNode = currentNode.children[childIndex];
+      if (!nextNode) throw new Error('Move path does not exist in the hydrated tree.');
+      currentNode = nextNode;
+    }
+    return currentNode;
+  }
+  function _buildGameRuntime(game: IGame): IGameRuntime {
+    const liveNode = game.livePath ? _getRuntimeNodeOfPath(game.moveTree, game.livePath) : undefined;
+    const renderedNode = _getRuntimeNodeOfPath(game.moveTree, _getCurrentPath(game));
+    return {
+      renderedPosition: renderedNode.position,
+      renderedNode,
+      livePosition: liveNode?.position,
+      liveNode,
+    };
+  }
   function createGameRuntime(game: IGame): IGameRuntime {
-    return { currentPosition: game.rootPosition };
+    return _buildGameRuntime(game);
   }
   function requireGameRuntime(game: IGame): IGameRuntime {
     if (!game.$) throw new Error(`Game runtime is not initialised for ${game.metadata.id}.`);
@@ -156,15 +175,16 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   /** gets the path that leads to the currently rendered position */
   function _getCurrentPath(game: IGame): MovePath {
-    if (isLiveState(game.gameState) || isPausedLiveState(game.gameState)) return game.livePath ? [...game.livePath] : [];
     return [...game.highlightPath];
   }
   /** get the node of the currently rendered position */
   function _getCurrentNode(game: IGame): IMoveNode {
-    return _getCurrentNodeOfPath(game.moveTree, _getCurrentPath(game));
+    return requireGameRuntime(game).renderedNode;
   }
   function getLiveNode(game: IGame): IMoveNode {
-    return _getCurrentNodeOfPath(game.moveTree, game.livePath ?? []);
+    const liveNode = requireGameRuntime(game).liveNode;
+    if (!liveNode) throw new Error(`Live node is not available for ${game.metadata.id}.`);
+    return liveNode;
   }
   function pathsEqual(left?: MovePath, right?: MovePath): boolean {
     if ((left?.length ?? 0) !== (right?.length ?? 0)) return false;
@@ -206,9 +226,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.metadata.updatedAt = getNowUtc();
   }
   function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): IMoveNode {
-    const hydratedMove = node.move ? MoveNotationService.decorateMove(parent?.position ?? node.position, node.move) : undefined;
+    const parentPosition = parent?.position ?? node.position;
+    const hydratedMove = node.move ? MoveNotationService.decorateMove(parentPosition, node.move, node.position, GameRuleService.generateLegalMoves(parentPosition)) : undefined;
     const hydratedNode: IMoveNode = {
-      branchKind: node.branchKind,
+      kind: node.kind,
       move: hydratedMove,
       position: structuredClone(node.position),
       clockSnapshot: node.clockSnapshot ? structuredClone(node.clockSnapshot) : undefined,
@@ -221,13 +242,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return hydratedNode;
   }
   function _getCurrentNodeOfPath(tree: IGame['moveTree'], path: MovePath): IMoveNode {
-    let currentNode = tree.root;
-    for (const childIndex of path) {
-      const nextNode = currentNode.children[childIndex];
-      if (!nextNode) throw new Error('Move path does not exist in the hydrated tree.');
-      currentNode = nextNode;
-    }
-    return currentNode;
+    return _getRuntimeNodeOfPath(tree, path);
   }
   function getPathToNode(node: IMoveNode): MovePath {
     const path: MovePath = [];
@@ -247,7 +262,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return currentNode === tree.root;
   }
   function hydrateGame(game: IGame): IGame {
-    return {
+    const hydratedGame: IGame = {
       schemaVersion: game.schemaVersion,
       metadata: structuredClone(game.metadata),
       gameState: game.gameState,
@@ -264,8 +279,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
       clockSnapshot: structuredClone(game.clockSnapshot),
       gameplayOptions: structuredClone(game.gameplayOptions),
       analysis: structuredClone(game.analysis),
-      $: createGameRuntime(game),
     };
+    hydratedGame.$ = createGameRuntime(hydratedGame);
+    _syncMoveNodeHighlights(hydratedGame);
+    return hydratedGame;
   }
   function getMovesFromPath(game: IGame, path: MovePath): IMove[] {
     const moves: IMove[] = [];
@@ -362,11 +379,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (reason === PauseReason.Analysis) return true;
     return isTimedGame(game) && hasRunningClock(game.clockSnapshot);
   }
-  function _canRequestPlayerMove(game: IGame): boolean {
-    if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing || !game.livePath) return false;
-    const liveNode = getLiveNode(game);
-    return isEnginePlayer(getSideToMovePlayer(game, liveNode.position.sideToMove));
-  }
   function _clearDeferredPlayerMove(runtime: IGameRuntime): void {
     runtime.deferredPlayerMove = undefined;
   }
@@ -388,7 +400,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (!isLiveTurnReadyForMove(game)) return;
     const liveNode = getLiveNode(game);
     if (GameRuleService.isMoveLegal(liveNode.position, deferredPlayerMove)) _commitLiveMove(game, deferredPlayerMove);
-    else if (_canRequestPlayerMove(game)) _requestPlayerMove(game);
+    else _requestPlayerMoveIfNeeded(game);
   }
   function _disposeAnalysisSubscription(engine: IAssignedEngine): void {
     const dispose = _analysisDisposers.get(engine);
@@ -401,6 +413,24 @@ export const useGamesStore = defineStore('gamesStore', () => {
     runtime.focusReturnUnsubscribe = undefined;
     if (!isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing || !isTimedGame(game)) return;
     runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, getNowUtc()), `sync-clock-${game.metadata.id}`);
+  }
+  function _syncRuntimePositionCache(game: IGame): void {
+    _syncMoveNodeHighlights(game);
+    game.$ = {
+      ...requireGameRuntime(game),
+      ..._buildGameRuntime(game),
+    };
+  }
+  function _syncMoveNodeHighlights(game: IGame): void {
+    const highlightedPaths = [game.highlightPath, game.livePath ?? []];
+    function _syncNode(node: IMoveNode, path: MovePath): void {
+      node.$ = {
+        ...node.$,
+        isHighlighted: highlightedPaths.some((candidate) => candidate.length >= path.length && path.every((segment, index) => candidate[index] === segment)),
+      };
+      node.children.forEach((child, index) => _syncNode(child, [...path, index]));
+    }
+    _syncNode(game.moveTree.root, []);
   }
   function _resolveAnalysisSnapshot(game: IGame, engine: IAssignedEngine): IAnalysisSnapshot | undefined {
     return game.analysis.snapshots.find((snapshot) => snapshot.assignedEngine === engine);
@@ -458,19 +488,20 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   //#region move committing
   function _finaliseMove(game: IGame, parentNode: IMoveNode, nextMove: IMove, nextClockSnapshot?: IClockSnapshot, asAnalysisMove: boolean = false): IMoveNode {
-    const decoratedMove = MoveNotationService.decorateMove(parentNode.position, nextMove);
-    const nextPosition = GameRuleService.applyMove(parentNode.position, decoratedMove);
+    const legalMoves = GameRuleService.generateLegalMoves(parentNode.position);
+    const nextPosition = GameRuleService.applyMove(parentNode.position, nextMove);
+    const decoratedMove = MoveNotationService.decorateMove(parentNode.position, nextMove, nextPosition, legalMoves);
     const nextNodeIdx = parentNode.children.length;
     const nextNode = asAnalysisMove
-      ? MoveUpdateService.addAnalysisMove(parentNode, decoratedMove, nextPosition)
-      : MoveUpdateService.addMainlineMove(parentNode, decoratedMove, nextPosition, nextClockSnapshot);
+      ? MoveHistoryService.addAnalysisMove(parentNode, decoratedMove, nextPosition)
+      : MoveHistoryService.addMainlineMove(parentNode, decoratedMove, nextPosition, nextClockSnapshot);
     game.highlightPath.push(nextNodeIdx);
     if (!asAnalysisMove) {
       if (!game.livePath) throw new ReferenceError('live path is undefined even though we are making a live move');
       game.livePath?.push(nextNodeIdx);
-      if (nextClockSnapshot) game.clockSnapshot = structuredClone(nextClockSnapshot);
+      if (nextClockSnapshot) game.clockSnapshot = nextClockSnapshot;
     }
-    // TODO: update runtime rendered board position with nextPosition
+    _syncRuntimePositionCache(game);
     _updatePositionResult(game, nextPosition);
     updateGameStateAfterPosition(game, nextPosition.sideToMove);
     setGameUpdateTimeNow(game);
@@ -484,30 +515,21 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const nextClockSnapshot = TimeControlService.applyMove(baseClockSnapshot, move.movingColour, getNowUtc(), game.timeControl);
 
     let parentNode = getLiveNode(game);
-    if (parentNode.children.length > 0) MoveUpdateService.pruneFutureMoves(parentNode);
+    if (parentNode.children.length > 0) MoveHistoryService.pruneFutureMoves(parentNode);
     _finaliseMove(game, parentNode, move, nextClockSnapshot);
     _clearPlayerTurnRuntime(game);
-    _requestPlayerMove(game);
+    _refreshRuntimeRegistrations(game);
+    _refreshAnalysisForGame(game);
+    _requestPlayerMoveIfNeeded(game);
   }
   function _commitHistoryRewriteMove(game: IGame, parentNode: IMoveNode, move: IMove): void {
-    const parentPath = getPathToNode(parentNode);
-    const decoratedMove = MoveNotationService.decorateMove(parentNode.position, move);
-    const nextPosition = GameRuleService.applyMove(parentNode.position, decoratedMove);
-    const baseClockSnapshot = structuredClone(parentNode.clockSnapshot ?? game.clockSnapshot);
-    const nextClockSnapshot = TimeControlService.applyMove(baseClockSnapshot, move.movingColour, getNowUtc(), game.timeControl);
-    const nextChildIndex = parentNode.children.length;
-    const nextNode = MoveUpdateService.addAnalysisMove(parentNode, decoratedMove, nextPosition);
-    MoveUpdateService.rewriteMainline(parentNode, nextNode);
-    const nextPath = [...parentPath, nextChildIndex];
-    game.highlightPath = nextPath;
-    game.livePath = nextPath;
-    game.clockSnapshot = structuredClone(nextClockSnapshot);
-    const resolvedResult = GameRuleService.resolveResult(nextPosition);
-    game.resultState = resolvedResult.resultState;
-    game.resultReason = resolvedResult.resultReason;
-    updateGameStateAfterPosition(game, nextPosition.sideToMove);
-    _clearPlayerTurnRuntime(game);
-    setGameUpdateTimeNow(game);
+    game.clockSnapshot = parentNode.clockSnapshot ?? game.clockSnapshot; //don't know if takeback should also revert time...
+
+    //TODO: need to mark nodes that used to be live analysis, pass the original livePath
+    //   live path will be part of move tree runtime, so just call MoveHistoryService new method to mark live path from the next live node of parentNode
+    //   now live path is pruned we just commitLiveMove
+
+    _commitLiveMove(game, move);
   }
   function _commitLiveHistoryAnalysisMove(game: IGame, parentNode: IMoveNode, move: IMove, exitBehaviour: AnalysisBranchExitBehaviour): void {
     const resultState = game.resultState;
@@ -518,18 +540,21 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const liveNode = getLiveNode(game);
     if (exitBehaviour === AnalysisBranchExitBehaviour.ReturnToLiveNode) {
       game.highlightPath = [...game.livePath!];
+      _syncRuntimePositionCache(game);
       game.gameState = getLiveState(liveNode.position.sideToMove);
       setGameUpdateTimeNow(game);
       return;
     }
     game.highlightPath = getPathToNode(nextNode);
+    _syncRuntimePositionCache(game);
     game.gameState = getLiveAnalysisState(liveNode.position.sideToMove, nextNode.position.sideToMove);
     setGameUpdateTimeNow(game);
+    _refreshAnalysisForGame(game);
   }
   function _replaceWithAnalysisRoot(game: IGame, boardRoot: IGame['rootPosition'], nextState: GameState): void {
     const nextClockSnapshot = TimeControlService.initialiseClockSnapshot(game.timeControl);
-    game.rootPosition = structuredClone(boardRoot);
-    game.moveTree = MoveUpdateService.replaceBoardRoot(boardRoot, nextClockSnapshot);
+    game.rootPosition = boardRoot;
+    game.moveTree = MoveHistoryService.replaceBoardRoot(boardRoot, nextClockSnapshot);
     game.highlightPath = [];
     game.livePath = undefined;
     game.clockSnapshot = nextClockSnapshot;
@@ -538,6 +563,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.drawOfferState = undefined;
     _clearPlayerTurnRuntime(game);
     game.gameState = nextState;
+    _syncRuntimePositionCache(game);
     setGameUpdateTimeNow(game);
   }
   //#endregion
@@ -553,18 +579,28 @@ export const useGamesStore = defineStore('gamesStore', () => {
   function _requestPlayerMove(game: IGame) {
     async function _requestEngineMove(game: IGame, engine: IAssignedEngine): Promise<IMove> {
       await EngineRuntimeService.ensureReady(engine);
-      await EngineRuntimeService.startPlayerTurn(engine);
       const positionState = buildEnginePositionState(game, game.livePath ?? []);
       await EngineRuntimeService.syncPosition(engine, positionState);
+      await EngineRuntimeService.startPlayerTurn(engine);
       const move = await EngineRuntimeService.awaitPlayerTurnMove(engine);
       return move;
     }
     async function _playerMoveHandler(game: IGame, pendingPlayerMove: Promise<IMove>) {
-      const move = await pendingPlayerMove;
-      const runtime = requireGameRuntime(game);
-      runtime.pendingPlayerTurnPromise = undefined;
-      runtime.pendingPlayerTurnHandlePromise = undefined;
-      if (isPausedState(game.gameState)) { runtime.deferredPlayerMove = structuredClone(move); }
+      let move: IMove;
+      try {
+        move = await pendingPlayerMove;
+      } catch(e) {
+        if (!(e instanceof Aborted)) {
+          logHandledError('GameStore', '_playerMoveHandler', e);
+          setTimeout(()=>_requestPlayerMove(game), 500); //retry
+        }
+        return;
+      } finally {
+        const runtime = requireGameRuntime(game);
+        runtime.pendingPlayerTurnPromise = undefined;
+        runtime.pendingPlayerTurnHandlePromise = undefined;
+      }
+      if (isPausedState(game.gameState)) runtime.deferredPlayerMove = move;
       else _commitLiveMove(game, move);
     }
     const liveNode = getLiveNode(game);
@@ -576,6 +612,11 @@ export const useGamesStore = defineStore('gamesStore', () => {
     runtime.pendingPlayerTurnPromise = pendingPlayerMove;
     runtime.pendingPlayerTurnHandlePromise = _playerMoveHandler(game, pendingPlayerMove);
   }
+  function _requestPlayerMoveIfNeeded(game: IGame) {
+    if (!_isOngoingLiveGame(game) || !isLiveState(game.gameState) || !pathsEqual(game.highlightPath, game.livePath)) return;
+    if (requireGameRuntime(game).pendingPlayerTurnPromise) return;
+    _requestPlayerMove(game);
+  }
   async function _hydrateAndInsertGame(game: IGame): Promise<IGame> {
     const hydratedGame = hydrateGame(_repairDuplicateGameId(game, _getExistingGameIds()));
     _normalisePlayers(hydratedGame);
@@ -585,11 +626,11 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   async function createGame(request: ICreateGameRequest): Promise<IGame> {
     const nowUtc = getNowUtc();
-    const boardRoot = structuredClone(request.boardRoot ?? createInitialBoardPosition());
+    const rootPosition = request.rootPosition ?? GameRuleService.createInitialBoardPosition();
     const initialClockSnapshot = TimeControlService.initialiseClockSnapshot(request.timeControl);
-    const initialState = request.whitePlayer && request.blackPlayer ? getLiveState(boardRoot.sideToMove) : getAnalysisState(boardRoot.sideToMove);
+    const initialState = request.whitePlayer && request.blackPlayer ? getLiveState(rootPosition.sideToMove) : getAnalysisState(rootPosition.sideToMove);
     const livePath: MovePath | undefined = request.whitePlayer && request.blackPlayer ? [] : undefined;
-    const initialPositionKey = PositionIdentityService.buildPositionKey(boardRoot);
+    const initialPositionKey = PositionIdentityService.buildPositionKey(rootPosition);
     const game: IGame = {
       schemaVersion: 1,
       metadata: createGameMetadata(request.name, nowUtc),
@@ -597,18 +638,19 @@ export const useGamesStore = defineStore('gamesStore', () => {
       resultState: ResultState.Ongoing,
       whitePlayer: clonePlayer(request.whitePlayer),
       blackPlayer: clonePlayer(request.blackPlayer),
-      rootPosition: boardRoot,
-      moveTree: MoveUpdateService.createMoveTree(boardRoot, initialClockSnapshot),
+      rootPosition,
+      moveTree: MoveHistoryService.createMoveTree(rootPosition, initialClockSnapshot),
       livePath,
       highlightPath: [],
       timeControl: structuredClone(request.timeControl),
-      clockSnapshot: request.whitePlayer && request.blackPlayer ? TimeControlService.startClock(initialClockSnapshot, boardRoot.sideToMove, nowUtc) : initialClockSnapshot,
+      clockSnapshot: request.whitePlayer && request.blackPlayer ? TimeControlService.startClock(initialClockSnapshot, rootPosition.sideToMove, nowUtc) : initialClockSnapshot,
       analysis: {
         snapshots: request.analysisEngineProfiles.map((engineProfile) => createAnalysisSnapshot(engineProfile, initialPositionKey, nowUtc)),
       },
-      gameplayOptions: { allowTakeback: request.allowTakeBack, showLiveAnalysisMoves: request.showLiveAnalysisMoves  },
+      gameplayOptions: { allowTakeback: request.allowTakeback, showLiveAnalysisMoves: request.showLiveAnalysisMoves  },
     };
     const insertedGame = await _hydrateAndInsertGame(game);
+    _requestPlayerMoveIfNeeded(insertedGame);
     if (insertedGame.analysis.snapshots.length > 0) await _refreshAnalysisForGame(insertedGame);
     return insertedGame;
   }
@@ -617,7 +659,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.whitePlayer = clonePlayer(request.whitePlayer);
     game.blackPlayer = clonePlayer(request.blackPlayer);
     game.timeControl = structuredClone(request.timeControl);
-    game.gameplayOptions = { showLiveAnalysisMoves:request.showLiveAnalysisMoves, allowTakeback: request.allowTakeBack };
+    game.gameplayOptions = { showLiveAnalysisMoves:request.showLiveAnalysisMoves, allowTakeback: request.allowTakeback };
     game.analysis.snapshots = request.analysisEngineProfiles.map((engineProfile) => createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(_getCurrentNode(game).position), getNowUtc()));
     game.clockSnapshot = TimeControlService.initialiseClockSnapshot(game.timeControl);
     _clearPlayerTurnRuntime(game);
@@ -631,8 +673,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
       game.livePath = undefined;
       game.gameState = getAnalysisState(_getCurrentNode(game).position.sideToMove);
     }
+    _syncRuntimePositionCache(game);
     setGameUpdateTimeNow(game);
     _refreshRuntimeRegistrations(game);
+    _requestPlayerMoveIfNeeded(game);
     await _refreshAnalysisForGame(game);
   }
   async function insertGame(game: IGame): Promise<IGame> {
@@ -648,22 +692,20 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return _games.value;
   }
   /** this makes moves to the rendered game, not the currently live game */
-  function makeMove(game: IGame, move: IMove): IMove {
+  async function makeMove(game: IGame, move: IMove) {
     //validating
     _assertMoveAllowed(game);
     const parentNode = _getCurrentNode(game);
     if (!GameRuleService.isMoveLegal(parentNode.position, move)) throw new InvalidMove(move);
-
-    function _makeMoveByState(game:IGame, move:IMove) {
-      if (_isOngoingLiveGame(game)) {
+    async function _makeMoveByState(game:IGame, move:IMove) {
+      if (_isOngoingLiveGame(game) && (_isLiveHistoryReview(game) || isLiveState(game.gameState))) {
         if (_isLiveHistoryReview(game)) {
-          if (game.gameplayOptions.allowTakeback) _commitHistoryRewriteMove(game, parentNode, move);
-          else _commitLiveHistoryAnalysisMove(game, parentNode, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
-          return;
+          if (game.gameplayOptions.allowTakeback) return _commitHistoryRewriteMove(game, parentNode, move);
+          else return _commitLiveHistoryAnalysisMove(game, parentNode, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
         } else {
           if (!game.$?.pendingPlayerTurnPromise || !game.$?.pendingPlayerTurnHandlePromise) throw new ReferenceError(`turn started to allow make move for ${move.movingColour} but move request was not made`);
           game.$.pendingPlayerTurnPromise.resolve(move);
-          return;
+          return await game.$.pendingPlayerTurnHandlePromise;
         }
         //TODO: throw exception if there is an ongoing live game but not doing analysis move
       }
@@ -678,15 +720,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
         setGameUpdateTimeNow(game);
       }
     }
-    _makeMoveByState(game, move);
-    _refreshRuntimeRegistrations(game);
-    _refreshAnalysisForGame(game);
-    return move;
+    await _makeMoveByState(game, move);
   }
   async function takeBack(game: IGame, moveCount: number = 1): Promise<void> {
     _assertNotPausedForAction(game, 'Takeback');
     const targetNode = _getCurrentNode(game);
-    game.moveTree = MoveUpdateService.takeBack(targetNode, moveCount);
+    game.moveTree = MoveHistoryService.takeBack(targetNode, moveCount);
     const fallbackNode = targetNode.$?.parent ? _getCurrentNodeOfPath(game.moveTree, getPathToNode(targetNode.$.parent)) : game.moveTree.root;
     game.highlightPath = getPathToNode(fallbackNode);
     if (game.livePath) game.livePath = game.highlightPath;
@@ -694,9 +733,11 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;
     _clearPlayerTurnRuntime(game);
+    _syncRuntimePositionCache(game);
     updateGameStateAfterPosition(game, positionColour);
     setGameUpdateTimeNow(game);
     _refreshRuntimeRegistrations(game);
+    _requestPlayerMoveIfNeeded(game);
     await _refreshAnalysisForGame(game);
   }
   function navigateToNode(game: IGame, node: IMoveNode): void {
@@ -706,6 +747,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const isLiveNode = pathsEqual(nextPath, game.livePath ?? []);
     const liveNode = game.livePath ? getLiveNode(game) : undefined;
     game.highlightPath = nextPath;
+    _syncRuntimePositionCache(game);
     if (isLiveState(game.gameState) && liveNode) {
       game.gameState = isLiveNode ? getLiveState(node.position.sideToMove) : getLiveAnalysisState(liveNode.position.sideToMove, node.position.sideToMove);
       return;
@@ -779,7 +821,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       setGameUpdateTimeNow(game);
     }
     _refreshRuntimeRegistrations(game);
-    if (_canRequestPlayerMove(game)) _requestPlayerMove(game);
+    _requestPlayerMoveIfNeeded(game);
   }
   async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord): Promise<void> {
     if (game.analysis.snapshots.some((snapshot) => snapshot.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
@@ -823,6 +865,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       const liveNode = getLiveNode(game);
       await pauseGame(game, PauseReason.Analysis);
       game.highlightPath = getPathToNode(liveNode);
+      _syncRuntimePositionCache(game);
       game.gameState = getLiveAnalysisState(liveNode.position.sideToMove, liveNode.position.sideToMove, true);
       setGameUpdateTimeNow(game);
       return;
@@ -830,12 +873,14 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (game.resultReason !== ResultReason.Timeout || !game.livePath) return;
     const liveNode = getLiveNode(game);
     game.gameState = getLiveAnalysisState(liveNode.position.sideToMove, _getCurrentNode(game).position.sideToMove);
+    _syncRuntimePositionCache(game);
     setGameUpdateTimeNow(game);
   }
   function exitInGameAnalysis(game: IGame): void {
     if (!isAnyLiveAnalysisState(game.gameState)) return;
     const liveNode = getLiveNode(game);
     game.highlightPath = getPathToNode(liveNode);
+    _syncRuntimePositionCache(game);
     if (game.resultReason === ResultReason.Timeout && game.resultState !== ResultState.Ongoing) {
       game.gameState = getAnalysisState(getOpponentColour(liveNode.position.sideToMove));
       setGameUpdateTimeNow(game);
@@ -858,6 +903,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _assertNotPausedForAction(game, 'Board edit entry');
     if (game.gameState === GameState.BoardEdit) {
       game.gameState = getAnalysisState(game.rootPosition.sideToMove);
+      _syncRuntimePositionCache(game);
       setGameUpdateTimeNow(game);
       void _refreshAnalysisForGame(game);
       return;
@@ -865,6 +911,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (isLiveState(game.gameState) || isPausedState(game.gameState) || isAnyLiveAnalysisState(game.gameState)) return;
     void stopAnalysis(game);
     game.gameState = GameState.BoardEdit;
+    _syncRuntimePositionCache(game);
     setGameUpdateTimeNow(game);
   }
   function applyBoardEdit(game: IGame, boardRoot: IGame['rootPosition']): void {

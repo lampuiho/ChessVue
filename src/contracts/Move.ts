@@ -9,13 +9,12 @@ export const enum MoveKind {
   EnPassant = 'enPassant',
   Promotion = 'promotion',
 }
-export const enum MoveBranchKind {
-  Mainline = 'mainline',
-  Variation = 'variation',
+export const enum MoveNodeKind {
+  Live = 'live',
   Analysis = 'analysis',
 }
 export const moveKinds = [MoveKind.Normal, MoveKind.Castle, MoveKind.EnPassant, MoveKind.Promotion] as const
-export const moveBranchKinds = [MoveBranchKind.Mainline, MoveBranchKind.Variation, MoveBranchKind.Analysis] as const
+export const moveNodeKinds = [MoveNodeKind.Live, MoveNodeKind.Analysis] as const
 
 export type MovePath = number[]
 
@@ -37,9 +36,10 @@ export interface IPromoMove extends IMove {
 }
 export interface IMoveNodeRuntime {
   parent?: IMoveNode
+  isHighlighted?: boolean
 }
 export interface IMoveNode {
-  branchKind: MoveBranchKind
+  kind: MoveNodeKind
   move?: IMove
   position: IBoardPosition
   clockSnapshot?: IClockSnapshot
@@ -52,7 +52,7 @@ export interface IMoveTree {
   root: IMoveNode
 }
 export const moveKindSchema = z.enum(moveKinds)
-export const moveBranchKindSchema = z.enum(moveBranchKinds)
+export const moveNodeKindSchema = z.enum(moveNodeKinds)
 export const movePathSchema = z.array(z.number().int().min(0))
 
 type IMoveSchemaInput = Omit<IMove, 'promotionPiece'> & { promotionPiece?: PieceKind | null }
@@ -65,7 +65,7 @@ export const moveSchema: z.ZodType<IMove, z.ZodTypeDef, IMoveSchemaInput> = z.ob
 })
 type IMoveInput = IMoveSchemaInput
 interface IMoveNodeInput {
-  branchKind: MoveBranchKind
+  kind: MoveNodeKind
   move?: IMoveInput | null
   position: z.input<typeof boardPositionSchema>
   clockSnapshot?: z.input<typeof clockSnapshotSchema> | null
@@ -78,7 +78,7 @@ interface IMoveTreeInput {
 }
 export const moveNodeSchema: z.ZodType<IMoveNode, z.ZodTypeDef, IMoveNodeInput> = z.lazy(() =>
   z.object({
-    branchKind: moveBranchKindSchema,
+    kind: moveNodeKindSchema,
     move: moveSchema.optional(),
     position: boardPositionSchema,
     clockSnapshot: clockSnapshotSchema.optional(),

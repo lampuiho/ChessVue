@@ -82,7 +82,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `Chessboard.boardEditMoveSubmitted` |
 | --- |
 | `GamesStore.makeMove` |
-| `MoveUpdateService.replaceBoardRoot` |
+| `MoveHistoryService.replaceBoardRoot` |
 | `GamesStore._clearPreparedMoveHistory` |
 | `GamesStore._applyBoardEditMove` |
 
@@ -91,7 +91,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore._assertMoveAllowed` |
 | `GamesStore._applyBoardEditMove` |
 
-| `MoveUpdateService.replaceBoardRoot` |
+| `MoveHistoryService.replaceBoardRoot` |
 | --- |
 
 | `GamesStore._clearPreparedMoveHistory` |
@@ -143,7 +143,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
-- Process note: because board editing is restricted to non-live analysis, the first direct board edit replaces the root through `MoveUpdateService.replaceBoardRoot(..., undefined)` and clears prior move history before the edit is applied. Later direct board edits in the same board-edit session continue mutating that new root.
+- Process note: because board editing is restricted to non-live analysis, the first direct board edit replaces the root through `MoveHistoryService.replaceBoardRoot(..., undefined)` and clears prior move history before the edit is applied. Later direct board edits in the same board-edit session continue mutating that new root.
 - Control note: the same board-edit control toggles the mode on and off. Leaving board edit does not perform a second confirm step; it only ends the direct-edit session and allows analysis refresh to resume.
 - Requirement verification: `Pass`. The public surface covers edit entry, direct board mutation, first-edit history clearing, analysis suspension during edit, and analysis refresh after board edit ends.
 
@@ -223,7 +223,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | GamesStore.getVisibleAnalysis |
 | --- |
 
-- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in non-live analysis states, and in live or live-analysis states only when that game's `liveAnalysisOptions.showLiveAnalysisMoves = true`.
+- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in non-live analysis states, and in live or live-analysis states only when that game's `gameplayOptions.showLiveAnalysisMoves = true`.
 - State gate: `GamesStore.refreshAnalysis` accepts live states, paused live states, live-analysis states, and non-live analysis states. It is blocked while `gameState = GameState.BoardEdit`. Paused live play keeps move-target selection blocked, but analysis refresh remains allowed because it is not treated as gameplay input.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit lower-layer mutation sequence behind `syncPosition`, analysis subscription registration, analysis search start, and malformed-analysis handling.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
@@ -362,7 +362,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
 | `GamesStore._createOrReuseAnalysisBranch` |
 
-- State/settings coverage: non-live analysis always renders per-move engine targets. Live and live-analysis states render engine move targets only when `liveAnalysisOptions.showLiveAnalysisMoves = true`. Paused live play keeps any visible analysis read-only and does not allow move-target clicks.
+- State/settings coverage: non-live analysis always renders per-move engine targets. Live and live-analysis states render engine move targets only when `gameplayOptions.showLiveAnalysisMoves = true`. Paused live play keeps any visible analysis read-only and does not allow move-target clicks.
 - Runtime selector coverage: analysis-panel move selection reuses the current visible hydrated node. Any persisted `MovePath` updates remain store-internal bookkeeping derived from that node and are not a public runtime interaction contract.
 - Requirement verification: `Pass`. Suggested moves are interactive only where the workspace policy allows them, and live-game suggestion clicks reuse the same context-specific move policy as ordinary move entry.
 

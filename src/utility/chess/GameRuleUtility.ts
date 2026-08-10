@@ -1,9 +1,10 @@
-import { MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '@/contracts';
-import { cloneBoardPosition, findKingBoardId, getOpponentColour, normaliseBoardPosition } from './BoardUtility';
+import { MoveKind, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IMove } from '@/contracts';
+import { getOpponentColour } from './BoardUtility';
 import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank, getPromotionRank } from './SquareUtility';
 
 type ICandidateMove = IMove;
-const promotionPieces: PieceKind[] = [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight];
+export const promotionPieces: PieceKind[] = [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight];
+
 const knightOffsets = [
   { file: -2, rank: -1 },
   { file: -2, rank: 1 },
@@ -37,8 +38,7 @@ const kingOffsets = [
   { file: 1, rank: 0 },
   { file: 1, rank: 1 },
 ];
-
-function getPiece(position: IBoardPosition, boardId: BoardId) {
+export function getPiece(position: IBoardPosition, boardId: BoardId) {
   return position.board[boardId];
 }
 function isOccupied(position: IBoardPosition, boardId: BoardId): boolean {
@@ -130,7 +130,7 @@ function addKingMoves(position: IBoardPosition, from: BoardId, colour: PlayerCol
     if (target !== undefined) accumulator.push({ from, to: target, kind: MoveKind.Castle, movingColour: colour });
   }
 }
-function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour): ICandidateMove[] {
+export function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour): ICandidateMove[] {
   const accumulator: ICandidateMove[] = [];
   for (let boardId = 0; boardId < position.board.length; boardId += 1) {
     const piece = position.board[boardId];
@@ -159,7 +159,7 @@ function generatePseudoLegalMoves(position: IBoardPosition, colour: PlayerColour
   }
   return accumulator;
 }
-function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: PlayerColour): boolean {
+export function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: PlayerColour): boolean {
   const targetCoords = boardIdToCoords(target);
   const pawnRank = targetCoords.rank - getForwardDirection(byColour);
   for (const fileOffset of [-1, 1]) {
@@ -215,79 +215,12 @@ function isSquareAttacked(position: IBoardPosition, target: BoardId, byColour: P
   }
   return false;
 }
-function updateCastlingAvailability(position: IBoardPosition, move: ICandidateMove): IBoardPosition['castlingAvailability'] {
-  const nextCastlingAvailability = { ...position.castlingAvailability };
-  const movingPiece = getPiece(position, move.from);
-  const capturedPiece = move.kind === MoveKind.EnPassant ? undefined : getPiece(position, move.to);
-  if (movingPiece?.kind === PieceKind.King) {
-    if (movingPiece.colour === PlayerColour.White) {
-      nextCastlingAvailability.whiteKingSide = false;
-      nextCastlingAvailability.whiteQueenSide = false;
-    } else {
-      nextCastlingAvailability.blackKingSide = false;
-      nextCastlingAvailability.blackQueenSide = false;
-    }
-  }
-  if (movingPiece?.kind === PieceKind.Rook) {
-    if (move.from === 0) nextCastlingAvailability.whiteQueenSide = false;
-    if (move.from === 7) nextCastlingAvailability.whiteKingSide = false;
-    if (move.from === 56) nextCastlingAvailability.blackQueenSide = false;
-    if (move.from === 63) nextCastlingAvailability.blackKingSide = false;
-  }
-  if (capturedPiece?.kind === PieceKind.Rook) {
-    if (move.to === 0) nextCastlingAvailability.whiteQueenSide = false;
-    if (move.to === 7) nextCastlingAvailability.whiteKingSide = false;
-    if (move.to === 56) nextCastlingAvailability.blackQueenSide = false;
-    if (move.to === 63) nextCastlingAvailability.blackKingSide = false;
-  }
-  return nextCastlingAvailability;
-}
-function applyCandidateMove(position: IBoardPosition, move: ICandidateMove): IBoardPosition {
-  const movingPiece = getPiece(position, move.from);
-  if (movingPiece === undefined) throw new Error(`No piece found on ${move.from}.`);
-  if (move.kind === MoveKind.Promotion && move.promotionPiece === undefined) throw new Error('Promotion piece selection is required before applying a promotion move.');
-  const nextPosition = cloneBoardPosition(position);
-  nextPosition.board[move.from] = undefined;
-  let isCapture = getPiece(position, move.to) !== undefined;
-  if (move.kind === MoveKind.EnPassant) {
-    const fromCoords = boardIdToCoords(move.from);
-    const toCoords = boardIdToCoords(move.to);
-    const capturedBoardId = coordsToBoardId(toCoords.file, fromCoords.rank);
-    if (capturedBoardId !== undefined) {
-      nextPosition.board[capturedBoardId] = undefined;
-      isCapture = true;
-    }
-  }
-  if (move.kind === MoveKind.Castle) {
-    const homeRank = movingPiece.colour === PlayerColour.White ? 0 : 7;
-    const isKingSide = boardIdToCoords(move.to).file === 6;
-    const rookFrom = coordsToBoardId(isKingSide ? 7 : 0, homeRank);
-    const rookTo = coordsToBoardId(isKingSide ? 5 : 3, homeRank);
-    if (rookFrom !== undefined && rookTo !== undefined) {
-      const rook = getPiece(position, rookFrom);
-      if (rook !== undefined) {
-        nextPosition.board[rookFrom] = undefined;
-        nextPosition.board[rookTo] = rook;
-      }
-    }
-  }
-  nextPosition.board[move.to] = move.kind === MoveKind.Promotion ? { kind: move.promotionPiece!, colour: movingPiece.colour } : movingPiece;
-  nextPosition.castlingAvailability = updateCastlingAvailability(position, move);
-  nextPosition.enPassantTarget = undefined;
-  const fromCoords = boardIdToCoords(move.from);
-  const toCoords = boardIdToCoords(move.to);
-  if (movingPiece.kind === PieceKind.Pawn && Math.abs(toCoords.rank - fromCoords.rank) === 2) nextPosition.enPassantTarget = coordsToBoardId(fromCoords.file, fromCoords.rank + getForwardDirection(movingPiece.colour));
-  nextPosition.halfMoveClock = movingPiece.kind === PieceKind.Pawn || isCapture ? 0 : position.halfMoveClock + 1;
-  nextPosition.fullMoveNumber = movingPiece.colour === PlayerColour.Black ? position.fullMoveNumber + 1 : position.fullMoveNumber;
-  nextPosition.sideToMove = getOpponentColour(movingPiece.colour);
-  return normaliseBoardPosition(nextPosition);
-}
-function moveMatches(candidate: Pick<IMove, 'from' | 'to' | 'kind' | 'movingColour' | 'promotionPiece'>, move: IMove): boolean {
+export function moveMatches(candidate: Pick<IMove, 'from' | 'to' | 'kind' | 'movingColour' | 'promotionPiece'>, move: IMove): boolean {
   if (candidate.from !== move.from || candidate.to !== move.to || candidate.kind !== move.kind || candidate.movingColour !== move.movingColour) return false;
   if (candidate.kind !== MoveKind.Promotion) return candidate.promotionPiece === move.promotionPiece;
   return move.promotionPiece === undefined || promotionPieces.includes(move.promotionPiece);
 }
-function hasInsufficientMaterial(position: IBoardPosition): boolean {
+export function hasInsufficientMaterial(position: IBoardPosition): boolean {
   const pieces = position.board;
   const nonKingPieces = pieces.filter((piece): piece is NonNullable<typeof piece> => piece !== undefined && piece.kind !== PieceKind.King);
   if (nonKingPieces.length === 0) return true;
@@ -301,53 +234,4 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
     return bishopKnightCount === 2;
   }
   return false;
-}
-
-export function isMoveLegal(position: IBoardPosition, move: IMove): boolean {
-  const movingPiece = getPiece(position, move.from);
-  if (movingPiece === undefined || movingPiece.colour !== move.movingColour) return false;
-  const promotionResolvedMoves = move.kind === MoveKind.Promotion && move.promotionPiece === undefined
-    ? promotionPieces.map((piece) => ({ ...move, promotionPiece: piece }))
-    : [move];
-  return promotionResolvedMoves.some((resolvedMove) => {
-    const nextPosition = applyCandidateMove(position, resolvedMove);
-    return !isSquareAttacked(nextPosition, findKingBoardId(nextPosition, move.movingColour)!, getOpponentColour(move.movingColour));
-  });
-}
-export function generateLegalMoves(position: IBoardPosition): IMove[] {
-  const normalisedPosition = normaliseBoardPosition(position);
-  return generatePseudoLegalMoves(normalisedPosition, normalisedPosition.sideToMove)
-    .filter((candidate) => isMoveLegal(normalisedPosition, candidate));
-}
-export function requiresPromotionSelection(position: IBoardPosition, move: IMove): boolean {
-  const piece = getPiece(position, move.from);
-  if (piece?.kind !== PieceKind.Pawn) return false;
-  return boardIdToCoords(move.to).rank === getPromotionRank(piece.colour) && move.promotionPiece === undefined;
-}
-export function applyMove(position: IBoardPosition, move: IMove): IBoardPosition {
-  const legalMoves = generateLegalMoves(position);
-  const matchingMove = legalMoves.find((candidate) => moveMatches(candidate, move));
-  if (!matchingMove) throw new Error('Cannot apply an illegal move.');
-  if (requiresPromotionSelection(position, move)) throw new Error('Promotion piece selection is required before applying a promotion move.');
-  //TODO: update check state of the position
-  return applyCandidateMove(position, {
-    from: matchingMove.from,
-    to: matchingMove.to,
-    kind: matchingMove.kind,
-    movingColour: matchingMove.movingColour,
-    promotionPiece: move.promotionPiece,
-  });
-}
-export function resolveResult(position: IBoardPosition): { resultState: ResultState; resultReason: ResultReason | undefined; } {
-  if (hasInsufficientMaterial(position)) return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
-  const legalMoves = generateLegalMoves(position);
-  if (legalMoves.length > 0) return { resultState: ResultState.Ongoing, resultReason: undefined };
-  const kingBoardId = findKingBoardId(position, position.sideToMove);
-  if (kingBoardId !== undefined && isSquareAttacked(position, kingBoardId, getOpponentColour(position.sideToMove))) {
-    return {
-      resultState: position.sideToMove === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon,
-      resultReason: ResultReason.RuleResolved,
-    };
-  }
-  return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
 }

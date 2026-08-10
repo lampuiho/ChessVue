@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest';
 
 import { MoveKind, PieceKind, PlayerColour, ResultState, type IBoardPosition } from '@/contracts';
 import { GameRuleService } from '..';
-import { createInitialBoardPosition, createSparseBoard, normaliseBoardPosition } from '@/utility/chess';
+import { createSparseBoard } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
 function withPosition(position: IBoardPosition, overrides: Partial<IBoardPosition>): IBoardPosition {
-  return normaliseBoardPosition({
+  return {
     ...position,
     ...overrides,
-  })
+  };
 }
 describe('GameRuleService', () => {
   it('generates 20 legal opening moves', () => {
-    const moves = GameRuleService.generateLegalMoves(createInitialBoardPosition())
+    const moves = GameRuleService.generateLegalMoves(GameRuleService.createInitialBoardPosition())
 
     expect(moves).toHaveLength(20)
   })
@@ -53,6 +53,71 @@ describe('GameRuleService', () => {
 
     const moves = GameRuleService.generateLegalMoves(position)
     expect(moves.some((move) => move.kind === MoveKind.Castle && move.to === boardId(6, 0))).toBe(true)
+  })
+  it('updates castling availability after king, rook, and rook-capture moves', () => {
+    const kingMovePosition = withPosition(createSparseBoard([
+      { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+      { boardId: boardId(0, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+      { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+      { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+    ]), {
+      castlingAvailability: {
+        whiteKingSide: true,
+        whiteQueenSide: true,
+        blackKingSide: true,
+        blackQueenSide: true,
+      },
+    })
+    const kingMoved = GameRuleService.applyMove(kingMovePosition, {
+      from: boardId(4, 0),
+      to: boardId(5, 0),
+      kind: MoveKind.Normal,
+      movingColour: PlayerColour.White,
+    })
+    expect(kingMoved.castlingAvailability.whiteKingSide).toBe(false)
+    expect(kingMoved.castlingAvailability.whiteQueenSide).toBe(false)
+
+    const rookMovePosition = withPosition(createSparseBoard([
+      { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+      { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+      { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+    ]), {
+      castlingAvailability: {
+        whiteKingSide: true,
+        whiteQueenSide: false,
+        blackKingSide: false,
+        blackQueenSide: false,
+      },
+    })
+    const rookMoved = GameRuleService.applyMove(rookMovePosition, {
+      from: boardId(7, 0),
+      to: boardId(7, 1),
+      kind: MoveKind.Normal,
+      movingColour: PlayerColour.White,
+    })
+    expect(rookMoved.castlingAvailability.whiteKingSide).toBe(false)
+
+    const rookCapturePosition = withPosition(createSparseBoard([
+      { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+      { boardId: boardId(0, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+      { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      { boardId: boardId(0, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+    ], PlayerColour.Black), {
+      castlingAvailability: {
+        whiteKingSide: false,
+        whiteQueenSide: true,
+        blackKingSide: false,
+        blackQueenSide: true,
+      },
+    })
+    const rookCaptured = GameRuleService.applyMove(rookCapturePosition, {
+      from: boardId(0, 7),
+      to: boardId(0, 0),
+      kind: MoveKind.Normal,
+      movingColour: PlayerColour.Black,
+    })
+    expect(rookCaptured.castlingAvailability.whiteQueenSide).toBe(false)
+    expect(rookCaptured.castlingAvailability.blackQueenSide).toBe(false)
   })
 
   it('supports en passant generation and application', () => {
