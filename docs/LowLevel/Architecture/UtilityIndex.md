@@ -86,6 +86,15 @@ Each entry must define:
 - Validation or failure semantics: helpers perform only structural coordinate conversion and deterministic notation mapping. Out-of-range coordinates return `undefined` rather than coercing to a board id.
 
 ## Platform Host Support
+### UciUtility
+- Purpose: generate UCI protocol commands and parse UCI protocol output into shared engine, analysis, board, and move contracts.
+- Location: `src/utility/UciUtility.ts`.
+- Touched contract models: `IEngineOptionMeta`, `IAnalysisLine`, `IBoardPosition`, `IEnginePositionState`, and `IMove`.
+- Allowed importers: concrete UCI engine clients and utility tests.
+- Owner-private delegates: `NwjsUciEngineClient` handshake, position-sync, analysis-line, and best-move handlers.
+- Classification: `pure`.
+- Validation or failure semantics: non-option handshake lines are ignored by option-list parsing; malformed UCI option declarations and unsupported option types throw rather than creating partial metadata.
+
 ### NwjsUtility
 - Purpose: share typed access to the shared `nw` host object used by the concrete NW.js platform implementation.
 - Touched contract models: none directly; supports typed implementation of platform-owned contracts without extending the public abstraction surface.

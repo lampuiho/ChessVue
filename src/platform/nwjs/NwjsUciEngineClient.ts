@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
 
-import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEnginePositionState, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineOptionMeta, type IEnginePositionState, type IMove, type IPlatformError } from '@/contracts';
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
 import { buildPositionKey } from '@/utility/chess';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
-import { buildPositionCommand, buildRegisterCommand, parseBestMoveLine, parseInfoLine } from '../../utility/UciUtility';
+import { buildPositionCommand, buildRegisterCommand, parseBestMoveLine, parseInfoLine, parseOptionLines } from '../../utility/UciUtility';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 import { attachProcessLineListeners, writeProcessLine } from './NwjsProcessLineUtility';
 
@@ -17,6 +17,8 @@ interface IUciLineWaiter {
 interface IUciSession {
   initialised: boolean;
   isStopping: boolean;
+  optionLines: string[];
+  options: IEngineOptionMeta[];
   process?: ISpawnedProcess;
   positionState?: IEnginePositionState;
   playerMoveDeferred?: Deferred<IMove>;
@@ -46,11 +48,15 @@ function _createUciSession(): IUciSession {
   return {
     initialised: false,
     isStopping: false,
+    optionLines: [],
+    options: [],
     waiters: [],
   };
 }
 function _failUciSession(session: IUciSession, error: unknown): IUciSession {
   session.initialised = false;
+  session.optionLines = [];
+  session.options = [];
   session.positionState = undefined;
   session.waiters.splice(0).forEach((waiter) => waiter.reject(error));
   session.playerMoveDeferred?.reject(error);
@@ -89,6 +95,8 @@ function _initialiseAssignedEngineSession(engine: IAssignedEngine): IUciSession 
 function _stopUciSession(session: IUciSession, message = 'Engine stopped.'): IUciSession {
   session.isStopping = true;
   session.initialised = false;
+  session.optionLines = [];
+  session.options = [];
   session.positionState = undefined;
   session.waiters.splice(0).forEach((waiter) => waiter.reject(new Error(message)));
   session.playerMoveDeferred?.reject(new Error(message));
@@ -101,12 +109,19 @@ function _stopUciSession(session: IUciSession, message = 'Engine stopped.'): IUc
 }
 export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
   return defineStore('nwjsUciEngineClient', () => {
+    function getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[] {
+      return _requireInitialisedSession(engine).options;
+    }
     async function initialiseEngine(engine: IAssignedEngine): Promise<void> {
       const processHandle = _requireProcessHandle(engine);
       const session = _initialiseAssignedEngineSession(engine);
       _attachToProcess(engine, processHandle, session);
       if (session.initialised) return;
+      session.optionLines = [];
+      session.options = [];
       await _writeCommandAndWait(session, processHandle, 'uci', (line) => line === 'uciok');
+      session.options = parseOptionLines(session.optionLines);
+      session.optionLines = [];
       for (const [optionName, value] of Object.entries(engine.options)) await _writeCommand(processHandle, `setoption name ${optionName} value ${String(value)}`);
       await _writeCommandAndWait(session, processHandle, 'isready', (line) => line === 'readyok');
       session.initialised = true;
@@ -184,6 +199,10 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
         void _writeCommand(_requireProcessHandle(engine), buildRegisterCommand()).catch((error) => _failUciSession(session, error));
         return;
       }
+      if (line.startsWith('option ')) {
+        session.optionLines.push(line);
+        return;
+      }
       const runtimeState = _requireRuntimeState(engine);
       if (session.positionState && session.playerMoveDeferred) {
         const bestMove = parseBestMoveLine(session.positionState.currentPosition, line);
@@ -252,6 +271,6 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       return assignedUciEngine.$?.session;
     }
 
-    return { initialiseEngine, syncPosition, startAnalysis, stopAnalysis, startPlayerTurn, awaitPlayerTurnMove, stopEngine, restartEngine, requiresNewGameBoundary } satisfies IEngineClient;
+    return { getOptions, initialiseEngine, syncPosition, startAnalysis, stopAnalysis, startPlayerTurn, awaitPlayerTurnMove, stopEngine, restartEngine, requiresNewGameBoundary } satisfies IEngineClient;
   });
 }

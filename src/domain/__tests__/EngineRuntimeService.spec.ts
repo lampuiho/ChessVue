@@ -18,6 +18,7 @@ const assertProcessHandleOpen = vi.fn();
 const stopProcess = vi.fn();
 const restartProcess = vi.fn();
 const initialiseEngine = vi.fn();
+const getOptions = vi.fn();
 const syncPosition = vi.fn();
 const startAnalysis = vi.fn();
 const stopAnalysis = vi.fn();
@@ -59,6 +60,7 @@ describe('EngineRuntimeService', () => {
     stopProcess.mockReset();
     restartProcess.mockReset();
     initialiseEngine.mockReset();
+    getOptions.mockReset();
     syncPosition.mockReset();
     startAnalysis.mockReset();
     stopAnalysis.mockReset();
@@ -77,6 +79,7 @@ describe('EngineRuntimeService', () => {
           restartProcess,
         }),
         getEngineClient: () => ({
+          getOptions,
           initialiseEngine,
           syncPosition,
           startAnalysis,

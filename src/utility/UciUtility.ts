@@ -1,4 +1,4 @@
-import { MoveKind, PieceKind, PlayerColour, type BoardId, type IAnalysisLine, type IBoardPosition, type IEnginePositionState, type IMove } from '@/contracts';
+import { EngineOptionType, MoveKind, PieceKind, PlayerColour, type BoardId, type IAnalysisLine, type IBoardPosition, type IEngineOptionMeta, type IEnginePositionState, type IMove } from '@/contracts';
 import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank } from '@/utility/chess/SquareUtility';
 
 // #region Public methods
@@ -48,6 +48,15 @@ export function parseInfoLine(line: string, colour: PlayerColour, enPassantTarge
     pv: _parsePv(tokens.slice(pvIndex + 1), colour, enPassantTarget),
     $: { reference: Number.isInteger(reference) && reference > 0 ? reference : 1 },
   };
+}
+export function parseOptionLines(lines: readonly string[]): IEngineOptionMeta[] {
+  const options: IEngineOptionMeta[] = [];
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.split(/\s+/, 1)[0] !== 'option') continue;
+    options.push(_parseOptionLine(trimmedLine));
+  }
+  return options;
 }
 export function parseUciMove(raw: string, colour: PlayerColour, enPassantTarget?: BoardId): IMove {
   const uci = raw.trim().toLowerCase();
@@ -103,6 +112,17 @@ function _getNextEnPassantTarget(move: IMove): BoardId | undefined {
   if (from.file !== to.file || from.rank !== getPawnHomeRank(move.movingColour) || to.rank - from.rank !== direction * 2) return;
   return coordsToBoardId(from.file, from.rank + direction);
 }
+function _getOptionFieldValues(tokens: string[], fieldName: string): string[][] {
+  const fieldNames = new Set(['default', 'min', 'max', 'var']);
+  const values: string[][] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index] !== fieldName) continue;
+    let endIndex = index + 1;
+    while (endIndex < tokens.length && !fieldNames.has(tokens[endIndex]!)) endIndex += 1;
+    values.push(tokens.slice(index + 1, endIndex));
+  }
+  return values;
+}
 function _isCastlingMove(from: BoardId, to: BoardId, colour: PlayerColour): boolean {
   const homeRank = colour === PlayerColour.White ? 0 : 7;
   const fromCoords = boardIdToCoords(from);
@@ -121,6 +141,49 @@ function _parseBoardId(notation: string): BoardId {
   const boardId = coordsToBoardId(file, rank);
   if (boardId !== undefined) return boardId;
   throw new Error(`Invalid UCI square notation: ${notation}.`);
+}
+function _parseOptionDefault(type: EngineOptionType, tokens: string[]): string | number | boolean | undefined {
+  const valueTokens = _getOptionFieldValues(tokens, 'default')[0];
+  if (valueTokens === undefined || type === EngineOptionType.Action) return;
+  const value = valueTokens.join(' ');
+  if (type === EngineOptionType.Boolean) {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    throw new Error(`Invalid UCI boolean option default: ${value}.`);
+  }
+  if (type === EngineOptionType.Integer) return _parseOptionInteger(value, 'default');
+  return value === '<empty>' ? '' : value;
+}
+function _parseOptionInteger(value: string, fieldName: string): number {
+  const parsedValue = Number.parseInt(value, 10);
+  if (Number.isInteger(parsedValue) && parsedValue.toString() === value) return parsedValue;
+  throw new Error(`Invalid UCI integer option ${fieldName}: ${value}.`);
+}
+function _parseOptionLine(line: string): IEngineOptionMeta {
+  const tokens = line.split(/\s+/);
+  const typeIndex = tokens.indexOf('type', 2);
+  if (tokens[0] !== 'option' || tokens[1] !== 'name' || typeIndex < 3 || !tokens[typeIndex + 1]) throw new Error(`Invalid UCI option line: ${line}.`);
+  const name = tokens.slice(2, typeIndex).join(' ');
+  const type = _parseOptionType(tokens[typeIndex + 1]!);
+  const fieldTokens = tokens.slice(typeIndex + 2);
+  const minimumValue = _getOptionFieldValues(fieldTokens, 'min')[0]?.join(' ');
+  const maximumValue = _getOptionFieldValues(fieldTokens, 'max')[0]?.join(' ');
+  const choices = type === EngineOptionType.Choice ? _getOptionFieldValues(fieldTokens, 'var').map((value) => value.join(' ')) : undefined;
+  const defaultValue = _parseOptionDefault(type, fieldTokens);
+  const option: IEngineOptionMeta = { name, type };
+  if (defaultValue !== undefined) option.defaultValue = defaultValue;
+  if (minimumValue !== undefined) option.minimum = _parseOptionInteger(minimumValue, 'minimum');
+  if (maximumValue !== undefined) option.maximum = _parseOptionInteger(maximumValue, 'maximum');
+  if (choices !== undefined) option.choices = choices;
+  return option;
+}
+function _parseOptionType(type: string): EngineOptionType {
+  if (type === 'button') return EngineOptionType.Action;
+  if (type === 'check') return EngineOptionType.Boolean;
+  if (type === 'combo') return EngineOptionType.Choice;
+  if (type === 'spin') return EngineOptionType.Integer;
+  if (type === 'string') return EngineOptionType.Text;
+  throw new Error(`Unsupported UCI option type: ${type}.`);
 }
 function _parsePromotionPiece(token: string | undefined): PieceKind | undefined {
   if (token === 'q') return PieceKind.Queen;

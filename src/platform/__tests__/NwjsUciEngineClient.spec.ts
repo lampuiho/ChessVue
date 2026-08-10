@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, PlatformErrorKind } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, PlatformErrorKind } from '@/contracts';
 import { EngineRuntimeService, PositionIdentityService } from '@/domain';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
 import { createAssignedEngine, createEnginePositionState, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
@@ -8,6 +8,26 @@ import { createAssignedEngine, createEnginePositionState, getBoardId, registerNw
 const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironment();
 
 describe('NwjsUciEngineClient', () => {
+  it('collects engine option metadata during initialisation', async () => {
+    const platform = getPlatformService();
+    const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    const process = getEnvironment().latestProcess();
+    process.queueResponse('uci', [
+      'option name Ponder type check default false',
+      'option name Threads type spin default 1 min 1 max 1024',
+      'uciok',
+    ]);
+
+    await client.initialiseEngine(engine);
+
+    expect(client.getOptions(engine)).toEqual([
+      { name: 'Ponder', type: EngineOptionType.Boolean, defaultValue: false },
+      { name: 'Threads', type: EngineOptionType.Integer, defaultValue: 1, minimum: 1, maximum: 1024 },
+    ]);
+  });
   it('maps engine state to UCI commands and parses analysis plus player moves through one process', async () => {
     const platform = getPlatformService();
     const manager = platform.getProcessManager();

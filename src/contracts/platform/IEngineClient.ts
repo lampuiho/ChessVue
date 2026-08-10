@@ -1,7 +1,9 @@
-import type { IAssignedEngine, IEngineAnalysisRequest, IEngineAnalysisUpdate, IEnginePositionState } from '../Engine';
+import type { IAssignedEngine, IEngineAnalysisRequest, IEngineAnalysisUpdate, IEngineOptionMeta, IEnginePositionState } from '../Engine';
 import type { IMove } from '../Move';
 
 export interface IEngineClient {
+  /** Returns option metadata discovered during the explicit engine initialisation handshake. */
+  getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[];
   /** Mutates engine.$ by attaching or updating the platform runtime session and marking it initialised. */
   initialiseEngine(engine: IAssignedEngine): Promise<void>;
   /** Requires engine.$ to already hold an initialised session, then mutates the cached session position state. */

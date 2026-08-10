@@ -20,6 +20,13 @@ export const enum EngineAvailability {
 export const enum EngineAnalysisSearchMode {
   Infinite = 'infinite',
 }
+export const enum EngineOptionType {
+  Action = 'action',
+  Boolean = 'boolean',
+  Choice = 'choice',
+  Integer = 'integer',
+  Text = 'text',
+}
 export const engineProtocols = [EngineProtocol.Uci] as const
 export const engineClientTypes = [EngineClientType.Uci] as const
 export const engineAvailabilities = [EngineAvailability.Ready, EngineAvailability.Starting, EngineAvailability.Running, EngineAvailability.Unavailable, EngineAvailability.Failed] as const
@@ -27,6 +34,14 @@ export const engineAnalysisSearchModes = [EngineAnalysisSearchMode.Infinite] as 
 
 export interface IEngineOptionMap {
   [optionName: string]: string | number | boolean
+}
+export interface IEngineOptionMeta {
+  name: string;
+  type: EngineOptionType;
+  defaultValue?: string | number | boolean;
+  minimum?: number;
+  maximum?: number;
+  choices?: string[];
 }
 export interface IEngineRecord {
   id: string

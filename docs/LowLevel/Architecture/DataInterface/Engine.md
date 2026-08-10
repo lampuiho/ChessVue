@@ -8,10 +8,12 @@ Define configured engine records, copied in-game engine snapshots, and engine an
 - `enum EngineProtocol`
 - `enum EngineAvailability`
 - `enum EngineAnalysisSearchMode`
+- `enum EngineOptionType`
 
 ## Interfaces
 - `interface IEngineRecord`
 - `interface IEngineOptionMap`
+- `interface IEngineOptionMeta`
 - `interface IAssignedEngineRuntime`
 - `interface IAssignedEngine`
 - `interface IEnginePositionState`
@@ -40,6 +42,14 @@ enum EngineAnalysisSearchMode {
   Infinite = "infinite"
 }
 
+enum EngineOptionType {
+  Action = "action",
+  Boolean = "boolean",
+  Choice = "choice",
+  Integer = "integer",
+  Text = "text"
+}
+
 interface IEngineRecord {
   id: string
   displayName: string
@@ -51,6 +61,15 @@ interface IEngineRecord {
 
 interface IEngineOptionMap {
   [optionName: string]: string | number | boolean
+}
+
+interface IEngineOptionMeta {
+  name: string
+  type: EngineOptionType
+  defaultValue?: string | number | boolean
+  minimum?: number
+  maximum?: number
+  choices?: string[]
 }
 
 interface IAssignedEngineRuntime {
@@ -107,6 +126,8 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 
 ## Rules
 - Engine inventory lives in settings data.
+- `IEngineOptionMeta` is protocol-neutral metadata discovered by an engine client. It is not currently stored on `IEngineRecord` or `IAssignedEngine`.
+- `IEngineOptionMap` remains the configured name/value map. The later owner and timing for populating that map from discovered metadata are intentionally unresolved.
 - Licensed-engine credentials are out of scope. A UCI engine that reports `registration error` receives the fixed `register later` response from the concrete UCI client.
 - Assigned-engine snapshots live in saved game data and are copied by value from the selected reusable engine profile.
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
@@ -117,7 +138,7 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.
 - `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process handle, availability, last error, active analysis callback, and cached analysis lines for that engine instance.
-- Omitted `processHandle`, `lastError`, `bestMove`, `name`, and `code` fields mean those values are currently unavailable or intentionally not supplied.
+- Omitted `processHandle`, `lastError`, and `bestMove` fields mean those values are currently unavailable or intentionally not supplied.
 - Concrete `EngineClient` implementations may refine `IAssignedEngine.$` through inherited runtime interfaces when they need client-private protocol-session state.
 - Those refinements remain private to the owning concrete client implementation. Higher layers depend only on the shared minimum runtime fields plus the documented service and client APIs.
 - Client-private runtime fields such as a concrete UCI session object, current synced position, attached listener references, or pending player-move state are valid concrete `EngineClient` refinements and are not part of the shared contract.

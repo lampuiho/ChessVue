@@ -7,7 +7,6 @@
 - Kept board-position cloning private to rule-application code instead of exposing it as a general utility helper.
 - Reduced a few avoidable copies in touched code paths:
   - `GamesStore.createGame(...)` no longer clones the initial root position.
-  - `UciUtility.applyPv(...)` no longer clones the starting position before replaying PV moves.
   - `MoveHistoryService` now stores the supplied move, position, and clock objects directly.
 - Implemented castling-right updates inside `GameRuleService` without cloning castling availability a second time.
 - Added `GameRuleService` coverage for castling-right updates after king moves, rook moves, and rook captures.
@@ -21,11 +20,14 @@
   - `docs/LowLevel/Architecture/DataInterface/Game.md`
   - `docs/LowLevel/Architecture/DataInterface/Move.md`
   - `docs/LowLevel/Architecture/UtilityIndex.md`
+- Added protocol-neutral `IEngineOptionMeta` and UCI option-line parsing for action, boolean, choice, integer, and text options.
+- Added `IEngineClient.getOptions(...)` backed by option metadata collected during the UCI initialisation handshake.
 
 ## Still Pending
 - Finish the items still open in `docs/StuffChangedAndNeedChanging.md`.
 - Continue the broader copy-reduction pass beyond the paths already touched.
 - Revisit the remaining process-flow docs that still describe the old private player-move flow.
+- Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.
 - Run the wider regression suite outside `GamesStore.spec.ts` after the next batch of tracker items lands.
 
 ## Verification
