@@ -100,16 +100,11 @@ export const EngineRuntimeService = {
       await _initialiseEngine(engine, runtimeState);
     });
   },
-  /** Mutates engine.$ the same way as ensureReady, then updates nested platform session state for the synced position. */
-  async syncPosition(engine: IAssignedEngine, game: IGame): Promise<void> {
-    const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.syncPosition(engine, game));
-  },
   /** Mutates engine.$ the same way as ensureReady, then updates shared analysis runtime state used for streamed callbacks. */
-  async startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void> {
+  async startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void> {
     const runtimeState = _assertBaseRuntime(engine);
     const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startAnalysis(engine, request, runtimeState.analysisCallback ?? (() => {})));
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startAnalysis(engine, game, request, runtimeState.analysisCallback ?? (() => {})));
   },
   /** May mutate engine.$ by updating runtime availability when the process handle is stale or the stop fails. */
   async stopAnalysis(engine: IAssignedEngine): Promise<void> {
@@ -117,9 +112,14 @@ export const EngineRuntimeService = {
     await _runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.stopAnalysis(engine));
   },
   /** Mutates engine.$ the same way as ensureReady, then updates nested platform session player-turn state. */
-  async startPlayerTurn(engine: IAssignedEngine): Promise<void> {
+  async startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void> {
     const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine));
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine, game));
+  },
+  /** Mutates engine.$ by starting a client-private ponder search while runtime availability remains ready. */
+  async startPondering(engine: IAssignedEngine, game: IGame, ponderMove: IMove): Promise<void> {
+    const engineClient = _getEngineClient(engine);
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.startPondering(engine, game, ponderMove));
   },
   /** Mutates engine.$ by registering one shared analysis callback. */
   subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void {

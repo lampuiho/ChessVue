@@ -92,7 +92,7 @@ Each entry must define:
 - Command-builder surface: `buildAnalysisCommands`, `buildDebugCommand`, `buildFindNextMoveCommands`, `buildIsReadyCommand`, `buildPonderMoveCommands`, `buildPositionCommand`, `buildQuitCommand`, `buildRegisterCommand`, `buildSetOptionCommand`, `buildStopCommand`, `buildUciCommand`, `buildUciMove`, and `buildUciNewGameCommand`.
 - Touched contract models: `IEngineOptionMeta`, `IAnalysisLine`, `IBoardPosition`, `IGame`, and `IMove`.
 - Allowed importers: concrete UCI engine clients and utility tests.
-- Owner-private delegates: `NwjsUciEngineClient` handshake, position-sync, analysis-line, and best-move handlers.
+- Owner-private delegates: `NwjsUciEngineClient` handshake, game-boundary, state-transition, analysis-line, and best-move handlers.
 - Classification: `mixed`; command construction and parsing are deterministic, while `buildUciMove(...)` may populate the runtime-only `IMove.$.uci` cache.
 - Validation or failure semantics: invalid highlighted or live paths, untimed player searches, malformed UCI moves or option declarations, and unsupported option types throw rather than creating partial protocol data. A missed ponder returns only `stop` because the client must await and discard that search's final `bestmove` before starting another search.
 

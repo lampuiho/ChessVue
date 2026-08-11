@@ -4,227 +4,107 @@
 This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALYSIS-01` to `SCN-ANALYSIS-05`, `SCN-ENGINE-01` to `SCN-ENGINE-03`, and the engine-runtime portions of the live move loop.
 
 ## Ownership Summary
-- `GamesStore` decides when analysis or player-turn runtime work should happen.
-- `EngineRuntimeService` owns only base runtime state on `IAssignedEngine.$`, explicit analysis-callback registration and teardown, process lifecycle, per-operation process-handle validity checks, runtime availability, and runtime last-error updates.
-- `EngineClient` owns only client-private runtime state such as optional session initialisation, process-listener attachment, synced-position state, pending player-turn state, protocol I/O, and protocol parsing.
-- Client-private session state on `engine.$.session` is optional until `EngineClient.initialiseEngine(...)` creates and initialises it after base runtime state already exists.
-- Runtime state changes must happen through explicit owner-private steps. No flow in this document relies on hidden mutation or side tables.
+- `GamesStore` decides when analysis, player-turn, or speculative ponder work should happen.
+- `EngineRuntimeService` owns base runtime creation, process lifecycle, process-handle checks, availability, last-error updates, and analysis callback registration on `IAssignedEngine.$`.
+- `EngineClient` owns the protocol session, process listeners, current search position, expected ponder move, pending player-turn completion, protocol I/O, and parsing.
+- `UciUtility` only builds protocol commands and parses individual protocol records. It does not own a process or session.
+- Runtime state changes use explicit object-attached state. No flow relies on hidden side tables or silent runtime initialisation.
 
 ## Owner And Mutable State
-- `EngineRuntimeService` may mutate:
-  - `engine.$.processHandle`
-  - `engine.$.availability`
-  - `engine.$.lastError`
-  - `engine.$.analysisCallback`
-  - `engine.$.analysisLines`
-- `EngineClient` may mutate:
-  - `engine.$.session`
-  - the object-attached process-listener references for that engine
-  - the current synced position state for that engine
-  - the pending player-turn state for that engine
-- `GamesStore` does not mutate lower-layer runtime state directly. It requests runtime work through explicit service calls.
+`EngineRuntimeService` may mutate `engine.$.processHandle`, `availability`, `lastError`, `analysisCallback`, and `analysisLines`.
+
+The concrete `EngineClient` may refine `engine.$` with a private session. Its UCI session records the protocol state, game boundary, root and active positions, expected ponder move, process listener, and deferred state or player-move completion.
+
+`GamesStore` does not mutate either lower-layer runtime directly. It calls `EngineRuntimeService` and receives protocol-neutral analysis updates or `IMove` results.
 
 ## Analysis Runtime
 
-### Prepare Analysis Runtime
+### Start Or Refresh Analysis
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
+| `EngineRuntimeService.ensureReady` |
+| `EngineRuntimeService.startAnalysis(engine, game, request)` |
 
-| `GamesStore._syncAnalysisPosition` |
-| --- |
-| `EngineRuntimeService.syncPosition` |
-
-| `GamesStore._registerAnalysisSubscription` |
-| --- |
-| `EngineRuntimeService.subscribeToAnalysis` |
-
-| `GamesStore._startAnalysisSearch` |
-| --- |
-| `EngineRuntimeService.startAnalysis` |
-
-| `EngineRuntimeService.syncPosition` |
-| --- |
-| `EngineRuntimeService._runInitialisedEngineOperation` |
-| `EngineClient.syncPosition` |
-
-| `EngineRuntimeService._runInitialisedEngineOperation` |
-| --- |
-| `EngineRuntimeService._assertBaseRuntime` |
-| `EngineRuntimeService._assertProcessHandleOpen` |
-| `EngineRuntimeService._initialiseEngine` |
-| `EngineRuntimeService._runEngineOperation` |
-
-| `EngineRuntimeService.subscribeToAnalysis` |
-| --- |
-| `EngineRuntimeService._createBaseRuntime` |
-| `engine.$.analysisCallback = onUpdate` |
-| `return unsubscribe closure` |
-
-| `EngineRuntimeService._initialiseEngine` |
-| --- |
-| `EngineRuntimeService._setRuntimeAvailability` |
-| `ProcessManager.spawnProcess` or `ProcessManager.assertProcessHandleOpen` |
-| `EngineClient.initialiseEngine` |
-
-| `EngineClient.initialiseEngine` |
-| --- |
-| `EngineClient._initialiseAssignedEngineSession` |
-| `EngineClient._attachToProcess` |
-| `EngineClient._writeCommandAndWait` |
-| `EngineClient._writeCommand` |
-
-| `EngineClient.syncPosition` |
-| --- |
-| `EngineClient._requireInitialisedSession` |
-| `EngineClient._writeCommandAndWait` |
-| `EngineClient._writeCommand` |
-
-### Start Analysis Search
 | `EngineRuntimeService.startAnalysis` |
 | --- |
-| `EngineRuntimeService._assertBaseRuntime` |
-| `EngineRuntimeService._runInitialisedEngineOperation` |
-| `EngineClient.startAnalysis` |
+| assert base runtime and live process |
+| `EngineClient.startAnalysis(engine, game, request, analysisCallback)` |
+| set runtime availability to `Running` |
 
 | `EngineClient.startAnalysis` |
 | --- |
-| `EngineClient._requireInitialisedSession` |
-| `engine.$.analysisCallback = onUpdate` |
-| `engine.$.analysisLines.clear()` |
-| `EngineClient._writeCommand` |
+| require an initialised session |
+| stop and consume an existing analysis search when necessary |
+| send `ucinewgame` and `isready` when the game id or root changed |
+| derive the highlighted position command from `IGame` |
+| enter `Analysing` and send the analysis commands |
 
-### Stop Analysis Search
+### Stream Analysis Output
+| `EngineClient._consumeLine` while `Analysing` |
+| --- |
+| parse `info` into `IAnalysisLine` |
+| store the line by `IAnalysisLine.$.reference` |
+| invoke `engine.$.analysisCallback` with a protocol-neutral update |
+
+`bestmove` completes the analysis search, emits a final update, and returns the session to `Ready`. Unrecognised ancillary output is ignored. A recognised control response that is invalid in the current state fails the session rather than being consumed by an unrelated parser.
+
+### Stop Analysis
 | `GamesStore.stopAnalysis` |
 | --- |
-| `GamesStore._stopAnalysisSearch` |
-
-| `GamesStore._stopAnalysisSearch` |
-| --- |
+| dispose the analysis subscription |
 | `EngineRuntimeService.stopAnalysis` |
-
-| `EngineRuntimeService.stopAnalysis` |
-| --- |
-| `EngineRuntimeService._runLiveEngineOperation` |
 | `EngineClient.stopAnalysis` |
-
-| `EngineClient.stopAnalysis` |
-| --- |
-| `EngineClient._requireSession` |
-| `EngineClient._writeCommand` |
-
-### Unregister Analysis Subscription
-| `GameView._disposeAnalysisRuntimeBinding` |
-| --- |
-| returned unsubscribe closure from `EngineRuntimeService.subscribeToAnalysis(...)` |
-
-### Streamed Analysis Update
-| `EngineClient._consumeLine` |
-| --- |
-| parse expected streamed analysis output |
-| update `engine.$.analysisLines` for the current engine |
-| `EngineClient._buildAnalysisUpdate` |
-| invoke `engine.$.analysisCallback` |
-
-### Unexpected Analysis Output
-| `EngineClient._consumeLine` |
-| --- |
-| ignore non-terminal output that is irrelevant to the current awaited or streaming operation |
-
-- Failure rule: irrelevant non-terminal analysis output does not mutate runtime availability, does not stop the process, does not clear `engine.$.lastError`, and does not clear the last valid visible result.
-- Failure rule: positively identified unexpected engine output or session/process failure is surfaced through the client/runtime failure path rather than through silent repair.
+| enter `StoppingAnalysis`, send `stop`, and consume the terminating `bestmove` |
+| return the session to `Ready` |
 
 ## Player Turn Runtime
 
-### Prepare Player-Turn Runtime
-| `GamesStore.requestPlayerMove` |
+### Arm Every Live Turn
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore._syncPlayerTurnPosition` |
-| `GamesStore._startPlayerTurnSearch` |
-| `GamesStore._awaitPlayerTurnMove` |
+| `GamesStore._requestPlayerMove` |
+| create `game.$.pendingPlayerTurnPromise` for the current player |
+| `GamesStore._playerMoveHandler` awaits that shared promise |
 
-| `GamesStore._syncPlayerTurnPosition` |
+For a local player, `GamesStore.makeMove(...)` resolves the deferred move. For a player engine, `_requestEngineMove(...)` calls `ensureReady(...)`, `startPlayerTurn(engine, game)`, and `awaitPlayerTurnMove(...)`, then resolves the same game-level deferred. The handler either stores the resulting `IMove` as `deferredPlayerMove` while paused or commits it while live.
+
+### Normal Engine Search
+| `EngineRuntimeService.startPlayerTurn(engine, game)` |
 | --- |
-| `EngineRuntimeService.syncPosition` |
+| assert base runtime and live process |
+| `EngineClient.startPlayerTurn(engine, game)` |
+| derive the live position and timed search commands |
+| enter `FindingMove` |
 
-| `GamesStore._startPlayerTurnSearch` |
-| --- |
-| `EngineRuntimeService.startPlayerTurn` |
+While `FindingMove`, only `bestmove` completes the pending engine move. The parsed `IMove` may carry an optional runtime-only `$.ponderMove` supplied by the engine.
 
-| `GamesStore._awaitPlayerTurnMove` |
-| --- |
-| `EngineRuntimeService.awaitPlayerTurnMove` |
+### Ponder Search And Next Turn
+After an engine move is committed, `GamesStore` calls `EngineRuntimeService.startPondering(engine, game, ponderMove)` when the returned move includes `$.ponderMove`. The client enters `Pondering` and retains the expected reply privately.
 
-### Begin Player-Turn Search
-| `EngineRuntimeService.startPlayerTurn` |
-| --- |
-| `EngineRuntimeService._runInitialisedEngineOperation` |
-| `EngineClient.startPlayerTurn` |
+When that engine is next asked to move:
+- If the latest live move matches the expected reply, `startPlayerTurn(...)` sends `ponderhit`, enters `FindingMove`, and delivers that search's next `bestmove` normally.
+- If it does not match, `startPlayerTurn(...)` enters `StoppingPonder`, sends `stop`, consumes and discards that search's terminating `bestmove`, then sends a fresh live position and timed `go` in `FindingMove`.
 
-| `EngineClient.startPlayerTurn` |
-| --- |
-| `EngineClient._requireInitialisedSession` |
-| create pending player-turn state |
-| `EngineClient._writeCommand` |
+This ordering prevents a stale ponder result from resolving the new player turn.
 
-### Await Player-Turn Completion
-| `EngineRuntimeService.awaitPlayerTurnMove` |
-| --- |
-| `EngineRuntimeService._runLiveEngineOperation` |
-| `EngineClient.awaitPlayerTurnMove` |
+## Session State Machine
+The UCI client uses these explicit states:
 
-| `EngineClient.awaitPlayerTurnMove` |
-| --- |
-| `EngineClient._requireSession` |
-| await pending player-turn state |
-| clear pending player-turn state |
+```text
+Created -> AwaitingUciOk -> AwaitingReadyOk -> Ready
+Ready -> Analysing -> StoppingAnalysis -> Ready
+Ready -> FindingMove -> Ready
+Ready -> Pondering -> FindingMove -> Ready
+Ready -> Pondering -> StoppingPonder -> Ready -> FindingMove -> Ready
+Any active state -> Stopped or Failed
+```
 
-### Unexpected Player-Turn Output
-| `EngineClient._consumeLine` |
-| --- |
-| ignore non-terminal output that is irrelevant to the current awaited move |
+Output handling is selected by the current state, not by trying several output parsers. State-transition deferreds are separate from the player-move deferred so a stop acknowledgement cannot satisfy a player turn.
 
-- Failure rule: session/process failure rejects the pending player-turn state and follows the owning runtime-error path.
-- Failure rule: stricter handling for positively identified unexpected terminal output is deferred until a dedicated debugging pass.
+## Stop, Restart, And Failure
+`EngineRuntimeService.stopEngine(...)` asks the client to reject and clear private session work, then stops the process and clears shared analysis runtime. `restartEngine(...)` replaces or respawns the process before explicitly initialising a fresh protocol session.
 
-## Runtime Stop And Restart
-
-### Stop Engine Runtime
-| `EngineRuntimeService.stopEngine` |
-| --- |
-| `EngineClient.stopEngine` |
-| `ProcessManager.stopProcess` |
-| `EngineRuntimeService._clearAnalysisState` |
-| `EngineRuntimeService._setRuntimeAvailability` |
-| `engine.$.processHandle = undefined` |
-
-| `EngineClient.stopEngine` |
-| --- |
-| `EngineClient._requireProcessHandle` |
-| `EngineClient._getSession` |
-| client-private session stop helper |
-
-### Restart Engine Runtime After Explicit Retry Or Config Change
-| `EngineRuntimeService.restartEngine` |
-| --- |
-| `EngineRuntimeService._createBaseRuntime` |
-| `EngineRuntimeService._setRuntimeAvailability` |
-| `EngineClient.stopEngine` |
-| `ProcessManager.restartProcess` or `ProcessManager.spawnProcess` |
-| `EngineRuntimeService._runEngineOperation` |
-| `EngineClient.initialiseEngine` |
-
-## Operation-Time Process Failure
-
-### Process Handle Becomes Stale Before Or During A Runtime Operation
-| `EngineRuntimeService.syncPosition` |
-| --- |
-| `EngineRuntimeService._runInitialisedEngineOperation` |
-| `EngineRuntimeService._assertProcessHandleOpen` |
-| `EngineRuntimeService._initialiseEngine` after `InvalidProcessHandle` |
-| `EngineClient.syncPosition` |
-
-- Failure rule: post-start engine termination is surfaced when the next runtime operation checks or uses the stored process handle.
-- Recovery rule: `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may recover once by re-running the explicit initialisation path only after `InvalidProcessHandle`. Base-runtime absence or missing initialisation is still surfaced as failure.
+`startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` may retry once only after `InvalidProcessHandle`, using the explicit engine initialisation path. Missing base runtime or a missing client session remains an exception and is not hidden by lazy repair.

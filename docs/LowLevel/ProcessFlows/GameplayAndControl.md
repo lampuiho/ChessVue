@@ -41,34 +41,26 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameView._handleCommittedMoveResult` |
 | --- |
 | `GamesStore.getGame` |
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
 
-| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._startAnalysisSnapshot` |
 | --- |
-| `EngineRuntimeService.syncPosition` |
-
-| `GamesStore._registerAnalysisSubscription` |
-| --- |
-| `EngineRuntimeService.subscribeToAnalysis` |
-
-| `GamesStore._startAnalysisSearch` |
-| --- |
+| `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `GamesStore._applyAnalysisUpdate` |
 
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore.getGame` |
-| `GamesStore.requestPlayerMove` |
+| `GamesStore._requestPlayerMove` |
 
 #### Flow B - Analysis-Only Move
 | `Chessboard.moveSubmitted` |
@@ -99,17 +91,17 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `GamesStore._applyAnalysisUpdate` |
 
 - State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit`, paused live states, paused live-analysis states, and `Checkmate` block live move progression.
-- Continuous analysis update loop: `GamesStore._syncAnalysisPosition` -> `EngineRuntimeService.syncPosition` -> `GamesStore._registerAnalysisSubscription` -> `EngineRuntimeService.subscribeToAnalysis` -> `GamesStore._startAnalysisSearch` -> `EngineRuntimeService.startAnalysis` -> `GameView._handleAnalysisRuntimeUpdate` -> `GamesStore._applyAnalysisUpdate` -> `AnalysisPanel` rerender for the affected engine row.
-- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer mutation sequence behind `syncPosition`, `subscribeToAnalysis`, `startAnalysis`, and streamed runtime updates.
+- Continuous analysis update loop: `GamesStore._refreshAnalysisForGame` -> `GamesStore._startAnalysisSnapshot` -> `GamesStore._subscribeToAnalysis` -> `EngineRuntimeService.ensureReady` -> `EngineRuntimeService.startAnalysis(engine, game, request)` -> client state-machine updates -> the subscribed snapshot callback -> `AnalysisPanel` rerender for the affected engine row.
+- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer state transitions behind analysis start, streamed updates, player turns, and pondering.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
 ### SCN-MOVE-02 - Illegal Move Attempt
@@ -168,28 +160,15 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 ### Live Non-Local Player Move Generation
 
 #### Flow A - Successful Player Engine Turn
-| `GameView._requestPlayerMoveIfNeeded` |
+| GamesStore._requestPlayerMoveIfNeeded |
 | --- |
-| GamesStore.getGame |
-| GamesStore.requestPlayerMove |
-| GamesStore.makeMove |
+| GamesStore._requestPlayerMove |
+| GamesStore._playerMoveHandler |
 
-| GamesStore.requestPlayerMove |
+| GamesStore._requestEngineMove |
 | --- |
-| GamesStore._syncPlayerTurnPosition |
-| GamesStore._startPlayerTurnSearch |
-| GamesStore._awaitPlayerTurnMove |
-
-| GamesStore._syncPlayerTurnPosition |
-| --- |
-| EngineRuntimeService.syncPosition |
-
-| GamesStore._startPlayerTurnSearch |
-| --- |
+| EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startPlayerTurn |
-
-| GamesStore._awaitPlayerTurnMove |
-| --- |
 | EngineRuntimeService.awaitPlayerTurnMove |
 
 | GamesStore.makeMove |
@@ -206,16 +185,12 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameView._openRuntimeErrorDialog` |
 
 #### Flow C - Player Turn Completes While Paused
-| `GamesStore._awaitPlayerTurnMove` |
+| `GamesStore._playerMoveHandler` |
 | --- |
-| `GamesStore._storeDeferredPlayerMove` |
-
-| `GamesStore._storeDeferredPlayerMove` |
-| --- |
-| `GamesStore._captureDeferredPlayerMoveContext` |
+| `game.$.deferredPlayerMove = move` |
 
 - Runtime distinction: analysis search keeps streaming updates over time, while a player-engine turn waits only for the final awaited move and then ends that turn-scoped search.
-- State gate: `GamesStore.requestPlayerMove` is valid only for `LiveWhiteTurn` or `LiveBlackTurn` with `resultState = ongoing` when the side to move is assigned to an active non-local player.
+- State gate: `GamesStore._requestPlayerMoveIfNeeded` arms a turn only for `LiveWhiteTurn` or `LiveBlackTurn` with `resultState = ongoing`, while the rendered path is the live path and no turn promise is already pending. Local and engine players use the same game-level deferred turn.
 - Guardrails: player-engine turn generation is blocked in non-live analysis, live analysis, board edit, paused live games, and `Checkmate`.
 - Paused completion rule: if an already-started player-engine turn resolves while the game is paused, the result is recorded as deferred output only. `GamesStore.makeMove(...)` is not called until pause clears back to a playable live state and the deferred result is revalidated against the live position before commit.
 - Completion rule: the player-engine turn completes only when `EngineRuntimeService.awaitPlayerTurnMove(...)` resolves with a valid move. The baseline defines no no-response timeout.
@@ -250,7 +225,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.refreshAnalysis` |
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 
 - State coverage: player reassignment is valid in live states, paused live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model.
 - Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate.
@@ -277,7 +252,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.getVisibleAnalysis` |
 
 - Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
-- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state and suppresses `GameView._requestPlayerMoveIfNeeded`; returning to the live node restores the matching live or paused live state. Paused live and paused live-analysis states block history navigation until resume.
+- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state, where `GamesStore._requestPlayerMoveIfNeeded` does not arm a live turn; returning to the live node restores the matching live or paused live state. Paused live and paused live-analysis states block history navigation until resume.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the same visible node.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
@@ -289,7 +264,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `TimeControlService.applyMove` |
 | `MoveHistoryService.addMainlineMove` |
 | `MoveHistoryService.rewriteMainline` |
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 
 | `GamesStore.makeMove` |
 | --- |
@@ -367,7 +342,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `MoveHistoryService.pruneFutureMoves` |
 | `TimeControlService.applyMove` |
 | `MoveHistoryService.addMainlineMove` |
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | `SavedGamesStore.saveGame` |
 
 | `GamesStore.makeMove` |
@@ -430,17 +405,15 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameControlPanel.resumeRequested` |
 | --- |
 | `GamesStore.resumeGame` |
-| `GameView._requestPlayerMoveIfNeeded` |
 
 | `GamesStore.resumeGame` |
 | --- |
 | `GamesStore._assertResumable` |
 | `GamesStore._resumeClock` |
 
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore.getGame` |
-| `GamesStore.requestPlayerMove` |
+| `GamesStore._requestPlayerMove` |
 
 - State coverage: manual and menu pause or resume are valid only for ongoing timed live-family states with an active clock. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state. `PauseReason.Analysis` may still pause untimed live play for in-game analysis entry.
 - Paused-surface rule: once paused, the game surface blocks history navigation, move entry, takeback, draw, resign, in-game-analysis entry, and board edit until resume, and those blocked store actions throw through the shared paused-state assertion boundary instead of silently returning.

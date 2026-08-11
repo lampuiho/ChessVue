@@ -92,20 +92,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
 
-| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._startAnalysisSnapshot` |
 | --- |
-| `EngineRuntimeService.syncPosition` |
-
-| `GamesStore._registerAnalysisSubscription` |
-| --- |
-| `EngineRuntimeService.subscribeToAnalysis` |
-
-| `GamesStore._startAnalysisSearch` |
-| --- |
+| `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
@@ -113,40 +106,26 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore._applyAnalysisUpdate` |
 
 #### Flow D - Request Engine Turn After Restore
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore.getGame` |
-| `GamesStore.requestPlayerMove` |
-| `GamesStore._handlePlayerTurnMove` |
+| `GamesStore._requestPlayerMove` |
+| `GamesStore._playerMoveHandler` |
 
-| `GamesStore.requestPlayerMove` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore._syncPlayerTurnPosition` |
-| `GamesStore._startPlayerTurnSearch` |
-| `GamesStore._awaitPlayerTurnMove` |
+| `GamesStore._requestPlayerMove` |
+| `GamesStore._playerMoveHandler` |
 
-| `GamesStore._syncPlayerTurnPosition` |
+| `GamesStore._requestEngineMove` |
 | --- |
-| `EngineRuntimeService.syncPosition` |
-
-| `GamesStore._startPlayerTurnSearch` |
-| --- |
+| `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startPlayerTurn` |
-
-| `GamesStore._awaitPlayerTurnMove` |
-| --- |
 | `EngineRuntimeService.awaitPlayerTurnMove` |
 
-| `GamesStore._handlePlayerTurnMove` |
+| `GamesStore._playerMoveHandler` |
 | --- |
-| `GamesStore.makeMove` |
-
-| `GamesStore.makeMove` |
-| --- |
-| `GamesStore._assertMoveAllowed` |
-| `GamesStore._resolveMoveContext` |
-| `GamesStore._applyMoveByContext` |
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._commitLiveMove` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 
 - State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. Because session restore depends on prior tabs being reopenable, accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`. When the restored route resolves to a game, `GameView.setup` lazily restores only the requested remembered `gameId` values from that session snapshot, asks `SavedGamesStore.restoreGames(...)` for the latest available managed save payload for each one, then feeds each payload into `GamesStore.insertGame(...)`. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
 - Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `SavedGamesStore.restoreGames(...)` owns restore lookup and document reads, while `GamesStore.insertGame(...)` rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
@@ -268,40 +247,28 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `GamesStore._applyAnalysisUpdate` |
 
 #### Flow C - Request The Opening Engine Turn
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore.getGame` |
-| `GamesStore.requestPlayerMove` |
-| `GamesStore._handlePlayerTurnMove` |
+| `GamesStore._requestPlayerMove` |
+| `GamesStore._playerMoveHandler` |
 
-| `GamesStore.requestPlayerMove` |
+| `GamesStore._requestEngineMove` |
 | --- |
-| `GamesStore._syncPlayerTurnPosition` |
-| `GamesStore._startPlayerTurnSearch` |
-| `GamesStore._awaitPlayerTurnMove` |
-
-| `GamesStore._handlePlayerTurnMove` |
-| --- |
-| `GamesStore.makeMove` |
-
-| `GamesStore.makeMove` |
-| --- |
-| `GamesStore._assertMoveAllowed` |
-| `GamesStore._resolveMoveContext` |
-| `GamesStore._applyMoveByContext` |
-| `GameView._requestPlayerMoveIfNeeded` |
+| `EngineRuntimeService.ensureReady` |
+| `EngineRuntimeService.startPlayerTurn` |
+| `EngineRuntimeService.awaitPlayerTurnMove` |
 
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
-- State/settings coverage: any request with both sides assigned becomes a live state, while any request with either side unassigned becomes a non-live analysis state. At the low-level request boundary, that unassigned state is encoded by omitting the relevant player-type or engine-id field. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GameView._requestPlayerMoveIfNeeded` is evaluated immediately after creation whenever the resulting live game starts on an active non-local side to move, including `PlayerType.Engine/PlayerType.Engine`.
+- State/settings coverage: any request with both sides assigned becomes a live state, while any request with either side unassigned becomes a non-live analysis state. At the low-level request boundary, that unassigned state is encoded by omitting the relevant player-type or engine-id field. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GamesStore._requestPlayerMoveIfNeeded` is evaluated immediately after creation for every playable live turn, including `PlayerType.Engine/PlayerType.Engine`.
 - Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, any partially or fully unassigned player request resolves into non-live analysis, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility

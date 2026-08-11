@@ -224,8 +224,12 @@ export function createAssignedEngine(): IAssignedEngine {
 }
 export function createEngineGame(): IGame {
   const game = createPersistedGame();
+  game.timeControl = { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 1000 };
+  game.clockSnapshot = TimeControlService.startClock(TimeControlService.initialiseClockSnapshot(game.timeControl), PlayerColour.Black, '2026-01-01T12:00:01.000Z');
   const move = GameRuleService.generateLegalMoves(game.rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
-  MoveHistoryService.addAnalysisMove(game.moveTree.root, move, GameRuleService.applyMove(game.rootPosition, move));
+  MoveHistoryService.addMainlineMove(game.moveTree.root, move, GameRuleService.applyMove(game.rootPosition, move), game.clockSnapshot);
+  game.gameState = GameState.LiveBlackTurn;
+  game.livePath = [0];
   game.highlightPath = [0];
   return game;
 }

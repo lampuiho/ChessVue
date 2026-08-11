@@ -160,20 +160,13 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._syncAnalysisPosition |
-| GamesStore._registerAnalysisSubscription |
-| GamesStore._startAnalysisSearch |
+| GamesStore._refreshAnalysisForGame |
+| GamesStore._startAnalysisSnapshot |
+| GamesStore._subscribeToAnalysis |
 
-| GamesStore._syncAnalysisPosition |
+| GamesStore._startAnalysisSnapshot |
 | --- |
-| EngineRuntimeService.syncPosition |
-
-| GamesStore._registerAnalysisSubscription |
-| --- |
-| EngineRuntimeService.subscribeToAnalysis |
-
-| GamesStore._startAnalysisSearch |
-| --- |
+| EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
@@ -181,40 +174,25 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | `GamesStore._applyAnalysisUpdate` |
 
 #### Flow D - Request An Engine Turn For The Loaded Workspace
-| `GameView._requestPlayerMoveIfNeeded` |
+| GamesStore._requestPlayerMoveIfNeeded |
 | --- |
-| GamesStore.getGame |
-| GamesStore.requestPlayerMove |
-| GamesStore._handlePlayerTurnMove |
+| GamesStore._requestPlayerMove |
+| GamesStore._playerMoveHandler |
 
-| GamesStore.requestPlayerMove |
+| GamesStore._requestPlayerMoveIfNeeded |
 | --- |
-| GamesStore._syncPlayerTurnPosition |
-| GamesStore._startPlayerTurnSearch |
-| GamesStore._awaitPlayerTurnMove |
+| GamesStore._requestPlayerMove |
+| GamesStore._playerMoveHandler |
 
-| GamesStore._syncPlayerTurnPosition |
+| GamesStore._requestEngineMove |
 | --- |
-| EngineRuntimeService.syncPosition |
-
-| GamesStore._startPlayerTurnSearch |
-| --- |
+| EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startPlayerTurn |
-
-| GamesStore._awaitPlayerTurnMove |
-| --- |
 | EngineRuntimeService.awaitPlayerTurnMove |
 
-| GamesStore._handlePlayerTurnMove |
+| GamesStore._playerMoveHandler |
 | --- |
-| GamesStore.makeMove |
-
-| GamesStore.makeMove |
-| --- |
-| GamesStore._assertMoveAllowed |
-| GamesStore._resolveMoveContext |
-| GamesStore._applyMoveByContext |
-| GameView._requestPlayerMoveIfNeeded |
+| GamesStore._commitLiveMove |
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
 - State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `gameSession.autoPauseOnMenu` controls the route-entry pause branch only. Any player-engine move that became ready on the previously active paused game during the load flow remains deferred until that game's paired resume path revalidates it.
@@ -290,37 +268,25 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._syncAnalysisPosition |
-| GamesStore._registerAnalysisSubscription |
-| GamesStore._startAnalysisSearch |
+| GamesStore._refreshAnalysisForGame |
+| GamesStore._startAnalysisSnapshot |
+| GamesStore._subscribeToAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
 | `GamesStore._applyAnalysisUpdate` |
 
 #### Flow C - Request An Engine Turn For The Imported Workspace
-| `GameView._requestPlayerMoveIfNeeded` |
+| GamesStore._requestPlayerMoveIfNeeded |
 | --- |
-| GamesStore.getGame |
-| GamesStore.requestPlayerMove |
-| GamesStore._handlePlayerTurnMove |
+| GamesStore._requestPlayerMove |
+| GamesStore._playerMoveHandler |
 
-| GamesStore.requestPlayerMove |
+| GamesStore._requestEngineMove |
 | --- |
-| GamesStore._syncPlayerTurnPosition |
-| GamesStore._startPlayerTurnSearch |
-| GamesStore._awaitPlayerTurnMove |
-
-| GamesStore._handlePlayerTurnMove |
-| --- |
-| GamesStore.makeMove |
-
-| GamesStore.makeMove |
-| --- |
-| GamesStore._assertMoveAllowed |
-| GamesStore._resolveMoveContext |
-| GamesStore._applyMoveByContext |
-| GameView._requestPlayerMoveIfNeeded |
+| EngineRuntimeService.ensureReady |
+| EngineRuntimeService.startPlayerTurn |
+| EngineRuntimeService.awaitPlayerTurnMove |
 
 - Requirement verification: `Pass`. External import stays separate from internal save browsing, `SavedGamesStore` owns picker selection and saved-document read, `GamesStore.insertGame(...)` repairs duplicate IDs before insertion, and the restored game state is visible before analysis or engine-turn restart begins.
 

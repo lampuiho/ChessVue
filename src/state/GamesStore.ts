@@ -374,7 +374,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     runtime.deferredPlayerMove = undefined;
     if (!isLiveTurnReadyForMove(game)) return;
     const liveNode = getLiveNode(game);
-    if (GameRuleService.isMoveLegal(liveNode.position, deferredPlayerMove)) _commitLiveMove(game, deferredPlayerMove);
+    const player = getSideToMovePlayer(game, deferredPlayerMove.movingColour);
+    if (GameRuleService.isMoveLegal(liveNode.position, deferredPlayerMove)) _commitLiveMove(game, deferredPlayerMove, isEnginePlayer(player) ? player.assignedEngine : undefined);
     else _requestPlayerMoveIfNeeded(game);
   }
   function _disposeAnalysisSubscription(engine: IAssignedEngine): void {
@@ -437,8 +438,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _resetAnalysisSnapshot(snapshot);
     if (snapshot.assignedEngine.$) snapshot.assignedEngine.$.lastError = undefined;
     await EngineRuntimeService.ensureReady(snapshot.assignedEngine);
-    await EngineRuntimeService.syncPosition(snapshot.assignedEngine, game);
-    await EngineRuntimeService.startAnalysis(snapshot.assignedEngine, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
+    await EngineRuntimeService.startAnalysis(snapshot.assignedEngine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
   }
   async function _refreshAnalysisForGame(game: IGame, engineIndex?: number): Promise<void> {
     const targetSnapshots = engineIndex === undefined ? game.analysis.snapshots : [game.analysis.snapshots[engineIndex]!].filter((snapshot) => !!snapshot);
@@ -485,7 +485,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   function _finaliseAnalysisMove(game: IGame, parentNode: IMoveNode, nextMove: IMove): IMoveNode {
     return _finaliseMove(game, parentNode, nextMove, undefined, true);
   }
-  function _commitLiveMove(game: IGame, move: IMove) {
+  function _commitLiveMove(game: IGame, move: IMove, ponderEngine?: IAssignedEngine) {
     const baseClockSnapshot = game.clockSnapshot;
     const nextClockSnapshot = TimeControlService.applyMove(baseClockSnapshot, move.movingColour, getNowUtc(), game.timeControl);
 
@@ -494,6 +494,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _finaliseMove(game, parentNode, move, nextClockSnapshot);
     _clearPlayerTurnRuntime(game);
     _refreshRuntimeRegistrations(game);
+    _startPonderingIfAvailable(game, ponderEngine, move.$?.ponderMove);
     _refreshAnalysisForGame(game);
     _requestPlayerMoveIfNeeded(game);
   }
@@ -551,15 +552,18 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return isPathPrefix(game.highlightPath, game.livePath);
   }
   //#endregion
+  function _startPonderingIfAvailable(game: IGame, engine: IAssignedEngine | undefined, ponderMove: IMove | undefined): void {
+    if (!engine || !ponderMove || game.resultState !== ResultState.Ongoing || game.livePath === undefined) return;
+    void EngineRuntimeService.startPondering(engine, game, ponderMove).catch((error) => logHandledError('GameStore', 'startPondering', error));
+  }
   function _requestPlayerMove(game: IGame) {
     async function _requestEngineMove(game: IGame, engine: IAssignedEngine): Promise<IMove> {
       await EngineRuntimeService.ensureReady(engine);
-      await EngineRuntimeService.syncPosition(engine, game);
-      await EngineRuntimeService.startPlayerTurn(engine);
+      await EngineRuntimeService.startPlayerTurn(engine, game);
       const move = await EngineRuntimeService.awaitPlayerTurnMove(engine);
       return move;
     }
-    async function _playerMoveHandler(game: IGame, pendingPlayerMove: Promise<IMove>) {
+    async function _playerMoveHandler(game: IGame, pendingPlayerMove: Promise<IMove>, engine?: IAssignedEngine) {
       let move: IMove;
       try {
         move = await pendingPlayerMove;
@@ -575,7 +579,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
         runtime.pendingPlayerTurnHandlePromise = undefined;
       }
       if (isPausedState(game.gameState)) runtime.deferredPlayerMove = move;
-      else _commitLiveMove(game, move);
+      else _commitLiveMove(game, move, engine);
     }
     const liveNode = getLiveNode(game);
     const player = getSideToMovePlayer(game, liveNode.position.sideToMove);
@@ -584,7 +588,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       ? new Deferred<IMove>(_requestEngineMove(game, player.assignedEngine))
       : new Deferred<IMove>();
     runtime.pendingPlayerTurnPromise = pendingPlayerMove;
-    runtime.pendingPlayerTurnHandlePromise = _playerMoveHandler(game, pendingPlayerMove);
+    runtime.pendingPlayerTurnHandlePromise = _playerMoveHandler(game, pendingPlayerMove, isEnginePlayer(player) ? player.assignedEngine : undefined);
   }
   function _requestPlayerMoveIfNeeded(game: IGame) {
     if (!_isOngoingLiveGame(game) || !isLiveState(game.gameState) || !pathsEqual(game.highlightPath, game.livePath)) return;

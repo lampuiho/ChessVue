@@ -6,10 +6,10 @@ Own the layer-2 game-facing engine runtime boundary consumed by `GamesStore` for
 ## Public Interface
 ```ts
 ensureReady(engine: IAssignedEngine): Promise<void>
-syncPosition(engine: IAssignedEngine, game: IGame): Promise<void>
-startAnalysis(engine: IAssignedEngine, request: IEngineAnalysisRequest): Promise<void>
+startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
-startPlayerTurn(engine: IAssignedEngine): Promise<void>
+startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void>
+startPondering(engine: IAssignedEngine, game: IGame, ponderMove: IMove): Promise<void>
 subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void
 awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>
 isRuntimeAlive(engine: IAssignedEngine): boolean
@@ -50,16 +50,17 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - `EngineRuntimeService` owns only the mutable service state named in the runtime process-flow doc: base runtime creation, `processHandle`, `availability`, `lastError`, and analysis-callback registration and teardown.
 - Base runtime existence is a precondition, not a lazy recovery path, for runtime actions that require it. If that precondition is violated, the service should assert and surface the failure rather than silently creating missing runtime state mid-flow.
 - `ensureReady(...)` is the only runtime path that may spawn a missing engine process. Other runtime actions must first assert that a live process already exists.
-- `syncPosition(...)`, `startAnalysis(...)`, and `startPlayerTurn(...)` may retry once through `ensureReady(...)` only when the stored process handle proves stale with `invalidProcessHandle`. They do not hide missing-initialisation failures.
+- `startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` may retry once through the explicit initialisation path only when the stored process handle proves stale with `invalidProcessHandle`. They do not hide missing base-runtime or session-initialisation failures.
 - `EngineClient` owns UCI mapping, engine-facing FEN, engine-output interpretation, protocol sequencing, and client-private runtime state behind this service.
-- Streamed analysis is surfaced through the shared runtime state on `engine.$`. `EngineRuntimeService` coordinates when that lower-layer analysis path is started, stopped, or subscribed to, but it is not the owner of client-private state such as `session`, current synced position, or pending player-turn state.
+- Streamed analysis is surfaced through the shared runtime state on `engine.$`. `EngineRuntimeService` coordinates when that lower-layer analysis path is started, stopped, or subscribed to, but it is not the owner of client-private state such as `session`, current search position, expected ponder move, or pending player-turn state.
 - `isRuntimeAlive(...)` is the only public runtime-health polling surface. Detailed runtime state stays internal on `engine.$`.
 - If the stored `processHandle` is present but no longer valid, `EngineRuntimeService` surfaces that failure through the attempted runtime operation rather than handling it through background callbacks.
 - `startPlayerTurn` has no response timeout in the baseline. If the process stays alive but does not produce a valid move, the turn remains pending until a valid move arrives or the session exits unexpectedly.
+- `startPondering(...)` keeps runtime availability ready because pondering is speculative; the concrete client owns the later ponder-hit or ponder-miss transition when `startPlayerTurn(...)` is requested.
 - Player-turn completion is exposed as `awaitPlayerTurnMove(...)`, even if the implementation uses internal callbacks to resolve that promise.
 - Session health checks use `isRuntimeAlive(...)` polling rather than a public session-event callback contract.
 - Unexpected process exit is observed when the next attempted runtime operation checks or uses the stored process handle. Recovery stays manual through the owning retry flows.
-- Analysis parse failures discard only the bad protocol message and keep the session alive. Player-turn parse failures and other runtime exceptions are surfaced to the owning standard error-handling path.
+- Unrecognised ancillary output is ignored. Positively identified control output that is invalid for the current client state, player-turn parse failures, and other runtime exceptions are surfaced to the owning standard error-handling path.
 - The default runtime design here is explicit object-attached state on `engine.$`. It does not use hidden side tables.
 - Suggested owner-private mutation steps use mutation-obvious names such as `_assertBaseRuntime`, `_ensureProcessHandleOpen`, `_setAvailabilityStarting`, `_setAvailabilityReady`, `_setAvailabilityRunning`, `_setAvailabilityFailed`, `_clearLastError`, `_setLastError`, `_registerAnalysisCallback`, `_unregisterAnalysisCallback`, and `_clearAnalysisState`.
 - The runtime ownership breakdown and state-mutation order are defined in [../../ProcessFlows/EngineRuntimeOwnership.md](../../ProcessFlows/EngineRuntimeOwnership.md).

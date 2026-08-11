@@ -42,20 +42,13 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
 
-| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._startAnalysisSnapshot` |
 | --- |
-| `EngineRuntimeService.syncPosition` |
-
-| `GamesStore._registerAnalysisSubscription` |
-| --- |
-| `EngineRuntimeService.subscribeToAnalysis` |
-
-| `GamesStore._startAnalysisSearch` |
-| --- |
+| `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
@@ -119,20 +112,13 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
 
-| `GamesStore._syncAnalysisPosition` |
+| `GamesStore._startAnalysisSnapshot` |
 | --- |
-| `EngineRuntimeService.syncPosition` |
-
-| `GamesStore._registerAnalysisSubscription` |
-| --- |
-| `EngineRuntimeService.subscribeToAnalysis` |
-
-| `GamesStore._startAnalysisSearch` |
-| --- |
+| `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
@@ -154,7 +140,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore.startGameFromSetup` |
 | `GameView._refreshRuntimeAfterSetupStart` |
 | `GamesStore.refreshAnalysis` |
-| `GameView._requestPlayerMoveIfNeeded` |
+| `GamesStore._requestPlayerMoveIfNeeded` |
 | `UiStateStore.hideModal` |
 
 | `UiStateStore.showModal` |
@@ -171,9 +157,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._syncAnalysisPosition` |
-| `GamesStore._registerAnalysisSubscription` |
-| `GamesStore._startAnalysisSearch` |
+| `GamesStore._refreshAnalysisForGame` |
+| `GamesStore._startAnalysisSnapshot` |
+| `GamesStore._subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
@@ -196,20 +182,13 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._syncAnalysisPosition |
-| GamesStore._registerAnalysisSubscription |
-| GamesStore._startAnalysisSearch |
+| GamesStore._refreshAnalysisForGame |
+| GamesStore._startAnalysisSnapshot |
+| GamesStore._subscribeToAnalysis |
 
-| GamesStore._syncAnalysisPosition |
+| GamesStore._startAnalysisSnapshot |
 | --- |
-| EngineRuntimeService.syncPosition |
-
-| GamesStore._registerAnalysisSubscription |
-| --- |
-| EngineRuntimeService.subscribeToAnalysis |
-
-| GamesStore._startAnalysisSearch |
-| --- |
+| EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
@@ -221,7 +200,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 - UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in non-live analysis states, and in live or live-analysis states only when that game's `gameplayOptions.showLiveAnalysisMoves = true`.
 - State gate: `GamesStore.refreshAnalysis` accepts live states, paused live states, live-analysis states, and non-live analysis states. It is blocked while `gameState = GameState.BoardEdit`. Paused live play keeps move-target selection blocked, but analysis refresh remains allowed because it is not treated as gameplay input.
-- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit lower-layer mutation sequence behind `syncPosition`, analysis subscription registration, analysis search start, and malformed-analysis handling.
+- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit lower-layer state transitions behind analysis subscription registration, purpose-level analysis start, streamed updates, and malformed output handling.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready callbacks, and position supersession are owned by the engine runtime boundary rather than the view.
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
@@ -262,21 +241,13 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | GamesStore.retryAnalysis |
 | --- |
-| GamesStore._restartSingleAnalysisSession |
-| GamesStore._syncAnalysisPosition |
-| GamesStore._registerAnalysisSubscription |
-| GamesStore._startAnalysisSearch |
+| GamesStore._refreshAnalysisForGame |
+| GamesStore._startAnalysisSnapshot |
+| GamesStore._subscribeToAnalysis |
 
-| GamesStore._syncAnalysisPosition |
+| GamesStore._startAnalysisSnapshot |
 | --- |
-| EngineRuntimeService.syncPosition |
-
-| GamesStore._registerAnalysisSubscription |
-| --- |
-| EngineRuntimeService.subscribeToAnalysis |
-
-| GamesStore._startAnalysisSearch |
-| --- |
+| EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |

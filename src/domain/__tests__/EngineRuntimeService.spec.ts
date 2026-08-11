@@ -9,6 +9,7 @@ import {
   PlayerColour,
   type IAssignedEngine,
   type IEngineAnalysisRequest,
+  type IGame,
   type IMove,
 } from '@/contracts';
 
@@ -19,10 +20,10 @@ const stopProcess = vi.fn();
 const restartProcess = vi.fn();
 const initialiseEngine = vi.fn();
 const getOptions = vi.fn();
-const syncPosition = vi.fn();
 const startAnalysis = vi.fn();
 const stopAnalysis = vi.fn();
 const startPlayerTurn = vi.fn();
+const startPondering = vi.fn();
 const awaitPlayerTurnMove = vi.fn();
 const stopEngine = vi.fn();
 
@@ -61,10 +62,10 @@ describe('EngineRuntimeService', () => {
     restartProcess.mockReset();
     initialiseEngine.mockReset();
     getOptions.mockReset();
-    syncPosition.mockReset();
     startAnalysis.mockReset();
     stopAnalysis.mockReset();
     startPlayerTurn.mockReset();
+    startPondering.mockReset();
     awaitPlayerTurnMove.mockReset();
     stopEngine.mockReset();
     spawnProcess.mockResolvedValue('process-1');
@@ -81,10 +82,10 @@ describe('EngineRuntimeService', () => {
         getEngineClient: () => ({
           getOptions,
           initialiseEngine,
-          syncPosition,
           startAnalysis,
           stopAnalysis,
           startPlayerTurn,
+          startPondering,
           awaitPlayerTurnMove,
           stopEngine,
           restartEngine: vi.fn(),
@@ -107,19 +108,34 @@ describe('EngineRuntimeService', () => {
 
   it('starts analysis with the subscribed callback from the mocked engine client', async () => {
     const engine = createAssignedEngine();
+    const game = {} as IGame;
     const onUpdate = vi.fn();
     const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, onUpdate);
     engine.$!.processHandle = 'process-1';
     assertProcessHandleOpen.mockReturnValue(undefined);
 
-    await EngineRuntimeService.startAnalysis(engine, createAnalysisRequest());
+    await EngineRuntimeService.startAnalysis(engine, game, createAnalysisRequest());
 
     expect(startAnalysis).toHaveBeenCalledTimes(1);
     expect(startAnalysis.mock.calls[0]?.[0]).toBe(engine);
-    expect(startAnalysis.mock.calls[0]?.[1]).toEqual(createAnalysisRequest());
-    expect(startAnalysis.mock.calls[0]?.[2]).toBe(onUpdate);
+    expect(startAnalysis.mock.calls[0]?.[1]).toBe(game);
+    expect(startAnalysis.mock.calls[0]?.[2]).toEqual(createAnalysisRequest());
+    expect(startAnalysis.mock.calls[0]?.[3]).toBe(onUpdate);
     unsubscribe();
     expect(engine.$?.analysisCallback).toBeUndefined();
+  });
+
+  it('starts pondering with the canonical game and expected move', async () => {
+    const engine = createAssignedEngine();
+    const game = {} as IGame;
+    const move = createMove();
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+
+    await EngineRuntimeService.startPondering(engine, game, move);
+
+    expect(startPondering).toHaveBeenCalledWith(engine, game, move);
+    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
   });
 
   it('stops the engine and clears runtime state through the mocked platform services', async () => {

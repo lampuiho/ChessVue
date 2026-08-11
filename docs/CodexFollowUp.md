@@ -23,11 +23,15 @@
 - Added protocol-neutral `IEngineOptionMeta` and UCI option-line parsing for action, boolean, choice, integer, and text options.
 - Added `IEngineClient.getOptions(...)` backed by option metadata collected during the UCI initialisation handshake.
 - Added UCI command builders for `debug`, `isready`, `position`, `quit`, `register later`, `setoption`, `stop`, `uci`, and `ucinewgame`.
-- Changed position synchronisation to pass the canonical `IGame` through `EngineRuntimeService` and `IEngineClient`, with `UciUtility.buildPositionCommand(...)` deriving the root FEN and highlighted move path directly.
+- Removed the separate position-synchronisation API. Purpose-level analysis, player-turn, and ponder calls now receive the canonical `IGame`, with `UciUtility` deriving the required highlighted or live move path directly.
 - Removed the redundant `IEnginePositionState` contract and public new-game-boundary query; the concrete client now owns that protocol decision privately.
 - Updated `buildUciMove(...)` to reuse `IMove.$.uci` when present and populate that runtime cache lazily when absent.
 - Added purpose-level UCI command builders for continuous analysis, finding the next timed move, and starting a ponder search.
 - Extended `parseBestMoveLine(...)` to retain an optional engine-suggested reply under runtime-only `IMove.$.ponderMove`.
+- Reworked `NwjsUciEngineClient` around explicit handshake, ready, analysis, player-turn, ponder, stopping, stopped, and failed session states instead of routing lines by whichever output parser accepted them.
+- Integrated the purpose-level builders and updated move/info parsers through `IEngineClient`, `EngineRuntimeService`, and `GamesStore`.
+- Added ponder-hit handling and ponder-miss recovery that consumes the stopped speculative search's terminal `bestmove` before starting a fresh player search.
+- Added direct runtime, store, and NW.js client coverage for canonical-game forwarding, ponder metadata preservation, and analysis/player/ponder state transitions.
 
 ## Still Pending
 - Finish the items still open in `docs/StuffChangedAndNeedChanging.md`.
@@ -35,10 +39,11 @@
 - Revisit the remaining process-flow docs that still describe the old private player-move flow.
 - Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.
 - Add `position startpos` support so games rooted at the standard initial position do not emit the full starting FEN.
-- Complete the deferred client integration for the purpose-level command builders and updated `parseBestMoveLine(...)` and `parseInfoLine(...)` boundaries, including ponder-hit or ponder-miss orchestration and use of `IAnalysisLine.$.reference` for MultiPV line identity.
 - Run the wider regression suite outside `GamesStore.spec.ts` after the next batch of tracker items lands.
 
 ## Verification
+- Current UCI state-machine pass: automated tests and type checking were not run because this environment does not expose a Node executable or package-manager commands.
+- Previously completed regression runs:
 - `npx vitest run src/domain/__tests__/GameRuleService.spec.ts src/domain/__tests__/MoveUpdateService.spec.ts src/domain/__tests__/SerializationService.spec.ts`
 - Result: `18` tests passed.
 - `npx vitest run src/state/__tests__/GamesStore.spec.ts`

@@ -56,10 +56,7 @@ const domain = {
       engine.$.availability = EngineAvailability.Ready;
       await randomDelay();
     }),
-    syncPosition: vi.fn(async (_engine: IAssignedEngine, _game: IGame) => {
-      await randomDelay();
-    }),
-    startAnalysis: vi.fn(async (engine: IAssignedEngine, request: { multiPv: number; searchMode: EngineAnalysisSearchMode }) => {
+    startAnalysis: vi.fn(async (engine: IAssignedEngine, _game: IGame, request: { multiPv: number; searchMode: EngineAnalysisSearchMode }) => {
       engine.$ = engine.$ ?? { availability: EngineAvailability.Unavailable, analysisLines: new Map() };
       engine.$.availability = EngineAvailability.Running;
       engine.$.lastError = request.searchMode;
@@ -76,8 +73,12 @@ const domain = {
         unsubscribeMock();
       };
     }),
-    startPlayerTurn: vi.fn(async (engine: IAssignedEngine) => {
+    startPlayerTurn: vi.fn(async (engine: IAssignedEngine, _game: IGame) => {
       if (engine.$) engine.$.availability = EngineAvailability.Running;
+      await randomDelay();
+    }),
+    startPondering: vi.fn(async (engine: IAssignedEngine, _game: IGame, _ponderMove: IMove) => {
+      if (engine.$) engine.$.availability = EngineAvailability.Ready;
       await randomDelay();
     }),
     awaitPlayerTurnMove: vi.fn(async (engine: IAssignedEngine) => {
@@ -105,6 +106,7 @@ const domain = {
     decorateMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => ({
       ...structuredClone(move),
       $: {
+        ...move.$,
         san: `${move.from}-${move.to}`,
         uci: `${move.from}-${move.to}`,
       },
@@ -459,7 +461,9 @@ describe('useGamesStore', () => {
 
   it('supports engine player turns, draw resolution, reassignment, and resignation', async () => {
     const store = useGamesStore();
+    const ponderMove = createMove(PlayerColour.Black, 52, 36);
     nextPlayerMove = createMove(PlayerColour.White);
+    nextPlayerMove.$!.ponderMove = ponderMove;
     const engineGame = await store.createGame({
       name: 'Engine Turn',
       whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
@@ -472,6 +476,7 @@ describe('useGamesStore', () => {
     await engineGame.$?.pendingPlayerTurnHandlePromise;
     expect(engineGame.livePath).toEqual([0]);
     expect(engineGame.gameState).toBe(GameState.LiveBlackTurn);
+    expect(domain.EngineRuntimeService.startPondering).toHaveBeenCalledWith((engineGame.whitePlayer as IEnginePlayer).assignedEngine, engineGame, ponderMove);
 
     await store.offerDraw(engineGame);
     void engineGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);

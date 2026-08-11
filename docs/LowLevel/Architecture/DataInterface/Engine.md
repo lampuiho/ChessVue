@@ -133,10 +133,10 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - Omitted `processHandle`, `lastError`, and `bestMove` fields mean those values are currently unavailable or intentionally not supplied.
 - Concrete `EngineClient` implementations may refine `IAssignedEngine.$` through inherited runtime interfaces when they need client-private protocol-session state.
 - Those refinements remain private to the owning concrete client implementation. Higher layers depend only on the shared minimum runtime fields plus the documented service and client APIs.
-- Client-private runtime fields such as a concrete UCI session object, current synced position, attached listener references, or pending player-move state are valid concrete `EngineClient` refinements and are not part of the shared contract.
+- Client-private runtime fields such as a concrete UCI session object, session state, current search position, expected ponder move, attached listener references, or pending player-move state are valid concrete `EngineClient` refinements and are not part of the shared contract.
 - `EngineRuntimeService` relies on the shared minimum runtime fields only. It does not need to refine `IAssignedEngine.$` for its documented ownership.
 - The baseline runtime design uses explicit object-attached fields for shared runtime state and explicit object-attached fields for client-private runtime state. It does not rely on hidden side tables.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
-- Position sync receives the canonical `IGame`. The concrete engine client derives the root position, highlighted move path, current position, and protocol-specific new-game boundary internally without an intermediate projection contract.
+- Purpose-level analysis, player-turn, and ponder calls receive the canonical `IGame`. The concrete engine client derives the required highlighted or live path, current position, and protocol-specific new-game boundary internally without an intermediate projection contract.
 - `IEngineAnalysisUpdate` is an app-facing streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes.
 - `executablePath` and `options` are user-managed profile values and are not strictly validated at settings-edit time beyond being storable in the profile record.
