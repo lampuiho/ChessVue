@@ -19,6 +19,7 @@ export const moveNodeKinds = [MoveNodeKind.Live, MoveNodeKind.Analysis] as const
 export type MovePath = number[]
 
 export interface IMoveMeta {
+  ponderMove?: IMove
   san?: string
   uci?: string
 }

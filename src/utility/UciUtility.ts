@@ -7,6 +7,9 @@ export function boardIdToNotation(boardId: number): string {
   const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
   return `${fileNames[boardId % 8]}${Math.floor(boardId / 8) + 1}`;
 }
+export function buildAnalysisCommands(game: IGame): string[] {
+  return [buildPositionCommand(game), 'go infinite'];
+}
 export function buildDebugCommand(enabled: boolean): string {
   return `debug ${enabled ? 'on' : 'off'}`;
 }
@@ -16,17 +19,20 @@ export function buildFen(position: IBoardPosition): string {
   const sideToMove = position.sideToMove === PlayerColour.White ? 'w' : 'b';
   return `${_buildFenBoard(position)} ${sideToMove} ${castling} ${enPassant} ${position.halfMoveClock} ${position.fullMoveNumber}`;
 }
+export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMove): string[] {
+  const liveMoves = _getLiveMoves(game);
+  if (expectedPonderMove !== undefined) return _movesMatch(liveMoves.at(-1), expectedPonderMove) ? ['ponderhit'] : ['stop'];
+  return [_buildPositionCommand(game.rootPosition, liveMoves), _buildTimedGoCommand(game)];
+}
 export function buildIsReadyCommand(): string {
   return 'isready';
 }
-export function buildPonderHitCommand(): string {
-  return 'ponderhit';
+export function buildPonderMoveCommands(game: IGame, ponderMove: IMove): string[] {
+  return [_buildPositionCommand(game.rootPosition, [..._getLiveMoves(game), ponderMove]), _buildTimedGoCommand(game, true)];
 }
 /** Builds the UCI position command from the game root and highlighted move-tree path. */
 export function buildPositionCommand(game: IGame): string {
-  const moves = _getMovesFromHighlightedPath(game).map((move) => buildUciMove(move));
-  if (moves.length === 0) return `position fen ${buildFen(game.rootPosition)}`;
-  return `position fen ${buildFen(game.rootPosition)} moves ${moves.join(' ')}`;
+  return _buildPositionCommand(game.rootPosition, _getMovesFromPath(game, game.highlightPath));
 }
 export function buildQuitCommand(): string {
   return 'quit';
@@ -59,7 +65,12 @@ export function buildUciNewGameCommand(): string {
 export function parseBestMoveLine(line: string, colour: PlayerColour, enPassantTarget?: BoardId): IMove | undefined {
   const tokens = line.trim().split(/\s+/);
   if (tokens[0] !== 'bestmove' || !tokens[1] || tokens[1] === '(none)') return;
-  return parseUciMove(tokens[1], colour, enPassantTarget);
+  const move = parseUciMove(tokens[1], colour, enPassantTarget);
+  if (tokens[2] === undefined) return move;
+  if (tokens[2] !== 'ponder' || !tokens[3]) throw new Error(`Invalid UCI bestmove line: ${line}.`);
+  const ponderColour = colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
+  move.$!.ponderMove = parseUciMove(tokens[3], ponderColour, _getNextEnPassantTarget(move));
+  return move;
 }
 export function parseInfoLine(line: string, colour: PlayerColour, enPassantTarget?: BoardId): IAnalysisLine | undefined {
   const tokens = line.trim().split(/\s+/);
@@ -131,14 +142,33 @@ function _buildFenBoard(position: IBoardPosition): string {
   }
   return ranks.join('/');
 }
+function _buildPositionCommand(rootPosition: IBoardPosition, moves: readonly IMove[]): string {
+  const position = `position fen ${buildFen(rootPosition)}`;
+  if (moves.length === 0) return position;
+  return `${position} moves ${moves.map((move) => buildUciMove(move)).join(' ')}`;
+}
+function _buildTimedGoCommand(game: IGame, ponder: boolean = false): string {
+  const whiteTime = game.clockSnapshot.white.remainingMs;
+  const blackTime = game.clockSnapshot.black.remainingMs;
+  if (whiteTime === undefined || blackTime === undefined) throw new Error(`Timed engine search requires both clocks for game ${game.metadata.id}.`);
+  const tokens = ['go'];
+  if (ponder) tokens.push('ponder');
+  tokens.push('wtime', whiteTime.toString(), 'btime', blackTime.toString());
+  if (game.timeControl.incrementMs > 0) tokens.push('winc', game.timeControl.incrementMs.toString(), 'binc', game.timeControl.incrementMs.toString());
+  return tokens.join(' ');
+}
 function _findTokenValue(tokens: string[], label: string): string | undefined {
   const index = tokens.indexOf(label);
   return index < 0 || index + 1 >= tokens.length ? undefined : tokens[index + 1]!;
 }
-function _getMovesFromHighlightedPath(game: IGame): IMove[] {
+function _getLiveMoves(game: IGame): IMove[] {
+  if (game.livePath === undefined) throw new Error(`Live move path is unavailable for game ${game.metadata.id}.`);
+  return _getMovesFromPath(game, game.livePath);
+}
+function _getMovesFromPath(game: IGame, path: readonly number[]): IMove[] {
   const moves: IMove[] = [];
   let node = game.moveTree.root;
-  for (const childIndex of game.highlightPath) {
+  for (const childIndex of path) {
     const child = node.children[childIndex];
     if (!child?.move) throw new Error(`Highlighted move path is invalid for game ${game.metadata.id}.`);
     moves.push(child.move);
@@ -176,6 +206,9 @@ function _isEnPassantMove(from: BoardId, to: BoardId, colour: PlayerColour, enPa
   const fromCoords = boardIdToCoords(from);
   const toCoords = boardIdToCoords(to);
   return Math.abs(toCoords.file - fromCoords.file) === 1 && toCoords.rank - fromCoords.rank === getForwardDirection(colour);
+}
+function _movesMatch(left: IMove | undefined, right: IMove): boolean {
+  return left !== undefined && buildUciMove(left) === buildUciMove(right);
 }
 function _parseBoardId(notation: string): BoardId {
   const file = notation.charCodeAt(0) - 'a'.charCodeAt(0);

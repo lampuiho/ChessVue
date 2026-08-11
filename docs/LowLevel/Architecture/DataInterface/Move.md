@@ -35,6 +35,7 @@ interface IMove {
   movingColour: PlayerColour
   promotionPiece?: PieceKind
   $?: {
+    ponderMove?: IMove
     san?: string
     uci?: string
   }
@@ -75,7 +76,7 @@ interface IMoveTree {
 - Omitted `move`, `clockSnapshot`, `mainlineChildIndex`, or `promotionPiece` fields mean that value is not applicable for the current node or move.
 - `clockSnapshot` is stored on the root node and on live nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may omit it.
 - `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
-- `IMove` stays structural. SAN and UCI are runtime-only metadata and are not part of the canonical persisted shape.
+- `IMove` stays structural. SAN, UCI, and an engine-suggested ponder reply are runtime-only metadata and are not part of the canonical persisted shape.
 - `IMoveNode.kind` only distinguishes committed live nodes from analysis-only nodes. Alternative live continuations remain `live` nodes; `mainlineChildIndex` decides which continuation is currently authoritative.
 - `IMoveNode.$` is runtime-only. Hydration rebuilds `$.parent`, `$.isHighlighted`, and any later runtime helpers, and persistence strips all `$` data.
 - `MovePath` is the persisted selector used by workspace state to point to one node by traversal from the root.
