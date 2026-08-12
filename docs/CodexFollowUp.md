@@ -33,6 +33,7 @@
 - Added ponder-hit handling and ponder-miss recovery that consumes the stopped speculative search's terminal `bestmove` before starting a fresh player search.
 - Added direct runtime, store, and NW.js client coverage for canonical-game forwarding, ponder metadata preservation, and analysis/player/ponder state transitions.
 - Added `position startpos` output for standard initial roots, backed by runtime-only `IBoardPosition.$.isStandardInitialPosition` verification caching.
+- Added guarded board-edit APIs for toggling or deleting one chess piece, clearing the board, and resetting to the canonical start position, with first-edit root promotion, in-place later edits, and exact start-position cache handling.
 
 ## Still Pending
 - Finish the items still open in `docs/StuffChangedAndNeedChanging.md`.

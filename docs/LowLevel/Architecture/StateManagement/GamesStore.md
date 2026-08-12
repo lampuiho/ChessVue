@@ -32,6 +32,11 @@ stopAnalysis(game: IGame, engineIndex?: number): Promise<void>
 enterInGameAnalysis(game: IGame): Promise<void>
 exitInGameAnalysis(game: IGame): void
 enterBoardEdit(game: IGame): void
+toggleChessPiece(game: IGame, boardId: BoardId, piece: IChessPiece): void
+deleteChessPiece(game: IGame, boardId: BoardId): void
+clearBoard(game: IGame): void
+resetBoardToStartPosition(game: IGame): void
+applyBoardEdit(game: IGame, boardRoot: IBoardPosition): void
 resignGame(game: IGame, colour: PlayerColour): Promise<void>
 offerDraw(game: IGame): Promise<void>
 acceptDrawOffer(game: IGame): Promise<void>
@@ -89,6 +94,10 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - If an analysis search resolves while the game is paused, `GamesStore` may still persist the latest valid snapshot for read-only display, but it must not treat that completion as permission to unlock interaction or mutate live game state.
 - `enterBoardEdit` is the public toggle for the direct-edit session. Entering board edit from non-live analysis stops analysis first, while calling the same action again leaves `BoardEdit` and restores ordinary non-live analysis so analysis refresh may resume.
 - While `gameState = BoardEdit`, board interactions apply direct board edits immediately. The first actual board edit clears prior move history and promotes the edited board to the new root; later board edits in the same session continue mutating that root without a separate confirm action.
+- `toggleChessPiece(...)` replaces a different existing piece, removes an equal kind-and-colour piece, or adds the supplied piece to an empty square. `deleteChessPiece(...)` removes a piece when present, and `clearBoard(...)` empties all occupied squares. All three assert `BoardEdit` before validating or mutating input.
+- `resetBoardToStartPosition(...)` asserts `BoardEdit`, creates the canonical initial position through `GameRuleService`, and replaces the edited root immediately while preserving its known start-position runtime metadata.
+- Piece manipulation targets the currently rendered position. The first effective mutation promotes that position to the root and clears history; later mutations update the same root and board array in place. Each effective square mutation invalidates `IBoardPosition.$.isStandardInitialPosition` at the mutation point.
+- `applyBoardEdit(...)` remains the full-position replacement boundary and does not manipulate pieces or alter runtime metadata on the supplied position.
 - After `addMainlineMove` or `addAnalysisMove`, the store derives the new child lineage from the selected parent plus the appended child index, then reacquires the hydrated node from the returned tree before committing game selection.
 - After `takeBack`, `rewriteMainline`, or latest-node analysis cleanup through `pruneFutureMoves`, the store derives the surviving live and highlighted lineage from the pre-mutation selected node and the documented coercion rules, then reacquires the corresponding hydrated nodes from the returned tree.
 

@@ -38,6 +38,6 @@ interface IBoardPositionRuntime {
 - `SerializationService` persists `IBoardPosition` inside `IGame`.
 - `GamesStore` keys persisted analysis snapshots by derived structural position identity, not stored FEN.
 - `$.isStandardInitialPosition` is a runtime-only cache. `undefined` means unverified, while `true` and `false` cache the completed verification used by engine position builders. `GameRuleService.createInitialBoardPosition(...)` marks the known standard root immediately.
-- Normal move application returns a new position and does not inherit this cache. Until a dedicated board-position mutation API exists, full replacement positions retain their supplied runtime state and unknown roots are verified lazily by the UCI command builder.
+- Normal move application returns a new position and does not inherit this cache. `GamesStore.toggleChessPiece(...)`, `deleteChessPiece(...)`, and `clearBoard(...)` invalidate it at their effective mutation points. Full replacement positions retain their supplied runtime state, and unknown roots are verified lazily by the UCI command builder.
 - `board` is always a `64`-entry array indexed directly by `BoardId`.
 - An omitted `enPassantTarget` means no en-passant capture is currently available.

@@ -502,12 +502,14 @@ Each scenario in this document uses the same structure:
   - `BR-FREE-ANALYSIS-02-ENGINE-REFRESH-FAIL`: If engines cannot refresh on the edited position, keep the edited board and show evaluation as unavailable.
 - **Postconditions**: The edited position becomes the current free-analysis root through direct board edits, old move history is removed on the first edit, and analysis resumes after board editing ends.
 - **Implementation Touchpoints**:
-  - `UiStateStore.showModal`
-  - `UiStateStore.hideModal`
-  - `MoveHistoryService.createMoveTree`
+  - `GamesStore.enterBoardEdit`
+  - `GamesStore.toggleChessPiece`
+  - `GamesStore.deleteChessPiece`
+  - `GamesStore.clearBoard`
+  - `GamesStore.resetBoardToStartPosition`
+  - `MoveHistoryService.replaceBoardRoot`
   - `SavedGamesStore.saveGame`
   - `GamesStore.refreshAnalysis`
-  - `GamesStore._clearGameAnalysis`
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
 - **Status**: Planned

@@ -29,6 +29,8 @@ import {
   PlatformError,
   PlatformErrorKind,
   type IBoardPosition,
+  type BoardId,
+  type IChessPiece,
 } from '@/contracts';
 import {
   EngineRuntimeService,
@@ -41,6 +43,7 @@ import {
   UserSettingService,
 } from '@/domain';
 import { getOpponentColour } from '@/utility/chess/BoardUtility';
+import { isBoardId } from '@/utility/chess/SquareUtility';
 import { logHandledError } from '@/utility/errors';
 import { Deferred } from '@/utility/async/Deferred';
 import Aborted from '@/contracts/errors/Aborted';
@@ -542,6 +545,26 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _syncRuntimePositionCache(game);
     setGameUpdateTimeNow(game);
   }
+  function _assertBoardEdit(game: IGame): void {
+    if (game.gameState !== GameState.BoardEdit) throw new Error('Board manipulation is only allowed while board edit mode is active.');
+  }
+  function _assertBoardId(boardId: BoardId): void {
+    if (!isBoardId(boardId)) throw new RangeError(`Board id must be between 0 and 63: ${boardId}.`);
+  }
+  function _completeBoardMutation(game: IGame, position: IBoardPosition): void {
+    if (game.moveTree.root.position !== position || game.moveTree.root.children.length > 0) {
+      _replaceWithAnalysisRoot(game, position, GameState.BoardEdit);
+      return;
+    }
+    game.resultState = ResultState.Ongoing;
+    game.resultReason = undefined;
+    game.drawOfferState = undefined;
+    _syncRuntimePositionCache(game);
+    setGameUpdateTimeNow(game);
+  }
+  function _invalidateStandardInitialPosition(position: IBoardPosition): void {
+    if (position.$) position.$.isStandardInitialPosition = undefined;
+  }
   //#endregion
   //#region states checking
   function _isOngoingLiveGame(game: IGame): game is LiveGame {
@@ -896,6 +919,36 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board edits are only allowed while board edit mode is active.');
     _replaceWithAnalysisRoot(game, boardRoot, GameState.BoardEdit);
   }
+  function clearBoard(game: IGame): void {
+    _assertBoardEdit(game);
+    const position = _getCurrentNode(game).position;
+    if (position.board.every((piece) => piece === undefined)) return;
+    position.board.fill(undefined);
+    _invalidateStandardInitialPosition(position);
+    _completeBoardMutation(game, position);
+  }
+  function deleteChessPiece(game: IGame, boardId: BoardId): void {
+    _assertBoardEdit(game);
+    _assertBoardId(boardId);
+    const position = _getCurrentNode(game).position;
+    if (position.board[boardId] === undefined) return;
+    position.board[boardId] = undefined;
+    _invalidateStandardInitialPosition(position);
+    _completeBoardMutation(game, position);
+  }
+  function resetBoardToStartPosition(game: IGame): void {
+    _assertBoardEdit(game);
+    _replaceWithAnalysisRoot(game, GameRuleService.createInitialBoardPosition(), GameState.BoardEdit);
+  }
+  function toggleChessPiece(game: IGame, boardId: BoardId, piece: IChessPiece): void {
+    _assertBoardEdit(game);
+    _assertBoardId(boardId);
+    const position = _getCurrentNode(game).position;
+    const currentPiece = position.board[boardId];
+    position.board[boardId] = currentPiece?.kind === piece.kind && currentPiece.colour === piece.colour ? undefined : piece;
+    _invalidateStandardInitialPosition(position);
+    _completeBoardMutation(game, position);
+  }
   async function resignGame(game: IGame, colour: PlayerColour): Promise<void> {
     _assertNotPausedForAction(game, 'Resignation');
     game.resultState = colour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
@@ -962,6 +1015,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
     exitInGameAnalysis,
     enterBoardEdit,
     applyBoardEdit,
+    clearBoard,
+    deleteChessPiece,
+    resetBoardToStartPosition,
+    toggleChessPiece,
     resignGame,
     offerDraw,
     acceptDrawOffer,

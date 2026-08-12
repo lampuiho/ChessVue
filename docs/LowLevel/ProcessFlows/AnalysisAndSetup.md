@@ -71,34 +71,30 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore._enterBoardEditContext` |
 
 #### Flow B - Apply The First Direct Board Edit
-| `Chessboard.boardEditMoveSubmitted` |
+| `Chessboard.chessPieceToggled` / `chessPieceDeleted` / `boardCleared` / `boardResetToStartPosition` |
 | --- |
-| `GamesStore.makeMove` |
+| `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
 | `MoveHistoryService.replaceBoardRoot` |
-| `GamesStore._clearPreparedMoveHistory` |
-| `GamesStore._applyBoardEditMove` |
 
-| `GamesStore.makeMove` |
+| `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
 | --- |
-| `GamesStore._assertMoveAllowed` |
-| `GamesStore._applyBoardEditMove` |
+| `GamesStore._assertBoardEdit` |
+| mutate the rendered position board |
+| `GamesStore._completeBoardMutation` |
 
 | `MoveHistoryService.replaceBoardRoot` |
-| --- |
-
-| `GamesStore._clearPreparedMoveHistory` |
 | --- |
 
 #### Flow C - Apply Later Direct Board Edits In The Same Session
-| `Chessboard.boardEditMoveSubmitted` |
+| `Chessboard.chessPieceToggled` / `chessPieceDeleted` / `boardCleared` / `boardResetToStartPosition` |
 | --- |
-| `GamesStore.makeMove` |
-| `GamesStore._applyBoardEditMove` |
+| `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
 
-| `GamesStore.makeMove` |
+| `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
 | --- |
-| `GamesStore._assertMoveAllowed` |
-| `GamesStore._applyBoardEditMove` |
+| `GamesStore._assertBoardEdit` |
+| mutate the current root board in place |
+| `GamesStore._completeBoardMutation` |
 
 #### Flow D - Leave Board Edit And Resume Analysis
 | `GameControlPanel.boardEditRequested` |
@@ -127,7 +123,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
-- Process note: because board editing is restricted to non-live analysis, the first direct board edit replaces the root through `MoveHistoryService.replaceBoardRoot(..., undefined)` and clears prior move history before the edit is applied. Later direct board edits in the same board-edit session continue mutating that new root.
+- Process note: because board editing is restricted to non-live analysis, the first effective piece mutation updates the rendered position, promotes it through `MoveHistoryService.replaceBoardRoot(...)`, and clears prior history. Later effective edits mutate that same root in place. Deleting an empty square or clearing an already empty board is a no-op and does not clear history.
 - Control note: the same board-edit control toggles the mode on and off. Leaving board edit does not perform a second confirm step; it only ends the direct-edit session and allows analysis refresh to resume.
 - Requirement verification: `Pass`. The public surface covers edit entry, direct board mutation, first-edit history clearing, analysis suspension during edit, and analysis refresh after board edit ends.
 

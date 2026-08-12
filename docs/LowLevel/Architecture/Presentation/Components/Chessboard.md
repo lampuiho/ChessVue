@@ -14,7 +14,10 @@ Render the visible board state and collect move or board-edit input.
 ## Emits
 - `moveAttempted`
 - `promotionRequested`
-- `boardEditChanged`
+- `chessPieceToggled`
+- `chessPieceDeleted`
+- `boardCleared`
+- `boardResetToStartPosition`
 - `selectionCleared`
 
 ## Notes
@@ -22,5 +25,6 @@ Render the visible board state and collect move or board-edit input.
 - `Chessboard` composes square rendering, drag/select interactions, and `ChessPiece` presentation.
 - Piece-choice overlays for promotion or setup flows may use `AnalysisChessPieceButton`.
 - Board editing is enabled only when the workspace context allows it.
-- `boardEditChanged` carries the fully formed next `IBoardPosition`; the owning layer applies each edit immediately and uses the same board-edit control to exit the mode.
+- `chessPieceToggled` carries a `BoardId` and `IChessPiece`; `chessPieceDeleted` carries a `BoardId`; and `boardCleared` carries no payload. The owning layer maps them to the matching guarded `GamesStore` APIs and applies each edit immediately.
+- `boardResetToStartPosition` carries no payload and maps to `GamesStore.resetBoardToStartPosition(...)`.
 - `Chessboard` contains no HTML or template markup and binds board view models into `BoardGrid`, `BoardSquare`, and `PiecePalette`.

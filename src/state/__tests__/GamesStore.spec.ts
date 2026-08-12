@@ -250,7 +250,11 @@ const domain = {
       retainedNode.mainlineChildIndex = undefined;
       return { root: getRootNode(retainedNode) };
     }),
-    replaceBoardRoot: vi.fn((rootPosition: IGame['rootPosition'], clockSnapshot?: IClockSnapshot) => createMoveTree(rootPosition, clockSnapshot)),
+    replaceBoardRoot: vi.fn((rootPosition: IGame['rootPosition'], clockSnapshot?: IClockSnapshot) => {
+      const tree = createMoveTree(rootPosition, clockSnapshot);
+      tree.root.position = rootPosition;
+      return tree;
+    }),
   },
   PlatformEventService: {
     subscribeToAppCloseRequested: vi.fn(() => () => unsubscribeMock()),
@@ -558,6 +562,61 @@ describe('useGamesStore', () => {
     expect(game.moveTree.root.position).toEqual(darkRoot);
     store.enterBoardEdit(game);
     expect(game.gameState).toBe(GameState.AnalysisBlackMove);
+  });
+  it('manipulates pieces only in board edit and promotes the first edited position to root', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Piece Editing',
+      whitePlayer: undefined,
+      blackPlayer: undefined,
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    expect(() => store.toggleChessPiece(game, 64, { kind: PieceKind.Rook, colour: PlayerColour.White })).toThrow('board edit mode');
+    expect(() => store.resetBoardToStartPosition(game)).toThrow('board edit mode');
+    const renderedPosition = createBoardPosition(PlayerColour.Black);
+    renderedPosition.$ = { isStandardInitialPosition: true };
+    const renderedNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), renderedPosition, MoveNodeKind.Analysis);
+    store.navigateToNode(game, renderedNode);
+    store.enterBoardEdit(game);
+    domain.MoveHistoryService.replaceBoardRoot.mockClear();
+    store.deleteChessPiece(game, 0);
+    store.clearBoard(game);
+    expect(game.highlightPath).toEqual([0]);
+    expect(domain.MoveHistoryService.replaceBoardRoot).not.toHaveBeenCalled();
+    expect(() => store.deleteChessPiece(game, 64)).toThrow('between 0 and 63');
+
+    store.toggleChessPiece(game, 0, { kind: PieceKind.Rook, colour: PlayerColour.White });
+
+    expect(game.rootPosition).toBe(renderedPosition);
+    expect(game.moveTree.root.position).toBe(renderedPosition);
+    expect(game.moveTree.root.children).toHaveLength(0);
+    expect(game.highlightPath).toEqual([]);
+    expect(renderedPosition.board[0]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
+    expect(renderedPosition.$?.isStandardInitialPosition).toBeUndefined();
+    expect(domain.MoveHistoryService.replaceBoardRoot).toHaveBeenCalledTimes(1);
+
+    store.toggleChessPiece(game, 0, { kind: PieceKind.Queen, colour: PlayerColour.Black });
+    expect(renderedPosition.board[0]).toEqual({ kind: PieceKind.Queen, colour: PlayerColour.Black });
+    store.toggleChessPiece(game, 0, { kind: PieceKind.Queen, colour: PlayerColour.Black });
+    expect(renderedPosition.board[0]).toBeUndefined();
+    store.toggleChessPiece(game, 1, { kind: PieceKind.Knight, colour: PlayerColour.White });
+    store.deleteChessPiece(game, 1);
+    expect(renderedPosition.board[1]).toBeUndefined();
+    store.toggleChessPiece(game, 2, { kind: PieceKind.Bishop, colour: PlayerColour.White });
+    store.toggleChessPiece(game, 3, { kind: PieceKind.Bishop, colour: PlayerColour.Black });
+    store.clearBoard(game);
+    expect(renderedPosition.board.every((piece) => piece === undefined)).toBe(true);
+    expect(domain.MoveHistoryService.replaceBoardRoot).toHaveBeenCalledTimes(1);
+    const startPosition = createBoardPosition(PlayerColour.White);
+    startPosition.$ = { isStandardInitialPosition: true };
+    domain.GameRuleService.createInitialBoardPosition.mockReturnValueOnce(startPosition);
+    store.resetBoardToStartPosition(game);
+    expect(game.rootPosition).toBe(startPosition);
+    expect(game.moveTree.root.position).toBe(startPosition);
+    expect(startPosition.$.isStandardInitialPosition).toBe(true);
+    expect(domain.MoveHistoryService.replaceBoardRoot).toHaveBeenCalledTimes(2);
   });
   it('allows paused non-play exceptions for reassignment and analysis actions', async () => {
     const store = useGamesStore();
