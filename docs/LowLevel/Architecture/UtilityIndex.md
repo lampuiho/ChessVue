@@ -94,7 +94,7 @@ Each entry must define:
 - Allowed importers: concrete UCI engine clients and utility tests.
 - Owner-private delegates: `NwjsUciEngineClient` handshake, game-boundary, state-transition, analysis-line, and best-move handlers.
 - Classification: `mixed`; command construction and parsing are deterministic, while `buildUciMove(...)` may populate the runtime-only `IMove.$.uci` cache.
-- Validation or failure semantics: invalid highlighted or live paths, untimed player searches, malformed UCI moves or option declarations, and unsupported option types throw rather than creating partial protocol data. A missed ponder returns only `stop` because the client must await and discard that search's final `bestmove` before starting another search.
+- Validation or failure semantics: invalid highlighted or live paths, untimed player searches, malformed UCI moves or option declarations, and unsupported option types throw rather than creating partial protocol data. Standard initial roots emit `position startpos`; one-time verification is cached under `IBoardPosition.$.isStandardInitialPosition`, while custom roots emit full FEN. A missed ponder returns only `stop` because the client must await and discard that search's final `bestmove` before starting another search.
 
 ### NwjsUtility
 - Purpose: share typed access to the shared `nw` host object used by the concrete NW.js platform implementation.

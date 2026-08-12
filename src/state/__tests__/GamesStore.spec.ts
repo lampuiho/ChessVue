@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  CheckState,
   AnalysisBranchExitBehaviour,
   DrawOfferDirection,
   EngineAnalysisSearchMode,
@@ -11,6 +12,7 @@ import {
   GameState,
   MoveNodeKind,
   PauseReason,
+  PieceKind,
   PlayerActivityState,
   PlayerColour,
   PlayerType,
@@ -47,8 +49,121 @@ let settingsSnapshot = createSettingsSnapshot();
 let storedGamesByPath = new Map<string, IGame>();
 let analysisSubscriptions = new Map<IAssignedEngine, (update: IEngineAnalysisUpdate) => void>();
 let nextPlayerMove = createMove(PlayerColour.White);
+let queuedEngineMovesByName = new Map<string, IMove[]>();
 let createdGameIds: Array<ReturnType<Crypto['randomUUID']>> = [];
 const unsubscribeMock = vi.fn();
+type ITestBoardPosition = IGame['rootPosition'] & { _testMoveHistory?: string[]; }
+type IResolvedResult = { resultState: ResultState; resultReason: ResultReason | undefined; }
+const scholarMateMoves = {
+  white: [
+    createMove(PlayerColour.White, 12, 28),
+    createMove(PlayerColour.White, 5, 26),
+    createMove(PlayerColour.White, 3, 39),
+    createMove(PlayerColour.White, 39, 53),
+  ],
+  black: [
+    createMove(PlayerColour.Black, 52, 36),
+    createMove(PlayerColour.Black, 57, 42),
+    createMove(PlayerColour.Black, 62, 45),
+  ],
+};
+const scholarMateSequence = [...scholarMateMoves.white.slice(0, 1), scholarMateMoves.black[0]!, scholarMateMoves.white[1]!, scholarMateMoves.black[1]!, scholarMateMoves.white[2]!, scholarMateMoves.black[2]!, scholarMateMoves.white[3]!];
+
+function createResolvedAfterDelay<T>(value: T, waitMs: number = 8): Promise<T> {
+  return new Promise((resolve) => setTimeout(() => resolve(structuredClone(value)), waitMs));
+}
+function getMoveKey(move: IMove): string {
+  return `${move.movingColour}:${move.from}-${move.to}:${move.kind}:${move.promotionPiece ?? 'none'}`;
+}
+function isSameMove(left: IMove, right: IMove): boolean {
+  return getMoveKey(left) === getMoveKey(right);
+}
+function queueEngineMoves(displayName: string, moves: readonly IMove[]): void {
+  queuedEngineMovesByName.set(displayName, moves.map((move) => structuredClone(move)));
+}
+function dequeueEngineMove(engine: IAssignedEngine): IMove {
+  const queuedMoves = queuedEngineMovesByName.get(engine.displayName);
+  if (queuedMoves?.length) {
+    const nextMove = queuedMoves.shift()!;
+    if (queuedMoves.length === 0) queuedEngineMovesByName.delete(engine.displayName);
+    return nextMove;
+  }
+  return structuredClone(nextPlayerMove);
+}
+function createDefaultNextPosition(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
+  return {
+    ...structuredClone(position),
+    sideToMove: move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White,
+    halfMoveClock: position.halfMoveClock + 1,
+    fullMoveNumber: position.fullMoveNumber + (position.sideToMove === PlayerColour.Black ? 1 : 0),
+  };
+}
+function createOngoingResult(): IResolvedResult {
+  return { resultState: ResultState.Ongoing, resultReason: undefined };
+}
+function isLegalMove(_position: IGame['rootPosition'], _move: IMove): boolean {
+  return true;
+}
+function createScholarMatePosition(): ITestBoardPosition {
+  const position = createBoardPosition(PlayerColour.White) as ITestBoardPosition;
+  position.board[3] = { kind: PieceKind.Queen, colour: PlayerColour.White };
+  position.board[4] = { kind: PieceKind.King, colour: PlayerColour.White };
+  position.board[5] = { kind: PieceKind.Bishop, colour: PlayerColour.White };
+  position.board[12] = { kind: PieceKind.Pawn, colour: PlayerColour.White };
+  position.board[52] = { kind: PieceKind.Pawn, colour: PlayerColour.Black };
+  position.board[53] = { kind: PieceKind.Pawn, colour: PlayerColour.Black };
+  position.board[57] = { kind: PieceKind.Knight, colour: PlayerColour.Black };
+  position.board[60] = { kind: PieceKind.King, colour: PlayerColour.Black };
+  position.board[62] = { kind: PieceKind.Knight, colour: PlayerColour.Black };
+  position._testMoveHistory = [];
+  return position;
+}
+function getTestMoveHistory(position: IGame['rootPosition']): string[] {
+  return [...((position as ITestBoardPosition)._testMoveHistory ?? [])];
+}
+function applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
+  const nextPosition = structuredClone(position) as ITestBoardPosition;
+  nextPosition.board[move.to] = nextPosition.board[move.from];
+  nextPosition.board[move.from] = undefined;
+  nextPosition.sideToMove = move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
+  nextPosition.halfMoveClock = position.halfMoveClock + 1;
+  nextPosition.fullMoveNumber = position.fullMoveNumber + (position.sideToMove === PlayerColour.Black ? 1 : 0);
+  nextPosition._testMoveHistory = [...getTestMoveHistory(position), getMoveKey(move)];
+  nextPosition.checkState = isSameMove(move, scholarMateMoves.white[3]!) ? CheckState.CheckmateBlack : CheckState.None;
+  return nextPosition;
+}
+function installScholarMateRules(): void {
+  domain.GameRuleService.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
+  domain.GameRuleService.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => {
+    const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
+    return expectedMove ? [structuredClone(expectedMove)] : [];
+  });
+  domain.GameRuleService.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => {
+    const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
+    return !!expectedMove && isSameMove(expectedMove, move);
+  });
+  domain.GameRuleService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => applyScholarMateMove(position, move));
+  domain.GameRuleService.resolveResult.mockImplementation((position: IGame['rootPosition']): IResolvedResult => {
+    if (position.checkState === CheckState.CheckmateBlack) return { resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved };
+    return createOngoingResult();
+  });
+}
+async function awaitPendingPlayerTurn(game: IGame): Promise<void> {
+  const pendingPlayerTurn = game.$?.pendingPlayerTurnHandlePromise;
+  if (pendingPlayerTurn) await pendingPlayerTurn;
+}
+async function playEngineOnlyGame(game: IGame, maxTurns: number = scholarMateSequence.length): Promise<void> {
+  for (let turnIndex = 0; turnIndex < maxTurns && game.resultState === ResultState.Ongoing; turnIndex += 1) await awaitPendingPlayerTurn(game);
+}
+function expectScholarMateFinished(game: IGame): void {
+  expect(game.resultState).toBe(ResultState.WhiteWon);
+  expect(game.resultReason).toBe(ResultReason.RuleResolved);
+  expect(game.gameState).toBe(GameState.AnalysisBlackMove);
+  expect(game.livePath).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  expect(game.highlightPath).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
+  expect(game.$?.pendingPlayerTurnHandlePromise).toBeUndefined();
+}
 const domain = {
   EngineRuntimeService: {
     ensureReady: vi.fn(async (engine: IAssignedEngine) => {
@@ -83,7 +198,7 @@ const domain = {
     }),
     awaitPlayerTurnMove: vi.fn(async (engine: IAssignedEngine) => {
       if (engine.$) engine.$.availability = EngineAvailability.Ready;
-      return resolveWithRandomDelay(nextPlayerMove);
+      return createResolvedAfterDelay(dequeueEngineMove(engine));
     }),
     stopEngine: vi.fn(async (engine: IAssignedEngine) => {
       if (engine.$) engine.$.availability = EngineAvailability.Unavailable;
@@ -93,14 +208,9 @@ const domain = {
   GameRuleService: {
     createInitialBoardPosition: vi.fn(() => createBoardPosition()),
     generateLegalMoves: vi.fn((position: IGame['rootPosition']) => [createMove(position.sideToMove)]),
-    isMoveLegal: vi.fn(() => true),
-    applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => ({
-      ...structuredClone(position),
-      sideToMove: move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White,
-      halfMoveClock: position.halfMoveClock + 1,
-      fullMoveNumber: position.fullMoveNumber + (position.sideToMove === PlayerColour.Black ? 1 : 0),
-    })),
-    resolveResult: vi.fn(() => ({ resultState: ResultState.Ongoing, resultReason: undefined })),
+    isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move)),
+    applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move)),
+    resolveResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult()),
   },
   MoveNotationService: {
     decorateMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => ({
@@ -273,6 +383,7 @@ describe('useGamesStore', () => {
     storedGamesByPath = new Map();
     analysisSubscriptions = new Map();
     nextPlayerMove = createMove(PlayerColour.White);
+    queuedEngineMovesByName = new Map();
     createdGameIds = [
       '00000000-0000-0000-0000-000000000001',
       '00000000-0000-0000-0000-000000000002',
@@ -283,8 +394,16 @@ describe('useGamesStore', () => {
     ];
     unsubscribeMock.mockClear();
     Object.values(domain).forEach((service) => Object.values(service).forEach((mock) => mock.mockClear()));
+    domain.GameRuleService.createInitialBoardPosition.mockReset();
+    domain.GameRuleService.generateLegalMoves.mockReset();
     domain.GameRuleService.isMoveLegal.mockReset();
-    domain.GameRuleService.isMoveLegal.mockImplementation(() => true);
+    domain.GameRuleService.applyMove.mockReset();
+    domain.GameRuleService.resolveResult.mockReset();
+    domain.GameRuleService.createInitialBoardPosition.mockImplementation(() => createBoardPosition());
+    domain.GameRuleService.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
+    domain.GameRuleService.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move));
+    domain.GameRuleService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move));
+    domain.GameRuleService.resolveResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult());
     vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => createdGameIds.shift() ?? 'game-fallback-0000-0000-000000000000');
     vi.doMock('@/domain', () => domain);
     ({ useGamesStore } = await import('..'));
@@ -500,6 +619,64 @@ describe('useGamesStore', () => {
     expect(localGame.resultState).toBe(ResultState.BlackWon);
     expect(localGame.resultReason).toBe(ResultReason.Resignation);
   });
+  it('plays scholar mate through local player turns only', async () => {
+    installScholarMateRules();
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Scholar Mate PvP',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+
+    for (const move of scholarMateSequence) await store.makeMove(game, move);
+    expectScholarMateFinished(game);
+    expect(domain.EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
+    expect(domain.EngineRuntimeService.awaitPlayerTurnMove).not.toHaveBeenCalled();
+  });
+  it('plays scholar mate with a delayed engine reply for black', async () => {
+    installScholarMateRules();
+    queueEngineMoves('Engine Black', scholarMateMoves.black);
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Scholar Mate PvE',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+
+    for (const move of scholarMateMoves.white) {
+      await store.makeMove(game, move);
+      if (game.resultState === ResultState.Ongoing) await awaitPendingPlayerTurn(game);
+    }
+
+    expectScholarMateFinished(game);
+    expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(3);
+    expect(domain.EngineRuntimeService.awaitPlayerTurnMove).toHaveBeenCalledTimes(3);
+  });
+  it('plays scholar mate with delayed engines on both sides', async () => {
+    installScholarMateRules();
+    queueEngineMoves('Engine White', scholarMateMoves.white);
+    queueEngineMoves('Engine Black', scholarMateMoves.black);
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Scholar Mate EvE',
+      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+
+    await playEngineOnlyGame(game);
+    expectScholarMateFinished(game);
+    expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(7);
+    expect(domain.EngineRuntimeService.awaitPlayerTurnMove).toHaveBeenCalledTimes(7);
+  });
   it('defers player-engine moves while paused and replays them after resume', async () => {
     const store = useGamesStore();
     nextPlayerMove = createMove(PlayerColour.White);
@@ -572,11 +749,14 @@ describe('useGamesStore', () => {
     game.gameplayOptions.allowTakeback = true;
     void game.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
-    expect(domain.MoveHistoryService.rewriteMainline).toHaveBeenCalledTimes(1);
-    expect(game.livePath).toEqual([1]);
-    expect(game.highlightPath).toEqual([1]);
-    expect(game.moveTree.root.mainlineChildIndex).toBe(1);
+    expect(domain.MoveHistoryService.rewriteMainline).not.toHaveBeenCalled();
+    expect(game.livePath).toEqual([0, 0]);
+    expect(game.highlightPath).toEqual([0]);
+    expect(game.moveTree.root.mainlineChildIndex).toBe(0);
+    expect(game.moveTree.root.children).toHaveLength(1);
     expect(game.moveTree.root.children[0]!.kind).toBe(MoveNodeKind.Live);
+    expect(game.moveTree.root.children[0]!.children[0]!.move?.from).toBe(11);
+    expect(game.moveTree.root.children[0]!.children[0]!.move?.to).toBe(27);
 
     const branchGame = await store.createGame({
       name: 'History Analysis Only',
@@ -764,7 +944,7 @@ describe('useGamesStore', () => {
     const move = createMove(PlayerColour.White);
 
     game.gameState = GameState.PausedWhiteTurn;
-    expect(() => store.makeMove(game, move)).toThrow('pausedWhiteTurn');
+    await expect(store.makeMove(game, move)).rejects.toThrow('pausedWhiteTurn');
     await expect(store.takeBack(game, 1)).rejects.toThrow('pausedWhiteTurn');
     expect(() => store.navigateToNode(game, game.moveTree.root)).toThrow('pausedWhiteTurn');
     await expect(store.resignGame(game, PlayerColour.White)).rejects.toThrow('pausedWhiteTurn');
@@ -775,9 +955,9 @@ describe('useGamesStore', () => {
     await expect(store.enterInGameAnalysis(game)).rejects.toThrow('pausedWhiteTurn');
     expect(() => store.enterBoardEdit(game)).toThrow('pausedWhiteTurn');
     game.gameState = GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove;
-    expect(() => store.makeMove(game, move)).toThrow('pausedLiveAnalysisFromWhiteTurnWhiteMove');
+    await expect(store.makeMove(game, move)).rejects.toThrow('pausedLiveAnalysisFromWhiteTurnWhiteMove');
     game.gameState = GameState.BoardEdit;
-    expect(() => store.makeMove(game, move)).toThrow('boardEdit');
+    await expect(store.makeMove(game, move)).rejects.toThrow('boardEdit');
   });
 
   it('allows move submission from playable game states and inserts duplicate ids with repair', async () => {

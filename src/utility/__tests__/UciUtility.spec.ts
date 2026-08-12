@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CheckState, EngineOptionType, GameState, MoveKind, MoveNodeKind, PlayerColour, ResultState, TimeControlPreset, type IBoardPosition, type IGame, type IMove } from '@/contracts';
+import { GameRuleService } from '@/domain';
 import { buildAnalysisCommands, buildDebugCommand, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildPositionCommand, buildQuitCommand, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciMove, buildUciNewGameCommand, parseBestMoveLine, parseOptionLines } from '@/utility/UciUtility';
 
 describe('UciUtility', () => {
@@ -59,8 +60,21 @@ describe('UciUtility', () => {
       'position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4 e7e5',
       'go ponder wtime 60000 btime 45000 winc 1000 binc 1000',
     ]);
+    expect(rootPosition.$?.isStandardInitialPosition).toBe(false);
     game.clockSnapshot.white.remainingMs = undefined;
     expect(() => buildFindNextMoveCommands(game)).toThrow('Timed engine search requires both clocks');
+  });
+  it('uses startpos and caches verification for a standard initial root', () => {
+    const rootPosition = GameRuleService.createInitialBoardPosition();
+    rootPosition.$ = undefined;
+    const game = {
+      rootPosition,
+      moveTree: { root: { kind: MoveNodeKind.Live, position: rootPosition, plyIndex: 0, children: [] } },
+      highlightPath: [],
+    } as IGame;
+
+    expect(buildPositionCommand(game)).toBe('position startpos');
+    expect(rootPosition.$?.isStandardInitialPosition).toBe(true);
   });
   it('parses the optional ponder move from a bestmove line', () => {
     const move = parseBestMoveLine('bestmove e2e4 ponder e7e5', PlayerColour.White);

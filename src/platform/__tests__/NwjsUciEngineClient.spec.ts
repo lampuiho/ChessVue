@@ -83,11 +83,11 @@ describe('NwjsUciEngineClient', () => {
     expect(commandLog).toContain('go ponder wtime 60000 btime 60000 winc 1000 binc 1000');
     expect(commandLog).toContain('ponderhit');
     expect(commandLog.filter((command) => command === 'stop')).toHaveLength(2);
-    expect(commandLog[ponderMissStopIndex + 1]).toMatch(/^position fen /);
+    expect(commandLog[ponderMissStopIndex + 1]).toMatch(/^position startpos /);
     expect(commandLog[ponderMissStopIndex + 2]).toBe(timedGo);
     expect(updates).toHaveLength(2);
     expect(updates[1]!.positionKey).toBe(PositionIdentityService.buildPositionKey(game.moveTree.root.children[0]!.position));
-    expect(firstMove.$?.ponderMove?.$.uci).toBe('g1f3');
+    expect(firstMove.$?.ponderMove?.$?.uci).toBe('g1f3');
     expect(ponderHitMove.$?.uci).toBe('b8c6');
     expect(ponderMissMove.$?.uci).toBe('g8f6');
   });

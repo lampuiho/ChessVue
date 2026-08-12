@@ -13,6 +13,10 @@ function withPosition(position: IBoardPosition, overrides: Partial<IBoardPositio
   };
 }
 describe('GameRuleService', () => {
+  it('marks its standard initial position for runtime consumers', () => {
+    expect(GameRuleService.createInitialBoardPosition().$?.isStandardInitialPosition).toBe(true)
+  })
+
   it('generates 20 legal opening moves', () => {
     const moves = GameRuleService.generateLegalMoves(GameRuleService.createInitialBoardPosition())
 

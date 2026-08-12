@@ -15,6 +15,9 @@ export interface ICastlingAvailability {
   blackKingSide: boolean
   blackQueenSide: boolean
 }
+export interface IBoardPositionRuntime {
+  isStandardInitialPosition?: boolean;
+}
 export interface IBoardPosition {
   board: (IChessPiece | undefined)[];
   sideToMove: PlayerColour;
@@ -23,6 +26,7 @@ export interface IBoardPosition {
   halfMoveClock: number;
   fullMoveNumber: number;
   checkState: CheckState;
+  $?: IBoardPositionRuntime;
 }
 export const castlingAvailabilitySchema = z.object({
   whiteKingSide: z.boolean(),
@@ -33,7 +37,7 @@ export const castlingAvailabilitySchema = z.object({
 const boardEntrySchema: z.ZodType<IChessPiece | undefined, z.ZodTypeDef, IChessPiece | null | undefined> = z.union([chessPieceSchema, z.null(), z.undefined()])
   .transform((entry) => entry ?? undefined)
 const boardSchema: z.ZodType<IBoardPosition['board'], z.ZodTypeDef, Array<IChessPiece | null | undefined>> = z.array(boardEntrySchema).length(64)
-type IBoardPositionInput = Omit<IBoardPosition, 'board' | 'enPassantTarget'> & { board: Array<IChessPiece | null | undefined>; enPassantTarget?: BoardId | null }
+type IBoardPositionInput = Omit<IBoardPosition, 'board' | 'enPassantTarget' | '$'> & { board: Array<IChessPiece | null | undefined>; enPassantTarget?: BoardId | null }
 
 const checkStateSchema = z.enum([CheckState.None, CheckState.CheckBlack, CheckState.CheckmateBlack, CheckState.CheckWhite, CheckState.CheckmateWhite]);
 export const boardPositionSchema: z.ZodType<IBoardPosition, z.ZodTypeDef, IBoardPositionInput> = z.object({

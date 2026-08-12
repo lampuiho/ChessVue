@@ -1,6 +1,8 @@
 import { EngineOptionType, MoveKind, PieceKind, PlayerColour, type BoardId, type IAnalysisLine, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove } from '@/contracts';
 import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank } from '@/utility/chess/SquareUtility';
 
+const standardInitialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
 // #region Public methods
 
 export function boardIdToNotation(boardId: number): string {
@@ -30,7 +32,7 @@ export function buildIsReadyCommand(): string {
 export function buildPonderMoveCommands(game: IGame, ponderMove: IMove): string[] {
   return [_buildPositionCommand(game.rootPosition, [..._getLiveMoves(game), ponderMove]), _buildTimedGoCommand(game, true)];
 }
-/** Builds the UCI position command from the game root and highlighted move-tree path. */
+/** Builds the UCI position command from the game root and highlighted path, caching standard-root verification under the position's runtime metadata. */
 export function buildPositionCommand(game: IGame): string {
   return _buildPositionCommand(game.rootPosition, _getMovesFromPath(game, game.highlightPath));
 }
@@ -143,9 +145,18 @@ function _buildFenBoard(position: IBoardPosition): string {
   return ranks.join('/');
 }
 function _buildPositionCommand(rootPosition: IBoardPosition, moves: readonly IMove[]): string {
-  const position = `position fen ${buildFen(rootPosition)}`;
+  const position = `position ${_buildRootPosition(rootPosition)}`;
   if (moves.length === 0) return position;
   return `${position} moves ${moves.map((move) => buildUciMove(move)).join(' ')}`;
+}
+function _buildRootPosition(rootPosition: IBoardPosition): string {
+  const isStandardInitialPosition = rootPosition.$?.isStandardInitialPosition;
+  if (isStandardInitialPosition === true) return 'startpos';
+  const fen = buildFen(rootPosition);
+  if (isStandardInitialPosition === false) return `fen ${fen}`;
+  rootPosition.$ ??= {};
+  rootPosition.$.isStandardInitialPosition = fen === standardInitialFen;
+  return rootPosition.$.isStandardInitialPosition ? 'startpos' : `fen ${fen}`;
 }
 function _buildTimedGoCommand(game: IGame, ponder: boolean = false): string {
   const whiteTime = game.clockSnapshot.white.remainingMs;

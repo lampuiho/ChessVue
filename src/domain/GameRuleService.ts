@@ -1,4 +1,4 @@
-import { CheckState, MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type IBoardPosition, type IMove } from '@/contracts';
+import { CheckState, MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '@/contracts';
 import { findKingBoardId, getOpponentColour } from '@/utility/chess/BoardUtility';
 import { boardIdToCoords, coordsToBoardId, getPromotionRank, getForwardDirection } from '@/utility/chess/SquareUtility';
 import {
@@ -15,10 +15,19 @@ const enum CastlingType {
   CastlingKingSide,
   CastlingQueenSide,
 }
+const standardInitialBackRank = [PieceKind.Rook, PieceKind.Knight, PieceKind.Bishop, PieceKind.Queen, PieceKind.King, PieceKind.Bishop, PieceKind.Knight, PieceKind.Rook] as const;
 function _getMoveCastlingType(boardId: BoardId): CastlingType {
   if (boardId === 7 || boardId === 63) return CastlingType.CastlingKingSide;
   if (boardId === 0 || boardId === 56) return CastlingType.CastlingQueenSide;
   return CastlingType.NotCastling;
+}
+function _isStandardInitialSquare(position: IBoardPosition, boardId: BoardId): boolean {
+  const piece = position.board[boardId];
+  const rank = Math.floor(boardId / 8);
+  if (rank > 1 && rank < 6) return piece === undefined;
+  const colour = rank < 2 ? PlayerColour.White : PlayerColour.Black;
+  if (rank === 1 || rank === 6) return piece?.colour === colour && piece.kind === PieceKind.Pawn;
+  return piece?.colour === colour && piece.kind === standardInitialBackRank[boardId % 8];
 }
 function _cloneBoard(board: IBoardPosition['board']): IBoardPosition['board'] {
   return board.map((piece) => piece === undefined ? undefined : { ...piece });
@@ -113,7 +122,7 @@ function createDefaultCastlingAvailability(): IBoardPosition['castlingAvailabili
     blackQueenSide: true,
   };
 }
-function getPositionCheckState(position: IBoardPosition): CheckState {
+function getCheckState(position: IBoardPosition): CheckState {
   const kingBoardId = findKingBoardId(position, position.sideToMove);
   if (kingBoardId === undefined) return CheckState.None;
   const isInCheck = isSquareAttacked(position, kingBoardId, getOpponentColour(position.sideToMove));
@@ -156,7 +165,7 @@ function applyMove(position: IBoardPosition, move: IMove): IBoardPosition {
     movingColour: matchingMove.movingColour,
     promotionPiece: move.promotionPiece,
   });
-  nextPosition.checkState = getPositionCheckState(nextPosition);
+  nextPosition.checkState = getCheckState(nextPosition);
   return nextPosition;
 }
 function resolveResult(position: IBoardPosition): { resultState: ResultState; resultReason: ResultReason | undefined; } {
@@ -203,7 +212,15 @@ function createInitialBoardPosition(): IBoardPosition {
     halfMoveClock: 0,
     fullMoveNumber: 1,
     checkState: CheckState.None,
+    $: { isStandardInitialPosition: true },
   };
+}
+function isStandardInitialPosition(position: IBoardPosition): boolean {
+  const castling = position.castlingAvailability;
+  if (position.board.length !== 64 || position.sideToMove !== PlayerColour.White || position.enPassantTarget !== undefined) return false;
+  if (position.halfMoveClock !== 0 || position.fullMoveNumber !== 1 || position.checkState !== CheckState.None) return false;
+  if (!castling.whiteKingSide || !castling.whiteQueenSide || !castling.blackKingSide || !castling.blackQueenSide) return false;
+  return position.board.every((_piece, boardId) => _isStandardInitialSquare(position, boardId));
 }
 
 export const GameRuleService = {
@@ -212,6 +229,7 @@ export const GameRuleService = {
   isMoveLegal,
   requiresPromotionSelection,
   applyMove,
-  getCheckState: getPositionCheckState,
+  getCheckState,
+  isStandardInitialPosition,
   resolveResult,
 };

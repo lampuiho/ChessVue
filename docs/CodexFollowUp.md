@@ -32,13 +32,13 @@
 - Integrated the purpose-level builders and updated move/info parsers through `IEngineClient`, `EngineRuntimeService`, and `GamesStore`.
 - Added ponder-hit handling and ponder-miss recovery that consumes the stopped speculative search's terminal `bestmove` before starting a fresh player search.
 - Added direct runtime, store, and NW.js client coverage for canonical-game forwarding, ponder metadata preservation, and analysis/player/ponder state transitions.
+- Added `position startpos` output for standard initial roots, backed by runtime-only `IBoardPosition.$.isStandardInitialPosition` verification caching.
 
 ## Still Pending
 - Finish the items still open in `docs/StuffChangedAndNeedChanging.md`.
 - Continue the broader copy-reduction pass beyond the paths already touched.
 - Revisit the remaining process-flow docs that still describe the old private player-move flow.
 - Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.
-- Add `position startpos` support so games rooted at the standard initial position do not emit the full starting FEN.
 - Run the wider regression suite outside `GamesStore.spec.ts` after the next batch of tracker items lands.
 
 ## Verification

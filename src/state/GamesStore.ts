@@ -527,7 +527,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     setGameUpdateTimeNow(game);
     _refreshAnalysisForGame(game);
   }
-  function _replaceWithAnalysisRoot(game: IGame, boardRoot: IGame['rootPosition'], nextState: GameState): void {
+  function _replaceWithAnalysisRoot(game: IGame, boardRoot: IBoardPosition, nextState: GameState): void {
     const nextClockSnapshot = TimeControlService.initialiseClockSnapshot(game.timeControl);
     game.rootPosition = boardRoot;
     game.moveTree = MoveHistoryService.replaceBoardRoot(boardRoot, nextClockSnapshot);
@@ -892,7 +892,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _syncRuntimePositionCache(game);
     setGameUpdateTimeNow(game);
   }
-  function applyBoardEdit(game: IGame, boardRoot: IGame['rootPosition']): void {
+  function applyBoardEdit(game: IGame, boardRoot: IBoardPosition): void {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board edits are only allowed while board edit mode is active.');
     _replaceWithAnalysisRoot(game, boardRoot, GameState.BoardEdit);
   }
