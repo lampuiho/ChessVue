@@ -26,8 +26,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [EngineClient](PlatformAbstraction/EngineClient.md)
 
 ### 2. Domain Logic
-- [GameRuleService](DomainLogic/GameRuleService.md)
-- [MoveNotationService](DomainLogic/MoveNotationService.md)
+- [MoveApplicationService](DomainLogic/MoveApplicationService.md)
 - [MoveHistoryService](DomainLogic/MoveHistoryService.md)
 - [PositionIdentityService](DomainLogic/PositionIdentityService.md)
 - [TimeControlService](DomainLogic/TimeControlService.md)
@@ -128,7 +127,7 @@ The data-interface section defines the shared low-level types for:
 - Presence checks for object-like values should normally be truthy or falsy checks rather than explicit `=== null` or `=== undefined` comparisons.
 
 ## Scenario Ownership Summary
-- `GamesStore`, `MoveHistoryService`, `MoveNotationService`, `PositionIdentityService`, and `GameRuleService` own move, history, setup, control, and lifecycle scenarios.
+- `GamesStore`, `MoveHistoryService`, `MoveApplicationService`, `PositionIdentityService`, and the chess utilities own move, history, setup, control, and lifecycle scenarios.
 - `TimeControlService` and `GamesStore` own timed-game pause, resume, and expiry scenarios.
 - `GamesStore` owns move timing, non-local turn waiting, analysis coordination, persisted analysis snapshots at layer 3, and copying selected reusable engine profiles into assigned-engine snapshots, `EnginesStore` exposes configured engine profiles for selection flows, and `EngineRuntimeService` owns the lower-layer game-facing engine runtime path by composing `ProcessManager` and `EngineClient`.
 - `GamesStore`, `SettingsStore`, `RecentGameStore`, `UiStateStore`, `SavedGamesStore`, `SavedGameIndexService`, `SerializationService`, and `UserSettingService` own persistence, restore, load, home recent-history, and settings scenarios, with `GamesStore` limited to active-workspace insertion, duplicate-id repair, hydration, and gameplay mutation after a payload is already available, `SavedGamesStore` owning saved-document save or load execution plus restore, browse, managed-save deletion, external picker, and close-trigger autosave workflows, `SavedGameIndexService` owning save-folder rules and latest-save selection, `SerializationService` owning canonical payload conversion plus storage-backed persistence I/O and picker boundaries, `UiStateStore` owning session and layout persistence through build-config paths, and `UserSettingService` owning accepted settings validation, caching, persistence, and initial system-theme reads behind the layer-2 boundary.

@@ -13,3 +13,9 @@ export function logHandledError(scope: string, operation: string, error: unknown
   console.error(`[${scope}] ${operation} failed.`, platformError, error);
   return platformError;
 }
+export function throwReferenceError(message: string): never {
+  const err = new ReferenceError(message);
+  // Remove this function from the stack
+  Error.captureStackTrace(err, throwReferenceError);
+  throw err;
+}

@@ -6,6 +6,7 @@ import {
   EngineClientType,
   EngineProtocol,
   MoveKind,
+  PieceKind,
   PlayerColour,
   type IAssignedEngine,
   type IEngineAnalysisRequest,
@@ -51,6 +52,7 @@ function createMove(): IMove {
     to: boardId(4, 3),
     kind: MoveKind.Normal,
     movingColour: PlayerColour.White,
+    movingPiece: PieceKind.Pawn,
   };
 }
 describe('EngineRuntimeService', () => {

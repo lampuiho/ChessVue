@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, MoveKind, PlatformErrorKind, PlayerColour, type IGame, type IMove } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, MoveKind, PieceKind, PlatformErrorKind, PlayerColour, type IGame, type IMove } from '@/contracts';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
-import { EngineRuntimeService, GameRuleService, MoveHistoryService, PositionIdentityService } from '@/domain';
+import { EngineRuntimeService, MoveApplicationService, MoveHistoryService, PositionIdentityService } from '@/domain';
+import { GameRuleUtility } from '@/utility/chess';
 import { createAssignedEngine, createEngineGame, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
 
 const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironment();
@@ -10,7 +11,7 @@ const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironme
 function appendLiveMove(game: IGame, move: IMove): void {
   let node = game.moveTree.root;
   for (const childIndex of game.livePath ?? []) node = node.children[childIndex]!;
-  MoveHistoryService.addMainlineMove(node, move, GameRuleService.applyMove(node.position, move), game.clockSnapshot);
+  MoveHistoryService.addMainlineMove(node, move, MoveApplicationService.applyMove(node.position, move), game.clockSnapshot);
   game.livePath!.push(0);
   game.highlightPath = [...game.livePath!];
 }
@@ -68,7 +69,7 @@ describe('NwjsUciEngineClient', () => {
 
     appendLiveMove(game, ponderHitMove);
     await client.startPondering(engine, game, ponderHitMove.$!.ponderMove!);
-    const unexpectedMove: IMove = { from: getBoardId(3, 1), to: getBoardId(3, 3), kind: MoveKind.Normal, movingColour: PlayerColour.White };
+    const unexpectedMove: IMove = { from: getBoardId(3, 1), to: getBoardId(3, 3), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
     appendLiveMove(game, unexpectedMove);
     process.queueResponse('stop', ['bestmove a7a6']);
     process.queueResponse(timedGo, ['bestmove g8f6']);
@@ -129,7 +130,7 @@ describe('NwjsUciEngineClient', () => {
     const engine = createAssignedEngine();
     engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     const game = createEngineGame();
-    const ponderMove: IMove = { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black };
+    const ponderMove: IMove = { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
 
     await expect(client.startAnalysis(engine, game, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, () => undefined)).rejects.toMatchObject({
       kind: PlatformErrorKind.ProcessStartFailed,

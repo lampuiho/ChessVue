@@ -129,22 +129,22 @@ function applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGa
   nextPosition.halfMoveClock = position.halfMoveClock + 1;
   nextPosition.fullMoveNumber = position.fullMoveNumber + (position.sideToMove === PlayerColour.Black ? 1 : 0);
   nextPosition._testMoveHistory = [...getTestMoveHistory(position), getMoveKey(move)];
-  nextPosition.checkState = isSameMove(move, scholarMateMoves.white[3]!) ? CheckState.CheckmateBlack : CheckState.None;
+  if (isSameMove(move, scholarMateMoves.white[3]!)) (nextPosition.$ ??= {}).checkState = CheckState.Checkmate;
   return nextPosition;
 }
 function installScholarMateRules(): void {
-  domain.GameRuleService.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
-  domain.GameRuleService.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => {
+  utility.GameRuleUtility.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
+  utility.GameRuleUtility.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => {
     const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
     return expectedMove ? [structuredClone(expectedMove)] : [];
   });
-  domain.GameRuleService.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => {
+  utility.GameRuleUtility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => {
     const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
     return !!expectedMove && isSameMove(expectedMove, move);
   });
-  domain.GameRuleService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => applyScholarMateMove(position, move));
-  domain.GameRuleService.resolveResult.mockImplementation((position: IGame['rootPosition']): IResolvedResult => {
-    if (position.checkState === CheckState.CheckmateBlack) return { resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved };
+  domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => applyScholarMateMove(position, move));
+  utility.GameRuleUtility.resolveGameResult.mockImplementation((position: IGame['rootPosition']): IResolvedResult => {
+    if (position.$?.checkState === CheckState.Checkmate) return { resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved };
     return createOngoingResult();
   });
 }
@@ -205,22 +205,8 @@ const domain = {
       await randomDelay();
     }),
   },
-  GameRuleService: {
-    createInitialBoardPosition: vi.fn(() => createBoardPosition()),
-    generateLegalMoves: vi.fn((position: IGame['rootPosition']) => [createMove(position.sideToMove)]),
-    isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move)),
+  MoveApplicationService: {
     applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move)),
-    resolveResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult()),
-  },
-  MoveNotationService: {
-    decorateMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => ({
-      ...structuredClone(move),
-      $: {
-        ...move.$,
-        san: `${move.from}-${move.to}`,
-        uci: `${move.from}-${move.to}`,
-      },
-    })),
   },
   MoveHistoryService: {
     createMoveTree: vi.fn((rootPosition: IGame['rootPosition'], clockSnapshot?: IClockSnapshot) => createMoveTree(rootPosition, clockSnapshot)),
@@ -360,6 +346,19 @@ const domain = {
     getSettings: vi.fn(() => structuredClone(settingsSnapshot)),
   },
 };
+const utility = {
+  GameRuleUtility: {
+    createInitialBoardPosition: vi.fn(() => createBoardPosition()),
+    generateLegalMoves: vi.fn((position: IGame['rootPosition']) => [createMove(position.sideToMove)]),
+    genDetailedMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => structuredClone(move)),
+    isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move)),
+    resolveGameResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult()),
+  },
+  MoveNotationUtility: {
+    getSan: vi.fn((move: IMove) => ((move.$ ??= {}).san ??= `${move.from}-${move.to}`)),
+    getUci: vi.fn((move: IMove) => ((move.$ ??= {}).uci ??= `${move.from}-${move.to}`)),
+  },
+};
 
 function createLocalPlayer(colour: PlayerColour, displayName: string) {
   return {
@@ -398,18 +397,22 @@ describe('useGamesStore', () => {
     ];
     unsubscribeMock.mockClear();
     Object.values(domain).forEach((service) => Object.values(service).forEach((mock) => mock.mockClear()));
-    domain.GameRuleService.createInitialBoardPosition.mockReset();
-    domain.GameRuleService.generateLegalMoves.mockReset();
-    domain.GameRuleService.isMoveLegal.mockReset();
-    domain.GameRuleService.applyMove.mockReset();
-    domain.GameRuleService.resolveResult.mockReset();
-    domain.GameRuleService.createInitialBoardPosition.mockImplementation(() => createBoardPosition());
-    domain.GameRuleService.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
-    domain.GameRuleService.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move));
-    domain.GameRuleService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move));
-    domain.GameRuleService.resolveResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult());
+    Object.values(utility).forEach((group) => Object.values(group).forEach((mock) => mock.mockClear()));
+    utility.GameRuleUtility.createInitialBoardPosition.mockReset();
+    utility.GameRuleUtility.generateLegalMoves.mockReset();
+    utility.GameRuleUtility.genDetailedMove.mockReset();
+    utility.GameRuleUtility.isMoveLegal.mockReset();
+    utility.GameRuleUtility.resolveGameResult.mockReset();
+    domain.MoveApplicationService.applyMove.mockReset();
+    utility.GameRuleUtility.createInitialBoardPosition.mockImplementation(() => createBoardPosition());
+    utility.GameRuleUtility.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
+    utility.GameRuleUtility.genDetailedMove.mockImplementation((_position: IGame['rootPosition'], move: IMove) => structuredClone(move));
+    utility.GameRuleUtility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move));
+    domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move));
+    utility.GameRuleUtility.resolveGameResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult());
     vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => createdGameIds.shift() ?? 'game-fallback-0000-0000-000000000000');
     vi.doMock('@/domain', () => domain);
+    vi.doMock('@/utility/chess', () => utility);
     ({ useGamesStore } = await import('..'));
   });
   afterEach(() => {
@@ -575,9 +578,10 @@ describe('useGamesStore', () => {
     });
     expect(() => store.toggleChessPiece(game, 64, { kind: PieceKind.Rook, colour: PlayerColour.White })).toThrow('board edit mode');
     expect(() => store.resetBoardToStartPosition(game)).toThrow('board edit mode');
-    const renderedPosition = createBoardPosition(PlayerColour.Black);
-    renderedPosition.$ = { isStandardInitialPosition: true };
-    const renderedNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), renderedPosition, MoveNodeKind.Analysis);
+    const navigationPosition = createBoardPosition(PlayerColour.Black);
+    navigationPosition.$ = { isStandardInitialPosition: true };
+    const renderedNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), navigationPosition, MoveNodeKind.Analysis);
+    const renderedPosition = renderedNode.position;
     store.navigateToNode(game, renderedNode);
     store.enterBoardEdit(game);
     domain.MoveHistoryService.replaceBoardRoot.mockClear();
@@ -611,7 +615,7 @@ describe('useGamesStore', () => {
     expect(domain.MoveHistoryService.replaceBoardRoot).toHaveBeenCalledTimes(1);
     const startPosition = createBoardPosition(PlayerColour.White);
     startPosition.$ = { isStandardInitialPosition: true };
-    domain.GameRuleService.createInitialBoardPosition.mockReturnValueOnce(startPosition);
+    utility.GameRuleUtility.createInitialBoardPosition.mockReturnValueOnce(startPosition);
     store.resetBoardToStartPosition(game);
     expect(game.rootPosition).toBe(startPosition);
     expect(game.moveTree.root.position).toBe(startPosition);
@@ -774,7 +778,7 @@ describe('useGamesStore', () => {
     const pendingMove = game.$?.pendingPlayerTurnHandlePromise;
     await store.pauseGame(game, PauseReason.Manual);
     await pendingMove;
-    domain.GameRuleService.isMoveLegal.mockImplementationOnce(() => false);
+    utility.GameRuleUtility.isMoveLegal.mockImplementationOnce(() => false);
     nextPlayerMove = createMove(PlayerColour.Black, 52, 36);
 
     await store.resumeGame(game, PauseReason.Manual);
@@ -784,7 +788,7 @@ describe('useGamesStore', () => {
     await randomDelay();
     await randomDelay();
     await randomDelay();
-    domain.GameRuleService.isMoveLegal.mockImplementation(() => true);
+    utility.GameRuleUtility.isMoveLegal.mockImplementation(() => true);
 
     expect(domain.EngineRuntimeService.startPlayerTurn.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);

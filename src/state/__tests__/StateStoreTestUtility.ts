@@ -8,13 +8,13 @@ import {
   GameState,
   MoveNodeKind,
   MoveKind,
+  PieceKind,
   PlayerActivityState,
   PlayerColour,
   PlayerType,
   PromotionPolicy,
   RecentGameSourceKind,
   ResultState,
-  CheckState,
   ThemeMode,
   TimeControlPreset,
   type IAnalysisSnapshot,
@@ -119,9 +119,9 @@ export function createBoardPosition(sideToMove: PlayerColour = PlayerColour.Whit
       blackKingSide: true,
       blackQueenSide: true,
     },
+    castlingRook: null,
     halfMoveClock: 0,
     fullMoveNumber: 1,
-    checkState: CheckState.None,
   };
 }
 export function createClockSnapshot(activeColour?: PlayerColour, isRunning: boolean = false): IClockSnapshot {
@@ -138,6 +138,7 @@ export function createMove(movingColour: PlayerColour = PlayerColour.White, from
     to,
     kind: MoveKind.Normal,
     movingColour,
+    movingPiece: PieceKind.Pawn,
     $: { san: `${from}-${to}`, uci: `${from}-${to}` },
   };
 }

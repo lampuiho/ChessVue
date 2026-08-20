@@ -63,25 +63,41 @@ Each entry must define:
 - Theme projection, session-route coercion, engine-position mapping, and workspace hydration remain owner-private helpers inside their stores or services unless they become genuinely shared across multiple owners with meaningful behaviour beyond local composition.
 
 ## Chess Structure Support
+### GameRuleUtility
+- Purpose: own pure chess-rule queries, detailed-move generation, initial-position handling, and board-rule game-result resolution.
+- Location: `src/utility/chess/GameRuleUtility.ts`.
+- Touched contract models: `IBoardPosition`, `IMoveRaw`, `IMove`, `CheckState`, `ResultState`, and `ResultReason`.
+- Allowed importers: `GamesStore`, concrete engine clients, notation consumers, and chess-rule tests.
+- Classification: `pure` apart from optional derived cache writes under `IBoardPosition.$`.
+- Validation or failure semantics: illegal raw moves and unresolved promotions throw before returning detailed moves. Private copied-position simulation is used only for legality, check state, and move-sequence enrichment; no position-transition API is exposed.
+
+### MoveNotationUtility
+- Purpose: lazily format SAN from detailed move facts and UCI from raw move coordinates.
+- Location: `src/utility/chess/MoveNotationUtility.ts`.
+- Touched contract models: `IMoveRaw`, `IMove`, and `IMoveRuntime`.
+- Allowed importers: stores, UCI protocol utilities, presentation readers, and notation tests.
+- Classification: `pure` apart from notation cache writes under `IMoveRaw.$`.
+- Validation or failure semantics: SAN accepts detailed moves only; UCI accepts the protocol-neutral raw shape inherited by detailed moves.
+
 ### ChessBoardUtility
 - Purpose: share public board-structure helpers used by domain services and tests without exposing a `domain/internal` module surface.
 - Touched contract models: `IBoardPosition`, `ICastlingAvailability`, `IChessPiece`, `BoardId`, `PlayerColour`.
-- Allowed importers: `GameRuleService`, `MoveNotationService`, domain tests, platform tests.
+- Allowed importers: chess utilities, domain services, stores, domain tests, and platform tests.
 - Owner-private delegates:
-  - `GameRuleService._findKingBoardId`
-  - `GameRuleService._getOpponentColour`
+  - `GameRuleUtility._findKingBoardId`
+  - `GameRuleUtility._getOpponentColour`
 - Classification: `pure`.
 - Validation or failure semantics: helpers preserve shared structural board concerns only. They do not invent missing pieces, infer legality, or clone caller-owned board arrays unless the owning service explicitly needs that behaviour.
 
 ### ChessSquareUtility
 - Purpose: share board-index, coordinate, notation, and pawn-direction helpers used by chess-rule and notation code without exposing a `domain/internal` module surface.
 - Touched contract models: `BoardId`, `PlayerColour`.
-- Allowed importers: `GameRuleService`, `MoveNotationService`, domain tests, platform tests.
+- Allowed importers: chess utilities, domain services, stores, domain tests, and platform tests.
 - Owner-private delegates:
-  - `GameRuleService._boardIdToCoords`
-  - `GameRuleService._coordsToBoardId`
-  - `GameRuleService._getForwardDirection`
-  - `MoveNotationService._boardIdToNotation`
+  - `GameRuleUtility._boardIdToCoords`
+  - `GameRuleUtility._coordsToBoardId`
+  - `GameRuleUtility._getForwardDirection`
+  - `MoveNotationUtility._boardIdToNotation`
 - Classification: `pure`.
 - Validation or failure semantics: helpers perform only structural coordinate conversion and deterministic notation mapping. Out-of-range coordinates return `undefined` rather than coercing to a board id.
 

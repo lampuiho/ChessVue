@@ -1,7 +1,19 @@
-import { EngineOptionType, MoveKind, PieceKind, PlayerColour, type BoardId, type IAnalysisLine, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove } from '@/contracts';
-import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPawnHomeRank } from '@/utility/chess/SquareUtility';
+import { EngineOptionType, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw } from '@/contracts';
+import { MoveNotationUtility } from '@/utility/chess/MoveNotationUtility';
+import { coordsToBoardId } from '@/utility/chess/SquareUtility';
 
 const standardInitialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+export interface IUciBestMove {
+  move: IMoveRaw;
+  ponderMove?: IMoveRaw;
+}
+export interface IUciAnalysisLine {
+  depth: number;
+  scoreCp?: number;
+  scoreMate?: number;
+  pv: IMoveRaw[];
+  reference: number;
+}
 
 // #region Public methods
 
@@ -23,7 +35,7 @@ export function buildFen(position: IBoardPosition): string {
 }
 export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMove): string[] {
   const liveMoves = _getLiveMoves(game);
-  if (expectedPonderMove !== undefined) return _movesMatch(liveMoves.at(-1), expectedPonderMove) ? ['ponderhit'] : ['stop'];
+  if (expectedPonderMove !== undefined) return _movesMatch(liveMoves[liveMoves.length - 1], expectedPonderMove) ? ['ponderhit'] : ['stop'];
   return [_buildPositionCommand(game.rootPosition, liveMoves), _buildTimedGoCommand(game)];
 }
 export function buildIsReadyCommand(): string {
@@ -53,28 +65,21 @@ export function buildStopCommand(): string {
 export function buildUciCommand(): string {
   return 'uci';
 }
-export function buildUciMove(move: IMove): string {
-  if (move.$?.uci !== undefined) return move.$.uci;
-  const promotionToken = move.promotionPiece === PieceKind.Queen ? 'q' : move.promotionPiece === PieceKind.Rook ? 'r' : move.promotionPiece === PieceKind.Bishop ? 'b' : move.promotionPiece === PieceKind.Knight ? 'n' : '';
-  const uci = `${boardIdToNotation(move.from)}${boardIdToNotation(move.to)}${promotionToken}`;
-  move.$ ??= {};
-  move.$.uci = uci;
-  return uci;
+export function buildUciMove(move: IMoveRaw): string {
+  return MoveNotationUtility.getUci(move);
 }
 export function buildUciNewGameCommand(): string {
   return 'ucinewgame';
 }
-export function parseBestMoveLine(line: string, colour: PlayerColour, enPassantTarget?: BoardId): IMove | undefined {
+export function parseBestMoveLine(line: string): IUciBestMove | undefined {
   const tokens = line.trim().split(/\s+/);
   if (tokens[0] !== 'bestmove' || !tokens[1] || tokens[1] === '(none)') return;
-  const move = parseUciMove(tokens[1], colour, enPassantTarget);
-  if (tokens[2] === undefined) return move;
+  const move = parseUciMove(tokens[1]);
+  if (tokens[2] === undefined) return { move };
   if (tokens[2] !== 'ponder' || !tokens[3]) throw new Error(`Invalid UCI bestmove line: ${line}.`);
-  const ponderColour = colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
-  move.$!.ponderMove = parseUciMove(tokens[3], ponderColour, _getNextEnPassantTarget(move));
-  return move;
+  return { move, ponderMove: parseUciMove(tokens[3]) };
 }
-export function parseInfoLine(line: string, colour: PlayerColour, enPassantTarget?: BoardId): IAnalysisLine | undefined {
+export function parseInfoLine(line: string): IUciAnalysisLine | undefined {
   const tokens = line.trim().split(/\s+/);
   if (tokens[0] !== 'info' || !tokens.includes('pv') || !tokens.includes('depth') || !tokens.includes('score')) return;
   const depth = Number.parseInt(_findTokenValue(tokens, 'depth') ?? '', 10);
@@ -89,8 +94,8 @@ export function parseInfoLine(line: string, colour: PlayerColour, enPassantTarge
     depth,
     scoreCp: scoreKind === 'cp' ? scoreValue : undefined,
     scoreMate: scoreKind === 'mate' ? scoreValue : undefined,
-    pv: _parsePv(tokens.slice(pvIndex + 1), colour, enPassantTarget),
-    $: { reference: Number.isInteger(reference) && reference > 0 ? reference : 1 },
+    pv: _parsePv(tokens.slice(pvIndex + 1)),
+    reference: Number.isInteger(reference) && reference > 0 ? reference : 1,
   };
 }
 export function parseOptionLines(lines: readonly string[]): IEngineOptionMeta[] {
@@ -102,21 +107,14 @@ export function parseOptionLines(lines: readonly string[]): IEngineOptionMeta[] 
   }
   return options;
 }
-export function parseUciMove(raw: string, colour: PlayerColour, enPassantTarget?: BoardId): IMove {
+export function parseUciMove(raw: string): IMoveRaw {
   const uci = raw.trim().toLowerCase();
   const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
   if (!match) throw new Error(`Invalid UCI move notation: ${raw}.`);
   const from = _parseBoardId(match[1]!);
   const to = _parseBoardId(match[2]!);
   const promotionPiece = _parsePromotionPiece(match[3]);
-  const kind = promotionPiece !== undefined
-    ? MoveKind.Promotion
-    : _isCastlingMove(from, to, colour)
-      ? MoveKind.Castle
-      : _isEnPassantMove(from, to, colour, enPassantTarget)
-        ? MoveKind.EnPassant
-        : MoveKind.Normal;
-  return { from, to, kind, movingColour: colour, promotionPiece, $: { uci } };
+  return { from, to, promotionPiece, $: { uci } };
 }
 
 // #endregion
@@ -187,14 +185,6 @@ function _getMovesFromPath(game: IGame, path: readonly number[]): IMove[] {
   }
   return moves;
 }
-function _getNextEnPassantTarget(move: IMove): BoardId | undefined {
-  if (move.kind !== MoveKind.Normal) return;
-  const from = boardIdToCoords(move.from);
-  const to = boardIdToCoords(move.to);
-  const direction = getForwardDirection(move.movingColour);
-  if (from.file !== to.file || from.rank !== getPawnHomeRank(move.movingColour) || to.rank - from.rank !== direction * 2) return;
-  return coordsToBoardId(from.file, from.rank + direction);
-}
 function _getOptionFieldValues(tokens: string[], fieldName: string): string[][] {
   const fieldNames = new Set(['default', 'min', 'max', 'var']);
   const values: string[][] = [];
@@ -206,20 +196,8 @@ function _getOptionFieldValues(tokens: string[], fieldName: string): string[][] 
   }
   return values;
 }
-function _isCastlingMove(from: BoardId, to: BoardId, colour: PlayerColour): boolean {
-  const homeRank = colour === PlayerColour.White ? 0 : 7;
-  const fromCoords = boardIdToCoords(from);
-  const toCoords = boardIdToCoords(to);
-  return fromCoords.file === 4 && fromCoords.rank === homeRank && toCoords.rank === homeRank && (toCoords.file === 2 || toCoords.file === 6);
-}
-function _isEnPassantMove(from: BoardId, to: BoardId, colour: PlayerColour, enPassantTarget?: BoardId): boolean {
-  if (enPassantTarget !== to) return false;
-  const fromCoords = boardIdToCoords(from);
-  const toCoords = boardIdToCoords(to);
-  return Math.abs(toCoords.file - fromCoords.file) === 1 && toCoords.rank - fromCoords.rank === getForwardDirection(colour);
-}
 function _movesMatch(left: IMove | undefined, right: IMove): boolean {
-  return left !== undefined && buildUciMove(left) === buildUciMove(right);
+  return left !== undefined && left.from === right.from && left.to === right.to && left.promotionPiece === right.promotionPiece;
 }
 function _parseBoardId(notation: string): BoardId {
   const file = notation.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -278,17 +256,8 @@ function _parsePromotionPiece(token: string | undefined): PieceKind | undefined 
   if (token === 'n') return PieceKind.Knight;
   return;
 }
-function _parsePv(rawMoves: string[], colour: PlayerColour, enPassantTarget?: BoardId): IMove[] {
-  const moves: IMove[] = [];
-  let currentColour = colour;
-  let currentEnPassantTarget = enPassantTarget;
-  for (const rawMove of rawMoves) {
-    const move = parseUciMove(rawMove, currentColour, currentEnPassantTarget);
-    moves.push(move);
-    currentEnPassantTarget = _getNextEnPassantTarget(move);
-    currentColour = currentColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
-  }
-  return moves;
+function _parsePv(rawMoves: string[]): IMoveRaw[] {
+  return rawMoves.map((move) => parseUciMove(move));
 }
 function _pieceToFenToken(kind: PieceKind, colour: PlayerColour): string {
   const token = kind === PieceKind.King ? 'k' : kind === PieceKind.Queen ? 'q' : kind === PieceKind.Rook ? 'r' : kind === PieceKind.Bishop ? 'b' : kind === PieceKind.Knight ? 'n' : 'p';

@@ -4,6 +4,7 @@ import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAn
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
 import { buildPositionKey } from '@/utility/chess';
+import { GameRuleUtility } from '@/utility/chess/GameRuleUtility';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 import { buildAnalysisCommands, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciNewGameCommand, parseBestMoveLine, parseInfoLine, parseOptionLines } from '../../utility/UciUtility';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
@@ -133,8 +134,13 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
 
     async function awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
       const session = _requireInitialisedSession(engine);
-      if (!session.playerMoveDeferred) throw new Error(`No player turn is active for engine ${engine.displayName}.`);
-      return session.playerMoveDeferred;
+      const deferred = session.playerMoveDeferred;
+      if (!deferred) throw new Error(`No player turn is active for engine ${engine.displayName}.`);
+      try {
+        return await deferred;
+      } finally {
+        if (session.playerMoveDeferred === deferred) session.playerMoveDeferred = undefined;
+      }
     }
     function getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[] {
       return _requireInitialisedSession(engine).options;
@@ -150,12 +156,12 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       _attachToProcess(engine, processHandle, session);
       try {
         session.state = UciSessionState.AwaitingUciOk;
-        session.state = await _writeCommandAndAwaitState(session, processHandle, buildUciCommand(), UciSessionState.AwaitingUciOk);
+        session.state = await _writeCommandAndAwaitState(session, processHandle, buildUciCommand(), UciSessionState.Created);
         session.options = parseOptionLines(session.optionLines);
         session.optionLines = [];
         for (const [optionName, value] of Object.entries(engine.options)) await _writeCommand(processHandle, buildSetOptionCommand(optionName, value));
         session.state = UciSessionState.AwaitingReadyOk;
-        session.state = await _writeCommandAndAwaitState(session, processHandle, buildIsReadyCommand(), UciSessionState.AwaitingReadyOk);
+        session.state = await _writeCommandAndAwaitState(session, processHandle, buildIsReadyCommand(), UciSessionState.Ready);
       } catch (error) {
         if (session.state !== UciSessionState.Failed) _failUciSession(session, error);
         throw error;
@@ -248,27 +254,40 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       const lines = [...analysisLines.entries()].sort((left, right) => left[0] - right[0]).map(([, line]) => line);
       return { position, positionKey: buildPositionKey(position), bestMove: bestMove ?? lines[0]?.pv[0], lines, isFinal };
     }
+    function _parseDetailedBestMove(position: IBoardPosition, line: string): IMove | undefined {
+      const parsed = parseBestMoveLine(line);
+      if (!parsed) return;
+      const [move, ponderMove] = GameRuleUtility.genDetailedMoves(position, parsed.ponderMove ? [parsed.move, parsed.ponderMove] : [parsed.move]);
+      if (!move) throw new Error('UCI bestmove did not contain a move.');
+      if (ponderMove) (move.$ ??= {}).ponderMove = ponderMove;
+      return move;
+    }
+    function _parseDetailedAnalysisLine(position: IBoardPosition, line: string): IAnalysisLine | undefined {
+      const parsed = parseInfoLine(line);
+      if (!parsed) return;
+      const pv = GameRuleUtility.genDetailedMoves(position, parsed.pv);
+      return { depth: parsed.depth, scoreCp: parsed.scoreCp, scoreMate: parsed.scoreMate, pv, $: { reference: parsed.reference } };
+    }
     function _completeAnalysis(engine: IAssignedEngine, session: IUciSession, line: string): void {
       const position = _requireSessionPosition(session);
-      const bestMove = parseBestMoveLine(line, position.sideToMove, position.enPassantTarget);
+      const bestMove = _parseDetailedBestMove(position, line);
       if (!bestMove) throw new Error(`Expected UCI bestmove while analysing: ${line}.`);
       session.state = UciSessionState.Ready;
       _requireRuntimeState(engine).analysisCallback?.(_buildAnalysisUpdate(position, _requireRuntimeState(engine).analysisLines, true, bestMove));
     }
     function _completePlayerMove(session: IUciSession, line: string): void {
       const position = _requireSessionPosition(session);
-      const move = parseBestMoveLine(line, position.sideToMove, position.enPassantTarget);
+      const move = _parseDetailedBestMove(position, line);
       if (!move) throw new Error(`Expected UCI bestmove while finding a move: ${line}.`);
       const deferred = session.playerMoveDeferred;
       if (!deferred) throw new Error('UCI player move completed without a pending move request.');
-      session.playerMoveDeferred = undefined;
       session.state = UciSessionState.Ready;
       deferred.resolve(move);
     }
     function _consumeAnalysingLine(engine: IAssignedEngine, session: IUciSession, line: string): void {
       if (line.startsWith('info ')) {
         const position = _requireSessionPosition(session);
-        const analysisLine = parseInfoLine(line, position.sideToMove, position.enPassantTarget);
+        const analysisLine = _parseDetailedAnalysisLine(position, line);
         if (!analysisLine) return;
         const reference = analysisLine.$?.reference;
         if (reference === undefined) throw new Error('Parsed analysis line is missing its runtime reference.');
@@ -360,7 +379,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
         try {
           await _writeCommand(_requireProcessHandle(engine), buildUciNewGameCommand());
           session.state = UciSessionState.AwaitingReadyOk;
-          session.state = await _writeCommandAndAwaitState(session, _requireProcessHandle(engine), buildIsReadyCommand(), UciSessionState.AwaitingReadyOk);
+          session.state = await _writeCommandAndAwaitState(session, _requireProcessHandle(engine), buildIsReadyCommand(), UciSessionState.Ready);
         } catch (error) {
           if (session.state !== UciSessionState.Failed) _failUciSession(session, error);
           throw error;
@@ -438,11 +457,11 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       if (!processHandle) throw _createInvalidProcessHandleError('Engine process handle is unavailable.');
       await writeProcessLine(_requireProcess(processHandle), processHandle, command);
     }
-    async function _writeCommandAndAwaitState(session: IUciSession, processHandle: ProcessHandle, command: string, state: UciSessionState): Promise<UciSessionState> {
+    async function _writeCommandAndAwaitState(session: IUciSession, processHandle: ProcessHandle, command: string, resolvedState: UciSessionState): Promise<UciSessionState> {
       const deferred = _beginStateWait(session);
       await _writeCommand(processHandle, command);
       await deferred;
-      return state;
+      return resolvedState;
     }
 
     // #endregion

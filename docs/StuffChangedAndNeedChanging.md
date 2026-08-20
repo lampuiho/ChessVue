@@ -1,6 +1,6 @@
 Stuff Changed:
 - cleaned up stuff that has both nullable and optional in zod when they are only optional
-- added check state to BoardPosition, deleted checkmate state from IGame
+- moved check state to board-position runtime state and detailed move data; deleted checkmate state from IGame
 - ~~added currentPosition to IGameRuntime~~ renamed to `renderedPosition`, and runtime now also caches `livePosition`, `renderedNode`, and `liveNode`
 - renamed IGame.boardRoot as rootPosition to be consistent with IEnginePositionState
 - merged IGame.liveAnalysisOptions into IGame.gameplayOptions, takeback is just boolean now
@@ -26,7 +26,7 @@ Stuff need changing:
 - ~~TODO in GameStore._finaliseMove~~
 - remove all the uncessary object cloning in GameStore and other places
 - ~~some GameRule service functions like applyMove are somehow in GameRuleUtility, and is called by GameStore. Move them back to game rule service. It would only make sense for actual game rule stuff to be in the library not app logic, if they obey the rule that there are other services in the first 2 layers that need them~~
-- ~~TODO in GameRuleService.applyMove (after it is moved back) to update check state~~
+- ~~replace `GameRuleService` with immutable `MoveApplicationService.applyMove` and detailed-move check state~~
 - ~~MoveNode.kind should just be Live, Analysis, MoveNodeRuntime can have isHighlighted boolean (for live path and rendered path)~~
 - ~~cache current/live MoveNode in runtime~~
 - uci utility is not using IMove runtime cache

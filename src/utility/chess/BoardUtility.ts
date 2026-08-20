@@ -1,4 +1,4 @@
-import { CheckState, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IChessPiece } from '@/contracts';
+import { PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IChessPiece } from '@/contracts';
 
 export function getOpponentColour(colour: PlayerColour): PlayerColour {
   return colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
@@ -24,6 +24,5 @@ export function createSparseBoard(pieces: Array<{ boardId: BoardId; piece: IChes
     },
     halfMoveClock: 0,
     fullMoveNumber: 1,
-    checkState: CheckState.None,
   };
 }

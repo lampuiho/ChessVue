@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   AnalysisBranchExitBehaviour,
   BoardOrientation,
-  CheckState,
   EngineClientType,
   EngineProtocol,
   GameState,
@@ -20,14 +19,14 @@ import {
   type MovePath,
 } from '@/contracts';
 import {
-  GameRuleService,
-  MoveNotationService,
+  MoveApplicationService,
   MoveHistoryService,
   PositionIdentityService,
   SerializationError,
   SerializationService,
   TimeControlService,
 } from '..';
+import { GameRuleUtility, MoveNotationUtility } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -80,15 +79,16 @@ function createSettingsSnapshot(): ISettingsSnapshot {
 }
 function createGame(): IGame {
   const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 };
-  const rootPosition = GameRuleService.createInitialBoardPosition();
-  rootPosition.checkState = CheckState.None;
+  const rootPosition = GameRuleUtility.createInitialBoardPosition();
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl);
   const moveTree = MoveHistoryService.createMoveTree(rootPosition, rootClock);
-  const move = GameRuleService.generateLegalMoves(rootPosition).find((candidate) => candidate.from === boardId(4, 1) && candidate.to === boardId(4, 3))!;
-  const nextPosition = GameRuleService.applyMove(rootPosition, move);
+  const move = GameRuleUtility.genDetailedMove(rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
+  const nextPosition = MoveApplicationService.applyMove(rootPosition, move);
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
-  MoveHistoryService.addMainlineMove(moveTree.root, MoveNotationService.decorateMove(rootPosition, move, nextPosition, GameRuleService.generateLegalMoves(rootPosition)), nextPosition, nextClock);
+  MoveNotationUtility.getSan(move);
+  MoveNotationUtility.getUci(move);
+  MoveHistoryService.addMainlineMove(moveTree.root, move, nextPosition, nextClock);
 
   return {
     schemaVersion: 1,
@@ -159,7 +159,7 @@ describe('SerializationService', () => {
 
   it('round-trips saved games without persisting runtime metadata', () => {
     const game = createGame();
-    (game as IGame & { $?: { isHydrated: boolean } }).$ = { isHydrated: true };
+    (game as unknown as { $?: { isHydrated: boolean } }).$ = { isHydrated: true };
     ((game.whitePlayer as unknown) as { $?: unknown }).$ = { isSelected: true };
     getNode(game.moveTree, game.livePath!).move = {
       ...getNode(game.moveTree, game.livePath!).move!,

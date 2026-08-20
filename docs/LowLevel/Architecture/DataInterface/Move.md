@@ -10,6 +10,8 @@ Define move payloads and tree structures for live play, history review, and anal
 
 ## Interfaces
 - `interface IMove`
+- `interface IMoveRaw`
+- `interface IMoveRuntime`
 - `interface IMoveNodeRuntime`
 - `interface IMoveNode`
 - `interface IMoveTree`
@@ -28,17 +30,26 @@ enum MoveNodeKind {
   Analysis = "analysis"
 }
 
-interface IMove {
+interface IMoveRaw {
   from: BoardId
   to: BoardId
+  promotionPiece?: PieceKind
+  $?: IMoveRuntime
+}
+
+interface IMove extends IMoveRaw {
   kind: MoveKind
   movingColour: PlayerColour
-  promotionPiece?: PieceKind
-  $?: {
-    ponderMove?: IMove
-    san?: string
-    uci?: string
-  }
+  movingPiece: PieceKind
+  capturePiece?: PieceKind
+  checkState?: CheckState
+  alternativeFrom?: BoardId[]
+}
+
+interface IMoveRuntime {
+  ponderMove?: IMove
+  san?: string
+  uci?: string
 }
 
 type MovePath = number[]
@@ -76,7 +87,8 @@ interface IMoveTree {
 - Omitted `move`, `clockSnapshot`, `mainlineChildIndex`, or `promotionPiece` fields mean that value is not applicable for the current node or move.
 - `clockSnapshot` is stored on the root node and on live nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may omit it.
 - `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
-- `IMove` stays structural. SAN, UCI, and an engine-suggested ponder reply are runtime-only metadata and are not part of the canonical persisted shape.
+- `IMoveRaw` is the UCI-internal coordinate shape. `GameRuleUtility.genDetailedMove(...)` enriches it into `IMove` before it crosses the engine-client boundary.
+- `IMove` persists the chess facts needed to derive SAN without a board position. SAN, UCI, and an engine-suggested ponder reply remain runtime-only caches.
 - `IMoveNode.kind` only distinguishes committed live nodes from analysis-only nodes. Alternative live continuations remain `live` nodes; `mainlineChildIndex` decides which continuation is currently authoritative.
 - `IMoveNode.$` is runtime-only. Hydration rebuilds `$.parent`, `$.isHighlighted`, and any later runtime helpers, and persistence strips all `$` data.
 - `MovePath` is the persisted selector used by workspace state to point to one node by traversal from the root.

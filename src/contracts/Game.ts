@@ -218,7 +218,7 @@ export const gameSchema = z.object({
   highlightPath: movePathSchema,
   timeControl: timeControlSchema,
   clockSnapshot: clockSnapshotSchema,
-  gameplayOptions: gameplayOptionsSchema.optional(),
+  gameplayOptions: gameplayOptionsSchema,
   analysis: gameAnalysisSchema,
 })
 

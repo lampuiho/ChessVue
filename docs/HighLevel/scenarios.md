@@ -334,8 +334,8 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Move is committed once, reflected across board/history/clock/analysis.
 - **Implementation Touchpoints**:
   - `Chessboard.moveAttempt`
-  - `GameRuleService.generateLegalMoves`
-  - `GameRuleService.isMoveLegal`
+  - `GameRuleUtility.generateLegalMoves`
+  - `GameRuleUtility.isMoveLegal`
   - `GamesStore.makeMove`
   - `MoveHistoryService.addMainlineMove`
   - `TimeControlService.applyMove`
@@ -358,7 +358,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: No state mutation on invalid move.
 - **Implementation Touchpoints**:
   - `Chessboard.onSquareClick`
-  - `GameRuleService.isMoveLegal`
+  - `GameRuleUtility.isMoveLegal`
   - `GamesStore.makeMove`
 
 ### SCN-MOVE-03 - Pawn Promotion Resolution
@@ -376,7 +376,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Promotion move is explicit and deterministic.
 - **Implementation Touchpoints**:
   - `Chessboard.moveAttempt`
-  - `GameRuleService.isMoveLegal`
+  - `GameRuleUtility.isMoveLegal`
   - `GamesStore.makeMove`
   - `UiStateStore.showModal`
 
@@ -630,7 +630,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.
 - **Implementation Touchpoints**:
   - `AnalysisPanel.moveSelected`
-  - `GameRuleService.isMoveLegal`
+  - `GameRuleUtility.isMoveLegal`
   - `MoveHistoryService.addAnalysisMove`
   - `GamesStore.navigateToNode`
   - `GamesStore.getGame`
@@ -1330,8 +1330,8 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-08-UNSUPPORTED-ENGINE`: Selected engine cannot handle variant -> warn and continue without engine.
 - **Postconditions**: Variant choice consistently affects rules, setup, and engine compatibility.
 - **Implementation Touchpoints**:
-  - `GameRuleService.isMoveLegal`
-  - `GameRuleService.generateLegalMoves`
+  - `GameRuleUtility.isMoveLegal`
+  - `GameRuleUtility.generateLegalMoves`
   - `SerializationService.serialiseGame`
   - `EnginesStore.getEngine`
 

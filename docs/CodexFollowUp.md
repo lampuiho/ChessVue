@@ -37,6 +37,7 @@
 
 ## Still Pending
 - Finish the items still open in `docs/StuffChangedAndNeedChanging.md`.
+- Define the board-interaction move-submission boundary so legal move selection uses `IMoveRaw`, promotion selection completes that raw move, and conversion to `IMove` happens only afterwards for move-tree and service interactions.
 - Continue the broader copy-reduction pass beyond the paths already touched.
 - Revisit the remaining process-flow docs that still describe the old private player-move flow.
 - Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.

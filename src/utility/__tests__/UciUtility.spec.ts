@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { CheckState, EngineOptionType, GameState, MoveKind, MoveNodeKind, PlayerColour, ResultState, TimeControlPreset, type IBoardPosition, type IGame, type IMove } from '@/contracts';
-import { GameRuleService } from '@/domain';
+import { EngineOptionType, GameState, MoveKind, MoveNodeKind, PieceKind, PlayerColour, ResultState, TimeControlPreset, type IBoardPosition, type IGame, type IMove, type IMoveRaw } from '@/contracts';
+import { GameRuleUtility } from '@/utility/chess';
 import { buildAnalysisCommands, buildDebugCommand, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildPositionCommand, buildQuitCommand, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciMove, buildUciNewGameCommand, parseBestMoveLine, parseOptionLines } from '@/utility/UciUtility';
 
 describe('UciUtility', () => {
@@ -18,8 +18,8 @@ describe('UciUtility', () => {
     expect(buildUciNewGameCommand()).toBe('ucinewgame');
   });
   it('returns and populates cached UCI move notation', () => {
-    const cachedMove: IMove = { from: 0, to: 1, kind: MoveKind.Normal, movingColour: PlayerColour.White, $: { uci: 'cached' } };
-    const uncachedMove: IMove = { from: 12, to: 28, kind: MoveKind.Normal, movingColour: PlayerColour.White };
+    const cachedMove: IMoveRaw = { from: 0, to: 1, $: { uci: 'cached' } };
+    const uncachedMove: IMoveRaw = { from: 12, to: 28 };
 
     expect(buildUciMove(cachedMove)).toBe('cached');
     expect(buildUciMove(uncachedMove)).toBe('e2e4');
@@ -30,11 +30,11 @@ describe('UciUtility', () => {
       board: new Array<IBoardPosition['board'][number]>(64).fill(undefined),
       sideToMove: PlayerColour.White,
       castlingAvailability: { whiteKingSide: false, whiteQueenSide: false, blackKingSide: false, blackQueenSide: false },
+      castlingRook: null,
       halfMoveClock: 0,
       fullMoveNumber: 1,
-      checkState: CheckState.None,
     };
-    const move: IMove = { from: 12, to: 28, kind: MoveKind.Normal, movingColour: PlayerColour.White };
+    const move: IMove = { from: 12, to: 28, kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
     const child = { kind: MoveNodeKind.Live, move, position: { ...rootPosition, sideToMove: PlayerColour.Black }, plyIndex: 1, children: [] };
     const game: IGame = {
       schemaVersion: 1,
@@ -56,7 +56,7 @@ describe('UciUtility', () => {
     expect(buildFindNextMoveCommands(game)).toEqual(['position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4', 'go wtime 60000 btime 45000 winc 1000 binc 1000']);
     expect(buildFindNextMoveCommands(game, { ...move })).toEqual(['ponderhit']);
     expect(buildFindNextMoveCommands(game, { ...move, to: 20 })).toEqual(['stop']);
-    expect(buildPonderMoveCommands(game, { from: 52, to: 36, kind: MoveKind.Normal, movingColour: PlayerColour.Black })).toEqual([
+    expect(buildPonderMoveCommands(game, { from: 52, to: 36, kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn })).toEqual([
       'position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4 e7e5',
       'go ponder wtime 60000 btime 45000 winc 1000 binc 1000',
     ]);
@@ -65,23 +65,22 @@ describe('UciUtility', () => {
     expect(() => buildFindNextMoveCommands(game)).toThrow('Timed engine search requires both clocks');
   });
   it('uses startpos and caches verification for a standard initial root', () => {
-    const rootPosition = GameRuleService.createInitialBoardPosition();
+    const rootPosition = GameRuleUtility.createInitialBoardPosition();
     rootPosition.$ = undefined;
     const game = {
       rootPosition,
       moveTree: { root: { kind: MoveNodeKind.Live, position: rootPosition, plyIndex: 0, children: [] } },
       highlightPath: [],
-    } as IGame;
+    } as unknown as IGame;
 
     expect(buildPositionCommand(game)).toBe('position startpos');
-    expect(rootPosition.$?.isStandardInitialPosition).toBe(true);
+    expect((rootPosition as IBoardPosition).$?.isStandardInitialPosition).toBe(true);
   });
   it('parses the optional ponder move from a bestmove line', () => {
-    const move = parseBestMoveLine('bestmove e2e4 ponder e7e5', PlayerColour.White);
+    const parsed = parseBestMoveLine('bestmove e2e4 ponder e7e5');
 
-    expect(move?.$?.uci).toBe('e2e4');
-    expect(move?.$?.ponderMove?.$.uci).toBe('e7e5');
-    expect(move?.$?.ponderMove?.movingColour).toBe(PlayerColour.Black);
+    expect(parsed?.move.$?.uci).toBe('e2e4');
+    expect(parsed?.ponderMove?.$?.uci).toBe('e7e5');
   });
   it('parses UCI option lines into protocol-neutral option metadata', () => {
     expect(parseOptionLines([

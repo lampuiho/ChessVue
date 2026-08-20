@@ -24,10 +24,10 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._commitLiveMove` |
 | `GamesStore._refreshAnalysisForGame` *(background)* |
 
-| `GameRuleService.isMoveLegal` |
+| `GameRuleUtility.isMoveLegal` |
 | --- |
 
-| `GameRuleService.applyMove` |
+| `MoveApplicationService.applyMove` |
 | --- |
 
 | `TimeControlService.applyMove` |
@@ -76,10 +76,10 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._commitAnalysisMove` |
 | `GamesStore._refreshAnalysisForGame` *(background)* |
 
-| `GameRuleService.isMoveLegal` |
+| `GameRuleUtility.isMoveLegal` |
 | --- |
 
-| `GameRuleService.applyMove` |
+| `MoveApplicationService.applyMove` |
 | --- |
 
 | `MoveHistoryService.addAnalysisMove` |
@@ -110,7 +110,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `Chessboard.moveSubmitted` |
 | --- |
 | `GamesStore.makeMove` |
-| `GameRuleService.isMoveLegal` |
+| `GameRuleUtility.isMoveLegal` |
 | `GamesStore._refreshLegalTargets` |
 
 | `GamesStore.makeMove` |
@@ -119,7 +119,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore._rejectIllegalMove` |
 | `GamesStore._refreshLegalTargets` |
 
-| `GameRuleService.isMoveLegal` |
+| `GameRuleUtility.isMoveLegal` |
 | --- |
 
 - Requirement verification: `Pass`. Rejection happens before tree, clock, or persistence mutation.
@@ -139,7 +139,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 | `Chessboard._completePromotionMove` |
 | --- |
-| `GameRuleService.isMoveLegal` |
+| `GameRuleUtility.isMoveLegal` |
 
 #### Flow B - Cancel Promotion Before Submission
 | `PromotionModal.cancelled` |

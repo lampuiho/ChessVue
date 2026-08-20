@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MoveKind, MoveNodeKind, PieceKind, PlayerColour, TimeControlPreset, type IMove, type IMoveNode, type IMoveTree, type MovePath } from '@/contracts';
-import { GameRuleService, MoveHistoryService, TimeControlService } from '..'
+import { MoveHistoryService, TimeControlService } from '..'
+import { GameRuleUtility } from '@/utility/chess'
 import { createSparseBoard } from '@/utility/chess'
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
@@ -10,6 +11,7 @@ const sampleMove: IMove = {
   to: boardId(4, 3),
   kind: MoveKind.Normal,
   movingColour: PlayerColour.White,
+  movingPiece: PieceKind.Pawn,
 }
 
 function getNode(tree: IMoveTree, path: MovePath): IMoveNode {
@@ -25,17 +27,17 @@ describe('MoveHistoryService', () => {
       initialMs: 600000,
       incrementMs: 0,
     })
-    const tree = MoveHistoryService.createMoveTree(GameRuleService.createInitialBoardPosition(), clockSnapshot)
+    const tree = MoveHistoryService.createMoveTree(GameRuleUtility.createInitialBoardPosition(), clockSnapshot)
 
     expect(tree.root.move).toBeUndefined()
     expect(tree.root.clockSnapshot).toEqual(clockSnapshot)
   })
 
   it('adds a mainline move and keeps existing continuations as live nodes', () => {
-    const tree = MoveHistoryService.createMoveTree(GameRuleService.createInitialBoardPosition())
-    MoveHistoryService.addMainlineMove(tree.root, sampleMove, GameRuleService.createInitialBoardPosition())
+    const tree = MoveHistoryService.createMoveTree(GameRuleUtility.createInitialBoardPosition())
+    MoveHistoryService.addMainlineMove(tree.root, sampleMove, GameRuleUtility.createInitialBoardPosition())
     const secondMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
-    MoveHistoryService.addMainlineMove(tree.root, secondMove, GameRuleService.createInitialBoardPosition())
+    MoveHistoryService.addMainlineMove(tree.root, secondMove, GameRuleUtility.createInitialBoardPosition())
 
     expect(tree.root.children).toHaveLength(2)
     expect(tree.root.children[0]!.kind).toBe(MoveNodeKind.Live)
@@ -49,7 +51,7 @@ describe('MoveHistoryService', () => {
       initialMs: 300000,
       incrementMs: 0,
     })
-    const tree = MoveHistoryService.createMoveTree(GameRuleService.createInitialBoardPosition(), clockSnapshot)
+    const tree = MoveHistoryService.createMoveTree(GameRuleUtility.createInitialBoardPosition(), clockSnapshot)
     const analysisPosition = createSparseBoard([
       { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
       { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
@@ -63,10 +65,10 @@ describe('MoveHistoryService', () => {
   })
 
   it('rewrites the selected child to the mainline', () => {
-    const tree = MoveHistoryService.createMoveTree(GameRuleService.createInitialBoardPosition())
-    MoveHistoryService.addAnalysisMove(tree.root, sampleMove, GameRuleService.createInitialBoardPosition())
+    const tree = MoveHistoryService.createMoveTree(GameRuleUtility.createInitialBoardPosition())
+    MoveHistoryService.addAnalysisMove(tree.root, sampleMove, GameRuleUtility.createInitialBoardPosition())
     const secondMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
-    MoveHistoryService.addAnalysisMove(tree.root, secondMove, GameRuleService.createInitialBoardPosition())
+    MoveHistoryService.addAnalysisMove(tree.root, secondMove, GameRuleUtility.createInitialBoardPosition())
     const rewritten = MoveHistoryService.rewriteMainline(tree.root, tree.root.children[1]!)
 
     expect(rewritten.root.mainlineChildIndex).toBe(1)
@@ -79,10 +81,10 @@ describe('MoveHistoryService', () => {
       initialMs: 600000,
       incrementMs: 0,
     })
-    const tree = MoveHistoryService.createMoveTree(GameRuleService.createInitialBoardPosition(), clockSnapshot)
-    MoveHistoryService.addMainlineMove(tree.root, sampleMove, GameRuleService.createInitialBoardPosition(), clockSnapshot)
+    const tree = MoveHistoryService.createMoveTree(GameRuleUtility.createInitialBoardPosition(), clockSnapshot)
+    MoveHistoryService.addMainlineMove(tree.root, sampleMove, GameRuleUtility.createInitialBoardPosition(), clockSnapshot)
     const secondMove: IMove = { ...sampleMove, from: boardId(4, 6), to: boardId(4, 4), movingColour: PlayerColour.Black }
-    MoveHistoryService.addMainlineMove(tree.root.children[0]!, secondMove, GameRuleService.createInitialBoardPosition(), clockSnapshot)
+    MoveHistoryService.addMainlineMove(tree.root.children[0]!, secondMove, GameRuleUtility.createInitialBoardPosition(), clockSnapshot)
     const takenBack = MoveHistoryService.takeBack(tree.root.children[0]!.children[0]!, 1)
 
     expect(getNode(takenBack, [0]).mainlineChildIndex).toBeUndefined()

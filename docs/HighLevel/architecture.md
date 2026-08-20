@@ -51,8 +51,7 @@ Purpose: hold chess rules, notation and position identity, persisted-document ru
 
 Committed domain modules:
 
-- `GameRuleService`
-- `MoveNotationService`
+- `MoveApplicationService`
 - `MoveHistoryService`
 - `PositionIdentityService`
 - `TimeControlService`
@@ -124,8 +123,8 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
 
 ### Domain Logic
-- `GameRuleService` validates and applies moves, resolves promotion choices, and detects terminal game results.
-- `MoveNotationService` owns notation mapping needed by committed gameplay, history, and engine-facing workflows.
+- `MoveApplicationService` is the store-facing board-position transition boundary and currently generates immutable next positions.
+- Pure chess rules and notation mapping live in shared `GameRuleUtility` and `MoveNotationUtility` modules.
 - `MoveHistoryService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `PositionIdentityService` owns canonical position identity and equality rules used by analysis, restore, and serialisation workflows.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
