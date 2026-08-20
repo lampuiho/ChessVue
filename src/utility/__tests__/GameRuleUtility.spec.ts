@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AmbiguityKind, CheckState, MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '@/contracts';
-import { createInitialBoardPosition, createSparseBoard, genDetailedMoves, genLegalMoves, genNextPosition, getCheckState, isMoveLegal, isStandardInitialPosition, resolveGameResult, toDetailedMove } from '@/utility/chess';
+import { applyMove, createInitialBoardPosition, createSparseBoard, genDetailedMoves, genLegalMoves, genLegalMovesForPiece, genNextPosition, getCheckState, isMoveLegal, isStandardInitialPosition, requiresPromotionSelection, resolveGameResult, toDetailedMove } from '@/utility/chess';
 
 const boardId = (file: number, rank: number): BoardId => file + (rank * 8);
 
@@ -128,6 +128,75 @@ describe('GameRuleUtility', () => {
 
       expect(move.checkState).toBeUndefined();
       expect(genNextPosition(position, move).$).toBeUndefined();
+    });
+
+    it('applies a detailed move to the supplied position', () => {
+      const position = createInitialBoardPosition();
+      const move = toDetailedMove(position, { from: boardId(4, 1), to: boardId(4, 3) });
+
+      expect(applyMove(position, move)).toBe(position);
+      expect(position.board[boardId(4, 1)]).toBeUndefined();
+      expect(position.board[boardId(4, 3)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.White });
+      expect(position.sideToMove).toBe(PlayerColour.Black);
+    });
+  });
+
+  describe('legal moves for a piece', () => {
+    it('returns raw moves only for the selected piece', () => {
+      const position = createInitialBoardPosition();
+      const from = boardId(4, 1);
+      const moves = genLegalMovesForPiece(position, from);
+
+      expect(moves).toEqual([
+        { from, to: boardId(4, 2) },
+        { from, to: boardId(4, 3) },
+      ]);
+      expect(genLegalMovesForPiece(position, boardId(4, 6))).toEqual([]);
+    });
+
+    it('skips the attack state after a known non-check while still rejecting pinned moves', () => {
+      const from = boardId(4, 1);
+      const position = createSparseBoard([
+        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: from, piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: boardId(0, 5), piece: { kind: PieceKind.Knight, colour: PlayerColour.Black } },
+        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]);
+      const lastMove: IMove = { from: boardId(1, 7), to: boardId(0, 5), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Knight };
+      const moves = genLegalMovesForPiece(position, from, lastMove);
+
+      expect(moves.length).toBeGreaterThan(0);
+      expect(moves.every(move => move.to % 8 === 4)).toBe(true);
+      expect(moves).not.toContainEqual({ from, to: boardId(5, 1) });
+    });
+
+    it('calculates checking attacks for non-king responses', () => {
+      const from = boardId(1, 4);
+      const position = createSparseBoard([
+        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: from, piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
+        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]);
+      const lastMove: IMove = { from: boardId(4, 6), to: boardId(4, 7), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Rook, checkState: CheckState.Check };
+
+      expect(genLegalMovesForPiece(position, from, lastMove)).toEqual([
+        { from, to: boardId(4, 1) },
+        { from, to: boardId(4, 7) },
+      ]);
+    });
+
+    it('always calculates the attack mask for king moves', () => {
+      const from = boardId(4, 2);
+      const position = createSparseBoard([
+        { boardId: from, piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]);
+      const lastMove: IMove = { from: boardId(3, 5), to: boardId(3, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
+
+      expect(genLegalMovesForPiece(position, from, lastMove)).not.toContainEqual({ from, to: boardId(4, 3) });
     });
   });
 
@@ -369,6 +438,47 @@ describe('GameRuleUtility', () => {
   });
 
   describe('promotion', () => {
+    it('detects whether a raw pawn move needs a promotion selection', () => {
+      const pawnFrom = boardId(4, 6);
+      const rookFrom = boardId(1, 6);
+      const promotionTo = boardId(4, 7);
+      const position = createSparseBoard([
+        { boardId: pawnFrom, piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
+        { boardId: rookFrom, piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]);
+
+      expect(requiresPromotionSelection(position, { from: pawnFrom, to: promotionTo })).toBe(true);
+      expect(requiresPromotionSelection(position, { from: pawnFrom, to: promotionTo, promotionPiece: PieceKind.Queen })).toBe(false);
+      expect(requiresPromotionSelection(position, { from: pawnFrom, to: boardId(4, 5) })).toBe(false);
+      expect(requiresPromotionSelection(position, { from: rookFrom, to: boardId(1, 7) })).toBe(false);
+      expect(() => requiresPromotionSelection(position, { from: boardId(2, 6), to: boardId(2, 7) })).toThrow(/expecting a piece/);
+    });
+
+    it('generates each promotion piece for forward moves and captures', () => {
+      const from = boardId(4, 6);
+      const forwardTo = boardId(4, 7);
+      const captureTo = boardId(3, 7);
+      const position = createSparseBoard([
+        { boardId: from, piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
+        { boardId: captureTo, piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]);
+      const moves = genLegalMoves(position).filter(move => move.from === from);
+      const forwardMoves = moves.filter(move => move.to === forwardTo);
+      const captureMoves = moves.filter(move => move.to === captureTo);
+      const expectedPromotionPieces = [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight];
+
+      expect(forwardMoves).toHaveLength(4);
+      expect(captureMoves).toHaveLength(4);
+      expect(moves.every(move => move.kind === MoveKind.Promotion)).toBe(true);
+      expect(forwardMoves.map(move => move.promotionPiece)).toEqual(expectedPromotionPieces);
+      expect(captureMoves.map(move => move.promotionPiece)).toEqual(expectedPromotionPieces);
+      expect(captureMoves.every(move => move.capturePiece === PieceKind.Rook)).toBe(true);
+    });
+
     it('applies the selected piece and calculates check', () => {
       const position = createSparseBoard([
         { boardId: boardId(4, 6), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },

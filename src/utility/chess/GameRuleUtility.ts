@@ -97,9 +97,15 @@ function _genPawnMoves(position: IBoardPosition, from: BoardId, colour: PlayerCo
   const moves = [] as IMoveRaw[];
   const origin = boardIdToCoords(from);
   const direction = getForwardDirection(colour);
-  const oneForward = tryCoordsToBoardId(origin.file, origin.rank + direction);
+  const rank = origin.rank + direction;
+  const isPromotion = rank === getPromotionRank(colour);
+  function pushMove(move: IMoveRaw) {
+    if (isPromotion) moves.push(...promotionPieces.map(promotionPiece => ({ ...move, promotionPiece })));
+    else moves.push(move);
+  }
+  const oneForward = tryCoordsToBoardId(origin.file, rank);
   if (oneForward != null && !isOccupied(position, oneForward)) {
-    moves.push({ from, to: oneForward, })
+    pushMove({ from, to: oneForward });
     if (origin.rank === getPawnHomeRank(colour)) {
       const twoForward = tryCoordsToBoardId(origin.file, origin.rank + (direction * 2));
       if (twoForward != null && !isOccupied(position, twoForward))
@@ -109,7 +115,7 @@ function _genPawnMoves(position: IBoardPosition, from: BoardId, colour: PlayerCo
   for (const move of _genPawnAttackMoves(from, colour)) {
     const target = move.to;
     const isOccupiedByOpponent = getOccupancyKind(position, target, colour) === OccupancyKind.Opponent;
-    if (isOccupiedByOpponent) moves.push(move);
+    if (isOccupiedByOpponent) pushMove(move);
     else if (position.enPassantTarget === target) {
       const capturedPawn = _getPiece(position, coordsToBoardId(boardIdToCoords(target).file, origin.rank));
       if (capturedPawn?.colour !== colour && capturedPawn?.kind === PieceKind.Pawn) moves.push(move);
@@ -125,7 +131,7 @@ function _genPawnAttackMoves(from: BoardId, colour: PlayerColour): IMoveRaw[] {
     .filter((to): to is BoardId => to !== undefined)
     .map(to => ({ from, to }));
 }
-function _genOffsetMoves(position: IBoardPosition, from: BoardId, offsets: Array<{ file: number; rank: number }>) {
+function _genOffsetMoves(from: BoardId, offsets: Array<{ file: number; rank: number }>) {
   const candidateBoardPos = offsets.map(({ file, rank }) => {
     const target = tryCoordsToBoardId(boardIdToCoords(from).file + file, boardIdToCoords(from).rank + rank);
     return target
@@ -137,21 +143,21 @@ function _genOffsetMoves(position: IBoardPosition, from: BoardId, offsets: Array
 function _genPieceMoves(position: IBoardPosition, from: BoardId, piece: IChessPiece): IMoveRaw[] {
   switch(piece.kind) {
     case PieceKind.Pawn: return _genPawnMoves(position, from, piece.colour);
-    case PieceKind.Knight: return _genOffsetMoves(position, from, knightOffsets);
+    case PieceKind.Knight: return _genOffsetMoves(from, knightOffsets);
     case PieceKind.Bishop: return _genDirectionalMoves(position, from, piece.colour, bishopDirections);
     case PieceKind.Rook: return _genDirectionalMoves(position, from, piece.colour, rookDirections);
     case PieceKind.Queen: return _genDirectionalMoves(position, from, piece.colour, queenDirections);
-    case PieceKind.King: return _genOffsetMoves(position, from, kingOffsets);
+    case PieceKind.King: return _genOffsetMoves(from, kingOffsets);
   }
 }
 function _genPieceAttack(position: IBoardPosition, from: BoardId, piece: IChessPiece): IMoveRaw[] {
   switch(piece.kind) {
     case PieceKind.Pawn: return _genPawnAttackMoves(from, piece.colour);
-    case PieceKind.Knight: return _genOffsetMoves(position, from, knightOffsets);
+    case PieceKind.Knight: return _genOffsetMoves(from, knightOffsets);
     case PieceKind.Bishop: return _genDirectionalMoves(position, from, piece.colour, bishopDirections);
     case PieceKind.Rook: return _genDirectionalMoves(position, from, piece.colour, rookDirections);
     case PieceKind.Queen: return _genDirectionalMoves(position, from, piece.colour, queenDirections);
-    case PieceKind.King: return _genOffsetMoves(position, from, kingOffsets);
+    case PieceKind.King: return _genOffsetMoves(from, kingOffsets);
   }
 }
 // generates the non-king moves that pieces can make before checking whether they expose their king
@@ -306,7 +312,7 @@ function _hasCastlingAvailability(position: IBoardPosition, colour: PlayerColour
 // generate king moves that are possible to move to without being attacked
 function _genKingMoves(position: IBoardPosition, from: BoardId, colour: PlayerColour, attackMask: number[]): IMoveRaw[] {
   const opponentColour = getOpponentColour(colour);
-  const moves = _genOffsetMoves(position, from, kingOffsets).filter(move => {
+  const moves = _genOffsetMoves(from, kingOffsets).filter(move => {
     const targetPiece = _getPiece(position, move.to);
     if (targetPiece?.colour === opponentColour && targetPiece.kind === PieceKind.King
       || targetPiece?.colour == colour
@@ -373,31 +379,6 @@ function _moveLeaveKingInCheck(position: IBoardPosition, move: IMoveRaw, colour:
   if (captureBoardId !== move.to) position.board[captureBoardId] = capturedPiece;
   return isChecked;
 }
-function _genLegalRawMoves(position: IBoardPosition, attackState?: IKingAttackState): IMoveRaw[] {
-  const colour = position.sideToMove;
-  const opponentColour = getOpponentColour(colour);
-  const kingBoardId = findKingBoardId(position, colour);
-  if (kingBoardId === undefined) return [];
-  // gen king moves + castle moves that are legal to move to (squares not attacked and not move into checks)
-  const { attackMask, kingAttacks } = attackState ?? _genKingMoveAttackState(position, kingBoardId, opponentColour);
-  const kingMoves = _genKingMoves(position, kingBoardId, colour, attackMask);
-  // if king is double checked, only king moves can resolve it
-  if (kingAttacks.length > 1) return kingMoves;
-
-  // continue getting other moves
-  let legalNonKingMoves = _genPseudoLegalNonKingMoves(position, colour);
-  // if king is checked, first filter moves that capture the checker or block the checking ray
-  if (kingAttacks.length === 1) legalNonKingMoves = legalNonKingMoves.filter(move => _moveResolveKingCheck(position, move, kingAttacks[0]!, colour));
-  // filter moves that result in king being checked, set undefined and then generate moves for directional chess pieces, and make the new direction chess piece attack mask, then restore the chess piece on the position
-  legalNonKingMoves = legalNonKingMoves.filter(move => _getPiece(position, move.to)?.colour != colour && !_moveLeaveKingInCheck(position, move, colour, kingBoardId));
-  // filter moves that capture enemy king
-  legalNonKingMoves = legalNonKingMoves.filter(move => {
-    const targetPiece = _getPiece(position, move.to);
-    return targetPiece?.colour !== opponentColour || targetPiece.kind !== PieceKind.King;
-  });
-  // if king is checked and has no moves return empty (check mate)
-  return [...legalNonKingMoves, ...kingMoves];
-}
 function _getEnpassantCaptureCoord(movePiece: IChessPiece, move: IMoveRaw): BoardId {
   const { file, rank } = boardIdToCoords(move.to)
   return coordsToBoardId(file, rank - getForwardDirection(movePiece.colour));
@@ -411,6 +392,34 @@ function _getCapturePiece(position: IBoardPosition, move: IMoveRaw): { boardId: 
     : move.to;
   const capturePiece = _getPiece(position, captureBoardId);
   return capturePiece ? { boardId: captureBoardId, piece: capturePiece.kind } : undefined;
+}
+function _filterLegalNonKingMoves(position: IBoardPosition, moves: IMoveRaw[], colour: PlayerColour, kingBoardId: BoardId, kingAttacks: IMoveRaw[]): IMoveRaw[] {
+  const opponentColour = getOpponentColour(colour);
+  // if king is checked, first filter moves that capture the checker or block the checking ray
+  if (kingAttacks.length === 1) moves = moves.filter(move => _moveResolveKingCheck(position, move, kingAttacks[0]!, colour));
+  // filter moves that result in king being checked, set undefined and then generate moves for directional chess pieces, and make the new direction chess piece attack mask, then restore the chess piece on the position
+  moves = moves.filter(move => _getPiece(position, move.to)?.colour != colour && !_moveLeaveKingInCheck(position, move, colour, kingBoardId));
+  // filter moves that capture enemy king
+  return moves.filter(move => {
+    const targetPiece = _getPiece(position, move.to);
+    return targetPiece?.colour !== opponentColour || targetPiece.kind !== PieceKind.King;
+  });
+}
+function _genLegalRawMoves(position: IBoardPosition, attackState?: IKingAttackState): IMoveRaw[] {
+  const colour = position.sideToMove;
+  const opponentColour = getOpponentColour(colour);
+  const kingBoardId = findKingBoardId(position, colour);
+  if (kingBoardId === undefined) return [];
+  // gen king moves + castle moves that are legal to move to (squares not attacked and not move into checks)
+  const { attackMask, kingAttacks } = attackState ?? _genKingMoveAttackState(position, kingBoardId, opponentColour);
+  const kingMoves = _genKingMoves(position, kingBoardId, colour, attackMask);
+  // if king is double checked, only king moves can resolve it
+  if (kingAttacks.length > 1) return kingMoves;
+
+  // continue getting other moves
+  const legalNonKingMoves = _filterLegalNonKingMoves(position, _genPseudoLegalNonKingMoves(position, colour), colour, kingBoardId, kingAttacks);
+  // if king is checked and has no moves return empty (check mate)
+  return [...legalNonKingMoves, ...kingMoves];
 }
 function _calculateCheckState(position: IBoardPosition): CheckState | undefined {
   const kingBoardId = findKingBoardId(position, position.sideToMove);
@@ -465,9 +474,28 @@ function _applyCastleMove(position: IBoardPosition, move: IMove, king: IChessPie
   return _updatePositionAfterMove(position, move, king, false);
 }
 
-export function genLegalMoves(position: IBoardPosition): IMove[] {
-  const raws = _genLegalRawMoves(position);
-  return raws.map(x => toDetailedMove(position, x, raws));
+export function genLegalMovesForPiece(position: IBoardPosition, from: BoardId, lastMove?: IMove): IMoveRaw[] {
+  const colour = position.sideToMove;
+  const piece = _getPiece(position, from);
+  if (piece?.colour !== colour) return [];
+  const opponentColour = getOpponentColour(colour);
+  const isCurrentLastMove = lastMove?.movingColour === opponentColour;
+  if (isCurrentLastMove && lastMove.checkState === CheckState.Checkmate) return [];
+  if (piece.kind === PieceKind.King) {
+    const { attackMask } = _genKingMoveAttackState(position, from, opponentColour);
+    return _genKingMoves(position, from, colour, attackMask);
+  }
+  const kingBoardId = findKingBoardId(position, colour);
+  if (kingBoardId === undefined) return [];
+  const kingAttacks = isCurrentLastMove && lastMove.checkState === undefined
+    ? []
+    : _genKingMoveAttackState(position, kingBoardId, opponentColour).kingAttacks;
+  if (kingAttacks.length > 1) return [];
+  return _filterLegalNonKingMoves(position, _genPieceMoves(position, from, piece), colour, kingBoardId, kingAttacks);
+}
+export function genLegalMoves(position: IBoardPosition) {
+  const legalMoves = _genLegalRawMoves(position);
+  return legalMoves.map(x => toDetailedMove(position, x, legalMoves));
 }
 export function isMoveLegal(position: IBoardPosition, move: IMoveRaw): boolean {
   const candidate = _genLegalRawMoves(position).find((item) => moveMatches(item, move));
@@ -475,8 +503,11 @@ export function isMoveLegal(position: IBoardPosition, move: IMoveRaw): boolean {
   if (_getMoveKind(position, candidate) === MoveKind.Promotion) return move.promotionPiece !== undefined && promotionPieces.includes(move.promotionPiece);
   return move.promotionPiece === undefined;
 }
-export function requiresPromotionSelection(move: IMove): boolean {
-  return move.kind === MoveKind.Promotion && move.promotionPiece === undefined;
+export function requiresPromotionSelection(position: IBoardPosition, move: IMoveRaw): boolean {
+  const piece = position.board[move.from] ?? throwReferenceError(`expecting a piece at position ${move.from}`);
+  return piece.kind === PieceKind.Pawn
+    && boardIdToCoords(move.to).rank === getPromotionRank(piece.colour)
+    && move.promotionPiece === undefined;
 }
 export function getCheckState(position: IBoardPosition): CheckState | undefined {
   if (position.$?.checkState !== undefined) return position.$.checkState;
