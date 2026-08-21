@@ -1,4 +1,4 @@
-import { createPinia, setActivePinia } from 'pinia';
+﻿import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -24,9 +24,12 @@ import {
   type IEngineAnalysisUpdate,
   type IEnginePlayer,
   type IEngineRecord,
+  type IChessPiece,
   type IGame,
   type IMove,
   type IMoveNode,
+  type IMoveTree,
+  type MovePath,
 } from '@/contracts';
 
 import {
@@ -134,17 +137,17 @@ function applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGa
   return nextPosition;
 }
 function installScholarMateRules(): void {
-  utility.GameRuleUtility.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
-  utility.GameRuleUtility.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => {
+  utility.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
+  utility.genLegalMoves.mockImplementation((position: IGame['rootPosition']) => {
     const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
     return expectedMove ? [structuredClone(expectedMove)] : [];
   });
-  utility.GameRuleUtility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => {
+  utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => {
     const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
     return !!expectedMove && isSameMove(expectedMove, move);
   });
   domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => applyScholarMateMove(position, move));
-  utility.GameRuleUtility.resolveGameResult.mockImplementation((position: IGame['rootPosition']): IResolvedResult => {
+  utility.resolveGameResult.mockImplementation((position: IGame['rootPosition']): IResolvedResult => {
     if (position.$?.checkState === CheckState.Checkmate) return { resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved };
     return createOngoingResult();
   });
@@ -208,14 +211,51 @@ const domain = {
   },
   MoveApplicationService: {
     applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move)),
+    genPosition: vi.fn((rootPosition: IGame['rootPosition'], moves: readonly IMove[]) =>
+      moves.reduce((position, move) => domain.MoveApplicationService.applyMove(position, move), structuredClone(rootPosition))),
+    clearBoard: vi.fn((position: IGame['rootPosition']) => {
+      if (position.board.every((piece) => piece === undefined)) return false;
+      position.board.fill(undefined);
+      position.$ = undefined;
+      return true;
+    }),
+    deletePiece: vi.fn((position: IGame['rootPosition'], boardId: number) => {
+      if (position.board[boardId] === undefined) return false;
+      position.board[boardId] = undefined;
+      position.$ = undefined;
+      return true;
+    }),
+    movePiece: vi.fn((position: IGame['rootPosition'], from: number, to: number) => {
+      const piece = position.board[from];
+      if (piece === undefined || from === to) return false;
+      position.board[from] = undefined;
+      position.board[to] = piece;
+      position.$ = undefined;
+      return true;
+    }),
+    togglePiece: vi.fn((position: IGame['rootPosition'], boardId: number, piece: IChessPiece) => {
+      const currentPiece = position.board[boardId];
+      position.board[boardId] = currentPiece?.kind === piece.kind && currentPiece.colour === piece.colour ? undefined : piece;
+      position.$ = undefined;
+      return true;
+    }),
   },
   MoveHistoryService: {
-    createMoveTree: vi.fn((rootPosition: IGame['rootPosition'], clockSnapshot?: IClockSnapshot) => createMoveTree(rootPosition, clockSnapshot)),
-    addMainlineMove: vi.fn((parentNode: IMoveNode, move: IMove, position: IGame['rootPosition'], clockSnapshot?: IClockSnapshot) => {
-      return appendChild(parentNode, move, position, MoveNodeKind.Live, clockSnapshot);
+    createMoveTree: vi.fn((clockSnapshot?: IClockSnapshot) => createMoveTree(clockSnapshot)),
+    addMainlineMove: vi.fn((parentNode: IMoveNode, move: IMove, clockSnapshot?: IClockSnapshot) => {
+      return appendChild(parentNode, move, MoveNodeKind.Live, clockSnapshot);
     }),
-    addAnalysisMove: vi.fn((parentNode: IMoveNode, move: IMove, position: IGame['rootPosition']) => {
-      return appendChild(parentNode, move, position, MoveNodeKind.Analysis);
+    addAnalysisMove: vi.fn((parentNode: IMoveNode, move: IMove) => {
+      return appendChild(parentNode, move, MoveNodeKind.Analysis);
+    }),
+    getMoveSequence: vi.fn((tree: IMoveTree, toPath: MovePath) => {
+      const moves: IMove[] = [];
+      let node = tree.root;
+      for (const childIndex of toPath) {
+        node = node.children[childIndex]!;
+        moves.push(node.move!);
+      }
+      return moves;
     }),
     rewriteMainline: vi.fn((parentNode: IMoveNode, childNode: IMoveNode) => {
       const childIndex = parentNode.children.indexOf(childNode);
@@ -236,11 +276,6 @@ const domain = {
       retainedNode.children = [];
       retainedNode.mainlineChildIndex = undefined;
       return { root: getRootNode(retainedNode) };
-    }),
-    replaceBoardRoot: vi.fn((rootPosition: IGame['rootPosition'], clockSnapshot?: IClockSnapshot) => {
-      const tree = createMoveTree(rootPosition, clockSnapshot);
-      tree.root.position = rootPosition;
-      return tree;
     }),
   },
   PlatformEventService: {
@@ -347,18 +382,16 @@ const domain = {
     getSettings: vi.fn(() => structuredClone(settingsSnapshot)),
   },
 };
+// @/utility/chess exports free functions, so the module mock is flat. The store reaches
+// getOpponentColour and isBoardId by deep path, so they are unaffected by this barrel mock.
 const utility = {
-  GameRuleUtility: {
-    createInitialBoardPosition: vi.fn(() => createBoardPosition()),
-    generateLegalMoves: vi.fn((position: IGame['rootPosition']) => [createMove(position.sideToMove)]),
-    genDetailedMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => structuredClone(move)),
-    isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move)),
-    resolveGameResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult()),
-  },
-  MoveNotationUtility: {
-    getSan: vi.fn((move: IMove) => ((move.$ ??= {}).san ??= `${move.from}-${move.to}`)),
-    getUci: vi.fn((move: IMove) => ((move.$ ??= {}).uci ??= `${move.from}-${move.to}`)),
-  },
+  createInitialBoardPosition: vi.fn(() => createBoardPosition()),
+  genLegalMoves: vi.fn((position: IGame['rootPosition']) => [createMove(position.sideToMove)]),
+  toDetailedMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => structuredClone(move)),
+  isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move)),
+  resolveGameResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult()),
+  getSan: vi.fn((move: IMove) => ((move.$ ??= {}).san ??= `${move.from}-${move.to}`)),
+  getUci: vi.fn((move: IMove) => ((move.$ ??= {}).uci ??= `${move.from}-${move.to}`)),
 };
 
 function createLocalPlayer(colour: PlayerColour, displayName: string) {
@@ -398,19 +431,19 @@ describe('useGamesStore', () => {
     ];
     unsubscribeMock.mockClear();
     Object.values(domain).forEach((service) => Object.values(service).forEach((mock) => mock.mockClear()));
-    Object.values(utility).forEach((group) => Object.values(group).forEach((mock) => mock.mockClear()));
-    utility.GameRuleUtility.createInitialBoardPosition.mockReset();
-    utility.GameRuleUtility.generateLegalMoves.mockReset();
-    utility.GameRuleUtility.genDetailedMove.mockReset();
-    utility.GameRuleUtility.isMoveLegal.mockReset();
-    utility.GameRuleUtility.resolveGameResult.mockReset();
+    Object.values(utility).forEach((mock) => mock.mockClear());
+    utility.createInitialBoardPosition.mockReset();
+    utility.genLegalMoves.mockReset();
+    utility.toDetailedMove.mockReset();
+    utility.isMoveLegal.mockReset();
+    utility.resolveGameResult.mockReset();
     domain.MoveApplicationService.applyMove.mockReset();
-    utility.GameRuleUtility.createInitialBoardPosition.mockImplementation(() => createBoardPosition());
-    utility.GameRuleUtility.generateLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
-    utility.GameRuleUtility.genDetailedMove.mockImplementation((_position: IGame['rootPosition'], move: IMove) => structuredClone(move));
-    utility.GameRuleUtility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move));
+    utility.createInitialBoardPosition.mockImplementation(() => createBoardPosition());
+    utility.genLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
+    utility.toDetailedMove.mockImplementation((_position: IGame['rootPosition'], move: IMove) => structuredClone(move));
+    utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move));
     domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move));
-    utility.GameRuleUtility.resolveGameResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult());
+    utility.resolveGameResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult());
     vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => createdGameIds.shift() ?? 'game-fallback-0000-0000-000000000000');
     vi.doMock('@/domain', () => domain);
     vi.doMock('@/utility/chess', () => utility);
@@ -482,7 +515,7 @@ describe('useGamesStore', () => {
     await store.resumeGame(game, PauseReason.Analysis);
     expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnWhiteMove);
 
-    const analysisNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), createBoardPosition(PlayerColour.Black), MoveNodeKind.Analysis);
+    const analysisNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), MoveNodeKind.Analysis);
     store.navigateToNode(game, analysisNode);
     await store.pauseGame(game, PauseReason.Menu);
     expect(game.gameState).toBe(GameState.PausedLiveAnalysisFromWhiteTurnBlackMove);
@@ -516,7 +549,7 @@ describe('useGamesStore', () => {
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
-    appendChild(analysisGame.moveTree.root, createMove(PlayerColour.White), createBoardPosition(PlayerColour.Black), MoveNodeKind.Analysis);
+    appendChild(analysisGame.moveTree.root, createMove(PlayerColour.White), MoveNodeKind.Analysis);
     store.navigateToNode(analysisGame, analysisGame.moveTree.root.children[0]!);
     expect(analysisGame.gameState).toBe(GameState.AnalysisBlackMove);
   });
@@ -560,10 +593,10 @@ describe('useGamesStore', () => {
     expect(game.gameState).toBe(GameState.BoardEdit);
     expect(game.livePath).toBeUndefined();
     expect(game.highlightPath).toEqual([]);
-    expect(game.moveTree.root.position).toEqual(sparseBoard);
+    expect(game.rootPosition).toEqual(sparseBoard);
     const darkRoot = createBoardPosition(PlayerColour.Black);
     store.applyBoardEdit(game, darkRoot);
-    expect(game.moveTree.root.position).toEqual(darkRoot);
+    expect(game.rootPosition).toEqual(darkRoot);
     store.enterBoardEdit(game);
     expect(game.gameState).toBe(GameState.AnalysisBlackMove);
   });
@@ -579,49 +612,53 @@ describe('useGamesStore', () => {
     });
     expect(() => store.toggleChessPiece(game, 64, { kind: PieceKind.Rook, colour: PlayerColour.White })).toThrow('board edit mode');
     expect(() => store.resetBoardToStartPosition(game)).toThrow('board edit mode');
-    const navigationPosition = createBoardPosition(PlayerColour.Black);
-    navigationPosition.$ = { isStandardInitialPosition: true };
-    const renderedNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), navigationPosition, MoveNodeKind.Analysis);
-    const renderedPosition = renderedNode.position;
+    const renderedNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), MoveNodeKind.Analysis);
     store.navigateToNode(game, renderedNode);
     store.enterBoardEdit(game);
-    domain.MoveHistoryService.replaceBoardRoot.mockClear();
+    // a fresh tree is only built when an effective edit promotes the edited board to the root
+    domain.MoveHistoryService.createMoveTree.mockClear();
     store.deleteChessPiece(game, 0);
     store.clearBoard(game);
     expect(game.highlightPath).toEqual([0]);
-    expect(domain.MoveHistoryService.replaceBoardRoot).not.toHaveBeenCalled();
+    expect(domain.MoveHistoryService.createMoveTree).not.toHaveBeenCalled();
     expect(() => store.deleteChessPiece(game, 64)).toThrow('between 0 and 63');
 
+    // the derived rendered position is the object the first effective edit promotes to the root
+    const editedPosition = game.$!.renderedPosition!;
+    editedPosition.$ = { isStandardInitialPosition: true };
     store.toggleChessPiece(game, 0, { kind: PieceKind.Rook, colour: PlayerColour.White });
 
-    expect(game.rootPosition).toBe(renderedPosition);
-    expect(game.moveTree.root.position).toBe(renderedPosition);
+    expect(game.rootPosition).toBe(editedPosition);
     expect(game.moveTree.root.children).toHaveLength(0);
     expect(game.highlightPath).toEqual([]);
-    expect(renderedPosition.board[0]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
-    expect(renderedPosition.$?.isStandardInitialPosition).toBeUndefined();
-    expect(domain.MoveHistoryService.replaceBoardRoot).toHaveBeenCalledTimes(1);
+    expect(editedPosition.board[0]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
+    expect(editedPosition.$?.isStandardInitialPosition).toBeUndefined();
+    expect(domain.MoveHistoryService.createMoveTree).toHaveBeenCalledTimes(1);
 
+    // later edits mutate the root in place, so the tree is never rebuilt again
     store.toggleChessPiece(game, 0, { kind: PieceKind.Queen, colour: PlayerColour.Black });
-    expect(renderedPosition.board[0]).toEqual({ kind: PieceKind.Queen, colour: PlayerColour.Black });
+    expect(editedPosition.board[0]).toEqual({ kind: PieceKind.Queen, colour: PlayerColour.Black });
     store.toggleChessPiece(game, 0, { kind: PieceKind.Queen, colour: PlayerColour.Black });
-    expect(renderedPosition.board[0]).toBeUndefined();
+    expect(editedPosition.board[0]).toBeUndefined();
     store.toggleChessPiece(game, 1, { kind: PieceKind.Knight, colour: PlayerColour.White });
-    store.deleteChessPiece(game, 1);
-    expect(renderedPosition.board[1]).toBeUndefined();
-    store.toggleChessPiece(game, 2, { kind: PieceKind.Bishop, colour: PlayerColour.White });
+    store.moveChessPiece(game, 1, 2);
+    expect(editedPosition.board[1]).toBeUndefined();
+    expect(editedPosition.board[2]).toEqual({ kind: PieceKind.Knight, colour: PlayerColour.White });
+    store.deleteChessPiece(game, 2);
+    expect(editedPosition.board[2]).toBeUndefined();
     store.toggleChessPiece(game, 3, { kind: PieceKind.Bishop, colour: PlayerColour.Black });
     store.clearBoard(game);
-    expect(renderedPosition.board.every((piece) => piece === undefined)).toBe(true);
-    expect(domain.MoveHistoryService.replaceBoardRoot).toHaveBeenCalledTimes(1);
+    expect(editedPosition.board.every((piece) => piece === undefined)).toBe(true);
+    expect(game.rootPosition).toBe(editedPosition);
+    expect(domain.MoveHistoryService.createMoveTree).toHaveBeenCalledTimes(1);
+
     const startPosition = createBoardPosition(PlayerColour.White);
     startPosition.$ = { isStandardInitialPosition: true };
-    utility.GameRuleUtility.createInitialBoardPosition.mockReturnValueOnce(startPosition);
+    utility.createInitialBoardPosition.mockReturnValueOnce(startPosition);
     store.resetBoardToStartPosition(game);
     expect(game.rootPosition).toBe(startPosition);
-    expect(game.moveTree.root.position).toBe(startPosition);
     expect(startPosition.$.isStandardInitialPosition).toBe(true);
-    expect(domain.MoveHistoryService.replaceBoardRoot).toHaveBeenCalledTimes(2);
+    expect(domain.MoveHistoryService.createMoveTree).toHaveBeenCalledTimes(2);
   });
   it('allows paused non-play exceptions for reassignment and analysis actions', async () => {
     const store = useGamesStore();
@@ -779,7 +816,7 @@ describe('useGamesStore', () => {
     const pendingMove = game.$?.pendingPlayerTurnHandlePromise;
     await store.pauseGame(game, PauseReason.Manual);
     await pendingMove;
-    utility.GameRuleUtility.isMoveLegal.mockImplementationOnce(() => false);
+    utility.isMoveLegal.mockImplementationOnce(() => false);
     nextPlayerMove = createMove(PlayerColour.Black, 52, 36);
 
     await store.resumeGame(game, PauseReason.Manual);
@@ -789,7 +826,7 @@ describe('useGamesStore', () => {
     await randomDelay();
     await randomDelay();
     await randomDelay();
-    utility.GameRuleUtility.isMoveLegal.mockImplementation(() => true);
+    utility.isMoveLegal.mockImplementation(() => true);
 
     expect(domain.EngineRuntimeService.startPlayerTurn.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);

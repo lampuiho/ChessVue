@@ -4,7 +4,8 @@ import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAn
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
 import { buildPositionKey } from '@/utility/chess';
-import { GameRuleUtility } from '@/utility/chess/GameRuleUtility';
+import { genDetailedMoves } from '@/utility/chess/GameRuleUtility';
+import { buildFen } from '@/utility/chess/MoveNotationUtility';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 import { buildAnalysisCommands, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciNewGameCommand, parseBestMoveLine, parseInfoLine, parseOptionLines } from '../../utility/UciUtility';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
@@ -30,7 +31,7 @@ interface IUciSession {
   options: IEngineOptionMeta[];
   position?: IBoardPosition;
   process?: ISpawnedProcess;
-  rootPosition?: IBoardPosition;
+  rootFen?: string;
   expectedPonderMove?: IMove;
   playerMoveDeferred?: Deferred<IMove>;
   stateDeferred?: Deferred<void>;
@@ -63,7 +64,7 @@ function _failUciSession(session: IUciSession, error: unknown): void {
   session.state = UciSessionState.Failed;
   session.gameId = undefined;
   session.position = undefined;
-  session.rootPosition = undefined;
+  session.rootFen = undefined;
   session.expectedPonderMove = undefined;
   session.optionLines = [];
   session.options = [];
@@ -103,7 +104,7 @@ function _resetUciSession(session: IUciSession): void {
   session.state = UciSessionState.Created;
   session.gameId = undefined;
   session.position = undefined;
-  session.rootPosition = undefined;
+  session.rootFen = undefined;
   session.expectedPonderMove = undefined;
   session.optionLines = [];
   session.options = [];
@@ -115,7 +116,7 @@ function _stopUciSession(session: IUciSession, message = 'Engine stopped.'): voi
   session.state = UciSessionState.Stopped;
   session.gameId = undefined;
   session.position = undefined;
-  session.rootPosition = undefined;
+  session.rootFen = undefined;
   session.expectedPonderMove = undefined;
   session.optionLines = [];
   session.options = [];
@@ -180,7 +181,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       const runtimeState = _requireRuntimeState(engine);
       runtimeState.analysisCallback = onUpdate;
       runtimeState.analysisLines.clear();
-      session.position = _getPosition(game, game.highlightPath);
+      session.position = _requireRenderedPosition(game);
       await _writeCommand(_requireProcessHandle(engine), buildSetOptionCommand('MultiPV', request.multiPv));
       await _startSearch(engine, session, UciSessionState.Analysing, buildAnalysisCommands(game));
     }
@@ -192,7 +193,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
         const ponderCommands = buildFindNextMoveCommands(game, expectedPonderMove);
         if (ponderCommands[0] === 'ponderhit') {
           session.expectedPonderMove = undefined;
-          session.position = _getLivePosition(game);
+          session.position = _requireLivePosition(game);
           session.playerMoveDeferred = new Deferred<IMove>();
           await _startSearch(engine, session, UciSessionState.FindingMove, ponderCommands);
           return;
@@ -202,16 +203,17 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       _requireState(session, UciSessionState.Ready, 'start player turn');
       await _prepareGameBoundary(engine, session, game);
       session.expectedPonderMove = undefined;
-      session.position = _getLivePosition(game);
+      session.position = _requireLivePosition(game);
       session.playerMoveDeferred = new Deferred<IMove>();
       await _startSearch(engine, session, UciSessionState.FindingMove, buildFindNextMoveCommands(game));
     }
     async function startPondering(engine: IAssignedEngine, game: IGame, ponderMove: IMove): Promise<void> {
       const session = _requireInitialisedSession(engine);
       _requireState(session, UciSessionState.Ready, 'start pondering');
+      _requireLivePosition(game);
       await _prepareGameBoundary(engine, session, game);
       session.expectedPonderMove = ponderMove;
-      session.position = undefined;
+      session.position = undefined; // ponder output is not decodable against a known position
       await _startSearch(engine, session, UciSessionState.Pondering, buildPonderMoveCommands(game, ponderMove));
     }
     async function stopAnalysis(engine: IAssignedEngine): Promise<void> {
@@ -257,7 +259,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     function _parseDetailedBestMove(position: IBoardPosition, line: string): IMove | undefined {
       const parsed = parseBestMoveLine(line);
       if (!parsed) return;
-      const [move, ponderMove] = GameRuleUtility.genDetailedMoves(position, parsed.ponderMove ? [parsed.move, parsed.ponderMove] : [parsed.move]);
+      const [move, ponderMove] = genDetailedMoves(position, parsed.ponderMove ? [parsed.move, parsed.ponderMove] : [parsed.move]);
       if (!move) throw new Error('UCI bestmove did not contain a move.');
       if (ponderMove) (move.$ ??= {}).ponderMove = ponderMove;
       return move;
@@ -265,7 +267,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     function _parseDetailedAnalysisLine(position: IBoardPosition, line: string): IAnalysisLine | undefined {
       const parsed = parseInfoLine(line);
       if (!parsed) return;
-      const pv = GameRuleUtility.genDetailedMoves(position, parsed.pv);
+      const pv = genDetailedMoves(position, parsed.pv);
       return { depth: parsed.depth, scoreCp: parsed.scoreCp, scoreMate: parsed.scoreMate, pv, $: { reference: parsed.reference } };
     }
     function _completeAnalysis(engine: IAssignedEngine, session: IUciSession, line: string): void {
@@ -358,18 +360,16 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     function _createStateError(session: IUciSession, operation: string): Error {
       return new Error(`Cannot ${operation} while UCI session state is ${session.state}.`);
     }
-    function _getLivePosition(game: IGame): IBoardPosition {
-      if (game.livePath === undefined) throw new Error(`Live move path is unavailable for game ${game.metadata.id}.`);
-      return _getPosition(game, game.livePath);
+    /** the searched position is owned by the game runtime; the client never derives one itself */
+    function _requireLivePosition(game: IGame): IBoardPosition {
+      const livePosition = game.$?.livePosition;
+      if (!livePosition) throw new Error(`Live position is unavailable for game ${game.metadata.id}.`);
+      return livePosition;
     }
-    function _getPosition(game: IGame, path: MovePath): IBoardPosition {
-      let node = game.moveTree.root;
-      for (const childIndex of path) {
-        const child = node.children[childIndex];
-        if (!child) throw new Error(`Move path is invalid for game ${game.metadata.id}.`);
-        node = child;
-      }
-      return node.position;
+    function _requireRenderedPosition(game: IGame): IBoardPosition {
+      const renderedPosition = game.$?.renderedPosition;
+      if (!renderedPosition) throw new Error(`Rendered position is unavailable for game ${game.metadata.id}.`);
+      return renderedPosition;
     }
     function _getSession(engine: IAssignedEngine): IUciSession | undefined {
       return _requireAssignedUciEngine(engine).$?.session;
@@ -386,7 +386,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
         }
       }
       session.gameId = game.metadata.id;
-      session.rootPosition = game.rootPosition;
+      session.rootFen = buildFen(game.rootPosition);
     }
     function _requireInitialisedSession(engine: IAssignedEngine): IUciSession {
       const session = _requireSession(engine);
@@ -420,8 +420,9 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       if (session.state === state) return;
       throw _createStateError(session, operation);
     }
+    // the root position is edited in place during board edit, so this compares its value, not its identity
     function _requiresNewGameBoundary(session: IUciSession, game: IGame): boolean {
-      return session.gameId !== game.metadata.id || session.rootPosition !== game.rootPosition;
+      return session.gameId !== game.metadata.id || session.rootFen !== buildFen(game.rootPosition);
     }
     function _resolveStateWait(session: IUciSession, state: UciSessionState): void {
       const deferred = session.stateDeferred;

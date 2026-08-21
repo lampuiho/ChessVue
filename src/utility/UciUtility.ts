@@ -1,6 +1,6 @@
-import { EngineOptionType, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw } from '@/contracts';
+import { EngineOptionType, PieceKind, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw } from '@/contracts';
 import { isStandardInitialPosition } from '@/utility/chess/GameRuleUtility';
-import { getUci } from '@/utility/chess/MoveNotationUtility';
+import { buildFen, getUci } from '@/utility/chess/MoveNotationUtility';
 import { coordsToBoardId } from '@/utility/chess/SquareUtility';
 
 export interface IUciBestMove {
@@ -26,12 +26,6 @@ export function buildAnalysisCommands(game: IGame): string[] {
 }
 export function buildDebugCommand(enabled: boolean): string {
   return `debug ${enabled ? 'on' : 'off'}`;
-}
-export function buildFen(position: IBoardPosition): string {
-  const castling = [position.castlingAvailability.whiteKingSide ? 'K' : '', position.castlingAvailability.whiteQueenSide ? 'Q' : '', position.castlingAvailability.blackKingSide ? 'k' : '', position.castlingAvailability.blackQueenSide ? 'q' : ''].join('') || '-';
-  const enPassant = position.enPassantTarget === undefined ? '-' : boardIdToNotation(position.enPassantTarget);
-  const sideToMove = position.sideToMove === PlayerColour.White ? 'w' : 'b';
-  return `${_buildFenBoard(position)} ${sideToMove} ${castling} ${enPassant} ${position.halfMoveClock} ${position.fullMoveNumber}`;
 }
 export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMove): string[] {
   const liveMoves = _getLiveMoves(game);
@@ -121,27 +115,6 @@ export function parseUciMove(raw: string): IMoveRaw {
 
 // #region Private methods
 
-function _buildFenBoard(position: IBoardPosition): string {
-  const ranks: string[] = [];
-  for (let rank = 7; rank >= 0; rank -= 1) {
-    let emptyCount = 0;
-    let tokens = '';
-    for (let file = 0; file < 8; file += 1) {
-      const piece = position.board[(rank * 8) + file];
-      if (piece === undefined) {
-        emptyCount += 1;
-        continue;
-      }
-      if (emptyCount > 0) {
-        tokens += emptyCount.toString();
-        emptyCount = 0;
-      }
-      tokens += _pieceToFenToken(piece.kind, piece.colour);
-    }
-    ranks.push(emptyCount > 0 ? `${tokens}${emptyCount}` : tokens);
-  }
-  return ranks.join('/');
-}
 function _buildPositionCommand(rootPosition: IBoardPosition, moves: readonly IMove[]): string {
   const position = `position ${_buildRootPosition(rootPosition)}`;
   if (moves.length === 0) return position;
@@ -252,10 +225,6 @@ function _parsePromotionPiece(token: string | undefined): PieceKind | undefined 
 }
 function _parsePv(rawMoves: string[]): IMoveRaw[] {
   return rawMoves.map((move) => parseUciMove(move));
-}
-function _pieceToFenToken(kind: PieceKind, colour: PlayerColour): string {
-  const token = kind === PieceKind.King ? 'k' : kind === PieceKind.Queen ? 'q' : kind === PieceKind.Rook ? 'r' : kind === PieceKind.Bishop ? 'b' : kind === PieceKind.Knight ? 'n' : 'p';
-  return colour === PlayerColour.White ? token.toUpperCase() : token;
 }
 
 // #endregion

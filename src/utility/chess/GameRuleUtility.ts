@@ -226,7 +226,7 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
   }
   return minorCount <= 1 || onlySameColourBishops;
 }
-function cloneBoardPosition(position: IBoardPosition): IBoardPosition {
+export function cloneBoardPosition(position: IBoardPosition): IBoardPosition {
   return {
     ...position,
     board: position.board.map((piece) => piece === undefined ? undefined : { ...piece }),

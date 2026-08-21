@@ -22,6 +22,7 @@ export interface ICastlingRook {
 export interface IBoardPositionRuntime {
   checkState?: CheckState;
   isStandardInitialPosition?: boolean;
+  fen?: string;
 }
 export interface IBoardPosition {
   board: (IChessPiece | undefined)[];

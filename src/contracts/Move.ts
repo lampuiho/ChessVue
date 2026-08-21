@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { boardPositionSchema, checkStateSchema, type CheckState, type IBoardPosition } from './ChessboardState';
+import { checkStateSchema, type CheckState } from './ChessboardState';
 import { clockSnapshotSchema, type IClockSnapshot } from './TimeControl';
 import { boardIdSchema, pieceKindSchema, playerColourSchema, type BoardId, type PieceKind, type PlayerColour } from './Chess';
 
@@ -56,7 +56,6 @@ export interface IMoveNodeRuntime {
 export interface IMoveNode {
   kind: MoveNodeKind;
   move?: IMove;
-  position: IBoardPosition;
   clockSnapshot?: IClockSnapshot;
   plyIndex: number;
   mainlineChildIndex?: number;
@@ -87,7 +86,6 @@ type IMoveInput = IMoveSchemaInput;
 interface IMoveNodeInput {
   kind: MoveNodeKind;
   move?: IMoveInput | null;
-  position: z.input<typeof boardPositionSchema>;
   clockSnapshot?: z.input<typeof clockSnapshotSchema> | null;
   plyIndex: number;
   mainlineChildIndex?: number | null;
@@ -100,7 +98,6 @@ export const moveNodeSchema: z.ZodType<IMoveNode, z.ZodTypeDef, IMoveNodeInput> 
   z.object({
     kind: moveNodeKindSchema,
     move: moveSchema.optional(),
-    position: boardPositionSchema,
     clockSnapshot: clockSnapshotSchema.optional(),
     plyIndex: z.number().int().min(0),
     mainlineChildIndex: z.number().int().min(0).optional(),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PieceKind, PlayerColour, type IMoveRaw } from '@/contracts';
-import { createSparseBoard, getSan, getUci, toDetailedMove } from '@/utility/chess';
+import { applyMove, buildFen, createInitialBoardPosition, createSparseBoard, getSan, getUci, toDetailedMove } from '@/utility/chess';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -65,4 +65,33 @@ describe('MoveNotationUtility', () => {
       uci: 'a2a3',
     });
   })
+  describe('buildFen', () => {
+    it('serialises the board, side to move, castling, en passant, and clocks', () => {
+      expect(buildFen(createInitialBoardPosition())).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    });
+    it('writes a dash when no castling right remains', () => {
+      const position = createSparseBoard([
+        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ], PlayerColour.Black);
+
+      expect(buildFen(position)).toBe('4k3/8/8/8/8/8/8/4K3 b - - 0 1');
+    });
+    it('caches the result under the position runtime metadata', () => {
+      const position = createInitialBoardPosition();
+
+      const fen = buildFen(position);
+
+      expect(position.$?.fen).toBe(fen);
+    });
+    it('drops the cached fen once the position changes', () => {
+      const position = createInitialBoardPosition();
+      buildFen(position);
+
+      applyMove(position, toDetailedMove(position, { from: boardId(4, 1), to: boardId(4, 3) }));
+
+      expect(position.$?.fen).toBeUndefined();
+      expect(buildFen(position)).toBe('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1');
+    });
+  });
 });

@@ -109,7 +109,8 @@ export interface IGameplayOptions {
   showLiveAnalysisMoves?: boolean;
 }
 export interface IGameRuntime {
-  renderedPosition: IBoardPosition;
+  /** lazily filled position cache for renderedNode; cleared when the node it belonged to is gone */
+  renderedPosition?: IBoardPosition
   renderedNode: IMoveNode
   livePosition?: IBoardPosition
   liveNode?: IMoveNode

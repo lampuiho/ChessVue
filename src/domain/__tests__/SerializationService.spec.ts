@@ -19,14 +19,13 @@ import {
   type MovePath,
 } from '@/contracts';
 import {
-  MoveApplicationService,
   MoveHistoryService,
   PositionIdentityService,
   SerializationError,
   SerializationService,
   TimeControlService,
 } from '..';
-import { GameRuleUtility, MoveNotationUtility } from '@/utility/chess';
+import { createInitialBoardPosition, getSan, getUci, toDetailedMove } from '@/utility/chess';
 import { ClockTimestamp, RecordTimestamp } from '@/utility/date';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
@@ -80,16 +79,15 @@ function createSettingsSnapshot(): ISettingsSnapshot {
 }
 function createGame(): IGame {
   const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 };
-  const rootPosition = GameRuleUtility.createInitialBoardPosition();
+  const rootPosition = createInitialBoardPosition();
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl);
-  const moveTree = MoveHistoryService.createMoveTree(rootPosition, rootClock);
-  const move = GameRuleUtility.genDetailedMove(rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
-  const nextPosition = MoveApplicationService.applyMove(rootPosition, move);
+  const moveTree = MoveHistoryService.createMoveTree(rootClock);
+  const move = toDetailedMove(rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:00.000Z'));
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:05.000Z'), timeControl);
-  MoveNotationUtility.getSan(move);
-  MoveNotationUtility.getUci(move);
-  MoveHistoryService.addMainlineMove(moveTree.root, move, nextPosition, nextClock);
+  getSan(move);
+  getUci(move);
+  MoveHistoryService.addMainlineMove(moveTree.root, move, nextClock);
 
   return {
     schemaVersion: 1,
@@ -178,7 +176,7 @@ describe('SerializationService', () => {
     expect((restored as IGame & { $?: unknown }).$).toBeUndefined();
     expect((restored.whitePlayer as typeof restored.whitePlayer & { $?: unknown }).$).toBeUndefined();
     expect(getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
-    expect(PositionIdentityService.buildPositionKey(restored.rootPosition)).toBe(PositionIdentityService.buildPositionKey(restored.moveTree.root.position));
+    expect(PositionIdentityService.buildPositionKey(restored.rootPosition)).toBe(PositionIdentityService.buildPositionKey(game.rootPosition));
   });
 
   it('rejects broken move-tree payloads', () => {

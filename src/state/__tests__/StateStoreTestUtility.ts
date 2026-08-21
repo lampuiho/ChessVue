@@ -120,7 +120,6 @@ export function createBoardPosition(sideToMove: PlayerColour = PlayerColour.Whit
       blackKingSide: true,
       blackQueenSide: true,
     },
-    castlingRook: null,
     halfMoveClock: 0,
     fullMoveNumber: 1,
   };
@@ -143,11 +142,10 @@ export function createMove(movingColour: PlayerColour = PlayerColour.White, from
     $: { san: `${from}-${to}`, uci: `${from}-${to}` },
   };
 }
-export function createMoveTree(rootPosition: IGame['rootPosition'] = createBoardPosition(), rootClockSnapshot?: IClockSnapshot): IMoveTree {
+export function createMoveTree(rootClockSnapshot?: IClockSnapshot): IMoveTree {
   return {
     root: {
       kind: MoveNodeKind.Live,
-      position: structuredClone(rootPosition),
       clockSnapshot: rootClockSnapshot ? structuredClone(rootClockSnapshot) : undefined,
       plyIndex: 0,
       children: [],
@@ -174,11 +172,10 @@ export function getPathToNode(node: IMoveNode): number[] {
   }
   return path;
 }
-export function appendChild(parent: IMoveNode, move: IMove, position: IGame['rootPosition'], kind: MoveNodeKind, clockSnapshot?: IClockSnapshot): IMoveNode {
+export function appendChild(parent: IMoveNode, move: IMove, kind: MoveNodeKind, clockSnapshot?: IClockSnapshot): IMoveNode {
   const child: IMoveNode = {
     kind,
     move: structuredClone(move),
-    position: structuredClone(position),
     clockSnapshot: clockSnapshot ? structuredClone(clockSnapshot) : undefined,
     plyIndex: parent.plyIndex + 1,
     children: [],
@@ -208,7 +205,7 @@ export function createAnalysisSnapshot(engine: IEngineRecord = createEngineRecor
 export function createGame(overrides: Partial<IGame> = {}): IGame {
   const rootPosition = structuredClone(overrides.rootPosition ?? createBoardPosition());
   const clockSnapshot = structuredClone(overrides.clockSnapshot ?? createClockSnapshot(rootPosition.sideToMove, false));
-  const moveTree = cloneTree(overrides.moveTree ?? createMoveTree(rootPosition, clockSnapshot));
+  const moveTree = cloneTree(overrides.moveTree ?? createMoveTree(clockSnapshot));
   return {
     schemaVersion: 1,
     metadata: {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { EngineOptionType, GameState, MoveKind, MoveNodeKind, PieceKind, PlayerColour, ResultState, TimeControlPreset, type IBoardPosition, type IGame, type IMove, type IMoveRaw } from '@/contracts';
-import { GameRuleUtility } from '@/utility/chess';
+import { createInitialBoardPosition } from '@/utility/chess';
 import { RecordTimestamp } from '@/utility/date';
 import { buildAnalysisCommands, buildDebugCommand, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildPositionCommand, buildQuitCommand, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciMove, buildUciNewGameCommand, parseBestMoveLine, parseOptionLines } from '@/utility/UciUtility';
 
@@ -31,19 +31,18 @@ describe('UciUtility', () => {
       board: new Array<IBoardPosition['board'][number]>(64).fill(undefined),
       sideToMove: PlayerColour.White,
       castlingAvailability: { whiteKingSide: false, whiteQueenSide: false, blackKingSide: false, blackQueenSide: false },
-      castlingRook: null,
       halfMoveClock: 0,
       fullMoveNumber: 1,
     };
     const move: IMove = { from: 12, to: 28, kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
-    const child = { kind: MoveNodeKind.Live, move, position: { ...rootPosition, sideToMove: PlayerColour.Black }, plyIndex: 1, children: [] };
+    const child = { kind: MoveNodeKind.Live, move, plyIndex: 1, children: [] };
     const game: IGame = {
       schemaVersion: 1,
       metadata: { id: 'game-1', name: 'Test Game', createdAt: new RecordTimestamp('2026-01-01T00:00:00.000Z'), updatedAt: new RecordTimestamp('2026-01-01T00:00:00.000Z') },
       gameState: GameState.LiveBlackTurn,
       resultState: ResultState.Ongoing,
       rootPosition,
-      moveTree: { root: { kind: MoveNodeKind.Live, position: rootPosition, plyIndex: 0, children: [child] } },
+      moveTree: { root: { kind: MoveNodeKind.Live, plyIndex: 0, children: [child] } },
       highlightPath: [0],
       livePath: [0],
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 1000 },
@@ -66,11 +65,11 @@ describe('UciUtility', () => {
     expect(() => buildFindNextMoveCommands(game)).toThrow('Timed engine search requires both clocks');
   });
   it('uses startpos and caches verification for a standard initial root', () => {
-    const rootPosition = GameRuleUtility.createInitialBoardPosition();
+    const rootPosition = createInitialBoardPosition();
     rootPosition.$ = undefined;
     const game = {
       rootPosition,
-      moveTree: { root: { kind: MoveNodeKind.Live, position: rootPosition, plyIndex: 0, children: [] } },
+      moveTree: { root: { kind: MoveNodeKind.Live, plyIndex: 0, children: [] } },
       highlightPath: [],
     } as unknown as IGame;
 

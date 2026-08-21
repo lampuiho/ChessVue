@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, MoveKind, PieceKind, PlatformErrorKind, PlayerColour, type IGame, type IMove } from '@/contracts';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
 import { EngineRuntimeService, MoveApplicationService, MoveHistoryService, PositionIdentityService } from '@/domain';
-import { GameRuleUtility } from '@/utility/chess';
 import { createAssignedEngine, createEngineGame, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
 
 const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironment();
@@ -11,9 +10,16 @@ const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironme
 function appendLiveMove(game: IGame, move: IMove): void {
   let node = game.moveTree.root;
   for (const childIndex of game.livePath ?? []) node = node.children[childIndex]!;
-  MoveHistoryService.addMainlineMove(node, move, MoveApplicationService.applyMove(node.position, move), game.clockSnapshot);
-  game.livePath!.push(0);
+  const nextNode = MoveHistoryService.addMainlineMove(node, move, game.clockSnapshot);
+  game.livePath!.push(node.children.indexOf(nextNode));
   game.highlightPath = [...game.livePath!];
+  // the store owns these slots in production; applying in place is what keeps them current
+  const runtime = game.$!;
+  const nextPosition = MoveApplicationService.applyMove(runtime.livePosition!, move);
+  runtime.livePosition = nextPosition;
+  runtime.renderedPosition = nextPosition;
+  runtime.liveNode = nextNode;
+  runtime.renderedNode = nextNode;
 }
 
 describe('NwjsUciEngineClient', () => {
@@ -52,6 +58,8 @@ describe('NwjsUciEngineClient', () => {
       'info depth 14 multipv 1 score cp 34 pv e7e5 g1f3',
       'info depth 14 multipv 2 score cp 18 pv c7c5',
     ]);
+    // captured before appendLiveMove advances the same object in place
+    const analysedPositionKey = PositionIdentityService.buildPositionKey(game.$!.renderedPosition!);
     await client.startAnalysis(engine, game, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, (update) => updates.push(update));
     process.queueResponse('stop', ['bestmove e7e5']);
     await client.stopAnalysis(engine);
@@ -87,7 +95,7 @@ describe('NwjsUciEngineClient', () => {
     expect(commandLog[ponderMissStopIndex + 1]).toMatch(/^position startpos /);
     expect(commandLog[ponderMissStopIndex + 2]).toBe(timedGo);
     expect(updates).toHaveLength(2);
-    expect(updates[1]!.positionKey).toBe(PositionIdentityService.buildPositionKey(game.moveTree.root.children[0]!.position));
+    expect(updates[1]!.positionKey).toBe(analysedPositionKey);
     expect(firstMove.$?.ponderMove?.$?.uci).toBe('g1f3');
     expect(ponderHitMove.$?.uci).toBe('b8c6');
     expect(ponderMissMove.$?.uci).toBe('g8f6');
@@ -148,6 +156,42 @@ describe('NwjsUciEngineClient', () => {
       kind: PlatformErrorKind.ProcessStartFailed,
       message: 'Engine session is not initialised for Stockfish.',
     });
+  });
+  it('throws when the game runtime has no position for the requested search', async () => {
+    const platform = getPlatformService();
+    const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    const game = createEngineGame();
+    await client.initialiseEngine(engine);
+    game.$!.renderedPosition = undefined;
+    game.$!.livePosition = undefined;
+
+    await expect(client.startAnalysis(engine, game, { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }, () => undefined))
+      .rejects.toThrow(/Rendered position is unavailable/);
+    await expect(client.startPlayerTurn(engine, game)).rejects.toThrow(/Live position is unavailable/);
+  });
+  it('re-emits ucinewgame when the board root is edited in place', async () => {
+    const platform = getPlatformService();
+    const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    const game = createEngineGame();
+
+    await client.initialiseEngine(engine);
+    const process = getEnvironment().latestProcess();
+    await client.startAnalysis(engine, game, { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }, () => undefined);
+    process.queueResponse('stop', ['bestmove e7e5']);
+    await client.stopAnalysis(engine);
+    const newGameCountBeforeEdit = process.getCommandLog().filter((command) => command === 'ucinewgame').length;
+
+    // a board edit keeps the same rootPosition object, so only its value can reveal the change
+    MoveApplicationService.deletePiece(game.rootPosition, getBoardId(0, 0));
+    await client.startAnalysis(engine, game, { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }, () => undefined);
+
+    expect(process.getCommandLog().filter((command) => command === 'ucinewgame')).toHaveLength(newGameCountBeforeEdit + 1);
   });
   it('defers registration when the engine reports a registration error', async () => {
     const platform = getPlatformService();

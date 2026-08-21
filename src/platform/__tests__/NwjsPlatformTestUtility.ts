@@ -7,7 +7,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 
 import { EngineClientType, EngineProtocol, GameState, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IGame } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService, TimeControlService } from '@/domain';
-import { GameRuleUtility } from '@/utility/chess';
+import { createInitialBoardPosition, toDetailedMove } from '@/utility/chess';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 import { ClockTimestamp, RecordTimestamp } from '@/utility/date';
 
@@ -228,15 +228,18 @@ export function createEngineGame(): IGame {
   const game = createPersistedGame();
   game.timeControl = { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 1000 };
   game.clockSnapshot = TimeControlService.startClock(TimeControlService.initialiseClockSnapshot(game.timeControl), PlayerColour.Black, new ClockTimestamp('2026-01-01T12:00:01.000Z'));
-  const move = GameRuleUtility.genDetailedMove(game.rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
-  MoveHistoryService.addMainlineMove(game.moveTree.root, move, MoveApplicationService.applyMove(game.rootPosition, move), game.clockSnapshot);
+  const move = toDetailedMove(game.rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
+  const liveNode = MoveHistoryService.addMainlineMove(game.moveTree.root, move, game.clockSnapshot);
   game.gameState = GameState.LiveBlackTurn;
   game.livePath = [0];
   game.highlightPath = [0];
+  // the engine client reads the searched position off the runtime rather than deriving it
+  const livePosition = MoveApplicationService.genPosition(game.rootPosition, [move]);
+  game.$ = { renderedNode: liveNode, liveNode, renderedPosition: livePosition, livePosition };
   return game;
 }
 export function createPersistedGame(): IGame {
-  const rootPosition = GameRuleUtility.createInitialBoardPosition();
+  const rootPosition = createInitialBoardPosition();
   const timeControl = { preset: TimeControlPreset.Untimed, incrementMs: 0 };
   const clockSnapshot = TimeControlService.initialiseClockSnapshot(timeControl);
   return {
@@ -260,7 +263,7 @@ export function createPersistedGame(): IGame {
       displayName: 'Black',
     },
     rootPosition,
-    moveTree: MoveHistoryService.createMoveTree(rootPosition, clockSnapshot),
+    moveTree: MoveHistoryService.createMoveTree(clockSnapshot),
     livePath: undefined,
     highlightPath: [],
     timeControl,

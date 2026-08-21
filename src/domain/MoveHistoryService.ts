@@ -1,4 +1,4 @@
-import { MoveNodeKind, type IBoardPosition, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree } from '@/contracts';
+import { MoveNodeKind, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree, type MovePath } from '@/contracts';
 
 function getRootNode(node: IMoveNode): IMoveNode {
   let currentNode = node;
@@ -29,11 +29,10 @@ function getAncestorNode(node: IMoveNode, distance: number): IMoveNode {
   }
   return currentNode;
 }
-function createChildNode(parentNode: IMoveNode, kind: MoveNodeKind, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveNode {
+function createChildNode(parentNode: IMoveNode, kind: MoveNodeKind, move: IMove, clockSnapshot?: IClockSnapshot): IMoveNode {
   return {
     kind,
     move,
-    position,
     clockSnapshot,
     plyIndex: parentNode.plyIndex + 1,
     mainlineChildIndex: undefined,
@@ -43,12 +42,11 @@ function createChildNode(parentNode: IMoveNode, kind: MoveNodeKind, move: IMove,
 }
 
 export const MoveHistoryService = {
-  createMoveTree(rootPosition: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
+  createMoveTree(clockSnapshot?: IClockSnapshot): IMoveTree {
     return {
       root: {
         kind: MoveNodeKind.Live,
         move: undefined,
-        position: rootPosition,
         clockSnapshot,
         plyIndex: 0,
         mainlineChildIndex: undefined,
@@ -56,19 +54,37 @@ export const MoveHistoryService = {
       },
     };
   },
-  addMainlineMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition, clockSnapshot?: IClockSnapshot) {
-    const node = createChildNode(parentNode, MoveNodeKind.Live, move, position, clockSnapshot);
+  addMainlineMove(parentNode: IMoveNode, move: IMove, clockSnapshot?: IClockSnapshot) {
+    const node = createChildNode(parentNode, MoveNodeKind.Live, move, clockSnapshot);
     parentNode.mainlineChildIndex = parentNode.children.length;
     parentNode.children.push(node);
     return node;
   },
-  addAnalysisMove(parentNode: IMoveNode, move: IMove, position: IBoardPosition) {
-    const node = createChildNode(parentNode, MoveNodeKind.Analysis, move, position, parentNode.clockSnapshot);
+  addAnalysisMove(parentNode: IMoveNode, move: IMove) {
+    const node = createChildNode(parentNode, MoveNodeKind.Analysis, move, parentNode.clockSnapshot);
     parentNode.children.push(node);
     return node;
   },
-  getPosition(node: IMoveNode): IBoardPosition {
-    return node.position;
+  /**
+   * the moves leading from `fromPath` to `toPath`, so a caller can generate the board position of a node
+   * by replaying them from that reference node. `fromPath` defaults to the root and must be a prefix of
+   * `toPath`.
+   */
+  getMoveSequence(tree: IMoveTree, toPath: MovePath, fromPath: MovePath = []): readonly IMove[] {
+    if (fromPath.length > toPath.length || fromPath.some((childIndex, index) => toPath[index] !== childIndex)) {
+      throw new Error('Move sequence start path must be a prefix of the target path.');
+    }
+    const moves: IMove[] = [];
+    let currentNode = tree.root;
+    toPath.forEach((childIndex, index) => {
+      const childNode = currentNode.children[childIndex];
+      if (!childNode) throw new Error('Move path does not exist in the move tree.');
+      currentNode = childNode;
+      if (index < fromPath.length) return;
+      if (!childNode.move) throw new Error('Move tree node beyond the root is missing its move.');
+      moves.push(childNode.move);
+    });
+    return moves;
   },
   takeBack(fromNode: IMoveNode, moveCount: number): IMoveTree {
     if (moveCount <= 0) return getTree(fromNode);
@@ -83,8 +99,5 @@ export const MoveHistoryService = {
   },
   pruneFutureMoves(node: IMoveNode): IMoveTree {
     return pruneDescendants(node);
-  },
-  replaceBoardRoot(rootPosition: IBoardPosition, clockSnapshot?: IClockSnapshot): IMoveTree {
-    return this.createMoveTree(rootPosition, clockSnapshot);
   },
 };
