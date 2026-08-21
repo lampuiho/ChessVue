@@ -1,12 +1,8 @@
 import { PlayerColour, TimeControlPreset, type IClockSnapshot, type ITimeControl } from '@/contracts';
+import { ClockTimestamp } from '@/utility/date';
 
-function parseUtc(utc: string): number {
-  const parsed = Date.parse(utc);
-  if (Number.isNaN(parsed)) throw new Error(`Invalid UTC timestamp: ${utc}.`);
-  return parsed;
-}
-function getElapsedMs(startUtc: string, endUtc: string): number {
-  return Math.max(0, parseUtc(endUtc) - parseUtc(startUtc));
+function getElapsedMs(startUtc: ClockTimestamp, endUtc: ClockTimestamp): number {
+  return Math.max(0, endUtc.getTime() - startUtc.getTime());
 }
 
 function cloneClockSnapshot(snapshot: IClockSnapshot): IClockSnapshot {
@@ -25,7 +21,7 @@ function isUntimed(timeControl: ITimeControl): boolean {
 function getClock(snapshot: IClockSnapshot, colour: PlayerColour) {
   return colour === PlayerColour.White ? snapshot.white : snapshot.black;
 }
-function materialiseElapsed(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
+function materialiseElapsed(snapshot: IClockSnapshot, nowUtc: ClockTimestamp): IClockSnapshot {
   const nextSnapshot = cloneClockSnapshot(snapshot);
 
   if (nextSnapshot.activeColour === undefined || nextSnapshot.startedAtUtc === undefined) {
@@ -60,7 +56,7 @@ export const TimeControlService = {
     };
   },
   /** Does not mutate snapshot; returns remaining time from a materialised clone. */
-  getRemainingTime(snapshot: IClockSnapshot, nowUtc: string): Record<PlayerColour, number | undefined> {
+  getRemainingTime(snapshot: IClockSnapshot, nowUtc: ClockTimestamp): Record<PlayerColour, number | undefined> {
     const materialised = materialiseElapsed(snapshot, nowUtc);
 
     return {
@@ -69,7 +65,7 @@ export const TimeControlService = {
     };
   },
   /** Does not mutate snapshot; returns a new snapshot with running flags and timestamps updated. */
-  startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: string): IClockSnapshot {
+  startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: ClockTimestamp): IClockSnapshot {
     const nextSnapshot = cloneClockSnapshot(snapshot);
 
     if (getClock(nextSnapshot, activeColour).remainingMs === undefined) {
@@ -86,7 +82,7 @@ export const TimeControlService = {
     return nextSnapshot;
   },
   /** Does not mutate snapshot; returns a new paused snapshot. */
-  pauseClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
+  pauseClock(snapshot: IClockSnapshot, nowUtc: ClockTimestamp): IClockSnapshot {
     if (snapshot.activeColour === undefined || snapshot.startedAtUtc === undefined) {
       return cloneClockSnapshot(snapshot);
     }
@@ -100,7 +96,7 @@ export const TimeControlService = {
     return nextSnapshot;
   },
   /** Does not mutate snapshot; returns a new resumed snapshot when resuming is valid. */
-  resumeClock(snapshot: IClockSnapshot, nowUtc: string): IClockSnapshot {
+  resumeClock(snapshot: IClockSnapshot, nowUtc: ClockTimestamp): IClockSnapshot {
     if (snapshot.activeColour === undefined) {
       return cloneClockSnapshot(snapshot);
     }
@@ -120,7 +116,7 @@ export const TimeControlService = {
     return nextSnapshot;
   },
   /** Does not mutate snapshot or timeControl; returns a new snapshot with elapsed time and turn state applied. */
-  applyMove(snapshot: IClockSnapshot, mover: PlayerColour, nowUtc: string, timeControl: ITimeControl): IClockSnapshot {
+  applyMove(snapshot: IClockSnapshot, mover: PlayerColour, nowUtc: ClockTimestamp, timeControl: ITimeControl): IClockSnapshot {
     if (isUntimed(timeControl)) {
       return cloneClockSnapshot(snapshot);
     }
@@ -147,7 +143,7 @@ export const TimeControlService = {
     return materialised;
   },
   /** Does not mutate snapshot. */
-  hasExpired(snapshot: IClockSnapshot, nowUtc: string): boolean {
+  hasExpired(snapshot: IClockSnapshot, nowUtc: ClockTimestamp): boolean {
     const remaining = this.getRemainingTime(snapshot, nowUtc);
 
     return (remaining.white ?? 1) <= 0 || (remaining.black ?? 1) <= 0;

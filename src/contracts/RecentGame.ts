@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { SaveTimestamp } from '@/utility/date'
+import { utcTimestampSchema } from './UtcTimestampSchema'
 
 export const enum RecentGameSourceKind {
   Autosave = 'autosave',
@@ -11,7 +13,7 @@ export interface IRecentGameEntry {
   displayName: string
   sourceKind: RecentGameSourceKind
   filePath?: string
-  lastSavedAtUtc: string
+  lastSavedAtUtc: SaveTimestamp
 }
 export interface IRecentGamesSnapshot {
   schemaVersion: number
@@ -23,7 +25,7 @@ export const recentGameEntrySchema = z.object({
   displayName: z.string().min(1),
   sourceKind: recentGameSourceKindSchema,
   filePath: z.string().optional(),
-  lastSavedAtUtc: z.string().datetime({ offset: true }),
+  lastSavedAtUtc: utcTimestampSchema((value) => new SaveTimestamp(value)),
 }).superRefine((entry, context) => {
   if (entry.sourceKind === RecentGameSourceKind.Autosave && !!entry.filePath) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Autosave recent game entries must not include a file path.' })
   if (entry.sourceKind === RecentGameSourceKind.SaveFile && !entry.filePath) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Save-file recent game entries must include a file path.' })

@@ -3,9 +3,10 @@ import { defineStore } from 'pinia';
 import type { ISavedGameGroup } from '@/contracts/domain';
 import { RecentGameSourceKind, type IRecentGameEntry } from '@/contracts';
 import { SavedGameIndexService, SerializationService, UserSettingService } from '@/domain';
+import { SaveTimestamp } from '@/utility/date';
 
 function compareRecentEntries(left: IRecentGameEntry, right: IRecentGameEntry): number {
-  return Date.parse(right.lastSavedAtUtc) - Date.parse(left.lastSavedAtUtc);
+  return right.lastSavedAtUtc.getTime() - left.lastSavedAtUtc.getTime();
 }
 async function _listManagedSaveGroups(rootPath: string): Promise<ISavedGameGroup[]> {
   return SavedGameIndexService.projectSaveGroups(rootPath, await SerializationService.listManagedSaveEntries(rootPath));
@@ -25,7 +26,7 @@ export const useRecentGameStore = defineStore('recentGameStore', () => {
           displayName: game.metadata.name,
           sourceKind: latestEntry.isAutosave ? RecentGameSourceKind.Autosave : RecentGameSourceKind.SaveFile,
           filePath: latestEntry.isAutosave ? undefined : latestEntry.filePath,
-          lastSavedAtUtc: latestEntry.savedAtUtc ?? game.metadata.updatedAt,
+          lastSavedAtUtc: latestEntry.savedAtUtc ?? new SaveTimestamp(game.metadata.updatedAt),
         };
         const existingEntry = recentEntriesById.get(projectedEntry.gameId);
         if (!existingEntry || compareRecentEntries(projectedEntry, existingEntry) < 0) recentEntriesById.set(projectedEntry.gameId, projectedEntry);

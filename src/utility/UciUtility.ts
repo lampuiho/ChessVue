@@ -1,8 +1,8 @@
 import { EngineOptionType, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw } from '@/contracts';
-import { MoveNotationUtility } from '@/utility/chess/MoveNotationUtility';
+import { isStandardInitialPosition } from '@/utility/chess/GameRuleUtility';
+import { getUci } from '@/utility/chess/MoveNotationUtility';
 import { coordsToBoardId } from '@/utility/chess/SquareUtility';
 
-const standardInitialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 export interface IUciBestMove {
   move: IMoveRaw;
   ponderMove?: IMoveRaw;
@@ -66,7 +66,7 @@ export function buildUciCommand(): string {
   return 'uci';
 }
 export function buildUciMove(move: IMoveRaw): string {
-  return MoveNotationUtility.getUci(move);
+  return getUci(move);
 }
 export function buildUciNewGameCommand(): string {
   return 'ucinewgame';
@@ -148,13 +148,7 @@ function _buildPositionCommand(rootPosition: IBoardPosition, moves: readonly IMo
   return `${position} moves ${moves.map((move) => buildUciMove(move)).join(' ')}`;
 }
 function _buildRootPosition(rootPosition: IBoardPosition): string {
-  const isStandardInitialPosition = rootPosition.$?.isStandardInitialPosition;
-  if (isStandardInitialPosition === true) return 'startpos';
-  const fen = buildFen(rootPosition);
-  if (isStandardInitialPosition === false) return `fen ${fen}`;
-  rootPosition.$ ??= {};
-  rootPosition.$.isStandardInitialPosition = fen === standardInitialFen;
-  return rootPosition.$.isStandardInitialPosition ? 'startpos' : `fen ${fen}`;
+  return isStandardInitialPosition(rootPosition) ? 'startpos' : `fen ${buildFen(rootPosition)}`;
 }
 function _buildTimedGoCommand(game: IGame, ponder: boolean = false): string {
   const whiteTime = game.clockSnapshot.white.remainingMs;

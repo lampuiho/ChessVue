@@ -46,6 +46,7 @@ import { getOpponentColour } from '@/utility/chess/BoardUtility';
 import { isBoardId } from '@/utility/chess/SquareUtility';
 import { logHandledError } from '@/utility/errors';
 import { Deferred } from '@/utility/async/Deferred';
+import { AnalysisTimestamp, ClockTimestamp, RecordTimestamp } from '@/utility/date';
 import Aborted from '@/contracts/errors/Aborted';
 import InvalidMove from '@/contracts/errors/InvalidMove';
 
@@ -54,9 +55,6 @@ type LiveGame = IGame & {
 }
 
 export const useGamesStore = defineStore('gamesStore', () => {
-  function _getNowUtc(): string {
-    return new Date().toISOString();
-  }
   function clonePlayer(player?: IPlayer): IPlayer | undefined {
     if (!player) return;
     const clonedPlayer = structuredClone(player);
@@ -72,21 +70,21 @@ export const useGamesStore = defineStore('gamesStore', () => {
       options: structuredClone(engineProfile.options),
     };
   }
-  function createAnalysisSnapshot(engineProfile: IEngineRecord, positionKey: string, updatedAt: string): IAnalysisSnapshot {
+  function createAnalysisSnapshot(engineProfile: IEngineRecord, positionKey: string, updatedAt: Date): IAnalysisSnapshot {
     return {
       assignedEngine: createAssignedEngine(engineProfile),
       positionKey,
-      updatedAt,
+      updatedAt: new AnalysisTimestamp(updatedAt),
       lines: [],
       isComplete: false,
     };
   }
-  function createGameMetadata(name: string, nowUtc: string) {
+  function createGameMetadata(name: string, nowUtc: Date) {
     return {
       id: crypto.randomUUID(),
       name,
-      createdAt: nowUtc,
-      updatedAt: nowUtc,
+      createdAt: new RecordTimestamp(nowUtc),
+      updatedAt: new RecordTimestamp(nowUtc),
     };
   }
   function _getRuntimeNodeOfPath(tree: IGame['moveTree'], path: MovePath): IMoveNode {
@@ -225,7 +223,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     }
   }
   function setGameUpdateTimeNow(game: IGame): void {
-    game.metadata.updatedAt = _getNowUtc();
+    game.metadata.updatedAt = new RecordTimestamp();
   }
   function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): IMoveNode {
     const hydratedMove = node.move ? structuredClone(node.move) : undefined;
@@ -294,7 +292,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       metadata: {
         ...game.metadata,
         id: crypto.randomUUID(), //fix this so we append underscore + next integer available instead, game ids are the game name and folder name
-        updatedAt: _getNowUtc(),
+        updatedAt: new RecordTimestamp(),
       },
     };
   }
@@ -376,7 +374,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     runtime.focusReturnUnsubscribe?.();
     runtime.focusReturnUnsubscribe = undefined;
     if (!_isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing || !isTimedGame(game)) return;
-    runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, _getNowUtc()), `sync-clock-${game.metadata.id}`);
+    runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, new ClockTimestamp()), `sync-clock-${game.metadata.id}`);
   }
   function _syncRuntimePositionCache(game: IGame): void {
     _syncMoveNodeHighlights(game);
@@ -405,7 +403,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       const snapshot = _resolveAnalysisSnapshot(game, engine);
       if (!snapshot) return;
       snapshot.positionKey = update.positionKey;
-      snapshot.updatedAt = _getNowUtc();
+      snapshot.updatedAt = new AnalysisTimestamp();
       snapshot.bestMove = update.bestMove ? structuredClone(update.bestMove) : undefined;
       snapshot.lines = structuredClone(update.lines);
       snapshot.isComplete = update.isFinal;
@@ -422,7 +420,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const position = _getCurrentNode(game).position;
     _subscribeToAnalysis(game, snapshot.assignedEngine);
     snapshot.positionKey = PositionIdentityService.buildPositionKey(position);
-    snapshot.updatedAt = _getNowUtc();
+    snapshot.updatedAt = new AnalysisTimestamp();
     _resetAnalysisSnapshot(snapshot);
     if (snapshot.assignedEngine.$) snapshot.assignedEngine.$.lastError = undefined;
     await EngineRuntimeService.ensureReady(snapshot.assignedEngine);
@@ -476,7 +474,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   function _commitLiveMove(game: IGame, move: IMove, ponderEngine?: IAssignedEngine) {
     const baseClockSnapshot = game.clockSnapshot;
-    const nextClockSnapshot = TimeControlService.applyMove(baseClockSnapshot, move.movingColour, _getNowUtc(), game.timeControl);
+    const nextClockSnapshot = TimeControlService.applyMove(baseClockSnapshot, move.movingColour, new ClockTimestamp(), game.timeControl);
 
     let parentNode = getLiveNode(game);
     if (parentNode.children.length > 0) MoveHistoryService.pruneFutureMoves(parentNode);
@@ -614,7 +612,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     return hydratedGame;
   }
   async function createGame(request: ICreateGameRequest): Promise<IGame> {
-    const nowUtc = _getNowUtc();
+    const nowUtc = new Date();
     const rootPosition = request.rootPosition ?? GameRuleUtility.createInitialBoardPosition();
     const initialClockSnapshot = TimeControlService.initialiseClockSnapshot(request.timeControl);
     const initialState = request.whitePlayer && request.blackPlayer ? getLiveState(rootPosition.sideToMove) : getAnalysisState(rootPosition.sideToMove);
@@ -632,7 +630,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       livePath,
       highlightPath: [],
       timeControl: structuredClone(request.timeControl),
-      clockSnapshot: request.whitePlayer && request.blackPlayer ? TimeControlService.startClock(initialClockSnapshot, rootPosition.sideToMove, nowUtc) : initialClockSnapshot,
+      clockSnapshot: request.whitePlayer && request.blackPlayer ? TimeControlService.startClock(initialClockSnapshot, rootPosition.sideToMove, new ClockTimestamp(nowUtc)) : initialClockSnapshot,
       analysis: {
         snapshots: request.analysisEngineProfiles.map((engineProfile) => createAnalysisSnapshot(engineProfile, initialPositionKey, nowUtc)),
       },
@@ -649,12 +647,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
     game.blackPlayer = clonePlayer(request.blackPlayer);
     game.timeControl = structuredClone(request.timeControl);
     game.gameplayOptions = { showLiveAnalysisMoves:request.showLiveAnalysisMoves, allowTakeback: request.allowTakeback };
-    game.analysis.snapshots = request.analysisEngineProfiles.map((engineProfile) => createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(_getCurrentNode(game).position), _getNowUtc()));
+    game.analysis.snapshots = request.analysisEngineProfiles.map((engineProfile) => createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(_getCurrentNode(game).position), new Date()));
     game.clockSnapshot = TimeControlService.initialiseClockSnapshot(game.timeControl);
     _clearPlayerTurnRuntime(game);
     if (game.whitePlayer && game.blackPlayer) {
       game.livePath = [...game.highlightPath];
-      game.clockSnapshot = TimeControlService.startClock(game.clockSnapshot, _getCurrentNode(game).position.sideToMove, _getNowUtc());
+      game.clockSnapshot = TimeControlService.startClock(game.clockSnapshot, _getCurrentNode(game).position.sideToMove, new ClockTimestamp());
       game.resultState = ResultState.Ongoing;
       game.resultReason = undefined;
       game.gameState = getLiveState(_getCurrentNode(game).position.sideToMove);
@@ -754,7 +752,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (engineSnapshots.length === 0) return;
     return { engineSnapshots: engineSnapshots.map((snapshot) => cloneAnalysisSnapshotForRead(snapshot)) };
   }
-  async function syncClock(game: IGame, nowUtc: string): Promise<void> {
+  async function syncClock(game: IGame, nowUtc: ClockTimestamp): Promise<void> {
     if (!_isLiveState(game.gameState) && !_isPausedLiveState(game.gameState)) return;
     if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return;
     const remainingTime = TimeControlService.getRemainingTime(game.clockSnapshot, nowUtc);
@@ -776,7 +774,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     }
     if ((!_isLiveState(game.gameState) && !_isLiveAnalysisState(game.gameState)) || game.resultState !== ResultState.Ongoing) return;
     runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
-    game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, _getNowUtc());
+    game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
     if (_isLiveState(game.gameState)) game.gameState = getPausedState(_getCurrentNode(game).position.sideToMove);
     else game.gameState = getLiveAnalysisState(_getLiveAnchorColour(game), _getCurrentNode(game).position.sideToMove, true);
     setGameUpdateTimeNow(game);
@@ -788,7 +786,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const runtime = _requireGameRuntime(game);
     runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== reason);
     if ((runtime.pauseReasons ?? []).length > 0) return;
-    game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, _getNowUtc());
+    game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, new ClockTimestamp());
     if (_isPausedLiveState(game.gameState)) game.gameState = getLiveState(_getCurrentNode(game).position.sideToMove);
     else game.gameState = getLiveAnalysisState(_getLiveAnchorColour(game), _getCurrentNode(game).position.sideToMove);
     setGameUpdateTimeNow(game);
@@ -815,7 +813,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord): Promise<void> {
     if (game.analysis.snapshots.some((snapshot) => snapshot.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
     if (game.analysis.snapshots.length >= 4) throw new Error('A game cannot have more than four analysis engines.');
-    const snapshot = createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(_getCurrentNode(game).position), _getNowUtc());
+    const snapshot = createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(_getCurrentNode(game).position), new Date());
     game.analysis.snapshots.push(snapshot);
     setGameUpdateTimeNow(game);
     await _refreshAnalysisForGame(game, game.analysis.snapshots.length - 1);
@@ -880,7 +878,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== PauseReason.Analysis);
       if ((runtime.pauseReasons ?? []).length > 0) game.gameState = getPausedState(liveNode.position.sideToMove);
       else {
-        game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, _getNowUtc());
+        game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, new ClockTimestamp());
         game.gameState = getLiveState(liveNode.position.sideToMove);
       }
       _refreshRuntimeRegistrations(game);

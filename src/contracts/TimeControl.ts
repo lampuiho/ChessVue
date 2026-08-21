@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { playerColourSchema, type PlayerColour } from './Chess'
+import { ClockTimestamp } from '@/utility/date'
+import { utcTimestampSchema } from './UtcTimestampSchema'
 
 export const enum TimeControlPreset {
   Bullet = 'bullet',
@@ -23,9 +25,9 @@ export interface IClockSnapshot {
   white: IPlayerClock
   black: IPlayerClock
   activeColour?: PlayerColour
-  startedAtUtc?: string
-  pausedAtUtc?: string
-  lastMoveAtUtc?: string
+  startedAtUtc?: ClockTimestamp
+  pausedAtUtc?: ClockTimestamp
+  lastMoveAtUtc?: ClockTimestamp
 }
 export const timeControlPresetSchema = z.enum(timeControlPresets)
 export const timeControlSchema = z.object({
@@ -43,7 +45,7 @@ export const clockSnapshotSchema = z.object({
   white: playerClockSchema,
   black: playerClockSchema,
   activeColour: playerColourSchema.optional(),
-  startedAtUtc: z.string().datetime({ offset: true }).optional(),
-  pausedAtUtc: z.string().datetime({ offset: true }).optional(),
-  lastMoveAtUtc: z.string().datetime({ offset: true }).optional(),
+  startedAtUtc: utcTimestampSchema((value) => new ClockTimestamp(value)).optional(),
+  pausedAtUtc: utcTimestampSchema((value) => new ClockTimestamp(value)).optional(),
+  lastMoveAtUtc: utcTimestampSchema((value) => new ClockTimestamp(value)).optional(),
 })

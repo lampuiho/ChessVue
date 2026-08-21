@@ -9,6 +9,7 @@ import { EngineClientType, EngineProtocol, GameState, PlayerColour, PlayerType, 
 import { MoveApplicationService, MoveHistoryService, TimeControlService } from '@/domain';
 import { GameRuleUtility } from '@/utility/chess';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
+import { ClockTimestamp, RecordTimestamp } from '@/utility/date';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -226,7 +227,7 @@ export function createAssignedEngine(): IAssignedEngine {
 export function createEngineGame(): IGame {
   const game = createPersistedGame();
   game.timeControl = { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 1000 };
-  game.clockSnapshot = TimeControlService.startClock(TimeControlService.initialiseClockSnapshot(game.timeControl), PlayerColour.Black, '2026-01-01T12:00:01.000Z');
+  game.clockSnapshot = TimeControlService.startClock(TimeControlService.initialiseClockSnapshot(game.timeControl), PlayerColour.Black, new ClockTimestamp('2026-01-01T12:00:01.000Z'));
   const move = GameRuleUtility.genDetailedMove(game.rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
   MoveHistoryService.addMainlineMove(game.moveTree.root, move, MoveApplicationService.applyMove(game.rootPosition, move), game.clockSnapshot);
   game.gameState = GameState.LiveBlackTurn;
@@ -243,8 +244,8 @@ export function createPersistedGame(): IGame {
     metadata: {
       id: 'game-1',
       name: 'Example Game',
-      createdAt: '2026-01-01T12:00:00.000Z',
-      updatedAt: '2026-01-01T12:00:00.000Z',
+      createdAt: new RecordTimestamp('2026-01-01T12:00:00.000Z'),
+      updatedAt: new RecordTimestamp('2026-01-01T12:00:00.000Z'),
     },
     gameState: GameState.AnalysisWhiteMove,
     resultState: ResultState.Ongoing,

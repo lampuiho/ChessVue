@@ -21,7 +21,7 @@ interface IRecentGameEntry {
   displayName: string
   sourceKind: RecentGameSourceKind
   filePath?: string
-  lastSavedAtUtc: string
+  lastSavedAtUtc: SaveTimestamp
 }
 ```
 

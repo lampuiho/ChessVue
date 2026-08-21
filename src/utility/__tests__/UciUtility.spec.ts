@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EngineOptionType, GameState, MoveKind, MoveNodeKind, PieceKind, PlayerColour, ResultState, TimeControlPreset, type IBoardPosition, type IGame, type IMove, type IMoveRaw } from '@/contracts';
 import { GameRuleUtility } from '@/utility/chess';
+import { RecordTimestamp } from '@/utility/date';
 import { buildAnalysisCommands, buildDebugCommand, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildPositionCommand, buildQuitCommand, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciMove, buildUciNewGameCommand, parseBestMoveLine, parseOptionLines } from '@/utility/UciUtility';
 
 describe('UciUtility', () => {
@@ -38,7 +39,7 @@ describe('UciUtility', () => {
     const child = { kind: MoveNodeKind.Live, move, position: { ...rootPosition, sideToMove: PlayerColour.Black }, plyIndex: 1, children: [] };
     const game: IGame = {
       schemaVersion: 1,
-      metadata: { id: 'game-1', name: 'Test Game', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+      metadata: { id: 'game-1', name: 'Test Game', createdAt: new RecordTimestamp('2026-01-01T00:00:00.000Z'), updatedAt: new RecordTimestamp('2026-01-01T00:00:00.000Z') },
       gameState: GameState.LiveBlackTurn,
       resultState: ResultState.Ongoing,
       rootPosition,

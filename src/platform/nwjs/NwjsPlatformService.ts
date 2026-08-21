@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import { ResolvedThemeMode, PlatformErrorKind, type IPlatformError } from '@/contracts';
 import { EngineClientType, PlatformEventKey, type IPlatformEventRegistration, type IPlatformService } from '@/contracts/platform';
 import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
+import { RegistrationTimestamp } from '@/utility/date';
 import { defineNwjsProcessManagerStore } from './NwjsProcessManager';
 import { createNwjsProcessRegistry } from './NwjsProcessRegistry';
 import { defineNwjsStorageAdapterStore } from './NwjsStorageAdapter';
@@ -64,7 +65,7 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
       return _registerCallback(themeRegistrations, PlatformEventKey.SystemThemeChanged, owner, onChanged, debugLabel);
     }
     function getEventRegistrationSnapshot(): IPlatformEventRegistration[] {
-      return [...appCloseRegistrations, ...appFocusRegistrations, ...themeRegistrations].map((entry) => ({ ...entry.registration })).sort((left, right) => left.registeredAtUtc.localeCompare(right.registeredAtUtc) || left.registrationId.localeCompare(right.registrationId));
+      return [...appCloseRegistrations, ...appFocusRegistrations, ...themeRegistrations].map((entry) => ({ ...entry.registration })).sort((left, right) => left.registeredAtUtc.getTime() - right.registeredAtUtc.getTime() || left.registrationId.localeCompare(right.registrationId));
     }
     async function triggerAppCloseRequested(): Promise<IPlatformError[]> {
       const failures: IPlatformError[] = [];
@@ -114,7 +115,7 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
     }
     function _registerCallback<TCallback>(registrations: IEventRegistration<TCallback>[], eventKey: PlatformEventKey, owner: string, callback: TCallback, debugLabel?: string): () => void {
       const registrationId = `platform-registration-${nextRegistrationId++}`;
-      const entry: IEventRegistration<TCallback> = { registration: { registrationId, eventKey, owner, debugLabel, registeredAtUtc: new Date().toISOString() }, callback };
+      const entry: IEventRegistration<TCallback> = { registration: { registrationId, eventKey, owner, debugLabel, registeredAtUtc: new RegistrationTimestamp() }, callback };
       registrations.push(entry);
       return () => {
         const index = registrations.findIndex((candidate) => candidate.registration.registrationId === registrationId);

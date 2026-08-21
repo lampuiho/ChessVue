@@ -92,6 +92,7 @@ function _migrateGame(input: unknown): IGame {
 }
 function _stripRuntimeMetadata<T>(input: T): T {
   if (Array.isArray(input)) return input.map((item) => _stripRuntimeMetadata(item)) as T;
+  if (input instanceof Date) return input;
   if (typeof input !== 'object' || input === null) return input;
   const output: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {

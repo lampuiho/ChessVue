@@ -13,6 +13,7 @@ import {
   rejectWithRandomDelay,
   resolveWithRandomDelay,
 } from './StateStoreTestUtility';
+import { RecordTimestamp } from '@/utility/date';
 
 let useSavedGamesStore: typeof import('..').useSavedGamesStore;
 let settingsSnapshot = createSettingsSnapshot();
@@ -69,9 +70,9 @@ describe('useSavedGamesStore', () => {
       ]),
     ];
     storedGamesByPath = new Map([
-      ['saves/game-a/auto.json', createGame({ metadata: { id: 'game-a', name: 'Autosave', createdAt: '2026-04-17T09:00:00.000Z', updatedAt: '2026-04-17T10:00:00.000Z' } })],
-      ['saves/game-a/manual.json', createGame({ metadata: { id: 'game-a', name: 'Manual', createdAt: '2026-04-17T09:00:00.000Z', updatedAt: '2026-04-17T11:00:00.000Z' } })],
-      ['imports/game-a.json', createGame({ metadata: { id: 'imported-game', name: 'Imported', createdAt: '2026-04-17T08:00:00.000Z', updatedAt: '2026-04-17T08:30:00.000Z' } })],
+      ['saves/game-a/auto.json', createGame({ metadata: { id: 'game-a', name: 'Autosave', createdAt: new RecordTimestamp('2026-04-17T09:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T10:00:00.000Z') } })],
+      ['saves/game-a/manual.json', createGame({ metadata: { id: 'game-a', name: 'Manual', createdAt: new RecordTimestamp('2026-04-17T09:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T11:00:00.000Z') } })],
+      ['imports/game-a.json', createGame({ metadata: { id: 'imported-game', name: 'Imported', createdAt: new RecordTimestamp('2026-04-17T08:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T08:30:00.000Z') } })],
     ]);
     appCloseHandler = undefined;
     unsubscribeMock.mockClear();
@@ -94,7 +95,7 @@ describe('useSavedGamesStore', () => {
 
   it('lists saved games, restores latest saves, and loads selected documents', async () => {
     const store = useSavedGamesStore();
-    const game = createGame({ metadata: { id: 'game-a', name: 'Current', createdAt: '2026-04-17T12:00:00.000Z', updatedAt: '2026-04-17T12:00:00.000Z' } });
+    const game = createGame({ metadata: { id: 'game-a', name: 'Current', createdAt: new RecordTimestamp('2026-04-17T12:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T12:00:00.000Z') } });
 
     expect(await store.listSavedGames()).toEqual(saveGroups);
     expect((await store.restoreGames(['game-a']))[0]?.metadata.name).toBe('Manual');
@@ -117,8 +118,8 @@ describe('useSavedGamesStore', () => {
   });
   it('registers and disposes close autosave subscriptions through the persistence boundary', async () => {
     const store = useSavedGamesStore();
-    const gameA = createGame({ metadata: { id: 'game-a', name: 'Game A', createdAt: '2026-04-17T12:00:00.000Z', updatedAt: '2026-04-17T12:00:00.000Z' } });
-    const gameB = createGame({ metadata: { id: 'game-b', name: 'Game B', createdAt: '2026-04-17T12:00:00.000Z', updatedAt: '2026-04-17T12:00:00.000Z' } });
+    const gameA = createGame({ metadata: { id: 'game-a', name: 'Game A', createdAt: new RecordTimestamp('2026-04-17T12:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T12:00:00.000Z') } });
+    const gameB = createGame({ metadata: { id: 'game-b', name: 'Game B', createdAt: new RecordTimestamp('2026-04-17T12:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T12:00:00.000Z') } });
 
     await store.registerAutosaveOnClose(() => [gameA, gameB]);
     expect(domain.PlatformEventService.subscribeToAppCloseRequested).toHaveBeenCalledTimes(1);

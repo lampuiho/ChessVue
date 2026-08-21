@@ -570,14 +570,20 @@ export function createInitialBoardPosition(): IBoardPosition {
   return { board: [...standardInitialBoard], sideToMove: PlayerColour.White, castlingAvailability: { whiteKingSide: true, whiteQueenSide: true, blackKingSide: true, blackQueenSide: true }, halfMoveClock: 0, fullMoveNumber: 1, $: { isStandardInitialPosition: true } };
 }
 export function isStandardInitialPosition(position: IBoardPosition): boolean {
-  if (position.board.length !== 64 || position.sideToMove !== PlayerColour.White || position.enPassantTarget !== undefined || position.halfMoveClock !== 0 || position.fullMoveNumber !== 1) return false;
-  const castling = position.castlingAvailability;
-  if (!castling.whiteKingSide || !castling.whiteQueenSide || !castling.blackKingSide || !castling.blackQueenSide) return false;
-  if (position.castlingRook != null) return false;
-  return position.board.every((piece, boardId) => {
-    const initialPiece = standardInitialBoard[boardId];
-    return piece?.colour === initialPiece?.colour && piece?.kind === initialPiece?.kind;
-  });
+  if (position.$?.isStandardInitialPosition !== undefined) return position.$.isStandardInitialPosition;
+  function _computeIsStandardInitialPosition(position: IBoardPosition): boolean {
+    if (position.board.length !== 64 || position.sideToMove !== PlayerColour.White || position.enPassantTarget !== undefined || position.halfMoveClock !== 0 || position.fullMoveNumber !== 1) return false;
+    const castling = position.castlingAvailability;
+    if (!castling.whiteKingSide || !castling.whiteQueenSide || !castling.blackKingSide || !castling.blackQueenSide) return false;
+    if (position.castlingRook != null) return false;
+    return position.board.every((piece, boardId) => {
+      const initialPiece = standardInitialBoard[boardId];
+      return piece?.colour === initialPiece?.colour && piece?.kind === initialPiece?.kind;
+    });
+  }
+  const isStandard = _computeIsStandardInitialPosition(position);
+  (position.$ ??= {}).isStandardInitialPosition = isStandard;
+  return isStandard;
 }
 export function applyMove(position: IBoardPosition, move: IMove): IBoardPosition
 {

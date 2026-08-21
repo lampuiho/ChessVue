@@ -43,6 +43,7 @@ import {
   resolveWithRandomDelay,
   stripRuntimeMetadata,
 } from './StateStoreTestUtility';
+import { ClockTimestamp } from '@/utility/date';
 
 let useGamesStore: typeof import('..').useGamesStore;
 let settingsSnapshot = createSettingsSnapshot();
@@ -308,27 +309,27 @@ const domain = {
         black: { remainingMs, isRunning: false },
       } satisfies IClockSnapshot;
     }),
-    startClock: vi.fn((clockSnapshot: IClockSnapshot, colour: PlayerColour, nowUtc: string) => ({
+    startClock: vi.fn((clockSnapshot: IClockSnapshot, colour: PlayerColour, nowUtc: ClockTimestamp) => ({
       ...structuredClone(clockSnapshot),
       activeColour: colour,
       startedAtUtc: nowUtc,
       white: { ...structuredClone(clockSnapshot.white), isRunning: colour === PlayerColour.White },
       black: { ...structuredClone(clockSnapshot.black), isRunning: colour === PlayerColour.Black },
     })),
-    applyMove: vi.fn((clockSnapshot: IClockSnapshot, movingColour: PlayerColour, nowUtc: string) => ({
+    applyMove: vi.fn((clockSnapshot: IClockSnapshot, movingColour: PlayerColour, nowUtc: ClockTimestamp) => ({
       ...structuredClone(clockSnapshot),
       activeColour: movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White,
       lastMoveAtUtc: nowUtc,
       white: { ...structuredClone(clockSnapshot.white), isRunning: movingColour !== PlayerColour.White },
       black: { ...structuredClone(clockSnapshot.black), isRunning: movingColour !== PlayerColour.Black },
     })),
-    pauseClock: vi.fn((clockSnapshot: IClockSnapshot, nowUtc: string) => ({
+    pauseClock: vi.fn((clockSnapshot: IClockSnapshot, nowUtc: ClockTimestamp) => ({
       ...structuredClone(clockSnapshot),
       pausedAtUtc: nowUtc,
       white: { ...structuredClone(clockSnapshot.white), isRunning: false },
       black: { ...structuredClone(clockSnapshot.black), isRunning: false },
     })),
-    resumeClock: vi.fn((clockSnapshot: IClockSnapshot, nowUtc: string) => ({
+    resumeClock: vi.fn((clockSnapshot: IClockSnapshot, nowUtc: ClockTimestamp) => ({
       ...structuredClone(clockSnapshot),
       startedAtUtc: nowUtc,
       pausedAtUtc: undefined,
@@ -984,7 +985,7 @@ describe('useGamesStore', () => {
     domain.TimeControlService.hasExpired.mockReturnValueOnce(true);
     domain.TimeControlService.getRemainingTime.mockReturnValueOnce({ white: 0, black: 1000 });
     void game.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
-    await store.syncClock(game, '2026-04-18T12:00:00.000Z');
+    await store.syncClock(game, new ClockTimestamp('2026-04-18T12:00:00.000Z'));
     expect(game.resultReason).toBe(ResultReason.Timeout);
     expect(game.gameState).toBe(GameState.AnalysisBlackMove);
 

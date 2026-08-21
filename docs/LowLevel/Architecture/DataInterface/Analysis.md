@@ -21,7 +21,7 @@ interface IAnalysisLine {
 interface IAnalysisSnapshot {
   assignedEngine: IAssignedEngine
   positionKey: string
-  updatedAt: string
+  updatedAt: AnalysisTimestamp
   bestMove?: IMove
   lines: IAnalysisLine[]
   isComplete: boolean

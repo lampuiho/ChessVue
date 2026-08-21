@@ -36,9 +36,9 @@ interface IClockSnapshot {
   white: IPlayerClock
   black: IPlayerClock
   activeColour?: PlayerColour
-  startedAtUtc?: string
-  pausedAtUtc?: string
-  lastMoveAtUtc?: string
+  startedAtUtc?: ClockTimestamp
+  pausedAtUtc?: ClockTimestamp
+  lastMoveAtUtc?: ClockTimestamp
 }
 ```
 

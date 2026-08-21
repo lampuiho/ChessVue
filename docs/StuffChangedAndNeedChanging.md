@@ -18,18 +18,18 @@ Stuff need changing:
 - ~~add legal move check on checkmate/being checked board positions in GameRuleService.isMoveLegal~~
 - ~~rename MoveUpdateService to MoveHistoryService in remaining docs and stale references~~
 - IGame.livePath and IGame.highlightPath moved to moveTree runtime
-- use actual Date object for all dates not string (zod will take care of the transform)
+- ~~use actual Date object for all dates not string (zod will take care of the transform)~~ done: added `@/utility/date` (`RecordTimestamp`, `ClockTimestamp`, `AnalysisTimestamp`, `SaveTimestamp`, `RegistrationTimestamp`, each a `Date` subclass with its own `toString`); zod fields now use `utcTimestampSchema` (accepts string-or-Date, always outputs the subclass, so the same schema works for both reading persisted JSON and re-validating in-memory games before serialising)
 - remove boardPosition at each node, this is not a good solution because we probably won't use boardPosition for rendering as we can't do proper animation on the chess pieces with it. we need the same chess piece object changing board id to change the coordinates calculated by the frontend. so we would be moving step by step anyway so just recompute position from reference node.
 - ~~add live position to make it easier to return live position from current position~~
 - rename highlightPath as renderedPath
 - ~~rename position related props named with "current*"  in IGame with "rendered*"~~
 - ~~TODO in GameStore._finaliseMove~~
-- remove all the uncessary object cloning in GameStore and other places
+- remove all the unneccessary object cloning in GameStore and other places
 - ~~some GameRule service functions like applyMove are somehow in GameRuleUtility, and is called by GameStore. Move them back to game rule service. It would only make sense for actual game rule stuff to be in the library not app logic, if they obey the rule that there are other services in the first 2 layers that need them~~
 - ~~replace `GameRuleService` with immutable `MoveApplicationService.applyMove` and detailed-move check state~~
 - ~~MoveNode.kind should just be Live, Analysis, MoveNodeRuntime can have isHighlighted boolean (for live path and rendered path)~~
 - ~~cache current/live MoveNode in runtime~~
-- uci utility is not using IMove runtime cache
+- ~~uci utility is not using IMove runtime cache~~
 - ~~update test cases~~
 - update design doc again
 

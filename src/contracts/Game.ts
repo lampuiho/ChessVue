@@ -7,6 +7,8 @@ import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITime
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
 import { type PauseReason } from './state'
 import type { Deferred } from '@/utility/async/Deferred'
+import { RecordTimestamp } from '@/utility/date'
+import { utcTimestampSchema } from './UtcTimestampSchema'
 
 export const enum GameState {
   LiveWhiteTurn = 'liveWhiteTurn',
@@ -99,8 +101,8 @@ export interface ICapturedPieceGroup {
 export interface IGameMetadata {
   id: string
   name: string
-  createdAt: string
-  updatedAt: string
+  createdAt: RecordTimestamp
+  updatedAt: RecordTimestamp
 }
 export interface IGameplayOptions {
   allowTakeback?: boolean;
@@ -194,8 +196,8 @@ export const capturedPieceGroupSchema = z.object({
 export const gameMetadataSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  createdAt: z.string().datetime({ offset: true }),
-  updatedAt: z.string().datetime({ offset: true }),
+  createdAt: utcTimestampSchema((value) => new RecordTimestamp(value)),
+  updatedAt: utcTimestampSchema((value) => new RecordTimestamp(value)),
 })
 
 export const gameplayOptionsSchema = z.object({

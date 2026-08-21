@@ -27,6 +27,7 @@ import {
   TimeControlService,
 } from '..';
 import { GameRuleUtility, MoveNotationUtility } from '@/utility/chess';
+import { ClockTimestamp, RecordTimestamp } from '@/utility/date';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -84,8 +85,8 @@ function createGame(): IGame {
   const moveTree = MoveHistoryService.createMoveTree(rootPosition, rootClock);
   const move = GameRuleUtility.genDetailedMove(rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
   const nextPosition = MoveApplicationService.applyMove(rootPosition, move);
-  const started = TimeControlService.startClock(rootClock, PlayerColour.White, '2026-01-01T12:00:00.000Z');
-  const nextClock = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', timeControl);
+  const started = TimeControlService.startClock(rootClock, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:00.000Z'));
+  const nextClock = TimeControlService.applyMove(started, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:05.000Z'), timeControl);
   MoveNotationUtility.getSan(move);
   MoveNotationUtility.getUci(move);
   MoveHistoryService.addMainlineMove(moveTree.root, move, nextPosition, nextClock);
@@ -95,8 +96,8 @@ function createGame(): IGame {
     metadata: {
       id: 'game-1',
       name: 'Example Game',
-      createdAt: '2026-01-01T12:00:00.000Z',
-      updatedAt: '2026-01-01T12:00:05.000Z',
+      createdAt: new RecordTimestamp('2026-01-01T12:00:00.000Z'),
+      updatedAt: new RecordTimestamp('2026-01-01T12:00:05.000Z'),
     },
     gameState: GameState.LiveBlackTurn,
     resultState: ResultState.Ongoing,

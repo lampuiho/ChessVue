@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { IFileSystemEntry } from '@/contracts/platform';
 
 import { SavedGameIndexService } from '..';
+import { SaveTimestamp } from '@/utility/date';
 
 function createEntry(path: string, isDirectory: boolean, lastModifiedUtc?: string): IFileSystemEntry {
   const segments = path.replace(/\\/g, '/').split('/');
@@ -10,7 +11,7 @@ function createEntry(path: string, isDirectory: boolean, lastModifiedUtc?: strin
     path,
     name: segments[segments.length - 1]!,
     isDirectory,
-    lastModifiedUtc,
+    lastModifiedUtc: lastModifiedUtc === undefined ? undefined : new SaveTimestamp(lastModifiedUtc),
   };
 }
 

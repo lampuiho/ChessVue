@@ -12,6 +12,7 @@ import {
   rejectWithRandomDelay,
   resolveWithRandomDelay,
 } from './StateStoreTestUtility';
+import { RecordTimestamp } from '@/utility/date';
 
 let useRecentGameStore: typeof import('..').useRecentGameStore;
 let settingsSnapshot = createSettingsSnapshot();
@@ -49,8 +50,8 @@ describe('useRecentGameStore', () => {
       ]),
     ];
     gamesByPath = new Map([
-      ['saves/game-a/manual.json', createGame({ metadata: { id: 'game-a', name: 'Alpha', createdAt: '2026-04-17T10:00:00.000Z', updatedAt: '2026-04-17T11:00:00.000Z' } })],
-      ['saves/game-b/auto.json', createGame({ metadata: { id: 'game-b', name: 'Beta', createdAt: '2026-04-17T10:00:00.000Z', updatedAt: '2026-04-17T12:00:00.000Z' } })],
+      ['saves/game-a/manual.json', createGame({ metadata: { id: 'game-a', name: 'Alpha', createdAt: new RecordTimestamp('2026-04-17T10:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T11:00:00.000Z') } })],
+      ['saves/game-b/auto.json', createGame({ metadata: { id: 'game-b', name: 'Beta', createdAt: new RecordTimestamp('2026-04-17T10:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T12:00:00.000Z') } })],
     ]);
     domain.SavedGameIndexService.projectSaveGroups.mockClear();
     domain.SavedGameIndexService.getLatestSaveEntry.mockClear();

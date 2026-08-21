@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {PlayerColour, TimeControlPreset,} from '@/contracts';
 import { TimeControlService } from '..';
+import { ClockTimestamp } from '@/utility/date';
 
 describe('TimeControlService', () => {
   it('initialises untimed snapshots with omitted clocks', () => {
@@ -20,9 +21,9 @@ describe('TimeControlService', () => {
       initialMs: 300000,
       incrementMs: 0,
     })
-    const runningSnapshot = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
+    const runningSnapshot = TimeControlService.startClock(initialSnapshot, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:00.000Z'))
 
-    const remaining = TimeControlService.getRemainingTime(runningSnapshot, '2026-01-01T12:00:05.000Z')
+    const remaining = TimeControlService.getRemainingTime(runningSnapshot, new ClockTimestamp('2026-01-01T12:00:05.000Z'))
 
     expect(remaining.white).toBe(295000)
     expect(remaining.black).toBe(300000)
@@ -34,10 +35,10 @@ describe('TimeControlService', () => {
       initialMs: 600000,
       incrementMs: 0,
     })
-    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
-    const paused = TimeControlService.pauseClock(started, '2026-01-01T12:00:10.000Z')
-    const resumed = TimeControlService.resumeClock(paused, '2026-01-01T12:05:00.000Z')
-    const remaining = TimeControlService.getRemainingTime(resumed, '2026-01-01T12:05:10.000Z')
+    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:00.000Z'))
+    const paused = TimeControlService.pauseClock(started, new ClockTimestamp('2026-01-01T12:00:10.000Z'))
+    const resumed = TimeControlService.resumeClock(paused, new ClockTimestamp('2026-01-01T12:05:00.000Z'))
+    const remaining = TimeControlService.getRemainingTime(resumed, new ClockTimestamp('2026-01-01T12:05:10.000Z'))
 
     expect(paused.white.remainingMs).toBe(590000)
     expect(remaining.white).toBe(580000)
@@ -49,8 +50,8 @@ describe('TimeControlService', () => {
       initialMs: 600000,
       incrementMs: 2000,
     })
-    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
-    const moved = TimeControlService.applyMove(started, PlayerColour.White, '2026-01-01T12:00:05.000Z', {
+    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:00.000Z'))
+    const moved = TimeControlService.applyMove(started, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:05.000Z'), {
       preset: TimeControlPreset.Rapid,
       initialMs: 600000,
       incrementMs: 2000,
@@ -67,9 +68,9 @@ describe('TimeControlService', () => {
       initialMs: 1000,
       incrementMs: 0,
     })
-    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, '2026-01-01T12:00:00.000Z')
+    const started = TimeControlService.startClock(initialSnapshot, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:00.000Z'))
 
-    expect(TimeControlService.hasExpired(started, '2026-01-01T12:00:02.000Z')).toBe(true)
-    expect(TimeControlService.getRemainingTime(started, '2026-01-01T12:00:02.000Z').white).toBe(0)
+    expect(TimeControlService.hasExpired(started, new ClockTimestamp('2026-01-01T12:00:02.000Z'))).toBe(true)
+    expect(TimeControlService.getRemainingTime(started, new ClockTimestamp('2026-01-01T12:00:02.000Z')).white).toBe(0)
   })
 })

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { IPlatformEventRegistration } from '@/contracts/platform';
+import { RegistrationTimestamp } from '@/utility/date';
 
 let PlatformEventService: typeof import('..').PlatformEventService;
 const subscribeToAppCloseRequested = vi.fn();
@@ -22,7 +23,7 @@ describe('PlatformEventService', () => {
       registrationId: 'theme-1',
       eventKey: 'systemThemeChanged',
       owner: 'settings',
-      registeredAtUtc: '2026-04-17T12:00:00.000Z',
+      registeredAtUtc: new RegistrationTimestamp('2026-04-17T12:00:00.000Z'),
     } as IPlatformEventRegistration]);
     vi.doMock('@/platform', () => ({
       usePlatformService: () => ({
@@ -56,7 +57,7 @@ describe('PlatformEventService', () => {
       registrationId: 'theme-1',
       eventKey: 'systemThemeChanged',
       owner: 'settings',
-      registeredAtUtc: '2026-04-17T12:00:00.000Z',
+      registeredAtUtc: new RegistrationTimestamp('2026-04-17T12:00:00.000Z'),
     }]);
   });
 });

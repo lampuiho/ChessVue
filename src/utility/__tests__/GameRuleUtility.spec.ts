@@ -6,7 +6,7 @@ import { applyMove, createInitialBoardPosition, createSparseBoard, genDetailedMo
 const boardId = (file: number, rank: number): BoardId => file + (rank * 8);
 
 function withPosition(position: IBoardPosition, overrides: Partial<IBoardPosition>): IBoardPosition {
-  return { ...position, ...overrides };
+  return { ...position, $: undefined, ...overrides };
 }
 function findMove(position: IBoardPosition, from: BoardId, to: BoardId): IMove | undefined {
   return genLegalMoves(position).find(move => move.from === from && move.to === to);
@@ -35,6 +35,7 @@ describe('GameRuleUtility', () => {
       expect(first.board[boardId(0, 0)]).toBe(second.board[boardId(0, 0)]);
       expect(isStandardInitialPosition(first)).toBe(true);
       first.board[boardId(0, 0)] = undefined;
+      first.$ = undefined;
       expect(second.board[boardId(0, 0)]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
       expect(isStandardInitialPosition(first)).toBe(false);
     });

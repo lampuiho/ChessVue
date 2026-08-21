@@ -105,8 +105,8 @@ interface ICapturedPieceGroup {
 interface IGameMetadata {
   id: string
   name: string
-  createdAt: string
-  updatedAt: string
+  createdAt: RecordTimestamp
+  updatedAt: RecordTimestamp
 }
 
 interface IGameplayOptions {
@@ -200,3 +200,4 @@ interface IStartGameFromSetupRequest {
 - `gameplayOptions.showLiveAnalysisMoves` is persisted as part of the game, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
 - `analysis.snapshots` is persisted and restored as part of the game, and its current row order is the source of truth for mapping remembered engine-group fold state by index.
 - `IGame` is the game-facing object used by mutation flows. IDs remain on `metadata.id` for routing, persistence, and lookup.
+- Every persisted UTC instant is a real `Date` subclass from `@/utility/date` (e.g. `RecordTimestamp` for `metadata.createdAt`/`updatedAt`), not a string. Each subclass overrides `toString` with its own display format so components never format dates themselves; `toJSON`/schema validation still round-trip through ISO 8601 strings on disk.

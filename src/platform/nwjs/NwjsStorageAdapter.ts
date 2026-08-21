@@ -4,6 +4,7 @@ import { PlatformErrorKind, type IPlatformError } from '@/contracts';
 import type { IFileSystemEntry, IStorageAdapter, IWriteTextFileOptions } from '@/contracts/platform';
 import { getNodeFs, getNodePath } from '@/utility/nwjs/NodeUtility';
 import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
+import { SaveTimestamp } from '@/utility/date';
 
 interface IFileDialogInput extends HTMLInputElement {
   oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null;
@@ -70,7 +71,7 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
         const entries = await fs.promises.readdir(targetPath, { withFileTypes: true });
         return await Promise.all(entries.map(async (entry) => {
           const entryPath = pathModule.join(targetPath, entry.name);
-          const lastModifiedUtc = entry.isDirectory() ? undefined : (await fs.promises.stat(entryPath)).mtime.toISOString();
+          const lastModifiedUtc = entry.isDirectory() ? undefined : new SaveTimestamp((await fs.promises.stat(entryPath)).mtime);
           return { path: _normalisePath(entryPath), name: entry.name, isDirectory: entry.isDirectory(), lastModifiedUtc };
         }));
       } catch (error) {

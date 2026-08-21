@@ -16,8 +16,8 @@ function isJsonFile(entry: IFileSystemEntry): boolean {
   return !entry.isDirectory && entry.name.toLowerCase().endsWith('.json');
 }
 function compareSaveEntries(left: ISavedGameFileEntry, right: ISavedGameFileEntry): number {
-  const leftTime = !left.savedAtUtc ? Number.NEGATIVE_INFINITY : Date.parse(left.savedAtUtc);
-  const rightTime = !right.savedAtUtc ? Number.NEGATIVE_INFINITY : Date.parse(right.savedAtUtc);
+  const leftTime = left.savedAtUtc?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const rightTime = right.savedAtUtc?.getTime() ?? Number.NEGATIVE_INFINITY;
   if (leftTime !== rightTime) return rightTime - leftTime;
   if (left.isAutosave !== right.isAutosave) return left.isAutosave ? -1 : 1;
   return left.saveName.localeCompare(right.saveName);

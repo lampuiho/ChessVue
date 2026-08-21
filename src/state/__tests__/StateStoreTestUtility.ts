@@ -33,6 +33,7 @@ import {
 } from '@/contracts';
 import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
 import { PlatformErrorKind, type IPlatformError } from '@/contracts/PlatformError';
+import { AnalysisTimestamp, ClockTimestamp, RecordTimestamp, SaveTimestamp } from '@/utility/date';
 
 export async function randomDelay(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 1 + Math.floor(Math.random() * 4)));
@@ -129,7 +130,7 @@ export function createClockSnapshot(activeColour?: PlayerColour, isRunning: bool
     white: { remainingMs: 300000, isRunning: isRunning && activeColour === PlayerColour.White },
     black: { remainingMs: 300000, isRunning: isRunning && activeColour === PlayerColour.Black },
     activeColour,
-    startedAtUtc: activeColour ? '2026-04-17T12:00:00.000Z' : undefined,
+    startedAtUtc: activeColour ? new ClockTimestamp('2026-04-17T12:00:00.000Z') : undefined,
   };
 }
 export function createMove(movingColour: PlayerColour = PlayerColour.White, from: number = 12, to: number = 28): IMove {
@@ -199,7 +200,7 @@ export function createAnalysisSnapshot(engine: IEngineRecord = createEngineRecor
   return {
     assignedEngine: createAssignedEngine(engine),
     positionKey,
-    updatedAt: '2026-04-17T12:00:00.000Z',
+    updatedAt: new AnalysisTimestamp('2026-04-17T12:00:00.000Z'),
     lines: [],
     isComplete: false,
   };
@@ -213,8 +214,8 @@ export function createGame(overrides: Partial<IGame> = {}): IGame {
     metadata: {
       id: overrides.metadata?.id ?? 'game-1',
       name: overrides.metadata?.name ?? 'Example Game',
-      createdAt: overrides.metadata?.createdAt ?? '2026-04-17T12:00:00.000Z',
-      updatedAt: overrides.metadata?.updatedAt ?? '2026-04-17T12:00:00.000Z',
+      createdAt: overrides.metadata?.createdAt ?? new RecordTimestamp('2026-04-17T12:00:00.000Z'),
+      updatedAt: overrides.metadata?.updatedAt ?? new RecordTimestamp('2026-04-17T12:00:00.000Z'),
     },
     gameState: overrides.gameState ?? GameState.LiveWhiteTurn,
     resultState: overrides.resultState ?? ResultState.Ongoing,
@@ -262,7 +263,7 @@ export function createUiLayoutState(overrides: Partial<IUiLayoutState> = {}): IU
   };
 }
 export function createSavedGameEntry(gameId: string, saveName: string, savedAtUtc: string, isAutosave: boolean, filePath: string): ISavedGameFileEntry {
-  return { gameId, saveName, savedAtUtc, isAutosave, filePath };
+  return { gameId, saveName, savedAtUtc: new SaveTimestamp(savedAtUtc), isAutosave, filePath };
 }
 export function createSavedGameGroup(gameId: string, saves: ISavedGameFileEntry[]): ISavedGameGroup {
   return {
@@ -277,7 +278,7 @@ export function createRecentGameEntry(overrides: Partial<IRecentGameEntry> = {})
     displayName: overrides.displayName ?? 'Example Game',
     sourceKind: overrides.sourceKind ?? RecentGameSourceKind.SaveFile,
     filePath: overrides.filePath ?? 'saves/game-1/manual.json',
-    lastSavedAtUtc: overrides.lastSavedAtUtc ?? '2026-04-17T12:00:00.000Z',
+    lastSavedAtUtc: overrides.lastSavedAtUtc ?? new SaveTimestamp('2026-04-17T12:00:00.000Z'),
   };
 }
 export function createOutgoingDrawOffer(colour: PlayerColour): IGame['drawOfferState'] {
@@ -292,6 +293,7 @@ export function emitAnalysisUpdate(registry: Map<IAssignedEngine, (update: IEngi
 }
 export function stripRuntimeMetadata<T>(input: T): T {
   if (Array.isArray(input)) return input.map((item) => stripRuntimeMetadata(item)) as T;
+  if (input instanceof Date) return input;
   if (typeof input !== 'object' || input === null) return input;
   if (input instanceof Map) return new Map(input) as T;
   const output: Record<string, unknown> = {};

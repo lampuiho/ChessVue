@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 import { assignedEngineSchema, type IAssignedEngine } from './Engine'
 import { moveSchema, type IMove } from './Move'
+import { AnalysisTimestamp } from '@/utility/date'
+import { utcTimestampSchema } from './UtcTimestampSchema'
 
 export interface IAnalysisLineRuntime {
   reference: number;
@@ -16,7 +18,7 @@ export interface IAnalysisLine {
 export interface IAnalysisSnapshot {
   assignedEngine: IAssignedEngine
   positionKey: string
-  updatedAt: string
+  updatedAt: AnalysisTimestamp
   bestMove?: IMove
   lines: IAnalysisLine[]
   isComplete: boolean
@@ -37,7 +39,7 @@ export const analysisLineSchema = z.object({
 export const analysisSnapshotSchema = z.object({
   assignedEngine: assignedEngineSchema,
   positionKey: z.string().min(1),
-  updatedAt: z.string().datetime({ offset: true }),
+  updatedAt: utcTimestampSchema((value) => new AnalysisTimestamp(value)),
   bestMove: moveSchema.optional(),
   lines: z.array(analysisLineSchema),
   isComplete: z.boolean(),
