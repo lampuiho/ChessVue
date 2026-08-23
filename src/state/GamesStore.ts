@@ -26,8 +26,6 @@ import {
   type IMove,
   type IMoveNode,
   type MovePath,
-  PlatformError,
-  PlatformErrorKind,
   type IBoardPosition,
   type BoardId,
   type IChessPiece,
@@ -41,7 +39,7 @@ import {
   TimeControlService,
   UserSettingService,
 } from '@/domain';
-import { createInitialBoardPosition, getSan, getUci, isMoveLegal, resolveGameResult, toDetailedMove } from '@/utility/chess';
+import { createInitialBoardPosition, isMoveLegal, resolveGameResult, toDetailedMove } from '@/utility/chess';
 import { getOpponentColour } from '@/utility/chess/BoardUtility';
 import { isBoardId } from '@/utility/chess/SquareUtility';
 import { logHandledError } from '@/utility/errors';
@@ -245,10 +243,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): IMoveNode {
     const hydratedMove = node.move ? structuredClone(node.move) : undefined;
-    if (hydratedMove) {
-      getSan(hydratedMove);
-      getUci(hydratedMove);
-    }
     const hydratedNode: IMoveNode = {
       kind: node.kind,
       move: hydratedMove,
@@ -472,8 +466,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const detailedMove = toDetailedMove(parentPosition, nextMove);
     // applying in place turns parentPosition into the child's position, so the cache slot stays valid
     const nextPosition = MoveApplicationService.applyMove(parentPosition, detailedMove);
-    getSan(detailedMove);
-    getUci(detailedMove);
     const nextNodeIdx = parentNode.children.length;
     const nextNode = asAnalysisMove
       ? MoveHistoryService.addAnalysisMove(parentNode, detailedMove)

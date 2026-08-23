@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineOptionMeta, type IGame, type IMove, type IPlatformError, type MovePath } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineOptionMeta, type IGame, type IMove, type IPlatformError } from '@/contracts';
 import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
 import { buildPositionKey } from '@/utility/chess';

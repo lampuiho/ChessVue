@@ -25,9 +25,9 @@ const ambiguityKinds = [AmbiguityKind.SameRankOnly, AmbiguityKind.SameFileOnly, 
 export type MovePath = number[];
 
 export interface IMoveRuntime {
-  ponderMove?: IMove;
-  san?: string;
-  uci?: string;
+  ponderMove?: IMove; // moves (only 1 for now) suggested to speculate on
+  san?: string; //cached san string, lazily built and assigned
+  uci?: string; //cached uci string, lazily built and assigned
 }
 export interface IMoveRaw {
   from: BoardId;
