@@ -31,6 +31,7 @@ Stuff need changing:
 - ~~cache current/live MoveNode in runtime~~
 - ~~uci utility is not using IMove runtime cache~~
 - ~~update test cases~~
+- _finaliseMove need rewrite for more natural flow of applyMove, livePosition and rendered position is supposed to merge when live position is rendered
 - update design doc again
 
 To validate:

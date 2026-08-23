@@ -39,14 +39,12 @@ import {
   TimeControlService,
   UserSettingService,
 } from '@/domain';
-import { createInitialBoardPosition, isMoveLegal, resolveGameResult, toDetailedMove } from '@/utility/chess';
+import { createInitialBoardPosition, isMoveLegal, resolveGameResult } from '@/utility/chess';
 import { getOpponentColour } from '@/utility/chess/BoardUtility';
-import { isBoardId } from '@/utility/chess/SquareUtility';
 import { logHandledError } from '@/utility/errors';
 import { Deferred } from '@/utility/async/Deferred';
 import { AnalysisTimestamp, ClockTimestamp, RecordTimestamp } from '@/utility/date';
 import Aborted from '@/contracts/errors/Aborted';
-import InvalidMove from '@/contracts/errors/InvalidMove';
 
 type LiveGame = IGame & {
   livePath: MovePath;
@@ -462,14 +460,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   //#region move committing
   function _finaliseMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, nextMove: IMove, nextClockSnapshot?: IClockSnapshot, asAnalysisMove: boolean = false): IMoveNode {
-    // detailing needs the parent board, so it must run before the in-place apply
-    const detailedMove = toDetailedMove(parentPosition, nextMove);
     // applying in place turns parentPosition into the child's position, so the cache slot stays valid
-    const nextPosition = MoveApplicationService.applyMove(parentPosition, detailedMove);
+    const nextPosition = MoveApplicationService.applyMove(parentPosition, nextMove);
     const nextNodeIdx = parentNode.children.length;
     const nextNode = asAnalysisMove
-      ? MoveHistoryService.addAnalysisMove(parentNode, detailedMove)
-      : MoveHistoryService.addMainlineMove(parentNode, detailedMove, nextClockSnapshot);
+      ? MoveHistoryService.addAnalysisMove(parentNode, nextMove)
+      : MoveHistoryService.addMainlineMove(parentNode, nextMove, nextClockSnapshot);
     game.highlightPath.push(nextNodeIdx);
     if (!asAnalysisMove) {
       if (!game.livePath) throw new ReferenceError('live path is undefined even though we are making a live move');
@@ -547,11 +543,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _syncRuntimeNodeCache(game);
     setGameUpdateTimeNow(game);
   }
-  function _assertBoardEdit(game: IGame): void {
+  function _assertBoardEditState(game: IGame): void {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board manipulation is only allowed while board edit mode is active.');
-  }
-  function _assertBoardId(boardId: BoardId): void {
-    if (!isBoardId(boardId)) throw new RangeError(`Board id must be between 0 and 63: ${boardId}.`);
   }
   /**
    * Board edits mutate in place. The first effective edit promotes the edited rendered position to the
@@ -559,12 +552,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
    * object, so later edits touch both at once.
    */
   function _applyBoardEdit(game: IGame, edit: (position: IBoardPosition) => boolean): void {
-    _assertBoardEdit(game);
     const renderedPosition = getRenderedPosition(game);
     if (!edit(renderedPosition)) return; // nothing changed, so prior history survives
     if (renderedPosition !== game.rootPosition) {
       _replaceWithAnalysisRoot(game, renderedPosition, GameState.BoardEdit);
-      _requireGameRuntime(game).renderedPosition = renderedPosition;
       return;
     }
     game.resultState = ResultState.Ongoing;
@@ -709,7 +700,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     _assertMoveAllowed(game);
     const parentNode = _getCurrentNode(game);
     const parentPosition = getRenderedPosition(game);
-    if (!isMoveLegal(parentPosition, move)) throw new InvalidMove(move);
     async function _makeMoveByState(game:IGame, move:IMove) {
       if (_isOngoingLiveGame(game) && (_isLiveHistoryReview(game) || _isLiveState(game.gameState))) {
         if (_isLiveHistoryReview(game)) {
@@ -935,30 +925,26 @@ export const useGamesStore = defineStore('gamesStore', () => {
     setGameUpdateTimeNow(game);
   }
   function applyBoardEdit(game: IGame, boardRoot: IBoardPosition): void {
-    if (game.gameState !== GameState.BoardEdit) throw new Error('Board edits are only allowed while board edit mode is active.');
     _replaceWithAnalysisRoot(game, boardRoot, GameState.BoardEdit);
   }
   function clearBoard(game: IGame): void {
+    _assertBoardEditState(game);
     _applyBoardEdit(game, (position) => MoveApplicationService.clearBoard(position));
   }
   function deleteChessPiece(game: IGame, boardId: BoardId): void {
-    _assertBoardEdit(game); // state is checked before input is validated
-    _assertBoardId(boardId);
+    _assertBoardEditState(game);
     _applyBoardEdit(game, (position) => MoveApplicationService.deletePiece(position, boardId));
   }
   function moveChessPiece(game: IGame, from: BoardId, to: BoardId): void {
-    _assertBoardEdit(game);
-    _assertBoardId(from);
-    _assertBoardId(to);
+    _assertBoardEditState(game);
     _applyBoardEdit(game, (position) => MoveApplicationService.movePiece(position, from, to));
   }
   function resetBoardToStartPosition(game: IGame): void {
-    _assertBoardEdit(game);
+    _assertBoardEditState(game);
     _replaceWithAnalysisRoot(game, createInitialBoardPosition(), GameState.BoardEdit);
   }
   function toggleChessPiece(game: IGame, boardId: BoardId, piece: IChessPiece): void {
-    _assertBoardEdit(game);
-    _assertBoardId(boardId);
+    _assertBoardEditState(game);
     _applyBoardEdit(game, (position) => MoveApplicationService.togglePiece(position, boardId, piece));
   }
   async function resignGame(game: IGame, colour: PlayerColour): Promise<void> {
