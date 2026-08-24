@@ -42,7 +42,6 @@
 - Revisit the remaining process-flow docs that still describe the old private player-move flow.
 - Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.
 - Run the wider regression suite outside `GamesStore.spec.ts` after the next batch of tracker items lands.
-- check _applyBoardEdit, not clear what "renderedPosition !== game.rootPosition" is actually checking, whole thing seems wrong, plan rewrite
 
 ## Verification
 - Current UCI state-machine pass: automated tests and type checking were not run because this environment does not expose a Node executable or package-manager commands.
