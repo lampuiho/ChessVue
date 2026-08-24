@@ -182,17 +182,26 @@ export const useGamesStore = defineStore('gamesStore', () => {
   function _genPositionAtPath(game: IGame, path: MovePath): IBoardPosition {
     return MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, path));
   }
+  function _getAliasedLivePosition(game: IGame, livePath: MovePath): IBoardPosition {
+    const runtime = _requireGameRuntime(game);
+    const livePosition = runtime.livePosition ?? runtime.renderedPosition ?? _genPositionAtPath(game, livePath);
+    runtime.livePosition = livePosition;
+    runtime.renderedPosition = livePosition;
+    return livePosition;
+  }
   /**
-   * moves apply in place, so a committed move leaves these slots already correct; they are only
-   * regenerated after something invalidates them.
+   * Moves apply in place, so a committed move leaves these slots already correct. When the live node
+   * is rendered, both slots deliberately own the same object.
    */
   function getRenderedPosition(game: IGame): IBoardPosition {
     const runtime = _requireGameRuntime(game);
+    if (game.livePath && pathsEqual(game.highlightPath, game.livePath)) return _getAliasedLivePosition(game, game.livePath);
     return runtime.renderedPosition ??= _genPositionAtPath(game, game.highlightPath);
   }
   function getLivePosition(game: IGame): IBoardPosition {
     const runtime = _requireGameRuntime(game);
     if (!game.livePath) throw new Error(`Live position is not available for ${game.metadata.id}.`);
+    if (pathsEqual(game.highlightPath, game.livePath)) return _getAliasedLivePosition(game, game.livePath);
     return runtime.livePosition ??= _genPositionAtPath(game, game.livePath);
   }
   function _invalidateRuntimePositions(game: IGame): void {
@@ -453,45 +462,35 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (game.whitePlayer) game.whitePlayer.$ = { activityState: PlayerActivityState.Active };
     if (game.blackPlayer) game.blackPlayer.$ = { activityState: PlayerActivityState.Active };
   }
-  function _updatePositionResult(game: IGame, nextPosition: IBoardPosition) {
-      const resolvedResult = resolveGameResult(nextPosition);
-      game.resultState = resolvedResult.resultState;
-      game.resultReason = resolvedResult.resultReason;
+  function _updatePositionResult(game: IGame, position: IBoardPosition): void {
+    const resolvedResult = resolveGameResult(position);
+    game.resultState = resolvedResult.resultState;
+    game.resultReason = resolvedResult.resultReason;
   }
   //#region move committing
-  function _finaliseMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, nextMove: IMove, nextClockSnapshot?: IClockSnapshot, asAnalysisMove: boolean = false): IMoveNode {
-    // applying in place turns parentPosition into the child's position, so the cache slot stays valid
-    const nextPosition = MoveApplicationService.applyMove(parentPosition, nextMove);
-    const nextNodeIdx = parentNode.children.length;
-    const nextNode = asAnalysisMove
-      ? MoveHistoryService.addAnalysisMove(parentNode, nextMove)
-      : MoveHistoryService.addMainlineMove(parentNode, nextMove, nextClockSnapshot);
-    game.highlightPath.push(nextNodeIdx);
-    if (!asAnalysisMove) {
-      if (!game.livePath) throw new ReferenceError('live path is undefined even though we are making a live move');
-      game.livePath?.push(nextNodeIdx);
-      if (nextClockSnapshot) game.clockSnapshot = nextClockSnapshot;
-    }
-    const runtime = _requireGameRuntime(game);
-    runtime.renderedPosition = nextPosition;
-    if (!asAnalysisMove) runtime.livePosition = nextPosition;
-    _syncRuntimeNodeCache(game);
-    _updatePositionResult(game, nextPosition);
-    updateGameStateAfterPosition(game, nextPosition.sideToMove);
-    setGameUpdateTimeNow(game);
-    return nextNode;
-  }
-  function _finaliseAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, nextMove: IMove): IMoveNode {
-    return _finaliseMove(game, parentNode, parentPosition, nextMove, undefined, true);
-  }
-  function _commitLiveMove(game: IGame, move: IMove, ponderEngine?: IAssignedEngine) {
-    const baseClockSnapshot = game.clockSnapshot;
-    const nextClockSnapshot = TimeControlService.applyMove(baseClockSnapshot, move.movingColour, new ClockTimestamp(), game.timeControl);
-
-    let parentNode = getLiveNode(game);
-    const parentPosition = getLivePosition(game);
+  /** Commits one real live move and all live-game follow-up. */
+  function _commitLiveMove(game: IGame, move: IMove, ponderEngine?: IAssignedEngine): void {
+    const livePath = game.livePath;
+    if (!livePath) throw new ReferenceError('live path is undefined even though we are making a live move');
+    const isLivePositionRendered = pathsEqual(game.highlightPath, livePath);
+    const nextClockSnapshot = TimeControlService.applyMove(game.clockSnapshot, move.movingColour, new ClockTimestamp(), game.timeControl);
+    const parentNode = getLiveNode(game);
+    const livePosition = getLivePosition(game);
     if (parentNode.children.length > 0) MoveHistoryService.pruneFutureMoves(parentNode);
-    _finaliseMove(game, parentNode, parentPosition, move, nextClockSnapshot);
+    MoveApplicationService.applyMove(livePosition, move);
+    const nextNodeIdx = parentNode.children.length;
+    const nextNode = MoveHistoryService.addMainlineMove(parentNode, move, nextClockSnapshot);
+    game.livePath = getPathToNode(nextNode);
+    if (isLivePositionRendered) game.highlightPath = [...game.livePath];
+    else {
+      game.highlightPath.push(nextNodeIdx);
+      _requireGameRuntime(game).renderedPosition = undefined;
+    }
+    game.clockSnapshot = nextClockSnapshot;
+    _syncRuntimeNodeCache(game);
+    _updatePositionResult(game, livePosition);
+    updateGameStateAfterPosition(game, livePosition.sideToMove);
+    setGameUpdateTimeNow(game);
     _clearPlayerTurnRuntime(game);
     _refreshRuntimeRegistrations(game);
     _startPonderingIfAvailable(game, ponderEngine, move.$?.ponderMove);
@@ -507,12 +506,22 @@ export const useGamesStore = defineStore('gamesStore', () => {
 
     _commitLiveMove(game, move);
   }
+  /** Applies one move to the rendered analysis branch without deciding the surrounding game workflow. */
+  function _advanceRenderedAnalysisBranch(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove): IBoardPosition {
+    const runtime = _requireGameRuntime(game);
+    let renderedPosition = parentPosition;
+    if (renderedPosition === runtime.livePosition) {
+      renderedPosition = MoveApplicationService.genPosition(renderedPosition, []);
+      runtime.renderedPosition = renderedPosition;
+    }
+    MoveApplicationService.applyMove(renderedPosition, move);
+    const nextNode = MoveHistoryService.addAnalysisMove(parentNode, move);
+    game.highlightPath = getPathToNode(nextNode);
+    _syncRuntimeNodeCache(game);
+    return renderedPosition;
+  }
   function _commitLiveHistoryAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove, exitBehaviour: AnalysisBranchExitBehaviour): void {
-    const resultState = game.resultState;
-    const resultReason = game.resultReason;
-    const nextNode = _finaliseAnalysisMove(game, parentNode, parentPosition, move);
-    game.resultState = resultState;
-    game.resultReason = resultReason;
+    const renderedPosition = _advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move);
     if (exitBehaviour === AnalysisBranchExitBehaviour.ReturnToLiveNode) {
       game.highlightPath = [...game.livePath!];
       _requireGameRuntime(game).renderedPosition = getLivePosition(game); // back on the live node: alias it
@@ -521,11 +530,20 @@ export const useGamesStore = defineStore('gamesStore', () => {
       setGameUpdateTimeNow(game);
       return;
     }
-    game.highlightPath = getPathToNode(nextNode);
-    _syncRuntimeNodeCache(game);
-    game.gameState = getLiveAnalysisState(getLivePosition(game).sideToMove, getRenderedPosition(game).sideToMove);
+    game.gameState = getLiveAnalysisState(getLivePosition(game).sideToMove, renderedPosition.sideToMove);
     setGameUpdateTimeNow(game);
     _refreshAnalysisForGame(game);
+  }
+  function _commitLiveAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove): void {
+    const renderedPosition = _advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move);
+    game.gameState = getLiveAnalysisState(getLivePosition(game).sideToMove, renderedPosition.sideToMove);
+    setGameUpdateTimeNow(game);
+  }
+  function _commitStandaloneAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove): void {
+    const renderedPosition = _advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move);
+    _updatePositionResult(game, renderedPosition);
+    updateGameStateAfterPosition(game, renderedPosition.sideToMove);
+    setGameUpdateTimeNow(game);
   }
   function _replaceWithAnalysisRoot(game: IGame, boardRoot: IBoardPosition, nextState: GameState): void {
     const nextClockSnapshot = TimeControlService.initialiseClockSnapshot(game.timeControl);
@@ -694,36 +712,25 @@ export const useGamesStore = defineStore('gamesStore', () => {
   function listGames(): IGame[] {
     return _games.value;
   }
-  /** this makes moves to the rendered game, not the currently live game */
+  /** Submits a move at the rendered node; a live-node submission resolves the current player turn. */
   async function makeMove(game: IGame, move: IMove) {
-    //validating
     _assertMoveAllowed(game);
     const parentNode = _getCurrentNode(game);
     const parentPosition = getRenderedPosition(game);
-    async function _makeMoveByState(game:IGame, move:IMove) {
-      if (_isOngoingLiveGame(game) && (_isLiveHistoryReview(game) || _isLiveState(game.gameState))) {
-        if (_isLiveHistoryReview(game)) {
-          if (game.gameplayOptions.allowTakeback) return _commitHistoryRewriteMove(game, parentNode, move);
-          else return _commitLiveHistoryAnalysisMove(game, parentNode, parentPosition, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
-        } else {
-          if (!game.$?.pendingPlayerTurnPromise || !game.$?.pendingPlayerTurnHandlePromise) throw new ReferenceError(`turn started to allow make move for ${move.movingColour} but move request was not made`);
-          game.$.pendingPlayerTurnPromise.resolve(move);
-          return await game.$.pendingPlayerTurnHandlePromise;
-        }
-        //TODO: throw exception if there is an ongoing live game but not doing analysis move
-      }
-      // othewise just move it in analysis mode
-      const resultState = game.resultState;
-      const resultReason = game.resultReason;
-      _finaliseAnalysisMove(game, parentNode, parentPosition, move);
-      if (game.livePath && resultState === ResultState.Ongoing) {
-        game.resultState = resultState;
-        game.resultReason = resultReason;
-        game.gameState = getLiveAnalysisState(getLivePosition(game).sideToMove, getRenderedPosition(game).sideToMove);
-        setGameUpdateTimeNow(game);
-      }
+    if (_isOngoingLiveGame(game) && _isLiveHistoryReview(game)) {
+      if (game.gameplayOptions.allowTakeback) _commitHistoryRewriteMove(game, parentNode, move);
+      else _commitLiveHistoryAnalysisMove(game, parentNode, parentPosition, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
+      return;
     }
-    await _makeMoveByState(game, move);
+    if (_isOngoingLiveGame(game) && _isLiveState(game.gameState)) {
+      const runtime = _requireGameRuntime(game);
+      if (!runtime.pendingPlayerTurnPromise || !runtime.pendingPlayerTurnHandlePromise) throw new ReferenceError(`turn started to allow make move for ${move.movingColour} but move request was not made`);
+      runtime.pendingPlayerTurnPromise.resolve(move);
+      await runtime.pendingPlayerTurnHandlePromise;
+      return;
+    }
+    if (_isOngoingLiveGame(game)) _commitLiveAnalysisMove(game, parentNode, parentPosition, move);
+    else _commitStandaloneAnalysisMove(game, parentNode, parentPosition, move);
   }
   async function takeBack(game: IGame, moveCount: number = 1): Promise<void> {
     _assertNotPausedForAction(game, 'Takeback');

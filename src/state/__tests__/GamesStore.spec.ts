@@ -94,13 +94,12 @@ function dequeueEngineMove(engine: IAssignedEngine): IMove {
   }
   return structuredClone(nextPlayerMove);
 }
-function createDefaultNextPosition(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
-  return {
-    ...structuredClone(position),
-    sideToMove: move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White,
-    halfMoveClock: position.halfMoveClock + 1,
-    fullMoveNumber: position.fullMoveNumber + (position.sideToMove === PlayerColour.Black ? 1 : 0),
-  };
+function applyDefaultMove(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
+  const incrementsFullMove = position.sideToMove === PlayerColour.Black;
+  position.sideToMove = move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
+  position.halfMoveClock += 1;
+  if (incrementsFullMove) position.fullMoveNumber += 1;
+  return position;
 }
 function createOngoingResult(): IResolvedResult {
   return { resultState: ResultState.Ongoing, resultReason: undefined };
@@ -126,15 +125,16 @@ function getTestMoveHistory(position: IGame['rootPosition']): string[] {
   return [...((position as ITestBoardPosition)._testMoveHistory ?? [])];
 }
 function applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
-  const nextPosition = structuredClone(position) as ITestBoardPosition;
-  nextPosition.board[move.to] = nextPosition.board[move.from];
-  nextPosition.board[move.from] = undefined;
-  nextPosition.sideToMove = move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
-  nextPosition.halfMoveClock = position.halfMoveClock + 1;
-  nextPosition.fullMoveNumber = position.fullMoveNumber + (position.sideToMove === PlayerColour.Black ? 1 : 0);
-  nextPosition._testMoveHistory = [...getTestMoveHistory(position), getMoveKey(move)];
-  if (isSameMove(move, scholarMateMoves.white[3]!)) (nextPosition.$ ??= {}).checkState = CheckState.Checkmate;
-  return nextPosition;
+  const testPosition = position as ITestBoardPosition;
+  const incrementsFullMove = position.sideToMove === PlayerColour.Black;
+  testPosition.board[move.to] = testPosition.board[move.from];
+  testPosition.board[move.from] = undefined;
+  testPosition.sideToMove = move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
+  testPosition.halfMoveClock += 1;
+  if (incrementsFullMove) testPosition.fullMoveNumber += 1;
+  testPosition._testMoveHistory = [...getTestMoveHistory(position), getMoveKey(move)];
+  if (isSameMove(move, scholarMateMoves.white[3]!)) (testPosition.$ ??= {}).checkState = CheckState.Checkmate;
+  return testPosition;
 }
 function installScholarMateRules(): void {
   utility.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
@@ -210,7 +210,7 @@ const domain = {
     }),
   },
   MoveApplicationService: {
-    applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move)),
+    applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => applyDefaultMove(position, move)),
     genPosition: vi.fn((rootPosition: IGame['rootPosition'], moves: readonly IMove[]) =>
       moves.reduce((position, move) => domain.MoveApplicationService.applyMove(position, move), structuredClone(rootPosition))),
     clearBoard: vi.fn((position: IGame['rootPosition']) => {
@@ -442,7 +442,7 @@ describe('useGamesStore', () => {
     utility.genLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
     utility.toDetailedMove.mockImplementation((_position: IGame['rootPosition'], move: IMove) => structuredClone(move));
     utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move));
-    domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => createDefaultNextPosition(position, move));
+    domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => applyDefaultMove(position, move));
     utility.resolveGameResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult());
     vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => createdGameIds.shift() ?? 'game-fallback-0000-0000-000000000000');
     vi.doMock('@/domain', () => domain);
@@ -497,6 +497,100 @@ describe('useGamesStore', () => {
     expect(game.livePath).toEqual([]);
     expect(game.resultState).toBe(ResultState.Ongoing);
     expect(domain.PlatformEventService.subscribeToAppCloseRequested).not.toHaveBeenCalled();
+  });
+  it('aliases rendered and live positions while committing a move at the live node', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Aliased Live Position',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
+    });
+    const sharedPosition = game.$!.livePosition!;
+    expect(game.$!.renderedPosition).toBe(sharedPosition);
+
+    const pendingMove = game.$!.pendingPlayerTurnHandlePromise;
+    store.makeMove(game, createMove(PlayerColour.White));
+    await pendingMove;
+
+    expect(game.$!.livePosition).toBe(sharedPosition);
+    expect(game.$!.renderedPosition).toBe(sharedPosition);
+    expect(sharedPosition.sideToMove).toBe(PlayerColour.Black);
+    expect(sharedPosition.halfMoveClock).toBe(1);
+  });
+  it('detaches rendered analysis from the live position and re-aliases it on exit', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Detached Live Analysis',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: true,
+      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
+    });
+    const livePosition = game.$!.livePosition!;
+    await store.enterInGameAnalysis(game);
+    await store.resumeGame(game, PauseReason.Analysis);
+    utility.resolveGameResult.mockClear();
+
+    await store.makeMove(game, createMove(PlayerColour.White));
+
+    expect(game.livePath).toEqual([]);
+    expect(game.highlightPath).toEqual([0]);
+    expect(game.$!.livePosition).toBe(livePosition);
+    expect(game.$!.renderedPosition).not.toBe(livePosition);
+    expect(livePosition.sideToMove).toBe(PlayerColour.White);
+    expect(game.$!.renderedPosition!.sideToMove).toBe(PlayerColour.Black);
+    expect(utility.resolveGameResult).not.toHaveBeenCalled();
+
+    store.exitInGameAnalysis(game);
+    expect(game.highlightPath).toEqual(game.livePath);
+    expect(game.$!.renderedPosition).toBe(game.$!.livePosition);
+  });
+  it('keeps independent position caches when live play advances from history review', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Divergent Live Position',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
+    });
+    const pendingLiveMove = game.$!.pendingPlayerTurnHandlePromise;
+    store.makeMove(game, createMove(PlayerColour.White));
+    await pendingLiveMove;
+    store.navigateToNode(game, game.moveTree.root);
+    game.gameplayOptions.allowTakeback = true;
+    void game.$!.pendingPlayerTurnHandlePromise?.catch(() => undefined);
+
+    await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
+    expect(game.$!.renderedPosition).toBeUndefined();
+
+    store.getVisibleAnalysis(game);
+    expect(game.$!.renderedPosition).not.toBe(game.$!.livePosition);
+    expect(game.$!.renderedPosition!.halfMoveClock).toBe(1);
+    expect(game.$!.livePosition!.halfMoveClock).toBe(2);
+  });
+  it('resolves the result after committing a standalone analysis move', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Standalone Analysis Result',
+      whitePlayer: undefined,
+      blackPlayer: undefined,
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    utility.resolveGameResult.mockReturnValueOnce({ resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved });
+
+    await store.makeMove(game, createMove(PlayerColour.White));
+
+    expect(game.resultState).toBe(ResultState.WhiteWon);
+    expect(game.resultReason).toBe(ResultReason.RuleResolved);
+    expect(game.gameState).toBe(GameState.AnalysisBlackMove);
   });
   it('tracks paused live-analysis states across analysis entry and pause or resume transitions', async () => {
     const store = useGamesStore();

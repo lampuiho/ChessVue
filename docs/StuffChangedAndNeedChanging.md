@@ -1,7 +1,7 @@
 Stuff Changed:
 - cleaned up stuff that has both nullable and optional in zod when they are only optional
 - moved check state to board-position runtime state and detailed move data; deleted checkmate state from IGame
-- ~~added currentPosition to IGameRuntime~~ renamed to `renderedPosition`, and runtime now also caches `livePosition`, `renderedNode`, and `liveNode`. `renderedPosition`/`livePosition` are now **optional, lazily-filled** slots read through `getRenderedPosition`/`getLivePosition`; because moves apply in place, a committed move leaves them already correct, and they are only regenerated after an invalidation. `renderedNode`/`liveNode` are still eagerly rebuilt by `_syncRuntimeNodeCache` (renamed from `_syncRuntimePositionCache`) and still want the lazy rewrite.
+- ~~added currentPosition to IGameRuntime~~ renamed to `renderedPosition`, and runtime now also caches `livePosition`, `renderedNode`, and `liveNode`. `renderedPosition`/`livePosition` are now **optional, lazily-filled** slots read through `getRenderedPosition`/`getLivePosition`; they share one reference while live is rendered, detach the rendered copy before a live-node analysis move, and are only regenerated after an invalidation. `renderedNode`/`liveNode` are still eagerly rebuilt by `_syncRuntimeNodeCache` (renamed from `_syncRuntimePositionCache`) and still want the lazy rewrite.
 - renamed IGame.boardRoot as rootPosition to be consistent with IEnginePositionState
 - merged IGame.liveAnalysisOptions into IGame.gameplayOptions, takeback is just boolean now
 - makeMove public method is now exclusively used to make moves to the current board (not the live game)
@@ -31,7 +31,7 @@ Stuff need changing:
 - ~~cache current/live MoveNode in runtime~~
 - ~~uci utility is not using IMove runtime cache~~
 - ~~update test cases~~
-- _finaliseMove need rewrite for more natural flow of applyMove; livePosition and rendered position are supposed to be the same reference when live position is rendered
+- ~~_finaliseMove need rewrite for more natural flow of applyMove; livePosition and rendered position are supposed to be the same reference when live position is rendered~~ done: `_finaliseMove`, `_finaliseAnalysisMove`, and the analysis flag are removed. `makeMove` now dispatches named live, live-analysis, live-history-analysis, and standalone-analysis workflows; the domain `applyMove` remains the visible in-place board mutation inside those flows.
 - update design doc again
 
 To validate:
