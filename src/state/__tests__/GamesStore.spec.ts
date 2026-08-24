@@ -1,4 +1,4 @@
-﻿import { createPinia, setActivePinia } from 'pinia';
+import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -164,7 +164,7 @@ function expectScholarMateFinished(game: IGame): void {
   expect(game.resultReason).toBe(ResultReason.RuleResolved);
   expect(game.gameState).toBe(GameState.AnalysisBlackMove);
   expect(game.livePath).toEqual([0, 0, 0, 0, 0, 0, 0]);
-  expect(game.highlightPath).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  expect(game.renderedPath).toEqual([0, 0, 0, 0, 0, 0, 0]);
   expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
   expect(game.$?.pendingPlayerTurnHandlePromise).toBeUndefined();
 }
@@ -469,7 +469,7 @@ describe('useGamesStore', () => {
     store.makeMove(game, move);
     await pendingMove;
     expect(game.livePath).toEqual([0]);
-    expect(game.highlightPath).toEqual([0]);
+    expect(game.renderedPath).toEqual([0]);
     expect(game.gameState).toBe(GameState.LiveBlackTurn);
 
     await store.pauseGame(game, PauseReason.Manual);
@@ -538,7 +538,7 @@ describe('useGamesStore', () => {
     await store.makeMove(game, createMove(PlayerColour.White));
 
     expect(game.livePath).toEqual([]);
-    expect(game.highlightPath).toEqual([0]);
+    expect(game.renderedPath).toEqual([0]);
     expect(game.$!.livePosition).toBe(livePosition);
     expect(game.$!.renderedPosition).not.toBe(livePosition);
     expect(livePosition.sideToMove).toBe(PlayerColour.White);
@@ -546,7 +546,7 @@ describe('useGamesStore', () => {
     expect(utility.resolveGameResult).not.toHaveBeenCalled();
 
     store.exitInGameAnalysis(game);
-    expect(game.highlightPath).toEqual(game.livePath);
+    expect(game.renderedPath).toEqual(game.livePath);
     expect(game.$!.renderedPosition).toBe(game.$!.livePosition);
   });
   it('keeps independent position caches when live play advances from history review', async () => {
@@ -686,7 +686,7 @@ describe('useGamesStore', () => {
     store.applyBoardEdit(game, sparseBoard);
     expect(game.gameState).toBe(GameState.BoardEdit);
     expect(game.livePath).toBeUndefined();
-    expect(game.highlightPath).toEqual([]);
+    expect(game.renderedPath).toEqual([]);
     expect(game.rootPosition).toEqual(sparseBoard);
     const darkRoot = createBoardPosition(PlayerColour.Black);
     store.applyBoardEdit(game, darkRoot);
@@ -713,7 +713,7 @@ describe('useGamesStore', () => {
     domain.MoveHistoryService.createMoveTree.mockClear();
     store.deleteChessPiece(game, 0);
     store.clearBoard(game);
-    expect(game.highlightPath).toEqual([0]);
+    expect(game.renderedPath).toEqual([0]);
     expect(domain.MoveHistoryService.createMoveTree).not.toHaveBeenCalled();
     expect(() => store.deleteChessPiece(game, 64)).toThrow('between 0 and 63');
 
@@ -724,7 +724,7 @@ describe('useGamesStore', () => {
 
     expect(game.rootPosition).toBe(editedPosition);
     expect(game.moveTree.root.children).toHaveLength(0);
-    expect(game.highlightPath).toEqual([]);
+    expect(game.renderedPath).toEqual([]);
     expect(editedPosition.board[0]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
     expect(editedPosition.$?.isStandardInitialPosition).toBeUndefined();
     expect(domain.MoveHistoryService.createMoveTree).toHaveBeenCalledTimes(1);
@@ -946,7 +946,7 @@ describe('useGamesStore', () => {
     await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
     expect(domain.MoveHistoryService.rewriteMainline).not.toHaveBeenCalled();
     expect(game.livePath).toEqual([0, 0]);
-    expect(game.highlightPath).toEqual([0]);
+    expect(game.renderedPath).toEqual([0]);
     expect(game.moveTree.root.mainlineChildIndex).toBe(0);
     expect(game.moveTree.root.children).toHaveLength(1);
     expect(game.moveTree.root.children[0]!.kind).toBe(MoveNodeKind.Live);
@@ -970,7 +970,7 @@ describe('useGamesStore', () => {
     void branchGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     await store.makeMove(branchGame, createMove(PlayerColour.White, 10, 26));
     expect(branchGame.livePath).toEqual([0]);
-    expect(branchGame.highlightPath).toEqual([0]);
+    expect(branchGame.renderedPath).toEqual([0]);
     expect(branchGame.gameState).toBe(GameState.LiveBlackTurn);
 
     store.navigateToNode(branchGame, branchGame.moveTree.root);
@@ -978,7 +978,7 @@ describe('useGamesStore', () => {
     void branchGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     await store.makeMove(branchGame, createMove(PlayerColour.White, 9, 25));
     expect(branchGame.livePath).toEqual([0]);
-    expect(branchGame.highlightPath).toEqual([2]);
+    expect(branchGame.renderedPath).toEqual([2]);
     expect(branchGame.gameState).toBe(GameState.LiveAnalysisFromBlackTurnBlackMove);
   });
   it('prunes exploratory descendants on the next real live move after exiting in-game analysis', async () => {
@@ -997,7 +997,7 @@ describe('useGamesStore', () => {
     store.makeMove(game, createMove(PlayerColour.White, 8, 24));
     expect(domain.MoveHistoryService.pruneFutureMoves).not.toHaveBeenCalled();
     expect(game.livePath).toEqual([]);
-    expect(game.highlightPath).toEqual([0]);
+    expect(game.renderedPath).toEqual([0]);
 
     store.exitInGameAnalysis(game);
     const pendingPrunedMove = game.$?.pendingPlayerTurnHandlePromise;

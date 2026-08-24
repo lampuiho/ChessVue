@@ -43,7 +43,7 @@ describe('UciUtility', () => {
       resultState: ResultState.Ongoing,
       rootPosition,
       moveTree: { root: { kind: MoveNodeKind.Live, plyIndex: 0, children: [child] } },
-      highlightPath: [0],
+      renderedPath: [0],
       livePath: [0],
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 1000 },
       clockSnapshot: { white: { remainingMs: 60000, isRunning: false }, black: { remainingMs: 45000, isRunning: true }, activeColour: PlayerColour.Black },
@@ -70,7 +70,7 @@ describe('UciUtility', () => {
     const game = {
       rootPosition,
       moveTree: { root: { kind: MoveNodeKind.Live, plyIndex: 0, children: [] } },
-      highlightPath: [],
+      renderedPath: [],
     } as unknown as IGame;
 
     expect(buildPositionCommand(game)).toBe('position startpos');

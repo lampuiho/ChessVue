@@ -50,7 +50,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     return state === GameState.AnalysisWhiteMove || state === GameState.AnalysisBlackMove || isAnyLiveAnalysisState(state);
   }
   function isLiveTurnReadyForMove(game: IGame): boolean {
-    return isLiveState(game.gameState) && game.resultState === ResultState.Ongoing && position.pathsEqual(game.highlightPath, game.livePath ?? []);
+    return isLiveState(game.gameState) && game.resultState === ResultState.Ongoing && position.pathsEqual(game.renderedPath, game.livePath ?? []);
   }
   function getAnalysisState(colour: PlayerColour): GameState {
     return colour === PlayerColour.White ? GameState.AnalysisWhiteMove : GameState.AnalysisBlackMove;
@@ -113,7 +113,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     return game.resultState === ResultState.Ongoing && !!game.livePath;
   }
   function isLiveHistoryReview(game: LiveGame): boolean {
-    return position.isPathPrefix(game.highlightPath, game.livePath);
+    return position.isPathPrefix(game.renderedPath, game.livePath);
   }
   async function resignGame(game: IGame, colour: PlayerColour): Promise<void> {
     assertNotPausedForAction(game, 'Resignation');

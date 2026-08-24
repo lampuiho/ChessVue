@@ -12,7 +12,7 @@ export function useGamePosition() {
     return currentNode;
   }
   function getCurrentPath(game: IGame): MovePath {
-    return [...game.highlightPath];
+    return [...game.renderedPath];
   }
   function buildGameRuntime(game: IGame): IGameRuntime {
     return {
@@ -47,13 +47,13 @@ export function useGamePosition() {
   }
   function getRenderedPosition(game: IGame): IBoardPosition {
     const runtime = requireGameRuntime(game);
-    if (game.livePath && pathsEqual(game.highlightPath, game.livePath)) return getAliasedLivePosition(game, game.livePath);
-    return runtime.renderedPosition ??= genPositionAtPath(game, game.highlightPath);
+    if (game.livePath && pathsEqual(game.renderedPath, game.livePath)) return getAliasedLivePosition(game, game.livePath);
+    return runtime.renderedPosition ??= genPositionAtPath(game, game.renderedPath);
   }
   function getLivePosition(game: IGame): IBoardPosition {
     const runtime = requireGameRuntime(game);
     if (!game.livePath) throw new Error(`Live position is not available for ${game.metadata.id}.`);
-    if (pathsEqual(game.highlightPath, game.livePath)) return getAliasedLivePosition(game, game.livePath);
+    if (pathsEqual(game.renderedPath, game.livePath)) return getAliasedLivePosition(game, game.livePath);
     return runtime.livePosition ??= genPositionAtPath(game, game.livePath);
   }
   function invalidateRuntimePositions(game: IGame): void {
@@ -113,7 +113,7 @@ export function useGamePosition() {
     game.$ = { ...requireGameRuntime(game), ...buildGameRuntime(game) };
   }
   function syncMoveNodeHighlights(game: IGame): void {
-    const highlightedPaths = [game.highlightPath, game.livePath ?? []];
+    const highlightedPaths = [game.renderedPath, game.livePath ?? []];
     function syncNode(node: IMoveNode, path: MovePath): void {
       node.$ = {
         ...node.$,

@@ -10,7 +10,7 @@ describe('useGamePosition', () => {
     const child = appendChild(game.moveTree.root, createMove(), MoveNodeKind.Live);
     appendChild(child, createMove(PlayerColour.Black), MoveNodeKind.Live);
     game.livePath = [0, 0];
-    game.highlightPath = [0];
+    game.renderedPath = [0];
     game.$ = undefined;
     const position = useGamePosition();
 

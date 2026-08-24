@@ -109,8 +109,8 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 
 ## Transition Rules
 ### History Navigation
-- Navigating to an earlier node changes `highlightPath` away from `livePath`.
-- Returning to the live node restores `highlightPath` to `livePath`.
+- Navigating to an earlier node changes `renderedPath` away from `livePath`.
+- Returning to the live node restores `renderedPath` to `livePath`.
 - From a non-live highlighted line, making a move follows the takeback and branch rules defined in [settings_contract.md](settings_contract.md).
 
 ### Live Analysis

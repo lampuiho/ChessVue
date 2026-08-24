@@ -133,7 +133,7 @@ export interface IGame {
   rootPosition: IBoardPosition;
   moveTree: IMoveTree;
   livePath?: MovePath;
-  highlightPath: MovePath;
+  renderedPath: MovePath;
   timeControl: ITimeControl;
   clockSnapshot: IClockSnapshot;
   gameplayOptions: IGameplayOptions;
@@ -219,7 +219,7 @@ export const gameSchema = z.object({
   rootPosition: boardPositionSchema,
   moveTree: moveTreeSchema,
   livePath: movePathSchema.optional(),
-  highlightPath: movePathSchema,
+  renderedPath: movePathSchema,
   timeControl: timeControlSchema,
   clockSnapshot: clockSnapshotSchema,
   gameplayOptions: gameplayOptionsSchema,

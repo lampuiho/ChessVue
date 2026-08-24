@@ -112,7 +112,7 @@ function createGame(): IGame {
     rootPosition,
     moveTree,
     livePath: [0],
-    highlightPath: [0],
+    renderedPath: [0],
     timeControl,
     clockSnapshot: nextClock,
     gameplayOptions: {
@@ -177,6 +177,17 @@ describe('SerializationService', () => {
     expect((restored.whitePlayer as typeof restored.whitePlayer & { $?: unknown }).$).toBeUndefined();
     expect(getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
     expect(PositionIdentityService.buildPositionKey(restored.rootPosition)).toBe(PositionIdentityService.buildPositionKey(game.rootPosition));
+  });
+
+  it('migrates the legacy highlighted move selector', () => {
+    const legacyGame = JSON.parse(SerializationService.serialiseGame(createGame())) as Record<string, unknown>;
+    legacyGame.highlightPath = legacyGame.renderedPath;
+    delete legacyGame.renderedPath;
+
+    const restored = SerializationService.deserialiseGame(JSON.stringify(legacyGame));
+
+    expect(restored.renderedPath).toEqual([0]);
+    expect(SerializationService.serialiseGame(restored)).not.toContain('"highlightPath"');
   });
 
   it('rejects broken move-tree payloads', () => {

@@ -58,7 +58,7 @@ function _validateMoveTree(tree: IMoveTree): void {
 }
 function _validateGame(game: IGame): void {
   _validateMoveTree(game.moveTree);
-  _getNodeAtPath(game.moveTree, game.highlightPath, 'Saved game highlightPath');
+  _getNodeAtPath(game.moveTree, game.renderedPath, 'Saved game renderedPath');
   if (game.livePath !== undefined) _getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
 }
 function _validateGameSession(snapshot: IGameSessionSnapshot): void {
@@ -81,8 +81,11 @@ function _migrateUiLayoutState(input: unknown): IUiLayoutState {
   return _parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), input);
 }
 function _migrateGame(input: unknown): IGame {
-  _requireSchemaVersionOne(input, 'Saved game');
-  const game = _parseWithSchema('Saved game', (value) => gameSchema.parse(value), input);
+  const versionedInput = _requireSchemaVersionOne(input, 'Saved game');
+  const migratedInput = versionedInput.renderedPath !== undefined || versionedInput.highlightPath === undefined
+    ? versionedInput
+    : { ...versionedInput, renderedPath: versionedInput.highlightPath };
+  const game = _parseWithSchema('Saved game', (value) => gameSchema.parse(value), migratedInput);
   _validateGame(game);
   return game;
 }

@@ -108,7 +108,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     runtime.pendingPlayerTurnHandlePromise = playerMoveHandler(pendingPlayerMove, isEnginePlayer(player) ? player.assignedEngine : undefined);
   }
   function requestPlayerMoveIfNeeded(game: IGame): void {
-    if (!status.isOngoingLiveGame(game) || !status.isLiveState(game.gameState) || !position.pathsEqual(game.highlightPath, game.livePath)) return;
+    if (!status.isOngoingLiveGame(game) || !status.isLiveState(game.gameState) || !position.pathsEqual(game.renderedPath, game.livePath)) return;
     if (position.requireGameRuntime(game).pendingPlayerTurnPromise) return;
     requestPlayerMove(game);
   }

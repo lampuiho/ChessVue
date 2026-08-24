@@ -17,11 +17,10 @@ Stuff need changing:
 - ~~add _requestPlayerMoveIfNeeded to refactor if(xxx) _requestPlayerMove that we have~~
 - ~~add legal move check on checkmate/being checked board positions in GameRuleService.isMoveLegal~~
 - ~~rename MoveUpdateService to MoveHistoryService in remaining docs and stale references~~
-- IGame.livePath and IGame.highlightPath moved to moveTree runtime
 - ~~use actual Date object for all dates not string (zod will take care of the transform)~~ done: added `@/utility/date` (`RecordTimestamp`, `ClockTimestamp`, `AnalysisTimestamp`, `SaveTimestamp`, `RegistrationTimestamp`, each a `Date` subclass with its own `toString`); zod fields now use `utcTimestampSchema` (accepts string-or-Date, always outputs the subclass, so the same schema works for both reading persisted JSON and re-validating in-memory games before serialising)
 - ~~remove boardPosition at each node, this is not a good solution because we probably won't use boardPosition for rendering as we can't do proper animation on the chess pieces with it. we need the same chess piece object changing board id to change the coordinates calculated by the frontend. so we would be moving step by step anyway so just recompute position from reference node.~~ done: `IMoveNode.position` is gone (schema too, so old saves just drop the field). `MoveHistoryService.getMoveSequence(tree, toPath, fromPath?)` answers pure tree knowledge and `MoveApplicationService.genPosition(rootPosition, moves)` replays it — `fromPath` is the seam for step-by-step animation later. `applyMove` now mutates in place (`apply*` mutates, `gen*` copies); board edits moved to `MoveApplicationService` (`clearBoard`/`deletePiece`/`movePiece`/`togglePiece`, in place, returning whether anything changed and invalidating `$` themselves). Also: `IBoardPositionRuntime.fen` caches FEN (`buildFen` moved from `UciUtility` to `MoveNotationUtility`), and the UCI new-game check compares that FEN instead of `rootPosition` identity, since board edits now mutate the root in place. `hydrateGame` finally wires `$.parent` (it never did, which silently broke `getPathToNode` for loaded games).
 - ~~add live position to make it easier to return live position from current position~~
-- rename highlightPath as renderedPath
+- ~~rename the highlighted move selector as `renderedPath`~~
 - ~~rename position related props named with "current*"  in IGame with "rendered*"~~
 - ~~TODO in GameStore._finaliseMove~~
 - remove all the unneccessary object cloning in GameStore and other places

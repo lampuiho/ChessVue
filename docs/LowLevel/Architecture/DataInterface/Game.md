@@ -138,7 +138,7 @@ interface IGame {
   rootPosition: IBoardPosition
   moveTree: IMoveTree
   livePath?: MovePath
-  highlightPath: MovePath
+  renderedPath: MovePath
   timeControl: ITimeControl
   clockSnapshot: IClockSnapshot
   gameplayOptions: IGameplayOptions
@@ -196,8 +196,8 @@ interface IStartGameFromSetupRequest {
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGame`.
 - The baseline persisted saved-game artefact reuses `IGame` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGame` so the same shape can satisfy both runtime coordination and persisted saved-game migration requirements.
-- `livePath` and `highlightPath` are persisted selectors for exact restore. They identify nodes by child-index traversal from `moveTree.root` and are resolved into runtime references during hydration.
-- `highlightPath` tracks the line currently highlighted in history and analysis. In normal live play it matches `livePath`, while in analysis or history navigation it may differ.
+- `livePath` and `renderedPath` are persisted selectors for exact restore. They identify nodes by child-index traversal from `moveTree.root` and are resolved into runtime references during hydration.
+- `renderedPath` tracks the line currently highlighted in history and analysis. In normal live play it matches `livePath`, while in analysis or history navigation it may differ.
 - `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the game leaves live play for free analysis/setup.
 - `gameplayOptions.showLiveAnalysisMoves` is persisted as part of the game, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
 - `analysis.snapshots` is persisted and restored as part of the game, and its current row order is the source of truth for mapping remembered engine-group fold state by index.

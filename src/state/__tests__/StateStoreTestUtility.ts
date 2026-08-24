@@ -233,7 +233,7 @@ export function createGame(overrides: Partial<IGame> = {}): IGame {
     rootPosition,
     moveTree,
     livePath: overrides.livePath ? [...overrides.livePath] : [],
-    highlightPath: overrides.highlightPath ? [...overrides.highlightPath] : [],
+    renderedPath: overrides.renderedPath ? [...overrides.renderedPath] : [],
     timeControl: structuredClone(overrides.timeControl ?? { preset: TimeControlPreset.Untimed, incrementMs: 0 }),
     clockSnapshot,
     gameplayOptions: structuredClone(overrides.gameplayOptions ?? { allowTakeback: false, showLiveAnalysisMoves: false }),

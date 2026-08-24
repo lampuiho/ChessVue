@@ -232,7 +232,7 @@ export function createEngineGame(): IGame {
   const liveNode = MoveHistoryService.addMainlineMove(game.moveTree.root, move, game.clockSnapshot);
   game.gameState = GameState.LiveBlackTurn;
   game.livePath = [0];
-  game.highlightPath = [0];
+  game.renderedPath = [0];
   // the engine client reads the searched position off the runtime rather than deriving it
   const livePosition = MoveApplicationService.genPosition(game.rootPosition, [move]);
   game.$ = { renderedNode: liveNode, liveNode, renderedPosition: livePosition, livePosition };
@@ -265,7 +265,7 @@ export function createPersistedGame(): IGame {
     rootPosition,
     moveTree: MoveHistoryService.createMoveTree(clockSnapshot),
     livePath: undefined,
-    highlightPath: [],
+    renderedPath: [],
     timeControl,
     clockSnapshot,
     gameplayOptions: { showLiveAnalysisMoves: false, allowTakeback: false },

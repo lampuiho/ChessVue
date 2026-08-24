@@ -15,7 +15,7 @@ The canonical saved-game payload is `IGame` from [Game.md](Game.md).
 - `drawOfferState`
 - `whitePlayer` and `blackPlayer`, including copied in-game engine payloads when a seat is engine-controlled
 - `rootPosition` and the full `moveTree`
-- `livePath` and `highlightPath`
+- `livePath` and `renderedPath`
 - `timeControl` and `clockSnapshot`
 - `gameplayOptions.showLiveAnalysisMoves`
 - `analysis`, including the ordered persisted analysis snapshot rows for the active game

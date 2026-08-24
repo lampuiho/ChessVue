@@ -76,7 +76,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       rootPosition,
       moveTree: MoveHistoryService.createMoveTree(initialClockSnapshot),
       livePath,
-      highlightPath: [],
+      renderedPath: [],
       timeControl: structuredClone(request.timeControl),
       clockSnapshot: isLiveGame ? clock.startClock(initialClockSnapshot, rootPosition.sideToMove, new ClockTimestamp(nowUtc)) : initialClockSnapshot,
       analysis: {
@@ -112,7 +112,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     await analysis.refreshAnalysisForGame(game);
   }
   function startLiveGame(game: IGame, renderedPosition: ReturnType<GamePositionComposable['getRenderedPosition']>): void {
-    game.livePath = [...game.highlightPath];
+    game.livePath = [...game.renderedPath];
     position.requireGameRuntime(game).livePosition = renderedPosition;
     game.clockSnapshot = clock.startClock(game.clockSnapshot, renderedPosition.sideToMove, new ClockTimestamp());
     game.resultState = ResultState.Ongoing;

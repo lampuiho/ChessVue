@@ -40,7 +40,7 @@ export function buildPonderMoveCommands(game: IGame, ponderMove: IMove): string[
 }
 /** Builds the UCI position command from the game root and highlighted path, caching standard-root verification under the position's runtime metadata. */
 export function buildPositionCommand(game: IGame): string {
-  return _buildPositionCommand(game.rootPosition, _getMovesFromPath(game, game.highlightPath));
+  return _buildPositionCommand(game.rootPosition, _getMovesFromPath(game, game.renderedPath));
 }
 export function buildQuitCommand(): string {
   return 'quit';
