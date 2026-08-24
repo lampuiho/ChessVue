@@ -1,7 +1,7 @@
 # GamesStore
 
 ## Purpose
-Own live or open active games, coordinate runtime game mutations through layer-2 services, hydrate inserted workspaces into active runtime state, and act as the only layer-3 owner of game analysis state.
+Provide the single Pinia façade for live or open active games while composing focused game-state composables that coordinate runtime mutations through layer-2 services. The façade preserves one public game boundary; its internal composables own distinct areas of `IGame` and active runtime state.
 
 ## Public Interface
 ```ts
@@ -43,6 +43,25 @@ acceptDrawOffer(game: IGame): Promise<void>
 declineDrawOffer(game: IGame): Promise<void>
 withdrawDrawOffer(game: IGame): Promise<void>
 ```
+
+## Internal Composition
+
+`GamesStore` is the composition root and explicit public façade for these internal state-layer composables:
+
+| Composable | Owned area |
+| --- | --- |
+| `GamePositionComposable` | root and rendered positions, move tree, live and highlighted paths, hydration, node lineage, and position or node runtime caches |
+| `GameStatusComposable` | game, result, result-reason, and draw-offer state plus state-family guards and transitions |
+| `GameClockComposable` | time control, clock snapshots, pause reasons, timeout reconciliation, and focus-return registration |
+| `GameAnalysisComposable` | persisted analysis snapshots, copied analysis engines, subscriptions, refresh, retry, stop, and visible-analysis projection |
+| `GamePlayerTurnComposable` | seated players, player runtime normalisation, pending or deferred player turns, engine move requests, and pondering |
+| `GameMoveComposable` | live and analysis move workflows, takeback, history navigation, and in-game analysis transitions |
+| `GameBoardEditComposable` | board-edit mode and direct position manipulation workflows |
+| `GameWorkspaceComposable` | open-game collection, metadata and options initialisation, creation, setup transition, insertion, and hydration coordination |
+
+The composables are implementation details beneath `useGamesStore`; presentation and sibling stores continue to depend only on the unchanged façade. Cross-area workflows use narrow injected operations, and lower-level composables do not import `GamesStore`.
+
+The persisted `IGame` shape remains unchanged. Runtime fields also retain their existing flat `$` representation, with exclusive logical ownership: position fields belong to `GamePositionComposable`, pause and focus registration fields belong to `GameClockComposable`, and pending or deferred turn fields belong to `GamePlayerTurnComposable`.
 
 ## Responsibilities
 - create live games or non-live analysis games from setup input
@@ -105,15 +124,16 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - After `takeBack`, `rewriteMainline`, or latest-node analysis cleanup through `pruneFutureMoves`, the store derives the surviving live and highlighted lineage from the pre-mutation selected node and the documented coercion rules, then reacquires the corresponding hydrated nodes from the returned tree.
 
 ## Dependencies
-- `MoveApplicationService`
-- `GameRuleUtility`
-- `MoveNotationUtility`
-- `MoveHistoryService`
-- `PositionIdentityService`
-- `PlatformEventService`
-- `TimeControlService`
-- `UserSettingService`
-- `EngineRuntimeService`
+- `GamePositionComposable`
+- `GameStatusComposable`
+- `GameClockComposable`
+- `GameAnalysisComposable`
+- `GamePlayerTurnComposable`
+- `GameMoveComposable`
+- `GameBoardEditComposable`
+- `GameWorkspaceComposable`
+
+The composed implementation depends on `MoveApplicationService`, `MoveHistoryService`, `PositionIdentityService`, `PlatformEventService`, `TimeControlService`, `UserSettingService`, and `EngineRuntimeService`.
 
 ## Scenario Coverage
 - `SCN-GAME-01` to `SCN-GAME-03`
@@ -133,4 +153,4 @@ withdrawDrawOffer(game: IGame): Promise<void>
 - `SavedGamesStore` owns saved-game serialisation, document reads and writes, restore lookup, and external picker flows. `GamesStore` owns only active-workspace creation, insertion, hydration, and gameplay mutation once a payload is already in hand.
 - `GamesStore` does not call sibling stores directly. Any engine-profile selection coming from `EnginesStore` is bridged through presentation as a selected reusable profile or equivalent seat-selection result.
 - Analysis-engine row identity is the current row index in `game.analysis.snapshots`; duplicate copied engines are blocked so row-targeted actions stay unambiguous.
-- Flow docs may refer to owner-private helpers such as duplicate-id repair and workspace hydration. Those helpers remain private to `GamesStore`; they are not shared utility-layer modules.
+- Flow docs may refer to owner-private helpers such as duplicate-id repair and workspace hydration. Those helpers remain private beneath the `GamesStore` façade in `GameWorkspaceComposable`; they are not shared utility-layer modules.

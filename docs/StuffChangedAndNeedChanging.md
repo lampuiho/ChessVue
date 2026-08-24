@@ -32,6 +32,7 @@ Stuff need changing:
 - ~~uci utility is not using IMove runtime cache~~
 - ~~update test cases~~
 - ~~_finaliseMove need rewrite for more natural flow of applyMove; livePosition and rendered position are supposed to be the same reference when live position is rendered~~ done: `_finaliseMove`, `_finaliseAnalysisMove`, and the analysis flag are removed. `makeMove` now dispatches named live, live-analysis, live-history-analysis, and standalone-analysis workflows; the domain `applyMove` remains the visible in-place board mutation inside those flows.
+- ~~Gamestore needs to refactor into composables to make up the whole store as it gets bloated.~~ `GamesStore` is now an explicit Pinia façade composed from focused workspace, position, status, clock, analysis, player-turn, move, and board-edit composables.
 - update design doc again
 
 To validate:
