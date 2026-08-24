@@ -11,12 +11,12 @@ export function useGamePosition() {
     }
     return currentNode;
   }
-  function getCurrentPath(game: IGame): MovePath {
+  function getRenderedPath(game: IGame): MovePath {
     return [...game.renderedPath];
   }
   function buildGameRuntime(game: IGame): IGameRuntime {
     return {
-      renderedNode: getRuntimeNodeOfPath(game.moveTree, getCurrentPath(game)),
+      renderedNode: getRuntimeNodeOfPath(game.moveTree, getRenderedPath(game)),
       liveNode: game.livePath ? getRuntimeNodeOfPath(game.moveTree, game.livePath) : undefined,
     };
   }

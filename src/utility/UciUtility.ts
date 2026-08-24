@@ -146,7 +146,7 @@ function _getMovesFromPath(game: IGame, path: readonly number[]): IMove[] {
   let node = game.moveTree.root;
   for (const childIndex of path) {
     const child = node.children[childIndex];
-    if (!child?.move) throw new Error(`Highlighted move path is invalid for game ${game.metadata.id}.`);
+    if (!child?.move) throw new Error(`Rendered move path is invalid for game ${game.metadata.id}.`);
     moves.push(child.move);
     node = child;
   }
