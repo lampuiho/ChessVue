@@ -361,7 +361,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `SerializationService.writeGameDocument` |
 
 - UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. The pruning action is automatic and is triggered by the next real live move from the same latest node after in-game analysis exit.
-- Runtime selector coverage: `GamesStore` keeps `livePath` fixed throughout in-game analysis and runs the automatic pruning action through `MoveHistoryService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. After pruning and move commit, the store reacquires the surviving live and visible nodes from the new tree.
+- Runtime selector coverage: `GamesStore` keeps `livePath` fixed throughout in-game analysis and runs the automatic pruning action through `MoveHistoryService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. Pruning mutates that node in the existing authoritative tree; the following move commit attaches its child and advances the selectors without replacing the tree.
 - Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but the automatic pruning action discards them once real play supersedes them.
 
 ## Time Control

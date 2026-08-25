@@ -38,22 +38,6 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       isComplete: false,
     };
   }
-  function cloneAnalysisSnapshotForRead(snapshot: IAnalysisSnapshot): IAnalysisSnapshot {
-    return {
-      assignedEngine: {
-        displayName: snapshot.assignedEngine.displayName,
-        executablePath: snapshot.assignedEngine.executablePath,
-        clientType: snapshot.assignedEngine.clientType,
-        protocol: snapshot.assignedEngine.protocol,
-        options: structuredClone(snapshot.assignedEngine.options),
-      },
-      positionKey: snapshot.positionKey,
-      updatedAt: snapshot.updatedAt,
-      bestMove: snapshot.bestMove ? structuredClone(snapshot.bestMove) : undefined,
-      lines: structuredClone(snapshot.lines),
-      isComplete: snapshot.isComplete,
-    };
-  }
   async function stopAssignedEngine(engine?: IAssignedEngine): Promise<void> {
     if (!engine) return;
     try {
@@ -77,8 +61,8 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       if (!snapshot) return;
       snapshot.positionKey = update.positionKey;
       snapshot.updatedAt = new AnalysisTimestamp();
-      snapshot.bestMove = update.bestMove ? structuredClone(update.bestMove) : undefined;
-      snapshot.lines = structuredClone(update.lines);
+      snapshot.bestMove = update.bestMove;
+      snapshot.lines = update.lines;
       snapshot.isComplete = update.isFinal;
       touchGame(game);
     });
@@ -115,7 +99,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     const positionKey = PositionIdentityService.buildPositionKey(position.getRenderedPosition(game));
     const engineSnapshots = game.analysis.snapshots.filter((snapshot) => snapshot.positionKey === positionKey);
     if (engineSnapshots.length === 0) return;
-    return { engineSnapshots: engineSnapshots.map((snapshot) => cloneAnalysisSnapshotForRead(snapshot)) };
+    return { engineSnapshots };
   }
   async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord): Promise<void> {
     if (game.analysis.snapshots.some((snapshot) => snapshot.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);

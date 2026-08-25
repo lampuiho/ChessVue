@@ -63,12 +63,18 @@ Each entry must define:
 - Theme projection, session-route coercion, engine-position mapping, and workspace hydration remain owner-private helpers inside their stores or services unless they become genuinely shared across multiple owners with meaningful behaviour beyond local composition.
 
 ## Chess Structure Support
+### Lazy Derived-Cache Contract
+- `GameRuleUtility.getCheckState(...)` and `isStandardInitialPosition(...)` may initialise `IBoardPosition.$`; `MoveNotationUtility.buildFen(...)`, `getSan(...)`, and `getUci(...)` may initialise position or move `$` metadata.
+- These functions are deterministic query APIs with read-through runtime caches. Callers may treat the returned domain value as a read, but contracts and reviews must account for the local `$` write.
+- The cache is colocated with each utility derivation because utilities cannot fetch through a same-layer service without violating the layer model. Centralising it also avoids repeated calculation and prevents protocol, presentation, and rule callers from implementing separate lookup caches.
+- Cached values are never persisted. Any effective position mutation clears the position runtime metadata before another query, while persisted move facts are immutable after a move enters history, so SAN and UCI remain valid for that move.
+
 ### GameRuleUtility
 - Purpose: own pure chess-rule queries, detailed-move generation, initial-position handling, and board-rule game-result resolution.
 - Location: `src/utility/chess/GameRuleUtility.ts`.
 - Touched contract models: `IBoardPosition`, `IMoveRaw`, `IMove`, `CheckState`, `ResultState`, and `ResultReason`.
 - Allowed importers: `GamesStore`, concrete engine clients, notation consumers, and chess-rule tests.
-- Classification: `pure` apart from optional derived cache writes under `IBoardPosition.$`.
+- Classification: `deterministic read-through cache`; queries do not change persisted chess state but may populate derived values under `IBoardPosition.$`.
 - Validation or failure semantics: illegal raw moves and unresolved promotions throw before returning detailed moves. Private copied-position simulation is used only for legality, check state, and move-sequence enrichment; no position-transition API is exposed.
 
 ### MoveNotationUtility
@@ -76,7 +82,7 @@ Each entry must define:
 - Location: `src/utility/chess/MoveNotationUtility.ts`.
 - Touched contract models: `IMoveRaw`, `IMove`, and `IMoveRuntime`.
 - Allowed importers: stores, UCI protocol utilities, presentation readers, and notation tests.
-- Classification: `pure` apart from notation cache writes under `IMoveRaw.$`.
+- Classification: `deterministic read-through cache`; notation queries may populate `IMoveRaw.$` so repeated consumers reuse the derived string.
 - Validation or failure semantics: SAN accepts detailed moves only; UCI accepts the protocol-neutral raw shape inherited by detailed moves.
 
 ### ChessBoardUtility

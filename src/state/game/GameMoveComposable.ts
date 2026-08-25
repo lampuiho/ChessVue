@@ -130,11 +130,9 @@ export function useGameMove(dependency: IGameMoveDependency) {
   async function takeBack(game: IGame, moveCount: number = 1): Promise<void> {
     status.assertNotPausedForAction(game, 'Takeback');
     const targetNode = position.getRenderedNode(game);
-    const nextMoveTree = MoveHistoryService.takeBack(targetNode, moveCount);
-    const fallbackNode = targetNode.$?.parent ? position.getNodeAtPath(nextMoveTree, position.getPathToNode(targetNode.$.parent)) : nextMoveTree.root;
+    const fallbackNode = MoveHistoryService.takeBack(targetNode, moveCount);
     const fallbackPath = position.getPathToNode(fallbackNode);
     const hasLivePath = game.livePath !== undefined;
-    position.replaceMoveTree(game, nextMoveTree);
     position.setRenderedPath(game, fallbackPath, { node: fallbackNode });
     if (hasLivePath) position.setLivePath(game, fallbackPath, { node: fallbackNode });
     game.resultState = ResultState.Ongoing;

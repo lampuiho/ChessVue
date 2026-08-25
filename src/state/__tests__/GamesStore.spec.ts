@@ -41,7 +41,6 @@ import {
   createMoveTree,
   createSettingsSnapshot,
   emitAnalysisUpdate,
-  getRootNode,
   randomDelay,
   resolveWithRandomDelay,
   stripRuntimeMetadata,
@@ -263,19 +262,19 @@ const domain = {
       parentNode.children.forEach((candidate) => {
         candidate.kind = MoveNodeKind.Live;
       });
-      return getRootNode(parentNode);
     }),
     pruneFutureMoves: vi.fn((node: IMoveNode) => {
-      node.children = [];
+      node.children.forEach((child) => child.$ = undefined);
+      node.children.length = 0;
       node.mainlineChildIndex = undefined;
-      return getRootNode(node);
     }),
     takeBack: vi.fn((targetNode: IMoveNode, moveCount: number) => {
       let retainedNode = targetNode;
       for (let index = 0; index < moveCount && retainedNode.$?.parent; index += 1) retainedNode = retainedNode.$.parent;
-      retainedNode.children = [];
+      retainedNode.children.forEach((child) => child.$ = undefined);
+      retainedNode.children.length = 0;
       retainedNode.mainlineChildIndex = undefined;
-      return { root: getRootNode(retainedNode) };
+      return retainedNode;
     }),
   },
   PlatformEventService: {
@@ -692,14 +691,19 @@ describe('useGamesStore', () => {
 
     await store.addAnalysisEngine(game, createEngineRecord('engine-d', 'Berserk'));
     const addedEngine = game.analysis.snapshots[1]!.assignedEngine;
-    emitAnalysisUpdate(analysisSubscriptions, addedEngine, {
+    const analysisUpdate: IEngineAnalysisUpdate = {
       position: structuredClone(game.rootPosition),
       positionKey: domain.PositionIdentityService.buildPositionKey(game.rootPosition),
       bestMove: createMove(PlayerColour.White),
       lines: [{ depth: 12, pv: [createMove(PlayerColour.White)], scoreCp: 32 }],
       isFinal: false,
-    });
-    expect(store.getVisibleAnalysis(game)?.engineSnapshots[1]?.bestMove?.from).toBe(12);
+    };
+    emitAnalysisUpdate(analysisSubscriptions, addedEngine, analysisUpdate);
+    const addedSnapshot = game.analysis.snapshots[1]!;
+    expect(addedSnapshot.bestMove).toBe(analysisUpdate.bestMove);
+    expect(addedSnapshot.lines).toBe(analysisUpdate.lines);
+    expect(store.getVisibleAnalysis(game)?.engineSnapshots[1]).toBe(addedSnapshot);
+    expect(addedSnapshot.bestMove?.from).toBe(12);
 
     await store.stopAnalysis(game, 1);
     expect(game.analysis.snapshots[1]!.isComplete).toBe(true);

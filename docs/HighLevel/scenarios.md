@@ -507,7 +507,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.deleteChessPiece`
   - `GamesStore.clearBoard`
   - `GamesStore.resetBoardToStartPosition`
-  - `MoveHistoryService.replaceBoardRoot`
+  - `GameMoveComposable.replaceWithAnalysisRoot`
   - `SavedGamesStore.saveGame`
   - `GamesStore.refreshAnalysis`
 

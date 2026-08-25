@@ -15,7 +15,7 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 
 The concrete `EngineClient` may refine `engine.$` with a private session. Its UCI session records the protocol state, game boundary, root and active positions, expected ponder move, process listener, and deferred state or player-move completion.
 
-`GamesStore` does not mutate either lower-layer runtime directly. It calls `EngineRuntimeService` and receives protocol-neutral analysis updates or `IMove` results.
+`GamesStore` does not mutate either lower-layer runtime directly. It calls `EngineRuntimeService` and receives protocol-neutral analysis updates or `IMove` results. Emitted analysis payloads are readonly after callback dispatch, so the store may retain their result references without defensive cloning.
 
 ## Analysis Runtime
 

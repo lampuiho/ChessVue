@@ -74,7 +74,8 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `Chessboard.chessPieceToggled` / `chessPieceDeleted` / `boardCleared` / `boardResetToStartPosition` |
 | --- |
 | `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
-| `MoveHistoryService.replaceBoardRoot` |
+| `MoveApplicationService.togglePiece` / `deletePiece` / `clearBoard`, or `GameRuleUtility.createInitialBoardPosition` |
+| `GameMoveComposable.replaceWithAnalysisRoot` when a new root is required |
 
 | `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
 | --- |
@@ -82,7 +83,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | mutate the rendered position board |
 | `GamesStore._completeBoardMutation` |
 
-| `MoveHistoryService.replaceBoardRoot` |
+| `GameMoveComposable.replaceWithAnalysisRoot` |
 | --- |
 
 #### Flow C - Apply Later Direct Board Edits In The Same Session
@@ -123,7 +124,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
-- Process note: because board editing is restricted to non-live analysis, the first effective piece mutation updates the rendered position, promotes it through `MoveHistoryService.replaceBoardRoot(...)`, and clears prior history. Later effective edits mutate that same root in place. Deleting an empty square or clearing an already empty board is a no-op and does not clear history.
+- Process note: because board editing is restricted to non-live analysis, the first effective piece mutation updates the rendered position and `GameMoveComposable.replaceWithAnalysisRoot(...)` promotes it while creating the genuinely new root-only history. Later effective edits mutate that same root in place. Deleting an empty square or clearing an already empty board is a no-op and does not clear history.
 - Control note: the same board-edit control toggles the mode on and off. Leaving board edit does not perform a second confirm step; it only ends the direct-edit session and allows analysis refresh to resume.
 - Requirement verification: `Pass`. The public surface covers edit entry, direct board mutation, first-edit history clearing, analysis suspension during edit, and analysis refresh after board edit ends.
 

@@ -94,11 +94,11 @@ interface IEngineAnalysisRequest {
 }
 
 interface IEngineAnalysisUpdate {
-  position: IBoardPosition
-  positionKey: string
-  bestMove?: IMove
-  lines: IAnalysisLine[]
-  isFinal: boolean
+  readonly position: DeepReadonly<IBoardPosition>
+  readonly positionKey: string
+  readonly bestMove?: DeepReadonly<IMove>
+  readonly lines: readonly DeepReadonly<IAnalysisLine>[]
+  readonly isFinal: boolean
 }
 
 ```
@@ -137,6 +137,6 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `EngineRuntimeService` relies on the shared minimum runtime fields only. It does not need to refine `IAssignedEngine.$` for its documented ownership.
 - The baseline runtime design uses explicit object-attached fields for shared runtime state and explicit object-attached fields for client-private runtime state. It does not rely on hidden side tables.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
-- Purpose-level analysis, player-turn, and ponder calls receive the canonical `IGame`. The concrete engine client derives the required highlighted or live path, current position, and protocol-specific new-game boundary internally without an intermediate projection contract.
-- `IEngineAnalysisUpdate` is an app-facing streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes.
+- Purpose-level analysis, player-turn, and ponder calls receive the canonical `IGame`. The concrete engine client derives the required rendered or live path, current position, and protocol-specific new-game boundary internally without an intermediate projection contract.
+- `IEngineAnalysisUpdate` is an app-facing readonly streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes. The client allocates a new ordered lines array for each emission and does not mutate an emitted payload afterwards, allowing `GamesStore` to retain its result references.
 - `executablePath` and `options` are user-managed profile values and are not strictly validated at settings-edit time beyond being storable in the profile record.

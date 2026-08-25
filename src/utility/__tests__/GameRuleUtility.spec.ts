@@ -521,6 +521,7 @@ describe('GameRuleUtility', () => {
 
       expect(resolveGameResult(position)).toEqual({ resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved });
       expect(getCheckState(position)).toBeUndefined();
+      expect(position.$?.isCheckStateCached).toBe(true);
     });
 
     it('draws for bare kings and a lone minor piece', () => {

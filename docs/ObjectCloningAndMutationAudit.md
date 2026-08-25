@@ -7,7 +7,7 @@ This note preserves the findings from the August 2026 cloning pass so the remain
 - `createGameRuntime()` is the only runtime constructor and creates an empty runtime without traversing the move tree.
 - `renderedNode`, `liveNode`, `renderedPosition`, and `livePosition` are optional derived caches only. The authoritative move tree and paths remain exclusively on `IGame`.
 - `MovePath` is readonly. Production path changes go through `setRenderedPath` and `setLivePath`, which replace the path and seed only node or position values already known by the caller.
-- `replaceMoveTree` is the explicit take-back and analysis-root boundary and invalidates all four derived caches.
+- `replaceMoveTree` is reserved for a genuine analysis-root replacement and invalidates all four derived caches. Take-back mutates the existing authoritative tree and updates selectors from its retained node.
 - `syncRuntimeNodeCache`, `syncMoveNodeHighlights`, and `buildGameRuntime` were removed. State-only transitions perform no selector work.
 - Position APIs accept `IGamePositionState`, while the low-level resolver accepts only `IMoveTree` and `MovePath`.
 - Removed the locally used `getRenderedPath`; runtime construction now follows `game.renderedPath` directly.
@@ -22,9 +22,12 @@ This note preserves the findings from the August 2026 cloning pass so the remain
 - Assigning a reusable player record to a game creates an explicit persisted player snapshot through `playerSchema`; runtime fields such as engine callbacks are discarded rather than cloned.
 - `getGame` and `listGames` expose the live store objects through deep-readonly observation contracts. Consumers do not receive defensive clones and cannot mutate those objects through the declared API.
 - `MoveApplicationService` documentation now states its mutation contract: `applyMove` and board edits mutate caller-owned positions, while `genPosition` is the explicit copied-position boundary.
+- `MoveHistoryService` mutation operations never construct replacement tree wrappers. Add operations return their attached node, take-back returns its retained node, and rewrite or prune return nothing; the one authoritative `IMoveTree` remains installed on the game.
+- Utility-populated `checkState`, standard-root, FEN, SAN, and UCI runtime caches are documented as deterministic read-through caches. Their local `$` writes avoid repeated derivation while respecting the utility and service layer boundary, and effective position mutation invalidates position caches.
+- Analysis update payloads are readonly after dispatch. Stored snapshots retain the emitted `bestMove` and ordered `lines` references, and the visible analysis projection returns deep-readonly references instead of cloning the snapshot graph.
 - Move-flow tests assert exactly one board application and one mainline-node insertion for local, mixed local/engine, and engine-only games.
 
-Move commit, analysis branch creation, navigation, and returning to live play already know the destination node, so they seed it while setting the path. Take-back and `replaceWithAnalysisRoot` replace the tree and invalidate all four caches. Board-edit or gameplay state transitions that retain the same paths do no node-cache work.
+Move commit, analysis branch creation, navigation, and returning to live play already know the destination node, so they seed it while setting the path. Take-back prunes the existing tree and seeds the retained node while setting the paths; `replaceWithAnalysisRoot` is the only workflow here that creates and installs a new tree. Board-edit or gameplay state transitions that retain the same paths do no node-cache work.
 
 Empty runtime creation and lazy selector caches are compatible with the current model because production node access is routed through `GamePositionComposable`. Deserialisation validates both persistent paths before hydration, and hydration restores parent links before game actions can resolve nodes.
 
@@ -59,10 +62,4 @@ The following copies should not be removed mechanically:
 
 Avoid generic `structuredClone` when player, engine, or modal data may contain runtime objects: callbacks and similar function values cannot be structured-cloned. Use the persisted schema for a required snapshot, or transfer ownership when no snapshot boundary exists.
 
-## Remaining ownership and mutation-contract review
-
-- `MoveHistoryService` operations such as add, take-back, rewrite, and prune mutate supplied nodes but return wrapper objects inconsistently.
-- Cache-looking reads including FEN, SAN, UCI, check-state, and initial-position helpers populate `$` metadata. Either name or document that cache mutation, or move it behind an explicit cache owner.
-- Analysis update snapshots may be transferable instead of cloned if the producer contract is readonly or ownership-transferring.
-
-`TimeControlService`, `EngineRuntimeService`, and `MoveApplicationService` now provide clear examples because their mutation behaviour is stated near the mutating operations.
+`TimeControlService`, `EngineRuntimeService`, `MoveApplicationService`, and `MoveHistoryService` now state their mutation behaviour near the mutating operations.

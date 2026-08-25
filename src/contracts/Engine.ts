@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { IBoardPosition } from './ChessboardState'
 import type { IMove } from './Move'
 import type { IAnalysisLine } from './Analysis'
+import type { DeepReadonly } from './Readonly'
 
 export type ProcessHandle = string
 export const enum EngineProtocol {
@@ -71,11 +72,11 @@ export interface IEngineAnalysisRequest {
   searchMode: EngineAnalysisSearchMode
 }
 export interface IEngineAnalysisUpdate {
-  position: IBoardPosition
-  positionKey: string
-  bestMove?: IMove
-  lines: IAnalysisLine[]
-  isFinal: boolean
+  readonly position: DeepReadonly<IBoardPosition>
+  readonly positionKey: string
+  readonly bestMove?: DeepReadonly<IMove>
+  readonly lines: readonly DeepReadonly<IAnalysisLine>[]
+  readonly isFinal: boolean
 }
 export const engineProtocolSchema = z.enum(engineProtocols)
 export const engineClientTypeSchema = z.enum(engineClientTypes)

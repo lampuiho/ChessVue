@@ -21,6 +21,7 @@ export interface ICastlingRook {
 }
 export interface IBoardPositionRuntime {
   checkState?: CheckState;
+  isCheckStateCached?: boolean;
   isStandardInitialPosition?: boolean;
   fen?: string;
 }

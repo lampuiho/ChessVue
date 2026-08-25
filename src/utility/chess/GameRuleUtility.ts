@@ -509,10 +509,13 @@ export function requiresPromotionSelection(position: IBoardPosition, move: IMove
     && boardIdToCoords(move.to).rank === getPromotionRank(piece.colour)
     && move.promotionPiece === undefined;
 }
+/** Reads check state through `position.$`; the first lookup populates the runtime cache, including a no-check result. */
 export function getCheckState(position: IBoardPosition): CheckState | undefined {
-  if (position.$?.checkState !== undefined) return position.$.checkState;
+  if (position.$?.isCheckStateCached) return position.$.checkState;
   const checkState = _calculateCheckState(position);
-  if (checkState !== undefined) (position.$ ??= {}).checkState = checkState;
+  const runtime = position.$ ??= {};
+  runtime.checkState = checkState;
+  runtime.isCheckStateCached = true;
   return checkState;
 }
 export function genNextPosition(position: IBoardPosition, move: IMoveCandidate): IBoardPosition {
@@ -569,6 +572,7 @@ export function resolveGameResult(position: IBoardPosition): { resultState: Resu
 export function createInitialBoardPosition(): IBoardPosition {
   return { board: [...standardInitialBoard], sideToMove: PlayerColour.White, castlingAvailability: { whiteKingSide: true, whiteQueenSide: true, blackKingSide: true, blackQueenSide: true }, halfMoveClock: 0, fullMoveNumber: 1, $: { isStandardInitialPosition: true } };
 }
+/** Reads standard-root identity through `position.$`, populating the derived runtime cache on first lookup. */
 export function isStandardInitialPosition(position: IBoardPosition): boolean {
   if (position.$?.isStandardInitialPosition !== undefined) return position.$.isStandardInitialPosition;
   function _computeIsStandardInitialPosition(position: IBoardPosition): boolean {

@@ -286,7 +286,7 @@ export function createOutgoingDrawOffer(colour: PlayerColour): IGame['drawOfferS
   };
 }
 export function emitAnalysisUpdate(registry: Map<IAssignedEngine, (update: IEngineAnalysisUpdate) => void>, engine: IAssignedEngine, update: IEngineAnalysisUpdate): void {
-  registry.get(engine)?.(structuredClone(update));
+  registry.get(engine)?.(update);
 }
 export function stripRuntimeMetadata<T>(input: T): T {
   if (Array.isArray(input)) return input.map((item) => stripRuntimeMetadata(item)) as T;

@@ -72,18 +72,21 @@ export function getPieceLetter(kind: PieceKind): string {
   if (kind === PieceKind.Knight) return 'N';
   return 'P';
 }
+/** Returns FEN through a read-through `position.$` cache so protocol consumers do not rebuild it repeatedly. */
 export function buildFen(position: IBoardPosition): string {
   if (position.$?.fen !== undefined) return position.$.fen;
   const fen = buildFenValue(position);
   (position.$ ??= {}).fen = fen;
   return fen;
 }
+/** Returns SAN through a read-through `move.$` cache shared by notation consumers. */
 export function getSan(move: IMove): string {
   if (move.$?.san !== undefined) return move.$.san;
   const san = buildSan(move);
   (move.$ ??= {}).san = san;
   return san;
 }
+/** Returns UCI notation through a read-through `move.$` cache shared by protocol consumers. */
 export function getUci(move: IMoveRaw): string {
   if (move.$?.uci !== undefined) return move.$.uci;
   const promotion = move.promotionPiece === PieceKind.Queen ? 'q' : move.promotionPiece === PieceKind.Rook ? 'r' : move.promotionPiece === PieceKind.Bishop ? 'b' : move.promotionPiece === PieceKind.Knight ? 'n' : '';

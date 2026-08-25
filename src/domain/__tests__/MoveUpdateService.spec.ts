@@ -63,10 +63,10 @@ describe('MoveHistoryService', () => {
     MoveHistoryService.addAnalysisMove(tree.root, sampleMove)
     const secondMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
     MoveHistoryService.addAnalysisMove(tree.root, secondMove)
-    const rewritten = MoveHistoryService.rewriteMainline(tree.root, tree.root.children[1]!)
+    MoveHistoryService.rewriteMainline(tree.root, tree.root.children[1]!)
 
-    expect(rewritten.root.mainlineChildIndex).toBe(1)
-    expect(rewritten.root.children[1]!.kind).toBe(MoveNodeKind.Live)
+    expect(tree.root.mainlineChildIndex).toBe(1)
+    expect(tree.root.children[1]!.kind).toBe(MoveNodeKind.Live)
   })
 
   it('takes back from the current mainline leaf and prunes future moves', () => {
@@ -79,10 +79,29 @@ describe('MoveHistoryService', () => {
     MoveHistoryService.addMainlineMove(tree.root, sampleMove, clockSnapshot)
     const secondMove: IMove = { ...sampleMove, from: boardId(4, 6), to: boardId(4, 4), movingColour: PlayerColour.Black }
     MoveHistoryService.addMainlineMove(tree.root.children[0]!, secondMove, clockSnapshot)
-    const takenBack = MoveHistoryService.takeBack(tree.root.children[0]!.children[0]!, 1)
+    const retainedNode = MoveHistoryService.takeBack(tree.root.children[0]!.children[0]!, 1)
 
-    expect(getNode(takenBack, [0]).mainlineChildIndex).toBeUndefined()
-    expect(getNode(takenBack, [0]).children).toHaveLength(0)
+    expect(retainedNode).toBe(tree.root.children[0])
+    expect(tree.root.children[0]!.mainlineChildIndex).toBeUndefined()
+    expect(tree.root.children[0]!.children).toHaveLength(0)
+  })
+
+  it('takes back multiple moves without replacing the tree or retained children array', () => {
+    const tree = MoveHistoryService.createMoveTree()
+    const firstNode = MoveHistoryService.addMainlineMove(tree.root, sampleMove)
+    const retainedChildren = firstNode.children
+    const secondMove: IMove = { ...sampleMove, from: boardId(4, 6), to: boardId(4, 4), movingColour: PlayerColour.Black }
+    const secondNode = MoveHistoryService.addMainlineMove(firstNode, secondMove)
+    const thirdMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
+    const thirdNode = MoveHistoryService.addMainlineMove(secondNode, thirdMove)
+
+    const retainedNode = MoveHistoryService.takeBack(thirdNode, 2)
+
+    expect(retainedNode).toBe(firstNode)
+    expect(tree.root.children[0]).toBe(firstNode)
+    expect(firstNode.children).toBe(retainedChildren)
+    expect(firstNode.children).toHaveLength(0)
+    expect(secondNode.$).toBeUndefined()
   })
 
   describe('getMoveSequence', () => {

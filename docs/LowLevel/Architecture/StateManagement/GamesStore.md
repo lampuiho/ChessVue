@@ -123,7 +123,7 @@ The persisted `IGame` shape remains unchanged. Runtime fields also retain their 
 - Piece manipulation targets the currently rendered position. The first effective mutation promotes that position to the root and clears history; later mutations update the same root and board array in place. Each effective square mutation invalidates `IBoardPosition.$.isStandardInitialPosition` at the mutation point.
 - `applyBoardEdit(...)` remains the full-position replacement boundary and does not manipulate pieces or alter runtime metadata on the supplied position.
 - After `addMainlineMove` or `addAnalysisMove`, the store derives the new child lineage from the returned child's hydrated parent links and synchronises the runtime node caches after committing the relevant path.
-- After `takeBack`, `rewriteMainline`, or latest-node analysis cleanup through `pruneFutureMoves`, the store derives the surviving live and highlighted lineage from the pre-mutation selected node and the documented coercion rules, then reacquires the corresponding hydrated nodes from the returned tree.
+- `MoveHistoryService` mutates the one authoritative tree in place. After `takeBack`, the returned retained node becomes the rendered and live selection as applicable; rewrite and pruning retain existing node handles and never cause `GamesStore` to install a wrapper tree.
 
 ## Dependencies
 - `GamePositionComposable`

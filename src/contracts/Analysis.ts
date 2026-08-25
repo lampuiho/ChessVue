@@ -4,6 +4,7 @@ import { assignedEngineSchema, type IAssignedEngine } from './Engine'
 import { moveSchema, type IMove } from './Move'
 import { AnalysisTimestamp } from '@/utility/date'
 import { utcTimestampSchema } from './UtcTimestampSchema'
+import type { DeepReadonly } from './Readonly'
 
 export interface IAnalysisLineRuntime {
   reference: number;
@@ -12,7 +13,7 @@ export interface IAnalysisLine {
   depth: number
   scoreCp?: number
   scoreMate?: number
-  pv: IMove[]
+  pv: readonly IMove[]
   $?: IAnalysisLineRuntime;
 }
 export interface IAnalysisSnapshot {
@@ -20,14 +21,15 @@ export interface IAnalysisSnapshot {
   positionKey: string
   updatedAt: AnalysisTimestamp
   bestMove?: IMove
-  lines: IAnalysisLine[]
+  lines: readonly IAnalysisLine[]
   isComplete: boolean
 }
 export interface IGameAnalysis {
   snapshots: IAnalysisSnapshot[]
 }
+export type ReadonlyAnalysisSnapshot = DeepReadonly<IAnalysisSnapshot>;
 export interface IVisibleAnalysisSnapshot {
-  engineSnapshots: IAnalysisSnapshot[]
+  readonly engineSnapshots: readonly ReadonlyAnalysisSnapshot[]
 }
 export const analysisLineSchema = z.object({
   depth: z.number().int().min(0),
