@@ -87,7 +87,8 @@ describe('UserSettingService', () => {
     expect(readTextFile).toHaveBeenCalledTimes(1);
     expect(settings.appearance.themeMode).toBe(ThemeMode.System);
     settings.appearance.themeMode = ThemeMode.Dark;
-    expect(UserSettingService.getSettings().appearance.themeMode).toBe(ThemeMode.System);
+    expect(UserSettingService.getSettings()).toBe(settings);
+    expect(UserSettingService.getSettings().appearance.themeMode).toBe(ThemeMode.Dark);
   });
 
   it('serialises accepted settings through the mocked platform storage adapter', async () => {

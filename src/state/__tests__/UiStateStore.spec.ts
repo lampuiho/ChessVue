@@ -97,6 +97,8 @@ describe('useUiStateStore', () => {
     store.togglePanel('analysis', false);
     store.setSectionCollapsed('history', true);
     store.setAnalysisEngineExpanded(1, false);
+    const expandedByIndex = store.getAnalysisEngineExpandedByIndex();
+    expect(store.getAnalysisEngineExpandedByIndex()).toBe(expandedByIndex);
     store.showModal({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
     expect(store.getModalState()).toEqual({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
     store.hideModal();

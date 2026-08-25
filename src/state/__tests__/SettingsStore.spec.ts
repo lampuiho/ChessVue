@@ -55,7 +55,9 @@ describe('useSettingsStore', () => {
     const accepted = await store.getSettings();
 
     expect(accepted.analysis.engineInventory).toHaveLength(2);
-    expect((await store.getAppearanceProjection()).resolvedThemeMode).toBe(ResolvedThemeMode.Light);
+    const appearanceProjection = await store.getAppearanceProjection();
+    expect(appearanceProjection.resolvedThemeMode).toBe(ResolvedThemeMode.Light);
+    expect(await store.getAppearanceProjection()).toBe(appearanceProjection);
     store.updateSettings({ appearance: { themeMode: ThemeMode.Dark } as ISettingsSnapshot['appearance'] });
     expect(store.hasPendingChanges()).toBe(true);
     await store.applySettings();

@@ -12,12 +12,15 @@ describe('useGamePosition', () => {
     game.livePath = [0, 0];
     game.renderedPath = [0];
     game.$ = undefined;
+    const root = game.moveTree.root;
     const position = useGamePosition();
 
     position.hydrateGame(game);
 
     const renderedNode = position.getCurrentNode(game);
     const liveNode = position.getLiveNode(game);
+    expect(game.moveTree.root).toBe(root);
+    expect(renderedNode).toBe(child);
     expect(position.getPathToNode(renderedNode)).toEqual([0]);
     expect(position.getPathToNode(liveNode)).toEqual([0, 0]);
     expect(renderedNode.$?.parent).toBe(game.moveTree.root);

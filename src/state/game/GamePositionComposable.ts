@@ -11,12 +11,9 @@ export function useGamePosition() {
     }
     return currentNode;
   }
-  function getRenderedPath(game: IGame): MovePath {
-    return [...game.renderedPath];
-  }
   function buildGameRuntime(game: IGame): IGameRuntime {
     return {
-      renderedNode: getRuntimeNodeOfPath(game.moveTree, getRenderedPath(game)),
+      renderedNode: getRuntimeNodeOfPath(game.moveTree, game.renderedPath),
       liveNode: game.livePath ? getRuntimeNodeOfPath(game.moveTree, game.livePath) : undefined,
     };
   }
@@ -70,17 +67,9 @@ export function useGamePosition() {
     return prefix.every((segment, index) => candidate[index] === segment);
   }
   function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): IMoveNode {
-    const hydratedNode: IMoveNode = {
-      kind: node.kind,
-      move: node.move ? structuredClone(node.move) : undefined,
-      clockSnapshot: node.clockSnapshot ? structuredClone(node.clockSnapshot) : undefined,
-      plyIndex: node.plyIndex,
-      mainlineChildIndex: node.mainlineChildIndex,
-      children: [],
-      $: parent ? { parent } : undefined,
-    };
-    hydratedNode.children = node.children.map((child) => hydrateMoveNode(child, hydratedNode));
-    return hydratedNode;
+    node.$ = parent ? { parent } : undefined;
+    node.children.forEach((child) => hydrateMoveNode(child, node));
+    return node;
   }
   function getCurrentNodeOfPath(tree: IGame['moveTree'], path: MovePath): IMoveNode {
     return getRuntimeNodeOfPath(tree, path);
@@ -103,7 +92,7 @@ export function useGamePosition() {
     return currentNode === tree.root;
   }
   function hydrateGame(game: IGame): IGame {
-    game.moveTree = { root: hydrateMoveNode(game.moveTree.root) };
+    hydrateMoveNode(game.moveTree.root);
     game.$ = createGameRuntime(game);
     syncMoveNodeHighlights(game);
     return game;

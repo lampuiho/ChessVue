@@ -181,7 +181,7 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     _modalState.value = undefined;
   }
   function getAnalysisEngineExpandedByIndex(): boolean[] {
-    return [..._getLayoutState().analysisEngineExpandedByIndex];
+    return _getMutableLayoutState().analysisEngineExpandedByIndex;
   }
   function setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void {
     const currentLayout = _getMutableLayoutState();

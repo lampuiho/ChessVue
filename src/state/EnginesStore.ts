@@ -4,7 +4,7 @@ import type { IEngineRecord } from '@/contracts';
 import { UserSettingService } from '@/domain';
 
 function getInventory(): IEngineRecord[] {
-  return structuredClone(UserSettingService.getSettings().analysis.engineInventory);
+  return UserSettingService.getSettings().analysis.engineInventory;
 }
 
 export const useEnginesStore = defineStore('enginesStore', () => {

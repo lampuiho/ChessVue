@@ -89,17 +89,6 @@ function _migrateGame(input: unknown): IGame {
   _validateGame(game);
   return game;
 }
-function _stripRuntimeMetadata<T>(input: T): T {
-  if (Array.isArray(input)) return input.map((item) => _stripRuntimeMetadata(item)) as T;
-  if (input instanceof Date) return input;
-  if (typeof input !== 'object' || input === null) return input;
-  const output: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (key === '$') continue;
-    output[key] = _stripRuntimeMetadata(value);
-  }
-  return output as T;
-}
 function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
 }
@@ -158,7 +147,7 @@ export const SerializationService = {
     return usePlatformService().getStorageAdapter().showSaveDialog(suggestedPath);
   },
   serialiseSettings(snapshot: ISettingsSnapshot): string {
-    const persistedSnapshot = _stripRuntimeMetadata(_parseWithSchema('Settings', (value) => settingsSnapshotSchema.parse(value), snapshot));
+    const persistedSnapshot = _parseWithSchema('Settings', (value) => settingsSnapshotSchema.parse(value), snapshot);
     return JSON.stringify(persistedSnapshot, null, 2);
   },
   deserialiseSettings(raw: string): ISettingsSnapshot {
@@ -166,21 +155,21 @@ export const SerializationService = {
   },
   serialiseGameSession(snapshot: IGameSessionSnapshot): string {
     _validateGameSession(snapshot);
-    const persistedSnapshot = _stripRuntimeMetadata(_parseWithSchema('Game session', (value) => gameSessionSnapshotSchema.parse(value), snapshot));
+    const persistedSnapshot = _parseWithSchema('Game session', (value) => gameSessionSnapshotSchema.parse(value), snapshot);
     return JSON.stringify(persistedSnapshot, null, 2);
   },
   deserialiseGameSession(raw: string): IGameSessionSnapshot {
     return this.migrateGameSessionSnapshot(_parseJson(raw));
   },
   serialiseUiLayoutState(state: IUiLayoutState): string {
-    const persistedState = _stripRuntimeMetadata(_parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), state));
+    const persistedState = _parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), state);
     return JSON.stringify(persistedState, null, 2);
   },
   deserialiseUiLayoutState(raw: string): IUiLayoutState {
     return this.migrateUiLayoutState(_parseJson(raw));
   },
   serialiseGame(game: IGame): string {
-    const persistedGame = _parseWithSchema('Saved game', (value) => gameSchema.parse(value), _stripRuntimeMetadata(game));
+    const persistedGame = _parseWithSchema('Saved game', (value) => gameSchema.parse(value), game);
     _validateGame(persistedGame);
     return JSON.stringify(persistedGame, null, 2);
   },

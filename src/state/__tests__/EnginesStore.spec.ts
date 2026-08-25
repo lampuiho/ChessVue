@@ -24,6 +24,7 @@ describe('useEnginesStore', () => {
     const store = useEnginesStore();
     const engines = store.listConfiguredEngines();
 
+    expect(engines).toBe(domain.UserSettingService.getSettings().analysis.engineInventory);
     expect(engines.map((engine) => engine.id)).toEqual(['engine-a', 'engine-b']);
     expect(store.getEngine('engine-a')?.displayName).toBe('Stockfish');
     expect(() => store.validateAnalysisSelection(['engine-a', 'engine-a'])).toThrow('duplicates');
