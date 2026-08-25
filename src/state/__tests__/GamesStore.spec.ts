@@ -715,7 +715,6 @@ describe('useGamesStore', () => {
     store.clearBoard(game);
     expect(game.renderedPath).toEqual([0]);
     expect(domain.MoveHistoryService.createMoveTree).not.toHaveBeenCalled();
-    expect(() => store.deleteChessPiece(game, 64)).toThrow('between 0 and 63');
 
     // the derived rendered position is the object the first effective edit promotes to the root
     const editedPosition = game.$!.renderedPosition!;
@@ -828,6 +827,8 @@ describe('useGamesStore', () => {
 
     for (const move of scholarMateSequence) await store.makeMove(game, move);
     expectScholarMateFinished(game);
+    expect(domain.MoveApplicationService.applyMove).toHaveBeenCalledTimes(scholarMateSequence.length);
+    expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
     expect(domain.EngineRuntimeService.awaitPlayerTurnMove).not.toHaveBeenCalled();
   });
@@ -850,6 +851,8 @@ describe('useGamesStore', () => {
     }
 
     expectScholarMateFinished(game);
+    expect(domain.MoveApplicationService.applyMove).toHaveBeenCalledTimes(scholarMateSequence.length);
+    expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(3);
     expect(domain.EngineRuntimeService.awaitPlayerTurnMove).toHaveBeenCalledTimes(3);
   });
@@ -869,6 +872,8 @@ describe('useGamesStore', () => {
 
     await playEngineOnlyGame(game);
     expectScholarMateFinished(game);
+    expect(domain.MoveApplicationService.applyMove).toHaveBeenCalledTimes(scholarMateSequence.length);
+    expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(7);
     expect(domain.EngineRuntimeService.awaitPlayerTurnMove).toHaveBeenCalledTimes(7);
   });

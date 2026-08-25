@@ -11,6 +11,7 @@ interface IGameBoardEditDependency {
   status: GameStatusComposable;
   analysis: GameAnalysisComposable;
   move: GameMoveComposable;
+  // game persistent data touched event (internally updating update time)
   touchGame: (game: IGame) => void;
 }
 
@@ -19,9 +20,13 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
   function assertBoardEditState(game: IGame): void {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board manipulation is only allowed while board edit mode is active.');
   }
+  /**
+   * Board edits mutate in place. The first effective edit to a non-root rendered position promotes it
+   * to the new board root and clears prior history; later edits target that root directly.
+   */
   function applyEdit(game: IGame, edit: (boardPosition: IBoardPosition) => boolean): void {
-    const renderedPosition = position.getRenderedPosition(game);
-    if (!edit(renderedPosition)) return;
+    const renderedPosition = game.renderedPath.length === 0 ? game.rootPosition : position.getRenderedPosition(game);
+    if (!edit(renderedPosition)) return; // nothing changed, so prior history survives
     if (renderedPosition !== game.rootPosition) {
       move.replaceWithAnalysisRoot(game, renderedPosition, GameState.BoardEdit);
       return;
@@ -29,14 +34,13 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;
     game.drawOfferState = undefined;
-    position.syncRuntimeNodeCache(game);
+    position.invalidateRenderedPosition(game);
     touchGame(game);
   }
   function enterBoardEdit(game: IGame): void {
     status.assertNotPausedForAction(game, 'Board edit entry');
     if (game.gameState === GameState.BoardEdit) {
       game.gameState = status.getAnalysisState(game.rootPosition.sideToMove);
-      position.syncRuntimeNodeCache(game);
       touchGame(game);
       void analysis.refreshAnalysisForGame(game);
       return;
@@ -44,7 +48,6 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     if (status.isLiveState(game.gameState) || status.isPausedState(game.gameState) || status.isAnyLiveAnalysisState(game.gameState)) return;
     void analysis.stopAnalysis(game);
     game.gameState = GameState.BoardEdit;
-    position.syncRuntimeNodeCache(game);
     touchGame(game);
   }
   function applyBoardEdit(game: IGame, boardRoot: IBoardPosition): void {

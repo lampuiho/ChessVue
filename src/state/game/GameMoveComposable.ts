@@ -41,14 +41,11 @@ export function useGameMove(dependency: IGameMoveDependency) {
     MoveApplicationService.applyMove(livePosition, move);
     const nextNodeIdx = parentNode.children.length;
     const nextNode = MoveHistoryService.addMainlineMove(parentNode, move, nextClockSnapshot);
-    game.livePath = position.getPathToNode(nextNode);
-    if (isLivePositionRendered) game.renderedPath = [...game.livePath];
-    else {
-      game.renderedPath.push(nextNodeIdx);
-      position.requireGameRuntime(game).renderedPosition = undefined;
-    }
+    const nextLivePath = position.getPathToNode(nextNode);
+    position.setLivePath(game, nextLivePath, { node: nextNode, position: livePosition });
+    if (isLivePositionRendered) position.setRenderedPath(game, nextLivePath, { node: nextNode, position: livePosition });
+    else position.setRenderedPath(game, [...game.renderedPath, nextNodeIdx]);
     game.clockSnapshot = nextClockSnapshot;
-    position.syncRuntimeNodeCache(game);
     status.updatePositionResult(game, livePosition);
     status.updateGameStateAfterPosition(game, livePosition.sideToMove);
     touchGame(game);
@@ -63,25 +60,20 @@ export function useGameMove(dependency: IGameMoveDependency) {
     commitLiveMove(game, move);
   }
   function advanceRenderedAnalysisBranch(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove): IBoardPosition {
-    const runtime = position.requireGameRuntime(game);
     let renderedPosition = parentPosition;
-    if (renderedPosition === runtime.livePosition) {
-      renderedPosition = MoveApplicationService.genPosition(renderedPosition, []);
-      runtime.renderedPosition = renderedPosition;
-    }
+    if (game.livePath !== undefined && renderedPosition === position.getLivePosition(game)) renderedPosition = MoveApplicationService.genPosition(renderedPosition, []);
     MoveApplicationService.applyMove(renderedPosition, move);
     const nextNode = MoveHistoryService.addAnalysisMove(parentNode, move);
-    game.renderedPath = position.getPathToNode(nextNode);
-    position.syncRuntimeNodeCache(game);
+    position.setRenderedPath(game, position.getPathToNode(nextNode), { node: nextNode, position: renderedPosition });
     return renderedPosition;
   }
   function commitLiveHistoryAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove, exitBehaviour: AnalysisBranchExitBehaviour): void {
     const renderedPosition = advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move);
     if (exitBehaviour === AnalysisBranchExitBehaviour.ReturnToLiveNode) {
-      game.renderedPath = [...game.livePath!];
-      position.requireGameRuntime(game).renderedPosition = position.getLivePosition(game);
-      position.syncRuntimeNodeCache(game);
-      game.gameState = status.getLiveState(position.getLivePosition(game).sideToMove);
+      const liveNode = position.getLiveNode(game);
+      const livePosition = position.getLivePosition(game);
+      position.setRenderedPath(game, game.livePath!, { node: liveNode, position: livePosition });
+      game.gameState = status.getLiveState(livePosition.sideToMove);
       touchGame(game);
       return;
     }
@@ -103,33 +95,33 @@ export function useGameMove(dependency: IGameMoveDependency) {
   function replaceWithAnalysisRoot(game: IGame, boardRoot: IBoardPosition, nextState: GameState): void {
     const nextClockSnapshot = clock.initialiseClockSnapshot(game.timeControl);
     game.rootPosition = boardRoot;
-    game.moveTree = MoveHistoryService.createMoveTree(nextClockSnapshot);
-    position.invalidateRuntimePositions(game);
-    game.renderedPath = [];
-    game.livePath = undefined;
+    const nextMoveTree = MoveHistoryService.createMoveTree(nextClockSnapshot);
+    position.replaceMoveTree(game, nextMoveTree);
+    position.setRenderedPath(game, [], { node: nextMoveTree.root });
+    position.setLivePath(game, undefined);
     game.clockSnapshot = nextClockSnapshot;
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;
     game.drawOfferState = undefined;
     playerTurn.clearPlayerTurnRuntime(game);
     game.gameState = nextState;
-    position.syncRuntimeNodeCache(game);
     touchGame(game);
   }
   async function makeMove(game: IGame, move: IMove): Promise<void> {
     status.assertMoveAllowed(game);
-    const parentNode = position.getCurrentNode(game);
+    if (status.isOngoingLiveGame(game) && status.isLiveState(game.gameState)) {
+      const runtime = position.requireGameRuntime(game);
+      if (!runtime.pendingPlayerTurnPromise || !runtime.pendingPlayerTurnHandlePromise) throw new ReferenceError(`turn started to allow make move for ${move.movingColour} but move request was not made`);
+      const pendingPlayerTurnHandle = runtime.pendingPlayerTurnHandlePromise;
+      runtime.pendingPlayerTurnPromise.resolve(move);
+      await pendingPlayerTurnHandle;
+      return;
+    }
+    const parentNode = position.getRenderedNode(game);
     const parentPosition = position.getRenderedPosition(game);
     if (status.isOngoingLiveGame(game) && status.isLiveHistoryReview(game)) {
       if (game.gameplayOptions.allowTakeback) commitHistoryRewriteMove(game, parentNode, move);
       else commitLiveHistoryAnalysisMove(game, parentNode, parentPosition, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
-      return;
-    }
-    if (status.isOngoingLiveGame(game) && status.isLiveState(game.gameState)) {
-      const runtime = position.requireGameRuntime(game);
-      if (!runtime.pendingPlayerTurnPromise || !runtime.pendingPlayerTurnHandlePromise) throw new ReferenceError(`turn started to allow make move for ${move.movingColour} but move request was not made`);
-      runtime.pendingPlayerTurnPromise.resolve(move);
-      await runtime.pendingPlayerTurnHandlePromise;
       return;
     }
     if (status.isOngoingLiveGame(game)) commitLiveAnalysisMove(game, parentNode, parentPosition, move);
@@ -137,16 +129,17 @@ export function useGameMove(dependency: IGameMoveDependency) {
   }
   async function takeBack(game: IGame, moveCount: number = 1): Promise<void> {
     status.assertNotPausedForAction(game, 'Takeback');
-    const targetNode = position.getCurrentNode(game);
-    game.moveTree = MoveHistoryService.takeBack(targetNode, moveCount);
-    const fallbackNode = targetNode.$?.parent ? position.getCurrentNodeOfPath(game.moveTree, position.getPathToNode(targetNode.$.parent)) : game.moveTree.root;
-    game.renderedPath = position.getPathToNode(fallbackNode);
-    if (game.livePath) game.livePath = game.renderedPath;
+    const targetNode = position.getRenderedNode(game);
+    const nextMoveTree = MoveHistoryService.takeBack(targetNode, moveCount);
+    const fallbackNode = targetNode.$?.parent ? position.getNodeAtPath(nextMoveTree, position.getPathToNode(targetNode.$.parent)) : nextMoveTree.root;
+    const fallbackPath = position.getPathToNode(fallbackNode);
+    const hasLivePath = game.livePath !== undefined;
+    position.replaceMoveTree(game, nextMoveTree);
+    position.setRenderedPath(game, fallbackPath, { node: fallbackNode });
+    if (hasLivePath) position.setLivePath(game, fallbackPath, { node: fallbackNode });
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;
     playerTurn.clearPlayerTurnRuntime(game);
-    position.invalidateRuntimePositions(game);
-    position.syncRuntimeNodeCache(game);
     status.updateGameStateAfterPosition(game, position.getRenderedPosition(game).sideToMove);
     touchGame(game);
     clock.refreshRuntimeRegistrations(game);
@@ -159,9 +152,8 @@ export function useGameMove(dependency: IGameMoveDependency) {
     const nextPath = position.getPathToNode(node);
     const isLiveNode = game.livePath !== undefined && position.pathsEqual(nextPath, game.livePath);
     const hasLivePath = game.livePath !== undefined;
-    game.renderedPath = nextPath;
-    position.requireGameRuntime(game).renderedPosition = isLiveNode ? position.getLivePosition(game) : undefined;
-    position.syncRuntimeNodeCache(game);
+    const renderedPosition = isLiveNode ? position.getLivePosition(game) : undefined;
+    position.setRenderedPath(game, nextPath, { node, position: renderedPosition });
     const renderedColour = position.getRenderedPosition(game).sideToMove;
     if (status.isLiveState(game.gameState) && hasLivePath) {
       game.gameState = isLiveNode ? status.getLiveState(renderedColour) : status.getLiveAnalysisState(position.getLivePosition(game).sideToMove, renderedColour);
@@ -179,25 +171,23 @@ export function useGameMove(dependency: IGameMoveDependency) {
     if (status.isLiveState(game.gameState)) {
       const liveNode = position.getLiveNode(game);
       await clock.pauseGame(game, PauseReason.Analysis);
-      game.renderedPath = position.getPathToNode(liveNode);
-      position.requireGameRuntime(game).renderedPosition = position.getLivePosition(game);
-      position.syncRuntimeNodeCache(game);
-      const liveColour = position.getLivePosition(game).sideToMove;
+      const livePosition = position.getLivePosition(game);
+      position.setRenderedPath(game, position.getPathToNode(liveNode), { node: liveNode, position: livePosition });
+      const liveColour = livePosition.sideToMove;
       game.gameState = status.getLiveAnalysisState(liveColour, liveColour, true);
       touchGame(game);
       return;
     }
     if (game.resultReason !== ResultReason.Timeout || !game.livePath) return;
     game.gameState = status.getLiveAnalysisState(position.getLivePosition(game).sideToMove, position.getRenderedPosition(game).sideToMove);
-    position.syncRuntimeNodeCache(game);
     touchGame(game);
   }
   function exitInGameAnalysis(game: IGame): void {
     if (!status.isAnyLiveAnalysisState(game.gameState)) return;
-    game.renderedPath = position.getPathToNode(position.getLiveNode(game));
-    position.requireGameRuntime(game).renderedPosition = position.getLivePosition(game);
-    position.syncRuntimeNodeCache(game);
-    const liveColour = position.getLivePosition(game).sideToMove;
+    const liveNode = position.getLiveNode(game);
+    const livePosition = position.getLivePosition(game);
+    position.setRenderedPath(game, position.getPathToNode(liveNode), { node: liveNode, position: livePosition });
+    const liveColour = livePosition.sideToMove;
     if (game.resultReason === ResultReason.Timeout && game.resultState !== ResultState.Ongoing) {
       game.gameState = status.getAnalysisState(getOpponentColour(liveColour));
       touchGame(game);

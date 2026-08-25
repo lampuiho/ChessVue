@@ -231,8 +231,9 @@ export function createEngineGame(): IGame {
   const move = toDetailedMove(game.rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
   const liveNode = MoveHistoryService.addMainlineMove(game.moveTree.root, move, game.clockSnapshot);
   game.gameState = GameState.LiveBlackTurn;
-  game.livePath = [0];
-  game.renderedPath = [0];
+  const path = [0];
+  game.livePath = path;
+  game.renderedPath = path;
   // the engine client reads the searched position off the runtime rather than deriving it
   const livePosition = MoveApplicationService.genPosition(game.rootPosition, [move]);
   game.$ = { renderedNode: liveNode, liveNode, renderedPosition: livePosition, livePosition };

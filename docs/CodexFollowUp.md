@@ -11,10 +11,10 @@
 - Implemented castling-right updates inside `GameRuleService` without cloning castling availability a second time.
 - Added `GameRuleService` coverage for castling-right updates after king moves, rook moves, and rook captures.
 - Simplified `IMoveNode` from `Mainline/Variation/Analysis` to `Live/Analysis`.
-- Added runtime `IMoveNode.$.isHighlighted` and hydrate or sync support so selection state stays runtime-only.
+- Reserved runtime `IMoveNode.$.isHighlighted` for the UI; generic tree-wide synchronisation was removed and event-driven path highlighting remains deferred until its presentation semantics are established.
 - Kept aborted live-turn rejections uncaught in `_playerMoveHandler(...)` and pushed the intentional cancellation handling into the tests that trigger those paths.
 - Tightened `GamesStore._requestPlayerMoveIfNeeded(...)` so it only arms turns while the game is actually on the live current board.
-- Simplified rendered-node runtime selection so `renderedNode` follows the rendered path directly instead of depending on `gameState` ordering during transitions.
+- Simplified rendered-node runtime selection so the lazy `renderedNode` cache follows the single authoritative rendered path instead of depending on `gameState` ordering during transitions.
 - Reworked `GamesStore` store tests so they assert public state transitions instead of depending on internal pending-turn promise payloads.
 - Updated stale docs in:
   - `docs/LowLevel/Architecture/DataInterface/Game.md`

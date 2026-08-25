@@ -1,7 +1,7 @@
 Stuff Changed:
 - cleaned up stuff that has both nullable and optional in zod when they are only optional
 - moved check state to board-position runtime state and detailed move data; deleted checkmate state from IGame
-- ~~added currentPosition to IGameRuntime~~ renamed to `renderedPosition`, and runtime now also caches `livePosition`, `renderedNode`, and `liveNode`. `renderedPosition`/`livePosition` are now **optional, lazily-filled** slots read through `getRenderedPosition`/`getLivePosition`; they share one reference while live is rendered, detach the rendered copy before a live-node analysis move, and are only regenerated after an invalidation. `renderedNode`/`liveNode` are still eagerly rebuilt by `_syncRuntimeNodeCache` (renamed from `_syncRuntimePositionCache`) and still want the lazy rewrite.
+- ~~added currentPosition to IGameRuntime~~ completed as four optional derived caches: `renderedNode`, `liveNode`, `renderedPosition`, and `livePosition`. The single move tree and persistent paths remain on `IGame`; explicit path setters seed or invalidate the corresponding caches, move-tree replacement invalidates all four, and the generic runtime sync was removed.
 - renamed IGame.boardRoot as rootPosition to be consistent with IEnginePositionState
 - merged IGame.liveAnalysisOptions into IGame.gameplayOptions, takeback is just boolean now
 - makeMove public method is now exclusively used to make moves to the current board (not the live game)

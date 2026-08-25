@@ -101,19 +101,16 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     playerTurn.clearPlayerTurnRuntime(game);
     if (game.whitePlayer && game.blackPlayer) startLiveGame(game, renderedPosition);
     else {
-      game.livePath = undefined;
-      position.requireGameRuntime(game).livePosition = undefined;
+      position.setLivePath(game, undefined);
       game.gameState = status.getAnalysisState(renderedPosition.sideToMove);
     }
-    position.syncRuntimeNodeCache(game);
     touchGame(game);
     clock.refreshRuntimeRegistrations(game);
     playerTurn.requestPlayerMoveIfNeeded(game);
     await analysis.refreshAnalysisForGame(game);
   }
   function startLiveGame(game: IGame, renderedPosition: ReturnType<GamePositionComposable['getRenderedPosition']>): void {
-    game.livePath = [...game.renderedPath];
-    position.requireGameRuntime(game).livePosition = renderedPosition;
+    position.setLivePath(game, game.renderedPath, { node: position.getRenderedNode(game), position: renderedPosition });
     game.clockSnapshot = clock.startClock(game.clockSnapshot, renderedPosition.sideToMove, new ClockTimestamp());
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;

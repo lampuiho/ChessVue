@@ -11,8 +11,9 @@ function appendLiveMove(game: IGame, move: IMove): void {
   let node = game.moveTree.root;
   for (const childIndex of game.livePath ?? []) node = node.children[childIndex]!;
   const nextNode = MoveHistoryService.addMainlineMove(node, move, game.clockSnapshot);
-  game.livePath!.push(node.children.indexOf(nextNode));
-  game.renderedPath = [...game.livePath!];
+  const nextPath = [...game.livePath!, node.children.indexOf(nextNode)];
+  game.livePath = nextPath;
+  game.renderedPath = nextPath;
   // the store owns these slots in production; applying in place is what keeps them current
   const runtime = game.$!;
   const nextPosition = MoveApplicationService.applyMove(runtime.livePosition!, move);

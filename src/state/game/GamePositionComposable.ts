@@ -1,8 +1,20 @@
-import type { IBoardPosition, IGame, IGameRuntime, IMoveNode, MovePath } from '@/contracts';
+import type { IBoardPosition, IGame, IGamePositionState, IGameRuntime, IMoveNode, IMoveTree, MovePath } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
 
+interface ISelectionCache {
+  node?: IMoveNode;
+  position?: IBoardPosition;
+}
+
 export function useGamePosition() {
-  function getRuntimeNodeOfPath(tree: IGame['moveTree'], path: MovePath): IMoveNode {
+  function createGameRuntime(): IGameRuntime {
+    return {};
+  }
+  function requireGameRuntime(state: Pick<IGamePositionState, '$'>): IGameRuntime {
+    if (!state.$) throw new Error('Game runtime is not initialised.');
+    return state.$;
+  }
+  function getNodeAtPath(tree: IMoveTree, path: MovePath): IMoveNode {
     let currentNode = tree.root;
     for (const childIndex of path) {
       const nextNode = currentNode.children[childIndex];
@@ -11,71 +23,73 @@ export function useGamePosition() {
     }
     return currentNode;
   }
-  function buildGameRuntime(game: IGame): IGameRuntime {
-    return {
-      renderedNode: getRuntimeNodeOfPath(game.moveTree, game.renderedPath),
-      liveNode: game.livePath ? getRuntimeNodeOfPath(game.moveTree, game.livePath) : undefined,
-    };
+  function getRenderedNode(state: IGamePositionState): IMoveNode {
+    const runtime = requireGameRuntime(state);
+    return runtime.renderedNode ??= getNodeAtPath(state.moveTree, state.renderedPath);
   }
-  function createGameRuntime(game: IGame): IGameRuntime {
-    return buildGameRuntime(game);
+  function getLiveNode(state: IGamePositionState): IMoveNode {
+    if (state.livePath === undefined) throw new Error('Live node is not available.');
+    const runtime = requireGameRuntime(state);
+    return runtime.liveNode ??= getNodeAtPath(state.moveTree, state.livePath);
   }
-  function requireGameRuntime(game: IGame): IGameRuntime {
-    if (!game.$) throw new Error(`Game runtime is not initialised for ${game.metadata.id}.`);
-    return game.$;
+  function genPositionAtPath(state: IGamePositionState, path: MovePath): IBoardPosition {
+    return MoveApplicationService.genPosition(state.rootPosition, MoveHistoryService.getMoveSequence(state.moveTree, path));
   }
-  function getCurrentNode(game: IGame): IMoveNode {
-    return requireGameRuntime(game).renderedNode;
-  }
-  function getLiveNode(game: IGame): IMoveNode {
-    const liveNode = requireGameRuntime(game).liveNode;
-    if (!liveNode) throw new Error(`Live node is not available for ${game.metadata.id}.`);
-    return liveNode;
-  }
-  function genPositionAtPath(game: IGame, path: MovePath): IBoardPosition {
-    return MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, path));
-  }
-  function getAliasedLivePosition(game: IGame, livePath: MovePath): IBoardPosition {
-    const runtime = requireGameRuntime(game);
-    const livePosition = runtime.livePosition ?? runtime.renderedPosition ?? genPositionAtPath(game, livePath);
+  function getAliasedLivePosition(state: IGamePositionState, livePath: MovePath): IBoardPosition {
+    const runtime = requireGameRuntime(state);
+    const livePosition = runtime.livePosition ?? runtime.renderedPosition ?? genPositionAtPath(state, livePath);
     runtime.livePosition = livePosition;
     runtime.renderedPosition = livePosition;
     return livePosition;
   }
-  function getRenderedPosition(game: IGame): IBoardPosition {
-    const runtime = requireGameRuntime(game);
-    if (game.livePath && pathsEqual(game.renderedPath, game.livePath)) return getAliasedLivePosition(game, game.livePath);
-    return runtime.renderedPosition ??= genPositionAtPath(game, game.renderedPath);
+  function getRenderedPosition(state: IGamePositionState): IBoardPosition {
+    if (state.livePath !== undefined && pathsEqual(state.renderedPath, state.livePath)) return getAliasedLivePosition(state, state.livePath);
+    const runtime = requireGameRuntime(state);
+    return runtime.renderedPosition ??= genPositionAtPath(state, state.renderedPath);
   }
-  function getLivePosition(game: IGame): IBoardPosition {
-    const runtime = requireGameRuntime(game);
-    if (!game.livePath) throw new Error(`Live position is not available for ${game.metadata.id}.`);
-    if (pathsEqual(game.renderedPath, game.livePath)) return getAliasedLivePosition(game, game.livePath);
-    return runtime.livePosition ??= genPositionAtPath(game, game.livePath);
+  function getLivePosition(state: IGamePositionState): IBoardPosition {
+    if (state.livePath === undefined) throw new Error('Live position is not available.');
+    if (pathsEqual(state.renderedPath, state.livePath)) return getAliasedLivePosition(state, state.livePath);
+    const runtime = requireGameRuntime(state);
+    return runtime.livePosition ??= genPositionAtPath(state, state.livePath);
   }
-  function invalidateRuntimePositions(game: IGame): void {
-    const runtime = requireGameRuntime(game);
+  function setRenderedPath(state: IGamePositionState, path: MovePath, cache?: ISelectionCache): void {
+    state.renderedPath = path;
+    const runtime = requireGameRuntime(state);
+    runtime.renderedNode = cache?.node;
+    runtime.renderedPosition = cache?.position;
+  }
+  function setLivePath(state: IGamePositionState, path: MovePath | undefined, cache?: ISelectionCache): void {
+    state.livePath = path;
+    const runtime = requireGameRuntime(state);
+    runtime.liveNode = cache?.node;
+    runtime.livePosition = cache?.position;
+  }
+  function invalidateRenderedPosition(state: IGamePositionState): void {
+    requireGameRuntime(state).renderedPosition = undefined;
+  }
+  function replaceMoveTree(state: IGamePositionState, moveTree: IMoveTree): void {
+    state.moveTree = moveTree;
+    const runtime = requireGameRuntime(state);
+    runtime.renderedNode = undefined;
     runtime.renderedPosition = undefined;
+    runtime.liveNode = undefined;
     runtime.livePosition = undefined;
   }
   function pathsEqual(left?: MovePath, right?: MovePath): boolean {
     if ((left?.length ?? 0) !== (right?.length ?? 0)) return false;
-    return JSON.stringify(left ?? []) === JSON.stringify(right ?? []);
+    return (left ?? []).every((segment, index) => segment === (right ?? [])[index]);
   }
   function isPathPrefix(prefix: MovePath, candidate?: MovePath): boolean {
     if (!candidate || prefix.length >= candidate.length) return false;
     return prefix.every((segment, index) => candidate[index] === segment);
   }
-  function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): IMoveNode {
+  function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): void {
     node.$ = parent ? { parent } : undefined;
     node.children.forEach((child) => hydrateMoveNode(child, node));
-    return node;
-  }
-  function getCurrentNodeOfPath(tree: IGame['moveTree'], path: MovePath): IMoveNode {
-    return getRuntimeNodeOfPath(tree, path);
   }
   function getPathToNode(node: IMoveNode): MovePath {
-    const path: MovePath = [];
+    const path: number[] = [];
     let currentNode: IMoveNode | undefined = node;
     while (currentNode?.$?.parent) {
       const parentNode: IMoveNode = currentNode.$.parent;
@@ -86,47 +100,33 @@ export function useGamePosition() {
     }
     return path;
   }
-  function isNodeInTree(tree: IGame['moveTree'], node: IMoveNode): boolean {
+  function isNodeInTree(tree: IMoveTree, node: IMoveNode): boolean {
     let currentNode: IMoveNode | undefined = node;
     while (currentNode?.$?.parent) currentNode = currentNode.$.parent;
     return currentNode === tree.root;
   }
   function hydrateGame(game: IGame): IGame {
     hydrateMoveNode(game.moveTree.root);
-    game.$ = createGameRuntime(game);
-    syncMoveNodeHighlights(game);
+    game.$ = createGameRuntime();
     return game;
-  }
-  function syncRuntimeNodeCache(game: IGame): void {
-    syncMoveNodeHighlights(game);
-    game.$ = { ...requireGameRuntime(game), ...buildGameRuntime(game) };
-  }
-  function syncMoveNodeHighlights(game: IGame): void {
-    const highlightedPaths = [game.renderedPath, game.livePath ?? []];
-    function syncNode(node: IMoveNode, path: MovePath): void {
-      node.$ = {
-        ...node.$,
-        isHighlighted: highlightedPaths.some((candidate) => candidate.length >= path.length && path.every((segment, index) => candidate[index] === segment)),
-      };
-      node.children.forEach((child, index) => syncNode(child, [...path, index]));
-    }
-    syncNode(game.moveTree.root, []);
   }
   return {
     createGameRuntime,
     requireGameRuntime,
-    getCurrentNode,
+    getNodeAtPath,
+    getRenderedNode,
     getLiveNode,
     getRenderedPosition,
     getLivePosition,
-    invalidateRuntimePositions,
+    setRenderedPath,
+    setLivePath,
+    invalidateRenderedPosition,
+    replaceMoveTree,
     pathsEqual,
     isPathPrefix,
-    getCurrentNodeOfPath,
     getPathToNode,
     isNodeInTree,
     hydrateGame,
-    syncRuntimeNodeCache,
   };
 }
 export type GamePositionComposable = ReturnType<typeof useGamePosition>;

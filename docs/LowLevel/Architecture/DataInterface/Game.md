@@ -116,7 +116,7 @@ interface IGameplayOptions {
 
 interface IGameRuntime {
   renderedPosition?: IBoardPosition
-  renderedNode: IMoveNode
+  renderedNode?: IMoveNode
   livePosition?: IBoardPosition
   liveNode?: IMoveNode
   pauseReasons?: PauseReason[]
@@ -168,7 +168,7 @@ interface IStartGameFromSetupRequest {
 }
 ```
 
-`renderedPosition` and `livePosition` are lazy runtime caches. When `renderedNode` and `liveNode` are the same node, both slots reference the same `IBoardPosition`. Advancing a live move mutates that shared object in place. Advancing an analysis branch from the live node first detaches a rendered copy so the live position remains unchanged.
+`renderedNode`, `liveNode`, `renderedPosition`, and `livePosition` are optional derived caches. `IGame.moveTree`, `renderedPath`, and `livePath` remain the only authoritative tree and selectors. When both paths identify the live node, the two position caches reference the same `IBoardPosition`. Advancing a live move mutates that shared object in place. Advancing an analysis branch from the live node first detaches a rendered copy so the live position remains unchanged.
 
 ## Rules
 - `GameState` is the single authoritative playable-state enum. It replaces separate workspace, interaction, clock, and turn-waiting axes.

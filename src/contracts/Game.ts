@@ -109,12 +109,10 @@ export interface IGameplayOptions {
   showLiveAnalysisMoves?: boolean;
 }
 export interface IGameRuntime {
-  /** lazy cache for renderedNode; aliases livePosition while renderedNode is liveNode */
-  renderedPosition?: IBoardPosition
-  renderedNode: IMoveNode
-  /** lazy cache for liveNode; aliases renderedPosition while liveNode is renderedNode */
-  livePosition?: IBoardPosition
-  liveNode?: IMoveNode
+  renderedPosition?: IBoardPosition;
+  renderedNode?: IMoveNode;
+  livePosition?: IBoardPosition;
+  liveNode?: IMoveNode;
   pauseReasons?: PauseReason[]
   focusReturnUnsubscribe?: () => void
   deferredPlayerMove?: IMove
@@ -140,6 +138,7 @@ export interface IGame {
   analysis: IGameAnalysis;
   $?: IGameRuntime;
 }
+export type IGamePositionState = Pick<IGame, 'rootPosition' | 'moveTree' | 'livePath' | 'renderedPath' | '$'>;
 export interface ICreateGameRequest {
   name: string
   whitePlayer?: IPlayer

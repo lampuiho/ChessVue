@@ -120,7 +120,6 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     clearPlayerTurnRuntime(game);
     if (!game.whitePlayer || !game.blackPlayer) {
       replaceWithAnalysisRoot(game, selectedPosition, status.getAnalysisState(selectedPosition.sideToMove));
-      position.requireGameRuntime(game).renderedPosition = selectedPosition;
     } else {
       if (status.isPausedLiveState(game.gameState)) game.gameState = status.getPausedState(selectedPosition.sideToMove);
       else if (status.isLiveState(game.gameState)) game.gameState = status.getLiveState(selectedPosition.sideToMove);

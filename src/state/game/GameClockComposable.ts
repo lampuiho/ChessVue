@@ -16,6 +16,7 @@ import type { GameStatusComposable } from './GameStatusComposable';
 interface IGameClockDependency {
   position: GamePositionComposable;
   status: GameStatusComposable;
+  // game persistent data touched event (internally updating update time)
   touchGame: (game: IGame) => void;
   clearPlayerTurnRuntime: (game: IGame) => void;
   flushDeferredPlayerMove: (game: IGame) => Promise<void>;
