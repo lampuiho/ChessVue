@@ -5,6 +5,7 @@ import {
   type IGame,
   type IStartGameFromSetupRequest,
   type MovePath,
+  type ReadonlyGame,
 } from '@/contracts';
 import { MoveHistoryService, PositionIdentityService, UserSettingService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
@@ -35,12 +36,11 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       updatedAt: new RecordTimestamp(nowUtc),
     };
   }
-  function repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>): IGame {
-    if (!existingGameIds.has(game.metadata.id)) return game;
-    return {
-      ...game,
-      metadata: { ...game.metadata, id: crypto.randomUUID(), updatedAt: new RecordTimestamp() },
-    };
+  /** Insertion transfers ownership; duplicate repair mutates that supplied game before it enters the store. */
+  function repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>): void {
+    if (!existingGameIds.has(game.metadata.id)) return;
+    game.metadata.id = crypto.randomUUID();
+    game.metadata.updatedAt = new RecordTimestamp();
   }
   function getGameIndex(gameId: string): number {
     return games.value.findIndex((game) => game.metadata.id === gameId);
@@ -54,7 +54,8 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     else games.value.push(game);
   }
   async function hydrateAndInsertGame(game: IGame): Promise<IGame> {
-    const hydratedGame = position.hydrateGame(repairDuplicateGameId(game, getExistingGameIds()));
+    repairDuplicateGameId(game, getExistingGameIds());
+    const hydratedGame = position.hydrateGame(game);
     playerTurn.normalisePlayers(hydratedGame);
     replaceGame(hydratedGame);
     clock.refreshRuntimeRegistrations(hydratedGame);
@@ -71,13 +72,13 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       metadata: createGameMetadata(request.name, nowUtc),
       gameState: isLiveGame ? status.getLiveState(rootPosition.sideToMove) : status.getAnalysisState(rootPosition.sideToMove),
       resultState: ResultState.Ongoing,
-      whitePlayer: playerTurn.clonePlayer(request.whitePlayer),
-      blackPlayer: playerTurn.clonePlayer(request.blackPlayer),
+      whitePlayer: playerTurn.createPlayerSnapshot(request.whitePlayer),
+      blackPlayer: playerTurn.createPlayerSnapshot(request.blackPlayer),
       rootPosition,
       moveTree: MoveHistoryService.createMoveTree(initialClockSnapshot),
       livePath,
       renderedPath: [],
-      timeControl: structuredClone(request.timeControl),
+      timeControl: request.timeControl,
       clockSnapshot: isLiveGame ? clock.startClock(initialClockSnapshot, rootPosition.sideToMove, new ClockTimestamp(nowUtc)) : initialClockSnapshot,
       analysis: {
         snapshots: request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(rootPosition), nowUtc)),
@@ -91,9 +92,9 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
   }
   async function startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void> {
     game.metadata.name = request.name ?? game.metadata.name;
-    game.whitePlayer = playerTurn.clonePlayer(request.whitePlayer);
-    game.blackPlayer = playerTurn.clonePlayer(request.blackPlayer);
-    game.timeControl = structuredClone(request.timeControl);
+    game.whitePlayer = playerTurn.createPlayerSnapshot(request.whitePlayer);
+    game.blackPlayer = playerTurn.createPlayerSnapshot(request.blackPlayer);
+    game.timeControl = request.timeControl;
     game.gameplayOptions = { showLiveAnalysisMoves: request.showLiveAnalysisMoves, allowTakeback: request.allowTakeback };
     const renderedPosition = position.getRenderedPosition(game);
     game.analysis.snapshots = request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(renderedPosition), new Date()));
@@ -116,16 +117,19 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     game.resultReason = undefined;
     game.gameState = status.getLiveState(renderedPosition.sideToMove);
   }
+  /** Takes ownership of `game`, hydrates it in place, and inserts that same object into the workspace. */
   async function insertGame(game: IGame): Promise<IGame> {
     const insertedGame = await hydrateAndInsertGame(game);
     const settings = await UserSettingService.getSettingsOrDefault();
     if (settings.analysis.resumeLiveAnalysisAfterRestore && insertedGame.analysis.snapshots.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
     return insertedGame;
   }
-  function getGame(gameId: string): IGame | undefined {
+  /** Observes a live workspace game; mutation remains owned by explicit store actions. */
+  function getGame(gameId: string): ReadonlyGame | undefined {
     return games.value.find((game) => game.metadata.id === gameId);
   }
-  function listGames(): IGame[] {
+  /** Observes the live workspace collection without creating defensive snapshots. */
+  function listGames(): readonly ReadonlyGame[] {
     return games.value;
   }
   return { createGame, startGameFromSetup, insertGame, getGame, listGames };

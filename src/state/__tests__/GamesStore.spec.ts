@@ -498,6 +498,33 @@ describe('useGamesStore', () => {
     expect(game.resultState).toBe(ResultState.Ongoing);
     expect(domain.PlatformEventService.subscribeToAppCloseRequested).not.toHaveBeenCalled();
   });
+  it('retains time-control ownership and snapshots players only when assigning them to a game', async () => {
+    const store = useGamesStore();
+    const timeControl = { preset: TimeControlPreset.Untimed, incrementMs: 0 };
+    const whitePlayer = createLocalPlayer(PlayerColour.White, 'White');
+    const game = await store.createGame({
+      name: 'Owned Inputs',
+      whitePlayer,
+      blackPlayer: undefined,
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl,
+    });
+
+    expect(game.timeControl).toBe(timeControl);
+    expect(game.whitePlayer).not.toBe(whitePlayer);
+    expect(game.whitePlayer).toMatchObject({ colour: PlayerColour.White, displayName: 'White' });
+    const setupTimeControl = { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 };
+    const blackPlayer = createLocalPlayer(PlayerColour.Black, 'Black');
+    await store.startGameFromSetup(game, {
+      blackPlayer,
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: setupTimeControl,
+    });
+    expect(game.timeControl).toBe(setupTimeControl);
+    expect(game.blackPlayer).not.toBe(blackPlayer);
+  });
   it('aliases rendered and live positions while committing a move at the live node', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
@@ -1177,6 +1204,7 @@ describe('useGamesStore', () => {
     insertedPayload.metadata.id = game.metadata.id;
     const insertedGame = await store.insertGame(insertedPayload);
 
+    expect(insertedGame).toBe(insertedPayload);
     expect(insertedGame.metadata.id).not.toBe(game.metadata.id);
     expect(store.listGames()).toHaveLength(2);
   });

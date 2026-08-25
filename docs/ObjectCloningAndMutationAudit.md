@@ -1,26 +1,30 @@
 # Object cloning and mutation audit
 
-This note preserves the findings from the August 2026 cloning pass so the deferred work can be resumed without repeating the audit.
+This note preserves the findings from the August 2026 cloning pass so the remaining work can be resumed without repeating the audit.
 
-## Runtime selector refactor
+## Completed work
 
-The runtime follow-up is complete:
-
-- `createGameRuntime()` is the only constructor and creates an empty runtime without traversing the move tree.
+- `createGameRuntime()` is the only runtime constructor and creates an empty runtime without traversing the move tree.
 - `renderedNode`, `liveNode`, `renderedPosition`, and `livePosition` are optional derived caches only. The authoritative move tree and paths remain exclusively on `IGame`.
-- `MovePath` is readonly. Production path changes go through `setRenderedPath` and `setLivePath`, which replace the path and seed only node/position values already known by the caller.
+- `MovePath` is readonly. Production path changes go through `setRenderedPath` and `setLivePath`, which replace the path and seed only node or position values already known by the caller.
 - `replaceMoveTree` is the explicit take-back and analysis-root boundary and invalidates all four derived caches.
 - `syncRuntimeNodeCache`, `syncMoveNodeHighlights`, and `buildGameRuntime` were removed. State-only transitions perform no selector work.
 - Position APIs accept `IGamePositionState`, while the low-level resolver accepts only `IMoveTree` and `MovePath`.
+- Removed the locally used `getRenderedPath`; runtime construction now follows `game.renderedPath` directly.
+- Hydration restores parent metadata on the existing move tree instead of cloning every move node, move, and clock snapshot.
+- Serialisation relies on the Zod persistence schemas to omit runtime-only and unknown fields; the separate recursive strip-and-clone traversal was removed.
+- Settings parsing is the ownership boundary. Accepted settings are cached and returned directly, and draft state uses copy-on-write when patched.
+- Engine inventory, appearance projection, and analysis-engine layout expansion are returned from their owning state without defensive cloning.
+- Appearance projections reuse the static theme-variable records instead of copying them.
+- Board edits act on `rootPosition` directly when the rendered path is empty, avoiding an empty-path position clone and repeated move-tree replacement.
+- `insertGame` transfers ownership of its supplied `IGame`. Hydration and duplicate-ID repair mutate and retain that same object instead of creating a shallow wrapper clone.
+- Game creation and setup retain their supplied time-control object by reference. A time control is not a snapshot boundary.
+- Assigning a reusable player record to a game creates an explicit persisted player snapshot through `playerSchema`; runtime fields such as engine callbacks are discarded rather than cloned.
+- `getGame` and `listGames` expose the live store objects through deep-readonly observation contracts. Consumers do not receive defensive clones and cannot mutate those objects through the declared API.
+- `MoveApplicationService` documentation now states its mutation contract: `applyMove` and board edits mutate caller-owned positions, while `genPosition` is the explicit copied-position boundary.
 - Move-flow tests assert exactly one board application and one mainline-node insertion for local, mixed local/engine, and engine-only games.
 
-Move commit, analysis branch creation, navigation, and returning to live play already know the destination node, so they seed it while setting the path. Take-back and `replaceWithAnalysisRoot` replace the tree and invalidate both selectors. Board-edit or gameplay state transitions that retain the same paths do no node-cache work.
-
-### Deferred highlight event
-
-`IMoveNodeRuntime.isHighlighted` remains reserved for the UI, but it is intentionally not populated yet because the presentation semantics are not established. The eventual path-change event should build the union of nodes on the rendered and live routes, compare it with a runtime `Set` of previously highlighted nodes, and update only the symmetric difference. Both paths can share ancestors, so independently clearing one route would incorrectly unhighlight nodes still used by the other.
-
-### Validation and move-flow constraints
+Move commit, analysis branch creation, navigation, and returning to live play already know the destination node, so they seed it while setting the path. Take-back and `replaceWithAnalysisRoot` replace the tree and invalidate all four caches. Board-edit or gameplay state transitions that retain the same paths do no node-cache work.
 
 Empty runtime creation and lazy selector caches are compatible with the current model because production node access is routed through `GamePositionComposable`. Deserialisation validates both persistent paths before hydration, and hydration restores parent links before game actions can resolve nodes.
 
@@ -34,41 +38,31 @@ The current live-move sequence is intentionally single-entry:
 
 The scoped path setters are synchronous bookkeeping only. They do not touch the clock, game status, player-turn requests, analysis, or `updatedAt`, avoiding effects already owned by `commitLiveMove`.
 
-For readability and genuine laziness, the live-state branch in `makeMove` now runs before obtaining the rendered node and rendered position. Those values are only resolved for the analysis/history branches.
+For readability and genuine laziness, the live-state branch in `makeMove` runs before obtaining the rendered node and rendered position. Those values are resolved only for the analysis and history branches.
 
-The local-versus-local, local-versus-engine, engine-versus-engine, paused-engine, and stale-deferred-engine tests cover the asynchronous turn chain. Exact `MoveApplicationService.applyMove` and `MoveHistoryService.addMainlineMove` counts prevent duplicate commits from being introduced unnoticed.
+The local-versus-local, local-versus-engine, engine-versus-engine, paused-engine, and stale-deferred-engine tests cover the asynchronous turn chain. Exact `MoveApplicationService.applyMove` and `MoveHistoryService.addMainlineMove` counts guard against duplicate commits.
 
-## Resolved in the current pass
+## Deferred highlight event
 
-- Removed the locally used `getRenderedPath`; runtime construction now follows `game.renderedPath` directly.
-- Hydration now restores parent metadata on the existing move tree instead of cloning every move node, move, and clock snapshot.
-- Serialization now relies on the Zod persistence schemas to omit runtime-only and unknown fields; the separate recursive strip-and-clone traversal was removed.
-- Settings parsing is the ownership boundary. Accepted settings are cached and returned directly, and draft state uses copy-on-write when patched.
-- Engine inventory, appearance projection, and analysis-engine layout expansion are returned from their owning state without defensive cloning.
-- Appearance projections reuse the static theme-variable records instead of copying them.
-- Board edits act on `rootPosition` directly when the rendered path is empty, avoiding an empty-path position clone and repeated move-tree replacement.
+`IMoveNodeRuntime.isHighlighted` remains reserved for the UI, but it is intentionally not populated yet because the presentation semantics are not established. The eventual path-change event should build the union of nodes on the rendered and live routes, compare it with a runtime `Set` of previously highlighted nodes, and update only the symmetric difference. Both paths can share ancestors, so independently clearing one route would incorrectly unhighlight nodes still used by the other.
 
-## Clones that still represent real boundaries
+## Copies that remain intentional
 
 The following copies should not be removed mechanically:
 
-- rendered/live board positions when they must diverge;
+- rendered and live board positions when they must diverge;
 - immutable clock snapshots and history records;
-- stored path arrays when a caller-provided path may subsequently change;
-- per-game player or engine assignments when they must not alias settings inventory records;
-- accepted/draft settings separation when a draft is first edited;
+- stored path arrays when the state boundary must own a stable path value;
+- persisted per-game player or engine snapshots created from reusable inventory records;
+- accepted and draft settings separation when a draft is first edited;
 - persistence parsing, where Zod produces the schema-owned persisted model.
 
-For player and modal data, avoid generic `structuredClone` when engine runtime objects may be present: callbacks and similar function values cannot be structured-cloned. Prefer explicit persisted-field projections or a clearly defined ownership transfer.
+Avoid generic `structuredClone` when player, engine, or modal data may contain runtime objects: callbacks and similar function values cannot be structured-cloned. Use the persisted schema for a required snapshot, or transfer ownership when no snapshot boundary exists.
 
 ## Remaining ownership and mutation-contract review
 
-- `GamesStore.insertGame` mutates the supplied game during hydration, while duplicate repair only shallow-copies the top level. Decide whether insertion transfers ownership or should accept a persisted input and construct a store-owned game.
-- Game creation retains `rootPosition` by reference while copying time-control and player data differently. Make these ownership rules consistent and explicit.
-- `GamesStore.getGame` and `listGames` expose mutable live store objects. If consumers should only observe them, express that with readonly contracts rather than defensive clones.
-- `MoveApplicationService` mutates positions and board contents, but documentation still describes immutable behaviour. Its mutation contract and return shape should be made explicit.
 - `MoveHistoryService` operations such as add, take-back, rewrite, and prune mutate supplied nodes but return wrapper objects inconsistently.
-- Cache-looking reads including FEN, SAN, UCI, check-state, and initial-position helpers populate `$` metadata. Either name/document that cache mutation or move it behind an explicit cache owner.
+- Cache-looking reads including FEN, SAN, UCI, check-state, and initial-position helpers populate `$` metadata. Either name or document that cache mutation, or move it behind an explicit cache owner.
 - Analysis update snapshots may be transferable instead of cloned if the producer contract is readonly or ownership-transferring.
 
-`TimeControlService` and `EngineRuntimeService` already provide clearer examples because their mutation behaviour is stated near the mutating operations.
+`TimeControlService`, `EngineRuntimeService`, and `MoveApplicationService` now provide clear examples because their mutation behaviour is stated near the mutating operations.

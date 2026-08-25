@@ -4,6 +4,7 @@ import {
   PlayerColour,
   PlayerType,
   ResultState,
+  playerSchema,
   type IAssignedEngine,
   type IBoardPosition,
   type IEnginePlayer,
@@ -31,11 +32,12 @@ interface IGamePlayerTurnDependency {
 
 export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   const { position, status, touchGame, commitLiveMove, replaceWithAnalysisRoot, refreshRuntimeRegistrations } = dependency;
-  function clonePlayer(player?: IPlayer): IPlayer | undefined {
+  /** Creates the persisted per-game player snapshot and discards runtime owned by the input record. */
+  function createPlayerSnapshot(player?: IPlayer): IPlayer | undefined {
     if (!player) return;
-    const clonedPlayer = structuredClone(player);
-    clonedPlayer.$ = { activityState: PlayerActivityState.Active };
-    return clonedPlayer;
+    const playerSnapshot: IPlayer = playerSchema.parse(player);
+    playerSnapshot.$ = { activityState: PlayerActivityState.Active };
+    return playerSnapshot;
   }
   function normalisePlayers(game: IGame): void {
     if (game.whitePlayer) game.whitePlayer.$ = { activityState: PlayerActivityState.Active };
@@ -115,8 +117,8 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   async function reassignPlayer(game: IGame, colour: PlayerColour, player?: IPlayer): Promise<void> {
     const selectedPosition = position.getRenderedPosition(game);
     const liveColour = game.livePath ? position.getLivePosition(game).sideToMove : undefined;
-    if (colour === PlayerColour.White) game.whitePlayer = clonePlayer(player);
-    else game.blackPlayer = clonePlayer(player);
+    if (colour === PlayerColour.White) game.whitePlayer = createPlayerSnapshot(player);
+    else game.blackPlayer = createPlayerSnapshot(player);
     clearPlayerTurnRuntime(game);
     if (!game.whitePlayer || !game.blackPlayer) {
       replaceWithAnalysisRoot(game, selectedPosition, status.getAnalysisState(selectedPosition.sideToMove));
@@ -131,7 +133,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     requestPlayerMoveIfNeeded(game);
   }
   return {
-    clonePlayer,
+    createPlayerSnapshot,
     normalisePlayers,
     getSideToMovePlayer,
     isEnginePlayer,

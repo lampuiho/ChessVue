@@ -46,7 +46,7 @@ restartEngine(engine: IAssignedEngine): Promise<void>
 - Client-private runtime state is created only through explicit mutation steps. The concrete UCI client uses session-state transitions, process-listener attachment, analysis-line storage, pending player-turn completion, and explicit reset or failure helpers.
 - The default runtime design here is explicit object-attached state. It does not use hidden side tables.
 - The runtime ownership breakdown and state-mutation order are defined in [../../ProcessFlows/EngineRuntimeOwnership.md](../../ProcessFlows/EngineRuntimeOwnership.md).
-- `startAnalysis(...)` uses the highlighted path. Player-turn and ponder operations use the live path. The client privately decides whether a changed game id or root position requires a fresh protocol game boundary.
+- `startAnalysis(...)` uses the rendered path. Player-turn and ponder operations use the live path. The client privately decides whether a changed game id or root position requires a fresh protocol game boundary.
 - `startPondering(...)` starts a speculative search for the supplied reply after a player-engine result includes a ponder move. On the next turn, `startPlayerTurn(...)` emits `ponderhit` when that reply matches the latest live move; otherwise it sends `stop`, consumes the terminating stale `bestmove`, and only then starts a fresh position search.
 - Raw output is routed by session state rather than by whichever parser happens to accept the line. Expected handshake, analysis, player-move, and search-stop responses complete only their matching state transition.
 - During the rewrite phase, `EngineClient` owns the full protocol conversation over mocked `NW.js`-style engine communication hooks.

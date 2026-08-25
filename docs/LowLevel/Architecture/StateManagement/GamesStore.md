@@ -14,8 +14,8 @@ enum PauseReason {
 createGame(request: ICreateGameRequest): Promise<IGame>
 startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void>
 insertGame(game: IGame): Promise<IGame>
-getGame(gameId: string): IGame | undefined
-listGames(): IGame[]
+getGame(gameId: string): ReadonlyGame | undefined
+listGames(): readonly ReadonlyGame[]
 makeMove(game: IGame, move: IMove): IMove | undefined
 takeBack(game: IGame, moveCount?: number): Promise<void>
 navigateToNode(game: IGame, node: IMoveNode): void
@@ -50,7 +50,7 @@ withdrawDrawOffer(game: IGame): Promise<void>
 
 | Composable | Owned area |
 | --- | --- |
-| `GamePositionComposable` | root and rendered positions, move tree, live and highlighted paths, hydration, node lineage, and position or node runtime caches |
+| `GamePositionComposable` | root, rendered and live positions, the move tree, rendered and live paths, hydration, node lineage, and position or node runtime caches |
 | `GameStatusComposable` | game, result, result-reason, and draw-offer state plus state-family guards and transitions |
 | `GameClockComposable` | time control, clock snapshots, pause reasons, timeout reconciliation, and focus-return registration |
 | `GameAnalysisComposable` | persisted analysis snapshots, copied analysis engines, subscriptions, refresh, retry, stop, and visible-analysis projection |
@@ -65,9 +65,10 @@ The persisted `IGame` shape remains unchanged. Runtime fields also retain their 
 
 ## Responsibilities
 - create live games or non-live analysis games from setup input
-- accept caller-supplied saved-game payloads and hydrate them into active in-memory workspaces
+- accept ownership of caller-supplied saved-game payloads and hydrate those same objects into active in-memory workspaces
 - transition a prepared non-live analysis game into a live game without losing its prepared root or move tree
 - persist each game's live-analysis display preference alongside the rest of the game state
+- retain time-control values supplied at creation or setup by reference, and create persisted player snapshots only when assigning reusable player records to a game
 - capture copied in-game engine snapshots from reusable engine profiles supplied by the owning UI selection flow when seating player engines or analysis engines
 - enforce allowed actions from `GameState`, `ResultState`, and accepted gameplay or session policies, including each game's persisted takeback policy
 - coordinate legal move application, move-tree updates, notation, position identity, and clock changes
@@ -81,6 +82,7 @@ The persisted `IGame` shape remains unchanged. Runtime fields also retain their 
 - request the next move from a due non-local player through a promise-shaped game-facing boundary
 - run the automatic pruning action that discards latest-node live-analysis continuations once a real live move supersedes them
 - own `livePath` and `renderedPath` selection on the game, while `MoveHistoryService` stays limited to tree mutation
+- expose live game objects through deep-readonly observation contracts; state changes still go through explicit store actions rather than defensive read clones
 
 ## State And Settings Notes
 - `makeMove` is the explicit game-state dispatcher for live play, history rewrite, non-live analysis branching, live-analysis moves, and rendered analysis suggestions selected from the analysis panel. Blocked states are rejected by a throwing assertion before legality checks or domain mutation. That blocked set includes paused live-analysis states as well as paused live states. Promotion choice is resolved before `makeMove` through board interaction, so the submitted `IMove` is already complete when the store sees it.

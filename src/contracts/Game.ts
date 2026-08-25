@@ -138,6 +138,14 @@ export interface IGame {
   analysis: IGameAnalysis;
   $?: IGameRuntime;
 }
+type DeepReadonly<T> = T extends Date | ((...args: never[]) => unknown)
+  ? T
+  : T extends readonly (infer TItem)[]
+    ? readonly DeepReadonly<TItem>[]
+    : T extends object
+      ? { readonly [TKey in keyof T]: DeepReadonly<T[TKey]> }
+      : T;
+export type ReadonlyGame = DeepReadonly<IGame>;
 export type IGamePositionState = Pick<IGame, 'rootPosition' | 'moveTree' | 'livePath' | 'renderedPath' | '$'>;
 export interface ICreateGameRequest {
   name: string

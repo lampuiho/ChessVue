@@ -123,14 +123,14 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
 
 ### Domain Logic
-- `MoveApplicationService` is the store-facing board-position transition boundary and currently generates immutable next positions.
+- `MoveApplicationService` is the store-facing board-position transition boundary. Move application and direct board edits mutate caller-owned positions in place; only position replay through `genPosition` creates a detached result.
 - Pure chess rules and notation mapping live in shared `GameRuleUtility` and `MoveNotationUtility` modules.
 - `MoveHistoryService` manages the move tree, mainline selection, analysis branches, navigation, and pruning.
 - `PositionIdentityService` owns canonical position identity and equality rules used by analysis, restore, and serialisation workflows.
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `GamesStore` for continuous analysis and player-engine turns, composing `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation without same-layer platform calls.
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
-- `SerializationService` owns the canonical persisted payload shapes, schema versioning hooks, migration entry points, recursive `$` stripping before write, and the storage-backed file boundary for settings, session, layout, saved-game read or write, managed-save enumeration, and external import or export picker flows.
+- `SerializationService` owns the canonical persisted payload shapes, schema versioning hooks, migration entry points, schema projection that omits runtime fields before write, and the storage-backed file boundary for settings, session, layout, saved-game read or write, managed-save enumeration, and external import or export picker flows.
 - `PlatformEventService` exposes typed app-level event registration and inspection to state stores without letting layer 3 depend on `IPlatformService` directly.
 - `UserSettingService` loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults or migration fallback when needed, exposes the current system theme, and persists accepted settings through `SerializationService` without exposing platform storage directly to layer 3.
 - Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.

@@ -25,7 +25,7 @@ Stuff need changing:
 - ~~TODO in GameStore._finaliseMove~~
 - remove all the unneccessary object cloning in GameStore and other places
 - ~~some GameRule service functions like applyMove are somehow in GameRuleUtility, and is called by GameStore. Move them back to game rule service. It would only make sense for actual game rule stuff to be in the library not app logic, if they obey the rule that there are other services in the first 2 layers that need them~~
-- ~~replace `GameRuleService` with immutable `MoveApplicationService.applyMove` and detailed-move check state~~
+- ~~replace `GameRuleService` with explicitly mutable `MoveApplicationService.applyMove` and detailed-move check state~~
 - ~~MoveNode.kind should just be Live, Analysis, MoveNodeRuntime can have isHighlighted boolean (for live path and rendered path)~~
 - ~~cache current/live MoveNode in runtime~~
 - ~~uci utility is not using IMove runtime cache~~
