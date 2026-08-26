@@ -26,7 +26,7 @@ interface IGamePlayerTurnDependency {
   status: GameStatusComposable;
   touchGame: (game: IGame) => void;
   commitLiveMove: (game: IGame, move: IMove, engine?: IAssignedEngine) => void;
-  replaceWithAnalysisRoot: (game: IGame, boardRoot: IBoardPosition, nextState: GameState) => void;
+  replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => void;
   refreshRuntimeRegistrations: (game: IGame) => void;
 }
 
@@ -99,6 +99,10 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
         runtime.pendingPlayerTurnHandlePromise = undefined;
       }
       if (status.isPausedState(game.gameState)) runtime.deferredPlayerMove = move;
+      else if (engine && !isMoveLegal(position.getLivePosition(game), move)) {
+        logHandledError('GameStore', 'playerMoveHandler', new Error(`Engine returned an illegal move from ${move.from} to ${move.to}.`));
+        requestPlayerMoveIfNeeded(game);
+      }
       else commitLiveMove(game, move, engine);
     }
     const player = getSideToMovePlayer(game, position.getLivePosition(game).sideToMove);

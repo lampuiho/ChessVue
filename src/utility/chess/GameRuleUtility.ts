@@ -229,7 +229,7 @@ function hasInsufficientMaterial(position: IBoardPosition): boolean {
 export function cloneBoardPosition(position: IBoardPosition): IBoardPosition {
   return {
     ...position,
-    board: position.board.map((piece) => piece === undefined ? undefined : { ...piece }),
+    board: [...position.board],
     castlingAvailability: { ...position.castlingAvailability },
   };
 }

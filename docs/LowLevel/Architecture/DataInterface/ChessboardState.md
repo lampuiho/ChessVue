@@ -36,7 +36,7 @@ interface IBoardPositionRuntime {
 ```
 
 ## Ownership
-- `GameRuleUtility` creates and validates `IBoardPosition`; `MoveApplicationService.applyMove` and its board-edit operations mutate a caller-owned position, while `genPosition` clones a root before replaying moves when a detached position is required.
+- `GameRuleUtility` creates and validates `IBoardPosition`; `MoveApplicationService.applyMove` and its board-edit operations mutate a caller-owned position, while `genPosition` copies the mutable board array and castling availability before replaying moves when a detached position is required. Immutable `IChessPiece` values are shared so piece identity survives reconstruction and animation.
 - `SerializationService` persists `IBoardPosition` inside `IGame`.
 - `GamesStore` keys persisted analysis snapshots by derived structural position identity, not stored FEN.
 - `$.checkState`, `$.isCheckStateCached`, `$.isStandardInitialPosition`, and `$.fen` are runtime-only derived caches. `GameRuleUtility.createInitialBoardPosition(...)` marks the known standard root immediately.

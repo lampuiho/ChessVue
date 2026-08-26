@@ -123,7 +123,7 @@ interface IGameRuntime {
   focusReturnUnsubscribe?: () => void
   deferredPlayerMove?: IMove
   pendingPlayerTurnPromise?: Deferred<IMove>
-  pendingPlayerTurnHandlePromise?: Promise<IMove | undefined>
+  pendingPlayerTurnHandlePromise?: Promise<void>
 }
 
 interface IGame {

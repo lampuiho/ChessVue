@@ -724,6 +724,7 @@ describe('useGamesStore', () => {
     expect(game.rootPosition).toEqual(darkRoot);
     store.enterBoardEdit(game);
     expect(game.gameState).toBe(GameState.AnalysisBlackMove);
+    expect(() => store.applyBoardEdit(game, sparseBoard)).toThrow('board edit mode');
   });
   it('manipulates pieces only in board edit and promotes the first edited position to root', async () => {
     const store = useGamesStore();
@@ -844,6 +845,25 @@ describe('useGamesStore', () => {
     expect(localGame.resultState).toBe(ResultState.BlackWon);
     expect(localGame.resultReason).toBe(ResultReason.Resignation);
   });
+  it('rejects an illegal player-engine result at the player-turn boundary and requests another move', async () => {
+    const store = useGamesStore();
+    utility.isMoveLegal.mockImplementationOnce(() => false);
+    nextPlayerMove = createMove(PlayerColour.White);
+    const game = await store.createGame({
+      name: 'Guarded Engine Turn',
+      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    await game.$!.pendingPlayerTurnHandlePromise;
+    await game.$!.pendingPlayerTurnHandlePromise;
+
+    expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(2);
+    expect(game.livePath).toEqual([0]);
+    expect(game.gameState).toBe(GameState.LiveBlackTurn);
+  });
   it('plays scholar mate through local player turns only', async () => {
     installScholarMateRules();
     const store = useGamesStore();
@@ -936,7 +956,7 @@ describe('useGamesStore', () => {
     const game = await store.createGame({
       name: 'Stale Deferred Engine Move',
       whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -947,7 +967,7 @@ describe('useGamesStore', () => {
     await store.pauseGame(game, PauseReason.Manual);
     await pendingMove;
     utility.isMoveLegal.mockImplementationOnce(() => false);
-    nextPlayerMove = createMove(PlayerColour.Black, 52, 36);
+    nextPlayerMove = createMove(PlayerColour.White, 11, 27);
 
     await store.resumeGame(game, PauseReason.Manual);
     await randomDelay();
@@ -959,7 +979,7 @@ describe('useGamesStore', () => {
     utility.isMoveLegal.mockImplementation(() => true);
 
     expect(domain.EngineRuntimeService.startPlayerTurn.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(game.gameState).toBe(GameState.LiveWhiteTurn);
+    expect(game.gameState).toBe(GameState.LiveBlackTurn);
     expect(game.livePath).toEqual([0]);
   });
   it('rewrites mainline or adds analysis branches from live history based on per-game policy', async () => {

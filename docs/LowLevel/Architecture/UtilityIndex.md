@@ -52,7 +52,7 @@ Each entry must define:
 - Owner-private delegates:
   - `EngineRuntimeService._handleRuntimeError`
   - `EnginesStore._handlePlayerTurnRuntimeError`
-  - `GamesStore._handleRuntimeError`
+  - `logHandledError`
   - `SerializationService._handlePlatformError`
   - `UiStateStore._handlePersistenceError`
   - `UserSettingService._handlePlatformError`

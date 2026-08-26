@@ -92,9 +92,9 @@ export function useGameMove(dependency: IGameMoveDependency) {
     status.updateGameStateAfterPosition(game, renderedPosition.sideToMove);
     touchGame(game);
   }
-  function replaceWithAnalysisRoot(game: IGame, boardRoot: IBoardPosition, nextState: GameState): void {
+  function replaceWithAnalysisRoot(game: IGame, rootPosition: IBoardPosition, nextState: GameState): void {
     const nextClockSnapshot = clock.initialiseClockSnapshot(game.timeControl);
-    game.rootPosition = boardRoot;
+    game.rootPosition = rootPosition;
     const nextMoveTree = MoveHistoryService.createMoveTree(nextClockSnapshot);
     position.replaceMoveTree(game, nextMoveTree);
     position.setRenderedPath(game, [], { node: nextMoveTree.root });

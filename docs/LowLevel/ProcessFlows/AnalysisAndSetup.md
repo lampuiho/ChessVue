@@ -13,27 +13,27 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `NewGameModal.createRequestedWithUnassignedSide` |
 | --- |
 | `GamesStore.createGame` |
-| `GamesStore._createWorkspace` |
-| `GamesStore._allowBothColoursForSetupMoves` |
+| `GameWorkspaceComposable.createGame` |
+| `GameWorkspaceComposable.createGame` |
 
 | `GamesStore.createGame` |
 | --- |
-| `GamesStore._resolveInitialGameState` |
-| `GamesStore._createWorkspace` |
-| `GamesStore._allowBothColoursForSetupMoves` |
+| `GameWorkspaceComposable.createGame` |
+| `GameWorkspaceComposable.createGame` |
+| `GameWorkspaceComposable.createGame` |
 
 #### Flow B - Convert A Live Game Into Free Analysis / Setup
 | `PlayerPanel.playerSelectionConfirmedAsNone` |
 | --- |
 | `GamesStore.reassignPlayer` |
-| `GamesStore._switchWorkspaceToFreeAnalysisSetup` |
-| `GamesStore._allowBothColoursForSetupMoves` |
+| `GamePlayerTurnComposable.reassignPlayer` |
+| `GameWorkspaceComposable.createGame` |
 
 | `GamesStore.reassignPlayer` |
 | --- |
-| `GamesStore._applyPlayerReassignment` |
-| `GamesStore._switchWorkspaceToFreeAnalysisSetup` |
-| `GamesStore._allowBothColoursForSetupMoves` |
+| `GamePlayerTurnComposable.reassignPlayer` |
+| `GamePlayerTurnComposable.reassignPlayer` |
+| `GameWorkspaceComposable.createGame` |
 
 #### Flow C - Refresh Analysis In The Free Analysis Workspace
 | `Chessboard.moveSubmitted` |
@@ -42,18 +42,18 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._refreshAnalysisForGame` |
-| `GamesStore._startAnalysisSnapshot` |
-| `GamesStore._subscribeToAnalysis` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GamesStore._startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 - Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to an omitted player value yields a non-live workspace while preserving engine-driven analysis when configured.
 
@@ -67,8 +67,8 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.enterBoardEdit` |
 | --- |
-| `GamesStore._assertBoardEditAllowed` |
-| `GamesStore._enterBoardEditContext` |
+| `GameBoardEditComposable.enterBoardEdit` |
+| `GameBoardEditComposable.enterBoardEdit` |
 
 #### Flow B - Apply The First Direct Board Edit
 | `Chessboard.chessPieceToggled` / `chessPieceDeleted` / `boardCleared` / `boardResetToStartPosition` |
@@ -79,9 +79,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
 | --- |
-| `GamesStore._assertBoardEdit` |
+| `GameBoardEditComposable.assertBoardEditState` |
 | mutate the rendered position board |
-| `GamesStore._completeBoardMutation` |
+| `GameBoardEditComposable.applyEdit` |
 
 | `GameMoveComposable.replaceWithAnalysisRoot` |
 | --- |
@@ -93,9 +93,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.toggleChessPiece` / `deleteChessPiece` / `clearBoard` / `resetBoardToStartPosition` |
 | --- |
-| `GamesStore._assertBoardEdit` |
+| `GameBoardEditComposable.assertBoardEditState` |
 | mutate the current root board in place |
-| `GamesStore._completeBoardMutation` |
+| `GameBoardEditComposable.applyEdit` |
 
 #### Flow D - Leave Board Edit And Resume Analysis
 | `GameControlPanel.boardEditRequested` |
@@ -105,22 +105,22 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.enterBoardEdit` |
 | --- |
-| `GamesStore._toggleBoardEditContext` |
+| `GameBoardEditComposable.enterBoardEdit` |
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._refreshAnalysisForGame` |
-| `GamesStore._startAnalysisSnapshot` |
-| `GamesStore._subscribeToAnalysis` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GamesStore._startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
@@ -137,7 +137,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore.startGameFromSetup` |
 | `GameView._refreshRuntimeAfterSetupStart` |
 | `GamesStore.refreshAnalysis` |
-| `GamesStore._requestPlayerMoveIfNeeded` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 | `UiStateStore.hideModal` |
 
 | `UiStateStore.showModal` |
@@ -145,22 +145,19 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.startGameFromSetup` |
 | --- |
-| `GamesStore._validateSetupTransition` |
-| `GamesStore._validateAssignedPlayers` |
-| `GamesStore._validateAssignedEngines` |
-| `GamesStore._retainPreparedMoveTree` |
-| `GamesStore._initialiseLiveClock` |
-| `GamesStore._switchToLiveGameState` |
+| `GameWorkspaceComposable.startGameFromSetup` |
+| `GamePlayerTurnComposable.createPlayerSnapshot` |
+| `GameWorkspaceComposable.startLiveGame` |
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._refreshAnalysisForGame` |
-| `GamesStore._startAnalysisSnapshot` |
-| `GamesStore._subscribeToAnalysis` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 | `UiStateStore.hideModal` |
 | --- |
@@ -179,18 +176,18 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._refreshAnalysisForGame |
-| GamesStore._startAnalysisSnapshot |
-| GamesStore._subscribeToAnalysis |
+| GameAnalysisComposable.refreshAnalysisForGame |
+| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.subscribeToAnalysis |
 
-| GamesStore._startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSnapshot |
 | --- |
 | EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 | GamesStore.getVisibleAnalysis |
 | --- |
@@ -210,8 +207,8 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._assertAnalysisSelectionLimit |
-| GamesStore._startAnalysisSessions |
+| GameAnalysisComposable.addAnalysisEngine |
+| GameAnalysisComposable.refreshAnalysisForGame |
 
 | EnginesStore.validateAnalysisSelection |
 | --- |
@@ -228,8 +225,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | GamesStore.stopAnalysis |
 | --- |
-| GamesStore._stopMatchingAnalysisSessions |
-| GamesStore._markAnalysisUnavailable |
+| GameAnalysisComposable.stopAnalysis |
+| EngineRuntimeService.stopAnalysis |
+| GameAnalysisComposable.resetAnalysisSnapshot |
 
 #### Flow B - Retry A Failed Engine
 | AnalysisPanel.retryRequested |
@@ -238,27 +236,26 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | GamesStore.retryAnalysis |
 | --- |
-| GamesStore._refreshAnalysisForGame |
-| GamesStore._startAnalysisSnapshot |
-| GamesStore._subscribeToAnalysis |
+| GameAnalysisComposable.refreshAnalysisForGame |
+| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.subscribeToAnalysis |
 
-| GamesStore._startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSnapshot |
 | --- |
 | EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 #### Flow C - Unexpected Analysis Engine Exit
-| `GamesStore._pollAnalysisSessionHealth` |
+| `NwjsUciEngineClient` process-exit listener |
 | --- |
-| `GamesStore._handleAnalysisUnexpectedExit` |
-| `GamesStore._markAnalysisUnavailable` |
+| `NwjsUciEngineClient._failUciSession` |
 
 - Failure handling: malformed analysis output keeps the existing baseline rule and is discarded per message without stopping the session.
-- Unexpected-exit handling: if an analysis-engine process terminates unexpectedly, only that engine row is marked unavailable or disconnected, the last valid analysis snapshot remains visible, and no blocking dialog is opened.
+- Unexpected-exit handling: the client fails its UCI session and leaves the last valid analysis snapshot intact; no store-level polling helper exists.
 - Retry rule: retry remains manual through `AnalysisPanel.retryRequested`; the baseline does not invent timeout, auto-reconnect, or backoff behaviour.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit restart, stop, malformed-output, and unexpected-exit runtime mutations.
 - Requirement verification: `Pass`. Stop, crash, malformed-output discard, and retry behaviour are explicit at the runtime-owner boundary and preserve last-known visible output.
@@ -277,8 +274,8 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
-| `GamesStore._createOrReuseAnalysisBranch` |
+| `GameMoveComposable.makeMove` |
+| `GameMoveComposable.advanceRenderedAnalysisBranch` |
 
 #### Flow B - Live Current-Position Suggestion
 | `AnalysisPanel.moveSelected` |
@@ -292,8 +289,8 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
-| `GamesStore._commitLiveMove` |
+| `GameMoveComposable.makeMove` |
+| `GameMoveComposable.commitLiveMove` |
 
 #### Flow C - Live History-Review Suggestion
 | `AnalysisPanel.moveSelected` |
@@ -307,9 +304,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
-| `GamesStore._applyHistoryMovePolicy` |
-| `GamesStore._honourAnalysisBranchPolicy` |
+| `GameMoveComposable.makeMove` |
+| `GameMoveComposable.makeMove` |
+| `GameMoveComposable.makeMove` |
 
 #### Flow D - In-Game Analysis Suggestion
 | `AnalysisPanel.moveSelected` |
@@ -323,8 +320,8 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.makeMove` |
 | --- |
-| `GamesStore._applySelectedAnalysisMoveFromVisibleNode` |
-| `GamesStore._createOrReuseAnalysisBranch` |
+| `GameMoveComposable.makeMove` |
+| `GameMoveComposable.advanceRenderedAnalysisBranch` |
 
 - State/settings coverage: non-live analysis always renders per-move engine targets. Live and live-analysis states render engine move targets only when `gameplayOptions.showLiveAnalysisMoves = true`. Paused live play keeps any visible analysis read-only and does not allow move-target clicks.
 - Runtime selector coverage: analysis-panel move selection reuses the current visible hydrated node. Any persisted `MovePath` updates remain store-internal bookkeeping derived from that node and are not a public runtime interaction contract.
@@ -345,8 +342,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 
 | `GamesStore.addAnalysisEngine` |
 | --- |
-| `GamesStore._assertAnalysisRosterMutable` |
-| `GamesStore._mutateAnalysisEngineRoster` |
+| `GameAnalysisComposable.addAnalysisEngine` |
+| `GameAnalysisComposable.createAnalysisSnapshot` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
 
 | `EnginesStore.validateAnalysisSelection` |
 | --- |
@@ -355,18 +353,12 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `AnalysisPanel.analysisEngineRemoveRequested` |
 | --- |
 | `GamesStore.removeAnalysisEngine` |
-| `GamesStore.stopAnalysis` |
-| `GamesStore._clearEngineAnalysis` |
 
 | `GamesStore.removeAnalysisEngine` |
 | --- |
-| `GamesStore._mutateAnalysisEngineRoster` |
-
-| `GamesStore.stopAnalysis` |
-| --- |
-
-| `GamesStore._clearEngineAnalysis` |
-| --- |
+| `GameAnalysisComposable.removeAnalysisEngine` |
+| `GameAnalysisComposable.disposeAnalysisSubscription` |
+| `GameAnalysisComposable.stopAssignedEngine` |
 
 - UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine.
 - State gate: roster add and remove are valid in live states, paused live states, live-analysis states, and non-live analysis states. Paused live play keeps move-target selection blocked, but analysis-engine management remains allowed because it is treated as configuration rather than gameplay.

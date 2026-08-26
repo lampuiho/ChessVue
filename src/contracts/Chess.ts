@@ -25,8 +25,8 @@ export const pieceKinds = [
 ] as const
 
 export interface IChessPiece {
-  kind: PieceKind
-  colour: PlayerColour
+  readonly kind: PieceKind
+  readonly colour: PlayerColour
 }
 export const playerColourSchema = z.enum(playerColours)
 export const pieceKindSchema = z.enum(pieceKinds)

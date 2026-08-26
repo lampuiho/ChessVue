@@ -33,7 +33,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | `PlatformEventService.subscribeToAppCloseRequested` |
 
 #### Flow C - Check Close Autosave
-| `SavedGamesStore._handleAppCloseRequested` |
+| `SavedGamesStore.registerAutosaveOnClose` callback |
 | --- |
 | `UserSettingService.getSettings` |
 | `SavedGamesStore.saveGame` |
@@ -59,8 +59,8 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.pauseGame |
 | --- |
-| GamesStore._maybeAutoPauseForMenu |
-| GamesStore._markPauseOwner |
+| GameClockComposable.pauseGame |
+| GameClockComposable.pauseGame |
 
 | UiStateStore.setActiveRoute |
 | --- |
@@ -68,7 +68,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | SavedGamesStore.listSavedGames |
 | --- |
-| SavedGamesStore._resolveSaveRoot |
+| `getSaveRootPath` |
 | SerializationService.listManagedSaveEntries |
 | SavedGameIndexService.projectSaveGroups |
 
@@ -108,8 +108,8 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.pauseGame |
 | --- |
-| GamesStore._maybeAutoPauseForMenu |
-| GamesStore._markPauseOwner |
+| GameClockComposable.pauseGame |
+| GameClockComposable.pauseGame |
 
 | UiStateStore.setActiveRoute |
 | --- |
@@ -117,7 +117,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | SavedGamesStore.listSavedGames |
 | --- |
-| SavedGamesStore._resolveSaveRoot |
+| `getSaveRootPath` |
 | SerializationService.listManagedSaveEntries |
 | SavedGameIndexService.projectSaveGroups |
 
@@ -132,14 +132,14 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | SavedGamesStore.loadGame |
 | --- |
-| SavedGamesStore._resolveSelectedSaveEntry |
+| `getTargetEntry` |
 | SavedGameIndexService.getLatestSaveEntryForGame |
 | SerializationService.readGameDocument |
 
 | GamesStore.insertGame |
 | --- |
-| GamesStore._remapDuplicateIdIfNeeded |
-| GamesStore._hydrateWorkspace |
+| GameWorkspaceComposable.repairDuplicateGameId |
+| GameWorkspaceComposable.hydrateAndInsertGame |
 
 | UiStateStore.openTab |
 | --- |
@@ -160,39 +160,39 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._refreshAnalysisForGame |
-| GamesStore._startAnalysisSnapshot |
-| GamesStore._subscribeToAnalysis |
+| GameAnalysisComposable.refreshAnalysisForGame |
+| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.subscribeToAnalysis |
 
-| GamesStore._startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSnapshot |
 | --- |
 | EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 #### Flow D - Request An Engine Turn For The Loaded Workspace
-| GamesStore._requestPlayerMoveIfNeeded |
+| GamePlayerTurnComposable.requestPlayerMoveIfNeeded |
 | --- |
-| GamesStore._requestPlayerMove |
-| GamesStore._playerMoveHandler |
+| GamePlayerTurnComposable.requestPlayerMove |
+| GamePlayerTurnComposable.playerMoveHandler |
 
-| GamesStore._requestPlayerMoveIfNeeded |
+| GamePlayerTurnComposable.requestPlayerMoveIfNeeded |
 | --- |
-| GamesStore._requestPlayerMove |
-| GamesStore._playerMoveHandler |
+| GamePlayerTurnComposable.requestPlayerMove |
+| GamePlayerTurnComposable.playerMoveHandler |
 
-| GamesStore._requestEngineMove |
+| GamePlayerTurnComposable.requestEngineMove |
 | --- |
 | EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startPlayerTurn |
 | EngineRuntimeService.awaitPlayerTurnMove |
 
-| GamesStore._playerMoveHandler |
+| GamePlayerTurnComposable.playerMoveHandler |
 | --- |
-| GamesStore._commitLiveMove |
+| GameMoveComposable.commitLiveMove |
 
 - Route coverage: /saved-games/load shows grouped games, double-click latest-save loading, and Select, while /saved-games/load/:name switches the bottom-right action to Load for the selected game's save list.
 - State/settings coverage: the restored workspace is shown before analysis resumes, `analysis.resumeLiveAnalysisAfterRestore` still gates continuous analysis restart, and `gameSession.autoPauseOnMenu` controls the route-entry pause branch only. Any player-engine move that became ready on the previously active paused game during the load flow remains deferred until that game's paired resume path revalidates it.
@@ -210,19 +210,19 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.pauseGame |
 | --- |
-| GamesStore._maybeAutoPauseForMenu |
-| GamesStore._markPauseOwner |
+| GameClockComposable.pauseGame |
+| GameClockComposable.pauseGame |
 
 | SavedGamesStore.exportGame |
 | --- |
-| SavedGamesStore._buildDefaultExportName |
+| `SavedGamesStore.exportGame` |
 | SerializationService.selectExportFile |
 | SerializationService.writeGameDocument |
 
 | GamesStore.resumeGame |
 | --- |
-| GamesStore._assertResumable |
-| GamesStore._resumeClock |
+| GameClockComposable.resumeGame |
+| GameClockComposable.resumeGame |
 | GameView._resumeIfMenuOwnedPause |
 
 - Settings coverage: gameSession.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens. While paused for export, the game surface is interaction-locked and any player-engine move that becomes ready remains deferred until return.
@@ -246,8 +246,8 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.insertGame |
 | --- |
-| GamesStore._remapDuplicateIdIfNeeded |
-| GamesStore._hydrateWorkspace |
+| GameWorkspaceComposable.repairDuplicateGameId |
+| GameWorkspaceComposable.hydrateAndInsertGame |
 
 | UiStateStore.openTab |
 | --- |
@@ -268,21 +268,21 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | GamesStore.refreshAnalysis |
 | --- |
-| GamesStore._refreshAnalysisForGame |
-| GamesStore._startAnalysisSnapshot |
-| GamesStore._subscribeToAnalysis |
+| GameAnalysisComposable.refreshAnalysisForGame |
+| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.subscribeToAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 #### Flow C - Request An Engine Turn For The Imported Workspace
-| GamesStore._requestPlayerMoveIfNeeded |
+| GamePlayerTurnComposable.requestPlayerMoveIfNeeded |
 | --- |
-| GamesStore._requestPlayerMove |
-| GamesStore._playerMoveHandler |
+| GamePlayerTurnComposable.requestPlayerMove |
+| GamePlayerTurnComposable.playerMoveHandler |
 
-| GamesStore._requestEngineMove |
+| GamePlayerTurnComposable.requestEngineMove |
 | --- |
 | EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startPlayerTurn |
@@ -502,12 +502,12 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | `SavedGamesStore.deleteSave` |
 | --- |
-| `SavedGamesStore._resolveSelectedSaveEntry` |
+| `getTargetEntry` |
 | `SerializationService.deleteDocument` |
 
 | `SavedGamesStore.listSavedGames` |
 | --- |
-| `SavedGamesStore._resolveSaveRoot` |
+| `getSaveRootPath` |
 | `SerializationService.listManagedSaveEntries` |
 | `SavedGameIndexService.projectSaveGroups` |
 
@@ -529,12 +529,12 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 | `SavedGamesStore.deleteSave` |
 | --- |
-| `SavedGamesStore._resolveSelectedSaveEntry` |
+| `getTargetEntry` |
 | `SerializationService.deleteDocument` |
 
 | `SavedGamesStore.listSavedGames` |
 | --- |
-| `SavedGamesStore._resolveSaveRoot` |
+| `getSaveRootPath` |
 | `SerializationService.listManagedSaveEntries` |
 | `SavedGameIndexService.projectSaveGroups` |
 

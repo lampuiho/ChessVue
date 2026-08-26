@@ -50,8 +50,9 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     game.gameState = GameState.BoardEdit;
     touchGame(game);
   }
-  function applyBoardEdit(game: IGame, boardRoot: IBoardPosition): void {
-    move.replaceWithAnalysisRoot(game, boardRoot, GameState.BoardEdit);
+  function applyBoardEdit(game: IGame, rootPosition: IBoardPosition): void {
+    assertBoardEditState(game);
+    move.replaceWithAnalysisRoot(game, rootPosition, GameState.BoardEdit);
   }
   function clearBoard(game: IGame): void {
     assertBoardEditState(game);

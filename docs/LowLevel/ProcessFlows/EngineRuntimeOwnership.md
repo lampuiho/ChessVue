@@ -22,9 +22,9 @@ The concrete `EngineClient` may refine `engine.$` with a private session. Its UC
 ### Start Or Refresh Analysis
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._refreshAnalysisForGame` |
-| `GamesStore._startAnalysisSnapshot` |
-| `GamesStore._subscribeToAnalysis` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.subscribeToAnalysis` |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis(engine, game, request)` |
 
@@ -63,11 +63,11 @@ The concrete `EngineClient` may refine `engine.$` with a private session. Its UC
 ## Player Turn Runtime
 
 ### Arm Every Live Turn
-| `GamesStore._requestPlayerMoveIfNeeded` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore._requestPlayerMove` |
+| `GamePlayerTurnComposable.requestPlayerMove` |
 | create `game.$.pendingPlayerTurnPromise` for the current player |
-| `GamesStore._playerMoveHandler` awaits that shared promise |
+| `GamePlayerTurnComposable.playerMoveHandler` awaits that shared promise |
 
 For a local player, `GamesStore.makeMove(...)` resolves the deferred move. For a player engine, `_requestEngineMove(...)` calls `ensureReady(...)`, `startPlayerTurn(engine, game)`, and `awaitPlayerTurnMove(...)`, then resolves the same game-level deferred. The handler either stores the resulting `IMove` as `deferredPlayerMove` while paused or commits it while live.
 

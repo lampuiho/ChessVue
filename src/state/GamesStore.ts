@@ -32,7 +32,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     status,
     touchGame,
     commitLiveMove: (game: IGame, playerMove: IMove, engine?: IAssignedEngine) => move.commitLiveMove(game, playerMove, engine),
-    replaceWithAnalysisRoot: (game: IGame, boardRoot: IBoardPosition, nextState: GameState) => move.replaceWithAnalysisRoot(game, boardRoot, nextState),
+    replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => move.replaceWithAnalysisRoot(game, rootPosition, nextState),
     refreshRuntimeRegistrations: (game: IGame) => clock.refreshRuntimeRegistrations(game),
   });
   clock = useGameClock({

@@ -192,7 +192,7 @@ Example collapsed analysis state:
 
 - `freeAnalysisSetup` always keeps move-by-move engine-line rendering, and each rendered move target is clickable
 - any `liveGame` context defaults to score-only rows because each live game stores `showLiveAnalysisMoves = false` unless explicitly enabled at creation or start-from-setup
-- when `showLiveAnalysisMoves = true`, `liveGame + currentPosition` renders move targets and clicking one commits the selected suggestion as a normal live move
+- when `showLiveAnalysisMoves = true`, `liveGame + livePlay` renders move targets and clicking one commits the selected suggestion as a normal live move
 - when `showLiveAnalysisMoves = true`, `liveGame + historyReview` renders move targets and clicking one follows the normal history-move policy, rewriting mainline when takeback allows it or otherwise continuing as analysis-only
 - when `showLiveAnalysisMoves = true`, `liveGame + inGameAnalysis` renders move targets and clicking one applies the selected path as analysis moves inside that mode
 - per-engine-title `-` action on the right for removing that engine from the current game

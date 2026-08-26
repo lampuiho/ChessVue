@@ -79,8 +79,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.insertGame` |
 | --- |
-| `GamesStore._repairDuplicateGameId` |
-| `GamesStore._hydrateWorkspace` |
+| `GameWorkspaceComposable.repairDuplicateGameId` |
+| `GameWorkspaceComposable.hydrateAndInsertGame` |
 
 | `UiStateStore.setActiveGame` |
 | --- |
@@ -92,40 +92,40 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._refreshAnalysisForGame` |
-| `GamesStore._startAnalysisSnapshot` |
-| `GamesStore._subscribeToAnalysis` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GamesStore._startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 #### Flow D - Request Engine Turn After Restore
-| `GamesStore._requestPlayerMoveIfNeeded` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore._requestPlayerMove` |
-| `GamesStore._playerMoveHandler` |
+| `GamePlayerTurnComposable.requestPlayerMove` |
+| `GamePlayerTurnComposable.playerMoveHandler` |
 
-| `GamesStore._requestPlayerMoveIfNeeded` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore._requestPlayerMove` |
-| `GamesStore._playerMoveHandler` |
+| `GamePlayerTurnComposable.requestPlayerMove` |
+| `GamePlayerTurnComposable.playerMoveHandler` |
 
-| `GamesStore._requestEngineMove` |
+| `GamePlayerTurnComposable.requestEngineMove` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startPlayerTurn` |
 | `EngineRuntimeService.awaitPlayerTurnMove` |
 
-| `GamesStore._playerMoveHandler` |
+| `GamePlayerTurnComposable.playerMoveHandler` |
 | --- |
-| `GamesStore._commitLiveMove` |
-| `GamesStore._requestPlayerMoveIfNeeded` |
+| `GameMoveComposable.commitLiveMove` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 
 - State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. Because session restore depends on prior tabs being reopenable, accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`. When the restored route resolves to a game, `GameView.setup` lazily restores only the requested remembered `gameId` values from that session snapshot, asks `SavedGamesStore.restoreGames(...)` for the latest available managed save payload for each one, then feeds each payload into `GamesStore.insertGame(...)`. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
 - Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `SavedGamesStore.restoreGames(...)` owns restore lookup and document reads, while `GamesStore.insertGame(...)` rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
@@ -183,7 +183,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | --- |
 | `SavedGameIndexService.getLatestSaveEntryForGame` |
 | `SerializationService.readGameDocument` |
-| `SavedGamesStore._skipCorruptDocument` |
+| `SavedGamesStore.restoreGames` |
 
 - Requirement verification: `Pass`. Corrupt settings, game-session, UI-layout, recent-save targets, or game payloads fall back independently through lazy reads, and corrupt core game payloads are isolated instead of crashing app entry.
 
@@ -199,9 +199,9 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.createGame` |
 | --- |
-| `GamesStore._buildDefaultCreateRequest` |
-| `GamesStore._validateCreateRequest` |
-| `GamesStore._createWorkspace` |
+| `GameWorkspaceComposable.createGame` |
+| `GameClockComposable.initialiseClockSnapshot` |
+| `GameWorkspaceComposable.hydrateAndInsertGame` |
 
 | `UiStateStore.openTab` |
 | --- |
@@ -230,12 +230,10 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.createGame` |
 | --- |
-| `GamesStore._validateCreateRequest` |
-| `GamesStore._resolveInitialGameState` |
-| `GamesStore._validateAssignedPlayers` |
-| `GamesStore._validateAssignedEngines` |
-| `GamesStore._initialiseClockSnapshot` |
-| `GamesStore._seedAnalysisAssignment` |
+| `GameWorkspaceComposable.createGame` |
+| `GamePlayerTurnComposable.createPlayerSnapshot` |
+| `GameClockComposable.initialiseClockSnapshot` |
+| `GameAnalysisComposable.createAnalysisSnapshot` |
 
 | `UiStateStore.hideModal` |
 | --- |
@@ -247,29 +245,29 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.refreshAnalysis` |
 | --- |
-| `GamesStore._refreshAnalysisForGame` |
-| `GamesStore._startAnalysisSnapshot` |
-| `GamesStore._subscribeToAnalysis` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
+| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GamesStore._applyAnalysisUpdate` |
+| `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 #### Flow C - Request The Opening Engine Turn
-| `GamesStore._requestPlayerMoveIfNeeded` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 | --- |
-| `GamesStore._requestPlayerMove` |
-| `GamesStore._playerMoveHandler` |
+| `GamePlayerTurnComposable.requestPlayerMove` |
+| `GamePlayerTurnComposable.playerMoveHandler` |
 
-| `GamesStore._requestEngineMove` |
+| `GamePlayerTurnComposable.requestEngineMove` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startPlayerTurn` |
 | `EngineRuntimeService.awaitPlayerTurnMove` |
 
 - UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
-- State/settings coverage: any request with both sides assigned becomes a live state, while any request with either side unassigned becomes a non-live analysis state. At the low-level request boundary, that unassigned state is encoded by omitting the relevant player-type or engine-id field. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GamesStore._requestPlayerMoveIfNeeded` is evaluated immediately after creation for every playable live turn, including `PlayerType.Engine/PlayerType.Engine`.
-- Requirement verification: `Pass`. Invalid time control or missing required engines are blocked before workspace creation, any partially or fully unassigned player request resolves into non-live analysis, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
+- State/settings coverage: any request with both sides assigned becomes a live state, while any request with either side unassigned becomes a non-live analysis state. At the low-level request boundary, that unassigned state is encoded by omitting the relevant player-type or engine-id field. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` is evaluated immediately after creation for every playable live turn, including `PlayerType.Engine/PlayerType.Engine`.
+- Requirement verification: `Pass`. Partially or fully unassigned player requests resolve into non-live analysis, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
 
@@ -308,8 +306,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.pauseGame` |
 | --- |
-| `GamesStore._maybeAutoPauseForMenu` |
-| `GamesStore._markPauseOwner` |
+| `GameClockComposable.pauseGame` |
+| `GameClockComposable.pauseGame` |
 
 | `UiStateStore.setActiveRoute` |
 | --- |
@@ -336,8 +334,8 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `GamesStore.resumeGame` |
 | --- |
-| `GamesStore._assertResumable` |
-| `GamesStore._resumeClock` |
+| `GameClockComposable.resumeGame` |
+| `GameClockComposable.resumeGame` |
 | `GameView._resumeIfMenuOwnedPause` |
 
 - UI surface coverage: `SettingsView` keeps category switching in a tab-style top strip, a secondary reset action area, and a primary bottom-right action row for `Cancel`, `Save`, and `Apply`.
@@ -380,13 +378,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SavedGamesStore.loadRecentGame` |
 | --- |
-| `SavedGamesStore._resolveRecentTarget` |
+| `SavedGamesStore.loadRecentGame` |
 | `SerializationService.readGameDocument` |
 
 | `GamesStore.insertGame` |
 | --- |
-| `GamesStore._remapDuplicateIdIfNeeded` |
-| `GamesStore._hydrateWorkspace` |
+| `GameWorkspaceComposable.repairDuplicateGameId` |
+| `GameWorkspaceComposable.hydrateAndInsertGame` |
 
 | `UiStateStore.openTab` |
 | --- |
@@ -406,13 +404,13 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SavedGamesStore.loadRecentGame` |
 | --- |
-| `SavedGamesStore._resolveRecentTarget` |
+| `SavedGamesStore.loadRecentGame` |
 | `SerializationService.readGameDocument` |
 
 | `GamesStore.insertGame` |
 | --- |
-| `GamesStore._remapDuplicateIdIfNeeded` |
-| `GamesStore._hydrateWorkspace` |
+| `GameWorkspaceComposable.repairDuplicateGameId` |
+| `GameWorkspaceComposable.hydrateAndInsertGame` |
 
 | `UiStateStore.openTab` |
 | --- |

@@ -51,10 +51,12 @@ describe('MoveApplicationService', () => {
     it('leaves the supplied root position untouched', () => {
       const rootPosition = createInitialBoardPosition();
       const occupiedBefore = occupiedBoardIds(rootPosition);
+      const movingPawn = rootPosition.board[e2e4.from];
 
       const generated = MoveApplicationService.genPosition(rootPosition, [e2e4, e7e5]);
 
       expect(generated).not.toBe(rootPosition);
+      expect(generated.board[e2e4.to]).toBe(movingPawn);
       expect(occupiedBoardIds(rootPosition)).toEqual(occupiedBefore);
       expect(rootPosition.sideToMove).toBe(PlayerColour.White);
     });

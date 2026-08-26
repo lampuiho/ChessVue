@@ -340,7 +340,7 @@ Each scenario in this document uses the same structure:
   - `MoveHistoryService.addMainlineMove`
   - `TimeControlService.applyMove`
   - `GamesStore.refreshAnalysis`
-  - `GamesStore._applyAnalysisUpdate` (subsequent engine response)
+  - `GameAnalysisComposable.subscribeToAnalysis callback` (subsequent engine response)
 
 ### SCN-MOVE-02 - Illegal Move Attempt
 - **Status**: Current
@@ -557,7 +557,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `GameView.onStartAnalysis`
   - `GamesStore.refreshAnalysis`
-  - `GamesStore._applyAnalysisUpdate`
+  - `GameAnalysisComposable.subscribeToAnalysis callback`
   - `GamesStore.getVisibleAnalysis`
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
@@ -583,7 +583,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `EnginesStore.listConfiguredEngines`
   - `GamesStore.refreshAnalysis`
-  - `GamesStore._applyAnalysisUpdate`
+  - `GameAnalysisComposable.subscribeToAnalysis callback`
   - `GamesStore.getVisibleAnalysis`
   - `EngineRuntimeService.startAnalysis`
   - `EngineRuntimeService.subscribeToAnalysis`
@@ -618,13 +618,13 @@ Each scenario in this document uses the same structure:
   1. User clicks a move inside a rendered suggested engine line.
   2. In `freeAnalysisSetup`, app plays move animation through the suggested moves up to the selected move and applies them as analysis moves.
   3. In `liveGame + inGameAnalysis`, app does the same only when that live game enables rendered move targets, and the live node still does not advance.
-  4. In `liveGame + currentPosition`, app commits the selected suggestion as a normal live move only when that live game enables rendered move targets.
+  4. In `liveGame + livePlay`, app commits the selected suggestion as a normal live move only when that live game enables rendered move targets.
   5. In `liveGame + historyReview`, app reuses the ordinary history-move policy only when that live game enables rendered move targets, rewriting mainline when allowed or otherwise keeping the continuation analysis-only.
   6. Board, history, clocks, and analysis update according to the resulting context.
 - **Branch Paths**:
   - `BR-ANALYSIS-04-MOVE-STALE`: Selected move path is no longer legal from the current node -> reject and refresh eval list.
   - `BR-ANALYSIS-04-LIVE-SCORE-ONLY`: In any live-game context where `showLiveAnalysisMoves = false`, no move target is rendered from the analysis panel.
-  - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `game.gameplayOptions.takebackPolicy = analysisOnly`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
+  - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `game.gameplayOptions.allowTakeback = false`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
   - `BR-ANALYSIS-04-PAUSED`: In paused live play, analysis results are read-only and clicking any suggested move is blocked until resume.
 - **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.
@@ -1313,7 +1313,7 @@ Each scenario in this document uses the same structure:
   - `BR-IDEA-07-MAX-RETRY`: Retry limit reached -> disable engine and notify user.
 - **Postconditions**: Better resilience for unstable engine binaries.
 - **Implementation Touchpoints**:
-  - `GamesStore._pollAnalysisSessionHealth`
+  - `EngineRuntimeService analysis callbacks`
   - `GamesStore.refreshAnalysis`
   - `GamesStore.getVisibleAnalysis`
 

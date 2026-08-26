@@ -26,7 +26,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       executablePath: engineProfile.executablePath,
       clientType: engineProfile.clientType,
       protocol: engineProfile.protocol,
-      options: structuredClone(engineProfile.options),
+      options: { ...engineProfile.options },
     };
   }
   function createAnalysisSnapshot(engineProfile: IEngineRecord, positionKey: string, updatedAt: Date): IAnalysisSnapshot {
