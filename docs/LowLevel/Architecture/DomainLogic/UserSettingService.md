@@ -47,5 +47,6 @@ resetSettings(): Promise<ISettingsSnapshot>
 - `getSettingsOrDefault()` is the lazy first-read boundary. Missing or invalid files resolve to the default accepted snapshot without requiring an eager bootstrap phase.
 - `getSystemTheme()` is the layer-2 initial read path used by `SettingsStore._resolveThemeMode` when `appearance.themeMode = ThemeMode.System`.
 - Validation, coercion, and defaulting belong here so the accepted snapshot stays consistent whether it was first read from a view setup path, applied from the settings screen, saved explicitly, or reset to defaults.
+- Schema parsing is the accepted-settings ownership boundary. The resulting snapshot is cached and returned directly without defensive cloning; `SettingsStore` provides draft isolation through copy-on-write when editing begins.
 - Build config owns the concrete settings-file path. `UserSettingService` does not decide that path; it only uses it.
 - Future non-desktop implementations may persist accepted settings elsewhere without changing the shared path-based adapter contract.

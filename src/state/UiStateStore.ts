@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { shallowRef } from 'vue';
 
-import { PlatformErrorKind, type IAppModalState, type IGameSessionSnapshot, type IUiLayoutState } from '@/contracts';
+import { PlatformErrorKind, type DeepReadonly, type IAppModalState, type IGameSessionSnapshot, type IUiLayoutState } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
 import { SerializationService } from '@/domain';
 import { logHandledError } from '@/utility/errors';
@@ -171,11 +171,11 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     if (section === 'history') currentLayout.historyCollapsed = isCollapsed ?? !currentLayout.historyCollapsed;
     if (section === 'analysis') currentLayout.analysisCollapsed = isCollapsed ?? !currentLayout.analysisCollapsed;
   }
-  function getModalState(): IAppModalState | undefined {
-    return _modalState.value ? structuredClone(_modalState.value) : undefined;
+  function getModalState(): DeepReadonly<IAppModalState> | undefined {
+    return _modalState.value;
   }
   function showModal(modal: IAppModalState): void {
-    _modalState.value = structuredClone(modal);
+    _modalState.value = modal;
   }
   function hideModal(): void {
     _modalState.value = undefined;

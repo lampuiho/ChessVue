@@ -99,7 +99,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GamesStore._applyAnalysisUpdate` |
 
-- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit`, paused live states, paused live-analysis states, and `Checkmate` block live move progression.
+- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and paused live-family states block move submission; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
 - Continuous analysis update loop: `GamesStore._refreshAnalysisForGame` -> `GamesStore._startAnalysisSnapshot` -> `GamesStore._subscribeToAnalysis` -> `EngineRuntimeService.ensureReady` -> `EngineRuntimeService.startAnalysis(engine, game, request)` -> client state-machine updates -> the subscribed snapshot callback -> `AnalysisPanel` rerender for the affected engine row.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer state transitions behind analysis start, streamed updates, player turns, and pondering.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
@@ -191,7 +191,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 - Runtime distinction: analysis search keeps streaming updates over time, while a player-engine turn waits only for the final awaited move and then ends that turn-scoped search.
 - State gate: `GamesStore._requestPlayerMoveIfNeeded` arms a turn only for `LiveWhiteTurn` or `LiveBlackTurn` with `resultState = ongoing`, while the rendered path is the live path and no turn promise is already pending. Local and engine players use the same game-level deferred turn.
-- Guardrails: player-engine turn generation is blocked in non-live analysis, live analysis, board edit, paused live games, and `Checkmate`.
+- Guardrails: player-engine turn generation is blocked in non-live analysis, live analysis, board edit, paused live games, and whenever `resultState` is not ongoing. A checkmating move records `CheckState.Checkmate` before the game transitions to non-live analysis.
 - Paused completion rule: if an already-started player-engine turn resolves while the game is paused, the result is recorded as deferred output only. `GamesStore.makeMove(...)` is not called until pause clears back to a playable live state and the deferred result is revalidated against the live position before commit.
 - Completion rule: the player-engine turn completes only when `EngineRuntimeService.awaitPlayerTurnMove(...)` resolves with a valid move. The baseline defines no no-response timeout.
 - Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.

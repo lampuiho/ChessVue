@@ -16,7 +16,7 @@ togglePiece(position: IBoardPosition, boardId: BoardId, piece: IChessPiece): boo
 ## Mutation Contract
 - `applyMove` mutates the supplied position and returns that position for chaining. It does not create a snapshot.
 - `clearBoard`, `deletePiece`, `movePiece`, and `togglePiece` mutate the supplied position. They return whether an effective edit occurred and invalidate position runtime metadata after an effective edit.
-- `genPosition` is the copying boundary. It clones `rootPosition` once, replays the supplied moves into that clone, and leaves `rootPosition` untouched.
+- `genPosition` is the copying boundary. It clones `rootPosition` once, replays the supplied moves into that clone, and leaves `rootPosition` untouched. The detached position is required when rendered analysis or history must diverge from the authoritative root or live position; sharing the mutable board container would let analysis replay corrupt that authority.
 - Callers own legality checks, complete move construction, workflow ordering, history updates, and rollback policy. This service only applies an already accepted transition.
 
 ## Responsibilities

@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AppModalKind, PlatformErrorKind } from '@/contracts';
+import { AppModalKind, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAppModalState } from '@/contracts';
 
 import {
   createGameSessionSnapshot,
@@ -112,5 +112,26 @@ describe('useUiStateStore', () => {
       analysisCollapsed: false,
       analysisEngineExpandedByIndex: [true, false],
     });
+  });
+  it('retains engine-bearing modal state without cloning runtime callbacks', () => {
+    const store = useUiStateStore();
+    const modal = {
+      kind: AppModalKind.AnalysisEngineSelection,
+      payload: {
+        gameId: 'game-1',
+        currentAnalysisEngines: [{
+          displayName: 'Engine',
+          executablePath: 'engine.exe',
+          clientType: EngineClientType.Uci,
+          protocol: EngineProtocol.Uci,
+          options: {},
+          $: { availability: EngineAvailability.Ready, analysisCallback: () => undefined, analysisLines: new Map() },
+        }],
+      },
+    } satisfies IAppModalState;
+
+    store.showModal(modal);
+
+    expect(store.getModalState()).toBe(modal);
   });
 });

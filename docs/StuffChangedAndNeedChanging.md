@@ -16,7 +16,7 @@ Stuff need changing:
 - ~~fix places that need to _requestPlayerMove but haven't~~
 - ~~add _requestPlayerMoveIfNeeded to refactor if(xxx) _requestPlayerMove that we have~~
 - ~~add legal move check on checkmate/being checked board positions in GameRuleService.isMoveLegal~~
-- ~~rename MoveUpdateService to MoveHistoryService in remaining docs and stale references~~
+- finish the `MoveUpdateService` to `MoveHistoryService` rename: production and design references use the new service, but `src/domain/__tests__/MoveUpdateService.spec.ts` still has the old filename
 - ~~use actual Date object for all dates not string (zod will take care of the transform)~~ done: added `@/utility/date` (`RecordTimestamp`, `ClockTimestamp`, `AnalysisTimestamp`, `SaveTimestamp`, `RegistrationTimestamp`, each a `Date` subclass with its own `toString`); zod fields now use `utcTimestampSchema` (accepts string-or-Date, always outputs the subclass, so the same schema works for both reading persisted JSON and re-validating in-memory games before serialising)
 - ~~remove boardPosition at each node, this is not a good solution because we probably won't use boardPosition for rendering as we can't do proper animation on the chess pieces with it. we need the same chess piece object changing board id to change the coordinates calculated by the frontend. so we would be moving step by step anyway so just recompute position from reference node.~~ done: `IMoveNode.position` is gone (schema too, so old saves just drop the field). `MoveHistoryService.getMoveSequence(tree, toPath, fromPath?)` answers pure tree knowledge and `MoveApplicationService.genPosition(rootPosition, moves)` replays it — `fromPath` is the seam for step-by-step animation later. `applyMove` now mutates in place (`apply*` mutates, `gen*` copies); board edits moved to `MoveApplicationService` (`clearBoard`/`deletePiece`/`movePiece`/`togglePiece`, in place, returning whether anything changed and invalidating `$` themselves). Also: `IBoardPositionRuntime.fen` caches FEN (`buildFen` moved from `UciUtility` to `MoveNotationUtility`), and the UCI new-game check compares that FEN instead of `rootPosition` identity, since board edits now mutate the root in place. `hydrateGame` finally wires `$.parent` (it never did, which silently broke `getPathToNode` for loaded games).
 - ~~add live position to make it easier to return live position from current position~~
@@ -24,6 +24,8 @@ Stuff need changing:
 - ~~rename position related props named with "current*"  in IGame with "rendered*"~~
 - ~~TODO in GameStore._finaliseMove~~
 - remove all the unneccessary object cloning in GameStore and other places
+  - decide and document whether `IChessPiece` is immutable; if it is, make that contract readonly and stop `cloneBoardPosition(...)` from cloning every piece so reconstructed positions preserve piece identity
+  - rerun the production copy-site review after resolving piece ownership; intentional copies now have their reasons in the design document owned by each boundary
 - ~~some GameRule service functions like applyMove are somehow in GameRuleUtility, and is called by GameStore. Move them back to game rule service. It would only make sense for actual game rule stuff to be in the library not app logic, if they obey the rule that there are other services in the first 2 layers that need them~~
 - ~~replace `GameRuleService` with explicitly mutable `MoveApplicationService.applyMove` and detailed-move check state~~
 - ~~MoveNode.kind should just be Live, Analysis, MoveNodeRuntime can have isHighlighted boolean (for live path and rendered path)~~
@@ -33,6 +35,11 @@ Stuff need changing:
 - ~~_finaliseMove need rewrite for more natural flow of applyMove; livePosition and rendered position are supposed to be the same reference when live position is rendered~~ done: `_finaliseMove`, `_finaliseAnalysisMove`, and the analysis flag are removed. `makeMove` now dispatches named live, live-analysis, live-history-analysis, and standalone-analysis workflows; the domain `applyMove` remains the visible in-place board mutation inside those flows.
 - ~~Gamestore needs to refactor into composables to make up the whole store as it gets bloated.~~ `GamesStore` is now an explicit Pinia façade composed from focused workspace, position, status, clock, analysis, player-turn, move, and board-edit composables.
 - update design doc again
+  - replace the stale `GamesStore._...` pseudo-private flow API with the actual composable ownership and function names; the review found 95 distinct old helper names across 275 references, extending beyond the player-move flow
+  - correct remaining contract signatures, including `GamesStore.makeMove(...): Promise<void>` and `IGameRuntime.pendingPlayerTurnHandlePromise?: Promise<void>`
+  - replace stale `gameplayOptions.takebackPolicy` design references with the implemented `allowTakeback` boolean
+  - finish terminology cleanup for `currentPosition` context labels and `boardRoot` parameters, while retaining the explicitly documented legacy `highlightPath` migration
+  - reconcile historical `GameRuleService` and other superseded names in follow-up notes with the current `GameRuleUtility` / composable implementation
 
 To validate:
 - find missing actions not done in functions, (if you find "missing" gates, may potentially add assertion errors. I found a lot of the gates you added were just hiding errors rather than throwing exceptions.)

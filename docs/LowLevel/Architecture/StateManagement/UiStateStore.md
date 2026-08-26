@@ -16,7 +16,7 @@ closeTab(gameId: string): void
 setLayoutState(layout: IUiLayoutState): void
 togglePanel(panel: "history" | "analysis", isVisible?: boolean): void
 setSectionCollapsed(section: "history" | "analysis", isCollapsed?: boolean): void
-getModalState(): IAppModalState | undefined
+getModalState(): DeepReadonly<IAppModalState> | undefined
 showModal(modal: IAppModalState): void
 hideModal(): void
 getAnalysisEngineExpandedByIndex(): boolean[]
@@ -58,5 +58,6 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `setActiveGame(...)` is selection-only. It updates `activeGameId` and the routed game target only when the supplied id is already open, and it never appends unknown ids into `openGameIds`.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis snapshot rows to derive the current mapping.
-- After initial lazy load, the store mutates the in-memory session and layout snapshots in place while preserving clone-on-read behaviour for callers and persistence writes.
+- After initial lazy load, the store mutates the in-memory session and layout snapshots in place. Clone-on-read prevents callers from changing persisted shell state without using the store actions, and `setLayoutState(...)` copies its input so later caller mutation cannot alter the accepted layout behind the store's back.
+- Modal state is transient shared state rather than a persistence snapshot. `showModal(...)` retains the supplied modal object and `getModalState()` exposes that same object through a deep-readonly observation contract; neither boundary clones it. This preserves engine runtime values such as callbacks that cannot be structured-cloned, while modal replacement and removal remain owned by `showModal(...)` and `hideModal()`.
 - Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. Those functions remain store-private and are not shared utility-layer modules.

@@ -1,19 +1,19 @@
 # Codex Follow-Up
 
 ## Completed
-- Moved `createInitialBoardPosition(...)` into `GameRuleService`.
+- Consolidated `createInitialBoardPosition(...)` into `GameRuleUtility` after the temporary `GameRuleService` boundary was removed.
 - Removed `normaliseBoardPosition(...)`.
 - Reduced the public `BoardUtility` surface to shared helpers only.
 - Kept board-position cloning private to rule-application code instead of exposing it as a general utility helper.
 - Reduced a few avoidable copies in touched code paths:
   - `GamesStore.createGame(...)` no longer clones the initial root position.
   - `MoveHistoryService` now stores the supplied move, position, and clock objects directly.
-- Implemented castling-right updates inside `GameRuleService` without cloning castling availability a second time.
-- Added `GameRuleService` coverage for castling-right updates after king moves, rook moves, and rook captures.
+- Implemented castling-right updates inside `GameRuleUtility` without cloning castling availability a second time.
+- Added `GameRuleUtility` coverage for castling-right updates after king moves, rook moves, and rook captures.
 - Simplified `IMoveNode` from `Mainline/Variation/Analysis` to `Live/Analysis`.
 - Reserved runtime `IMoveNode.$.isHighlighted` for the UI; generic tree-wide synchronisation was removed and event-driven path highlighting remains deferred until its presentation semantics are established.
-- Kept aborted live-turn rejections uncaught in `_playerMoveHandler(...)` and pushed the intentional cancellation handling into the tests that trigger those paths.
-- Tightened `GamesStore._requestPlayerMoveIfNeeded(...)` so it only arms turns while the game is actually on the live current board.
+- Kept aborted live-turn rejections internal to `GamePlayerTurnComposable.playerMoveHandler(...)` and pushed the intentional cancellation handling into the tests that trigger those paths.
+- Tightened `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(...)` so it only arms turns while the game is actually on the live rendered board.
 - Simplified rendered-node runtime selection so the lazy `renderedNode` cache follows the single authoritative rendered path instead of depending on `gameState` ordering during transitions.
 - Reworked `GamesStore` store tests so they assert public state transitions instead of depending on internal pending-turn promise payloads.
 - Updated stale docs in:
@@ -38,15 +38,11 @@
 ## Still Pending
 - Finish the items still open in `docs/StuffChangedAndNeedChanging.md`.
 - Define the board-interaction move-submission boundary so legal move selection uses `IMoveRaw`, promotion selection completes that raw move, and conversion to `IMove` happens only afterwards for move-tree and service interactions.
-- Continue the broader copy-reduction pass beyond the paths already touched.
-- Revisit the remaining process-flow docs that still describe the old private player-move flow.
+- Complete the remaining copy-reduction and design-document reconciliation recorded in `docs/StuffChangedAndNeedChanging.md`.
 - Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.
-- Run the wider regression suite outside `GamesStore.spec.ts` after the next batch of tracker items lands.
 
 ## Verification
-- Current UCI state-machine pass: automated tests and type checking were not run because this environment does not expose a Node executable or package-manager commands.
-- Previously completed regression runs:
-- `npx vitest run src/domain/__tests__/GameRuleService.spec.ts src/domain/__tests__/MoveUpdateService.spec.ts src/domain/__tests__/SerializationService.spec.ts`
-- Result: `18` tests passed.
-- `npx vitest run src/state/__tests__/GamesStore.spec.ts`
-- Result: `16` tests passed. The mocked `analysis boom` stderr is still expected from the failure-path test.
+- `npm run type-check`
+- Result: passed.
+- `npm run test:unit -- --run`
+- Result: all `26` test files and `160` tests passed. The logged unreadable-save and `analysis boom` errors are expected from their failure-path tests.

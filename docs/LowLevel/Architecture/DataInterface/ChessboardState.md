@@ -40,6 +40,7 @@ interface IBoardPositionRuntime {
 - `SerializationService` persists `IBoardPosition` inside `IGame`.
 - `GamesStore` keys persisted analysis snapshots by derived structural position identity, not stored FEN.
 - `$.checkState`, `$.isCheckStateCached`, `$.isStandardInitialPosition`, and `$.fen` are runtime-only derived caches. `GameRuleUtility.createInitialBoardPosition(...)` marks the known standard root immediately.
+- `CheckState.Checkmate` describes the chess state of a materialised position; it is never a terminal `GameState`. The persisted winning outcome belongs to `IGame.resultState` and `resultReason`, while the detailed move also retains its resulting check state.
 - `GameRuleUtility.getCheckState(...)` caches both check and no-check results; `isCheckStateCached` distinguishes an uncached lookup from a cached `undefined` result. `GameRuleUtility.isStandardInitialPosition(...)` caches its boolean result.
 - `MoveNotationUtility.buildFen(...)` caches FEN on the position because engine and identity consumers can request the same deterministic projection repeatedly.
 - These query functions are semantically reads but may initialise `$`. They stay in the chess utilities because the layer model does not permit a utility-to-service fetch for derived chess data, and keeping the cache beside the derivation avoids repeated calculation or duplicated lookup logic in every caller.

@@ -88,6 +88,7 @@ interface IMoveTree {
 - `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
 - `IMoveRaw` is the UCI-internal coordinate shape. `GameRuleUtility.genDetailedMove(...)` enriches it into `IMove` before it crosses the engine-client boundary.
 - `IMove` persists the chess facts needed to derive SAN without a board position. `MoveNotationUtility.getSan(...)` and `getUci(...)` populate runtime-only read-through caches so repeated presentation and protocol consumers reuse the same notation. An engine-suggested ponder reply is also runtime-only but is runtime intent rather than a derived cache.
+- `IMove.checkState` persists whether the destination gives check or checkmate. `CheckState.Checkmate` is move and position information rather than a `GameState`; game completion remains represented by `resultState` and `resultReason`.
 - `IMoveNode.kind` only distinguishes committed live nodes from analysis-only nodes. Alternative live continuations remain `live` nodes; `mainlineChildIndex` decides which continuation is currently authoritative.
 - `IMoveNode.$` is runtime-only. Hydration rebuilds `$.parent`; `$.isHighlighted` is reserved for the deferred event-driven UI highlight state. Persistence omits all `$` data.
 - `MovePath` is the persisted selector used by workspace state to point to one node by traversal from the root.

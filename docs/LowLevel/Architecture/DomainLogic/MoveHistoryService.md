@@ -22,6 +22,7 @@ pruneFutureMoves(node: IMoveNode): void
 - `pruneFutureMoves` clears the supplied node's descendants in place.
 - No mutation operation clones nodes or returns a replacement `{ root }` wrapper. Navigation paths and derived position/node caches remain store-owned concerns.
 - `getMoveSequence` is read-only and returns the existing move references along the requested route.
+- Move and clock-snapshot arguments are already stable history records supplied by their owning workflows. Adding a node transfers those references into the tree rather than cloning them; later clock transitions create new snapshots instead of mutating snapshots retained by history.
 
 ## Responsibilities
 - maintain mainline and sibling variation structure

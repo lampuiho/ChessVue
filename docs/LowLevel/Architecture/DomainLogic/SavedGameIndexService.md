@@ -51,4 +51,5 @@ getLatestSaveEntryForGame(groups: readonly ISavedGameGroup[], gameId: string): I
 - `SavedGameIndexService` performs no file I/O and opens no dialogs.
 - Folder enumeration and raw reads or writes belong to `StorageAdapter`; save grouping and path conventions belong here.
 - `getLatestSaveEntry(...)` is a pure query. It returns `undefined` when no entries are available, otherwise it picks the newest entry by `savedAtUtc`, and when timestamps are missing or equal it falls back to a deterministic ordering of autosave before named-save and then ascending `saveName`.
+- Latest-save selection sorts a copied entries array because the input ordering remains caller-owned and must not be mutated by this pure query.
 - `getLatestSaveEntryForGame(...)` is a pure convenience query for grouped save data. It reuses the same latest-save ordering after locating the requested game's save group.

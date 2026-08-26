@@ -170,18 +170,21 @@ interface IStartGameFromSetupRequest {
 
 `renderedNode`, `liveNode`, `renderedPosition`, and `livePosition` are optional derived caches. `IGame.moveTree`, `renderedPath`, and `livePath` remain the only authoritative tree and selectors. When both paths identify the live node, the two position caches reference the same `IBoardPosition`. Advancing a live move mutates that shared object in place. Advancing an analysis branch from the live node first detaches a rendered copy so the live position remains unchanged.
 
+Persistent move paths are readonly owned selector values. A workflow that advances or redirects a selector creates a replacement array instead of mutating an existing path, preserving stable path values for other readers and persistence while avoiding copies during state transitions that retain the same selector.
+
 ## Rules
 - `GameState` is the single authoritative playable-state enum. It replaces separate workspace, interaction, clock, and turn-waiting axes.
 - `GameState.LiveWhiteTurn` and `GameState.LiveBlackTurn` are the only normal live-play states.
 - `GameState.PausedWhiteTurn` and `GameState.PausedBlackTurn` are timed live states paused by user or app flow. While active, the game surface is locked for user actions other than resume, although already running engine searches may still complete under the paused runtime rules.
 - `GameState.LiveAnalysisFrom*` means the game still has a committed live turn anchor, but the visible board is exploring analysis moves instead of progressing the live node.
 - `GameState.PausedLiveAnalysisFrom*` preserves that same live-analysis anchor and visible-side context while the associated live clock state remains paused.
-- `GameState.AnalysisWhiteMove` and `GameState.AnalysisBlackMove` are non-live analysis states used for free analysis/setup and for post-result analysis after non-checkmate terminal results.
+- `GameState.AnalysisWhiteMove` and `GameState.AnalysisBlackMove` are non-live analysis states used for free analysis/setup and for post-result analysis after every terminal result, including checkmate.
 - `GameState.BoardEdit` is a free-edit state only and is never combined with live play.
 - `resultState` records the outcome only, while `resultReason` records why the game reached that outcome.
 - Omitted `resultReason`, `drawOfferState`, `whitePlayer`, `blackPlayer`, `livePath`, and request-side player or engine-selection fields represent absence rather than a distinct `null` state.
-- Draw, resignation, timeout, and abandonment do not create an extra generic terminal state. They end live play and leave the game in one of the analysis states.
+- Checkmate, draw, resignation, timeout, and abandonment do not create an extra terminal `GameState`. They end live play and leave the game in one of the analysis states, while `resultState` and `resultReason` remain authoritative for the outcome.
 - Player seats persist copied in-game engine payloads rather than profile IDs, so open or restored games keep their original launch configuration until the user explicitly reassigns them.
+- Assigning a reusable player record parses it through `playerSchema` to create the persisted per-game player snapshot. This deliberately discards source runtime state, including engine callbacks, so later mutation or removal of the reusable record cannot alter the game participant.
 - `IPlayer.type = engine` is the discriminator for treating the player as `IEnginePlayer`.
 - `IEnginePlayer.assignedEngine` is the copied in-game engine payload for that seat.
 - `ICreateGameRequest.whitePlayer`, `ICreateGameRequest.blackPlayer`, `IStartGameFromSetupRequest.whitePlayer`, and `IStartGameFromSetupRequest.blackPlayer` carry the selected seat assignments directly. Omitted seat fields mean the seat is intentionally unassigned for analysis/setup flows.

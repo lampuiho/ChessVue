@@ -40,11 +40,11 @@ migrateGame(input: unknown): IGame
 - migrate older schema versions on read
 - reject corrupt core payloads
 - reject incomplete, unsupported, or incompatible saved-game payloads rather than inventing detached UI restore sections or partial-recovery import paths
-- strip runtime-only `$` metadata recursively from persisted output before any write path reaches `StorageAdapter`
+- project values through the canonical Zod persistence schemas so runtime-only `$` metadata and unknown fields are omitted before any write path reaches `StorageAdapter`
 - validate board-root consistency through structural position identity rather than stored FEN
 - validate nested move-tree structure, `mainlineChildIndex`, and persisted `livePath` / `renderedPath`
 - validate persisted `IGame.analysis`, including ordered snapshot shape and embedded copied-engine payload shape
-- stop at canonical payload validation, migration, and runtime-only `$` stripping; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` after successful deserialisation
+- stop at canonical payload validation, migration, and schema projection; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` after successful deserialisation
 - remain path-agnostic in the sense that callers supply the concrete file path; `SerializationService` never decides which specific file is being read or written
 
 ## Scenario Coverage
@@ -64,6 +64,8 @@ migrateGame(input: unknown): IGame
 - `SerializationService` depends on `StorageAdapter` for raw file and dialog access, but stores still depend only on this layer-2 boundary rather than on the adapter directly.
 - `SerializationService` accepts explicit file paths from callers. Build config supplies app-owned settings, session, and layout file paths, while `SavedGameIndexService` supplies managed save or load file paths beneath user-configurable `gameSession.saveRootPath`.
 - Recent-game history remains query-derived from available save targets and is not a serialised persisted artefact owned by this service.
-- All runtime-only `$` members are stripped from persisted output, including `IGame.$`, `IPlayer.$`, `IAssignedEngine.$`, `IMove.$`, `IMoveNode.$`, and any later runtime-only helpers added under that namespace.
+- Zod parsing intentionally creates a schema-owned persistence model. That copy is required at the persistence trust boundary to validate values and omit all runtime-only `$` members and unknown fields; it is not a general defensive clone of live state.
+- All runtime-only `$` members are omitted from persisted output, including `IGame.$`, `IPlayer.$`, `IAssignedEngine.$`, `IMove.$`, `IMoveNode.$`, and any later runtime-only helpers added under that namespace.
+- Saved games that predate the selector rename may still contain `highlightPath`. Migration maps that legacy field to `renderedPath` only when the canonical field is absent; subsequent schema projection omits the legacy name. This is an intentional compatibility trace rather than an incomplete rename.
 - Embedded copied engine payloads inside `IEnginePlayer.assignedEngine` and `analysis.snapshots[].assignedEngine` must satisfy the `IAssignedEngine` shape directly. Invalid embedded engine payloads are rejected as invalid saved-game payloads rather than silently repaired.
 - `analysis.snapshots[].positionKey` is preserved as an opaque persisted derived key. Deserialisation validates its presence and shape but does not recompute it during payload interpretation.

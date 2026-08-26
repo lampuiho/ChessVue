@@ -29,15 +29,17 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - `AnalysisBlackMove`
 - `BoardEdit`
 
-### Terminal Board State
-- `Checkmate`
+### Position Check State
+- `CheckState.Check` and `CheckState.Checkmate` are derived chess facts, not `GameState` values.
+- The currently materialised position may cache its derived value in `IBoardPosition.$.checkState`; `isCheckStateCached` distinguishes a cached no-check result from a value that has not been calculated.
+- A completed `IMove` persists its resulting `checkState` so notation and history can describe check or checkmate without reconstructing the destination position.
 
 ## Result Fields
 - `resultState` records outcome only.
 - `resultReason` records why that outcome happened.
 - An omitted `resultReason` is valid only while the result is ongoing.
-- Draw, resignation, timeout, and abandonment do not create an extra generic terminal state. They end live play and leave the game in `AnalysisWhiteMove` or `AnalysisBlackMove`.
-- `Checkmate` is the only state that blocks further moves by state alone.
+- Checkmate, draw, resignation, timeout, and abandonment do not create an extra terminal `GameState`. They record the result, end live play, and leave the game in `AnalysisWhiteMove` or `AnalysisBlackMove`.
+- A non-ongoing `resultState`, together with the resulting analysis state, blocks further live moves.
 
 ## State Meaning
 - `Live*Turn` means the visible board is the committed live node and the named side is due to move.
@@ -84,18 +86,18 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - If both sides are assigned again from non-live analysis, the next committed start uses a newly chosen time control and fresh live state.
 
 ## Allowed Actions By State Family
-| Action | Live | Paused Live | Live Analysis | Paused Live Analysis | Analysis | Board Edit | Checkmate |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Make live move | Yes | No | No | No | No | No | No |
-| Make analysis move | No | No | Yes | No | Yes | No | No |
-| Navigate history | Yes | No | Yes | No | Yes | No | Yes |
-| Enter board edit | No | No | No | No | Yes | Already active | No |
-| Start or stop analysis engines | Yes | Yes | Yes | Yes | Yes | After board edit ends | Yes |
-| Reassign players | Yes | Yes | Yes | Yes | Yes | No | Review only |
-| Background engine evaluation | N/A | Current in-flight search may finish only | N/A | Current in-flight search may finish only | N/A | N/A | N/A |
-| Pause or resume clock | Timed only | Resume only | Pause or resume only when clocked live analysis is active | Resume only | No | No | No |
-| Resign or offer draw | Yes | No | No | No | No | No | No |
-| Prune future moves | Policy-driven | No | Yes | No | Yes | No | Review only |
+| Action | Live | Paused Live | Live Analysis | Paused Live Analysis | Analysis | Board Edit |
+| --- | --- | --- | --- | --- | --- | --- |
+| Make live move | Yes | No | No | No | No | No |
+| Make analysis move | No | No | Yes | No | Yes | No |
+| Navigate history | Yes | No | Yes | No | Yes | No |
+| Enter board edit | No | No | No | No | Yes | Already active |
+| Start or stop analysis engines | Yes | Yes | Yes | Yes | Yes | After board edit ends |
+| Reassign players | Yes | Yes | Yes | Yes | Yes | No |
+| Background engine evaluation | N/A | Current in-flight search may finish only | N/A | Current in-flight search may finish only | N/A | N/A |
+| Pause or resume clock | Timed only | Resume only | Pause or resume only when clocked live analysis is active | Resume only | No | No |
+| Resign or offer draw | Yes | No | No | No | No | No |
+| Prune future moves | Policy-driven | No | Yes | No | Yes | No |
 
 ## Analysis Panel Rendering
 | State Family | Analysis score or status | Analysis move list | Move-target click result |
@@ -105,7 +107,6 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 | Live Analysis | Yes | Only when `showLiveAnalysisMoves = true` | Apply analysis moves without advancing the live node |
 | Paused Live Analysis | Yes | Read-only only when already supported by the current UI | No move commit |
 | Analysis | Yes | Yes | Apply analysis moves |
-| Checkmate | Yes | Yes | No move commit |
 
 ## Transition Rules
 ### History Navigation
@@ -140,7 +141,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 
 ### Terminal Results
 - Timeout, resignation, accepted draw, or abandonment set `resultState` and `resultReason`, then leave live play for analysis.
-- Checkmate sets the winning `resultState`, keeps `resultReason = ruleResolved`, and moves the game into `Checkmate`.
+- Checkmate sets the winning `resultState`, keeps `resultReason = ruleResolved`, records `CheckState.Checkmate` on the detailed move and derived position cache, and moves the game into the analysis state for the resulting side to move.
 - Result fields remain persisted during later analysis and review.
 
 ### Draw Offer State
@@ -152,7 +153,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 
 ## Clock Rules
 - Clocks apply only to live and paused live states.
-- Live analysis, non-live analysis, board edit, and checkmate never consume live clock time.
+- Live analysis, non-live analysis, board edit, and every terminal result state never consume live clock time.
 - Paused live states suspend clock consumption but do not require an already running engine search to stop before it yields its current best line.
 - UI timer loops are render cadence only; authoritative remaining-time reads come from relative timing data through the time-control service.
 - Clock drift must be corrected from relative timing data rather than UI tick counts.
