@@ -8,11 +8,14 @@ import {
   MoveKind,
   PieceKind,
   PlayerColour,
+  ResultState,
   type IAssignedEngine,
+  type IBoardPosition,
   type IEngineAnalysisRequest,
   type IGame,
   type IMove,
 } from '@/contracts';
+import { createInitialBoardPosition } from '@/utility/chess';
 
 let EngineRuntimeService: typeof import('..').EngineRuntimeService;
 const spawnProcess = vi.fn();
@@ -54,6 +57,22 @@ function createMove(): IMove {
     movingColour: PlayerColour.White,
     movingPiece: PieceKind.Pawn,
   };
+}
+function createPonderMove(): IMove {
+  return {
+    from: boardId(4, 6),
+    to: boardId(4, 4),
+    kind: MoveKind.Normal,
+    movingColour: PlayerColour.Black,
+    movingPiece: PieceKind.Pawn,
+  };
+}
+function createGame(position: IBoardPosition = createInitialBoardPosition()): IGame {
+  return {
+    metadata: { id: 'game-1' },
+    resultState: ResultState.Ongoing,
+    $: { livePosition: position },
+  } as IGame;
 }
 describe('EngineRuntimeService', () => {
   beforeEach(async () => {
@@ -127,17 +146,129 @@ describe('EngineRuntimeService', () => {
     expect(engine.$?.analysisCallback).toBeUndefined();
   });
 
-  it('starts pondering with the canonical game and expected move', async () => {
+  it('starts pondering with the canonical game and move sequence', async () => {
     const engine = createAssignedEngine();
     const game = {} as IGame;
-    const move = createMove();
+    const engineMove = createMove();
+    const ponderMove = createPonderMove();
     engine.$!.processHandle = 'process-1';
     assertProcessHandleOpen.mockReturnValue(undefined);
 
-    await EngineRuntimeService.startPondering(engine, game, move);
+    await EngineRuntimeService.startPondering(engine, game, engineMove, ponderMove);
 
-    expect(startPondering).toHaveBeenCalledWith(engine, game, move);
+    expect(startPondering).toHaveBeenCalledWith(engine, game, engineMove, ponderMove);
     expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+  });
+
+  it('starts pondering before the shared move attempt finishes', async () => {
+    const engine = createAssignedEngine();
+    const game = createGame();
+    const move = createMove();
+    const ponderMove = createPonderMove();
+    const events: string[] = [];
+    let finishAttempt: (() => void) | undefined;
+    move.$ = { ponderMove };
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    startPlayerTurn.mockImplementation(async () => { events.push('start'); });
+    awaitPlayerTurnMove.mockImplementation(async () => { events.push('await'); return move; });
+    startPondering.mockImplementation(async () => { events.push('ponder'); });
+    const attemptPlayerMove = vi.fn(async () => {
+      events.push('attempt');
+      await new Promise<void>((resolve) => { finishAttempt = resolve; });
+      events.push('committed');
+    });
+
+    const turn = EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove);
+    await vi.waitFor(() => expect(events).toEqual(['start', 'await', 'ponder', 'attempt']));
+    expect(startPondering).toHaveBeenCalledWith(engine, game, move, ponderMove);
+    finishAttempt!();
+    await turn;
+
+    expect(events).toEqual(['start', 'await', 'ponder', 'attempt', 'committed']);
+    expect(attemptPlayerMove).toHaveBeenCalledOnce();
+  });
+
+  it('rejects an illegal best move before pondering or attempting it', async () => {
+    const engine = createAssignedEngine();
+    const game = createGame();
+    const attemptPlayerMove = vi.fn();
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    awaitPlayerTurnMove.mockResolvedValue({ ...createMove(), to: boardId(4, 4) });
+
+    await expect(EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove)).rejects.toThrow('illegal move');
+
+    expect(startPondering).not.toHaveBeenCalled();
+    expect(attemptPlayerMove).not.toHaveBeenCalled();
+  });
+
+  it('rejects an illegal ponder move before pondering or attempting the best move', async () => {
+    const engine = createAssignedEngine();
+    const game = createGame();
+    const move = createMove();
+    const attemptPlayerMove = vi.fn();
+    move.$ = { ponderMove: { ...createPonderMove(), to: boardId(4, 3) } };
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    awaitPlayerTurnMove.mockResolvedValue(move);
+
+    await expect(EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove)).rejects.toThrow('illegal ponder move');
+
+    expect(startPondering).not.toHaveBeenCalled();
+    expect(attemptPlayerMove).not.toHaveBeenCalled();
+  });
+
+  it('attempts a legal move once without starting absent pondering', async () => {
+    const engine = createAssignedEngine();
+    const game = createGame();
+    const move = createMove();
+    const attemptPlayerMove = vi.fn(async () => undefined);
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    awaitPlayerTurnMove.mockResolvedValue(move);
+
+    await EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove);
+
+    expect(attemptPlayerMove).toHaveBeenCalledOnce();
+    expect(attemptPlayerMove).toHaveBeenCalledWith(move);
+    expect(startPondering).not.toHaveBeenCalled();
+  });
+
+  it('attempts a legal move without pondering after the game has ended', async () => {
+    const engine = createAssignedEngine();
+    const game = createGame();
+    const move = createMove();
+    const ponderMove = createPonderMove();
+    const attemptPlayerMove = vi.fn(async () => undefined);
+    game.resultState = ResultState.Drawn;
+    move.$ = { ponderMove };
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    awaitPlayerTurnMove.mockResolvedValue(move);
+
+    await EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove);
+
+    expect(attemptPlayerMove).toHaveBeenCalledOnce();
+    expect(startPondering).not.toHaveBeenCalled();
+  });
+
+  it('keeps the move attempt when starting pondering fails', async () => {
+    const engine = createAssignedEngine();
+    const game = createGame();
+    const move = createMove();
+    const attemptPlayerMove = vi.fn(async () => undefined);
+    move.$ = { ponderMove: createPonderMove() };
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    awaitPlayerTurnMove.mockResolvedValue(move);
+    startPondering.mockRejectedValue(new Error('ponder boom'));
+
+    await expect(EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove)).resolves.toBeUndefined();
+
+    expect(attemptPlayerMove).toHaveBeenCalledOnce();
+    expect(engine.$?.availability).toBe(EngineAvailability.Failed);
+    expect(engine.$?.lastError).toBe('ponder boom');
   });
 
   it('stops the engine and clears runtime state through the mocked platform services', async () => {

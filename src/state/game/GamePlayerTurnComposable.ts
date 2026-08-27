@@ -16,7 +16,6 @@ import {
 import Aborted from '@/contracts/errors/Aborted';
 import { EngineRuntimeService } from '@/domain';
 import { Deferred } from '@/utility/async/Deferred';
-import { isMoveLegal } from '@/utility/chess';
 import { logHandledError } from '@/utility/errors';
 import type { GamePositionComposable } from './GamePositionComposable';
 import type { GameStatusComposable } from './GameStatusComposable';
@@ -25,7 +24,7 @@ interface IGamePlayerTurnDependency {
   position: GamePositionComposable;
   status: GameStatusComposable;
   touchGame: (game: IGame) => void;
-  commitLiveMove: (game: IGame, move: IMove, engine?: IAssignedEngine) => void;
+  commitLiveMove: (game: IGame, move: IMove) => void;
   replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => void;
   refreshRuntimeRegistrations: (game: IGame) => void;
 }
@@ -68,22 +67,25 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     if (!deferredPlayerMove) return;
     runtime.deferredPlayerMove = undefined;
     if (!status.isLiveTurnReadyForMove(game)) return;
-    const player = getSideToMovePlayer(game, deferredPlayerMove.movingColour);
-    if (isMoveLegal(position.getLivePosition(game), deferredPlayerMove)) commitLiveMove(game, deferredPlayerMove, isEnginePlayer(player) ? player.assignedEngine : undefined);
-    else requestPlayerMoveIfNeeded(game);
+    commitLiveMove(game, deferredPlayerMove);
   }
-  function startPonderingIfAvailable(game: IGame, engine: IAssignedEngine | undefined, ponderMove: IMove | undefined): void {
-    if (!engine || !ponderMove || game.resultState !== ResultState.Ongoing || game.livePath === undefined) return;
-    position.getLivePosition(game);
-    void EngineRuntimeService.startPondering(engine, game, ponderMove).catch((error) => logHandledError('GameStore', 'startPondering', error));
+  async function attemptPlayerMove(game: IGame, move: IMove): Promise<void> {
+    const runtime = position.requireGameRuntime(game);
+    const pendingPlayerMove = runtime.pendingPlayerTurnPromise;
+    const pendingPlayerTurnHandle = runtime.pendingPlayerTurnHandlePromise;
+    if (!pendingPlayerMove || !pendingPlayerTurnHandle) throw new ReferenceError(`turn started to allow make move for ${move.movingColour} but move request was not made`);
+    pendingPlayerMove.resolve(move);
+    await pendingPlayerTurnHandle;
   }
   function requestPlayerMove(game: IGame): void {
-    async function requestEngineMove(engine: IAssignedEngine): Promise<IMove> {
+    async function requestEngineMove(engine: IAssignedEngine): Promise<void> {
       await EngineRuntimeService.ensureReady(engine);
-      await EngineRuntimeService.startPlayerTurn(engine, game);
-      return await EngineRuntimeService.awaitPlayerTurnMove(engine);
+      await EngineRuntimeService.startPlayerTurn(engine, game, async (move) => {
+        if (position.requireGameRuntime(game).pendingPlayerTurnPromise !== pendingPlayerMove) return;
+        await attemptPlayerMove(game, move);
+      });
     }
-    async function playerMoveHandler(pendingPlayerMove: Promise<IMove>, engine?: IAssignedEngine): Promise<void> {
+    async function playerMoveHandler(pendingPlayerMove: Promise<IMove>): Promise<void> {
       const runtime = position.requireGameRuntime(game);
       let move: IMove;
       try {
@@ -95,23 +97,21 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
         }
         return;
       } finally {
-        runtime.pendingPlayerTurnPromise = undefined;
-        runtime.pendingPlayerTurnHandlePromise = undefined;
+        if (runtime.pendingPlayerTurnPromise === pendingPlayerMove) {
+          runtime.pendingPlayerTurnPromise = undefined;
+          runtime.pendingPlayerTurnHandlePromise = undefined;
+        }
       }
       if (status.isPausedState(game.gameState)) runtime.deferredPlayerMove = move;
-      else if (engine && !isMoveLegal(position.getLivePosition(game), move)) {
-        logHandledError('GameStore', 'playerMoveHandler', new Error(`Engine returned an illegal move from ${move.from} to ${move.to}.`));
-        requestPlayerMoveIfNeeded(game);
-      }
-      else commitLiveMove(game, move, engine);
+      else commitLiveMove(game, move);
     }
     const player = getSideToMovePlayer(game, position.getLivePosition(game).sideToMove);
     const runtime = position.requireGameRuntime(game);
-    const pendingPlayerMove = isEnginePlayer(player)
-      ? new Deferred<IMove>(requestEngineMove(player.assignedEngine))
-      : new Deferred<IMove>();
+    const pendingPlayerMove = new Deferred<IMove>();
+    const pendingPlayerTurnHandle = playerMoveHandler(pendingPlayerMove);
     runtime.pendingPlayerTurnPromise = pendingPlayerMove;
-    runtime.pendingPlayerTurnHandlePromise = playerMoveHandler(pendingPlayerMove, isEnginePlayer(player) ? player.assignedEngine : undefined);
+    runtime.pendingPlayerTurnHandlePromise = pendingPlayerTurnHandle;
+    if (isEnginePlayer(player)) void requestEngineMove(player.assignedEngine).catch((error) => pendingPlayerMove.reject(error));
   }
   function requestPlayerMoveIfNeeded(game: IGame): void {
     if (!status.isOngoingLiveGame(game) || !status.isLiveState(game.gameState) || !position.pathsEqual(game.renderedPath, game.livePath)) return;
@@ -143,7 +143,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     isEnginePlayer,
     clearPlayerTurnRuntime,
     flushDeferredPlayerMove,
-    startPonderingIfAvailable,
+    attemptPlayerMove,
     requestPlayerMoveIfNeeded,
     reassignPlayer,
   };

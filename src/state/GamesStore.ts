@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { GameState, type IAssignedEngine, type IBoardPosition, type IGame, type IMove } from '@/contracts';
+import { GameState, type IBoardPosition, type IGame, type IMove } from '@/contracts';
 import { RecordTimestamp } from '@/utility/date';
 import { useGameAnalysis, type GameAnalysisComposable } from './game/GameAnalysisComposable';
 import { useGameBoardEdit } from './game/GameBoardEditComposable';
@@ -31,7 +31,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     position,
     status,
     touchGame,
-    commitLiveMove: (game: IGame, playerMove: IMove, engine?: IAssignedEngine) => move.commitLiveMove(game, playerMove, engine),
+    commitLiveMove: (game: IGame, playerMove: IMove) => move.commitLiveMove(game, playerMove),
     replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => move.replaceWithAnalysisRoot(game, rootPosition, nextState),
     refreshRuntimeRegistrations: (game: IGame) => clock.refreshRuntimeRegistrations(game),
   });

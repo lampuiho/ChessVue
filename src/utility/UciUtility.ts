@@ -35,8 +35,8 @@ export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMov
 export function buildIsReadyCommand(): string {
   return 'isready';
 }
-export function buildPonderMoveCommands(game: IGame, ponderMove: IMove): string[] {
-  return [_buildPositionCommand(game.rootPosition, [..._getLiveMoves(game), ponderMove]), _buildTimedGoCommand(game, true)];
+export function buildPonderMoveCommands(game: IGame, engineMove: IMove, ponderMove: IMove): string[] {
+  return [_buildPositionCommand(game.rootPosition, [..._getLiveMoves(game), engineMove, ponderMove]), _buildTimedGoCommand(game, true)];
 }
 /** Builds the UCI position command from the game root and highlighted path, caching standard-root verification under the position's runtime metadata. */
 export function buildPositionCommand(game: IGame): string {

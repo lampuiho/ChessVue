@@ -4,7 +4,6 @@ import {
   PauseReason,
   ResultReason,
   ResultState,
-  type IAssignedEngine,
   type IBoardPosition,
   type IGame,
   type IMove,
@@ -30,13 +29,13 @@ interface IGameMoveDependency {
 
 export function useGameMove(dependency: IGameMoveDependency) {
   const { position, status, clock, analysis, playerTurn, touchGame } = dependency;
-  function commitLiveMove(game: IGame, move: IMove, ponderEngine?: IAssignedEngine): void {
+  function commitLiveMove(game: IGame, move: IMove): void {
     const livePath = game.livePath;
     if (!livePath) throw new ReferenceError('live path is undefined even though we are making a live move');
     const isLivePositionRendered = position.pathsEqual(game.renderedPath, livePath);
-    const nextClockSnapshot = clock.applyMove(game, move.movingColour, new ClockTimestamp());
     const parentNode = position.getLiveNode(game);
     const livePosition = position.getLivePosition(game);
+    const nextClockSnapshot = clock.applyMove(game, move.movingColour, new ClockTimestamp());
     if (parentNode.children.length > 0) MoveHistoryService.pruneFutureMoves(parentNode);
     MoveApplicationService.applyMove(livePosition, move);
     const nextNodeIdx = parentNode.children.length;
@@ -51,12 +50,14 @@ export function useGameMove(dependency: IGameMoveDependency) {
     touchGame(game);
     playerTurn.clearPlayerTurnRuntime(game);
     clock.refreshRuntimeRegistrations(game);
-    playerTurn.startPonderingIfAvailable(game, ponderEngine, move.$?.ponderMove);
     void analysis.refreshAnalysisForGame(game);
     playerTurn.requestPlayerMoveIfNeeded(game);
   }
-  function commitHistoryRewriteMove(game: IGame, parentNode: IMoveNode, move: IMove): void {
-    game.clockSnapshot = parentNode.clockSnapshot ?? game.clockSnapshot;
+  function commitHistoryRewriteMove(game: IGame, move: IMove): void {
+    const renderedNode = position.getRenderedNode(game);
+    const renderedPosition = position.getRenderedPosition(game);
+    position.setLivePath(game, game.renderedPath, { node: renderedNode, position: renderedPosition });
+    game.clockSnapshot = renderedNode.clockSnapshot ?? game.clockSnapshot;
     commitLiveMove(game, move);
   }
   function advanceRenderedAnalysisBranch(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove): IBoardPosition {
@@ -110,17 +111,13 @@ export function useGameMove(dependency: IGameMoveDependency) {
   async function makeMove(game: IGame, move: IMove): Promise<void> {
     status.assertMoveAllowed(game);
     if (status.isOngoingLiveGame(game) && status.isLiveState(game.gameState)) {
-      const runtime = position.requireGameRuntime(game);
-      if (!runtime.pendingPlayerTurnPromise || !runtime.pendingPlayerTurnHandlePromise) throw new ReferenceError(`turn started to allow make move for ${move.movingColour} but move request was not made`);
-      const pendingPlayerTurnHandle = runtime.pendingPlayerTurnHandlePromise;
-      runtime.pendingPlayerTurnPromise.resolve(move);
-      await pendingPlayerTurnHandle;
+      await playerTurn.attemptPlayerMove(game, move);
       return;
     }
     const parentNode = position.getRenderedNode(game);
     const parentPosition = position.getRenderedPosition(game);
     if (status.isOngoingLiveGame(game) && status.isLiveHistoryReview(game)) {
-      if (game.gameplayOptions.allowTakeback) commitHistoryRewriteMove(game, parentNode, move);
+      if (game.gameplayOptions.allowTakeback) commitHistoryRewriteMove(game, move);
       else commitLiveHistoryAnalysisMove(game, parentNode, parentPosition, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
       return;
     }

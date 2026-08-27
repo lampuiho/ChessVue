@@ -13,7 +13,7 @@ export interface IEngineClient {
   /** Requires engine.$ to already hold an initialised session, then creates a new pending player-move state. */
   startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void>;
   /** Requires engine.$ to already hold an initialised idle session, then starts pondering the supplied expected reply. */
-  startPondering(engine: IAssignedEngine, game: IGame, ponderMove: IMove): Promise<void>;
+  startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove): Promise<void>;
   /** Awaits the player-move state owned and completed by the concrete client session. */
   awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>;
   /** Mutates engine.$ by stopping the session and rejecting pending state-transition or player-move work. */

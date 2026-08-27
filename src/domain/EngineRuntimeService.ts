@@ -1,6 +1,8 @@
-import { EngineAvailability, PlatformError, PlatformErrorKind, type IAssignedEngine, type IAssignedEngineRuntime, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IGame, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAvailability, PlatformError, PlatformErrorKind, ResultState, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IGame, type IMove, type IPlatformError } from '@/contracts';
 import { usePlatformService } from '@/platform';
+import { isMoveLegal } from '@/utility/chess';
 import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
+import { MoveApplicationService } from './MoveApplicationService';
 
 type IRuntimeAssignedEngine = IAssignedEngine & { $: IAssignedEngineRuntime };
 
@@ -111,15 +113,24 @@ export const EngineRuntimeService = {
     const engineClient = _getEngineClient(engine);
     await _runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.stopAnalysis(engine));
   },
-  /** Mutates engine.$ the same way as ensureReady, then updates nested platform session player-turn state. */
-  async startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void> {
+  /** Starts one engine-backed player turn, begins available pondering from its guarded result, then submits the move through the shared player flow. */
+  async startPlayerTurn(engine: IAssignedEngine, game: IGame, attemptPlayerMove: (move: IMove) => Promise<void>): Promise<void> {
+    const searchedPosition = game.$?.livePosition;
+    if (!searchedPosition) throw new Error(`Live position is unavailable for game ${game.metadata.id}.`);
     const engineClient = _getEngineClient(engine);
     await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine, game));
+    const move = await EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition);
+    const ponderMove = move.$?.ponderMove;
+    const pondering = ponderMove && game.resultState === ResultState.Ongoing
+      ? EngineRuntimeService.startPondering(engine, game, move, ponderMove).catch(() => undefined)
+      : undefined;
+    await attemptPlayerMove(move);
+    await pondering;
   },
   /** Mutates engine.$ by starting a client-private ponder search while runtime availability remains ready. */
-  async startPondering(engine: IAssignedEngine, game: IGame, ponderMove: IMove): Promise<void> {
+  async startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove): Promise<void> {
     const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.startPondering(engine, game, ponderMove));
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.startPondering(engine, game, engineMove, ponderMove));
   },
   /** Mutates engine.$ by registering one shared analysis callback. */
   subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void {
@@ -130,9 +141,17 @@ export const EngineRuntimeService = {
     };
   },
   /** May mutate engine.$ by updating runtime availability when the process handle is stale or the wait fails. */
-  async awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
+  async awaitPlayerTurnMove(engine: IAssignedEngine, searchedPosition: IBoardPosition): Promise<IMove> {
     const engineClient = _getEngineClient(engine);
-    return _runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.awaitPlayerTurnMove(engine));
+    return _runLiveEngineOperation(engine, EngineAvailability.Ready, async () => {
+      const move = await engineClient.awaitPlayerTurnMove(engine);
+      if (!isMoveLegal(searchedPosition, move)) throw new Error(`Engine returned an illegal move from ${move.from} to ${move.to}.`);
+      const ponderMove = move.$?.ponderMove;
+      if (!ponderMove) return move;
+      const nextPosition = MoveApplicationService.genPosition(searchedPosition, [move]);
+      if (!isMoveLegal(nextPosition, ponderMove)) throw new Error(`Engine returned an illegal ponder move from ${ponderMove.from} to ${ponderMove.to}.`);
+      return move;
+    });
   },
   /** Does not mutate engine. */
   isRuntimeAlive(engine: IAssignedEngine): boolean {
