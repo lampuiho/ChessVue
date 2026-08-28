@@ -34,15 +34,14 @@
 - Added direct runtime, store, and NW.js client coverage for canonical-game forwarding, ponder metadata preservation, and analysis/player/ponder state transitions.
 - Added `position startpos` output for standard initial roots, backed by runtime-only `IBoardPosition.$.isStandardInitialPosition` verification caching.
 - Added guarded board-edit APIs for toggling or deleting one chess piece, clearing the board, and resetting to the canonical start position, with first-edit root promotion, in-place later edits, and exact start-position cache handling.
+- Completed the remaining move-flow, cache, copy-ownership, and documentation reconciliation. The temporary change tracker was removed after its design rationale was transferred to the owning high-level and low-level documents.
 
 ## Still Pending
-- Finish the items still open in `docs/StuffChangedAndNeedChanging.md`.
 - Define the board-interaction move-submission boundary so legal move selection uses `IMoveRaw`, promotion selection completes that raw move, and conversion to `IMove` happens only afterwards for move-tree and service interactions.
-- Complete the remaining copy-reduction and design-document reconciliation recorded in `docs/StuffChangedAndNeedChanging.md`.
 - Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.
 
 ## Verification
 - `npm run type-check`
 - Result: passed.
 - `npm run test:unit -- --run`
-- Result: all `26` test files and `160` tests passed. The logged unreadable-save and `analysis boom` errors are expected from their failure-path tests.
+- Result: all `26` test files and `165` tests passed. The logged unreadable-save and `analysis boom` errors are expected from their failure-path tests.

@@ -66,12 +66,14 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - After that restarted live game is created, the normal live-state gate decides whether the side to move should immediately receive an engine turn.
 - If a timed live game is paused while a player-engine turn search or analysis search is already in flight, that current search may continue until it reaches a best line or move result.
 - Analysis output produced while paused may update the stored analysis snapshot for read-only display, but it must not unlock paused interaction.
-- A player-engine move produced while paused is stored as deferred output tied to the evaluated position and side to move, and it must not mutate the game tree or clocks until the game resumes.
-- On resume, deferred player-engine output must be revalidated against the live position and turn before commit. Stale deferred output is discarded and replaced by a fresh request when the live-game gate still requires engine play.
+- A player-engine move produced while paused has already passed the common engine-result legality boundary against its searched position. It is stored as deferred output and must not mutate the game tree or clocks until the game resumes.
+- On resume, deferred player-engine output commits only when the live turn is still ready; otherwise it is discarded. **Why:** paused gameplay cannot change the live position and ownership-changing actions clear the pending or deferred runtime, so a second legality check would duplicate the completed engine-boundary decision.
 
 ## Player Move Contract
 - Engine-backed move generation is exposed to the game flow as a simple async request/response boundary.
 - Higher layers request a move and await the returned `IMove`.
+- Local board submission and guarded engine output settle the same per-turn completion boundary. **Why:** separate player-type handlers duplicated pause and commit behaviour and let provider timing change ownership; the shared boundary keeps one current-turn owner.
+- The common engine runtime validates an engine result before it crosses into game state; concrete protocol clients and later state handlers do not duplicate that guard. **Why:** per-client checks would duplicate chess policy, while state-only checks would let untrusted protocol output cross the application boundary.
 - The runtime implementation may still use internal callbacks or engine-output listeners to resolve that promise.
 - Polling is reserved for runtime-health checks such as whether the underlying process is still running.
 

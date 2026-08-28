@@ -211,9 +211,10 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       const session = _requireInitialisedSession(engine);
       _requireState(session, UciSessionState.Ready, 'start pondering');
       await _prepareGameBoundary(engine, session, game);
+      const commands = buildPonderMoveCommands(game, engineMove, ponderMove);
       session.expectedPonderMove = ponderMove;
       session.position = undefined; // ponder output is not decodable against a known position
-      await _startSearch(engine, session, UciSessionState.Pondering, buildPonderMoveCommands(game, engineMove, ponderMove));
+      await _startSearch(engine, session, UciSessionState.Pondering, commands);
     }
     async function stopAnalysis(engine: IAssignedEngine): Promise<void> {
       const session = _requireInitialisedSession(engine);

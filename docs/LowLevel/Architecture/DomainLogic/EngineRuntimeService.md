@@ -8,10 +8,10 @@ Own the layer-2 game-facing engine runtime boundary consumed by `GamesStore` for
 ensureReady(engine: IAssignedEngine): Promise<void>
 startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
-startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void>
-startPondering(engine: IAssignedEngine, game: IGame, ponderMove: IMove): Promise<void>
+startPlayerTurn(engine: IAssignedEngine, game: IGame, attemptPlayerMove: (move: IMove) => Promise<void>): Promise<void>
+startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove): Promise<void>
 subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void
-awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>
+awaitPlayerTurnMove(engine: IAssignedEngine, searchedPosition: IBoardPosition): Promise<IMove>
 isRuntimeAlive(engine: IAssignedEngine): boolean
 restartEngine(engine: IAssignedEngine): Promise<void>
 stopEngine(engine: IAssignedEngine): Promise<void>
@@ -25,6 +25,8 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - set runtime availability and runtime last error on the shared assigned-engine runtime state
 - register and unregister the shared analysis callback on `engine.$`
 - compose `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation without layering one platform service through another
+- own the complete engine-player turn from client search start through guarded result, immediate optional pondering, and the shared state-layer move attempt
+- validate the common client best-move result against the captured search position and any ponder continuation against a detached position after that best move
 - expose typed streamed analysis updates plus promise-shaped player-turn completion without leaking UCI or engine-communication semantics upward
 
 ## Dependencies
@@ -42,22 +44,25 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - `SCN-ENGINE-03`
 
 ## Notes
-- `GamesStore` owns runtime intent and session usage, but it reaches protocol and process behaviour only through this service.
+- `GamesStore` owns runtime intent and session usage, but it reaches protocol and process behaviour only through this service. **Why:** `EngineRuntimeService` owns game-facing process state while `EngineClient` owns protocol-session state; merging them would leak protocol details upward, and allowing the two layer-1 adapters to call each other would obscure which owner mutates `engine.$`. A redesign must retain one owner for process state, one for protocol state, and an explicit composition boundary.
 - `EngineRuntimeService` is a session-oriented coordinator, not a raw parser or command-builder hub.
 - `EngineRuntimeService` owns process start, stop, restart, and process-handle validity checks through `ProcessManager`.
 - `EngineRuntimeService` binds runtime process state directly onto `IAssignedEngine.$`, including the `processHandle` returned by `ProcessManager`.
 - `EngineRuntimeService` relies on the shared `IAssignedEngineRuntime` fields under `engine.$` and does not refine that runtime namespace for its documented ownership.
 - `EngineRuntimeService` owns only the mutable service state named in the runtime process-flow doc: base runtime creation, `processHandle`, `availability`, `lastError`, and analysis-callback registration and teardown.
-- Base runtime existence is a precondition, not a lazy recovery path, for runtime actions that require it. If that precondition is violated, the service should assert and surface the failure rather than silently creating missing runtime state mid-flow.
+- Base runtime existence is a precondition, not a lazy recovery path, for runtime actions that require it. If that precondition is violated, the service asserts and surfaces the failure. **Why:** silent creation can replace a session while the caller believes it is continuing the old one, hiding lifecycle bugs until later output is routed to the wrong pending operation. Only the explicit initialisation boundary may create it.
 - `ensureReady(...)` is the only runtime path that may spawn a missing engine process. Other runtime actions must first assert that a live process already exists.
 - `startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` may retry once through the explicit initialisation path only when the stored process handle proves stale with `invalidProcessHandle`. They do not hide missing base-runtime or session-initialisation failures.
 - `EngineClient` owns UCI mapping, engine-facing FEN, engine-output interpretation, protocol sequencing, and client-private runtime state behind this service.
 - Streamed analysis is surfaced through the shared runtime state on `engine.$`. `EngineRuntimeService` coordinates when that lower-layer analysis path is started, stopped, or subscribed to, but it is not the owner of client-private state such as `session`, current search position, expected ponder move, or pending player-turn state.
 - `isRuntimeAlive(...)` is the only public runtime-health polling surface. Detailed runtime state stays internal on `engine.$`.
 - If the stored `processHandle` is present but no longer valid, `EngineRuntimeService` surfaces that failure through the attempted runtime operation rather than handling it through background callbacks.
-- `startPlayerTurn` has no response timeout in the baseline. If the process stays alive but does not produce a valid move, the turn remains pending until a valid move arrives or the session exits unexpectedly.
-- `startPondering(...)` keeps runtime availability ready because pondering is speculative; the concrete client owns the later ponder-hit or ponder-miss transition when `startPlayerTurn(...)` is requested.
-- Player-turn completion is exposed as `awaitPlayerTurnMove(...)`, even if the implementation uses internal callbacks to resolve that promise.
+- `startPlayerTurn(...)` captures the canonical live position being searched, starts and awaits the client search through `awaitPlayerTurnMove(...)`, begins available pondering before waiting for `attemptPlayerMove(...)`, and always attempts a guarded move exactly once. **Why:** waiting for commit would waste ponder time and would prevent pondering while pause holds an accepted move; treating ponder failure as move failure would repeat or discard a valid result. Any future speculation mechanism must remain independent from move acceptance.
+- `startPlayerTurn` has no response timeout in the baseline. If the process stays alive but does not produce a move, the turn remains pending until a move arrives or the session exits unexpectedly.
+- `awaitPlayerTurnMove(...)` is the single application move guard for all concrete clients. It validates against the position captured when the search started, rejects an illegal best move, and validates any ponder reply on the sequential position after that move before either reaches state. **Why:** validating in every client would duplicate chess policy, while waiting until state would let untrusted output cross the boundary and make an engine-agnostic handler provider-aware. The invariant is one common acceptance guard at the external engine boundary, not repeated checks in later layers.
+- The position after the best move used for ponder validation is an intentional detached simulation. **Why:** a ponder reply is legal only after the best move, but applying that move to the captured live position would mutate authority before the shared turn handler commits or defers it.
+- `startPondering(...)` receives the guarded engine move and ponder move directly and keeps runtime availability ready because pondering is speculative; the concrete client owns the later hit or miss. **Why:** the engine move is not yet represented by `game.livePath`, and retaining a private "last best move" would create a second history authority that can become stale across pause, cancellation, or a new turn.
+- Immediate pondering deliberately uses the game's current pre-commit clock snapshot. Projecting a post-move clock is outside this flow.
 - Session health checks use `isRuntimeAlive(...)` polling rather than a public session-event callback contract.
 - Unexpected process exit is observed when the next attempted runtime operation checks or uses the stored process handle. Recovery stays manual through the owning retry flows.
 - Unrecognised ancillary output is ignored. Positively identified control output that is invalid for the current client state, player-turn parse failures, and other runtime exceptions are surfaced to the owning standard error-handling path.

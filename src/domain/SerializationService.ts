@@ -66,26 +66,23 @@ function _validateGameSession(snapshot: IGameSessionSnapshot): void {
     throw new SerializationError('Active game id must be included in the open game id list.');
   }
 }
-function _migrateSettingsSnapshot(input: unknown): ISettingsSnapshot {
+function _parseSettingsSnapshot(input: unknown): ISettingsSnapshot {
   _requireSchemaVersionOne(input, 'Settings');
   return _parseWithSchema('Settings', (value) => settingsSnapshotSchema.parse(value), input);
 }
-function _migrateGameSessionSnapshot(input: unknown): IGameSessionSnapshot {
+function _parseGameSessionSnapshot(input: unknown): IGameSessionSnapshot {
   _requireSchemaVersionOne(input, 'Game session');
   const snapshot = _parseWithSchema<IGameSessionSnapshot>('Game session', (value) => gameSessionSnapshotSchema.parse(value) as IGameSessionSnapshot, input);
   _validateGameSession(snapshot);
   return snapshot;
 }
-function _migrateUiLayoutState(input: unknown): IUiLayoutState {
+function _parseUiLayoutState(input: unknown): IUiLayoutState {
   _requireSchemaVersionOne(input, 'UI layout state');
   return _parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), input);
 }
-function _migrateGame(input: unknown): IGame {
-  const versionedInput = _requireSchemaVersionOne(input, 'Saved game');
-  const migratedInput = versionedInput.renderedPath !== undefined || versionedInput.highlightPath === undefined
-    ? versionedInput
-    : { ...versionedInput, renderedPath: versionedInput.highlightPath };
-  const game = _parseWithSchema('Saved game', (value) => gameSchema.parse(value), migratedInput);
+function _parseGame(input: unknown): IGame {
+  _requireSchemaVersionOne(input, 'Saved game');
+  const game = _parseWithSchema('Saved game', (value) => gameSchema.parse(value), input);
   _validateGame(game);
   return game;
 }
@@ -151,7 +148,7 @@ export const SerializationService = {
     return JSON.stringify(persistedSnapshot, null, 2);
   },
   deserialiseSettings(raw: string): ISettingsSnapshot {
-    return this.migrateSettingsSnapshot(_parseJson(raw));
+    return _parseSettingsSnapshot(_parseJson(raw));
   },
   serialiseGameSession(snapshot: IGameSessionSnapshot): string {
     _validateGameSession(snapshot);
@@ -159,14 +156,14 @@ export const SerializationService = {
     return JSON.stringify(persistedSnapshot, null, 2);
   },
   deserialiseGameSession(raw: string): IGameSessionSnapshot {
-    return this.migrateGameSessionSnapshot(_parseJson(raw));
+    return _parseGameSessionSnapshot(_parseJson(raw));
   },
   serialiseUiLayoutState(state: IUiLayoutState): string {
     const persistedState = _parseWithSchema('UI layout state', (value) => uiLayoutStateSchema.parse(value), state);
     return JSON.stringify(persistedState, null, 2);
   },
   deserialiseUiLayoutState(raw: string): IUiLayoutState {
-    return this.migrateUiLayoutState(_parseJson(raw));
+    return _parseUiLayoutState(_parseJson(raw));
   },
   serialiseGame(game: IGame): string {
     const persistedGame = _parseWithSchema('Saved game', (value) => gameSchema.parse(value), game);
@@ -174,10 +171,6 @@ export const SerializationService = {
     return JSON.stringify(persistedGame, null, 2);
   },
   deserialiseGame(raw: string): IGame {
-    return this.migrateGame(_parseJson(raw));
+    return _parseGame(_parseJson(raw));
   },
-  migrateSettingsSnapshot: _migrateSettingsSnapshot,
-  migrateGameSessionSnapshot: _migrateGameSessionSnapshot,
-  migrateUiLayoutState: _migrateUiLayoutState,
-  migrateGame: _migrateGame,
 };

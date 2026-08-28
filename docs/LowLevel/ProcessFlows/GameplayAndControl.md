@@ -17,11 +17,12 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 | `GamesStore.makeMove` |
 | --- |
+| `GameMoveComposable.makeMove` |
 | `GameStatusComposable.assertMoveAllowed` |
-| `GameMoveComposable.makeMove` |
-| `GameMoveComposable.makeMove` |
-| `GameClockComposable.applyMove` |
+| `GamePlayerTurnComposable.attemptPlayerMove` |
+| `GamePlayerTurnComposable.playerMoveHandler` |
 | `GameMoveComposable.commitLiveMove` |
+| `GameClockComposable.applyMove` |
 | `GameAnalysisComposable.refreshAnalysisForGame` *(background)* |
 
 | `MoveApplicationService.applyMove` |
@@ -108,14 +109,15 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `Chessboard.moveSubmitted` |
 
 #### Flow B - Player Engine Result
-| `EngineRuntimeService.awaitPlayerTurnMove` |
+| `EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition)` |
 | --- |
-| `GamePlayerTurnComposable.playerMoveHandler` |
 | `GameRuleUtility.isMoveLegal` |
-| `GameMoveComposable.commitLiveMove` |
+| `MoveApplicationService.genPosition` *(detached sequential validation)* |
+| `GameRuleUtility.isMoveLegal` *(optional ponder move)* |
+| `GamePlayerTurnComposable.attemptPlayerMove` |
 
 - App-owned board and analysis interactions can submit only moves produced from legal move targets, so `GamesStore.makeMove` does not redundantly revalidate them.
-- The player-engine result is the external move-producing boundary. `GamePlayerTurnComposable.playerMoveHandler` validates that result against the live position; an illegal engine move is logged and a fresh player request is armed without touching the clock, tree, or position.
+- The player-engine result is the external move-producing boundary. `EngineRuntimeService.awaitPlayerTurnMove` validates the best move against the captured search position and any ponder continuation against a detached position after that move. Invalid output fails the provider before `attemptPlayerMove`; the engine-agnostic handler, deferred flush, and commit path do not revalidate it.
 
 ### SCN-MOVE-03 - Pawn Promotion Resolution
 
@@ -156,19 +158,22 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | GamePlayerTurnComposable.requestPlayerMoveIfNeeded |
 | --- |
 | GamePlayerTurnComposable.requestPlayerMove |
+| create and store the shared `Deferred<IMove>` and handler promise |
 | GamePlayerTurnComposable.playerMoveHandler |
 
 | GamePlayerTurnComposable.requestEngineMove |
 | --- |
 | EngineRuntimeService.ensureReady |
-| EngineRuntimeService.startPlayerTurn |
-| EngineRuntimeService.awaitPlayerTurnMove |
+| EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove) |
 
-| GamesStore.makeMove |
+| EngineRuntimeService.startPlayerTurn |
 | --- |
-| GameStatusComposable.assertMoveAllowed |
-| GameMoveComposable.makeMove |
-| GameMoveComposable.makeMove |
+| EngineClient.startPlayerTurn |
+| EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition) |
+| begin optional `EngineRuntimeService.startPondering(engine, game, engineMove, ponderMove)` |
+| GamePlayerTurnComposable.attemptPlayerMove |
+| GamePlayerTurnComposable.playerMoveHandler |
+| GameMoveComposable.commitLiveMove |
 
 #### Flow B - Unexpected Exit During Player Turn
 | `EngineRuntimeService player-turn promise` |
@@ -178,14 +183,23 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameView._openRuntimeErrorDialog` |
 
 #### Flow C - Player Turn Completes While Paused
+| `EngineRuntimeService.startPlayerTurn` |
+| --- |
+| begin optional pondering from the guarded result |
+| `GamePlayerTurnComposable.attemptPlayerMove` |
+
 | `GamePlayerTurnComposable.playerMoveHandler` |
 | --- |
 | `game.$.deferredPlayerMove = move` |
 
+| `GamePlayerTurnComposable.flushDeferredPlayerMove` after resume |
+| --- |
+| `GameMoveComposable.commitLiveMove` |
+
 - Runtime distinction: analysis search keeps streaming updates over time, while a player-engine turn waits only for the final awaited move and then ends that turn-scoped search.
 - State gate: `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` arms a turn only for `LiveWhiteTurn` or `LiveBlackTurn` with `resultState = ongoing`, while the rendered path is the live path and no turn promise is already pending. Local and engine players use the same game-level deferred turn.
 - Guardrails: player-engine turn generation is blocked in non-live analysis, live analysis, board edit, paused live games, and whenever `resultState` is not ongoing. A checkmating move records `CheckState.Checkmate` before the game transitions to non-live analysis.
-- Paused completion rule: if an already-started player-engine turn resolves while the game is paused, the result is recorded as deferred output only. `GamesStore.makeMove(...)` is not called until pause clears back to a playable live state and the deferred result is revalidated against the live position before commit.
+- Paused completion rule: if an already-started player-engine turn resolves while the game is paused, the guarded result is accepted through the same `attemptPlayerMove(...)` and recorded as deferred output. Available pondering has already begun directly from the engine result. When pause clears, `flushDeferredPlayerMove(...)` commits it without revalidation, engine lookup, or a second pondering request.
 - Completion rule: the player-engine turn completes only when `EngineRuntimeService.awaitPlayerTurnMove(...)` resolves with a valid move. The baseline defines no no-response timeout.
 - Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.
 - Runtime-error rule: malformed player-turn output or other unexpected runtime exceptions are logged and surfaced through the owning standard error-handling path without inventing automatic reconnect, automatic stop, or timeout behaviour.
@@ -261,6 +275,9 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.makeMove` |
 | --- |
 | `GameMoveComposable.commitHistoryRewriteMove` |
+| `GamePositionComposable.getRenderedNode/getRenderedPosition` |
+| `GamePositionComposable.setLivePath` with the rendered path, node, and position references |
+| restore the selected node clock snapshot |
 | `GameMoveComposable.commitLiveMove` |
 | `GameClockComposable.applyMove` |
 | `MoveHistoryService.pruneFutureMoves` |
@@ -277,7 +294,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 
 - Per-game coverage: `game.gameplayOptions.allowTakeback = true` routes this flow into live mainline mutation.
-- Follow-up: the current `commitHistoryRewriteMove` restores the selected node's clock snapshot but still delegates to `commitLiveMove` at the existing live node. Rewinding `livePath` and `livePosition` to the selected historical node before that delegation remains unresolved.
+- Requirement verification: `Pass`. `commitHistoryRewriteMove(game, move)` obtains the rendered node and position itself, copies those references and `game.renderedPath` into the live selector before commit, restores the selected clock, and then prunes and replaces that selected parent's continuation. Rendered and live caches therefore share the position object mutated by the replacement move.
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
 
@@ -410,7 +427,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 - State coverage: manual and menu pause or resume are valid only for ongoing timed live-family states with an active clock. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state. `PauseReason.Analysis` may still pause untimed live play for in-game analysis entry.
 - Paused-surface rule: once paused, the game surface blocks history navigation, move entry, takeback, draw, resign, in-game-analysis entry, and board edit until resume, and those blocked store actions throw through the shared paused-state assertion boundary instead of silently returning.
 - Paused-exception rule: player reassignment and analysis-engine management remain allowed while paused because they are treated as configuration actions rather than gameplay actions.
-- Deferred-engine rule: analysis searches may finish while paused and update read-only snapshots, while any player-engine move that resolves during pause is held as deferred output and revalidated against the live position before commit once play returns to a playable live state.
+- Deferred-engine rule: analysis searches may finish while paused and update read-only snapshots, while any guarded player-engine move that resolves during pause is held as deferred output and committed without a second validation once play returns to a playable live state.
 - Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally, and paused live play is interaction-locked apart from resume.
 
 ### SCN-TIME-03 - Increment Applied After Move
@@ -491,7 +508,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameClockComposable.resumeGame` |
 
 - Settings coverage: `gameSession.autoPauseOnMenu` controls whether timed live games are paused for save, settings, and similar interrupting flows.
-- Interruption rule: while the menu-owned pause is active, the game surface is inert and any player-engine move that becomes ready remains deferred until the paired resume path revalidates it.
+- Interruption rule: while the menu-owned pause is active, the game surface is inert and any guarded player-engine move that becomes ready remains deferred until the paired resume path commits it.
 - Requirement verification: `Pass`. Auto-pause is gated by settings, active clock state, and pause ownership.
 
 ## Game Controls

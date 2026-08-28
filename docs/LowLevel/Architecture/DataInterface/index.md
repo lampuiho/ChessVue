@@ -27,3 +27,8 @@ This folder defines the shared low-level types used across the platform, domain,
 - Types include only committed baseline fields.
 - Ownership is documented once and cross-referenced elsewhere rather than duplicated.
 - Persisted artefacts include explicit schema versions.
+
+## UTC Timestamp Convention
+- UTC instants are real `Date` values with purpose-specific `UtcTimestamp` subclasses: `RecordTimestamp`, `ClockTimestamp`, `AnalysisTimestamp`, `SaveTimestamp`, and `RegistrationTimestamp`. **Why:** string timestamps push parsing, comparison, arithmetic, and formatting into every consumer, while one generic `Date` still allows record, clock, analysis, file, and diagnostic display rules to drift. The replacement invariant is typed arithmetic, one canonical ISO wire value, and one owner for each purpose-specific display format.
+- `utcTimestampSchema(...)` accepts a persisted ISO string or an already hydrated `Date` and always constructs the requested subclass; `Date.toJSON()` emits the canonical ISO wire value. **Why:** the same Zod schema validates both JSON on read and the in-memory model before write; accepting only one representation would require duplicate schemas or bypass validation on one boundary.
+- Timestamp instances are treated as immutable instants. Workflows replace a timestamp rather than mutating an existing `Date`. **Why:** clock and record history may share an instant safely only while no owner can rewrite it behind another record.

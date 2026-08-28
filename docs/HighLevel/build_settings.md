@@ -56,7 +56,7 @@ The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 | App-owned file paths | Build config supplies the concrete paths for `settings.json`, `game-session.json`, and `layout-state.json` |
 | Session restore | Persisted separately from settings and per-game saved-game payloads through `SerializationService` |
 | Schema versioning | Required on every persisted artefact type |
-| Migration strategy | Migrate on read, resave on next normal save cycle |
+| Future migration strategy | If a second schema is introduced, dispatch during deserialisation, convert on read, then resave on the next normal save cycle |
 | Corrupt payload handling | Isolate bad payloads and fall back safely |
 
 The detailed behaviour lives in [persistence_contract.md](persistence_contract.md).
@@ -73,7 +73,7 @@ The detailed behaviour lives in [persistence_contract.md](persistence_contract.m
 | Setting Area | Baseline Decision |
 | --- | --- |
 | Internal format | Canonical JSON document |
-| Migration support | Required |
+| Historical migrations | None; version `1` is the first schema |
 | External formats | Deferred |
 | Analysis persistence | Persisted as part of the canonical game payload |
 

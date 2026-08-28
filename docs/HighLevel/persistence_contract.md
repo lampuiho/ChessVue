@@ -15,7 +15,7 @@ Owner:
 Contains:
 - the authoritative settings schema
 - engine inventory managed through settings
-- version metadata for migration
+- version metadata for current-format validation and future dispatch
 
 Does not contain:
 - open tabs
@@ -45,7 +45,7 @@ Contains:
 - history and analysis panel visibility
 - fold state for all committed foldable sections, including shared history and analysis panels plus analysis-engine groups by the active game's rendered analysis-row index
 - one global app-shell layout snapshot for the current installation
-- version metadata for migration
+- version metadata for current-format validation and future dispatch
 
 Does not contain:
 - open game IDs, selected active game tab, or active route shell state
@@ -162,14 +162,15 @@ On restore, those persisted snapshots are restored with the game, and analysis m
 - Must not depend on session-only data outside that payload.
 
 ### External Import
-- Reads the canonical saved game payload from file.
-- Migrates older versions before insertion into stores.
+- Reads and validates the canonical saved game payload from file.
+- Rejects unsupported schema versions before insertion into stores.
 - Restores the saved game workspace immediately, then resumes live analysis if possible.
 
 ## Schema Versioning
 - Every persisted artefact type must include an explicit schema version.
-- Migration occurs on read, before the payload is exposed to the rest of the app.
-- After successful migration, the latest schema should be written back during the next normal save cycle.
+- Version `1` is the first and only current schema; there are no historical schema payloads or field aliases to migrate.
+- Readers accept the current version and reject unsupported versions before exposing a payload to the rest of the app. This prevents malformed current payloads from being mistaken for undocumented older formats.
+- The `SerializationService` deserialisation boundary is the reserved place for future version dispatch. No migration API exists until a second schema requires conversion; once it does, conversion must occur there on read and the canonical version should be written during the next normal save cycle.
 
 ## Corrupt or Partial Payload Handling
 ### Game Session Snapshot

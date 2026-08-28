@@ -47,4 +47,4 @@ The current NW.js host exposes `EngineClientType.Uci` through the concrete `Nwjs
 - The returned adapters should satisfy the same contracts that later real desktop bindings will satisfy.
 - `subscribeToAppCloseRequested`, `subscribeToAppFocusReturned`, and `subscribeToSystemThemeChanged` register callbacks in registration order and return an unsubscribe callback.
 - App-close callbacks must be awaited before shutdown completes. One callback failure does not prevent later registered callbacks from running.
-- `getEventRegistrationSnapshot()` reports active registrations only; history is intentionally out of scope for the baseline.
+- `getEventRegistrationSnapshot()` reports active registrations only; history is intentionally out of scope for the baseline. It returns sorted copies of the public registration records. **Why:** returning registry objects would let diagnostic consumers mutate active registrations or observe private callback wrappers, while sorting the live array would mutate platform-owned ordering.

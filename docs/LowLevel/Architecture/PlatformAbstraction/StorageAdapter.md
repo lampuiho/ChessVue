@@ -47,7 +47,7 @@ deleteFile(path: string): Promise<void>
 - `readTextFile` rejects with `invalidDocument` when the selected file cannot be read as a raw text document.
 - `readTextFile` may reject with `notFound` or `permissionDenied` when the host cannot reopen the selected file path.
 - `deleteFile` rejects with `notFound` or `permissionDenied` when the host cannot remove the selected path.
-- Readable-but-invalid payloads are not silently repaired here; layer-2 services still pass loaded artefacts through `SerializationService` for migration and corruption decisions.
+- Readable-but-invalid payloads are not silently repaired here; layer-2 services still pass loaded artefacts through `SerializationService` for schema-version and corruption decisions.
 
 ## Notes
 - The current implementation uses `NW.js` file inputs for open/save selection and Node file APIs for raw file-system work.

@@ -121,11 +121,11 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `IEngineOptionMeta` is protocol-neutral metadata discovered by an engine client. It is not currently stored on `IEngineRecord` or `IAssignedEngine`.
 - `IEngineOptionMap` remains the configured name/value map. The later owner and timing for populating that map from discovered metadata are intentionally unresolved.
 - Licensed-engine credentials are out of scope. A UCI engine that reports `registration error` receives the fixed `register later` response from the concrete UCI client.
-- Assigned-engine snapshots live in saved game data and are copied by value from the selected reusable engine profile.
+- Assigned-engine snapshots live in saved game data and are copied by value from the selected reusable engine profile. **Why:** a profile is editable inventory for future assignment, while an assigned engine is reproducible game state; retaining only the profile id would let a later edit or deletion retroactively change or break an existing game. A shared-process design may change runtime allocation later, but a saved game must still own the launch configuration it was assigned.
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.
 - `clientType` identifies which platform engine client is responsible for the profile or assigned-engine snapshot.
-- When a selected reusable engine profile is assigned to a game, `GamesStore` copies the display name, executable path, client type, protocol, and option values into the saved game payload so existing games do not change when the reusable profile is edited later or when the reusable profile is deleted. The option map is shallow-copied as part of that snapshot because it remains editable on the reusable profile and every allowed option value is a primitive.
+- When a selected reusable engine profile is assigned to a game, `GamesStore` copies the display name, executable path, client type, protocol, and option values into the saved game payload. The option map is shallow-copied because it remains mutable on the source profile and every allowed value is a primitive; a deep clone provides no additional isolation. Runtime `$` data is excluded because process handles, callbacks, and protocol sessions belong to one active assignment and cannot be reused safely.
 - `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis snapshots.
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.

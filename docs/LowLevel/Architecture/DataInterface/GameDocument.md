@@ -17,11 +17,12 @@ The canonical saved-game payload is `IGame` from [Game.md](Game.md).
 - `rootPosition` and the full `moveTree`
 - `livePath` and `renderedPath`
 - `timeControl` and `clockSnapshot`
-- `gameplayOptions.showLiveAnalysisMoves`
+- `gameplayOptions`, including `allowTakeback` and `showLiveAnalysisMoves`
 - `analysis`, including the ordered persisted analysis snapshot rows for the active game
 
 ## Rules
 - `IGame` is the canonical payload for autosave storage, ChessVue-managed save files, and external import/export files.
+- `gameplayOptions`, including `allowTakeback` and `showLiveAnalysisMoves`, travel with the saved game. **Why:** these values change how that game's history and live analysis behave; restoring them from current global UI choices would silently change the rules of an existing game.
 - Restore rebuilds the saved game workspace from that payload, then may resume live analysis when available.
 - Panel visibility, panel positioning, and other layout concerns are not stored inside the saved game payload.
 - Runtime-only `$` members are never stored inside the canonical saved-game payload.

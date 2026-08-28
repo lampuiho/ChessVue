@@ -191,15 +191,22 @@ const domain = {
         unsubscribeMock();
       };
     }),
-    startPlayerTurn: vi.fn(async (engine: IAssignedEngine, _game: IGame) => {
+    startPlayerTurn: vi.fn(async (engine: IAssignedEngine, game: IGame, attemptPlayerMove: (move: IMove) => Promise<void>) => {
       if (engine.$) engine.$.availability = EngineAvailability.Running;
       await randomDelay();
+      const move = await domain.EngineRuntimeService.awaitPlayerTurnMove(engine, game.$!.livePosition!);
+      const ponderMove = move.$?.ponderMove;
+      const pondering = ponderMove && game.resultState === ResultState.Ongoing
+        ? domain.EngineRuntimeService.startPondering(engine, game, move, ponderMove)
+        : undefined;
+      await attemptPlayerMove(move);
+      await pondering;
     }),
-    startPondering: vi.fn(async (engine: IAssignedEngine, _game: IGame, _ponderMove: IMove) => {
+    startPondering: vi.fn(async (engine: IAssignedEngine, _game: IGame, _engineMove: IMove, _ponderMove: IMove) => {
       if (engine.$) engine.$.availability = EngineAvailability.Ready;
       await randomDelay();
     }),
-    awaitPlayerTurnMove: vi.fn(async (engine: IAssignedEngine) => {
+    awaitPlayerTurnMove: vi.fn(async (engine: IAssignedEngine, _searchedPosition: IGame['rootPosition']) => {
       if (engine.$) engine.$.availability = EngineAvailability.Ready;
       return createResolvedAfterDelay(dequeueEngineMove(engine));
     }),
@@ -464,9 +471,13 @@ describe('useGamesStore', () => {
     });
     const move = createMove(PlayerColour.White);
 
+    const pendingDeferred = game.$!.pendingPlayerTurnPromise!;
+    const resolvePendingMove = vi.spyOn(pendingDeferred, 'resolve');
     const pendingMove = game.$?.pendingPlayerTurnHandlePromise;
-    store.makeMove(game, move);
+    await store.makeMove(game, move);
     await pendingMove;
+    expect(resolvePendingMove).toHaveBeenCalledOnce();
+    expect(resolvePendingMove).toHaveBeenCalledWith(move);
     expect(game.livePath).toEqual([0]);
     expect(game.renderedPath).toEqual([0]);
     expect(game.gameState).toBe(GameState.LiveBlackTurn);
@@ -575,7 +586,7 @@ describe('useGamesStore', () => {
     expect(game.renderedPath).toEqual(game.livePath);
     expect(game.$!.renderedPosition).toBe(game.$!.livePosition);
   });
-  it('keeps independent position caches when live play advances from history review', async () => {
+  it('moves the rendered history selection into live state before replacing its continuation', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Divergent Live Position',
@@ -591,14 +602,24 @@ describe('useGamesStore', () => {
     store.navigateToNode(game, game.moveTree.root);
     game.gameplayOptions.allowTakeback = true;
     void game.$!.pendingPlayerTurnHandlePromise?.catch(() => undefined);
+    store.getVisibleAnalysis(game);
+    const selectedClockSnapshot = game.moveTree.root.clockSnapshot!;
+    const selectedPosition = game.$!.renderedPosition!;
+    domain.TimeControlService.applyMove.mockClear();
+    domain.MoveApplicationService.applyMove.mockImplementationOnce((position: IGame['rootPosition'], move: IMove) => {
+      expect(position).toBe(selectedPosition);
+      expect(game.$!.livePosition).toBe(position);
+      expect(game.$!.renderedPosition).toBe(position);
+      return applyDefaultMove(position, move);
+    });
 
     await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
-    expect(game.$!.renderedPosition).toBeUndefined();
 
-    store.getVisibleAnalysis(game);
-    expect(game.$!.renderedPosition).not.toBe(game.$!.livePosition);
+    expect(game.livePath).toEqual([0]);
+    expect(game.renderedPath).toEqual([0]);
+    expect(game.$!.renderedPosition).toBe(game.$!.livePosition);
     expect(game.$!.renderedPosition!.halfMoveClock).toBe(1);
-    expect(game.$!.livePosition!.halfMoveClock).toBe(2);
+    expect(domain.TimeControlService.applyMove.mock.calls[0]?.[0]).toBe(selectedClockSnapshot);
   });
   it('resolves the result after committing a standalone analysis move', async () => {
     const store = useGamesStore();
@@ -818,10 +839,16 @@ describe('useGamesStore', () => {
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
 
+    const pendingDeferred = engineGame.$!.pendingPlayerTurnPromise!;
+    const resolvePendingMove = vi.spyOn(pendingDeferred, 'resolve');
     await engineGame.$?.pendingPlayerTurnHandlePromise;
+    const committedMove = engineGame.moveTree.root.children[0]!.move!;
     expect(engineGame.livePath).toEqual([0]);
     expect(engineGame.gameState).toBe(GameState.LiveBlackTurn);
-    expect(domain.EngineRuntimeService.startPondering).toHaveBeenCalledWith((engineGame.whitePlayer as IEnginePlayer).assignedEngine, engineGame, ponderMove);
+    expect(resolvePendingMove).toHaveBeenCalledOnce();
+    expect(resolvePendingMove).toHaveBeenCalledWith(committedMove);
+    expect(domain.EngineRuntimeService.startPondering).toHaveBeenCalledWith((engineGame.whitePlayer as IEnginePlayer).assignedEngine, engineGame, committedMove, committedMove.$!.ponderMove);
+    expect(domain.EngineRuntimeService.startPondering.mock.invocationCallOrder[0]).toBeLessThan(domain.MoveHistoryService.addMainlineMove.mock.invocationCallOrder[0]!);
 
     await store.offerDraw(engineGame);
     void engineGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
@@ -844,25 +871,6 @@ describe('useGamesStore', () => {
     expect(localGame.gameState).toBe(GameState.AnalysisBlackMove);
     expect(localGame.resultState).toBe(ResultState.BlackWon);
     expect(localGame.resultReason).toBe(ResultReason.Resignation);
-  });
-  it('rejects an illegal player-engine result at the player-turn boundary and requests another move', async () => {
-    const store = useGamesStore();
-    utility.isMoveLegal.mockImplementationOnce(() => false);
-    nextPlayerMove = createMove(PlayerColour.White);
-    const game = await store.createGame({
-      name: 'Guarded Engine Turn',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
-      analysisEngineProfiles: [],
-      showLiveAnalysisMoves: false,
-      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
-    });
-    await game.$!.pendingPlayerTurnHandlePromise;
-    await game.$!.pendingPlayerTurnHandlePromise;
-
-    expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(2);
-    expect(game.livePath).toEqual([0]);
-    expect(game.gameState).toBe(GameState.LiveBlackTurn);
   });
   it('plays scholar mate through local player turns only', async () => {
     installScholarMateRules();
@@ -931,6 +939,7 @@ describe('useGamesStore', () => {
   it('defers player-engine moves while paused and replays them after resume', async () => {
     const store = useGamesStore();
     nextPlayerMove = createMove(PlayerColour.White);
+    nextPlayerMove.$!.ponderMove = createMove(PlayerColour.Black, 52, 36);
     const game = await store.createGame({
       name: 'Deferred Engine Move',
       whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
@@ -945,42 +954,13 @@ describe('useGamesStore', () => {
     await pendingMove;
     expect(game.gameState).toBe(GameState.PausedWhiteTurn);
     expect(game.livePath).toEqual([]);
+    expect(domain.EngineRuntimeService.startPondering).toHaveBeenCalledOnce();
 
     await store.resumeGame(game, PauseReason.Manual);
     await randomDelay();
     expect(game.gameState).toBe(GameState.LiveBlackTurn);
     expect(game.livePath).toEqual([0]);
-  });
-  it('discards stale deferred player-engine moves and requests a fresh turn on resume', async () => {
-    const store = useGamesStore();
-    const game = await store.createGame({
-      name: 'Stale Deferred Engine Move',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
-      analysisEngineProfiles: [],
-      showLiveAnalysisMoves: false,
-      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
-    });
-
-    nextPlayerMove = createMove(PlayerColour.White);
-    const pendingMove = game.$?.pendingPlayerTurnHandlePromise;
-    await store.pauseGame(game, PauseReason.Manual);
-    await pendingMove;
-    utility.isMoveLegal.mockImplementationOnce(() => false);
-    nextPlayerMove = createMove(PlayerColour.White, 11, 27);
-
-    await store.resumeGame(game, PauseReason.Manual);
-    await randomDelay();
-    await randomDelay();
-    await randomDelay();
-    await randomDelay();
-    await randomDelay();
-    await randomDelay();
-    utility.isMoveLegal.mockImplementation(() => true);
-
-    expect(domain.EngineRuntimeService.startPlayerTurn.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(game.gameState).toBe(GameState.LiveBlackTurn);
-    expect(game.livePath).toEqual([0]);
+    expect(domain.EngineRuntimeService.startPondering).toHaveBeenCalledOnce();
   });
   it('rewrites mainline or adds analysis branches from live history based on per-game policy', async () => {
     const store = useGamesStore();
@@ -1001,13 +981,13 @@ describe('useGamesStore', () => {
     void game.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
     expect(domain.MoveHistoryService.rewriteMainline).not.toHaveBeenCalled();
-    expect(game.livePath).toEqual([0, 0]);
+    expect(game.livePath).toEqual([0]);
     expect(game.renderedPath).toEqual([0]);
     expect(game.moveTree.root.mainlineChildIndex).toBe(0);
     expect(game.moveTree.root.children).toHaveLength(1);
     expect(game.moveTree.root.children[0]!.kind).toBe(MoveNodeKind.Live);
-    expect(game.moveTree.root.children[0]!.children[0]!.move?.from).toBe(11);
-    expect(game.moveTree.root.children[0]!.children[0]!.move?.to).toBe(27);
+    expect(game.moveTree.root.children[0]!.move?.from).toBe(11);
+    expect(game.moveTree.root.children[0]!.move?.to).toBe(27);
 
     const branchGame = await store.createGame({
       name: 'History Analysis Only',

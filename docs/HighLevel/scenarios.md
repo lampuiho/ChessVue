@@ -165,11 +165,11 @@ Each scenario in this document uses the same structure:
   4. App continues with defaults and displays recoverable warning.
 - **Branch Paths**:
   - `BR-SESSION-03-SETTINGS-CORRUPT`: Settings payload invalid -> `resetSettings` fallback.
-  - `BR-SESSION-03-GAME-MIGRATE`: Legacy game shape detected -> migrate before load.
+  - `BR-SESSION-03-GAME-VERSION`: Unsupported saved-game schema version -> reject the payload and continue the recoverable startup flow.
 - **Postconditions**: App remains usable; bad persistence does not block launch.
 - **Implementation Touchpoints**:
   - `SerializationService.deserialiseGame`
-  - `SerializationService.migrateGame`
+  - `SerializationService.deserialiseGame`
   - `SettingsStore.resetSettings`
   - `UserSettingService.getSettingsOrDefault`
   - `SerializationService.readGameDocument`
@@ -700,7 +700,7 @@ Each scenario in this document uses the same structure:
   2. App suspends timer updates, marks paused state, and locks the game surface for all game actions except `Resume`.
   3. User clicks `Resume`.
   4. App restores active timer without losing elapsed data.
-  5. If a player-engine move became ready while paused, app revalidates that deferred move against the current live position and commits it only after pause state clears; stale deferred output is discarded and replaced by a fresh engine request when needed.
+  5. If an already validated player-engine move became ready while paused, app commits it after pause clears only when the live turn is still ready; otherwise app discards it. It does not repeat legality validation or pondering because pause did not change the live position and the engine-boundary work has already completed.
 - **Branch Paths**:
   - `BR-TIME-02-DOUBLE-PAUSE`: Pause clicked while already paused -> no-op.
   - `BR-TIME-02-RESUME-GAME-OVER`: Resume attempt after game end -> blocked.
@@ -768,7 +768,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-05-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, the menu action proceeds without changing the clock state.
   - `BR-TIME-05-NON-TIMED-GAME`: If the game has no active clock, no pause action is required.
   - `BR-TIME-05-ALREADY-PAUSED`: If the game is already paused, menu flow continues without changing pause state.
-  - `BR-TIME-05-ENGINE-READY-WHILE-AWAY`: A player engine or analysis engine finishes during the interruption -> keep analysis output read-only and defer any player move until the paired resume path revalidates it.
+  - `BR-TIME-05-ENGINE-READY-WHILE-AWAY`: A player engine or analysis engine finishes during the interruption -> keep analysis output read-only and defer any already validated player move until the paired resume path confirms that the live turn is ready; do not repeat the engine-boundary work merely because the UI was away.
 - **Postconditions**: Menu-driven interruptions do not accidentally consume clock time when auto-pause-on-menu is enabled, the paused game surface remains inert during the interruption, and normal play resumes automatically on return.
 - **Implementation Touchpoints**:
   - `MenuBar.saveGameRequested`
@@ -979,7 +979,7 @@ Each scenario in this document uses the same structure:
   8. Choosing `Select` routes to `/saved-games/load/:name` for the selected game.
   9. The game-save listing screen shows that game's saves and replaces the bottom-right `Select` action with `Load`.
   10. User selects a save entry and clicks `Load`, or arrives by double-click latest-save behaviour from the grouped list.
-  11. App resolves the selected internal save to a concrete save entry, `SavedGamesStore` reads the raw save document, deserializes and migrates the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)` to restore the active workspace state immediately.
+  11. App resolves the selected internal save to a concrete save entry, `SavedGamesStore` reads the raw save document, checks its schema version and deserialises the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)` to restore the active workspace state immediately.
   12. Game is loaded into store and opened.
   13. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
   14. While the load flow is open, any already-running player-engine search from the previously active timed game may finish but must not mutate that paused game until return.
@@ -987,7 +987,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-LOAD-01-CANCEL`: User leaves either load route or presses `Cancel` -> no load occurs.
   - `BR-LOAD-01-DUPLICATE-ID`: Loaded game ID collides with an already open or persisted game -> remap ID before insert.
-  - `BR-LOAD-01-MIGRATION`: Older schema detected -> migrate then persist upgraded format on the next normal save cycle.
+  - `BR-LOAD-01-SCHEMA-VERSION`: Unsupported schema version detected -> reject the saved game without inserting a partial workspace.
   - `BR-LOAD-01-NO-SELECTION`: User presses `Select` without a selected game on `/saved-games/load` -> keep the user on the grouped game list and block navigation.
   - `BR-LOAD-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, load proceeds without pausing the clock.
 - **Postconditions**: The selected internal save opens as an active game, whether reached through direct double-click latest-load or the nested `/saved-games/load/:name` save-list route, and live analysis resumes afterwards when engines are available.
@@ -1038,14 +1038,14 @@ Each scenario in this document uses the same structure:
   1. User chooses import action.
   2. App opens a normal OS file picker.
   3. User selects a file.
-  4. `SavedGamesStore` resolves the selected external file path, reads the raw document, deserializes and migrates the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)`.
+  4. `SavedGamesStore` resolves the selected external file path, reads the raw document, checks its schema version and deserialises the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)`.
   5. App restores the saved game workspace state immediately, including current position/history node, clock state, and result state.
   6. Game is loaded into store and opened.
   7. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
 - **Branch Paths**:
   - `BR-IMPORT-01-CANCEL`: User cancels the OS file picker -> no import occurs.
   - `BR-IMPORT-01-DUPLICATE-ID`: Imported game ID collides -> remap ID before insert.
-  - `BR-IMPORT-01-MIGRATION`: Older schema detected -> migrate then persist upgraded format on the next normal save cycle.
+  - `BR-IMPORT-01-SCHEMA-VERSION`: Unsupported schema version detected -> reject the imported game without inserting a partial workspace.
 - **Postconditions**: Imported game is available and routable, the user first sees the restored game state from the selected file, and live analysis resumes afterwards when engines are available.
 - **Implementation Touchpoints**:
   - `MenuBar.importGameRequested`
@@ -1361,7 +1361,7 @@ Each scenario in this document uses the same structure:
   3. Summary report shows successes/failures.
 - **Branch Paths**:
   - `BR-IDEA-10-PARTIAL-BATCH-FAIL`: Some items fail; successful items still committed.
-- **Postconditions**: Power users can migrate larger game sets efficiently.
+- **Postconditions**: Power users can transfer larger game sets efficiently.
 - **Implementation Touchpoints**:
   - `SavedGamesStore`
   - `GamesStore`

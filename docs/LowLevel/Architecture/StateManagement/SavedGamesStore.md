@@ -20,7 +20,7 @@ importGame(): Promise<IGame | undefined>
 ## Responsibilities
 - list grouped save entries for the route-level save/load views
 - serialise and write the current game to autosave, managed-save, or external-file targets once the owning flow has selected that target
-- read, deserialise, and migrate saved-game documents from managed saves, recent entries, session restore, or external import
+- read and deserialise canonical saved-game documents from managed saves, recent entries, session restore, or external import; future version conversion remains inside `SerializationService` because allowing each load path to interpret versions would create multiple compatibility policies
 - resolve the latest available managed save target for each remembered `gameId` during session restore, then return the loaded game payload to presentation
 - resolve a selected managed save or recent-game entry into a loaded saved-game payload later inserted into `GamesStore`
 - let presentation decide when a successfully loaded payload should become an open active workspace by passing it into `GamesStore.insertGame(...)`

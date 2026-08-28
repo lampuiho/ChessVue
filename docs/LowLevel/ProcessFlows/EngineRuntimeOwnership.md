@@ -4,8 +4,8 @@
 This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALYSIS-01` to `SCN-ANALYSIS-05`, `SCN-ENGINE-01` to `SCN-ENGINE-03`, and the engine-runtime portions of the live move loop.
 
 ## Ownership Summary
-- `GamesStore` decides when analysis, player-turn, or speculative ponder work should happen.
-- `EngineRuntimeService` owns base runtime creation, process lifecycle, process-handle checks, availability, last-error updates, and analysis callback registration on `IAssignedEngine.$`.
+- `GamesStore` decides when analysis should run and when a live player turn should be armed.
+- `EngineRuntimeService` owns base runtime creation, process lifecycle, process-handle checks, availability, last-error updates, analysis callback registration on `IAssignedEngine.$`, and optional pondering from a guarded engine-player result.
 - `EngineClient` owns the protocol session, process listeners, current search position, expected ponder move, pending player-turn completion, protocol I/O, and parsing.
 - `UciUtility` only builds protocol commands and parses individual protocol records. It does not own a process or session.
 - Runtime state changes use explicit object-attached state. No flow relies on hidden side tables or silent runtime initialisation.
@@ -69,20 +69,25 @@ The concrete `EngineClient` may refine `engine.$` with a private session. Its UC
 | create `game.$.pendingPlayerTurnPromise` for the current player |
 | `GamePlayerTurnComposable.playerMoveHandler` awaits that shared promise |
 
-For a local player, `GamesStore.makeMove(...)` resolves the deferred move. For a player engine, `_requestEngineMove(...)` calls `ensureReady(...)`, `startPlayerTurn(engine, game)`, and `awaitPlayerTurnMove(...)`, then resolves the same game-level deferred. The handler either stores the resulting `IMove` as `deferredPlayerMove` while paused or commits it while live.
+`requestPlayerMove(...)` starts `playerMoveHandler(...)` and stores both the deferred and its handler promise before starting any engine provider. For a local player, `GamesStore.makeMove(...)` routes the current live move through `attemptPlayerMove(...)`. For a player engine, `requestEngineMove(...)` calls `ensureReady(...)` and `startPlayerTurn(engine, game, attemptPlayerMove)`, passing a callback bound to that request's deferred identity. A stale callback returns without submitting its move. Otherwise both player types resolve the same game-level deferred through `attemptPlayerMove(...)`; the same engine-agnostic handler stores the move as `deferredPlayerMove` while paused or commits it while live.
 
 ### Normal Engine Search
-| `EngineRuntimeService.startPlayerTurn(engine, game)` |
+| `EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove)` |
 | --- |
-| assert base runtime and live process |
+| capture the canonical live position being searched |
 | `EngineClient.startPlayerTurn(engine, game)` |
-| derive the live position and timed search commands |
-| enter `FindingMove` |
+| `EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition)` |
+| validate the best move against `searchedPosition` |
+| derive a detached position after the best move and validate any ponder move |
+| begin `EngineRuntimeService.startPondering(engine, game, engineMove, ponderMove)` immediately when available and the game is ongoing |
+| `attemptPlayerMove(engineMove)` |
 
-While `FindingMove`, only `bestmove` completes the pending engine move. The parsed `IMove` may carry an optional runtime-only `$.ponderMove` supplied by the engine.
+`EngineClient.startPlayerTurn(...)` derives the live position and timed search commands and enters `FindingMove`. While `FindingMove`, only `bestmove` completes the client-private pending engine move. The parsed `IMove` may carry an optional runtime-only `$.ponderMove` supplied by the engine. `EngineRuntimeService.awaitPlayerTurnMove(...)` is the one common legality guard for all clients; the concrete client and state layer do not duplicate it. The detached sequential-validation position is an intentional simulation copy so the captured live position remains unchanged before the move attempt.
 
 ### Ponder Search And Next Turn
-After an engine move is committed, `GamesStore` calls `EngineRuntimeService.startPondering(engine, game, ponderMove)` when the returned move includes `$.ponderMove`. The client enters `Pondering` and retains the expected reply privately.
+As soon as a guarded engine result contains `$.ponderMove`, and while the game is still ongoing, `EngineRuntimeService.startPlayerTurn(...)` begins `startPondering(engine, game, engineMove, ponderMove)` before awaiting the shared move attempt. Pondering therefore does not depend on whether the handler commits immediately or stores a deferred move while paused. A ponder-start failure is recorded by the runtime but does not reject or repeat that move attempt.
+
+The client constructs the ponder command from the game root, moves already represented by `game.livePath`, the directly supplied engine move, and the supplied ponder move. The transient sequence array is a command-building copy only; no best-move field, committed-move collection, or searched-position input is retained. The existing game clock snapshot is used even though it may still be pre-commit. The client enters `Pondering` and retains only the expected reply privately.
 
 When that engine is next asked to move:
 - If the latest live move matches the expected reply, `startPlayerTurn(...)` sends `ponderhit`, enters `FindingMove`, and delivers that search's next `bestmove` normally.
@@ -107,4 +112,4 @@ Output handling is selected by the current state, not by trying several output p
 ## Stop, Restart, And Failure
 `EngineRuntimeService.stopEngine(...)` asks the client to reject and clear private session work, then stops the process and clears shared analysis runtime. `restartEngine(...)` replaces or respawns the process before explicitly initialising a fresh protocol session.
 
-`startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` may retry once only after `InvalidProcessHandle`, using the explicit engine initialisation path. Missing base runtime or a missing client session remains an exception and is not hidden by lazy repair.
+`startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` may retry once only after `InvalidProcessHandle`, using the explicit engine initialisation path. Missing base runtime or a missing client session remains an exception and is not hidden by lazy repair. Start, await, or validation failure rejects the game-level deferred through the provider path and uses the existing handler retry behaviour; pondering failure alone preserves the accepted or deferred move.

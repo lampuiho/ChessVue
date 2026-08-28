@@ -46,7 +46,7 @@ interface IVisibleAnalysisSnapshot {
 - Analysis-engine fold behaviour is UI-owned state persisted through `IUiLayoutState` by rendered row index for the active game rather than through the saved game payload.
 - Duplicate analysis engines are not allowed within one game, so row-index-targeted actions stay unambiguous.
 - Engine-facing updates are normalised into ChessVue move structures before they are stored.
-- Engine analysis-update payloads are readonly after dispatch. `GamesStore` retains the supplied `bestMove` and `lines` references when replacing a snapshot result instead of cloning them; the producer creates a new ordered lines array for each update and does not subsequently mutate emitted line or move objects.
+- Engine analysis-update payloads are readonly after dispatch. `GamesStore` retains the supplied `bestMove` and `lines` references when replacing a snapshot result instead of cloning them; the producer creates a new ordered lines array for each update and does not subsequently mutate emitted line or move objects. **Why:** producer immutability already provides isolation, so defensive cloning would only replace useful identities and copy the result graph on every streamed update.
 - `positionKey` is a derived structural position identity, not a stored FEN contract.
 - Omitted `scoreCp`, `scoreMate`, or `bestMove` fields mean that value is currently unavailable for that snapshot.
-- `IVisibleAnalysisSnapshot` is a deep-readonly view over the matching stored snapshots for the currently rendered position. It does not clone the snapshot graph.
+- `IVisibleAnalysisSnapshot` is a deep-readonly view over the matching stored snapshots for the currently rendered position. It does not clone the snapshot graph. **Why:** presentation needs observation, not ownership; a readonly contract prevents mutation without turning every render into a new set of identities.

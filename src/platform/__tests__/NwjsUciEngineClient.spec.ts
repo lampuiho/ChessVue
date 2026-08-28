@@ -69,15 +69,19 @@ describe('NwjsUciEngineClient', () => {
     process.queueResponse(timedGo, ['bestmove e7e5 ponder g1f3']);
     await client.startPlayerTurn(engine, game);
     const firstMove = await client.awaitPlayerTurnMove(engine);
+    const firstPonderPath = [...game.livePath!];
+    await client.startPondering(engine, game, firstMove, firstMove.$!.ponderMove!);
+    expect(game.livePath).toEqual(firstPonderPath);
     appendLiveMove(game, firstMove);
-    await client.startPondering(engine, game, firstMove.$!.ponderMove!);
     appendLiveMove(game, firstMove.$!.ponderMove!);
     process.queueResponse('ponderhit', ['bestmove b8c6 ponder f1c4']);
     await client.startPlayerTurn(engine, game);
     const ponderHitMove = await client.awaitPlayerTurnMove(engine);
 
+    const secondPonderPath = [...game.livePath!];
+    await client.startPondering(engine, game, ponderHitMove, ponderHitMove.$!.ponderMove!);
+    expect(game.livePath).toEqual(secondPonderPath);
     appendLiveMove(game, ponderHitMove);
-    await client.startPondering(engine, game, ponderHitMove.$!.ponderMove!);
     const unexpectedMove: IMove = { from: getBoardId(3, 1), to: getBoardId(3, 3), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
     appendLiveMove(game, unexpectedMove);
     process.queueResponse('stop', ['bestmove a7a6']);
@@ -90,6 +94,8 @@ describe('NwjsUciEngineClient', () => {
     expect(commandLog).toContain('uci');
     expect(commandLog).toContain('setoption name Threads value 1');
     expect(commandLog).toContain('ucinewgame');
+    expect(commandLog).toContain('position startpos moves e2e4 e7e5 g1f3');
+    expect(commandLog).toContain('position startpos moves e2e4 e7e5 g1f3 b8c6 f1c4');
     expect(commandLog).toContain('go ponder wtime 60000 btime 60000 winc 1000 binc 1000');
     expect(commandLog).toContain('ponderhit');
     expect(commandLog.filter((command) => command === 'stop')).toHaveLength(2);
@@ -139,7 +145,8 @@ describe('NwjsUciEngineClient', () => {
     const engine = createAssignedEngine();
     engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     const game = createEngineGame();
-    const ponderMove: IMove = { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
+    const engineMove: IMove = { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
+    const ponderMove: IMove = { from: getBoardId(6, 0), to: getBoardId(5, 2), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Knight };
 
     await expect(client.startAnalysis(engine, game, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, () => undefined)).rejects.toMatchObject({
       kind: PlatformErrorKind.ProcessStartFailed,
@@ -149,7 +156,7 @@ describe('NwjsUciEngineClient', () => {
       kind: PlatformErrorKind.ProcessStartFailed,
       message: 'Engine session is not initialised for Stockfish.',
     });
-    await expect(client.startPondering(engine, game, ponderMove)).rejects.toMatchObject({
+    await expect(client.startPondering(engine, game, engineMove, ponderMove)).rejects.toMatchObject({
       kind: PlatformErrorKind.ProcessStartFailed,
       message: 'Engine session is not initialised for Stockfish.',
     });

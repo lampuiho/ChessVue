@@ -43,6 +43,17 @@ Each entry must define:
 - Managed-save enumeration and latest-save target selection remain owner-private helpers inside `SavedGamesStore` and `RecentGameStore`, while duplicate-id repair and workspace hydration remain owner-private helpers inside `GamesStore`.
 - Direct `SerializationService.readGameDocument(...)` and `SerializationService.writeGameDocument(...)` calls do not need a contract-aware utility wrapper when the wrapper adds no shared behaviour beyond pass-through.
 
+## Async Coordination
+### Deferred
+- Purpose: expose one promise identity that may be settled by an external caller or by an optional provider promise supplied at construction. **Why:** a raw `Promise` cannot be settled by board submission or protocol output owned elsewhere, while separate provider and UI promises could each run their own handler and race to commit.
+- Location: `src/utility/async/Deferred.ts`.
+- Touched contract models: `IGameRuntime.pendingPlayerTurnPromise`; concrete engine clients also use it for private protocol waits.
+- Allowed importers: state, domain, and platform owners that need an explicitly settleable one-shot completion boundary.
+- Classification: `runtime coordination`.
+- Settlement is idempotent through native `Promise` semantics. Following a provider promise and calling `resolve(...)` or `reject(...)` externally race to settle the same completion rather than creating competing promises; chained operations return ordinary `Promise` values through `Symbol.species`.
+- A `Deferred` has one workflow owner. Intentional cancellation rejects it before the owner clears its runtime reference. **Why:** merely dropping the reference would leave an abandoned waiter unresolved and hide the cancellation from its handler.
+- `Deferred` is a one-shot primitive, not a turn model or queue. **Why:** premoves and multiple future inputs require ordering, intended-position validation, and cancellation semantics that one-shot settlement cannot express; stacking `Deferred` instances would create competing current-turn owners rather than a queue.
+
 ## Error Handling
 ### StandardErrorHandlingUtility
 - Purpose: share normalisation of runtime and platform exceptions into logging plus caller-owned user-facing error presentation policy.
@@ -73,9 +84,9 @@ Each entry must define:
 - Purpose: own pure chess-rule queries, detailed-move generation, initial-position handling, and board-rule game-result resolution.
 - Location: `src/utility/chess/GameRuleUtility.ts`.
 - Touched contract models: `IBoardPosition`, `IMoveRaw`, `IMove`, `CheckState`, `ResultState`, and `ResultReason`.
-- Allowed importers: `GamesStore`, concrete engine clients, notation consumers, and chess-rule tests.
+- Allowed importers: owning domain services, focused state composables for rule queries/setup, concrete engine clients, notation consumers, and chess-rule tests.
 - Classification: `deterministic read-through cache`; queries do not change persisted chess state but may populate derived values under `IBoardPosition.$`.
-- Validation or failure semantics: illegal raw moves and unresolved promotions throw before returning detailed moves. Private copied-position simulation is used only for legality, check state, and move-sequence enrichment; no position-transition API is exposed.
+- Validation or failure semantics: `isMoveLegal(...)` matches against fully legal moves, including the current check constraint and the absence of any move from checkmate, rather than checking piece movement alone. **Why:** pseudo-legal validation would admit moves that leave the king attacked and could let play continue from a terminal chess position. Illegal raw moves and unresolved promotions throw before detailed-move generation. Copied-position simulation is used for legality, check state, and move-sequence enrichment. Low-level `applyMove` and clone mechanics are consumed through `MoveApplicationService` by app workflows; stores must not bypass that service boundary merely because the utility exports those mechanics for domain composition and focused tests.
 
 ### MoveNotationUtility
 - Purpose: lazily format SAN from detailed move facts and UCI from raw move coordinates.

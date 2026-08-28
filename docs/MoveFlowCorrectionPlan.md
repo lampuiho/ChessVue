@@ -561,7 +561,6 @@ Permitted directly affected design/tracker files:
 - `docs/LowLevel/Architecture/PlatformAbstraction/EngineClient.md`
 - `docs/LowLevel/ProcessFlows/EngineRuntimeOwnership.md`
 - `docs/LowLevel/ProcessFlows/GameplayAndControl.md`
-- `docs/StuffChangedAndNeedChanging.md`
 
 This correction-plan document may be updated only during replanning, not as a way to legitimise drift discovered during implementation. Any additional test or documentation file also requires stopping and listing it before work resumes.
 
@@ -709,11 +708,10 @@ Update only directly affected documentation:
 - Gameplay flow:
   - `makeMove` routes current live moves through `attemptPlayerMove`.
   - Analysis and history branches do not.
-- `StuffChangedAndNeedChanging`:
-  - Remove the incorrect state-layer engine-validation completion.
-  - Record the common `awaitPlayerTurnMove` guard.
-  - Record the history rewrite only after tests pass.
-  - Preserve cloning findings until resolved or documented.
+- Owning design documents:
+  - Record the common `awaitPlayerTurnMove` guard and remove the incorrect state-layer validation boundary.
+  - Record the shared local/engine move-attempt path and the verified history rewrite.
+  - Keep each required ownership or simulation copy beside the module that owns it instead of maintaining a separate cloning tracker.
 
 ## 15. Object-cloning pass
 
@@ -746,7 +744,7 @@ Verification
 ├─ tests for any copy sites changed
 ├─ full test suite
 ├─ type checking
-└─ update StuffChangedAndNeedChanging from verified results only
+└─ update the authoritative design documents from verified results only
 ```
 
 Any move-flow implementation requiring another production file or another API name must stop for replanning first.

@@ -134,7 +134,7 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - While paused, gameplay interaction on the game surface is read-only apart from `Resume`. The user may still leave the game surface for menu or route flows.
 - While paused, gameplay actions inside the game tab are blocked apart from `Resume`, but player reassignment and analysis-engine management remain allowed as explicit non-play exceptions.
 - If a player-engine turn search or analysis search was already in flight when pause began, that current search may finish, but no move, clock, or move-tree mutation may be committed while the game remains paused.
-- A player-engine move produced while paused is deferred until resume, then revalidated against the live position and side to move before commit. If it is stale, it is discarded and a fresh engine turn may be requested instead.
+- A player-engine move produced while paused has already been validated at the engine-result boundary and is deferred until resume. It commits only if the live turn is still ready; otherwise it is discarded. **Why:** pause cannot change the live position and ownership-changing actions clear the turn runtime, so repeating legality or pondering would duplicate work and could start the same engine side effect twice.
 - Paused live-analysis states preserve the same live anchor and visible analysis side-to-move information as their unpaused `LiveAnalysisFrom*` counterparts.
 - Auto-resume is allowed only when the same interruption flow caused the pause.
 - Manual pause remains paused until the user explicitly resumes.

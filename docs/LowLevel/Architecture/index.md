@@ -122,9 +122,27 @@ The data-interface section defines the shared low-level types for:
   - canonical saved-game payload based on `IGame`
 
 ## Nullability Convention
-- Prefer optional properties over `| null` when the only meaning is "not present".
+- Prefer optional properties over `| null` when the only meaning is "not present". Allowing both `undefined` and `null` for the same absence creates two wire and runtime representations, multiplies branches and compatibility cases, and makes producer mistakes appear valid.
 - Prefer `undefined` over `null` for object, array, and lookup-return absence unless the contract needs to distinguish both values explicitly.
 - Presence checks for object-like values should normally be truthy or falsy checks rather than explicit `=== null` or `=== undefined` comparisons.
+- `nullable().optional()` is not harmless extra tolerance when both values mean the same thing; canonical schemas should output one absence representation. Introduce `null` only when it carries a domain meaning distinct from omission, and document that meaning on the owning contract.
+
+## Decision Documentation Standard
+Behaviour alone is not enough for a non-obvious architectural decision. Reasoning must appear immediately beside the contract, rule, mutation flow, or ownership statement it protects—not in a separate rationale document or a distant rationale section. The local explanation must preserve:
+
+- the problem or failure mode that forced the decision
+- why the chosen owner and boundary solve that problem
+- the plausible alternative that was rejected and how it fails
+- the invariant that a replacement must preserve
+- any known condition that would justify revisiting the mechanism
+
+This keeps the reasoning in the path of anyone learning or changing the design and prevents a locally attractive refactor from silently reintroducing a system-level bug. A mechanism is not permanent merely because it is documented; a replacement is valid when it addresses the original failure mode and preserves the stated invariant.
+
+## Copy And Identity Policy
+- Production copies are justified only at an ownership or trust boundary, to preserve immutable history, to detach a simulation or divergent position, or to stabilise iteration/sorting against caller mutation. A new copy must identify which of those guarantees it provides.
+- Defensive cloning by default is rejected because it hides ownership, breaks useful object identity, copies runtime state that may contain callbacks or host objects, and makes mutation costs unpredictable. `structuredClone` is especially unsuitable for canonical game objects with runtime `$` values and purpose-specific class instances.
+- Immutable values such as chess-piece identities and timestamp instants may be shared. Mutable containers are copied only when the recipient must be able to mutate independently.
+- The invariant is behavioural isolation, not "no copies" or "always copy". Removing a copy is safe only when ownership is already exclusive; adding one is safe only when the new identity does not participate in rendering, runtime lookup, or history-reference semantics.
 
 ## Scenario Ownership Summary
 - `GamesStore`, `MoveHistoryService`, `MoveApplicationService`, `PositionIdentityService`, and the chess utilities own move, history, setup, control, and lifecycle scenarios.

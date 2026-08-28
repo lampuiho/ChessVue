@@ -3,7 +3,7 @@
 ## Purpose
 Define the shared typed failure contract used by platform-layer adapters during the rewrite baseline.
 
-These errors describe host-boundary failures only. They do not replace domain validation or schema-migration decisions owned elsewhere.
+These errors describe host-boundary failures only. They do not replace domain validation or schema-version decisions owned elsewhere.
 
 ## Types
 - `enum PlatformErrorKind`

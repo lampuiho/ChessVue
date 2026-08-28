@@ -56,10 +56,13 @@ describe('UciUtility', () => {
     expect(buildFindNextMoveCommands(game)).toEqual(['position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4', 'go wtime 60000 btime 45000 winc 1000 binc 1000']);
     expect(buildFindNextMoveCommands(game, { ...move })).toEqual(['ponderhit']);
     expect(buildFindNextMoveCommands(game, { ...move, to: 20 })).toEqual(['stop']);
-    expect(buildPonderMoveCommands(game, { from: 52, to: 36, kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn })).toEqual([
-      'position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4 e7e5',
+    const engineMove: IMove = { from: 52, to: 36, kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
+    const ponderMove: IMove = { from: 6, to: 21, kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Knight };
+    expect(buildPonderMoveCommands(game, engineMove, ponderMove)).toEqual([
+      'position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4 e7e5 g1f3',
       'go ponder wtime 60000 btime 45000 winc 1000 binc 1000',
     ]);
+    expect(game.livePath).toEqual([0]);
     expect(rootPosition.$?.isStandardInitialPosition).toBe(false);
     game.clockSnapshot.white.remainingMs = undefined;
     expect(() => buildFindNextMoveCommands(game)).toThrow('Timed engine search requires both clocks');

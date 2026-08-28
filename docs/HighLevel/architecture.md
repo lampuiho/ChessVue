@@ -130,9 +130,9 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `TimeControlService` calculates running time, pause/resume behaviour, timeout, and increment rules.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary used by `GamesStore` for continuous analysis and player-engine turns, composing `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation without same-layer platform calls.
 - `SavedGameIndexService` owns ChessVue's save-folder conventions, autosave and named-save path composition, and projection of generic directory entries into logical saved-game groups.
-- `SerializationService` owns the canonical persisted payload shapes, schema versioning hooks, migration entry points, schema projection that omits runtime fields before write, and the storage-backed file boundary for settings, session, layout, saved-game read or write, managed-save enumeration, and external import or export picker flows.
+- `SerializationService` owns the canonical persisted payload shapes, current-version checks, the future version-dispatch boundary, schema projection that omits runtime fields before write, and the storage-backed file boundary for settings, session, layout, saved-game read or write, managed-save enumeration, and external import or export picker flows. Version `1` is the first and only current schema; no migration API exists until another schema requires real conversion.
 - `PlatformEventService` exposes typed app-level event registration and inspection to state stores without letting layer 3 depend on `IPlatformService` directly.
-- `UserSettingService` loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults or migration fallback when needed, exposes the current system theme, and persists accepted settings through `SerializationService` without exposing platform storage directly to layer 3.
+- `UserSettingService` loads and caches the accepted settings snapshot, validates persisted user settings, applies defaults when recovery is required, exposes the current system theme, and persists accepted settings through `SerializationService` without exposing platform storage directly to layer 3.
 - Layer-2 services are the only public lower-layer contracts consumed by state stores. Any platform-backed file, storage, engine, theme, or app-event access reaches state through these layer-2 boundaries rather than by exposing adapters directly to stores.
 
 ### State Management
@@ -205,7 +205,7 @@ The high-level contracts divide behaviour ownership as follows:
 3. `GamesStore` supplies the current workspace to save flows and reconstructs a live workspace during load flows, but it does not decide save-list grouping or picker behaviour.
 4. Layer-2 persistence services move typed persisted artefacts between state stores and platform storage or file dialogs; state stores do not resolve those adapters directly.
 5. `SavedGameIndexService` converts configured save-root rules plus generic directory entries into ChessVue save groups, latest-save targets, and canonical target file paths.
-6. `SerializationService` reads or writes settings, session, layout, and saved-game artefacts through caller-supplied paths, enumerates managed-save entries, opens external import or export pickers, and converts persisted documents through the canonical migration or validation path.
+6. `SerializationService` reads or writes settings, session, layout, and saved-game artefacts through caller-supplied paths, enumerates managed-save entries, opens external import or export pickers, and converts persisted documents through the canonical version-check and validation path.
 8. `RecentGameStore` derives at most one recent entry per canonical `gameId`, pointing to the newest autosave or saved-file target when `HomeView` requests the list.
 9. Startup may restore UI-layout state even when settings disable reopening the previous game session. When a game is restored, the app rebuilds the persisted workspace state, then resumes live analysis if engines are available.
 

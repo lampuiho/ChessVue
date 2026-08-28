@@ -179,15 +179,12 @@ describe('SerializationService', () => {
     expect(PositionIdentityService.buildPositionKey(restored.rootPosition)).toBe(PositionIdentityService.buildPositionKey(game.rootPosition));
   });
 
-  it('migrates the legacy highlighted move selector', () => {
-    const legacyGame = JSON.parse(SerializationService.serialiseGame(createGame())) as Record<string, unknown>;
-    legacyGame.highlightPath = legacyGame.renderedPath;
-    delete legacyGame.renderedPath;
+  it('rejects an undeclared highlighted move selector alias', () => {
+    const invalidGame = JSON.parse(SerializationService.serialiseGame(createGame())) as Record<string, unknown>;
+    invalidGame.highlightPath = invalidGame.renderedPath;
+    delete invalidGame.renderedPath;
 
-    const restored = SerializationService.deserialiseGame(JSON.stringify(legacyGame));
-
-    expect(restored.renderedPath).toEqual([0]);
-    expect(SerializationService.serialiseGame(restored)).not.toContain('"highlightPath"');
+    expect(() => SerializationService.deserialiseGame(JSON.stringify(invalidGame))).toThrow(SerializationError);
   });
 
   it('rejects broken move-tree payloads', () => {
