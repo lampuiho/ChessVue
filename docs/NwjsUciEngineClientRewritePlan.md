@@ -19,10 +19,11 @@ The rewrite must preserve the protocol-neutral engine boundary and observable en
 5. A transition returns the next state and ordered effects. Effects include sending commands, publishing analysis, and resolving or rejecting operation completions.
 6. State is installed before command effects run, so immediate engine output is routed through the destination state.
 7. Ponder hit or miss is decided from `Pondering.expectedMove` and the requested live line through the same pure predicate used by `buildFindNextMoveCommands(...)`. Neither outgoing command text nor an array index is inspected.
-8. A ponder miss stores a prepared fresh-player-search continuation. The stopped ponder result is consumed before that continuation sends `position` and `go`.
-9. Search command payloads and the searched position are captured when an operation is requested. The machine does not retain a mutable `IGame` while awaiting protocol output.
-10. Terminal or replaced sessions are disposed and replaced rather than reset by clearing a large collection of optional fields.
-11. The state machine is specific to the UCI client. No generic state-machine framework is introduced.
+8. On a ponder miss, `startPlayerTurn(...)` calls and awaits `_stopSearch(...)`. After `_stopSearch(...)` consumes the stale `bestmove`, the miss selects fresh next-move commands from the current game.
+9. Ponder hit and miss then join one shared `FindingMove` tail. Both clear the expected ponder move, capture the current live position, create the player completion, enter `FindingMove`, send their selected commands, and use identical `bestmove` handling.
+10. Purpose-level command builders run when their corresponding machine transition starts. The public async operation retains its canonical `IGame` argument while awaiting an intermediate stop or ready transition; the session does not store a prebuilt follow-up command batch.
+11. Terminal or replaced sessions are disposed and replaced rather than reset by clearing a large collection of optional fields.
+12. The state machine is specific to the UCI client. No generic state-machine framework is introduced.
 
 ## API Impact
 
@@ -57,7 +58,7 @@ The existing `buildFindNextMoveCommands(game, expectedPonderMove?)` signature an
 - With a matching expected ponder move, it returns `ponderhit` because that is the next-move command for the current ponder state.
 - With a mismatching expected ponder move, it returns `stop` because the speculative search must finish before a fresh next-move search starts.
 
-The builder continues to return the commands required by the current next-move context. The machine stops interpreting those returned strings. It determines its transition from `Pondering.expectedMove` and the live line, then sends the unchanged builder result as the transition effect.
+The builder continues to return the commands required by the supplied next-move context. The client stops interpreting those returned strings. A normal search calls it without an expected move, and a ponder hit calls it with the expected move. A ponder miss is selected from state and the shared predicate, then handled by `_stopSearch(...)`, whose fixed responsibility is sending `buildStopCommand()` and awaiting the terminating `bestmove`.
 
 To keep matching logic in one place, promote the existing private ponder-match logic to a named pure predicate such as `isPonderHit(game, expectedPonderMove)`. Both the state transition and `buildFindNextMoveCommands(...)` use that predicate. This adds an internal helper but does not change the existing command-builder API.
 
@@ -71,7 +72,7 @@ The externally observable operation timing remains:
 - `startAnalysis(...)` resolves once the analysis search has actually been started.
 - Replacing an active analysis first stops and consumes that search, then starts the replacement.
 - `stopAnalysis(...)` resolves after the terminating `bestmove` is consumed.
-- `startPlayerTurn(...)` resolves after a fresh search or ponder continuation is armed. On a ponder miss, this is after the stale ponder `bestmove` is consumed and the fresh search is sent.
+- `startPlayerTurn(...)` resolves after a fresh search or ponder hit is armed. On a ponder miss, it awaits the stale ponder `bestmove`, then starts the normal fresh search before resolving.
 - `awaitPlayerTurnMove(...)` resolves only with the result belonging to the armed player search.
 - `startPondering(...)` resolves after the ponder search commands are sent.
 - `stopEngine(...)` rejects outstanding operation completions and detaches the process listener.
@@ -105,17 +106,13 @@ Current state -> commands -> inspect command text -> transition decision
 
 For example, TypeScript cannot prevent a `Ready` session from retaining an expected ponder move or an `Analysing` session from lacking its searched position.
 
-### Generic helpers permit invalid combinations
+### Search helpers own too little transition meaning
 
-`_startSearch(session, state, commands)` and `_stopSearch(session, state, command)` accept arbitrary target states and command payloads. Nothing prevents `FindingMove` from being paired with `go infinite`, or `StoppingAnalysis` from being paired with `ponderhit`.
+`_stopSearch(session, state, command)` accepts information it should own. A stop helper should not be told which stopping state or command to use. `_stopSearch(engine, session)` requires an active search, installs the single `StoppingSearch` state, sends `buildStopCommand()`, and awaits the terminating `bestmove`. Analysis and ponder do not need different stopping states because their stop protocol and output handling are identical. `_startSearch(...)` should likewise be narrowed or replaced by state-specific start helpers so arbitrary active states and commands cannot be paired.
 
 ### Transition completion is duplicated
 
 Handshake and stop flows manually assign an awaiting state, create a shared `stateDeferred`, let the line handler update the state, and then assign a separately supplied resolved state again. The deferred describes neither the operation nor its legal destination.
-
-### Ponder-miss continuation lives in call-stack control flow
-
-On a ponder miss, `startPlayerTurn(...)` waits inside `_stopSearch(...)` and resumes the same function after a stale `bestmove`. The pending fresh search is implicit in a suspended call stack instead of explicit in `StoppingPonder` state.
 
 ### Reset and failure logic duplicate cleanup
 
@@ -141,7 +138,7 @@ It should not contain the transition switch, search-specific command sequencing,
 Add a focused module containing:
 
 - private session state types;
-- operation intent types;
+- state-specific operation completion types;
 - input event and effect types;
 - transition selection;
 - command-effect execution;
@@ -212,53 +209,33 @@ Each context interface contains a discriminating `state: UciSessionState.<value>
 | --- | --- |
 | `Created` | Initialisation completion or no operation yet |
 | `AwaitingUciOk` | Initialisation completion and collected option lines |
-| `AwaitingReadyOk` | A typed continuation to run after `readyok` |
+| `AwaitingReadyOk` | Completion for the public flow awaiting `readyok` |
 | `Ready` | No search-only data |
-| `Analysing` | Searched position and analysis intent/context |
+| `Analysing` | Searched position and analysis request/context |
 | `FindingMove` | Searched live position and player-move completion |
 | `PlayerMoveReady` | Parsed detailed move waiting to be consumed |
 | `Pondering` | Expected opponent move and ponder search identity |
-| `StoppingSearch` | Source search and typed continuation |
+| `StoppingSearch` | Completion awaiting the active search's terminating `bestmove` |
 | `Stopped` | Terminal reason |
 | `Failed` | Terminal error |
 
 `PlayerMoveReady` is intentional. An engine can return `bestmove` before `awaitPlayerTurnMove(...)` is called. Keeping the completed move in an explicit state preserves that result without returning the session to an ambiguous `Ready` state that also carries an optional resolved deferred.
 
-## Prepared Search Intents
+## Operation Inputs And Intermediate Waits
 
-Before dispatching a start event, validate the game runtime and build an immutable intent. Builders may throw before the current state is changed.
+Public methods retain their normal arguments in async function scope. An intermediate protocol state owns only the completion needed to await its expected terminal output. After that state reaches `Ready`, the public method continues through the ordinary next step using the current canonical inputs.
 
-### Analysis intent
+### Analysis operation
 
-Contains:
+`startAnalysis(...)` retains the canonical game, analysis request, and callback. If analysis is already running, it awaits `StoppingSearch -> Ready`, then performs the same boundary and analysis-start flow used from an initially ready session.
 
-- rendered position;
-- current game-boundary key;
-- `MultiPV` command;
-- position and `go infinite` commands;
-- operation completion;
-- analysis callback context where required.
+### Player-turn operation
 
-### Player-search intent
+From `Ready`, `startPlayerTurn(...)` selects `buildFindNextMoveCommands(game)`. From `Pondering`, it first selects hit or miss from state and the shared predicate. A hit selects `buildFindNextMoveCommands(game, expectedMove)` to obtain `ponderhit`. A miss awaits `_stopSearch(engine, session)`, applies the normal ready/game-boundary path, and selects `buildFindNextMoveCommands(game)` from the current game. After command selection, hit and miss execute the same `FindingMove` setup and output flow.
 
-Contains:
+### Ponder operation
 
-- live position captured for this request;
-- current game-boundary key;
-- fresh position and timed `go` commands;
-- player-move completion;
-- start-operation completion.
-
-On a ponder hit, the same player-search intent supplies the position used to decode the eventual `bestmove`, and `buildFindNextMoveCommands(game, expectedMove)` supplies `ponderhit`. On a miss, that same contextual builder supplies `stop`, while the full fresh commands generated without an expected move are stored in the stop continuation.
-
-### Ponder intent
-
-Contains:
-
-- current game-boundary key;
-- ponder position and timed `go ponder` commands;
-- expected opponent reply;
-- start-operation completion.
+`startPondering(...)` retains its canonical game, engine move, and expected opponent reply while applying the ready boundary, then calls `buildPonderMoveCommands(game, engineMove, ponderMove)`.
 
 The speculative result still has no decodable session position because it must be discarded unless `ponderhit` converts it into the next player search.
 
@@ -268,10 +245,10 @@ The speculative result still has no decodable session position because it must b
 
 ```text
 Initialise
-StartAnalysis(intent)
+StartAnalysis(request)
 StopAnalysis(completion)
-StartPlayerTurn(intent)
-StartPondering(intent)
+StartPlayerTurn(request)
+StartPondering(request)
 AwaitPlayerMove(completion)
 StopSession(reason)
 ```
@@ -328,16 +305,17 @@ Transitions install their destination state before running send effects. This is
 | `AwaitingUciOk` | `OptionLine` | `AwaitingUciOk` | Append to state-owned option lines |
 | `AwaitingUciOk` | `RegistrationError` | `AwaitingUciOk` | Send `register later` |
 | `AwaitingUciOk` | `UciOk` | `AwaitingReadyOk` | Parse options, send configured `setoption` commands, then `isready` |
-| `AwaitingReadyOk` | `ReadyOk` | Continuation destination | Execute the stored continuation |
+| `AwaitingReadyOk` | `ReadyOk` | `Ready` | Resolve the state-owned ready completion |
 
-The initial `AwaitingReadyOk` continuation resolves initialisation and enters `Ready`.
+The public initialisation or game-boundary flow resumes after the ready completion resolves.
 
 ### Game-boundary preparation
 
-Starting an analysis, player, or ponder intent from `Ready` first compares the intent boundary with the session boundary:
+Starting analysis, player, or ponder work from `Ready` first compares the current game boundary with the session boundary:
 
 - If unchanged, transition directly into the search state and send its commands.
-- If changed, enter `AwaitingReadyOk` with the search intent as its continuation, send `ucinewgame` followed by `isready`, and start the search only after `readyok`.
+- If changed, enter `AwaitingReadyOk`, send `ucinewgame` followed by `isready`, and await `readyok`.
+- After `AwaitingReadyOk -> Ready`, the public method continues into the same search-start path.
 
 The session boundary is committed when the ready barrier succeeds, not before command writes succeed.
 
@@ -345,19 +323,20 @@ The session boundary is committed when the ready barrier succeeds, not before co
 
 | Current state | Event | Next state | Effects |
 | --- | --- | --- | --- |
-| `Ready` | `StartAnalysis(intent)` | `Analysing` or `AwaitingReadyOk` | Prepare boundary if needed, set `MultiPV`, send position and `go infinite`, resolve start completion |
+| `Ready` | `StartAnalysis` | `Analysing` or temporarily `AwaitingReadyOk` | Await boundary if needed, call the analysis builders, send their commands |
 | `Analysing` | `InfoLine` | `Analysing` | Parse and publish an incremental update |
 | `Analysing` | `BestMoveLine` | `Ready` | Parse final move, publish final update |
-| `Analysing` | `StopAnalysis` | `StoppingSearch` | Store `Ready` continuation, send `stop` |
-| `Analysing` | `StartAnalysis(newIntent)` | `StoppingSearch` | Store replacement-analysis continuation, send `stop` |
-| `StoppingSearch` from analysis | `BestMoveLine` | Continuation destination | Discard stale result and run the continuation |
+| `Analysing` or `Pondering` | Stop active search | `StoppingSearch` | Await `_stopSearch(engine, session)`, which sends `buildStopCommand()` and waits for `bestmove` |
+| `StoppingSearch` | `BestMoveLine` | `Ready` | Discard the stopped result and resolve the stop completion |
 | `Ready` | `StopAnalysis` | `Ready` | Resolve as a no-op |
+
+Starting replacement analysis first follows `Analysing -> StoppingSearch -> Ready`, then the same public method continues through the normal `Ready -> Analysing` path.
 
 ### Fresh player search
 
 | Current state | Event | Next state | Effects |
 | --- | --- | --- | --- |
-| `Ready` | `StartPlayerTurn(intent)` | `FindingMove` or `AwaitingReadyOk` | Prepare boundary if needed, send fresh search commands, resolve start completion |
+| `Ready` | `StartPlayerTurn` | `FindingMove` or temporarily `AwaitingReadyOk` | Await boundary if needed, call `buildFindNextMoveCommands(game)`, send its commands |
 | `FindingMove` | `BestMoveLine` | `PlayerMoveReady` | Parse detailed move and resolve an existing waiter if present |
 | `FindingMove` | `AwaitPlayerMove` | `FindingMove` | Register the single waiter |
 | `PlayerMoveReady` | `AwaitPlayerMove` | `Ready` | Resolve immediately with the stored move |
@@ -368,46 +347,39 @@ The implementation may represent the move completion as one object created by `S
 
 | Current state | Event | Next state | Effects |
 | --- | --- | --- | --- |
-| `Ready` | `StartPondering(intent)` | `Pondering` or `AwaitingReadyOk` | Prepare boundary if needed, send position and `go ponder`, resolve start completion |
+| `Ready` | `StartPondering` | `Pondering` or temporarily `AwaitingReadyOk` | Await boundary if needed, call `buildPonderMoveCommands(...)`, send its commands |
 | `Pondering` | `InfoLine` or ancillary output | `Pondering` | Ignore |
 | `Pondering` | `BestMoveLine` | `Failed` | Report protocol violation; ponder must wait for hit or stop |
 
-### Ponder hit
+### Ponder hit, miss, and shared finding flow
 
 ```text
 StartPlayerTurn(game)
-  -> prepare the player-search intent from the requested live state
   -> current state is Pondering
   -> classify the latest live move with the shared ponder predicate
-  -> match
-  -> install FindingMove with the player's searched position and completion
-  -> send buildFindNextMoveCommands(game, Pondering.expectedMove), which returns ponderhit
-  -> resolve startPlayerTurn
-  -> route the next bestmove only through FindingMove
-```
 
-No code checks the returned string or command-list position.
+hit command selection
+  -> moveCommands = buildFindNextMoveCommands(game, Pondering.expectedMove)
 
-### Ponder miss
+miss command selection
+  -> await _stopSearch(engine, session)
+     -> install StoppingSearch
+     -> send buildStopCommand()
+     -> wait for and discard BestMoveLine(stale ponder result)
+     -> enter Ready and return
+  -> follow the normal Ready/game-boundary path
+  -> moveCommands = buildFindNextMoveCommands(game), using the current root and live path
 
-```text
-StartPlayerTurn(game)
-  -> prepare the complete fresh player-search intent
-  -> current state is Pondering
-  -> classify the latest live move with the shared ponder predicate
-  -> mismatch
-  -> install StoppingSearch { source: Ponder, continuation: fresh player intent }
-  -> send buildFindNextMoveCommands(game, Pondering.expectedMove), which returns stop
-  -> keep startPlayerTurn pending
-
-BestMoveLine(stale ponder result)
-  -> current state is StoppingSearch from ponder
-  -> discard the result without parsing it against the requested position
-  -> apply the stored game-boundary preparation if required
+shared hit/miss tail
+  -> clear expectedPonderMove
+  -> read and store the current live position
+  -> create the player-move completion
   -> install FindingMove
-  -> send the stored fresh position and timed go commands
-  -> resolve startPlayerTurn
+  -> send moveCommands
+  -> route bestmove through the same FindingMove handler
 ```
+
+No code checks the returned string or command-list position. The only hit/miss differences are command selection and the miss's awaited stop; everything after that joins the shared tail.
 
 This makes the required ordering structural:
 
@@ -423,7 +395,7 @@ stop -> stale bestmove -> [ucinewgame -> isready -> readyok, when needed] -> pos
 | Any non-terminal state | Process exit or write/protocol failure | `Failed` | Reject owned completions, detach listeners, report `lastError` |
 | `Stopped` or `Failed` | Dispose again | Same terminal state | No-op |
 
-Only the active state and any typed continuation can own completions, so terminal cleanup walks those structures instead of clearing unrelated optional fields.
+Only the active state can own an intermediate or player-move completion, so terminal cleanup rejects that state-owned work instead of clearing unrelated optional fields.
 
 ## Public Function Flow
 
@@ -446,27 +418,28 @@ Only the active state and any typed continuation can own completions, so termina
 
 1. Validate supported search mode.
 2. Require an initialised session.
-3. Capture the rendered position, game boundary, `MultiPV`, callback context, and command payload into an analysis intent.
-4. Dispatch `StartAnalysis(intent)`.
-5. If already analysing, the machine stops the current search and retains the replacement intent as a continuation.
-6. Resolve only after the new search commands are sent.
+3. If already analysing, `await _stopSearch(engine, session)`; it enters `StoppingSearch`, sends `buildStopCommand()`, and waits for the terminating `bestmove`.
+4. Require the resulting `Ready` state.
+5. Await the normal game-boundary ready barrier when required.
+6. Read the rendered position, call the analysis builders, enter `Analysing`, and send their commands.
 
 ### `stopAnalysis(engine)`
 
 1. Require an initialised session.
-2. Dispatch `StopAnalysis`.
-3. Resolve immediately in `Ready`.
-4. In `Analysing`, resolve only after the stop's terminating `bestmove` is consumed.
-5. Reject from states in which stopping analysis is not a legal operation.
+2. Return immediately in `Ready`.
+3. Require `Analysing` otherwise.
+4. `await _stopSearch(engine, session)`; it enters `StoppingSearch`, sends `buildStopCommand()`, and waits for the terminating `bestmove`.
 
 ### `startPlayerTurn(engine, game)`
 
 1. Require an initialised session.
-2. Capture the live position, game boundary, timed fresh-search commands, and move completion into a player intent.
-3. Dispatch `StartPlayerTurn(intent)`.
-4. `Ready` starts a fresh search.
-5. `Pondering` selects hit or miss from state data and the live line.
-6. Any other operational state rejects with a state error.
+2. If `Pondering`, classify hit or miss from state data and the live line.
+3. On a hit, select `moveCommands = buildFindNextMoveCommands(game, expectedMove)`.
+4. On a miss, `await _stopSearch(engine, session)`, follow the normal ready/game-boundary path, then select `moveCommands = buildFindNextMoveCommands(game)` using the current root and live path.
+5. From an initially `Ready` state, follow the same normal game-boundary path and select `moveCommands = buildFindNextMoveCommands(game)`.
+6. After command selection, all paths share the same tail: clear the expected ponder move, read the current live position, create the player-move completion, enter `FindingMove`, and send `moveCommands`.
+7. All paths then use the same `FindingMove` output handler and `awaitPlayerTurnMove(...)` flow.
+8. Any other operational state rejects with a state error.
 
 ### `awaitPlayerTurnMove(engine)`
 
@@ -479,15 +452,15 @@ Only the active state and any typed continuation can own completions, so termina
 ### `startPondering(engine, game, engineMove, ponderMove)`
 
 1. Require `Ready`.
-2. Capture the boundary, ponder commands, and expected reply into a ponder intent.
-3. Dispatch `StartPondering(intent)`.
-4. Resolve after commands are sent and state is `Pondering`.
+2. Await the normal game-boundary ready barrier when required.
+3. Retain the expected reply in `Pondering` state.
+4. Call `buildPonderMoveCommands(game, engineMove, ponderMove)` and send its commands.
 
 ### `stopEngine(engine)`
 
 1. Preserve the existing process-handle validation contract.
 2. Dispose the private session if present.
-3. Reject the completion owned by the current state and any stored continuation.
+3. Reject the completion owned by the current state.
 4. Detach listeners and enter `Stopped`.
 
 ### `restartEngine(engine)`
@@ -505,7 +478,7 @@ Only the active state and any typed continuation can own completions, so termina
 - `readyok` is meaningful only in `AwaitingReadyOk`.
 - Analysis `info` is parsed and published only in `Analysing`; ordinary search information remains ignored.
 - `bestmove` completes analysis, a player search, or a stopped search according to state.
-- A stopped-search `bestmove` is discarded and never decoded against the continuation's position.
+- A `bestmove` in `StoppingSearch` is discarded, enters `Ready`, and resolves only the stop completion.
 - A `bestmove` while still `Pondering` is a protocol failure.
 - A recognised control event in an invalid state fails the session.
 - Syntax alone never identifies which completion may be resolved.
@@ -514,7 +487,7 @@ Only the active state and any typed continuation can own completions, so termina
 
 ### Request validation errors
 
-Missing runtime positions, invalid paths, missing clocks, unsupported modes, and command-building errors should occur while preparing an intent, before the current machine state changes.
+Unsupported modes are rejected before dispatch. Missing runtime positions, invalid paths, missing clocks, and command-building errors are checked when the public flow invokes its purpose-level builder. A failure rejects that operation and follows the existing session failure policy.
 
 ### Illegal operation errors
 
@@ -524,7 +497,7 @@ The transition table produces the existing style of error:
 Cannot <operation> while UCI session state is <state>.
 ```
 
-Where helpful, state names can include the explicit `PlayerMoveReady` and unified `StoppingSearch` substates.
+Where helpful, state names include the explicit `PlayerMoveReady` and `StoppingSearch` substates.
 
 ### Protocol errors
 
@@ -540,9 +513,9 @@ A command-write failure or unexpected process exit enters `Failed` once. Complet
 2. Only one player-move completion exists per `StartPlayerTurn` event.
 3. Only `FindingMove` can populate that player result.
 4. `StoppingSearch` always discards its terminating `bestmove`.
-5. A continuation cannot run before the output that terminates the prior search.
+5. A public flow cannot continue until its intermediate state completion receives the expected output.
 6. Command batches are written in array order and stop at the first failure.
-7. `AwaitingReadyOk` carries exactly one continuation.
+7. `AwaitingReadyOk` carries exactly one ready completion.
 8. A second incompatible public operation is rejected by current state rather than interleaving command batches.
 9. Terminal transitions are idempotent.
 10. A session is tied to one process identity for its lifetime.
@@ -572,25 +545,26 @@ Add direct tests using an injected command writer and analysis/failure callbacks
 1. `Created -> AwaitingUciOk -> AwaitingReadyOk -> Ready`.
 2. Option lines belong to the handshake state and are cleared by leaving it.
 3. Registration error sends `register later` without changing state.
-4. Changed game boundary stores and resumes the exact search continuation.
+4. Changed game boundary resolves only after `readyok`, after which the same public operation continues.
 5. Same boundary starts a search directly.
 6. Analysis `info` publishes only while analysing.
 7. Natural analysis `bestmove` returns to ready and publishes a final update.
-8. Analysis replacement discards the stopped result before starting the replacement.
+8. Analysis replacement awaits `StoppingSearch -> Ready` before following the normal analysis-start path.
 9. `stopAnalysis` waits for the terminating result.
 10. Fresh player `bestmove` resolves only its player operation.
 11. A result received before `awaitPlayerTurnMove` is retained in `PlayerMoveReady`.
 12. Ponder hit sends only `ponderhit` and enters `FindingMove` before writing it.
 13. Ponder hit selection does not inspect the generated command value.
-14. Ponder miss sends `stop`, remains unable to resolve a player move, discards the stale result, then sends the captured fresh commands.
-15. Ponder miss command ordering remains correct when a new-game ready barrier is required.
-16. A spontaneous ponder `bestmove` fails the session.
-17. Wrong control output for every awaiting/active state fails the session.
-18. Ancillary output does not change state.
-19. Write failure rejects the owning start/stop/player completion once.
-20. Process exit rejects current work and detaches listeners once.
-21. Disposing `StoppingSearch` rejects both the stop/start operation and its continuation-owned completion as applicable.
-22. Concurrent incompatible public calls are rejected without writing commands.
+14. Ponder miss awaits `_stopSearch(...)`, then follows the normal path, calls `buildFindNextMoveCommands(game)`, and sends its returned fresh commands.
+15. Ponder hit and miss execute the same shared `FindingMove` setup after their command selection and produce the same state-owned position/completion shape.
+16. Ponder miss command ordering remains correct when a new-game ready barrier is required.
+17. A spontaneous ponder `bestmove` fails the session.
+18. Wrong control output for every awaiting/active state fails the session.
+19. Ancillary output does not change state.
+20. Write failure rejects the owning start/stop/player completion once.
+21. Process exit rejects current work and detaches listeners once.
+22. Disposing `StoppingSearch` rejects its state-owned stop completion.
+23. Concurrent incompatible public calls are rejected without writing commands.
 
 ### Utility tests
 
@@ -633,7 +607,7 @@ Also assert that the stale ponder move never becomes the result of `awaitPlayerT
 
 ### Phase 3: Introduce machine types
 
-1. Add the state enum, context union, intent, continuation, event, and effect types.
+1. Add the state enum, context union, state-owned completion, event, and effect types.
 2. Add exhaustive transition selection using `never` checks where practical.
 3. Add state-owned completion helpers and terminal cleanup.
 4. Unit-test transitions without changing the public client adapter yet.
@@ -643,7 +617,7 @@ Also assert that the stale ponder move never becomes the result of `awaitPlayerT
 1. Move handshake and ready-barrier handling.
 2. Move analysis start, stream, stop, replacement, and completion.
 3. Move fresh player search and player-result delivery.
-4. Move ponder start, hit, miss, and stopped-result continuation.
+4. Move ponder start, hit, miss, stop waiting, and normal-path resumption.
 5. Move raw output routing and protocol-failure handling.
 
 ### Phase 5: Reduce the client adapter
@@ -651,12 +625,12 @@ Also assert that the stale ponder move never becomes the result of `awaitPlayerT
 1. Replace the existing session enum/bag with the machine instance.
 2. Keep engine/runtime/process validation in `NwjsUciEngineClient`.
 3. Replace reset logic with dispose-and-replace session lifecycle.
-4. Remove obsolete generic state wait/start/stop helpers.
+4. Replace broad search helpers with state-specific start handling and retain `_stopSearch(engine, session)` as the single awaited stop boundary.
 5. Keep the returned store surface satisfying `IEngineClient` unchanged.
 
 ### Phase 6: Documentation and cleanup
 
-1. Update `docs/LowLevel/ProcessFlows/EngineRuntimeOwnership.md` with the final states and continuations.
+1. Update `docs/LowLevel/ProcessFlows/EngineRuntimeOwnership.md` with the final states and awaited intermediate transitions.
 2. Update `docs/LowLevel/Architecture/PlatformAbstraction/EngineClient.md` and remove the known command-inspection change trigger.
 3. Update the `UciUtility` surface in `docs/LowLevel/Architecture/UtilityIndex.md`.
 4. Remove the UCI rewrite item from `docs/NewToDoList.md` only after implementation and verification.
@@ -692,10 +666,10 @@ If extracting the machine creates excessive host plumbing, it may remain as priv
 ### State correctness
 
 - No branch examines `ponderhit`, `stop`, another outgoing string, or a command-array position to select state.
-- No helper accepts an arbitrary target state alongside arbitrary commands.
+- `_stopSearch(engine, session)` remains the awaited search-stop boundary, accepts neither a state nor a command, enters the single `StoppingSearch` state, and sends `buildStopCommand()` internally.
 - Position, expected ponder move, handshake lines, and operation completions are owned by the states that require them.
 - Every recognised control output is either handled by its current state or fails the session.
-- Every transition is represented in one transition table/reducer rather than split between a public method and output callback.
+- Every engine-output transition is selected from the current state; public async flows continue only after the matching state-owned completion resolves.
 
 ### Ponder correctness
 
@@ -703,6 +677,7 @@ If extracting the machine creates excessive host plumbing, it may remain as priv
 - A miss changes to `StoppingSearch` before `stop` is written.
 - The stale ponder `bestmove` is discarded.
 - Fresh position/search commands are sent only after that stale result.
+- After hit/miss command selection and the optional stop, both execute one shared `FindingMove` setup and output path.
 - Only the fresh or continued player search can resolve the player result.
 
 ### Lifecycle correctness
@@ -710,7 +685,7 @@ If extracting the machine creates excessive host plumbing, it may remain as priv
 - Immediate output after a write sees the correct destination state.
 - Stop, failure, exit, restart, and process replacement reject pending work exactly once.
 - Restart creates a clean session without manual optional-field reset.
-- Analysis replacement and game-boundary ready barriers preserve their queued intent.
+- Analysis replacement and game-boundary ready barriers are awaited before the public operation continues through its normal path.
 
 ### Quality and verification
 
