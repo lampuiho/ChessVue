@@ -28,8 +28,8 @@ export function buildDebugCommand(enabled: boolean): string {
   return `debug ${enabled ? 'on' : 'off'}`;
 }
 export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMove): string[] {
+  if (expectedPonderMove !== undefined) return isPonderHit(game, expectedPonderMove) ? ['ponderhit'] : ['stop'];
   const liveMoves = _getLiveMoves(game);
-  if (expectedPonderMove !== undefined) return _movesMatch(liveMoves[liveMoves.length - 1], expectedPonderMove) ? ['ponderhit'] : ['stop'];
   return [_buildPositionCommand(game.rootPosition, liveMoves), _buildTimedGoCommand(game)];
 }
 export function buildIsReadyCommand(): string {
@@ -64,6 +64,10 @@ export function buildUciMove(move: IMoveRaw): string {
 }
 export function buildUciNewGameCommand(): string {
   return 'ucinewgame';
+}
+export function isPonderHit(game: IGame, expectedPonderMove: IMove): boolean {
+  const liveMoves = _getLiveMoves(game);
+  return _movesMatch(liveMoves[liveMoves.length - 1], expectedPonderMove);
 }
 export function parseBestMoveLine(line: string): IUciBestMove | undefined {
   const tokens = line.trim().split(/\s+/);

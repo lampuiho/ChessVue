@@ -7,7 +7,7 @@ import { buildPositionKey } from '@/utility/chess';
 import { genDetailedMoves } from '@/utility/chess/GameRuleUtility';
 import { buildFen } from '@/utility/chess/MoveNotationUtility';
 import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
-import { buildAnalysisCommands, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciNewGameCommand, parseBestMoveLine, parseInfoLine, parseOptionLines } from '../../utility/UciUtility';
+import { buildAnalysisCommands, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciNewGameCommand, isPonderHit, parseBestMoveLine, parseInfoLine, parseOptionLines } from '../../utility/UciUtility';
 import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
 import { attachProcessLineListeners, writeProcessLine } from './NwjsProcessLineUtility';
 
@@ -18,23 +18,62 @@ const enum UciSessionState {
   Ready = 'ready',
   Analysing = 'analysing',
   FindingMove = 'findingMove',
+  PlayerMoveReady = 'playerMoveReady',
   Pondering = 'pondering',
-  StoppingAnalysis = 'stoppingAnalysis',
-  StoppingPonder = 'stoppingPonder',
+  StoppingSearch = 'stoppingSearch',
   Stopped = 'stopped',
   Failed = 'failed',
 }
-interface IUciSession {
-  state: UciSessionState;
-  gameId?: string;
+interface IUciCreatedSessionContext {
+  state: UciSessionState.Created;
+}
+interface IUciAwaitingUciOkSessionContext {
+  state: UciSessionState.AwaitingUciOk;
+  completion: Deferred<void>;
   optionLines: string[];
+}
+interface IUciAwaitingReadyOkSessionContext {
+  state: UciSessionState.AwaitingReadyOk;
+  completion: Deferred<void>;
+}
+interface IUciReadySessionContext {
+  state: UciSessionState.Ready;
+}
+interface IUciAnalysingSessionContext {
+  state: UciSessionState.Analysing;
+  position: IBoardPosition;
+}
+interface IUciFindingMoveSessionContext {
+  state: UciSessionState.FindingMove;
+  position: IBoardPosition;
+  playerMoveCompletion: Deferred<IMove>;
+}
+interface IUciPlayerMoveReadySessionContext {
+  state: UciSessionState.PlayerMoveReady;
+  move: IMove;
+  playerMoveCompletion: Deferred<IMove>;
+}
+interface IUciPonderingSessionContext {
+  state: UciSessionState.Pondering;
+  expectedMove: IMove;
+}
+interface IUciStoppingSearchSessionContext {
+  state: UciSessionState.StoppingSearch;
+  completion: Deferred<void>;
+}
+interface IUciStoppedSessionContext {
+  state: UciSessionState.Stopped;
+}
+interface IUciFailedSessionContext {
+  state: UciSessionState.Failed;
+}
+type UciSessionContext = IUciCreatedSessionContext | IUciAwaitingUciOkSessionContext | IUciAwaitingReadyOkSessionContext | IUciReadySessionContext | IUciAnalysingSessionContext | IUciFindingMoveSessionContext | IUciPlayerMoveReadySessionContext | IUciPonderingSessionContext | IUciStoppingSearchSessionContext | IUciStoppedSessionContext | IUciFailedSessionContext;
+interface IUciSession {
+  current: UciSessionContext;
+  gameId?: string;
   options: IEngineOptionMeta[];
-  position?: IBoardPosition;
   process?: ISpawnedProcess;
   rootFen?: string;
-  expectedPonderMove?: IMove;
-  playerMoveDeferred?: Deferred<IMove>;
-  stateDeferred?: Deferred<void>;
   detachProcessListeners?: () => void;
 }
 interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
@@ -51,96 +90,19 @@ type IRuntimeAssignedUciEngine = IAssignedUciEngine & {
   $: IAssignedUciEngineRuntime;
 };
 
-function _createInvalidProcessHandleError(message: string, detail?: string): IPlatformError {
-  return _createPlatformError(PlatformErrorKind.InvalidProcessHandle, 'engineClient', message, detail);
-}
-function _createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
-  return { kind, operation, message, detail };
-}
-function _createUciSession(): IUciSession {
-  return { state: UciSessionState.Created, optionLines: [], options: [] };
-}
-function _failUciSession(session: IUciSession, error: unknown): void {
-  session.state = UciSessionState.Failed;
-  session.gameId = undefined;
-  session.position = undefined;
-  session.rootFen = undefined;
-  session.expectedPonderMove = undefined;
-  session.optionLines = [];
-  session.options = [];
-  session.stateDeferred?.reject(error);
-  session.stateDeferred = undefined;
-  session.playerMoveDeferred?.reject(error);
-  session.playerMoveDeferred = undefined;
-  session.detachProcessListeners?.();
-  session.detachProcessListeners = undefined;
-  session.process = undefined;
-}
-function _initialiseAssignedEngineSession(engine: IAssignedEngine): IUciSession {
-  const assignedUciEngine = _requireAssignedUciEngine(engine);
-  const runtimeEngine = _requireRuntimeAssignedEngine(assignedUciEngine) as IRuntimeAssignedUciEngine;
-  if (runtimeEngine.$.session) return runtimeEngine.$.session;
-  runtimeEngine.$.session = _createUciSession();
-  return runtimeEngine.$.session;
-}
-function _isAssignedEngineUci(engine: IAssignedEngine): engine is IAssignedUciEngine {
-  return engine.clientType === EngineClientType.Uci;
-}
-function _isInitialisedState(state: UciSessionState): boolean {
-  return state === UciSessionState.Ready || state === UciSessionState.Analysing || state === UciSessionState.FindingMove || state === UciSessionState.Pondering || state === UciSessionState.StoppingAnalysis || state === UciSessionState.StoppingPonder;
-}
-function _isRuntimeAssignedEngine(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
-  return !!engine.$;
-}
-function _requireAssignedUciEngine(engine: IAssignedEngine): IAssignedUciEngine {
-  if (_isAssignedEngineUci(engine)) return engine;
-  throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', 'Engine client type is not UCI.');
-}
-function _requireRuntimeAssignedEngine(engine: IAssignedEngine): IRuntimeAssignedEngine {
-  if (_isRuntimeAssignedEngine(engine)) return engine;
-  throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine runtime is not available for ${engine.displayName}.`);
-}
-function _resetUciSession(session: IUciSession): void {
-  session.state = UciSessionState.Created;
-  session.gameId = undefined;
-  session.position = undefined;
-  session.rootFen = undefined;
-  session.expectedPonderMove = undefined;
-  session.optionLines = [];
-  session.options = [];
-  session.stateDeferred = undefined;
-  session.playerMoveDeferred = undefined;
-}
-function _stopUciSession(session: IUciSession, message = 'Engine stopped.'): void {
-  const error = new Error(message);
-  session.state = UciSessionState.Stopped;
-  session.gameId = undefined;
-  session.position = undefined;
-  session.rootFen = undefined;
-  session.expectedPonderMove = undefined;
-  session.optionLines = [];
-  session.options = [];
-  session.stateDeferred?.reject(error);
-  session.stateDeferred = undefined;
-  session.playerMoveDeferred?.reject(error);
-  session.playerMoveDeferred = undefined;
-  session.detachProcessListeners?.();
-  session.detachProcessListeners = undefined;
-  session.process = undefined;
-}
-
 export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
   return defineStore('nwjsUciEngineClient', () => {
     // #region Public methods
-
     async function awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
       const session = _requireInitialisedSession(engine);
-      const deferred = session.playerMoveDeferred;
-      if (!deferred) throw new Error(`No player turn is active for engine ${engine.displayName}.`);
+      const context = session.current;
+      if (context.state !== UciSessionState.FindingMove && context.state !== UciSessionState.PlayerMoveReady) throw new Error(`No player turn is active for engine ${engine.displayName}.`);
+      const completion = context.playerMoveCompletion;
       try {
-        return await deferred;
+        return await completion;
       } finally {
-        if (session.playerMoveDeferred === deferred) session.playerMoveDeferred = undefined;
+        const current = session.current;
+        if (current.state === UciSessionState.PlayerMoveReady && current.playerMoveCompletion === completion) session.current = { state: UciSessionState.Ready };
       }
     }
     function getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[] {
@@ -149,22 +111,18 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     async function initialiseEngine(engine: IAssignedEngine): Promise<void> {
       const processHandle = _requireProcessHandle(engine);
       const process = _requireProcess(processHandle);
-      const session = _initialiseAssignedEngineSession(engine);
-      if (_isInitialisedState(session.state) && session.process === process) return;
-      if (_isInitialisedState(session.state)) _stopUciSession(session, 'Engine process was replaced.');
-      if (session.state === UciSessionState.Failed || session.state === UciSessionState.Stopped) _resetUciSession(session);
-      if (session.state !== UciSessionState.Created) throw _createStateError(session, 'initialise engine');
+      let session = _initialiseAssignedEngineSession(engine);
+      if (_isInitialisedState(session.current.state) && session.process === process) return;
+      if (_isInitialisedState(session.current.state)) _stopUciSession(session, 'Engine process was replaced.');
+      if (session.current.state === UciSessionState.Failed || session.current.state === UciSessionState.Stopped) session = _replaceAssignedEngineSession(engine);
+      if (session.current.state !== UciSessionState.Created) throw _createStateError(session, 'initialise engine');
       _attachToProcess(engine, processHandle, session);
       try {
-        session.state = UciSessionState.AwaitingUciOk;
-        session.state = await _writeCommandAndAwaitState(session, processHandle, buildUciCommand(), UciSessionState.Created);
-        session.options = parseOptionLines(session.optionLines);
-        session.optionLines = [];
+        session.options = parseOptionLines(await _awaitUciOk(session, processHandle));
         for (const [optionName, value] of Object.entries(engine.options)) await _writeCommand(processHandle, buildSetOptionCommand(optionName, value));
-        session.state = UciSessionState.AwaitingReadyOk;
-        session.state = await _writeCommandAndAwaitState(session, processHandle, buildIsReadyCommand(), UciSessionState.Ready);
+        await _awaitReadyOk(session, processHandle);
       } catch (error) {
-        if (session.state !== UciSessionState.Failed) _failUciSession(session, error);
+        if (!_isFailedSession(session)) _failUciSession(session, error);
         throw error;
       }
     }
@@ -175,63 +133,123 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     async function startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void> {
       if (request.searchMode !== EngineAnalysisSearchMode.Infinite) throw new Error(`Unsupported engine search mode: ${request.searchMode}.`);
       const session = _requireInitialisedSession(engine);
-      if (session.state === UciSessionState.Analysing) await _stopSearch(engine, session, UciSessionState.StoppingAnalysis);
+      if (session.current.state === UciSessionState.Analysing) await _stopSearch(engine, session);
       _requireState(session, UciSessionState.Ready, 'start analysis');
-      await _prepareGameBoundary(engine, session, game);
+      await _prepareGameBoundaryIfNewGame(engine, session, game);
       const runtimeState = _requireRuntimeState(engine);
       runtimeState.analysisCallback = onUpdate;
       runtimeState.analysisLines.clear();
-      session.position = _requireRenderedPosition(game);
+      const position = _requireRenderedPosition(game);
       await _writeCommand(_requireProcessHandle(engine), buildSetOptionCommand('MultiPV', request.multiPv));
-      await _startSearch(engine, session, UciSessionState.Analysing, buildAnalysisCommands(game));
+      session.current = { state: UciSessionState.Analysing, position };
+      await _writeSearchCommands(engine, session, buildAnalysisCommands(game));
     }
     async function startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void> {
       const session = _requireInitialisedSession(engine);
-      if (session.state === UciSessionState.Pondering) {
-        const expectedPonderMove = session.expectedPonderMove;
-        if (!expectedPonderMove) throw new Error(`Expected ponder move is unavailable for engine ${engine.displayName}.`);
-        const ponderCommands = buildFindNextMoveCommands(game, expectedPonderMove);
-        if (ponderCommands[0] === 'ponderhit') {
-          session.expectedPonderMove = undefined;
-          session.position = _requireLivePosition(game);
-          session.playerMoveDeferred = new Deferred<IMove>();
-          await _startSearch(engine, session, UciSessionState.FindingMove, ponderCommands);
-          return;
+      let commands: readonly string[];
+      const context = session.current;
+      if (context.state === UciSessionState.Pondering) {
+        if (!isPonderHit(game, context.expectedMove)) {
+          await _stopSearch(engine, session);
+          await _prepareGameBoundaryIfNewGame(engine, session, game);
         }
-        await _stopSearch(engine, session, UciSessionState.StoppingPonder, ponderCommands[0]);
+      } else {
+        _requireState(session, UciSessionState.Ready, 'start player turn');
+        await _prepareGameBoundaryIfNewGame(engine, session, game);
       }
-      _requireState(session, UciSessionState.Ready, 'start player turn');
-      await _prepareGameBoundary(engine, session, game);
-      session.expectedPonderMove = undefined;
-      session.position = _requireLivePosition(game);
-      session.playerMoveDeferred = new Deferred<IMove>();
-      await _startSearch(engine, session, UciSessionState.FindingMove, buildFindNextMoveCommands(game));
+      commands = buildFindNextMoveCommands(game);
+      const position = _requireLivePosition(game);
+      const playerMoveCompletion = new Deferred<IMove>();
+      session.current = { state: UciSessionState.FindingMove, position, playerMoveCompletion };
+      await _writeSearchCommands(engine, session, commands);
     }
     async function startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove): Promise<void> {
       const session = _requireInitialisedSession(engine);
       _requireState(session, UciSessionState.Ready, 'start pondering');
-      await _prepareGameBoundary(engine, session, game);
+      await _prepareGameBoundaryIfNewGame(engine, session, game);
       const commands = buildPonderMoveCommands(game, engineMove, ponderMove);
-      session.expectedPonderMove = ponderMove;
-      session.position = undefined; // ponder output is not decodable against a known position
-      await _startSearch(engine, session, UciSessionState.Pondering, commands);
+      session.current = { state: UciSessionState.Pondering, expectedMove: ponderMove };
+      await _writeSearchCommands(engine, session, commands);
     }
     async function stopAnalysis(engine: IAssignedEngine): Promise<void> {
       const session = _requireInitialisedSession(engine);
-      if (session.state === UciSessionState.Ready) return;
+      if (session.current.state === UciSessionState.Ready) return;
       _requireState(session, UciSessionState.Analysing, 'stop analysis');
-      await _stopSearch(engine, session, UciSessionState.StoppingAnalysis);
+      await _stopSearch(engine, session);
     }
     async function stopEngine(engine: IAssignedEngine): Promise<void> {
       _requireProcessHandle(engine);
       const session = _getSession(engine);
       if (session) _stopUciSession(session);
     }
-
     // #endregion
-
     // #region Private methods
-
+    function _createInvalidProcessHandleError(message: string, detail?: string): IPlatformError {
+      return _createPlatformError(PlatformErrorKind.InvalidProcessHandle, 'engineClient', message, detail);
+    }
+    function _createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
+      return { kind, operation, message, detail };
+    }
+    function _createUciSession(): IUciSession {
+      return { current: { state: UciSessionState.Created }, options: [] };
+    }
+    function _failUciSession(session: IUciSession, error: unknown): void {
+      _terminateUciSession(session, { state: UciSessionState.Failed }, error);
+    }
+    function _initialiseAssignedEngineSession(engine: IAssignedEngine): IUciSession {
+      const assignedUciEngine = _requireAssignedUciEngine(engine);
+      const runtimeEngine = _requireRuntimeAssignedEngine(assignedUciEngine) as IRuntimeAssignedUciEngine;
+      if (runtimeEngine.$.session) return runtimeEngine.$.session;
+      return _replaceAssignedEngineSession(engine);
+    }
+    function _isAssignedEngineUci(engine: IAssignedEngine): engine is IAssignedUciEngine {
+      return engine.clientType === EngineClientType.Uci;
+    }
+    function _isInitialisedState(state: UciSessionState): boolean {
+      return state === UciSessionState.Ready || state === UciSessionState.Analysing || state === UciSessionState.FindingMove || state === UciSessionState.PlayerMoveReady || state === UciSessionState.Pondering || state === UciSessionState.StoppingSearch;
+    }
+    function _isRuntimeAssignedEngine(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
+      return !!engine.$;
+    }
+    function _requireAssignedUciEngine(engine: IAssignedEngine): IAssignedUciEngine {
+      if (_isAssignedEngineUci(engine)) return engine;
+      throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', 'Engine client type is not UCI.');
+    }
+    function _requireRuntimeAssignedEngine(engine: IAssignedEngine): IRuntimeAssignedEngine {
+      if (_isRuntimeAssignedEngine(engine)) return engine;
+      throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine runtime is not available for ${engine.displayName}.`);
+    }
+    function _replaceAssignedEngineSession(engine: IAssignedEngine): IUciSession {
+      const assignedUciEngine = _requireAssignedUciEngine(engine);
+      const runtimeEngine = _requireRuntimeAssignedEngine(assignedUciEngine) as IRuntimeAssignedUciEngine;
+      runtimeEngine.$.session = _createUciSession();
+      return runtimeEngine.$.session;
+    }
+    function _stopUciSession(session: IUciSession, message = 'Engine stopped.'): void {
+      _terminateUciSession(session, { state: UciSessionState.Stopped }, new Error(message));
+    }
+    function _terminateUciSession(session: IUciSession, terminalContext: IUciFailedSessionContext | IUciStoppedSessionContext, error: unknown): void {
+      _rejectContextCompletion(session.current, error);
+      session.current = terminalContext;
+      session.gameId = undefined;
+      session.rootFen = undefined;
+      session.options = [];
+      session.detachProcessListeners?.();
+      session.detachProcessListeners = undefined;
+      session.process = undefined;
+    }
+    function _rejectContextCompletion(context: UciSessionContext, error: unknown): void {
+      switch (context.state) {
+        case UciSessionState.AwaitingUciOk:
+        case UciSessionState.AwaitingReadyOk:
+        case UciSessionState.StoppingSearch:
+          context.completion.reject(error);
+          return;
+        case UciSessionState.FindingMove:
+          context.playerMoveCompletion.reject(error);
+          return;
+      }
+    }
     function _attachToProcess(engine: IAssignedEngine, processHandle: ProcessHandle, session: IUciSession): void {
       const runtimeState = _requireRuntimeAssignedEngine(engine).$;
       if (runtimeState.processHandle !== processHandle) throw _createInvalidProcessHandleError(`Engine process handle changed while initialising ${engine.displayName}.`);
@@ -240,17 +258,11 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       if (session.process || session.detachProcessListeners) _stopUciSession(session, 'Engine process was restarted.');
       session.process = process;
       const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-        if (session.state === UciSessionState.Stopped) return;
+        if (session.current.state === UciSessionState.Stopped) return;
         const error = _createPlatformError(PlatformErrorKind.UnexpectedExit, 'engineClient', `Engine exited unexpectedly for ${engine.displayName}.`, `code=${code ?? 'null'} signal=${signal ?? 'null'}`);
         _failUciSession(session, error);
       };
       session.detachProcessListeners = attachProcessLineListeners(process, (line) => _consumeLine(engine, session, line), onExit);
-    }
-    function _beginStateWait(session: IUciSession): Deferred<void> {
-      if (session.stateDeferred) throw new Error(`UCI session already has a pending state transition from ${session.state}.`);
-      const deferred = new Deferred<void>();
-      session.stateDeferred = deferred;
-      return deferred;
     }
     function _buildAnalysisUpdate(position: IBoardPosition, analysisLines: Map<number, IAnalysisLine>, isFinal: boolean, bestMove?: IMove): IEngineAnalysisUpdate {
       const lines = [...analysisLines.entries()].sort((left, right) => left[0] - right[0]).map(([, line]) => line);
@@ -270,79 +282,74 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       const pv = genDetailedMoves(position, parsed.pv);
       return { depth: parsed.depth, scoreCp: parsed.scoreCp, scoreMate: parsed.scoreMate, pv, $: { reference: parsed.reference } };
     }
-    function _completeAnalysis(engine: IAssignedEngine, session: IUciSession, line: string): void {
-      const position = _requireSessionPosition(session);
-      const bestMove = _parseDetailedBestMove(position, line);
+    function _completeAnalysis(engine: IAssignedEngine, session: IUciSession, context: IUciAnalysingSessionContext, line: string): void {
+      const bestMove = _parseDetailedBestMove(context.position, line);
       if (!bestMove) throw new Error(`Expected UCI bestmove while analysing: ${line}.`);
-      session.state = UciSessionState.Ready;
-      _requireRuntimeState(engine).analysisCallback?.(_buildAnalysisUpdate(position, _requireRuntimeState(engine).analysisLines, true, bestMove));
+      session.current = { state: UciSessionState.Ready };
+      _requireRuntimeState(engine).analysisCallback?.(_buildAnalysisUpdate(context.position, _requireRuntimeState(engine).analysisLines, true, bestMove));
     }
-    function _completePlayerMove(session: IUciSession, line: string): void {
-      const position = _requireSessionPosition(session);
-      const move = _parseDetailedBestMove(position, line);
+    function _completePlayerMove(session: IUciSession, context: IUciFindingMoveSessionContext, line: string): void {
+      const move = _parseDetailedBestMove(context.position, line);
       if (!move) throw new Error(`Expected UCI bestmove while finding a move: ${line}.`);
-      const deferred = session.playerMoveDeferred;
-      if (!deferred) throw new Error('UCI player move completed without a pending move request.');
-      session.state = UciSessionState.Ready;
-      deferred.resolve(move);
+      session.current = { state: UciSessionState.PlayerMoveReady, move, playerMoveCompletion: context.playerMoveCompletion };
+      context.playerMoveCompletion.resolve(move);
     }
-    function _consumeAnalysingLine(engine: IAssignedEngine, session: IUciSession, line: string): void {
+    function _consumeAnalysingLine(engine: IAssignedEngine, session: IUciSession, context: IUciAnalysingSessionContext, line: string): void {
       if (line.startsWith('info ')) {
-        const position = _requireSessionPosition(session);
-        const analysisLine = _parseDetailedAnalysisLine(position, line);
+        const analysisLine = _parseDetailedAnalysisLine(context.position, line);
         if (!analysisLine) return;
         const reference = analysisLine.$?.reference;
         if (reference === undefined) throw new Error('Parsed analysis line is missing its runtime reference.');
         const runtimeState = _requireRuntimeState(engine);
         runtimeState.analysisLines.set(reference, analysisLine);
-        runtimeState.analysisCallback?.(_buildAnalysisUpdate(position, runtimeState.analysisLines, false));
+        runtimeState.analysisCallback?.(_buildAnalysisUpdate(context.position, runtimeState.analysisLines, false));
         return;
       }
       if (line.startsWith('bestmove ')) {
-        _completeAnalysis(engine, session, line);
+        _completeAnalysis(engine, session, context, line);
         return;
       }
       _throwUnexpectedControlLine(session, line);
     }
-    function _consumeAwaitingReadyOkLine(session: IUciSession, line: string): void {
+    function _consumeAwaitingReadyOkLine(session: IUciSession, context: IUciAwaitingReadyOkSessionContext, line: string): void {
       if (line === 'readyok') {
-        _resolveStateWait(session, UciSessionState.Ready);
+        _completeStateWait(session, context, UciSessionState.Ready);
         return;
       }
       _throwUnexpectedControlLine(session, line);
     }
-    function _consumeAwaitingUciOkLine(engine: IAssignedEngine, session: IUciSession, line: string): void {
+    function _consumeAwaitingUciOkLine(engine: IAssignedEngine, session: IUciSession, context: IUciAwaitingUciOkSessionContext, line: string): void {
       if (line === 'uciok') {
-        _resolveStateWait(session, UciSessionState.Created);
+        _completeStateWait(session, context, UciSessionState.Created);
         return;
       }
       if (line === 'registration error') {
         void _writeCommand(_requireProcessHandle(engine), buildRegisterCommand()).catch((error) => _failUciSession(session, error));
         return;
       }
-      if (line.startsWith('option ')) session.optionLines.push(line);
+      if (line.startsWith('option ')) context.optionLines.push(line);
       else _throwUnexpectedControlLine(session, line);
     }
     function _consumeLine(engine: IAssignedEngine, session: IUciSession, line: string): void {
       if (line.length === 0) return;
       try {
-        switch (session.state) {
+        const context = session.current;
+        switch (context.state) {
           case UciSessionState.AwaitingUciOk:
-            _consumeAwaitingUciOkLine(engine, session, line);
+            _consumeAwaitingUciOkLine(engine, session, context, line);
             return;
           case UciSessionState.AwaitingReadyOk:
-            _consumeAwaitingReadyOkLine(session, line);
+            _consumeAwaitingReadyOkLine(session, context, line);
             return;
           case UciSessionState.Analysing:
-            _consumeAnalysingLine(engine, session, line);
+            _consumeAnalysingLine(engine, session, context, line);
             return;
           case UciSessionState.FindingMove:
-            if (line.startsWith('bestmove ')) _completePlayerMove(session, line);
+            if (line.startsWith('bestmove ')) _completePlayerMove(session, context, line);
             else _throwUnexpectedControlLine(session, line);
             return;
-          case UciSessionState.StoppingAnalysis:
-          case UciSessionState.StoppingPonder:
-            if (line.startsWith('bestmove ')) _resolveStateWait(session, UciSessionState.Ready);
+          case UciSessionState.StoppingSearch:
+            if (line.startsWith('bestmove ')) _completeStateWait(session, context, UciSessionState.Ready);
             else _throwUnexpectedControlLine(session, line);
             return;
           case UciSessionState.Pondering:
@@ -358,7 +365,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       }
     }
     function _createStateError(session: IUciSession, operation: string): Error {
-      return new Error(`Cannot ${operation} while UCI session state is ${session.state}.`);
+      return new Error(`Cannot ${operation} while UCI session state is ${session.current.state}.`);
     }
     /** the searched position is owned by the game runtime; the client never derives one itself */
     function _requireLivePosition(game: IGame): IBoardPosition {
@@ -374,14 +381,16 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     function _getSession(engine: IAssignedEngine): IUciSession | undefined {
       return _requireAssignedUciEngine(engine).$?.session;
     }
-    async function _prepareGameBoundary(engine: IAssignedEngine, session: IUciSession, game: IGame): Promise<void> {
+    function _isFailedSession(session: IUciSession): boolean {
+      return session.current.state === UciSessionState.Failed;
+    }
+    async function _prepareGameBoundaryIfNewGame(engine: IAssignedEngine, session: IUciSession, game: IGame): Promise<void> {
       if (_requiresNewGameBoundary(session, game)) {
         try {
           await _writeCommand(_requireProcessHandle(engine), buildUciNewGameCommand());
-          session.state = UciSessionState.AwaitingReadyOk;
-          session.state = await _writeCommandAndAwaitState(session, _requireProcessHandle(engine), buildIsReadyCommand(), UciSessionState.Ready);
+          await _awaitReadyOk(session, _requireProcessHandle(engine));
         } catch (error) {
-          if (session.state !== UciSessionState.Failed) _failUciSession(session, error);
+          if (!_isFailedSession(session)) _failUciSession(session, error);
           throw error;
         }
       }
@@ -390,7 +399,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     }
     function _requireInitialisedSession(engine: IAssignedEngine): IUciSession {
       const session = _requireSession(engine);
-      if (_isInitialisedState(session.state)) return session;
+      if (_isInitialisedState(session.current.state)) return session;
       throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine session is not initialised for ${engine.displayName}.`);
     }
     function _requireProcess(processHandle: ProcessHandle | undefined): ISpawnedProcess {
@@ -412,27 +421,33 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       if (session) return session;
       throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine session is not initialised for ${engine.displayName}.`);
     }
-    function _requireSessionPosition(session: IUciSession): IBoardPosition {
-      if (session.position) return session.position;
-      throw new Error(`UCI session position is unavailable while state is ${session.state}.`);
-    }
     function _requireState(session: IUciSession, state: UciSessionState, operation: string): void {
-      if (session.state === state) return;
+      if (session.current.state === state) return;
       throw _createStateError(session, operation);
     }
     // the root position is edited in place during board edit, so this compares its value, not its identity
     function _requiresNewGameBoundary(session: IUciSession, game: IGame): boolean {
       return session.gameId !== game.metadata.id || session.rootFen !== buildFen(game.rootPosition);
     }
-    function _resolveStateWait(session: IUciSession, state: UciSessionState): void {
-      const deferred = session.stateDeferred;
-      if (!deferred) throw new Error(`UCI session received a transition response while state is ${session.state}.`);
-      session.stateDeferred = undefined;
-      session.state = state;
-      deferred.resolve();
+    function _completeStateWait(session: IUciSession, context: IUciAwaitingReadyOkSessionContext | IUciAwaitingUciOkSessionContext | IUciStoppingSearchSessionContext, state: UciSessionState.Created | UciSessionState.Ready): void {
+      if (session.current !== context) throw new Error(`UCI session received a stale transition response while state is ${session.current.state}.`);
+      session.current = state === UciSessionState.Created ? { state: UciSessionState.Created } : { state: UciSessionState.Ready };
+      context.completion.resolve();
     }
-    async function _startSearch(engine: IAssignedEngine, session: IUciSession, state: UciSessionState, commands: readonly string[]): Promise<void> {
-      session.state = state;
+    async function _awaitReadyOk(session: IUciSession, processHandle: ProcessHandle): Promise<void> {
+      const context: IUciAwaitingReadyOkSessionContext = { state: UciSessionState.AwaitingReadyOk, completion: new Deferred<void>() };
+      session.current = context;
+      await _writeCommand(processHandle, buildIsReadyCommand());
+      await context.completion;
+    }
+    async function _awaitUciOk(session: IUciSession, processHandle: ProcessHandle): Promise<string[]> {
+      const context: IUciAwaitingUciOkSessionContext = { state: UciSessionState.AwaitingUciOk, completion: new Deferred<void>(), optionLines: [] };
+      session.current = context;
+      await _writeCommand(processHandle, buildUciCommand());
+      await context.completion;
+      return context.optionLines;
+    }
+    async function _writeSearchCommands(engine: IAssignedEngine, session: IUciSession, commands: readonly string[]): Promise<void> {
       try {
         for (const command of commands) await _writeCommand(_requireProcessHandle(engine), command);
       } catch (error) {
@@ -440,33 +455,27 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
         throw error;
       }
     }
-    async function _stopSearch(engine: IAssignedEngine, session: IUciSession, state: UciSessionState, command: string = buildStopCommand()): Promise<void> {
-      session.state = state;
-      const deferred = _beginStateWait(session);
+    async function _stopSearch(engine: IAssignedEngine, session: IUciSession): Promise<void> {
+      if (!(session.current.state == UciSessionState.Analysing
+        || session.current.state == UciSessionState.Pondering)) throw _createStateError(session, 'stop search');
+      const context: IUciStoppingSearchSessionContext = { state: UciSessionState.StoppingSearch, completion: new Deferred<void>() };
+      session.current = context;
       try {
-        await _writeCommand(_requireProcessHandle(engine), command);
-        await deferred;
+        await _writeCommand(_requireProcessHandle(engine), buildStopCommand());
+        await context.completion;
       } catch (error) {
-        if (session.state !== UciSessionState.Failed) _failUciSession(session, error);
+        if (!_isFailedSession(session)) _failUciSession(session, error);
         throw error;
       }
     }
     function _throwUnexpectedControlLine(session: IUciSession, line: string): void {
-      if (/^(bestmove|option|readyok|registration|uciok)(?:\s|$)/.test(line)) throw new Error(`Unexpected UCI output while state is ${session.state}: ${line}.`);
+      if (/^(bestmove|option|readyok|registration|uciok)(?:\s|$)/.test(line)) throw new Error(`Unexpected UCI output while state is ${session.current.state}: ${line}.`);
     }
     async function _writeCommand(processHandle: ProcessHandle | undefined, command: string): Promise<void> {
       if (!processHandle) throw _createInvalidProcessHandleError('Engine process handle is unavailable.');
       await writeProcessLine(_requireProcess(processHandle), processHandle, command);
     }
-    async function _writeCommandAndAwaitState(session: IUciSession, processHandle: ProcessHandle, command: string, resolvedState: UciSessionState): Promise<UciSessionState> {
-      const deferred = _beginStateWait(session);
-      await _writeCommand(processHandle, command);
-      await deferred;
-      return resolvedState;
-    }
-
     // #endregion
-
     return { awaitPlayerTurnMove, getOptions, initialiseEngine, restartEngine, startAnalysis, startPlayerTurn, startPondering, stopAnalysis, stopEngine } satisfies IEngineClient;
   });
 }

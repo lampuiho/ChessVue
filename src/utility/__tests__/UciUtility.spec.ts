@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { EngineOptionType, GameState, MoveKind, MoveNodeKind, PieceKind, PlayerColour, ResultState, TimeControlPreset, type IBoardPosition, type IGame, type IMove, type IMoveRaw } from '@/contracts';
 import { createInitialBoardPosition } from '@/utility/chess';
 import { RecordTimestamp } from '@/utility/date';
-import { buildAnalysisCommands, buildDebugCommand, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildPositionCommand, buildQuitCommand, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciMove, buildUciNewGameCommand, parseBestMoveLine, parseOptionLines } from '@/utility/UciUtility';
+import { buildAnalysisCommands, buildDebugCommand, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildPositionCommand, buildQuitCommand, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciMove, buildUciNewGameCommand, isPonderHit, parseBestMoveLine, parseOptionLines } from '@/utility/UciUtility';
 
 describe('UciUtility', () => {
   it('builds fixed and parameterised UCI commands', () => {
@@ -54,6 +54,8 @@ describe('UciUtility', () => {
     expect(buildPositionCommand(game)).toBe('position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4');
     expect(buildAnalysisCommands(game)).toEqual(['position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4', 'go infinite']);
     expect(buildFindNextMoveCommands(game)).toEqual(['position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4', 'go wtime 60000 btime 45000 winc 1000 binc 1000']);
+    expect(isPonderHit(game, { ...move })).toBe(true);
+    expect(isPonderHit(game, { ...move, to: 20 })).toBe(false);
     expect(buildFindNextMoveCommands(game, { ...move })).toEqual(['ponderhit']);
     expect(buildFindNextMoveCommands(game, { ...move, to: 20 })).toEqual(['stop']);
     const engineMove: IMove = { from: 52, to: 36, kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };

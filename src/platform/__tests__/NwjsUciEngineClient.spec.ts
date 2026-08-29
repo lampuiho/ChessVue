@@ -107,6 +107,44 @@ describe('NwjsUciEngineClient', () => {
     expect(ponderHitMove.$?.uci).toBe('b8c6');
     expect(ponderMissMove.$?.uci).toBe('g8f6');
   });
+  it('rebuilds a missed ponder search from the current game after stop completes', async () => {
+    const platform = getPlatformService();
+    const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    const game = createEngineGame();
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    await client.initialiseEngine(engine);
+    const process = getEnvironment().latestProcess();
+    const timedGo = 'go wtime 60000 btime 60000 winc 1000 binc 1000';
+    process.queueResponse(timedGo, ['bestmove e7e5 ponder g1f3']);
+    await client.startPlayerTurn(engine, game);
+    const engineMove = await client.awaitPlayerTurnMove(engine);
+    await client.startPondering(engine, game, engineMove, engineMove.$!.ponderMove!);
+    appendLiveMove(game, engineMove);
+    appendLiveMove(game, { from: getBoardId(3, 1), to: getBoardId(3, 3), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn });
+    process.queueResponse('stop', []);
+
+    const startPromise = client.startPlayerTurn(engine, game);
+    const commandLogWhileStopping = process.getCommandLog();
+    expect(commandLogWhileStopping[commandLogWhileStopping.length - 1]).toBe('stop');
+    appendLiveMove(game, { from: getBoardId(0, 6), to: getBoardId(0, 5), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
+    MoveApplicationService.deletePiece(game.rootPosition, getBoardId(0, 0));
+    process.queueResponse(timedGo, ['bestmove g1f3']);
+    process.stdout.write('bestmove h7h6\n');
+    await startPromise;
+    const move = await client.awaitPlayerTurnMove(engine);
+    const commandLog = process.getCommandLog();
+    const stopIndex = commandLog.lastIndexOf('stop');
+
+    expect(commandLog.slice(stopIndex + 1, stopIndex + 5)).toEqual([
+      'ucinewgame',
+      'isready',
+      expect.stringMatching(/^position fen .* moves e2e4 e7e5 d2d4 a7a6$/),
+      timedGo,
+    ]);
+    expect(move.$?.uci).toBe('g1f3');
+  });
   it('reinitialises through EngineRuntimeService when a stored process handle becomes stale', async () => {
     const platform = getPlatformService();
     const manager = platform.getProcessManager();

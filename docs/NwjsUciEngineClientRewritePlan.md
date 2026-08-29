@@ -2,7 +2,9 @@
 
 ## Status
 
-Proposed for review. This document plans the rewrite only; it does not describe completed implementation.
+Implemented on 29 August 2026. The public API and `buildFindNextMoveCommands(...)` contract remain unchanged.
+
+The final implementation keeps the private state machine inside `NwjsUciEngineClient` rather than adding a generic event/effect runner or a second session-machine file. `UciSessionState` is an enum paired with a discriminated context union, output dispatch is state-based, and state-specific data and completions live in their owning contexts. This outcome supersedes predictive file-structure details later in this reviewed plan; the required transition and ponder semantics remain as specified.
 
 ## Objective
 
@@ -708,3 +710,7 @@ Total                                                15 tests
 ```
 
 This confirms the rewrite begins from passing existing UCI behaviour. The added characterisation tests should establish the missing failure, ordering, and early-result cases before structural replacement.
+
+## Implementation Verification
+
+After implementation, the focused UCI suites pass 16 tests across `UciUtility.spec.ts` and `NwjsUciEngineClient.spec.ts`. The complete unit suite passes 166 tests across 26 files, and `npm run type-check` passes.

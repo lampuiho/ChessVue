@@ -13,7 +13,7 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ## Owner And Mutable State
 `EngineRuntimeService` may mutate `engine.$.processHandle`, `availability`, `lastError`, `analysisCallback`, and `analysisLines`.
 
-The concrete `EngineClient` may refine `engine.$` with a private session. Its UCI session records the protocol state, game boundary, root and active positions, expected ponder move, process listener, and deferred state or player-move completion.
+The concrete `EngineClient` may refine `engine.$` with a private session. Its UCI session records stable game-boundary and process-listener data plus a discriminated context for the current protocol state. Handshake lines and completions, active positions, the expected ponder move, the stopping completion, and a ready player move are owned only by the states that require them.
 
 `GamesStore` does not mutate either lower-layer runtime directly. It calls `EngineRuntimeService` and receives protocol-neutral analysis updates or `IMove` results. Emitted analysis payloads are readonly after callback dispatch, so the store may retain their result references without defensive cloning.
 
@@ -57,7 +57,7 @@ The concrete `EngineClient` may refine `engine.$` with a private session. Its UC
 | dispose the analysis subscription |
 | `EngineRuntimeService.stopAnalysis` |
 | `EngineClient.stopAnalysis` |
-| enter `StoppingAnalysis`, send `stop`, and consume the terminating `bestmove` |
+| enter `StoppingSearch`, send `stop`, and consume the terminating `bestmove` |
 | return the session to `Ready` |
 
 ## Player Turn Runtime
@@ -89,9 +89,11 @@ As soon as a guarded engine result contains `$.ponderMove`, and while the game i
 
 The client constructs the ponder command from the game root, moves already represented by `game.livePath`, the directly supplied engine move, and the supplied ponder move. The transient sequence array is a command-building copy only; no best-move field, committed-move collection, or searched-position input is retained. The existing game clock snapshot is used even though it may still be pre-commit. The client enters `Pondering` and retains only the expected reply privately.
 
-When that engine is next asked to move:
-- If the latest live move matches the expected reply, `startPlayerTurn(...)` sends `ponderhit`, enters `FindingMove`, and delivers that search's next `bestmove` normally.
-- If it does not match, `startPlayerTurn(...)` enters `StoppingPonder`, sends `stop`, consumes and discards that search's terminating `bestmove`, then sends a fresh live position and timed `go` in `FindingMove`.
+When that engine is next asked to move, the `Pondering` state and its expected reply decide whether the latest live move is a hit. The command builder remains contextual, but its returned command is never inspected to infer state:
+- On a hit, `startPlayerTurn(...)` selects `buildFindNextMoveCommands(game, expectedMove)`, which returns `ponderhit`.
+- On a miss, it awaits `_stopSearch(engine, session)`. That enters `StoppingSearch`, sends `stop`, consumes and discards the terminating stale `bestmove`, and returns to `Ready`. The client then follows the normal game-boundary path and selects `buildFindNextMoveCommands(game)` from the current root and live path.
+
+After command selection and the optional awaited stop, hit and miss use the same tail: capture the current live position, create the player-move completion, enter `FindingMove`, send the selected commands, and handle `bestmove` identically.
 
 This ordering prevents a stale ponder result from resolving the new player turn.
 
@@ -100,14 +102,14 @@ The UCI client uses these explicit states:
 
 ```text
 Created -> AwaitingUciOk -> AwaitingReadyOk -> Ready
-Ready -> Analysing -> StoppingAnalysis -> Ready
-Ready -> FindingMove -> Ready
-Ready -> Pondering -> FindingMove -> Ready
-Ready -> Pondering -> StoppingPonder -> Ready -> FindingMove -> Ready
+Ready -> Analysing -> StoppingSearch -> Ready
+Ready -> FindingMove -> PlayerMoveReady -> Ready
+Ready -> Pondering -> FindingMove -> PlayerMoveReady -> Ready
+Ready -> Pondering -> StoppingSearch -> Ready -> FindingMove -> PlayerMoveReady -> Ready
 Any active state -> Stopped or Failed
 ```
 
-Output handling is selected by the current state, not by trying several output parsers. State-transition deferreds are separate from the player-move deferred so a stop acknowledgement cannot satisfy a player turn.
+Analysis and ponder searches share `StoppingSearch` because their stop protocol is identical: write `stop`, wait for `bestmove`, discard it, and return to `Ready`. Output handling is selected by the current state, not by trying several output parsers. Each pending completion belongs to its state context, so a stop result cannot satisfy a player turn.
 
 ## Stop, Restart, And Failure
 `EngineRuntimeService.stopEngine(...)` asks the client to reject and clear private session work, then stops the process and clears shared analysis runtime. `restartEngine(...)` replaces or respawns the process before explicitly initialising a fresh protocol session.
