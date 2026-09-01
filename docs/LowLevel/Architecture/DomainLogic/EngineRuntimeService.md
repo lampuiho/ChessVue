@@ -1,10 +1,11 @@
 # EngineRuntimeService
 
 ## Purpose
-Own the layer-2 game-facing engine runtime boundary consumed by `GamesStore` for continuous analysis and engine-controlled turns.
+Own the layer-2 engine runtime boundary consumed by state stores for temporary profile inspection, continuous analysis, and engine-controlled turns.
 
 ## Public Interface
 ```ts
+getOptions(engineProfile: IEngineRecord): Promise<readonly IEngineOptionMeta[]>
 ensureReady(engine: IAssignedEngine): Promise<void>
 startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
@@ -18,6 +19,7 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 ```
 
 ## Responsibilities
+- run a temporary assigned-engine copy of a reusable profile, return copied option metadata, and close the temporary engine before the discovery call completes
 - coordinate engine sessions in a game-facing shape so layer 3 consumes one runtime service instead of platform adapters
 - assert that base runtime state already exists before lower-layer protocol work starts for actions that require it
 - initialise, restart, and stop engine processes through `ProcessManager`
@@ -44,6 +46,8 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - `SCN-ENGINE-03`
 
 ## Notes
+- `getOptions(...)` copies a reusable profile into a temporary `IAssignedEngine`, including its saved configured options, initialises that engine explicitly, copies the client-discovered metadata, and closes the engine in `finally`. The temporary runtime is never retained by a store or attached to a game.
+- Option discovery does not populate, validate, or reconcile `IEngineRecord.options`. Saved configured values remain authoritative, while `EnginesStore` caches the returned metadata separately for profile-editor rendering.
 - `GamesStore` owns runtime intent and session usage, but it reaches protocol and process behaviour only through this service. **Why:** `EngineRuntimeService` owns game-facing process state while `EngineClient` owns protocol-session state; merging them would leak protocol details upward, and allowing the two layer-1 adapters to call each other would obscure which owner mutates `engine.$`. A redesign must retain one owner for process state, one for protocol state, and an explicit composition boundary.
 - `EngineRuntimeService` is a session-oriented coordinator, not a raw parser or command-builder hub.
 - `EngineRuntimeService` owns process start, stop, restart, and process-handle validity checks through `ProcessManager`.

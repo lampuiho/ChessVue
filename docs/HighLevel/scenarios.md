@@ -1126,16 +1126,17 @@ Each scenario in this document uses the same structure:
   1. User opens add-engine form.
   2. User enters profile name and other engine profile values.
   3. User may edit supported engine options through a name/value table inside the profile editor.
-  4. App stages the new engine inside the pending settings draft.
-  5. User applies or saves the settings flow.
+  4. App stages the new engine inside the engine-profile workflow owned by `EnginesStore`.
+  5. User saves the engine profile.
   6. Engine appears in the available list.
 - **Branch Paths**:
   - `BR-ENGINE-01-DUPLICATE`: Duplicate engine profile name -> block save until the name is made unique.
-- **Postconditions**: Engine list contains unique named profiles staged through the settings draft. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
+- **Postconditions**: Engine list contains unique named profiles owned by `EnginesStore`. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Implementation Touchpoints**:
-  - `SettingsStore.updateSettings`
-  - `SettingsStore.applySettings`
-  - `SettingsStore.saveSettings`
+  - `EnginesStore`
+  - `EnginesStore.refreshOptionMeta`
+  - `EngineRuntimeService.getOptions`
+  - `UserSettingService.saveSettings`
   - `UiStateStore.showModal`
 
 ### SCN-ENGINE-02 - Update or Remove Engine Configuration
@@ -1146,19 +1147,21 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User chooses copy, edit, or delete from an engine profile row.
   2. If editing, the app opens the engine-profile editor and lets the user change general fields and option-table rows.
-  3. If copying, the app duplicates the selected profile into the draft.
-  4. If deleting, the app removes the selected profile from the draft list.
-  5. App validates the edited inventory inside the pending settings draft.
-  6. User applies or saves the settings flow.
+  3. If copying, the app duplicates the selected profile inside the engine-profile workflow.
+  4. If deleting, the app removes the selected profile from the engine inventory.
+  5. App validates the edited inventory through `EnginesStore`.
+  6. User saves the engine-profile change.
   7. App persists the updated engine profile list for future assignments.
 - **Branch Paths**:
   - `BR-ENGINE-02-DUPLICATE-COPY`: Copied profile keeps a colliding name -> block save until renamed.
   - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged because their games already hold copied in-game engine payloads, while removing that profile from future assignment choices.
 - **Postconditions**: The saved engine profile list is updated for future assignments. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Implementation Touchpoints**:
-  - `SettingsStore.updateSettings`
-  - `SettingsStore.applySettings`
-  - `SettingsStore.saveSettings`
+  - `EnginesStore`
+  - `EnginesStore.loadOptionMeta`
+  - `EnginesStore.refreshOptionMeta`
+  - `EngineRuntimeService.getOptions`
+  - `UserSettingService.saveSettings`
 
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 - **Status**: Planned

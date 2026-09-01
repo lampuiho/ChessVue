@@ -1,7 +1,7 @@
 # SettingsStore
 
 ## Purpose
-Own settings-screen state, editable settings drafts, and appearance projection for the committed settings UI.
+Own user-settings screen state, editable user-setting drafts, and appearance projection for the committed settings UI.
 
 ## Public Interface
 ```ts
@@ -19,7 +19,6 @@ resetSettings(): Promise<void>
 ## Responsibilities
 - lazily read and expose the accepted settings snapshot for `SettingsView`
 - keep a draft settings snapshot separate from the last accepted snapshot so apply/save/cancel flows are deterministic
-- own engine-inventory draft edits as part of the same pending settings snapshot used by `Cancel`, `Apply`, and `Save`
 - commit accepted settings changes through `UserSettingService` instead of owning raw settings-file access directly
 - resolve the effective app theme from `appearance.themeMode` and the active system theme
 - build the presentation-safe appearance projection, including the semantic CSS-variable map
@@ -33,8 +32,6 @@ resetSettings(): Promise<void>
 - `SCN-SESSION-01`
 - `SCN-SETTINGS-01`
 - `SCN-SETTINGS-02`
-- `SCN-ENGINE-01`
-- `SCN-ENGINE-02`
 
 ## Notes
 - `SettingsStore` consumes `UserSettingService` for accepted settings reads and writes plus `PlatformEventService` for theme-change reactions; it does not resolve `IPlatformService`, `StorageAdapter`, or `SystemThemeAdapter` directly.
@@ -42,8 +39,8 @@ resetSettings(): Promise<void>
 - `getAppearanceProjection()` may trigger that same first-read path when needed by a view setup body, then resolves and caches the current `IAppearanceProjection` by calling `UserSettingService.getSystemTheme()` when `appearance.themeMode = ThemeMode.System`.
 - `applySettings()` persists the current draft through `UserSettingService.saveSettings(...)`, then re-syncs both accepted and draft state from the returned accepted snapshot so Apply and Save share the same persistence semantics.
 - Accepted settings and an untouched draft intentionally share the same parsed snapshot. The first `updateSettings(...)` call creates a new top-level draft and copies only each patched nested section. **Why:** draft edits must not mutate accepted settings, but eagerly deep-cloning every unchanged section would add identity churn without isolation. Copy-on-write places the copy exactly where ownership diverges.
-- Accepted settings, drafts, engine inventory, and appearance projections are returned from their owning state without defensive cloning. The appearance projection reuses static theme-variable records because those records are configuration constants rather than editable settings data.
-- Accepted engine-inventory changes update reusable engine profiles only. They do not directly mutate copied in-game engine payloads already held by open games or the runtime state currently bound to those copied engines.
+- Accepted settings, drafts, and appearance projections are returned from their owning state without defensive cloning. The appearance projection reuses static theme-variable records because those records are configuration constants rather than editable settings data.
+- Reusable engine profiles and their discovered option metadata are owned by `EnginesStore`; copied in-game engines and their runtime state remain outside this store.
 - The `restorePreviousSession => autosaveOnClose` rule is enforced by `UserSettingService`, so `SettingsStore` always edits and displays an already-coerced accepted snapshot.
 - The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.
 - Flow docs continue to show `SettingsStore._resolveThemeMode` and `SettingsStore._buildAppearanceProjection` as the visible owner-private boundaries. Those functions remain store-private and are not shared utility-layer modules.

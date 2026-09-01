@@ -4,6 +4,7 @@ import {
   EngineAnalysisSearchMode,
   EngineAvailability,
   EngineClientType,
+  EngineOptionType,
   EngineProtocol,
   MoveKind,
   PieceKind,
@@ -12,6 +13,7 @@ import {
   type IAssignedEngine,
   type IBoardPosition,
   type IEngineAnalysisRequest,
+  type IEngineRecord,
   type IGame,
   type IMove,
 } from '@/contracts';
@@ -44,6 +46,16 @@ function createAssignedEngine(): IAssignedEngine {
       availability: EngineAvailability.Unavailable,
       analysisLines: new Map(),
     },
+  };
+}
+function createEngineRecord(): IEngineRecord {
+  return {
+    id: 'engine-a',
+    displayName: 'Stockfish',
+    executablePath: 'stockfish.exe',
+    clientType: EngineClientType.Uci,
+    protocol: EngineProtocol.Uci,
+    options: { Threads: 4 },
   };
 }
 function createAnalysisRequest(): IEngineAnalysisRequest {
@@ -125,6 +137,47 @@ describe('EngineRuntimeService', () => {
     expect(initialiseEngine).toHaveBeenCalledWith(engine);
     expect(engine.$?.processHandle).toBe('process-1');
     expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+  });
+
+  it('discovers copied option metadata through a temporary engine and closes it before returning', async () => {
+    const engineProfile = createEngineRecord();
+    const discoveredOptions = [
+      { name: 'Threads', type: EngineOptionType.Integer, defaultValue: 1, minimum: 1, maximum: 1024 },
+      { name: 'Style', type: EngineOptionType.Choice, defaultValue: 'Normal', choices: ['Normal', 'Risky'] },
+    ];
+    getOptions.mockReturnValue(discoveredOptions);
+
+    const options = await EngineRuntimeService.getOptions(engineProfile);
+
+    const runtimeEngine = initialiseEngine.mock.calls[0]?.[0] as IAssignedEngine;
+    expect(runtimeEngine).not.toBe(engineProfile);
+    expect(runtimeEngine).toMatchObject({
+      displayName: engineProfile.displayName,
+      executablePath: engineProfile.executablePath,
+      clientType: engineProfile.clientType,
+      protocol: engineProfile.protocol,
+      options: engineProfile.options,
+    });
+    expect(runtimeEngine.options).not.toBe(engineProfile.options);
+    expect(getOptions).toHaveBeenCalledWith(runtimeEngine);
+    expect(stopEngine).toHaveBeenCalledWith(runtimeEngine);
+    expect(stopProcess).toHaveBeenCalledWith('process-1');
+    expect(runtimeEngine.$?.processHandle).toBeUndefined();
+    expect(options).toEqual(discoveredOptions);
+    expect(options).not.toBe(discoveredOptions);
+    expect(options[1]?.choices).not.toBe(discoveredOptions[1]?.choices);
+    expect(engineProfile.options).toEqual({ Threads: 4 });
+  });
+
+  it('closes a temporary option-discovery runtime when reading metadata fails', async () => {
+    const engineProfile = createEngineRecord();
+    getOptions.mockImplementation(() => { throw new Error('option discovery failed'); });
+
+    await expect(EngineRuntimeService.getOptions(engineProfile)).rejects.toThrow('option discovery failed');
+
+    const runtimeEngine = initialiseEngine.mock.calls[0]?.[0] as IAssignedEngine;
+    expect(stopEngine).toHaveBeenCalledWith(runtimeEngine);
+    expect(stopProcess).toHaveBeenCalledWith('process-1');
   });
 
   it('starts analysis with the subscribed callback from the mocked engine client', async () => {

@@ -72,7 +72,7 @@ Read-side rule:
 - `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`, `SettingsActionButton`, `ItemList`, `InlineMessage`, and `EmptyState` provide the required settings and inventory render building blocks.
 - `SettingsSection` and `EngineInventoryEditor` are template-free adapters over those common form and list components.
 - `TabbedView` and `TabButton` also support top-level settings category switching, with `SettingsView` mapping selection to `/settings/:category`.
-- Engine inventory edits stay in the same pending settings draft as the other categories until `Apply` or `Save` is chosen.
+- User-setting edits remain in the `SettingsStore` draft, while engine-profile configuration and cached option metadata belong to `EnginesStore`.
 - `SettingsView` keeps `Cancel`, `Save`, and `Apply` in the primary bottom-right action row, while `Reset` stays in a separate secondary settings action area.
 
 ### Modal And Confirmation Flows

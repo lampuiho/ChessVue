@@ -7,7 +7,7 @@ Render user-editable settings and engine inventory management.
 - settings snapshot from `SettingsStore`
 - settings draft snapshot from `SettingsStore`
 - appearance projection from `SettingsStore`
-- configured engine records from `SettingsStore` and runtime availability from `EnginesStore` where needed
+- configured engine records and cached option metadata from `EnginesStore`
 - active routed settings category
 - `TabbedView` and `TabButton` for top-level settings categories
 - `SettingsActionButton` for settings and engine-inventory actions
@@ -19,7 +19,7 @@ Render user-editable settings and engine inventory management.
 - save settings
 - apply settings without leaving the view
 - reset settings
-- stage add, copy, edit, and remove engine profiles in the settings draft
+- add, copy, edit, remove, and refresh metadata for engine profiles through `EnginesStore`
 
 ## Notes
 - Opening settings may trigger menu-driven auto-pause through store coordination, not view logic.
@@ -27,9 +27,9 @@ Render user-editable settings and engine inventory management.
 - The baseline settings categories are `session`, `gameplay`, `appearance`, and `engines`, with `/settings` redirecting to `/settings/session`.
 - The appearance category includes both visual theme settings and layout-related presentation preferences such as `uiScalePercent`, `boardOrientation`, `showCoordinates`, and `highlightLastMove`.
 - The engines category contains both `analysis.resumeLiveAnalysisAfterRestore` and engine inventory fields.
-- Engine inventory edits stay inside the same pending settings draft as all other settings until the user applies, saves, or cancels them.
+- User-setting edits stay in the `SettingsStore` draft; engine-profile configuration remains owned separately by `EnginesStore` even though profiles are serialised in settings data.
 - Inside the engines category, each engine-profile row shows the profile name on the left and icon buttons for copy, edit, and delete on the right.
-- Editing a profile opens a dedicated profile editor surface with general fields plus an options name/value table for supported engine options.
+- Editing a profile opens a dedicated profile editor surface with general fields plus an options name/value table informed by `EnginesStore` cached metadata. Refreshing that metadata runs and closes a temporary engine without altering saved option values.
 - Applying or saving engine-profile edits updates reusable profiles only. Existing copied engine payloads inside open games keep their current launch configuration until the user explicitly swaps them.
 - The primary settings action row sits at the bottom-right of the settings surface and contains `Cancel`, `Save`, and `Apply`.
 - `Reset` stays outside that primary row in a separate secondary settings action area and always routes through a confirmation dialog before defaults are restored.

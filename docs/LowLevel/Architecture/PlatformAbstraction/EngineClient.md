@@ -42,6 +42,7 @@ restartEngine(engine: IAssignedEngine): Promise<void>
 - `session` is optional until `initialiseEngine(...)` creates and initialises it after base runtime state already exists.
 - `initialiseEngine(...)` collects option declarations emitted during the protocol handshake. `getOptions(...)` exposes the cached declarations only after that explicit initialisation completes.
 - Returned option metadata uses the protocol-neutral `IEngineOptionMeta` contract. It is not automatically copied into engine records or configured option maps.
+- `EngineRuntimeService.getOptions(...)` is the layer-2 discovery boundary. It initialises a temporary profile copy, reads this cached client metadata, copies it, and closes the temporary runtime before returning it to `EnginesStore`.
 - `startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` receive the canonical `IGame`, derive their purpose-specific position and search commands, and require an already initialised session. They must not initialise the engine implicitly.
 - Licensed-engine credentials are out of scope. When a UCI engine reports `registration error`, the UCI client responds with `register later` without exposing registration through the generic client API.
 - Client-private runtime state is created only through explicit mutation steps. The concrete UCI client uses session-state transitions, process-listener attachment, analysis-line storage, state-owned completions, and terminal-session replacement rather than clearing a bag of optional fields.

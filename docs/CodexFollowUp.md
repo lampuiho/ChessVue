@@ -22,6 +22,9 @@
   - `docs/LowLevel/Architecture/UtilityIndex.md`
 - Added protocol-neutral `IEngineOptionMeta` and UCI option-line parsing for action, boolean, choice, integer, and text options.
 - Added `IEngineClient.getOptions(...)` backed by option metadata collected during the UCI initialisation handshake.
+- Added `EngineRuntimeService.getOptions(...)` to discover copied option metadata through a temporary runtime which is always closed before completion.
+- Added an `EnginesStore` option-metadata cache keyed by reusable profile id, including launch-identity invalidation and explicit refresh support.
+- Kept saved `IEngineRecord.options` authoritative; discovered metadata is presentation-only and never populates or reconciles configured values.
 - Added UCI command builders for `debug`, `isready`, `position`, `quit`, `register later`, `setoption`, `stop`, `uci`, and `ucinewgame`.
 - Removed the separate position-synchronisation API. Purpose-level analysis, player-turn, and ponder calls now receive the canonical `IGame`, with `UciUtility` deriving the required highlighted or live move path directly.
 - Removed the redundant `IEnginePositionState` contract and public new-game-boundary query; the concrete client now owns that protocol decision privately.
@@ -38,7 +41,6 @@
 
 ## Still Pending
 - Define the board-interaction move-submission boundary so legal move selection uses `IMoveRaw`, promotion selection completes that raw move, and conversion to `IMove` happens only afterwards for move-tree and service interactions.
-- Decide which layer populates configured `IEngineOptionMap` values from discovered option metadata; metadata intentionally remains outside engine records for now.
 
 ## Verification
 - `npm run type-check`

@@ -119,7 +119,8 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 ## Rules
 - Engine inventory lives in settings data.
 - `IEngineOptionMeta` is protocol-neutral metadata discovered by an engine client. It is not currently stored on `IEngineRecord` or `IAssignedEngine`.
-- `IEngineOptionMap` remains the configured name/value map. The later owner and timing for populating that map from discovered metadata are intentionally unresolved.
+- `IEngineOptionMap` remains the authoritative saved configured name/value map. Discovered metadata does not populate, validate, or reconcile it.
+- `EnginesStore` caches discovered metadata separately by reusable profile id for profile-editor rendering. `EngineRuntimeService.getOptions(...)` obtains that metadata through a temporary runtime which is closed before the metadata is returned.
 - Licensed-engine credentials are out of scope. A UCI engine that reports `registration error` receives the fixed `register later` response from the concrete UCI client.
 - Assigned-engine snapshots live in saved game data and are copied by value from the selected reusable engine profile. **Why:** a profile is editable inventory for future assignment, while an assigned engine is reproducible game state; retaining only the profile id would let a later edit or deletion retroactively change or break an existing game. A shared-process design may change runtime allocation later, but a saved game must still own the launch configuration it was assigned.
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.

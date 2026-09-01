@@ -1,4 +1,4 @@
-import { EngineAvailability, PlatformError, PlatformErrorKind, ResultState, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IGame, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAvailability, PlatformError, PlatformErrorKind, ResultState, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEngineOptionMeta, type IEngineRecord, type IGame, type IMove, type IPlatformError } from '@/contracts';
 import { usePlatformService } from '@/platform';
 import { isMoveLegal } from '@/utility/chess';
 import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
@@ -22,6 +22,18 @@ function _createBaseRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
   runtimeEngine.$ = { availability: EngineAvailability.Unavailable, analysisLines: new Map() };
   if (_hasRuntimeState(runtimeEngine)) return runtimeEngine.$;
   throw new Error(`Failed to initialise runtime state for ${engine.displayName}.`);
+}
+function _createAssignedEngine(engineProfile: IEngineRecord): IAssignedEngine {
+  return {
+    displayName: engineProfile.displayName,
+    executablePath: engineProfile.executablePath,
+    clientType: engineProfile.clientType,
+    protocol: engineProfile.protocol,
+    options: { ...engineProfile.options },
+  };
+}
+function _copyOptionMeta(option: IEngineOptionMeta): IEngineOptionMeta {
+  return option.choices === undefined ? { ...option } : { ...option, choices: [...option.choices] };
 }
 function _assertBaseRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
   const runtimeState = _getRuntimeState(engine);
@@ -95,6 +107,18 @@ async function _runLiveEngineOperation<T>(engine: IAssignedEngine, successAvaila
 }
 
 export const EngineRuntimeService = {
+  /** Runs a temporary engine session, copies its discovered option metadata, and closes the session before returning. */
+  async getOptions(engineProfile: IEngineRecord): Promise<readonly IEngineOptionMeta[]> {
+    const engine = _createAssignedEngine(engineProfile);
+    let options: readonly IEngineOptionMeta[] = [];
+    try {
+      await EngineRuntimeService.ensureReady(engine);
+      options = _getEngineClient(engine).getOptions(engine).map(_copyOptionMeta);
+    } finally {
+      await EngineRuntimeService.stopEngine(engine);
+    }
+    return options;
+  },
   /** Mutates engine.$ by creating or refreshing runtime state, including processHandle, availability, and lastError. */
   async ensureReady(engine: IAssignedEngine): Promise<void> {
     const runtimeState = _createBaseRuntime(engine);

@@ -5,7 +5,7 @@ Collect quick or custom new-game input before forwarding a validated create requ
 
 ## Consumes
 - defaults from `SettingsStore`
-- engine inventory choices from `SettingsStore`
+- engine inventory choices from `EnginesStore`
 - `ModalDialog` and `DialogButton` for shared dialog and action presentation
 - `FormSection` and `FieldRow` for shallow form structure
 

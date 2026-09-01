@@ -4,8 +4,9 @@
 This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALYSIS-01` to `SCN-ANALYSIS-05`, `SCN-ENGINE-01` to `SCN-ENGINE-03`, and the engine-runtime portions of the live move loop.
 
 ## Ownership Summary
+- `EnginesStore` owns reusable engine profiles and caches discovered option metadata separately by profile id for configuration rendering.
 - `GamesStore` decides when analysis should run and when a live player turn should be armed.
-- `EngineRuntimeService` owns base runtime creation, process lifecycle, process-handle checks, availability, last-error updates, analysis callback registration on `IAssignedEngine.$`, and optional pondering from a guarded engine-player result.
+- `EngineRuntimeService` owns temporary option-discovery runtimes, base runtime creation, process lifecycle, process-handle checks, availability, last-error updates, analysis callback registration on `IAssignedEngine.$`, and optional pondering from a guarded engine-player result.
 - `EngineClient` owns the protocol session, process listeners, current search position, expected ponder move, pending player-turn completion, protocol I/O, and parsing.
 - `UciUtility` only builds protocol commands and parses individual protocol records. It does not own a process or session.
 - Runtime state changes use explicit object-attached state. No flow relies on hidden side tables or silent runtime initialisation.
@@ -16,6 +17,20 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 The concrete `EngineClient` may refine `engine.$` with a private session. Its UCI session records stable game-boundary and process-listener data plus a discriminated context for the current protocol state. Handshake lines and completions, active positions, the expected ponder move, the stopping completion, and a ready player move are owned only by the states that require them.
 
 `GamesStore` does not mutate either lower-layer runtime directly. It calls `EngineRuntimeService` and receives protocol-neutral analysis updates or `IMove` results. Emitted analysis payloads are readonly after callback dispatch, so the store may retain their result references without defensive cloning.
+
+## Option Metadata Discovery
+
+| `EnginesStore.loadOptionMeta(engineProfile)` or `refreshOptionMeta(engineProfile)` |
+| --- |
+| `EngineRuntimeService.getOptions(engineProfile)` |
+| copy the profile into a temporary `IAssignedEngine` |
+| `EngineRuntimeService.ensureReady(temporaryEngine)` |
+| `EngineClient.getOptions(temporaryEngine)` |
+| copy the discovered metadata |
+| `EngineRuntimeService.stopEngine(temporaryEngine)` in `finally` |
+| cache the returned metadata by profile id only after successful discovery |
+
+The temporary engine is never stored by `EnginesStore` or attached to a game. `EngineRuntimeService.getOptions(...)` applies the profile's saved configured options during normal initialisation, but it does not modify or reconcile them. The returned metadata is a detached copy and the temporary process has been closed before the promise resolves.
 
 ## Analysis Runtime
 

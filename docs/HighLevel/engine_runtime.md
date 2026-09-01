@@ -114,11 +114,11 @@ If the user selects more than the supported concurrent analysis engines, the app
 - If a copied in-game engine is unavailable, analysis remains empty or unavailable for that engine and the user gets actionable feedback.
 
 ## Ownership Boundaries
-- `SettingsStore` owns configured engine inventory.
-- `EnginesStore` exposes configured engine inventory for selection flows.
+- `EnginesStore` owns configured engine profiles, exposes them for selection flows, and caches separately discovered option metadata for profile configuration.
+- `SettingsStore` owns user settings and appearance projection, not engine-profile configuration.
 - `GamesStore` owns copying a selected reusable engine profile into the current game's assigned-engine snapshot, plus assignment on the current game, turn waiting, and analysis coordination for already copied engine participants.
 - `GamesStore` persists streamed evaluation snapshots on the game and exposes the visible-analysis read model.
-- `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore`.
+- `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore` and the temporary option-discovery runtime used by `EnginesStore`.
 - `EngineRuntimeService` composes `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation.
 - `EngineClient` owns protocol sequencing, engine-output interpretation, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.
 - `ProcessManager` owns child-process lifecycle only and is consumed by `EngineRuntimeService`.

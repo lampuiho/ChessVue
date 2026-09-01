@@ -138,8 +138,8 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 ### State Management
 - `GamesStore` owns live/open games, enforces the interaction rules in [state_model.md](state_model.md), coordinates per-game analysis timing and non-local move waiting, stores persisted per-game analysis state, and is the store that saves the current game or loads a saved game into the running session once a concrete target has been chosen.
 - `SavedGamesStore` owns saved games for rendering the saved-game menus, route-level internal save/load browsing, external import/export target selection, and saved-game lookup information such as resolving the full file path for a selected managed save or recent target.
-- `EnginesStore` exposes configured engine inventory for selection flows; it does not own live runtime coordination or copied in-game engine assignment.
-- `SettingsStore` owns settings-view state, editable settings drafts, apply or save coordination, and the presentation-safe appearance projection used by `SettingsView` and shared app chrome; it does not own canonical settings file rules or raw persisted settings access.
+- `EnginesStore` owns configured engine profiles and cached discovered-option metadata for profile editing and selection flows; it does not own live runtime coordination or copied in-game engine assignment.
+- `SettingsStore` owns user-settings view state, editable user-setting drafts, apply or save coordination, and the presentation-safe appearance projection used by `SettingsView` and shared app chrome; it does not own engine-profile configuration, canonical settings file rules, or raw persisted settings access.
 - `RecentGameStore` owns on-demand recent-game projection for `HomeView`, deduped by canonical game identity and derived from the latest available save target when the home screen is opened, but it does not own saved-game file workflows.
 - `UiStateStore` owns game-session shell state plus independently persisted UI-layout state such as panel visibility and foldable-section state.
 - State stores call only layer-2 services. They do not resolve platform adapters directly, and they do not invoke sibling stores directly.
@@ -148,7 +148,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `HomeView` is the neutral landing screen for launch, no-active-game fallback, and recent-game reopening when recent entries exist.
 - `GameView` is the main gameplay workspace and hosts board, players, history, analysis, and controls.
 - `SavedGamesView` is the route-level save/load surface for ChessVue-managed saved games.
-- `SettingsView` edits committed user settings and engine inventory.
+- `SettingsView` edits committed user settings through `SettingsStore` and engine profiles through `EnginesStore`.
 - `MenuBar`, `GameTabs`, and `NewGameModal` provide shell-level actions and navigation.
 - `Chessboard`, `PlayerPanel`, `HistoryPanel`, `AnalysisPanel`, and `GameControlPanel` render committed game interactions only.
 - Presentation may use specialised button families matched to their screen context rather than a single generic button primitive. Baseline contexts include menu toolbar, dialog, home menu, side panel, tab, settings action, and piece-choice buttons.
