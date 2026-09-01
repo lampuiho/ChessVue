@@ -28,7 +28,7 @@ export function buildDebugCommand(enabled: boolean): string {
   return `debug ${enabled ? 'on' : 'off'}`;
 }
 export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMove): string[] {
-  if (expectedPonderMove !== undefined) return isPonderHit(game, expectedPonderMove) ? ['ponderhit'] : ['stop'];
+  if (expectedPonderMove) return isPonderHit(game, expectedPonderMove) ? ['ponderhit'] : ['stop'];
   const liveMoves = _getLiveMoves(game);
   return [_buildPositionCommand(game.rootPosition, liveMoves), _buildTimedGoCommand(game)];
 }

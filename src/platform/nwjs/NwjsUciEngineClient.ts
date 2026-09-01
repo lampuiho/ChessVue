@@ -157,7 +157,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
         _requireState(session, UciSessionState.Ready, 'start player turn');
         await _prepareGameBoundaryIfNewGame(engine, session, game);
       }
-      commands = buildFindNextMoveCommands(game);
+      commands = buildFindNextMoveCommands(game, (session.current as Partial<IUciPonderingSessionContext>)?.expectedMove);
       const position = _requireLivePosition(game);
       const playerMoveCompletion = new Deferred<IMove>();
       session.current = { state: UciSessionState.FindingMove, position, playerMoveCompletion };
