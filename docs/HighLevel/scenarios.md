@@ -1096,7 +1096,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.applySettings`
   - `SettingsStore.saveSettings`
   - `AppShell.applyAppearanceProjection`
-  - `SettingsStore.getAppearanceProjection`
+  - `SettingsStore.appearanceProjection`
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 - **Status**: Current

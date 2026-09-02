@@ -1,4 +1,6 @@
+import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { defineComponent, h, nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppModalKind, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAppModalState } from '@/contracts';
@@ -44,7 +46,8 @@ describe('useUiStateStore', () => {
     domain.SerializationService.readGameSessionDocument.mockImplementationOnce(async () => rejectWithRandomDelay(createPlatformError(PlatformErrorKind.NotFound, 'Missing game session')));
     const store = useUiStateStore();
 
-    expect(await store.getGameSessionOrDefault()).toEqual(createGameSessionSnapshot());
+    await store.loadGameSession();
+    expect(store.gameSession).toEqual(createGameSessionSnapshot());
     store.openTab('game-1');
     store.openTab('game-2');
     store.closeTab('game-1');
@@ -66,7 +69,7 @@ describe('useUiStateStore', () => {
     });
     const store = useUiStateStore();
 
-    await store.getGameSessionOrDefault();
+    await store.loadGameSession();
     store.setActiveGame('missing');
     store.openTab('game-2');
     store.setActiveGame('game-1');
@@ -88,7 +91,8 @@ describe('useUiStateStore', () => {
     });
     const store = useUiStateStore();
 
-    expect(await store.getGameSessionOrDefault()).toEqual({
+    await Promise.all([store.loadGameSession(), store.loadLayoutState()]);
+    expect(store.gameSession).toEqual({
       schemaVersion: 1,
       openGameIds: ['game-1'],
       activeGameId: 'game-1',
@@ -97,10 +101,9 @@ describe('useUiStateStore', () => {
     store.togglePanel('analysis', false);
     store.setSectionCollapsed('history', true);
     store.setAnalysisEngineExpanded(1, false);
-    const expandedByIndex = store.getAnalysisEngineExpandedByIndex();
-    expect(store.getAnalysisEngineExpandedByIndex()).toBe(expandedByIndex);
+    expect(store.layoutState?.analysisEngineExpandedByIndex).toEqual([true, false]);
     store.showModal({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
-    expect(store.getModalState()).toEqual({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
+    expect(store.modalState).toEqual({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
     store.hideModal();
     await store.saveLayoutState();
 
@@ -132,6 +135,60 @@ describe('useUiStateStore', () => {
 
     store.showModal(modal);
 
-    expect(store.getModalState()).toBe(modal);
+    expect(store.modalState).toBe(modal);
+  });
+  it('publishes direct and commanded shell mutations to a mounted consumer', async () => {
+    const store = useUiStateStore();
+    await Promise.all([store.loadGameSession(), store.loadLayoutState()]);
+    const wrapper = mount(defineComponent({
+      setup: () => () => h('div', [
+        h('span', { class: 'tabs' }, store.gameSession?.openGameIds.join(',') ?? 'loading'),
+        h('span', { class: 'active-game' }, store.gameSession?.activeGameId ?? 'none'),
+        h('span', { class: 'route' }, store.gameSession?.activeRoute ?? 'loading'),
+        h('span', { class: 'panels' }, `${store.layoutState?.showHistoryPanel}/${store.layoutState?.showAnalysisPanel}`),
+        h('span', { class: 'sections' }, `${store.layoutState?.historyCollapsed}/${store.layoutState?.analysisCollapsed}`),
+        h('span', { class: 'engine-folds' }, store.layoutState?.analysisEngineExpandedByIndex.join(',') ?? 'loading'),
+        h('span', { class: 'modal' }, store.modalState?.kind ?? 'none'),
+      ]),
+    }));
+
+    store.openTab('game-1');
+    await nextTick();
+    expect(wrapper.get('.tabs').text()).toBe('game-1');
+    expect(wrapper.get('.active-game').text()).toBe('game-1');
+    expect(wrapper.get('.route').text()).toBe('/game/game-1');
+
+    store.setActiveRoute('/settings/appearance');
+    await nextTick();
+    expect(wrapper.get('.route').text()).toBe('/settings/appearance');
+    store.gameSession!.activeRoute = '/home';
+    store.togglePanel('analysis', false);
+    store.layoutState!.showHistoryPanel = false;
+    store.setSectionCollapsed('history', true);
+    store.setAnalysisEngineExpanded(0, false);
+    store.showModal({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
+    await nextTick();
+    expect(wrapper.get('.route').text()).toBe('/home');
+    expect(wrapper.get('.panels').text()).toBe('false/false');
+    expect(wrapper.get('.sections').text()).toBe('true/false');
+    expect(wrapper.get('.engine-folds').text()).toBe('false');
+    expect(wrapper.get('.modal').text()).toBe(AppModalKind.DeleteGame);
+
+    store.closeTab('game-1');
+    store.hideModal();
+    await nextTick();
+    expect(wrapper.get('.tabs').text()).toBe('');
+    expect(wrapper.get('.active-game').text()).toBe('none');
+    expect(wrapper.get('.modal').text()).toBe('none');
+  });
+  it('loads each persisted UI document once and rejects mutations before loading', async () => {
+    const store = useUiStateStore();
+
+    expect(() => store.openTab('game-1')).toThrow('UI game session must be loaded');
+    expect(() => store.togglePanel('history')).toThrow('UI layout state must be loaded');
+    await Promise.all([store.loadGameSession(), store.loadGameSession(), store.loadLayoutState(), store.loadLayoutState()]);
+
+    expect(domain.SerializationService.readGameSessionDocument).toHaveBeenCalledTimes(1);
+    expect(domain.SerializationService.readUiLayoutDocument).toHaveBeenCalledTimes(1);
   });
 });

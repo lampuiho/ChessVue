@@ -5,9 +5,12 @@ Own shell/session state such as active route, open tabs, active game, remembered
 
 ## Public Interface
 ```ts
-getGameSessionOrDefault(): Promise<IGameSessionSnapshot>
+gameSession: IGameSessionSnapshot | undefined
+layoutState: IUiLayoutState | undefined
+modalState: IAppModalState | undefined
+loadGameSession(): Promise<void>
 saveGameSession(): Promise<void>
-getLayoutStateOrDefault(): Promise<IUiLayoutState>
+loadLayoutState(): Promise<void>
 saveLayoutState(): Promise<void>
 setActiveRoute(route: IGameSessionSnapshot["activeRoute"]): void
 setActiveGame(gameId?: string): void
@@ -16,10 +19,8 @@ closeTab(gameId: string): void
 setLayoutState(layout: IUiLayoutState): void
 togglePanel(panel: "history" | "analysis", isVisible?: boolean): void
 setSectionCollapsed(section: "history" | "analysis", isCollapsed?: boolean): void
-getModalState(): DeepReadonly<IAppModalState> | undefined
 showModal(modal: IAppModalState): void
 hideModal(): void
-getAnalysisEngineExpandedByIndex(): boolean[]
 setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 ```
 
@@ -53,11 +54,13 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 ## Notes
 - `UiStateStore` consumes `SerializationService` as the layer-2 session and layout persistence path; it does not resolve `StorageAdapter` directly.
 - Build config supplies the concrete `game-session.json` and `layout-state.json` paths used by this store.
-- `getLayoutStateOrDefault()` still returns the remembered layout when `gameSession.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
-- `getGameSessionOrDefault()` and `getLayoutStateOrDefault()` are lazy first-read boundaries intended for route or view setup paths rather than an eager startup phase.
+- `gameSession` and `layoutState` are writable deep reactive state. Views may bind their visible editable fields directly, while compound tab and active-game transitions continue to use the store commands that update their related fields together.
+- `loadLayoutState()` still loads the remembered layout when `gameSession.restorePreviousSession` is `false`, so the app can remember panel visibility and fold state without reopening old games.
+- `loadGameSession()` and `loadLayoutState()` are lazy single-flight hydration boundaries intended for route or view setup paths rather than an eager startup phase. Commands reject use before their corresponding state has loaded.
 - `setActiveGame(...)` is selection-only. It updates `activeGameId` and the routed game target only when the supplied id is already open, and it never appends unknown ids into `openGameIds`.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis snapshot rows to derive the current mapping.
-- After initial lazy load, the store mutates the in-memory session and layout snapshots in place. Clone-on-read prevents callers from changing persisted shell state without store actions, and `setLayoutState(...)` copies its input. **Why:** these are ownership-transfer boundaries; retaining a caller-owned mutable object would allow state to change behind the store, while cloning again during store-owned mutations would add no isolation.
-- Modal state is transient shared state rather than a persistence snapshot. `showModal(...)` retains the supplied modal object and `getModalState()` exposes that same object through a deep-readonly observation contract; neither boundary clones it. **Why:** modal payloads may contain engine callbacks or host values that cannot be structured-cloned, and readonly observation already prevents presentation mutation; replacement and removal remain owned by `showModal(...)` and `hideModal()`.
+- UI state is not a draft: every visible mutation is immediately current state, so the store does not clone reads or use immutable snapshot replacement. `setLayoutState(...)` accepts the supplied state directly.
+- Persistence methods use `toRaw(...)` when handing the reactive state to `SerializationService`. This removes the Vue proxy at the layer boundary without copying the state.
+- Modal state is transient shared state rather than a persistence snapshot. It remains a shallow ref because modal payloads may contain engine callbacks, maps, or host values whose identity must be retained; replacement and removal remain owned by `showModal(...)` and `hideModal()`.
 - Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. Those functions remain store-private and are not shared utility-layer modules.

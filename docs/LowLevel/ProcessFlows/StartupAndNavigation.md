@@ -8,25 +8,24 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow A - Home Route Setup
 | `HomeView.setup` |
 | --- |
-| `SettingsStore.getAppearanceProjection` |
-| `UiStateStore.getLayoutStateOrDefault` |
+| `SettingsStore.loadSettings` |
+| `SettingsStore.appearanceProjection` |
+| `UiStateStore.loadLayoutState` |
 | `RecentGameStore.getRecentGames` |
 
-| `SettingsStore.getAppearanceProjection` |
+| `SettingsStore.appearanceProjection` |
 | --- |
-| `SettingsStore.getSettings` |
 | `SettingsStore._resolveThemeMode` |
-| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
-| `PlatformEventService.subscribeToSystemThemeChanged` |
 
-| `SettingsStore.getSettings` |
+| `SettingsStore.loadSettings` |
 | --- |
 | `UserSettingService.getSettingsOrDefault` |
-| `SettingsStore._syncAcceptedSettings` |
-| `SettingsStore._syncDraftSettings` |
+| `SettingsStore._acceptSettings` |
+| `UserSettingService.getSystemTheme` |
+| `PlatformEventService.subscribeToSystemThemeChanged` |
 
-| `UiStateStore.getLayoutStateOrDefault` |
+| `UiStateStore.loadLayoutState` |
 | --- |
 | `SerializationService.readUiLayoutDocument` |
 | `UiStateStore._coerceLayoutState` |
@@ -47,17 +46,16 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow A - Restore Saved Tabs And Route
 | `HomeView.setup` |
 | --- |
-| `SettingsStore.getSettings` |
-| `UiStateStore.getGameSessionOrDefault` |
+| `SettingsStore.loadSettings` |
+| `UiStateStore.loadGameSession` |
 | `Router._restoreReturnRoute` |
 
-| `SettingsStore.getSettings` |
+| `SettingsStore.loadSettings` |
 | --- |
 | `UserSettingService.getSettingsOrDefault` |
-| `SettingsStore._syncAcceptedSettings` |
-| `SettingsStore._syncDraftSettings` |
+| `SettingsStore._acceptSettings` |
 
-| `UiStateStore.getGameSessionOrDefault` |
+| `UiStateStore.loadGameSession` |
 | --- |
 | `SerializationService.readGameSessionDocument` |
 | `UiStateStore._coerceOpenTabs` |
@@ -136,21 +134,22 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 #### Flow A - Home Route Setup With Corrupt Optional Data
 | `HomeView.setup` |
 | --- |
-| `SettingsStore.getAppearanceProjection` |
-| `UiStateStore.getLayoutStateOrDefault` |
-| `UiStateStore.getGameSessionOrDefault` |
+| `SettingsStore.loadSettings` |
+| `SettingsStore.appearanceProjection` |
+| `UiStateStore.loadLayoutState` |
+| `UiStateStore.loadGameSession` |
 | `RecentGameStore.getRecentGames` |
 
-| `SettingsStore.getAppearanceProjection` |
+| `SettingsStore.appearanceProjection` |
 | --- |
-| `SettingsStore.getSettings` |
 | `SettingsStore._resolveThemeMode` |
-| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
-| `SettingsStore.getSettings` |
+| `SettingsStore.loadSettings` |
 | --- |
 | `UserSettingService.getSettingsOrDefault` |
+| `SettingsStore._acceptSettings` |
+| `UserSettingService.getSystemTheme` |
 
 | `UserSettingService.getSettingsOrDefault` |
 | --- |
@@ -158,12 +157,12 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `UserSettingService._createDefaultSettingsSnapshot` |
 | `UserSettingService._cacheAcceptedSettings` |
 
-| `UiStateStore.getLayoutStateOrDefault` |
+| `UiStateStore.loadLayoutState` |
 | --- |
 | `SerializationService.readUiLayoutDocument` |
 | `UiStateStore._resetInvalidLayoutState` |
 
-| `UiStateStore.getGameSessionOrDefault` |
+| `UiStateStore.loadGameSession` |
 | --- |
 | `SerializationService.readGameSessionDocument` |
 | `UiStateStore._resetInvalidGameSession` |
@@ -315,11 +314,12 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 
 | `SettingsView.setup` |
 | --- |
-| `SettingsStore.getSettings` |
+| `SettingsStore.loadSettings` |
 
-| `SettingsStore.getSettings` |
+| `SettingsStore.loadSettings` |
 | --- |
 | `UserSettingService.getSettingsOrDefault` |
+| `SettingsStore._acceptSettings` |
 
 #### Flow B - Leave Settings And Return
 | `SettingsView.returnRequested` |

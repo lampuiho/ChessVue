@@ -5,11 +5,12 @@ Own user-settings screen state, editable user-setting drafts, and appearance pro
 
 ## Public Interface
 ```ts
-getSettings(): Promise<ISettingsSnapshot>
-getDraftSettings(): ISettingsSnapshot
-getAppearanceProjection(): Promise<IAppearanceProjection>
+settings: DeepReadonly<ISettingsSnapshot> | undefined
+draftSettings: ISettingsSnapshot | undefined
+appearanceProjection: IAppearanceProjection | undefined
+hasPendingChanges: boolean
+loadSettings(): Promise<void>
 updateSettings(patch: Partial<ISettingsSnapshot>): void
-hasPendingChanges(): boolean
 applySettings(): Promise<void>
 discardPendingSettings(): void
 saveSettings(): Promise<void>
@@ -17,7 +18,7 @@ resetSettings(): Promise<void>
 ```
 
 ## Responsibilities
-- lazily read and expose the accepted settings snapshot for `SettingsView`
+- lazily load and expose the accepted settings snapshot as readonly state for `SettingsView`
 - keep a draft settings snapshot separate from the last accepted snapshot so apply/save/cancel flows are deterministic
 - commit accepted settings changes through `UserSettingService` instead of owning raw settings-file access directly
 - resolve the effective app theme from `appearance.themeMode` and the active system theme
@@ -35,11 +36,14 @@ resetSettings(): Promise<void>
 
 ## Notes
 - `SettingsStore` consumes `UserSettingService` for accepted settings reads and writes plus `PlatformEventService` for theme-change reactions; it does not resolve `IPlatformService`, `StorageAdapter`, or `SystemThemeAdapter` directly.
-- `getSettings()` is the lazy accepted-settings boundary. On first read it hydrates from `UserSettingService.getSettingsOrDefault()`, mirrors that snapshot into the editable draft, and caches the accepted state for later callers.
-- `getAppearanceProjection()` may trigger that same first-read path when needed by a view setup body, then resolves and caches the current `IAppearanceProjection` by calling `UserSettingService.getSystemTheme()` when `appearance.themeMode = ThemeMode.System`.
+- `loadSettings()` is the lazy single-flight accepted-settings boundary. It hydrates from `UserSettingService.getSettingsOrDefault()`, exposes the accepted snapshot through the readonly `settings` projection, and creates an independent deeply reactive `draftSettings` copy.
+- `appearanceProjection` is computed from accepted settings and the observed system theme. Draft appearance changes do not affect app chrome until apply or save succeeds.
 - `applySettings()` persists the current draft through `UserSettingService.saveSettings(...)`, then re-syncs both accepted and draft state from the returned accepted snapshot so Apply and Save share the same persistence semantics.
-- Accepted settings and an untouched draft intentionally share the same parsed snapshot. The first `updateSettings(...)` call creates a new top-level draft and copies only each patched nested section. **Why:** draft edits must not mutate accepted settings, but eagerly deep-cloning every unchanged section would add identity churn without isolation. Copy-on-write places the copy exactly where ownership diverges.
-- Accepted settings, drafts, and appearance projections are returned from their owning state without defensive cloning. The appearance projection reuses static theme-variable records because those records are configuration constants rather than editable settings data.
+- Accepted settings and the draft never share identity because the draft is directly mutable and may temporarily be invalid. Loading, successful persistence, reset, and discard create a fresh draft from the accepted snapshot.
+- `draftSettings` supports direct nested form mutation; `updateSettings(...)` remains available for programmatic patches. `hasPendingChanges` is computed reactively from the current accepted and draft values.
+- A failed validation or write leaves accepted settings unchanged and retains the edited draft. The accepted-to-draft copy is the intentional ownership boundary; ordinary draft edits do not clone state.
+- System-theme events update only the observed system-theme ref. They never change persisted `themeMode`, mutate the draft, or trigger a settings write, and the subscription is removed when the store is disposed.
+- The appearance projection reuses static theme-variable records because those records are configuration constants rather than editable settings data.
 - Reusable engine profiles and their discovered option metadata are owned by `EnginesStore`; copied in-game engines and their runtime state remain outside this store.
 - The `restorePreviousSession => autosaveOnClose` rule is enforced by `UserSettingService`, so `SettingsStore` always edits and displays an already-coerced accepted snapshot.
 - The semantic CSS-variable map in `IAppearanceProjection` is intentionally configuration-reactive so a future user-created theme system can extend the same contract rather than replacing it.

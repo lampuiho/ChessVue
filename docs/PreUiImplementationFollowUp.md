@@ -12,18 +12,17 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-01 — Shell and settings state do not expose reactive UI read models
 
 - **Severity:** Blocker
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [UiStateStore.ts](../src/state/UiStateStore.ts), [SettingsStore.ts](../src/state/SettingsStore.ts)
 - **Problem:** UI state is held in shallow refs, while nested state is mutated in place and several reads return asynchronous cloned snapshots. A Vue consumer cannot reliably react to tab, panel, section, engine-fold, route, modal, or appearance changes. System-theme changes also have no observable projection for the UI.
 - **Required outcome:** The UI must be able to consume stable reactive read models without polling or re-fetching cloned snapshots after every command.
 
 ### PREUI-02 — Engine-profile commands required by the UI are missing
 
-- **Severity:** Blocker
-- **Finding status:** Confirmed
+- **Severity:** Not applicable
+- **Finding status:** Closed
 - **Affected implementation:** [EnginesStore.ts](../src/state/EnginesStore.ts), [scenarios.md](HighLevel/scenarios.md)
-- **Problem:** The engine store exposes listing, lookup, metadata, and validation, but has no committed add, copy, update, delete, persistence, or player-creation workflow. The engine-management scenarios therefore have no application boundary for the UI to call.
-- **Required outcome:** Expose complete, validated engine-inventory commands and a reactive inventory read model, including persistence and uniqueness behaviour.
+- **Closure reasoning:** Engine-inventory changes are settings-editor draft operations, so add, copy, edit, and delete belong to the UI workflow over the existing reactive settings draft. `SettingsStore` and `UserSettingService` already provide validated persistence, including unique profile names. Outside settings editing, configured profiles are static choices read on demand when selecting an opponent or analysis engine; they do not require a reactive inventory projection. Presentation constructs an engine-backed player from the selected profile, while `GamesStore` copies selected profiles into game-owned state. The missing `EnginesStore` commands and reactive inventory therefore do not block UI implementation.
 
 ### PREUI-03 — Player reassignment can discard history and leave an engine running
 
@@ -110,17 +109,13 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### Phase 1 — Establish UI-facing application contracts
 
 1. **PREUI-01: reactive shell/settings state**
-   - Replace cloned asynchronous UI reads with readonly reactive projections or stable computed values.
-   - Ensure nested mutations publish changes, either through deep reactive state or immutable replacement.
-   - Add an observable effective-theme value that updates when the system theme changes.
+   - Expose game-session and layout state as writable deep reactive values after their lazy loaders complete; UI state is current state and does not use a draft or clone-on-read boundary.
+   - Keep modal state replaceable without cloning callback- or host-bearing payloads.
+   - Expose accepted settings through a readonly reactive projection and maintain a separate deeply reactive mutable draft for validation and persistence flows.
+   - Derive dirty state and the accepted appearance projection reactively, including an observable effective theme that updates when the system theme changes.
    - Cover tabs, active route, panels, folds, modals, and appearance with mounted-consumer reactivity tests.
-2. **PREUI-02: engine inventory**
-   - Define store commands for add, copy, update, delete, and engine-player creation.
-   - Apply engine validation and name/identifier uniqueness rules at the store boundary.
-   - Persist successful mutations and expose a reactive ordered engine list.
-   - Test successful mutations, rejected duplicates, persistence failures, and consumer updates.
 
-**Phase exit:** The UI can render current shell, appearance, and engine-inventory state and invoke every committed engine-management action without reaching into lower layers.
+**Phase exit:** The UI can render current shell and appearance state through reactive application contracts.
 
 ### Phase 2 — Protect game, history, result, and clock invariants
 
@@ -183,33 +178,32 @@ The following existing TODOs remain intentionally deferred until UI implementati
 The following design-derived scenarios are the minimum regression set. A finding is not complete until its relevant scenario is automated and passing:
 
 1. A mounted UI consumer rerenders after tab, route, panel, fold, modal, explicit theme, and system-theme changes. Covers **PREUI-01**.
-2. Engine profiles can be added, copied, edited, deleted, persisted, listed reactively, and rejected on uniqueness violations. Covers **PREUI-02**.
-3. Reassigning engine to none preserves tree and position, stops the old runtime, and is rejected in BoardEdit. Covers **PREUI-03**.
-4. A restore request containing valid, missing, and corrupt games retains the valid games and arms exactly one eligible restored engine turn. Covers **PREUI-04** and **PREUI-11**.
-5. Rewriting from a historical node retains the old continuation as a variation and restarts the historical clock snapshot from the current timestamp. Covers **PREUI-05**.
-6. A move arriving after clock expiry but before a UI update produces a timeout with no move or increment. Covers **PREUI-06**.
-7. Navigating and analysing after resignation, agreed draw, and checkmate leaves all terminal result fields unchanged. Covers **PREUI-07**.
-8. Malformed and illegal UCI analysis lines are ignored while the session and last valid result remain available. Covers **PREUI-08**.
-9. Unexpected player-engine exit pauses or marks the seat unavailable, exposes a failure, and never automatically retries. Covers **PREUI-09**.
-10. Traversal IDs and save names are rejected before any filesystem operation. Covers **PREUI-10**.
-11. An analysis-engine assignment made during BoardEdit is retained without starting a runtime, then starts once after a valid mode exit. Covers **PREUI-12**.
+2. Reassigning engine to none preserves tree and position, stops the old runtime, and is rejected in BoardEdit. Covers **PREUI-03**.
+3. A restore request containing valid, missing, and corrupt games retains the valid games and arms exactly one eligible restored engine turn. Covers **PREUI-04** and **PREUI-11**.
+4. Rewriting from a historical node retains the old continuation as a variation and restarts the historical clock snapshot from the current timestamp. Covers **PREUI-05**.
+5. A move arriving after clock expiry but before a UI update produces a timeout with no move or increment. Covers **PREUI-06**.
+6. Navigating and analysing after resignation, agreed draw, and checkmate leaves all terminal result fields unchanged. Covers **PREUI-07**.
+7. Malformed and illegal UCI analysis lines are ignored while the session and last valid result remain available. Covers **PREUI-08**.
+8. Unexpected player-engine exit pauses or marks the seat unavailable, exposes a failure, and never automatically retries. Covers **PREUI-09**.
+9. Traversal IDs and save names are rejected before any filesystem operation. Covers **PREUI-10**.
+10. An analysis-engine assignment made during BoardEdit is retained without starting a runtime, then starts once after a valid mode exit. Covers **PREUI-12**.
 
 After the focused tests pass, run the complete unit suite, the application build, and the platform TypeScript check. Review the final diff for accidental changes to the intentionally deferred UI-dependent TODOs.
 
 ## Status Board
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 Status values:
 
 - **Finding:** `Confirmed`, `Re-evaluate`, `Closed`
-- **Fix:** `Not started`, `In progress`, `Implemented`, `Blocked`, `Deferred`
+- **Fix:** `Not started`, `In progress`, `Implemented`, `Blocked`, `Deferred`, `Not applicable`
 - **Test:** `Missing`, `In progress`, `Passing`, `Not applicable`
 
 | ID | Summary | Severity | Finding | Fix | Test | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| PREUI-01 | Reactive shell/settings read models | Blocker | Confirmed | Not started | Missing | First UI-readiness dependency |
-| PREUI-02 | Engine-profile command surface | Blocker | Confirmed | Not started | Missing | First UI-readiness dependency |
+| PREUI-01 | Reactive shell/settings read models | Blocker | Closed | Implemented | Passing | Writable reactive shell state; readonly accepted settings and mutable validated draft |
+| PREUI-02 | Engine-profile command surface | Not applicable | Closed | Not applicable | Not applicable | UI draft operations; configured profiles are read on demand |
 | PREUI-03 | Safe player reassignment | High | Confirmed | Not started | Missing | Preserve tree and stop old runtime |
 | PREUI-04 | Resume restored engine turn | High | Confirmed | Not started | Missing | Coordinate with PREUI-09 and PREUI-11 |
 | PREUI-05 | History and clock consistency | High | Confirmed | Not started | Missing | Replace conflicting continuation-pruning test |
@@ -221,4 +215,4 @@ Status values:
 | PREUI-11 | Partial restore isolation | Medium | Confirmed | Not started | Missing | Return per-target outcomes |
 | PREUI-12 | BoardEdit analysis start guard | Medium | Confirmed | Not started | Missing | Share eligibility predicate across entry points |
 
-Pre-UI completion requires every row to have `Finding: Closed`, `Fix: Implemented`, and `Test: Passing`, with the full validation suite passing.
+Pre-UI completion requires every row to have `Finding: Closed`; confirmed findings must also have `Fix: Implemented` and `Test: Passing`, while findings closed without a required fix may use `Not applicable`.

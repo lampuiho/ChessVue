@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
-import { shallowRef } from 'vue';
+import { computed, onScopeDispose, readonly, ref, shallowRef, toRaw } from 'vue';
 
-import { ResolvedThemeMode, ThemeMode, type IAppearanceProjection, type ISettingsSnapshot } from '@/contracts';
+import { ResolvedThemeMode, ThemeMode, type DeepReadonly, type IAppearanceProjection, type ISettingsSnapshot } from '@/contracts';
 import { PlatformEventService, UserSettingService } from '@/domain';
 const lightVariables = {
   '--surface-app': '#f4efe3',
@@ -53,88 +53,83 @@ function buildAppearanceProjection(settings: ISettingsSnapshot, resolvedThemeMod
 }
 
 export const useSettingsStore = defineStore('settingsStore', () => {
-  const _acceptedSettings = shallowRef<ISettingsSnapshot>();
-  const _draftSettings = shallowRef<ISettingsSnapshot>();
-  const _appearanceProjection = shallowRef<IAppearanceProjection>();
+  const _settings = shallowRef<ISettingsSnapshot>();
+  const draftSettings = ref<ISettingsSnapshot>(); //required for switching tabs. otherwise we would have local state in the vue component
+  const _systemTheme = ref<ResolvedThemeMode>();
   let _initialisePromise: Promise<void> | undefined;
   let _disposeThemeSubscription: (() => void) | undefined;
 
-  function _getAcceptedSettings(): ISettingsSnapshot {
-    return _acceptedSettings.value ?? UserSettingService.getSettings();
+  const settings = computed<DeepReadonly<ISettingsSnapshot> | undefined>(() => _settings.value ? readonly(_settings.value) : undefined);
+  const appearanceProjection = computed<IAppearanceProjection | undefined>(() => {
+    if (!_settings.value || !_systemTheme.value) return;
+    return buildAppearanceProjection(_settings.value, resolveThemeMode(_settings.value, _systemTheme.value));
+  });
+  const hasPendingChanges = computed(() => {
+    if (!_settings.value || !draftSettings.value) return false;
+    return JSON.stringify(draftSettings.value) !== JSON.stringify(_settings.value);
+  });
+
+  function _requireSettings(): ISettingsSnapshot {
+    if (!_settings.value) throw new Error('Settings must be loaded before they are read.');
+    return _settings.value;
   }
-  function _getDraftSettings(): ISettingsSnapshot {
-    return _draftSettings.value ?? _getAcceptedSettings();
+  function _requireDraftSettings(): ISettingsSnapshot {
+    if (!draftSettings.value) throw new Error('Settings must be loaded before the draft is changed.');
+    return draftSettings.value;
   }
-  async function _ensureInitialised(): Promise<void> {
+  function _acceptSettings(acceptedSettings: ISettingsSnapshot): void {
+    _settings.value = acceptedSettings;
+    draftSettings.value = structuredClone(acceptedSettings);
+  }
+  function _subscribeToSystemTheme(): void {
+    if (_disposeThemeSubscription) return;
+    _disposeThemeSubscription = PlatformEventService.subscribeToSystemThemeChanged('SettingsStore', (theme) => {
+      _systemTheme.value = theme;
+    }, 'settings-theme-sync');
+  }
+  async function loadSettings(): Promise<void> {
+    if (_settings.value && draftSettings.value) return;
     if (_initialisePromise) return _initialisePromise;
     _initialisePromise = (async () => {
       const acceptedSettings = await UserSettingService.getSettingsOrDefault();
-      _acceptedSettings.value = acceptedSettings;
-      _draftSettings.value = acceptedSettings;
-      await _refreshAppearanceProjection();
-      if (!_disposeThemeSubscription) {
-        _disposeThemeSubscription = PlatformEventService.subscribeToSystemThemeChanged('SettingsStore', (theme) => {
-          if ((_acceptedSettings.value ?? acceptedSettings).appearance.themeMode === ThemeMode.System) _appearanceProjection.value = buildAppearanceProjection(_acceptedSettings.value ?? acceptedSettings, resolveThemeMode(_acceptedSettings.value ?? acceptedSettings, theme));
-        }, 'settings-theme-sync');
-      }
+      _acceptSettings(acceptedSettings);
+      _systemTheme.value = UserSettingService.getSystemTheme();
+      _subscribeToSystemTheme();
     })();
     return _initialisePromise;
   }
-  async function _refreshAppearanceProjection(): Promise<IAppearanceProjection> {
-    const acceptedSettings = _acceptedSettings.value ?? await UserSettingService.getSettingsOrDefault();
-    const resolvedThemeMode = resolveThemeMode(acceptedSettings, UserSettingService.getSystemTheme());
-    const projection = buildAppearanceProjection(acceptedSettings, resolvedThemeMode);
-    _appearanceProjection.value = projection;
-    return projection;
-  }
   function updateSettings(patch: Partial<ISettingsSnapshot>): void {
-    const nextDraft = mergeSettings(_getDraftSettings(), patch);
-    _draftSettings.value = nextDraft;
+    draftSettings.value = mergeSettings(_requireDraftSettings(), patch);
   }
-  function hasPendingChanges(): boolean {
-    return JSON.stringify(_getDraftSettings()) !== JSON.stringify(_getAcceptedSettings());
-  }
-  async function applySettings(): Promise<void> {
-    await _ensureInitialised();
-    const acceptedSettings = await UserSettingService.saveSettings(_getDraftSettings());
-    _acceptedSettings.value = acceptedSettings;
-    _draftSettings.value = acceptedSettings;
-    await _refreshAppearanceProjection();
+  async function _saveDraftSettings(): Promise<void> {
+    await loadSettings();
+    _acceptSettings(await UserSettingService.saveSettings(toRaw(_requireDraftSettings())));
   }
   function discardPendingSettings(): void {
-    _draftSettings.value = _getAcceptedSettings();
+    draftSettings.value = structuredClone(_requireSettings());
   }
-  async function getSettings(): Promise<ISettingsSnapshot> {
-    await _ensureInitialised();
-    return _getAcceptedSettings();
-  }
-  function getDraftSettings(): ISettingsSnapshot {
-    return _getDraftSettings();
-  }
-  async function getAppearanceProjection(): Promise<IAppearanceProjection> {
-    await _ensureInitialised();
-    return _appearanceProjection.value ?? await _refreshAppearanceProjection();
+  async function applySettings(): Promise<void> {
+    await _saveDraftSettings();
   }
   async function saveSettings(): Promise<void> {
-    await _ensureInitialised();
-    const acceptedSettings = await UserSettingService.saveSettings(_getDraftSettings());
-    _acceptedSettings.value = acceptedSettings;
-    _draftSettings.value = acceptedSettings;
-    await _refreshAppearanceProjection();
+    await _saveDraftSettings();
   }
   async function resetSettings(): Promise<void> {
-    const resetSettingsSnapshot = await UserSettingService.resetSettings();
-    _acceptedSettings.value = resetSettingsSnapshot;
-    _draftSettings.value = resetSettingsSnapshot;
-    await _refreshAppearanceProjection();
+    await loadSettings();
+    _acceptSettings(await UserSettingService.resetSettings());
   }
+  onScopeDispose(() => {
+    _disposeThemeSubscription?.();
+    _disposeThemeSubscription = undefined;
+  });
 
   return {
-    getSettings,
-    getDraftSettings,
-    getAppearanceProjection,
-    updateSettings,
+    settings,
+    draftSettings,
+    appearanceProjection,
     hasPendingChanges,
+    loadSettings,
+    updateSettings,
     applySettings,
     discardPendingSettings,
     saveSettings,
