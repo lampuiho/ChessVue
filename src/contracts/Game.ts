@@ -119,6 +119,7 @@ export interface IGameRuntime {
   deferredPlayerMove?: IMove
   pendingPlayerTurnPromise?: Deferred<IMove>;
   pendingPlayerTurnHandlePromise?: Promise<void>;
+  pendingPlayerTurnAbortController?: AbortController;
 }
 export interface IGame {
   schemaVersion: number;

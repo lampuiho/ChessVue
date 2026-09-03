@@ -14,8 +14,9 @@ import {
   type IPlayer,
 } from '@/contracts';
 import Aborted from '@/contracts/errors/Aborted';
-import { EngineRuntimeService } from '@/domain';
+import { EngineRuntimeService, TimeControlService } from '@/domain';
 import { Deferred } from '@/utility/async/Deferred';
+import { ClockTimestamp } from '@/utility/date';
 import { logHandledError } from '@/utility/errors';
 import type { GamePositionComposable } from './GamePositionComposable';
 import type { GameStatusComposable } from './GameStatusComposable';
@@ -30,7 +31,7 @@ interface IGamePlayerTurnDependency {
 }
 
 export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
-  const { position, status, touchGame, commitLiveMove, replaceWithAnalysisRoot, refreshRuntimeRegistrations } = dependency;
+  const { position, status, touchGame, commitLiveMove, refreshRuntimeRegistrations } = dependency;
   /** Creates the persisted per-game player snapshot and discards runtime owned by the input record. */
   function createPlayerSnapshot(player?: IPlayer): IPlayer | undefined {
     if (!player) return;
@@ -51,15 +52,19 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   function clearDeferredPlayerMove(runtime: IGameRuntime): void {
     runtime.deferredPlayerMove = undefined;
   }
-  function clearPendingPlayerTurn(runtime: IGameRuntime): void {
-    runtime.pendingPlayerTurnPromise?.reject(new Aborted());
-    runtime.pendingPlayerTurnPromise = undefined;
-    runtime.pendingPlayerTurnHandlePromise = undefined;
+  async function clearPendingPlayerTurn(runtime: IGameRuntime): Promise<void> {
+    const pendingPlayerTurn = runtime.pendingPlayerTurnPromise;
+    const pendingPlayerTurnHandle = runtime.pendingPlayerTurnHandlePromise;
+    const abortController = runtime.pendingPlayerTurnAbortController;
+    if (!pendingPlayerTurn || !pendingPlayerTurnHandle || !abortController) return;
+    abortController.abort(new Aborted());
+    pendingPlayerTurn.reject(abortController.signal.reason);
+    await pendingPlayerTurnHandle;
   }
-  function clearPlayerTurnRuntime(game: IGame): void {
+  async function clearPlayerTurnRuntime(game: IGame): Promise<void> {
     const runtime = position.requireGameRuntime(game);
     clearDeferredPlayerMove(runtime);
-    clearPendingPlayerTurn(runtime);
+    await clearPendingPlayerTurn(runtime);
   }
   async function flushDeferredPlayerMove(game: IGame): Promise<void> {
     const runtime = position.requireGameRuntime(game);
@@ -79,11 +84,11 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   }
   function requestPlayerMove(game: IGame): void {
     async function requestEngineMove(engine: IAssignedEngine): Promise<void> {
-      await EngineRuntimeService.ensureReady(engine);
+      await EngineRuntimeService.ensureReady(engine, abortController.signal);
       await EngineRuntimeService.startPlayerTurn(engine, game, async (move) => {
         if (position.requireGameRuntime(game).pendingPlayerTurnPromise !== pendingPlayerMove) return;
         await attemptPlayerMove(game, move);
-      });
+      }, abortController.signal);
     }
     async function playerMoveHandler(pendingPlayerMove: Promise<IMove>): Promise<void> {
       const runtime = position.requireGameRuntime(game);
@@ -100,6 +105,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
         if (runtime.pendingPlayerTurnPromise === pendingPlayerMove) {
           runtime.pendingPlayerTurnPromise = undefined;
           runtime.pendingPlayerTurnHandlePromise = undefined;
+          runtime.pendingPlayerTurnAbortController = undefined;
         }
       }
       if (status.isPausedState(game.gameState)) runtime.deferredPlayerMove = move;
@@ -107,10 +113,12 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     }
     const player = getSideToMovePlayer(game, position.getLivePosition(game).sideToMove);
     const runtime = position.requireGameRuntime(game);
+    const abortController = new AbortController();
     const pendingPlayerMove = new Deferred<IMove>();
     const pendingPlayerTurnHandle = playerMoveHandler(pendingPlayerMove);
     runtime.pendingPlayerTurnPromise = pendingPlayerMove;
     runtime.pendingPlayerTurnHandlePromise = pendingPlayerTurnHandle;
+    runtime.pendingPlayerTurnAbortController = abortController;
     if (isEnginePlayer(player)) void requestEngineMove(player.assignedEngine).catch((error) => pendingPlayerMove.reject(error));
   }
   function requestPlayerMoveIfNeeded(game: IGame): void {
@@ -119,13 +127,20 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     requestPlayerMove(game);
   }
   async function reassignPlayer(game: IGame, colour: PlayerColour, player?: IPlayer): Promise<void> {
+    const nextPlayer = createPlayerSnapshot(player);
+    const previousPlayer = colour === PlayerColour.White ? game.whitePlayer : game.blackPlayer;
+    await clearPlayerTurnRuntime(game);
+    if (isEnginePlayer(previousPlayer)) await EngineRuntimeService.stopEngine(previousPlayer.assignedEngine);
     const selectedPosition = position.getRenderedPosition(game);
     const liveColour = game.livePath ? position.getLivePosition(game).sideToMove : undefined;
-    if (colour === PlayerColour.White) game.whitePlayer = createPlayerSnapshot(player);
-    else game.blackPlayer = createPlayerSnapshot(player);
-    clearPlayerTurnRuntime(game);
+    if (colour === PlayerColour.White) game.whitePlayer = nextPlayer;
+    else game.blackPlayer = nextPlayer;
     if (!game.whitePlayer || !game.blackPlayer) {
-      replaceWithAnalysisRoot(game, selectedPosition, status.getAnalysisState(selectedPosition.sideToMove));
+      game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
+      position.setLivePath(game, undefined);
+      game.drawOfferState = undefined;
+      game.gameState = status.getAnalysisState(selectedPosition.sideToMove);
+      touchGame(game);
     } else {
       if (status.isPausedLiveState(game.gameState)) game.gameState = status.getPausedState(selectedPosition.sideToMove);
       else if (status.isLiveState(game.gameState)) game.gameState = status.getLiveState(selectedPosition.sideToMove);

@@ -84,10 +84,10 @@ The temporary engine is never stored by `EnginesStore` or attached to a game. `E
 | create `game.$.pendingPlayerTurnPromise` for the current player |
 | `GamePlayerTurnComposable.playerMoveHandler` awaits that shared promise |
 
-`requestPlayerMove(...)` starts `playerMoveHandler(...)` and stores both the deferred and its handler promise before starting any engine provider. For a local player, `GamesStore.makeMove(...)` routes the current live move through `attemptPlayerMove(...)`. For a player engine, `requestEngineMove(...)` calls `ensureReady(...)` and `startPlayerTurn(engine, game, attemptPlayerMove)`, passing a callback bound to that request's deferred identity. A stale callback returns without submitting its move. Otherwise both player types resolve the same game-level deferred through `attemptPlayerMove(...)`; the same engine-agnostic handler stores the move as `deferredPlayerMove` while paused or commits it while live.
+`requestPlayerMove(...)` starts `playerMoveHandler(...)` and stores the deferred, its handler promise, and its abort controller before starting any engine provider. For a local player, `GamesStore.makeMove(...)` routes the current live move through `attemptPlayerMove(...)`. For a player engine, `requestEngineMove(...)` passes that signal through `ensureReady(...)` and `startPlayerTurn(engine, game, attemptPlayerMove, signal)`, with a callback bound to the request's deferred identity. A stale or aborted provider returns without submitting its move. Otherwise both player types resolve the same game-level deferred through `attemptPlayerMove(...)`; the same engine-agnostic handler stores the move as `deferredPlayerMove` while paused or commits it while live.
 
 ### Normal Engine Search
-| `EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove)` |
+| `EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove, signal)` |
 | --- |
 | capture the canonical live position being searched |
 | `EngineClient.startPlayerTurn(engine, game)` |

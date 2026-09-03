@@ -120,11 +120,16 @@ export const EngineRuntimeService = {
     return options;
   },
   /** Mutates engine.$ by creating or refreshing runtime state, including processHandle, availability, and lastError. */
-  async ensureReady(engine: IAssignedEngine): Promise<void> {
+  async ensureReady(engine: IAssignedEngine, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) return;
     const runtimeState = _createBaseRuntime(engine);
-    await _runEngineOperation(runtimeState, EngineAvailability.Ready, async () => {
-      await _initialiseEngine(engine, runtimeState);
-    });
+    try {
+      await _runEngineOperation(runtimeState, EngineAvailability.Ready, async () => {
+        await _initialiseEngine(engine, runtimeState);
+      });
+    } catch (error) {
+      if (!signal?.aborted) throw error;
+    }
   },
   /** Mutates engine.$ the same way as ensureReady, then updates shared analysis runtime state used for streamed callbacks. */
   async startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void> {
@@ -138,16 +143,26 @@ export const EngineRuntimeService = {
     await _runLiveEngineOperation(engine, EngineAvailability.Ready, () => engineClient.stopAnalysis(engine));
   },
   /** Starts one engine-backed player turn, begins available pondering from its guarded result, then submits the move through the shared player flow. */
-  async startPlayerTurn(engine: IAssignedEngine, game: IGame, attemptPlayerMove: (move: IMove) => Promise<void>): Promise<void> {
+  async startPlayerTurn(engine: IAssignedEngine, game: IGame, attemptPlayerMove: (move: IMove) => Promise<void>, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) return;
     const searchedPosition = game.$?.livePosition;
     if (!searchedPosition) throw new Error(`Live position is unavailable for game ${game.metadata.id}.`);
     const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine, game));
-    const move = await EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition);
+    let move: IMove | undefined;
+    try {
+      await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startPlayerTurn(engine, game));
+      if (signal?.aborted) return;
+      move = await EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition);
+    } catch (error) {
+      if (signal?.aborted) return;
+      throw error;
+    }
+    if (!move || signal?.aborted) return;
     const ponderMove = move.$?.ponderMove;
     const pondering = ponderMove && game.resultState === ResultState.Ongoing
       ? EngineRuntimeService.startPondering(engine, game, move, ponderMove).catch(() => undefined)
       : undefined;
+    if (signal?.aborted) return;
     await attemptPlayerMove(move);
     await pondering;
   },

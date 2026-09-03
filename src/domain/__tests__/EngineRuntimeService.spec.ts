@@ -241,6 +241,25 @@ describe('EngineRuntimeService', () => {
     expect(events).toEqual(['start', 'await', 'ponder', 'attempt', 'committed']);
     expect(attemptPlayerMove).toHaveBeenCalledOnce();
   });
+  it('returns from an awaited player move when its turn signal is aborted', async () => {
+    const engine = createAssignedEngine();
+    const game = createGame();
+    const abortController = new AbortController();
+    const attemptPlayerMove = vi.fn();
+    let rejectPlayerMove!: (error: Error) => void;
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    awaitPlayerTurnMove.mockReturnValue(new Promise<IMove>((_resolve, reject) => { rejectPlayerMove = reject; }));
+
+    const turn = EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove, abortController.signal);
+    await vi.waitFor(() => expect(awaitPlayerTurnMove).toHaveBeenCalledOnce());
+    abortController.abort();
+    rejectPlayerMove(new Error('Engine stopped.'));
+    await expect(turn).resolves.toBeUndefined();
+
+    expect(attemptPlayerMove).not.toHaveBeenCalled();
+    expect(startPondering).not.toHaveBeenCalled();
+  });
 
   it('rejects an illegal best move before pondering or attempting it', async () => {
     const engine = createAssignedEngine();

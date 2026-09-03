@@ -27,10 +27,10 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-03 — Player reassignment can discard history and leave an engine running
 
 - **Severity:** High
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [GamePlayerTurnComposable.ts](../src/state/game/GamePlayerTurnComposable.ts), [GameMoveComposable.ts](../src/state/game/GameMoveComposable.ts)
-- **Problem:** Removing a player replaces the game with an analysis root, which loses the existing move tree. The previous engine runtime is not explicitly stopped, and reassignment is not rejected while the game is in BoardEdit mode.
-- **Required outcome:** Reassignment must preserve the tree and current position, stop or replace the old runtime deterministically, and enforce the BoardEdit guard.
+- **Problem:** Removing a player replaces the game with an analysis root, which loses the existing move tree. The previous engine runtime is not explicitly stopped, cancellation does not join the existing player-move handler, and the engine's awaited move has no abort signal.
+- **Required outcome:** Reassignment must preserve the tree and current position, stop or replace the old runtime deterministically, and cancel the active player turn through an `AbortController`. Cancellation rejects the shared pending-turn promise with the signal's abort reason and awaits its existing handler; engine turn generation observes the same signal and returns early while awaiting a move. Local submission and accepted engine output must continue to use the same `attemptPlayerMove(...)` function. BoardEdit does not expose the player-reassignment UI and requires no store-level reassignment guard.
 
 ### PREUI-04 — Restored engine-controlled games can stall
 
@@ -120,8 +120,9 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### Phase 2 — Protect game, history, result, and clock invariants
 
 1. **PREUI-03: safe player reassignment**
-   - Centralise reassignment eligibility and reject it in BoardEdit.
    - Stop the old engine before replacing the seat assignment.
+   - Cancel through an `AbortController`, reject the shared pending-turn promise with its abort reason, await the already-owned player-move handler, and let engine turn generation return early from its awaited move when signalled.
+   - Preserve `attemptPlayerMove(...)` as the single settlement path for both local submission and accepted engine output.
    - Preserve the move tree, current node, position, clocks, and result when assigning `none` or a replacement player.
 2. **PREUI-05: history and clock consistency**
    - Retain an old live continuation as a variation when play resumes from history.
@@ -178,7 +179,7 @@ The following existing TODOs remain intentionally deferred until UI implementati
 The following design-derived scenarios are the minimum regression set. A finding is not complete until its relevant scenario is automated and passing:
 
 1. A mounted UI consumer rerenders after tab, route, panel, fold, modal, explicit theme, and system-theme changes. Covers **PREUI-01**.
-2. Reassigning engine to none preserves tree and position, stops the old runtime, and is rejected in BoardEdit. Covers **PREUI-03**.
+2. Reassigning engine to none preserves tree and position, stops the old runtime, and lets the owned player-turn work return on abort without an unhandled rejection. Covers **PREUI-03**.
 3. A restore request containing valid, missing, and corrupt games retains the valid games and arms exactly one eligible restored engine turn. Covers **PREUI-04** and **PREUI-11**.
 4. Rewriting from a historical node retains the old continuation as a variation and restarts the historical clock snapshot from the current timestamp. Covers **PREUI-05**.
 5. A move arriving after clock expiry but before a UI update produces a timeout with no move or increment. Covers **PREUI-06**.
@@ -204,7 +205,7 @@ Status values:
 | --- | --- | --- | --- | --- | --- | --- |
 | PREUI-01 | Reactive shell/settings read models | Blocker | Closed | Implemented | Passing | Writable reactive shell state; readonly accepted settings and mutable validated draft |
 | PREUI-02 | Engine-profile command surface | Not applicable | Closed | Not applicable | Not applicable | UI draft operations; configured profiles are read on demand |
-| PREUI-03 | Safe player reassignment | High | Confirmed | Not started | Missing | Preserve tree and stop old runtime |
+| PREUI-03 | Safe player reassignment | High | Closed | Implemented | Passing | Preserves the tree, joins cancellation, and stops the old runtime |
 | PREUI-04 | Resume restored engine turn | High | Confirmed | Not started | Missing | Coordinate with PREUI-09 and PREUI-11 |
 | PREUI-05 | History and clock consistency | High | Confirmed | Not started | Missing | Replace conflicting continuation-pruning test |
 | PREUI-06 | Timeout reconciliation at move boundary | High | Confirmed | Not started | Missing | Atomic live-move guard |

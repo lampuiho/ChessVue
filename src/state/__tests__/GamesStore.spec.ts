@@ -1114,6 +1114,55 @@ describe('useGamesStore', () => {
     await duePendingMove;
     expect(domain.EngineRuntimeService.startPlayerTurn.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
+  it('preserves history and awaits turn cancellation before removing an engine player', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Engine To Analysis',
+      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
+    });
+    await game.$!.pendingPlayerTurnHandlePromise;
+    const previousPlayer = game.whitePlayer as IEnginePlayer;
+    const previousEngine = previousPlayer.assignedEngine;
+    const rootPosition = game.rootPosition;
+    const moveTree = game.moveTree;
+    const rootNode = moveTree.root;
+    const renderedPath = [...game.renderedPath];
+    const renderedPosition = game.$!.renderedPosition;
+    const pendingPlayerTurnHandle = game.$!.pendingPlayerTurnHandlePromise;
+    const pendingPlayerTurnAbortController = game.$!.pendingPlayerTurnAbortController!;
+    const remainingTime = { white: game.clockSnapshot.white.remainingMs, black: game.clockSnapshot.black.remainingMs };
+    domain.MoveHistoryService.createMoveTree.mockClear();
+    domain.EngineRuntimeService.stopEngine.mockClear();
+    domain.EngineRuntimeService.stopEngine.mockImplementationOnce(async (engine: IAssignedEngine) => {
+      expect(engine).toBe(previousEngine);
+      expect(game.whitePlayer).toBe(previousPlayer);
+      await randomDelay();
+    });
+
+    await store.reassignPlayer(game, PlayerColour.White, undefined);
+    await expect(pendingPlayerTurnHandle).resolves.toBeUndefined();
+
+    expect(pendingPlayerTurnAbortController.signal.aborted).toBe(true);
+    expect(domain.EngineRuntimeService.stopEngine).toHaveBeenCalledOnce();
+    expect(domain.MoveHistoryService.createMoveTree).not.toHaveBeenCalled();
+    expect(game.rootPosition).toBe(rootPosition);
+    expect(game.moveTree).toBe(moveTree);
+    expect(game.moveTree.root).toBe(rootNode);
+    expect(game.renderedPath).toEqual(renderedPath);
+    expect(game.$!.renderedPosition).toBe(renderedPosition);
+    expect(game.livePath).toBeUndefined();
+    expect(game.whitePlayer).toBeUndefined();
+    expect(game.gameState).toBe(GameState.AnalysisBlackMove);
+    expect(game.resultState).toBe(ResultState.Ongoing);
+    expect(game.clockSnapshot.white.remainingMs).toBe(remainingTime.white);
+    expect(game.clockSnapshot.black.remainingMs).toBe(remainingTime.black);
+    expect(game.clockSnapshot.white.isRunning).toBe(false);
+    expect(game.clockSnapshot.black.isRunning).toBe(false);
+  });
   it('supports timeout review analysis and clears stale best-move data on analysis lifecycle changes', async () => {
     const store = useGamesStore();
     const game = await store.createGame({

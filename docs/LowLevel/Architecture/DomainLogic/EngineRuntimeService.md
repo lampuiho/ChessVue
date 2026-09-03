@@ -6,10 +6,10 @@ Own the layer-2 engine runtime boundary consumed by state stores for temporary p
 ## Public Interface
 ```ts
 getOptions(engineProfile: IEngineRecord): Promise<readonly IEngineOptionMeta[]>
-ensureReady(engine: IAssignedEngine): Promise<void>
+ensureReady(engine: IAssignedEngine, signal?: AbortSignal): Promise<void>
 startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void>
 stopAnalysis(engine: IAssignedEngine): Promise<void>
-startPlayerTurn(engine: IAssignedEngine, game: IGame, attemptPlayerMove: (move: IMove) => Promise<void>): Promise<void>
+startPlayerTurn(engine: IAssignedEngine, game: IGame, attemptPlayerMove: (move: IMove) => Promise<void>, signal?: AbortSignal): Promise<void>
 startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove): Promise<void>
 subscribeToAnalysis(engine: IAssignedEngine, onUpdate: (update: IEngineAnalysisUpdate) => void): () => void
 awaitPlayerTurnMove(engine: IAssignedEngine, searchedPosition: IBoardPosition): Promise<IMove>
@@ -61,7 +61,7 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - Streamed analysis is surfaced through the shared runtime state on `engine.$`. `EngineRuntimeService` coordinates when that lower-layer analysis path is started, stopped, or subscribed to, but it is not the owner of client-private state such as `session`, current search position, expected ponder move, or pending player-turn state.
 - `isRuntimeAlive(...)` is the only public runtime-health polling surface. Detailed runtime state stays internal on `engine.$`.
 - If the stored `processHandle` is present but no longer valid, `EngineRuntimeService` surfaces that failure through the attempted runtime operation rather than handling it through background callbacks.
-- `startPlayerTurn(...)` captures the canonical live position being searched, starts and awaits the client search through `awaitPlayerTurnMove(...)`, begins available pondering before waiting for `attemptPlayerMove(...)`, and always attempts a guarded move exactly once. **Why:** waiting for commit would waste ponder time and would prevent pondering while pause holds an accepted move; treating ponder failure as move failure would repeat or discard a valid result. Any future speculation mechanism must remain independent from move acceptance.
+- `startPlayerTurn(...)` captures the canonical live position being searched, starts and awaits the client search through `awaitPlayerTurnMove(...)`, begins available pondering before waiting for `attemptPlayerMove(...)`, and always attempts a guarded move exactly once unless its optional turn signal aborts first. Aborting while awaiting a client move returns without creating a second submission path; local submission and accepted engine output still share `GamePlayerTurnComposable.attemptPlayerMove(...)`. **Why:** waiting for commit would waste ponder time and would prevent pondering while pause holds an accepted move; treating ponder failure as move failure would repeat or discard a valid result. Any future speculation mechanism must remain independent from move acceptance.
 - `startPlayerTurn` has no response timeout in the baseline. If the process stays alive but does not produce a move, the turn remains pending until a move arrives or the session exits unexpectedly.
 - `awaitPlayerTurnMove(...)` is the single application move guard for all concrete clients. It validates against the position captured when the search started, rejects an illegal best move, and validates any ponder reply on the sequential position after that move before either reaches state. **Why:** validating in every client would duplicate chess policy, while waiting until state would let untrusted output cross the boundary and make an engine-agnostic handler provider-aware. The invariant is one common acceptance guard at the external engine boundary, not repeated checks in later layers.
 - The position after the best move used for ponder validation is an intentional detached simulation. **Why:** a ponder reply is legal only after the best move, but applying that move to the captured live position would mutate authority before the shared turn handler commits or defers it.

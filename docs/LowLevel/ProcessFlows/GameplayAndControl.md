@@ -164,7 +164,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | GamePlayerTurnComposable.requestEngineMove |
 | --- |
 | EngineRuntimeService.ensureReady |
-| EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove) |
+| EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove, signal) |
 
 | EngineRuntimeService.startPlayerTurn |
 | --- |
@@ -234,7 +234,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.refreshAnalysis` |
 | `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 
-- State coverage: player reassignment is valid in live states, paused live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model.
+- State coverage: player reassignment is valid in live states, paused live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model. Board edit has no player-reassignment presentation entry point, so this flow does not require a store-level BoardEdit guard.
 - Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate.
 
 ## History And Branching

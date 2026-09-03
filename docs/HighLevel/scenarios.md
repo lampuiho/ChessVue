@@ -1166,7 +1166,7 @@ Each scenario in this document uses the same structure:
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 - **Status**: Planned
 - **Goal**: Explicitly reassign one side to `none`, `local`, or a configured engine profile from the player strip.
-- **Preconditions**: The current game has a baseline reassignable seat.
+- **Preconditions**: The current game has a baseline reassignable seat and presentation exposes the player-selection entry point. Board-edit mode does not expose player reassignment.
 - **Entry Points**: Click the displayed player label in the player strip.
 - **Main Steps**:
   1. User clicks the displayed player label for one side in the player strip.
