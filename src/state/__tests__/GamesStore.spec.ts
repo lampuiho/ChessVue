@@ -1065,6 +1065,30 @@ describe('useGamesStore', () => {
     await store.insertGame(payload);
     expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalled();
   });
+  it('requests exactly one eligible player-engine turn after restoring the game runtime', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Restore Engine Turn',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    const payload = stripRuntimeMetadata(game);
+    payload.whitePlayer = createEnginePlayer(PlayerColour.White, 'Engine White');
+    domain.EngineRuntimeService.startPlayerTurn.mockClear();
+
+    const restoredGame = await store.insertGame(payload);
+    const restoredTurn = restoredGame.$?.pendingPlayerTurnHandlePromise;
+    expect(restoredTurn).toBeDefined();
+    await restoredTurn;
+
+    expect(restoredGame.$?.livePosition).toBeDefined();
+    expect(restoredGame.whitePlayer?.$?.activityState).toBe(PlayerActivityState.Active);
+    expect(restoredGame.gameState).toBe(GameState.LiveBlackTurn);
+    expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledOnce();
+  });
   it('preserves live families across reassignment and clears stale engine-turn requests for the replaced seat', async () => {
     const store = useGamesStore();
     const pausedGame = await store.createGame({

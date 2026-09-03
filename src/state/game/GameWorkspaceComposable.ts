@@ -120,6 +120,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
   /** Takes ownership of `game`, hydrates it in place, and inserts that same object into the workspace. */
   async function insertGame(game: IGame): Promise<IGame> {
     const insertedGame = await hydrateAndInsertGame(game);
+    playerTurn.requestPlayerMoveIfNeeded(insertedGame);
     const settings = await UserSettingService.getSettingsOrDefault();
     if (settings.analysis.resumeLiveAnalysisAfterRestore && insertedGame.analysis.snapshots.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
     return insertedGame;

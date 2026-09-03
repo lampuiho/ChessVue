@@ -35,7 +35,7 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-04 — Restored engine-controlled games can stall
 
 - **Severity:** High
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [GameWorkspaceComposable.ts](../src/state/game/GameWorkspaceComposable.ts)
 - **Problem:** Restoring a game hydrates it and may restart analysis, but it does not re-arm the player engine when the restored position is waiting for an engine-controlled side.
 - **Required outcome:** Restoration must request exactly one eligible engine turn after all state and runtime prerequisites are ready.
@@ -193,7 +193,7 @@ After the focused tests pass, run the complete unit suite, the application build
 
 ## Status Board
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 Status values:
 
@@ -206,7 +206,7 @@ Status values:
 | PREUI-01 | Reactive shell/settings read models | Blocker | Closed | Implemented | Passing | Writable reactive shell state; readonly accepted settings and mutable validated draft |
 | PREUI-02 | Engine-profile command surface | Not applicable | Closed | Not applicable | Not applicable | UI draft operations; configured profiles are read on demand |
 | PREUI-03 | Safe player reassignment | High | Closed | Implemented | Passing | Preserves the tree, joins cancellation, and stops the old runtime |
-| PREUI-04 | Resume restored engine turn | High | Confirmed | Not started | Missing | Coordinate with PREUI-09 and PREUI-11 |
+| PREUI-04 | Resume restored engine turn | High | Closed | Implemented | Passing | Hydration and runtime registration precede one guarded turn request |
 | PREUI-05 | History and clock consistency | High | Confirmed | Not started | Missing | Replace conflicting continuation-pruning test |
 | PREUI-06 | Timeout reconciliation at move boundary | High | Confirmed | Not started | Missing | Atomic live-move guard |
 | PREUI-07 | Terminal-result protection | High | Confirmed | Not started | Missing | Cover all terminal result types |
