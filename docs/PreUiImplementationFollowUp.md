@@ -61,7 +61,7 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-07 — Analysis and status actions can overwrite terminal results
 
 - **Severity:** High
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [GameMoveComposable.ts](../src/state/game/GameMoveComposable.ts), [GameStatusComposable.ts](../src/state/game/GameStatusComposable.ts)
 - **Problem:** Standalone analysis moves recalculate the position result, so analysis after resignation, an agreed draw, or checkmate can erase the recorded result. Resign and draw actions also lack consistent ongoing-game and live-position guards.
 - **Required outcome:** Terminal result fields must be immutable during later analysis, and status commands must reject invalid mode, path, or completed-game transitions.
@@ -106,7 +106,19 @@ The following existing TODOs remain intentionally deferred until UI implementati
 - **Problem:** Adding an analysis engine starts analysis immediately even when the game is in BoardEdit. Refresh and retry paths contain a guard, but initial assignment does not.
 - **Required outcome:** The assignment may be retained, but its runtime must not start until BoardEdit ends and the game is eligible for analysis.
 
+### PREUI-13 — A resolving player turn can cross a terminal transition
+
+- **Severity:** High
+- **Finding status:** Confirmed
+- **Affected implementation:** [GameStatusComposable.ts](../src/state/game/GameStatusComposable.ts), [GamePlayerTurnComposable.ts](../src/state/game/GamePlayerTurnComposable.ts), [GameClockComposable.ts](../src/state/game/GameClockComposable.ts)
+- **Problem:** Resignation, accepted draw, and timeout signal player-turn cancellation without joining it. If a local or engine move has already resolved, the shared handler can still commit it after the terminal state is recorded and overwrite that result.
+- **Required outcome:** Await terminal-command cancellation where the caller does not own the active handler, and recheck live-turn eligibility immediately before every resolved player move commits. A terminal transition must leave no path for an accepted move to mutate live state.
+
 ## Plan for Fixing the Findings
+
+### Temporary invariant assertion policy
+
+Store assertions used by this pre-UI work are temporary diagnostics for exposing invalid state transitions; they are not intended as normal user-facing control flow. The UI must derive action availability from the same eligibility rules and prevent invalid chess actions through its controls. If a supported UI interaction reaches one of these assertions, including through a stale confirmation or asynchronous race, that is a UI/state-coordination bug to fix rather than an error prompt to show to the player. An assertion may be removed once the UI makes that invalid call unreachable and regression coverage protects the boundary, provided no non-UI caller still requires it.
 
 ### Phase 1 — Establish UI-facing application contracts
 
@@ -138,6 +150,9 @@ The following existing TODOs remain intentionally deferred until UI implementati
    - Separate position-derived analysis state from the recorded game result.
    - Prevent analysis navigation or moves from mutating a terminal result.
    - Apply ongoing-game, live-path, and mode guards consistently to resign and draw commands.
+5. **PREUI-13: terminal player-turn race**
+   - Await cancellation from resignation and accepted-draw commands.
+   - Recheck live-turn eligibility at the resolved player-move commit boundary so late local or engine output is discarded after any terminal transition.
 
 **Phase exit:** Tree, path, clock, player, and result state remain mutually consistent across live play, history browsing, takeback, analysis, reassignment, and terminal games.
 
@@ -190,12 +205,13 @@ The following design-derived scenarios are the minimum regression set. A finding
 8. Unexpected player-engine exit pauses or marks the seat unavailable, exposes a failure, and never automatically retries. Covers **PREUI-09**.
 9. Traversal IDs and save names are rejected before any filesystem operation. Covers **PREUI-10**.
 10. An analysis-engine assignment made during BoardEdit is retained without starting a runtime, then starts once after a valid mode exit. Covers **PREUI-12**.
+11. A local or engine move resolving concurrently with resignation, accepted draw, or timeout never commits after the terminal result and its player-turn work settles without an unhandled rejection. Covers **PREUI-13**.
 
 After the focused tests pass, run the complete unit suite, the application build, and the platform TypeScript check. Review the final diff for accidental changes to the intentionally deferred UI-dependent TODOs.
 
 ## Status Board
 
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 
 Status values:
 
@@ -211,11 +227,12 @@ Status values:
 | PREUI-04 | Resume restored engine turn | High | Closed | Implemented | Passing | Hydration and runtime registration precede one guarded turn request |
 | PREUI-05 | History and clock consistency | High | Closed | Implemented | Passing | Retains previously played variations on history rewrite without disabling latest-node analysis pruning; guards takeback and restores historical clocks |
 | PREUI-06 | Timeout reconciliation at move boundary | High | Closed | Implemented | Passing | Atomic live-move guard settles timeout before move or increment |
-| PREUI-07 | Terminal-result protection | High | Confirmed | Not started | Missing | Cover all terminal result types |
+| PREUI-07 | Terminal-result protection | High | Closed | Implemented | Passing | Analysis cannot record results; result commands require the rendered live position of an ongoing game |
 | PREUI-08 | Malformed UCI analysis isolation | High | Confirmed | Not started | Missing | Preserve last valid result and session |
 | PREUI-09 | Guarded player-engine failure recovery | High | Confirmed | Not started | Missing | No timer-based retry |
 | PREUI-10 | Managed-save path containment | High | Confirmed | Not started | Missing | Validate before filesystem access |
 | PREUI-11 | Partial restore isolation | Medium | Confirmed | Not started | Missing | Return per-target outcomes |
 | PREUI-12 | BoardEdit analysis start guard | Medium | Confirmed | Not started | Missing | Share eligibility predicate across entry points |
+| PREUI-13 | Terminal player-turn cancellation | High | Confirmed | Not started | Missing | Join terminal-command cancellation and gate the final player-move commit |
 
 Pre-UI completion requires every row to have `Finding: Closed`; confirmed findings must also have `Fix: Implemented` and `Test: Passing`, while findings closed without a required fix may use `Not applicable`.

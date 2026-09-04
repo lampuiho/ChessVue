@@ -676,7 +676,7 @@ describe('useGamesStore', () => {
     expect(domain.TimeControlService.startClock).toHaveBeenCalledWith(selectedClockSnapshot, PlayerColour.White, expect.any(Date));
     expect(domain.TimeControlService.applyMove.mock.calls[0]?.[0]).not.toBe(selectedClockSnapshot);
   });
-  it('resolves the result after committing a standalone analysis move', async () => {
+  it('keeps a standalone analysis move from recording a game result', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Standalone Analysis Result',
@@ -687,12 +687,14 @@ describe('useGamesStore', () => {
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
     utility.resolveGameResult.mockReturnValueOnce({ resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved });
+    utility.resolveGameResult.mockClear();
 
     await store.makeMove(game, createMove(PlayerColour.White));
 
-    expect(game.resultState).toBe(ResultState.WhiteWon);
-    expect(game.resultReason).toBe(ResultReason.RuleResolved);
+    expect(game.resultState).toBe(ResultState.Ongoing);
+    expect(game.resultReason).toBeUndefined();
     expect(game.gameState).toBe(GameState.AnalysisBlackMove);
+    expect(utility.resolveGameResult).not.toHaveBeenCalled();
   });
   it('tracks paused live-analysis states across analysis entry and pause or resume transitions', async () => {
     const store = useGamesStore();
@@ -975,7 +977,7 @@ describe('useGamesStore', () => {
     await expect(store.removeAnalysisEngine(game, 0)).resolves.toBeUndefined();
   });
 
-  it('supports engine player turns, draw resolution, reassignment, and resignation', async () => {
+  it('supports engine player turns, draw resolution, and resignation', async () => {
     const store = useGamesStore();
     const ponderMove = createMove(PlayerColour.Black, 52, 36);
     nextPlayerMove = createMove(PlayerColour.White);
@@ -1015,7 +1017,6 @@ describe('useGamesStore', () => {
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
     void localGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
-    await store.reassignPlayer(localGame, PlayerColour.Black, undefined);
     await store.resignGame(localGame, PlayerColour.White);
 
     expect(localGame.gameState).toBe(GameState.AnalysisBlackMove);
@@ -1040,6 +1041,58 @@ describe('useGamesStore', () => {
     expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
     expect(domain.EngineRuntimeService.awaitPlayerTurnMove).not.toHaveBeenCalled();
+  });
+  it('preserves resignation, agreed-draw, and checkmate results during later analysis', async () => {
+    const store = useGamesStore();
+    async function expectResultPreserved(game: IGame): Promise<void> {
+      const resultState = game.resultState;
+      const resultReason = game.resultReason;
+
+      store.navigateToNode(game, game.moveTree.root);
+      expect(game.resultState).toBe(resultState);
+      expect(game.resultReason).toBe(resultReason);
+      await store.makeMove(game, createMove(PlayerColour.White));
+      expect(game.resultState).toBe(resultState);
+      expect(game.resultReason).toBe(resultReason);
+    }
+    const resignationGame = await store.createGame({
+      name: 'Resignation Review',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    await store.makeMove(resignationGame, createMove(PlayerColour.White));
+    void resignationGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
+    await store.resignGame(resignationGame, PlayerColour.Black);
+    await expectResultPreserved(resignationGame);
+
+    const drawnGame = await store.createGame({
+      name: 'Draw Review',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    await store.makeMove(drawnGame, createMove(PlayerColour.White));
+    await store.offerDraw(drawnGame);
+    void drawnGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
+    await store.acceptDrawOffer(drawnGame);
+    await expectResultPreserved(drawnGame);
+
+    installScholarMateRules();
+    const checkmateGame = await store.createGame({
+      name: 'Checkmate Review',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    for (const move of scholarMateSequence) await store.makeMove(checkmateGame, move);
+    await expectResultPreserved(checkmateGame);
   });
   it('plays scholar mate with a delayed engine reply for black', async () => {
     installScholarMateRules();

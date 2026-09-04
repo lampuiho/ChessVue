@@ -40,7 +40,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
     return nextNode;
   }
   function _finaliseLiveMove(game: IGame, livePosition: IBoardPosition, isLivePositionRendered: boolean): void {
-    status.updatePositionResult(game, livePosition);
+    status.updateGameResultFromLivePosition(game, livePosition);
     const renderedColour = isLivePositionRendered ? livePosition.sideToMove : position.getRenderedPosition(game).sideToMove;
     if (game.resultState === ResultState.Ongoing && !isLivePositionRendered) game.gameState = status.getLiveAnalysisState(livePosition.sideToMove, renderedColour);
     else status.updateGameStateAfterPosition(game, renderedColour);
@@ -108,7 +108,6 @@ export function useGameMove(dependency: IGameMoveDependency) {
   }
   function commitStandaloneAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove): void {
     const renderedPosition = advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move);
-    status.updatePositionResult(game, renderedPosition);
     status.updateGameStateAfterPosition(game, renderedPosition.sideToMove);
     touchGame(game);
   }

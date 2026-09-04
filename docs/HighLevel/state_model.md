@@ -99,6 +99,8 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 | Resign or offer draw | Yes | No | No | No | No | No |
 | Prune future moves | Policy-driven | No | Yes | No | Yes | No |
 
+The UI must enforce this matrix through control visibility and enablement so players cannot request actions that chess rules or the current mode disallow. Store assertions are temporary invariant diagnostics during pre-UI implementation, not expected user errors. Reaching one through a supported UI interaction is a UI/state-coordination bug and must not be presented as an error prompt.
+
 ## Analysis Panel Rendering
 | State Family | Analysis score or status | Analysis move list | Move-target click result |
 | --- | --- | --- | --- |

@@ -35,4 +35,40 @@ describe('useGameStatus', () => {
     expect(refreshRuntimeRegistrations).toHaveBeenCalledWith(game);
     expect(touchGame).toHaveBeenCalledWith(game);
   });
+  it('rejects every result command after the game has ended', async () => {
+    const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = createSubject();
+    const game = position.hydrateGame(createGame({
+      resultState: ResultState.WhiteWon,
+      resultReason: ResultReason.RuleResolved,
+      gameState: GameState.AnalysisBlackMove,
+      drawOfferState: createOutgoingDrawOffer(PlayerColour.White),
+    }));
+    const actions = [
+      () => status.resignGame(game, PlayerColour.Black),
+      () => status.offerDraw(game),
+      () => status.acceptDrawOffer(game),
+      () => status.declineDrawOffer(game),
+      () => status.withdrawDrawOffer(game),
+    ];
+
+    for (const action of actions) await expect(action()).rejects.toThrow('ongoing game at its live position');
+
+    expect(game.resultState).toBe(ResultState.WhiteWon);
+    expect(game.resultReason).toBe(ResultReason.RuleResolved);
+    expect(game.drawOfferState).toEqual(createOutgoingDrawOffer(PlayerColour.White));
+    expect(clearPlayerTurnRuntime).not.toHaveBeenCalled();
+    expect(refreshRuntimeRegistrations).not.toHaveBeenCalled();
+    expect(touchGame).not.toHaveBeenCalled();
+  });
+  it('rejects result commands outside the rendered live position', async () => {
+    const { position, status } = createSubject();
+    const game = position.hydrateGame(createGame());
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+
+    await expect(status.resignGame(game, PlayerColour.White)).rejects.toThrow('ongoing game at its live position');
+
+    game.gameState = GameState.LiveWhiteTurn;
+    game.renderedPath = [0];
+    await expect(status.offerDraw(game)).rejects.toThrow('ongoing game at its live position');
+  });
 });
