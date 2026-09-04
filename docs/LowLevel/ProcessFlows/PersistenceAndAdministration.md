@@ -79,6 +79,10 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 ### SCN-SAVE-03 - Confirm Internal Save Write
 
 #### Flow
+| SavedGamesView save-name validation |
+| --- |
+| Keep Save disabled and show inline feedback until the value is an accepted single file-name segment |
+
 | SavedGamesView.saveRequested |
 | --- |
 | UiStateStore.showModal |
@@ -93,8 +97,8 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | SavedGameIndexService.getNamedSaveFilePath |
 | SerializationService.writeGameDocument |
 
-- UI surface coverage: overwrite confirmation uses the shared dialog shell, while the save-name field and Cancel or Save action row remain route-owned by SavedGamesView.
-- Requirement verification: `Pass`. Internal named-save writes stay inside `SavedGamesStore` once the save route has resolved the target name, overwrite confirmation is explicit, and later recent-list queries can observe the new save without any same-layer store call.
+- UI surface coverage: overwrite confirmation uses the shared dialog shell, while the save-name field and Cancel or Save action row remain route-owned by SavedGamesView. The view blocks blank, reserved, or path-like names before emitting `saveRequested`; lower layers consume the accepted name without repeating form validation.
+- Requirement verification: `Pass`. Internal named-save writes stay inside `SavedGamesStore` once the save route has resolved the validated target name, overwrite confirmation is explicit, and later recent-list queries can observe the new save without any same-layer store call.
 
 ### SCN-LOAD-01 - Load Valid Game from Internal Save View
 
@@ -243,6 +247,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | --- |
 | SerializationService.selectImportFile |
 | SerializationService.readGameDocument |
+| Assign fresh app-generated game ID |
 
 | GamesStore.insertGame |
 | --- |
@@ -288,7 +293,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | EngineRuntimeService.startPlayerTurn |
 | EngineRuntimeService.awaitPlayerTurnMove |
 
-- Requirement verification: `Pass`. External import stays separate from internal save browsing, `SavedGamesStore` owns picker selection and saved-document read, `GamesStore.insertGame(...)` repairs duplicate IDs before insertion, and the restored game state is visible before analysis or engine-turn restart begins.
+- Requirement verification: `Pass`. External import stays separate from internal save browsing, `SavedGamesStore` owns picker selection, saved-document read, and replacement of the external metadata ID before returning the payload; `GamesStore.insertGame(...)` then performs ordinary insertion-time collision repair, and the restored game state is visible before analysis or engine-turn restart begins.
 
 ### SCN-IMPORT-02 - Reject Invalid External Game File
 

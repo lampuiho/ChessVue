@@ -943,19 +943,20 @@ Each scenario in this document uses the same structure:
 ### SCN-SAVE-03 - Confirm Internal Save Write
 - **Status**: Planned
 - **Goal**: Write the current game to an internal save file, including overwrite confirmation when the chosen save name already exists.
-- **Preconditions**: The save view is open at `/saved-games/save/:name` with a valid selected game and non-empty save name.
+- **Preconditions**: The save view is open at `/saved-games/save/:name` with a valid selected game.
 - **Entry Points**: Save view `Save` button.
 - **Main Steps**:
-  1. User enters or selects a save name and clicks `Save`.
-  2. App resolves the target game folder beneath `gameSession.saveRootPath`.
-  3. If the chosen save name matches an existing save entry for that game, app asks for overwrite confirmation.
-  4. On confirm or when no collision exists, app snapshots the current game workspace state.
-  5. App serializes the canonical saved-game payload and writes the internal save file.
-  6. App refreshes the save list and visible details, then stays on the save route or returns according to the final UI flow.
+  1. User enters or selects a save name.
+  2. `SavedGamesView` validates that the value is a non-reserved single file-name segment and enables `Save` only while it is valid.
+  3. User clicks `Save`, and app resolves the target game folder beneath `gameSession.saveRootPath` from the app-owned game identity and validated name.
+  4. If the chosen save name matches an existing save entry for that game, app asks for overwrite confirmation.
+  5. On confirm or when no collision exists, app snapshots the current game workspace state.
+  6. App serializes the canonical saved-game payload and writes the internal save file.
+  7. App refreshes the save list and visible details, then stays on the save route or returns according to the final UI flow.
 - **Branch Paths**:
   - `BR-SAVE-03-COLLISION-CANCEL`: User declines overwrite confirmation -> no write occurs and the save view stays open.
   - `BR-SAVE-03-IO-ERROR`: Save write fails -> show retry guidance and keep the save view open.
-  - `BR-SAVE-03-EMPTY-NAME`: Save name is blank or invalid -> block save and keep focus in the text box.
+  - `BR-SAVE-03-INVALID-NAME`: Save name is blank, reserved, or path-like -> show inline validation, block save, and keep focus in the text box without calling `SavedGamesStore`.
 - **Postconditions**: The selected game has a new or replaced internal save entry in its game folder, and the same canonical payload is available for later internal load.
 - **Implementation Touchpoints**:
   - `UiStateStore.showModal`
@@ -1038,13 +1039,13 @@ Each scenario in this document uses the same structure:
   1. User chooses import action.
   2. App opens a normal OS file picker.
   3. User selects a file.
-  4. `SavedGamesStore` resolves the selected external file path, reads the raw document, checks its schema version and deserialises the payload inside the saved-game boundary, and presentation then passes that payload into `GamesStore.insertGame(...)`.
-  5. App restores the saved game workspace state immediately, including current position/history node, clock state, and result state.
-  6. Game is loaded into store and opened.
-  7. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
+  4. `SavedGamesStore` resolves the selected external file path, reads the raw document, checks its schema version and deserialises the payload inside the saved-game boundary.
+  5. `SavedGamesStore` replaces the imported metadata ID with a fresh app-generated game ID before returning it to presentation, so external metadata cannot become a managed save-folder name.
+  6. App restores the saved game workspace state immediately, including current position/history node, clock state, and result state.
+  7. Game is loaded into store and opened.
+  8. If engines are available for the restored context, app resumes live analysis for the restored position after the game state is restored.
 - **Branch Paths**:
   - `BR-IMPORT-01-CANCEL`: User cancels the OS file picker -> no import occurs.
-  - `BR-IMPORT-01-DUPLICATE-ID`: Imported game ID collides -> remap ID before insert.
   - `BR-IMPORT-01-SCHEMA-VERSION`: Unsupported schema version detected -> reject the imported game without inserting a partial workspace.
 - **Postconditions**: Imported game is available and routable, the user first sees the restored game state from the selected file, and live analysis resumes afterwards when engines are available.
 - **Implementation Touchpoints**:

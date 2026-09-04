@@ -138,6 +138,12 @@ Only after that game state is restored may live analysis resume.
 - Platform adapters may emulate the folder structure differently when the host does not expose normal directories, but the contract remains folder-based.
 - The managed save root remains user-configurable. It is not moved into build config.
 
+## Managed Save Input Ownership
+- `SavedGamesView` owns validation of a user-entered managed save name before it calls `SavedGamesStore`. Invalid input keeps the `Save` action disabled, remains editable with inline feedback, and never reaches the store.
+- An accepted save name is one non-reserved file-name segment, not a path. Blank names, `auto`, `.`, `..`, rooted-path syntax, and directory separators are invalid.
+- Managed game-folder identifiers do not come from editable text. New games use an app-generated identity, managed loads use the identity of the enumerated save group, and external imports receive a fresh app-generated identity before insertion or any later managed save.
+- `SavedGamesStore` and `SavedGameIndexService` consume these already-owned values and do not repeat presentation form validation. External file paths remain separately owned by the OS picker flow.
+
 ## Analysis Persistence Rule
 The baseline contract persists saved analysis snapshots directly inside the saved game payload.
 
@@ -191,8 +197,8 @@ The app must isolate bad payloads instead of failing the whole launch or import 
 
 ## Duplicate Game ID Handling
 - Internal autosave restore trusts the persisted ID.
-- File-backed load and external import must detect collisions with existing in-app game IDs.
-- On collision, the loaded game receives a new ID before insertion.
+- A managed file-backed load takes its identity from the selected enumerated save group and remaps it only when that identity collides with an open game.
+- An external import always receives a fresh app-generated ID before insertion, so imported metadata never becomes a managed path segment.
 - The loaded payload otherwise preserves its content and game-state snapshot.
 
 ## Baseline File Format Scope

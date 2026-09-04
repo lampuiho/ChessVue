@@ -74,21 +74,19 @@ The following existing TODOs remain intentionally deferred until UI implementati
 - **Problem:** Principal-variation moves are expanded without validating every move against the evolving position. A malformed or illegal UCI analysis line can reach the analysis panel, be trusted by move handling, or throw through the engine session and terminate it.
 - **Required outcome:** Treat engine output as untrusted: discard an invalid message, retain the last valid analysis result, and keep the session alive.
 
-### PREUI-09 — Player-engine failures retry outside the state transition gate
+### PREUI-09 — Player-engine retry is a symptom of incomplete turn cancellation
 
-- **Severity:** High
-- **Finding status:** Confirmed
+- **Severity:** Not applicable
+- **Finding status:** Closed
 - **Affected implementation:** [GamePlayerTurnComposable.ts](../src/state/game/GamePlayerTurnComposable.ts)
-- **Problem:** An unexpected player-engine failure schedules an automatic timer retry. That timer can outlive the state that authorised it and request a stale turn. It also conflicts with the designed paused/unavailable state and explicit retry interaction.
-- **Required outcome:** Route failures through a guarded state transition, stop automatic timer retries, expose the failure to the UI, and allow an explicit retry only when the turn is still eligible.
+- **Closure reasoning:** The detached retry timer is not a separate engine-recovery concern. It is one consequence of player-turn work escaping the lifetime of the turn that authorised it. PREUI-13 owns that invariant: invalidating a turn must cancel and join its work, failed work must settle without creating a detached continuation, and any later turn request must enter through the normal guarded request path. Removing the automatic timer and covering the failure path therefore belong to PREUI-13 rather than a separate reactionary fix.
 
-### PREUI-10 — Managed save identifiers can escape the save root
+### PREUI-10 — Managed save input validation ownership was unspecified
 
-- **Severity:** High
-- **Finding status:** Confirmed
-- **Affected implementation:** [SavedGameIndexService.ts](../src/domain/SavedGameIndexService.ts), [SavedGamesStore.ts](../src/state/SavedGamesStore.ts)
-- **Problem:** Raw game IDs and save names are concatenated into managed paths. Imported metadata and caller-provided names can contain traversal segments, while store writes do not consistently apply the save-options schema. A crafted import followed by autosave could write outside the managed save root.
-- **Required outcome:** Validate every managed path segment and save option before filesystem access, resolve the final path, and reject any target outside the configured root.
+- **Severity:** Not applicable
+- **Finding status:** Closed
+- **Affected design:** [persistence_contract.md](HighLevel/persistence_contract.md), [scenarios.md](HighLevel/scenarios.md), [SavedGames.md](LowLevel/Architecture/Presentation/Views/SavedGames.md)
+- **Closure reasoning:** Managed save-name validation belongs to the presentation form and must complete before `SavedGamesStore` is called; repeating the same validation in the store or path service would create two authorities. Managed folder IDs are not editable input: new games receive app-generated IDs, managed loads use enumerated group identities, and external imports receive a fresh app-generated ID before they can enter a later managed-save flow. The design now records these ownership rules explicitly.
 
 ### PREUI-11 — Restoring multiple games is all-or-nothing
 
@@ -106,13 +104,13 @@ The following existing TODOs remain intentionally deferred until UI implementati
 - **Problem:** Adding an analysis engine starts analysis immediately even when the game is in BoardEdit. Refresh and retry paths contain a guard, but initial assignment does not.
 - **Required outcome:** The assignment may be retained, but its runtime must not start until BoardEdit ends and the game is eligible for analysis.
 
-### PREUI-13 — A resolving player turn can cross a terminal transition
+### PREUI-13 — Player-turn work can outlive the turn that authorised it
 
 - **Severity:** High
 - **Finding status:** Confirmed
 - **Affected implementation:** [GameStatusComposable.ts](../src/state/game/GameStatusComposable.ts), [GamePlayerTurnComposable.ts](../src/state/game/GamePlayerTurnComposable.ts), [GameClockComposable.ts](../src/state/game/GameClockComposable.ts)
-- **Problem:** Resignation, accepted draw, and timeout signal player-turn cancellation without joining it. If a local or engine move has already resolved, the shared handler can still commit it after the terminal state is recorded and overwrite that result.
-- **Required outcome:** Await terminal-command cancellation where the caller does not own the active handler, and recheck live-turn eligibility immediately before every resolved player move commits. A terminal transition must leave no path for an accepted move to mutate live state.
+- **Problem:** Resignation, accepted draw, and timeout signal player-turn cancellation without joining it, while engine failure creates a detached retry outside the current turn lifetime. If a local or engine move has already resolved, the shared handler can still commit it after the turn becomes invalid and overwrite later state.
+- **Required outcome:** Treat all asynchronous player-turn work as owned by the turn that authorised it. Every path that invalidates that turn must close it through the same settlement boundary: external transitions cancel and join it, while its owning handler settles itself. Failure must not schedule a detached retry, and live-turn eligibility must be rechecked immediately before every resolved player move commits. Any subsequent request must enter through the normal guarded request path.
 
 ## Plan for Fixing the Findings
 
@@ -150,9 +148,10 @@ Store assertions used by this pre-UI work are temporary diagnostics for exposing
    - Separate position-derived analysis state from the recorded game result.
    - Prevent analysis navigation or moves from mutating a terminal result.
    - Apply ongoing-game, live-path, and mode guards consistently to resign and draw commands.
-5. **PREUI-13: terminal player-turn race**
-   - Await cancellation from resignation and accepted-draw commands.
-   - Recheck live-turn eligibility at the resolved player-move commit boundary so late local or engine output is discarded after any terminal transition.
+5. **PREUI-13: player-turn lifetime**
+   - Close the active turn through one settlement boundary whenever it becomes invalid; external transitions such as resignation, accepted draw, and timeout cancel and join the existing owner.
+   - Settle failed player-turn work without a detached retry; any later request must pass through the normal current-state gate.
+   - Recheck live-turn eligibility at the resolved player-move commit boundary so late local or engine output is discarded after the authorising turn ends.
 
 **Phase exit:** Tree, path, clock, player, and result state remain mutually consistent across live play, history browsing, takeback, analysis, reassignment, and terminal games.
 
@@ -166,30 +165,21 @@ Store assertions used by this pre-UI work are temporary diagnostics for exposing
    - Validate each principal-variation move against the evolving legal position.
    - Contain parse and legality failures at the individual message boundary.
    - Preserve the last valid result and continue the engine session after a discarded message.
-3. **PREUI-09: explicit engine-failure recovery**
-   - Remove timer-based automatic retries.
-   - Stop the failed runtime and transition the seat/game to the designed unavailable or paused state.
-   - Store a UI-readable failure and expose a guarded manual retry command.
-4. **PREUI-12: BoardEdit analysis gate**
+3. **PREUI-12: BoardEdit analysis gate**
    - Use one eligibility predicate for add, refresh, retry, restore, and mode-change paths.
    - Retain configuration during BoardEdit without starting a process.
    - Start once, if still eligible, after leaving BoardEdit.
 
-**Phase exit:** Engine processes start, stop, fail, recover, and restore only through current guarded state transitions, and malformed output cannot destabilise a session.
+**Phase exit:** Engine processes start, stop, fail, and restore only through current guarded state transitions, and malformed output cannot destabilise a session.
 
-### Phase 4 — Harden persistence and partial recovery
+### Phase 4 — Isolate persistence recovery
 
-1. **PREUI-10: managed-path containment**
-   - Apply the save-options schema at every public store entry point.
-   - Reject separators, traversal segments, rooted paths, and invalid managed identifiers.
-   - Resolve and verify the final path remains under the managed save root before reading or writing.
-   - Preserve the existing explicit external-file import boundary separately from managed saves.
-2. **PREUI-11: isolated restoration**
+1. **PREUI-11: isolated restoration**
    - Restore each requested game independently.
    - Return structured success and failure outcomes to support UI reporting.
    - Insert valid games even when another target is absent or corrupt.
 
-**Phase exit:** Managed persistence is path-safe, and one damaged save cannot prevent other games from returning to the workspace.
+**Phase exit:** One damaged save cannot prevent other games from returning to the workspace.
 
 ### Verification and completion gate
 
@@ -202,16 +192,14 @@ The following design-derived scenarios are the minimum regression set. A finding
 5. A move arriving after clock expiry but before a UI update produces a timeout with no move or increment. Covers **PREUI-06**.
 6. Navigating and analysing after resignation, agreed draw, and checkmate leaves all terminal result fields unchanged. Covers **PREUI-07**.
 7. Malformed and illegal UCI analysis lines are ignored while the session and last valid result remain available. Covers **PREUI-08**.
-8. Unexpected player-engine exit pauses or marks the seat unavailable, exposes a failure, and never automatically retries. Covers **PREUI-09**.
-9. Traversal IDs and save names are rejected before any filesystem operation. Covers **PREUI-10**.
-10. An analysis-engine assignment made during BoardEdit is retained without starting a runtime, then starts once after a valid mode exit. Covers **PREUI-12**.
-11. A local or engine move resolving concurrently with resignation, accepted draw, or timeout never commits after the terminal result and its player-turn work settles without an unhandled rejection. Covers **PREUI-13**.
+8. An analysis-engine assignment made during BoardEdit is retained without starting a runtime, then starts once after a valid mode exit. Covers **PREUI-12**.
+9. A local or engine move resolving concurrently with resignation, accepted draw, or timeout never commits after the terminal result; an unexpected player-engine failure settles the same turn without an unhandled rejection or automatic retry. Covers **PREUI-13**.
 
 After the focused tests pass, run the complete unit suite, the application build, and the platform TypeScript check. Review the final diff for accidental changes to the intentionally deferred UI-dependent TODOs.
 
 ## Status Board
 
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 Status values:
 
@@ -229,10 +217,10 @@ Status values:
 | PREUI-06 | Timeout reconciliation at move boundary | High | Closed | Implemented | Passing | Atomic live-move guard settles timeout before move or increment |
 | PREUI-07 | Terminal-result protection | High | Closed | Implemented | Passing | Analysis cannot record results; result commands require the rendered live position of an ongoing game |
 | PREUI-08 | Malformed UCI analysis isolation | High | Closed | Implemented | Passing | Runtime validates the evolving PV; the client discards rejected messages without replacing valid output or failing the session |
-| PREUI-09 | Guarded player-engine failure recovery | High | Confirmed | Not started | Missing | No timer-based retry |
-| PREUI-10 | Managed-save path containment | High | Confirmed | Not started | Missing | Validate before filesystem access |
+| PREUI-09 | Detached player-engine retry | Not applicable | Closed | Not applicable | Not applicable | Duplicate symptom covered by the PREUI-13 player-turn lifetime fix |
+| PREUI-10 | Managed-save validation ownership | Not applicable | Closed | Not applicable | Not applicable | Presentation validates once; managed IDs are app-owned rather than editable input |
 | PREUI-11 | Partial restore isolation | Medium | Confirmed | Not started | Missing | Return per-target outcomes |
 | PREUI-12 | BoardEdit analysis start guard | Medium | Confirmed | Not started | Missing | Share eligibility predicate across entry points |
-| PREUI-13 | Terminal player-turn cancellation | High | Confirmed | Not started | Missing | Join terminal-command cancellation and gate the final player-move commit |
+| PREUI-13 | Player-turn lifetime cancellation | High | Confirmed | Not started | Missing | Join invalidating transitions, remove detached retry, and gate the final player-move commit |
 
 Pre-UI completion requires every row to have `Finding: Closed`; confirmed findings must also have `Fix: Implemented` and `Test: Passing`, while findings closed without a required fix may use `Not applicable`.

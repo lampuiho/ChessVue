@@ -12,6 +12,7 @@ Render the route-level ChessVue saved-games surface for internal save and load f
 - render the top-level `Save` and `Load` route tabs
 - render the grouped game list for `/saved-games/load`
 - render the selected game's save-list screen for `/saved-games/save/:name` and `/saved-games/load/:name`
+- validate the managed save-name field and emit a save request only for an accepted single file-name segment
 - forward click selection, double-click latest-load requests, save requests, delete requests, import requests, export requests, and picker requests to `SavedGamesStore`
 - forward loaded saved-game payloads into `GamesStore.insertGame(...)` once `SavedGamesStore` has completed the document read
 - keep all business rules such as latest-save choice, save grouping, overwrite handling, document serialisation, and payload loading out of the view layer
@@ -22,3 +23,4 @@ Render the route-level ChessVue saved-games surface for internal save and load f
 - Double-clicking a game on `/saved-games/load` resolves that game's latest save and loads it immediately.
 - `/saved-games/load/:name` replaces the `Select` action with `Load`.
 - `/saved-games/save/:name` keeps the save-name text box focused on open and uses `Cancel` plus `Save`.
+- The `Save` action is disabled with inline feedback while the name is blank, reserved, or path-like. The store receives only an accepted value and does not repeat this form validation.

@@ -27,6 +27,7 @@ importGame(): Promise<IGame | undefined>
 - delete the selected managed save target from the route-level save/load UI once the user confirms the action
 - handle route-driven load behaviour, including selected-game navigation and double-click latest-save path resolution
 - open external import and export dialogs and complete the associated read or write flow
+- replace an external import's metadata ID with a fresh app-generated game ID before returning the payload to presentation, so imported metadata is never reused as a managed folder name
 - register and tear down close-trigger autosave callbacks through the layer-2 platform-event boundary when presentation decides the current UI context should autosave on app close
 - support UI-owned persistence timing such as save-after-move by exposing one canonical `saveGame(...)` boundary for active `IGame` payloads
 - enumerate managed-save directory contents through `SerializationService` before projecting them through `SavedGameIndexService`
@@ -56,6 +57,7 @@ importGame(): Promise<IGame | undefined>
 - `SavedGamesStore` consumes only layer-2 persistence, settings, and platform-event services. It does not resolve `StorageAdapter` directly.
 - `SavedGamesStore` does not call sibling stores directly. Presentation sequences any later `GamesStore.insertGame(...)`, tab or session update, or runtime restart after the saved-game operation completes.
 - Save-folder grouping belongs to `SavedGameIndexService`, not to `SavedGamesStore` and not to `StorageAdapter`.
+- User-entered managed save names are validated by `SavedGamesView` before `saveGame(...)` is called. `SavedGamesStore` consumes that accepted form value without repeating presentation validation.
 - Saved-game directory enumeration, saved-document reads and writes, and import/export picker access belong to `SerializationService`, not to `GamesStore` and not to `StorageAdapter`.
 - `saveGame(...)`, `loadGame(...)`, `loadRecentGame(...)`, and `restoreGames(...)` all return or consume canonical persisted `IGame` payloads without runtime-only hydration. `GamesStore.insertGame(...)` remains the boundary that turns those payloads into active runtime workspaces.
 - `deleteSave(...)` removes only the selected managed save target. It does not mutate the currently open in-memory workspace collection directly.
