@@ -48,6 +48,24 @@ function _clearAnalysisState(runtimeState: IAssignedEngineRuntime): void {
   runtimeState.analysisCallback = undefined;
   runtimeState.analysisLines.clear();
 }
+function _isMoveSequenceLegal(position: IBoardPosition, moves: readonly IMove[]): boolean {
+  const currentPosition = MoveApplicationService.genPosition(position, []);
+  for (const move of moves) {
+    if (!isMoveLegal(currentPosition, move)) return false;
+    MoveApplicationService.applyMove(currentPosition, move);
+  }
+  return true;
+}
+function _isAnalysisUpdateLegal(update: IEngineAnalysisUpdate): boolean {
+  const position = update.position as IBoardPosition;
+  if (update.bestMove && !isMoveLegal(position, update.bestMove)) return false;
+  return update.lines.every((line) => _isMoveSequenceLegal(position, line.pv as readonly IMove[]));
+}
+function _acceptAnalysisUpdate(runtimeState: IAssignedEngineRuntime, update: IEngineAnalysisUpdate): boolean {
+  if (!_isAnalysisUpdateLegal(update)) return false;
+  runtimeState.analysisCallback?.(update);
+  return true;
+}
 function _isInvalidProcessHandleError(error: unknown): boolean {
   return isPlatformError(error) && error.kind === PlatformErrorKind.InvalidProcessHandle;
 }
@@ -135,7 +153,8 @@ export const EngineRuntimeService = {
   async startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void> {
     const runtimeState = _assertBaseRuntime(engine);
     const engineClient = _getEngineClient(engine);
-    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startAnalysis(engine, game, request, runtimeState.analysisCallback ?? (() => {})));
+    const onUpdate = (update: IEngineAnalysisUpdate) => _acceptAnalysisUpdate(runtimeState, update);
+    await _runInitialisedEngineOperation(engine, EngineAvailability.Running, () => engineClient.startAnalysis(engine, game, request, onUpdate));
   },
   /** May mutate engine.$ by updating runtime availability when the process handle is stale or the stop fails. */
   async stopAnalysis(engine: IAssignedEngine): Promise<void> {

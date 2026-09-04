@@ -46,7 +46,8 @@ The temporary engine is never stored by `EnginesStore` or attached to a game. `E
 | `EngineRuntimeService.startAnalysis` |
 | --- |
 | assert base runtime and live process |
-| `EngineClient.startAnalysis(engine, game, request, analysisCallback)` |
+| create a callback that validates every analysis move against its evolving position |
+| `EngineClient.startAnalysis(engine, game, request, guardedAnalysisCallback)` |
 | set runtime availability to `Running` |
 
 | `EngineClient.startAnalysis` |
@@ -61,10 +62,11 @@ The temporary engine is never stored by `EnginesStore` or attached to a game. `E
 | `EngineClient._consumeLine` while `Analysing` |
 | --- |
 | parse `info` into `IAnalysisLine` |
-| store the line by `IAnalysisLine.$.reference` |
-| invoke `engine.$.analysisCallback` with a protocol-neutral update |
+| stage the line by `IAnalysisLine.$.reference` |
+| invoke the guarded runtime callback with a protocol-neutral update |
+| retain the staged line only when the runtime accepts every move, otherwise restore the previous line |
 
-`bestmove` completes the analysis search, emits a final update, and returns the session to `Ready`. Unrecognised ancillary output is ignored. A recognised control response that is invalid in the current state fails the session rather than being consumed by an unrelated parser.
+The runtime callback forwards accepted updates to `engine.$.analysisCallback`; rejected updates never cross into game state. `bestmove` completes the analysis search, emits a guarded final update, and returns the session to `Ready`. Unrecognised ancillary output is ignored. A recognised control response that is invalid in the current state fails the session rather than being consumed by an unrelated parser.
 
 ### Stop Analysis
 | `GamesStore.stopAnalysis` |

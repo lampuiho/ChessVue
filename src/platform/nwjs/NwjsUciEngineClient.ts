@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 
 import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineOptionMeta, type IGame, type IMove, type IPlatformError } from '@/contracts';
-import type { IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
+import type { EngineAnalysisUpdateHandler, IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
 import { buildPositionKey } from '@/utility/chess';
 import { genDetailedMoves } from '@/utility/chess/GameRuleUtility';
@@ -42,6 +42,7 @@ interface IUciReadySessionContext {
 interface IUciAnalysingSessionContext {
   state: UciSessionState.Analysing;
   position: IBoardPosition;
+  onUpdate: EngineAnalysisUpdateHandler;
 }
 interface IUciFindingMoveSessionContext {
   state: UciSessionState.FindingMove;
@@ -130,18 +131,17 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       await stopEngine(engine);
       await initialiseEngine(engine);
     }
-    async function startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void> {
+    async function startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest, onUpdate: EngineAnalysisUpdateHandler): Promise<void> {
       if (request.searchMode !== EngineAnalysisSearchMode.Infinite) throw new Error(`Unsupported engine search mode: ${request.searchMode}.`);
       const session = _requireInitialisedSession(engine);
       if (session.current.state === UciSessionState.Analysing) await _stopSearch(engine, session);
       _requireState(session, UciSessionState.Ready, 'start analysis');
       await _prepareGameBoundaryIfNewGame(engine, session, game);
       const runtimeState = _requireRuntimeState(engine);
-      runtimeState.analysisCallback = onUpdate;
       runtimeState.analysisLines.clear();
       const position = _requireRenderedPosition(game);
       await _writeCommand(_requireProcessHandle(engine), buildSetOptionCommand('MultiPV', request.multiPv));
-      session.current = { state: UciSessionState.Analysing, position };
+      session.current = { state: UciSessionState.Analysing, position, onUpdate };
       await _writeSearchCommands(engine, session, buildAnalysisCommands(game));
     }
     async function startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void> {
@@ -286,7 +286,7 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
       const bestMove = _parseDetailedBestMove(context.position, line);
       if (!bestMove) throw new Error(`Expected UCI bestmove while analysing: ${line}.`);
       session.current = { state: UciSessionState.Ready };
-      _requireRuntimeState(engine).analysisCallback?.(_buildAnalysisUpdate(context.position, _requireRuntimeState(engine).analysisLines, true, bestMove));
+      context.onUpdate(_buildAnalysisUpdate(context.position, _requireRuntimeState(engine).analysisLines, true, bestMove));
     }
     function _completePlayerMove(session: IUciSession, context: IUciFindingMoveSessionContext, line: string): void {
       const move = _parseDetailedBestMove(context.position, line);
@@ -296,13 +296,22 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     }
     function _consumeAnalysingLine(engine: IAssignedEngine, session: IUciSession, context: IUciAnalysingSessionContext, line: string): void {
       if (line.startsWith('info ')) {
-        const analysisLine = _parseDetailedAnalysisLine(context.position, line);
+        let analysisLine: IAnalysisLine | undefined;
+        try {
+          analysisLine = _parseDetailedAnalysisLine(context.position, line);
+        } catch {
+          return;
+        }
         if (!analysisLine) return;
         const reference = analysisLine.$?.reference;
         if (reference === undefined) throw new Error('Parsed analysis line is missing its runtime reference.');
         const runtimeState = _requireRuntimeState(engine);
+        const previousLine = runtimeState.analysisLines.get(reference);
         runtimeState.analysisLines.set(reference, analysisLine);
-        runtimeState.analysisCallback?.(_buildAnalysisUpdate(context.position, runtimeState.analysisLines, false));
+        if (context.onUpdate(_buildAnalysisUpdate(context.position, runtimeState.analysisLines, false)) === false) {
+          if (previousLine) runtimeState.analysisLines.set(reference, previousLine);
+          else runtimeState.analysisLines.delete(reference);
+        }
         return;
       }
       if (line.startsWith('bestmove ')) {

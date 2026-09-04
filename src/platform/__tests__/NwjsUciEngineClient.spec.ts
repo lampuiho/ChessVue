@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, MoveKind, PieceKind, PlatformErrorKind, PlayerColour, type IGame, type IMove } from '@/contracts';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
@@ -61,7 +61,7 @@ describe('NwjsUciEngineClient', () => {
     ]);
     // captured before appendLiveMove advances the same object in place
     const analysedPositionKey = PositionIdentityService.buildPositionKey(game.$!.renderedPosition!);
-    await client.startAnalysis(engine, game, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, (update) => updates.push(update));
+    await client.startAnalysis(engine, game, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, (update) => { updates.push(update); });
     process.queueResponse('stop', ['bestmove e7e5']);
     await client.stopAnalysis(engine);
 
@@ -106,6 +106,36 @@ describe('NwjsUciEngineClient', () => {
     expect(firstMove.$?.ponderMove?.$?.uci).toBe('g1f3');
     expect(ponderHitMove.$?.uci).toBe('b8c6');
     expect(ponderMissMove.$?.uci).toBe('g8f6');
+  });
+  it('discards malformed and runtime-rejected analysis messages without replacing valid output or failing the session', async () => {
+    const platform = getPlatformService();
+    const manager = platform.getProcessManager();
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    const game = createEngineGame();
+    const updates: IEngineAnalysisUpdate[] = [];
+    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    await client.initialiseEngine(engine);
+    const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, (update) => updates.push(update));
+    const process = getEnvironment().latestProcess();
+    process.queueResponse('go infinite', [
+      'info depth 14 multipv 1 score cp 34 pv e7e5 g1f3',
+      'info depth 15 multipv 1 score cp 40 pv e7e9',
+      'info depth 16 multipv 1 score cp 45 pv e7e5 g1g3',
+      'info depth 17 multipv 2 score cp 38 pv c7c5 g1f3',
+    ]);
+
+    await EngineRuntimeService.startAnalysis(engine, game, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite });
+    await vi.waitFor(() => expect(updates).toHaveLength(2));
+    process.queueResponse('stop', ['bestmove e7e5']);
+    await EngineRuntimeService.stopAnalysis(engine);
+    unsubscribe();
+
+    expect(updates.map((update) => update.lines.map((line) => line.depth))).toEqual([[14], [14, 17]]);
+    expect(updates[1]!.lines[0]!.pv.map((move) => move.$?.uci)).toEqual(['e7e5', 'g1f3']);
+    expect(updates[1]!.lines[1]!.pv.map((move) => move.$?.uci)).toEqual(['c7c5', 'g1f3']);
+    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+    expect(engine.$?.lastError).toBeUndefined();
   });
   it('rebuilds a missed ponder search from the current game after stop completes', async () => {
     const platform = getPlatformService();

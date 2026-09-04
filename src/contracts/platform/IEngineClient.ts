@@ -1,4 +1,4 @@
-import type { IAssignedEngine, IEngineAnalysisRequest, IEngineAnalysisUpdate, IEngineOptionMeta } from '../Engine';
+import type { EngineAnalysisUpdateHandler, IAssignedEngine, IEngineAnalysisRequest, IEngineOptionMeta } from '../Engine';
 import type { IGame } from '../Game';
 import type { IMove } from '../Move';
 
@@ -7,8 +7,8 @@ export interface IEngineClient {
   getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[];
   /** Mutates engine.$ by attaching or updating the platform runtime session and marking it initialised. */
   initialiseEngine(engine: IAssignedEngine): Promise<void>;
-  /** Requires engine.$ to already hold an initialised session, then replaces the active analysis callback and clears cached analysis lines. */
-  startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void>;
+  /** Requires engine.$ to already hold an initialised session, then captures the guarded analysis callback and clears cached analysis lines. False rejects an update. */
+  startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest, onUpdate: EngineAnalysisUpdateHandler): Promise<void>;
   stopAnalysis(engine: IAssignedEngine): Promise<void>;
   /** Requires engine.$ to already hold an initialised session, then creates a new pending player-move state. */
   startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void>;

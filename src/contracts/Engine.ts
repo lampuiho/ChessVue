@@ -78,6 +78,7 @@ export interface IEngineAnalysisUpdate {
   readonly lines: readonly DeepReadonly<IAnalysisLine>[]
   readonly isFinal: boolean
 }
+export type EngineAnalysisUpdateHandler = (update: IEngineAnalysisUpdate) => boolean | void;
 export const engineProtocolSchema = z.enum(engineProtocols)
 export const engineClientTypeSchema = z.enum(engineClientTypes)
 export const engineAvailabilitySchema = z.enum(engineAvailabilities)

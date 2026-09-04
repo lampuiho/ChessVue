@@ -21,7 +21,7 @@ restartEngine(engine: IAssignedEngine): Promise<void>
 - talk to the engine through its own engine-communication boundary so upper layers never build or parse raw protocol strings
 - translate ChessVue board and move structures into engine-facing protocol payloads internally
 - translate engine output into app-meaningful analysis updates and awaited player moves before anything crosses the layer boundary
-- return decoded player-search moves to the common `EngineRuntimeService.awaitPlayerTurnMove` guard without duplicating application legality checks
+- return decoded player-search moves and analysis updates to the common `EngineRuntimeService` guards without duplicating application legality checks
 - isolate protocol-specific handshakes, move encoding, principal-variation parsing, and new-game-boundary rules from the rest of the architecture
 - keep each per-engine protocol conversation deterministic through explicit session states that define which output is currently valid
 - own client-private runtime state for the concrete engine conversation, including session initialisation, process-listener attachment, and a discriminated state context containing only the data valid for that protocol state
@@ -34,7 +34,7 @@ restartEngine(engine: IAssignedEngine): Promise<void>
 - The baseline implementation targets `UCI`, but callers never compose or parse UCI strings directly.
 - The current NW.js concrete implementation is `NwjsUciEngineClient` for `EngineClientType.Uci`.
 - If another protocol is ever introduced later, the protocol switch belongs inside `EngineClient`, not in `EngineRuntimeService`, stores, or views.
-- `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires, then returns protocol-neutral moves to the common `EngineRuntimeService.awaitPlayerTurnMove(...)` legality guard. **Why:** duplicating chess acceptance in each protocol client would allow implementations to disagree, while exposing raw output above this layer would leak UCI parsing and state into domain/state code. A new protocol may change syntax but must preserve this boundary.
+- `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires, then returns protocol-neutral player and analysis moves to the common `EngineRuntimeService` legality guards. For streamed analysis, a `false` callback result rejects the staged update so the client can retain its prior accepted lines. **Why:** duplicating chess acceptance in each protocol client would allow implementations to disagree, while exposing raw output above this layer would leak UCI parsing and state into domain/state code. A new protocol may change syntax but must preserve this boundary.
 - `EngineClient` acts on the in-game `IAssignedEngine` object and any runtime process handle already bound under `engine.$` by `EngineRuntimeService`.
 - Concrete clients may narrow `IAssignedEngine` to protocol-specific subtypes and refine `engine.$` with richer client-private runtime state.
 - That client-private refinement may include a protocol session object whose discriminated context owns the current search position, expected ponder move, handshake or stop completion, or pending player move only while its corresponding state is active.

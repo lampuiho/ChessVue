@@ -1,5 +1,5 @@
 export { EngineClientType } from '../Engine';
-export type { IEngineAnalysisUpdate, ProcessHandle } from '../Engine';
+export type { EngineAnalysisUpdateHandler, IEngineAnalysisUpdate, ProcessHandle } from '../Engine';
 export * from './IEngineClient';
 export * from './IFileSystemEntry';
 export * from './IPlatformEventRegistration';

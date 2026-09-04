@@ -69,8 +69,8 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-08 — Malformed UCI analysis can corrupt move input or terminate the session
 
 - **Severity:** High
-- **Finding status:** Confirmed
-- **Affected implementation:** [NwjsUciEngineClient.ts](../src/platform/nwjs/NwjsUciEngineClient.ts), [GameRuleUtility.ts](../src/utility/chess/GameRuleUtility.ts)
+- **Finding status:** Closed
+- **Affected implementation:** [NwjsUciEngineClient.ts](../src/platform/nwjs/NwjsUciEngineClient.ts), [EngineRuntimeService.ts](../src/domain/EngineRuntimeService.ts)
 - **Problem:** Principal-variation moves are expanded without validating every move against the evolving position. A malformed or illegal UCI analysis line can reach the analysis panel, be trusted by move handling, or throw through the engine session and terminate it.
 - **Required outcome:** Treat engine output as untrusted: discard an invalid message, retain the last valid analysis result, and keep the session alive.
 
@@ -228,7 +228,7 @@ Status values:
 | PREUI-05 | History and clock consistency | High | Closed | Implemented | Passing | Retains previously played variations on history rewrite without disabling latest-node analysis pruning; guards takeback and restores historical clocks |
 | PREUI-06 | Timeout reconciliation at move boundary | High | Closed | Implemented | Passing | Atomic live-move guard settles timeout before move or increment |
 | PREUI-07 | Terminal-result protection | High | Closed | Implemented | Passing | Analysis cannot record results; result commands require the rendered live position of an ongoing game |
-| PREUI-08 | Malformed UCI analysis isolation | High | Confirmed | Not started | Missing | Preserve last valid result and session |
+| PREUI-08 | Malformed UCI analysis isolation | High | Closed | Implemented | Passing | Runtime validates the evolving PV; the client discards rejected messages without replacing valid output or failing the session |
 | PREUI-09 | Guarded player-engine failure recovery | High | Confirmed | Not started | Missing | No timer-based retry |
 | PREUI-10 | Managed-save path containment | High | Confirmed | Not started | Missing | Validate before filesystem access |
 | PREUI-11 | Partial restore isolation | Medium | Confirmed | Not started | Missing | Return per-target outcomes |

@@ -13,6 +13,7 @@ import {
   type IAssignedEngine,
   type IBoardPosition,
   type IEngineAnalysisRequest,
+  type IEngineAnalysisUpdate,
   type IEngineRecord,
   type IGame,
   type IMove,
@@ -180,9 +181,10 @@ describe('EngineRuntimeService', () => {
     expect(stopProcess).toHaveBeenCalledWith('process-1');
   });
 
-  it('starts analysis with the subscribed callback from the mocked engine client', async () => {
+  it('guards analysis moves before forwarding updates from the mocked engine client', async () => {
     const engine = createAssignedEngine();
-    const game = {} as IGame;
+    const position = createInitialBoardPosition();
+    const game = createGame(position);
     const onUpdate = vi.fn();
     const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, onUpdate);
     engine.$!.processHandle = 'process-1';
@@ -194,7 +196,16 @@ describe('EngineRuntimeService', () => {
     expect(startAnalysis.mock.calls[0]?.[0]).toBe(engine);
     expect(startAnalysis.mock.calls[0]?.[1]).toBe(game);
     expect(startAnalysis.mock.calls[0]?.[2]).toEqual(createAnalysisRequest());
-    expect(startAnalysis.mock.calls[0]?.[3]).toBe(onUpdate);
+    const guardedOnUpdate = startAnalysis.mock.calls[0]?.[3] as (update: IEngineAnalysisUpdate) => boolean;
+    const validUpdate: IEngineAnalysisUpdate = { position, positionKey: 'initial', lines: [{ depth: 1, pv: [createMove(), createPonderMove()] }], isFinal: false };
+    const illegalPvMove: IMove = { from: boardId(4, 3), to: boardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
+    const illegalBestMove: IMove = { ...createMove(), to: boardId(4, 4) };
+
+    expect(guardedOnUpdate(validUpdate)).toBe(true);
+    expect(guardedOnUpdate({ ...validUpdate, lines: [{ depth: 2, pv: [...validUpdate.lines[0]!.pv, illegalPvMove] }] })).toBe(false);
+    expect(guardedOnUpdate({ ...validUpdate, bestMove: illegalBestMove, isFinal: true })).toBe(false);
+    expect(onUpdate).toHaveBeenCalledOnce();
+    expect(onUpdate).toHaveBeenCalledWith(validUpdate);
     unsubscribe();
     expect(engine.$?.analysisCallback).toBeUndefined();
   });
