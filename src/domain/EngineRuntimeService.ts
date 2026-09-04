@@ -7,7 +7,7 @@ import { MoveApplicationService } from './MoveApplicationService';
 type IRuntimeAssignedEngine = IAssignedEngine & { $: IAssignedEngineRuntime };
 
 function _hasRuntimeState(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
-  return engine.$ !== undefined;
+  return !!engine.$;
 }
 function _getRuntimeState(engine: IAssignedEngine): IAssignedEngineRuntime | undefined {
   return engine.$;

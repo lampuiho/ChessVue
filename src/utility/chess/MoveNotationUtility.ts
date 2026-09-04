@@ -58,7 +58,7 @@ function getDisambiguation(move: IMove): string {
 function buildSan(move: IMove): string {
   const checkSuffix = move.checkState === CheckState.Checkmate ? '#' : move.checkState === CheckState.Check ? '+' : '';
   if (move.kind === MoveKind.Castle) return `${boardIdToCoords(move.to).file === 6 ? 'O-O' : 'O-O-O'}${checkSuffix}`;
-  const capture = move.capturePiece !== undefined;
+  const capture = move.capturePiece;
   const pawnCapturePrefix = move.movingPiece === PieceKind.Pawn && capture ? boardIdToNotation_(move.from)[0]! : '';
   const promotion = move.promotionPiece === undefined ? '' : `=${pieceSymbol(move.promotionPiece)}`;
   return `${pieceSymbol(move.movingPiece)}${pawnCapturePrefix}${getDisambiguation(move)}${capture ? 'x' : ''}${boardIdToNotation_(move.to)}${promotion}${checkSuffix}`;
@@ -74,21 +74,21 @@ export function getPieceLetter(kind: PieceKind): string {
 }
 /** Returns FEN through a read-through `position.$` cache so protocol consumers do not rebuild it repeatedly. */
 export function buildFen(position: IBoardPosition): string {
-  if (position.$?.fen !== undefined) return position.$.fen;
+  if (position.$?.fen) return position.$.fen;
   const fen = buildFenValue(position);
   (position.$ ??= {}).fen = fen;
   return fen;
 }
 /** Returns SAN through a read-through `move.$` cache shared by notation consumers. */
 export function getSan(move: IMove): string {
-  if (move.$?.san !== undefined) return move.$.san;
+  if (move.$?.san) return move.$.san;
   const san = buildSan(move);
   (move.$ ??= {}).san = san;
   return san;
 }
 /** Returns UCI notation through a read-through `move.$` cache shared by protocol consumers. */
 export function getUci(move: IMoveRaw): string {
-  if (move.$?.uci !== undefined) return move.$.uci;
+  if (move.$?.uci) return move.$.uci;
   const promotion = move.promotionPiece === PieceKind.Queen ? 'q' : move.promotionPiece === PieceKind.Rook ? 'r' : move.promotionPiece === PieceKind.Bishop ? 'b' : move.promotionPiece === PieceKind.Knight ? 'n' : '';
   const uci = `${boardIdToNotation_(move.from)}${boardIdToNotation_(move.to)}${promotion}`;
   (move.$ ??= {}).uci = uci;

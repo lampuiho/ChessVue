@@ -39,7 +39,7 @@ function _requireSchemaVersionOne(input: unknown, artefactName: string): Record<
   return input as Record<string, unknown>;
 }
 function _validateMoveNode(node: IMoveNode): void {
-  if (node.mainlineChildIndex !== undefined && (node.mainlineChildIndex < 0 || node.mainlineChildIndex >= node.children.length)) {
+  if (node.mainlineChildIndex != null && (node.mainlineChildIndex < 0 || node.mainlineChildIndex >= node.children.length)) {
     throw new SerializationError('Move tree mainline child index must reference an existing child.', node.mainlineChildIndex);
   }
   for (const child of node.children) _validateMoveNode(child);
@@ -48,7 +48,7 @@ function _getNodeAtPath(tree: IMoveTree, path: MovePath, selectorName: string): 
   let currentNode = tree.root;
   for (const childIndex of path) {
     const childNode = currentNode.children[childIndex];
-    if (childNode === undefined) throw new SerializationError(`${selectorName} must reference an existing move-tree node.`, path);
+    if (!childNode) throw new SerializationError(`${selectorName} must reference an existing move-tree node.`, path);
     currentNode = childNode;
   }
   return currentNode;
@@ -59,10 +59,10 @@ function _validateMoveTree(tree: IMoveTree): void {
 function _validateGame(game: IGame): void {
   _validateMoveTree(game.moveTree);
   _getNodeAtPath(game.moveTree, game.renderedPath, 'Saved game renderedPath');
-  if (game.livePath !== undefined) _getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
+  if (game.livePath) _getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
 }
 function _validateGameSession(snapshot: IGameSessionSnapshot): void {
-  if (snapshot.activeGameId !== undefined && !snapshot.openGameIds.includes(snapshot.activeGameId)) {
+  if (snapshot.activeGameId != null && !snapshot.openGameIds.includes(snapshot.activeGameId)) {
     throw new SerializationError('Active game id must be included in the open game id list.');
   }
 }

@@ -259,8 +259,8 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.getVisibleAnalysis` |
 
 - Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
-- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state, where `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` does not arm a live turn; returning to the live node restores the matching live or paused live state. Paused live and paused live-analysis states block history navigation until resume.
-- Requirement verification: `Pass`. Board, history, and analysis bind to the same visible node.
+- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state without pausing the live clock or current player turn. A player-engine result that completes while browsing advances the live selector while the rendered selector remains on the historical node. Returning to the live node restores the matching live state. Paused live and paused live-analysis states block history navigation until resume.
+- Requirement verification: `Pass`. Board, history, and analysis bind to the selected visible node while live play remains independent.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
 
@@ -277,13 +277,12 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameMoveComposable.commitHistoryRewriteMove` |
 | `GamePositionComposable.getRenderedNode/getRenderedPosition` |
 | `GamePositionComposable.setLivePath` with the rendered path, node, and position references |
-| restore the selected node clock snapshot |
-| `GameMoveComposable.commitLiveMove` |
+| restart the selected node clock snapshot from the current timestamp |
+| `GameMoveComposable.applyLiveMove` |
 | `GameClockComposable.applyMove` |
-| `MoveHistoryService.pruneFutureMoves` |
 | `MoveHistoryService.addMainlineMove` |
-| `GamePositionComposable.setLivePath` |
-| `GamePositionComposable.setRenderedPath` |
+| `GamePositionComposable.appendLivePath` |
+| `GameMoveComposable.finaliseLiveMove` |
 
 | `TimeControlService.applyMove` |
 | --- |
@@ -294,7 +293,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 
 - Per-game coverage: `game.gameplayOptions.allowTakeback = true` routes this flow into live mainline mutation.
-- Requirement verification: `Pass`. `commitHistoryRewriteMove(game, move)` obtains the rendered node and position itself, copies those references and `game.renderedPath` into the live selector before commit, restores the selected clock, and then prunes and replaces that selected parent's continuation. Rendered and live caches therefore share the position object mutated by the replacement move.
+- Requirement verification: `Pass`. `commitHistoryRewriteMove(game, move)` obtains the rendered node and position itself, cancels the old live turn, aliases `livePath` to `game.renderedPath`, restarts the historical clock snapshot, and directly invokes the shared application and finalisation steps before appending that shared selector once through `livePath`. It never calls `commitLiveMove` or its pruning action. Rendered and live caches share the position object mutated by the replacement move, while the old continuation remains attached as a sibling variation.
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
 
@@ -358,8 +357,9 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GameMoveComposable.commitLiveMove` |
 | `GameClockComposable.applyMove` |
-| `GameMoveComposable.commitLiveMove` |
-| `GamePositionComposable.setLivePath/setRenderedPath` |
+| `GameMoveComposable.applyLiveMove` |
+| `GamePositionComposable.appendLivePath` |
+| `GameMoveComposable.finaliseLiveMove` |
 
 | `MoveHistoryService.pruneFutureMoves` |
 | --- |
@@ -370,7 +370,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `SerializationService.writeGameDocument` |
 
 - UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. The pruning action is automatic and is triggered by the next real live move from the same latest node after in-game analysis exit.
-- Runtime selector coverage: `GamesStore` keeps `livePath` fixed throughout in-game analysis and runs the automatic pruning action through `MoveHistoryService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. Pruning mutates that node in the existing authoritative tree; the following move commit attaches its child and advances the selectors without replacing the tree.
+- Runtime selector coverage: `GamesStore` keeps `livePath` fixed throughout in-game analysis and runs the automatic pruning action through `MoveHistoryService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. Pruning mutates that node in the existing authoritative tree; the following move commit attaches its child and advances the selectors without replacing the tree. The separate history-rewrite flow retains old moves that were actually played.
 - Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but the automatic pruning action discards them once real play supersedes them.
 
 ## Time Control
@@ -525,9 +525,12 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.takeBack` |
 | --- |
 | `GameStatusComposable.assertNotPausedForAction` |
+| enforce `game.gameplayOptions.allowTakeback` for live games |
 | `GameMoveComposable.takeBack` |
+| `GamePositionComposable.getLiveNode` |
 | `GamePositionComposable.setRenderedPath` |
 | `GamePositionComposable.setLivePath` |
+| `GameClockComposable.startClock` from the retained node snapshot |
 | `GameClockComposable.refreshRuntimeRegistrations` |
 | `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
@@ -535,7 +538,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `MoveHistoryService.takeBack` |
 | --- |
 
-- Requirement verification: `Pass`. Takeback policy and clock recomputation remain inside one mutation boundary.
+- Requirement verification: `Pass`. Live-game takeback is policy-gated, rewinds from the authoritative live node to a live ancestor even while an analysis branch is rendered, and restarts that node's clock snapshot from the current timestamp.
 - State gate: paused live play and paused live-analysis block takeback through the same paused-state assertion boundary used by other game-surface mutations.
 
 ### SCN-CTRL-02 - Resign Game
@@ -666,7 +669,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameMoveComposable.exitInGameAnalysis` |
 | `GameMoveComposable.exitInGameAnalysis` |
 
-- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. For ongoing live games, analysis entry uses the matching `PausedLiveAnalysisFrom*` state so the analysis anchor and visible side-to-move remain explicit while the live clock is paused. Exiting the mode is prompt-free and restores the live node immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
+- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Entry installs an independent `renderedPath` even when analysis begins at the live node, and analysis moves advance only that rendered selection. For ongoing live games, analysis entry uses the matching `PausedLiveAnalysisFrom*` state so the analysis anchor and visible side-to-move remain explicit while the live clock is paused. Exiting the mode is prompt-free and restores the exact live path and position references immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
 - State gate: paused live play and paused live-analysis block analysis entry through the same paused-state assertion boundary used by the other paused gameplay actions.
 - Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
 

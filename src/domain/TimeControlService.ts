@@ -68,9 +68,7 @@ export const TimeControlService = {
   startClock(snapshot: IClockSnapshot, activeColour: PlayerColour, nowUtc: ClockTimestamp): IClockSnapshot {
     const nextSnapshot = cloneClockSnapshot(snapshot);
 
-    if (getClock(nextSnapshot, activeColour).remainingMs === undefined) {
-      return nextSnapshot;
-    }
+    if (getClock(nextSnapshot, activeColour).remainingMs == null) return nextSnapshot;
 
     nextSnapshot.white.isRunning = activeColour === PlayerColour.White;
     nextSnapshot.black.isRunning = activeColour === PlayerColour.Black;

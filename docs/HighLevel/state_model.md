@@ -110,15 +110,16 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 
 ## Transition Rules
 ### History Navigation
-- Navigating to an earlier node changes `renderedPath` away from `livePath`.
-- Returning to the live node restores `renderedPath` to `livePath`.
+- Navigating to an earlier node gives `renderedPath` an independent selector from `livePath`.
+- Returning to the live node restores `renderedPath` to the exact `livePath` reference so live appends advance both selections.
 - From a non-live highlighted line, making a move follows the takeback and branch rules defined in [settings_contract.md](settings_contract.md).
 
 ### Live Analysis
 - Entering live analysis is allowed only from a live state, and from timeout-ended games when post-timeout analysis is allowed.
+- Entering live analysis detaches the rendered-path reference even when the rendered and live selectors initially identify the same node.
 - If the game clock is running, the app must pause it before entering a `LiveAnalysisFrom*` state.
 - Live analysis gives the user move control for both colours, but those moves do not advance the live node.
-- Exiting live analysis returns the board highlight to the live node by default.
+- Exiting live analysis returns the board highlight to the live node and restores the shared live-path reference by default.
 - If there is a kept analysis branch, the branch remains in the move tree, but the default visible state returns to the live node.
 - Board editing is always blocked while a `LiveAnalysisFrom*` state is active.
 

@@ -2,6 +2,8 @@
 
 This document tracks the implementation work required before starting the UI layer. It converts the current implementation review into stable finding IDs, a remediation plan, and a status board that can be updated as each fix and its verification land.
 
+This document checks implementation drift against the committed design; it must not introduce or silently change behaviour defined there, especially in [scenarios.md](HighLevel/scenarios.md). Any intended design change must be agreed and recorded in the design and scenarios before being treated as a follow-up requirement.
+
 The following existing TODOs remain intentionally deferred until UI implementation makes their boundaries clearer:
 
 - Redesigning deferred player-move and pause-turn behaviour for premoves in [NewToDoList.md](NewToDoList.md).
@@ -43,15 +45,15 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-05 — History navigation, rewrite, takeback, and clock state can diverge
 
 - **Severity:** High
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [GameMoveComposable.ts](../src/state/game/GameMoveComposable.ts), [GamesStore.spec.ts](../src/state/__tests__/GamesStore.spec.ts)
-- **Problem:** Rewriting from history prunes the old continuation instead of retaining it as a variation. Takeback ignores `allowTakeback`, does not restore the target node's clock snapshot, and can place the live path on an analysis branch. Navigating away from the live node does not pause a running timed clock. One current test encodes the incorrect continuation-pruning behaviour.
-- **Required outcome:** Preserve prior continuations as variations, keep live and analysis paths valid, enforce takeback permissions, and restore or pause clocks according to the selected node and mode.
+- **Problem:** Rewriting from a historical node prunes the old played continuation instead of retaining it as a variation. Takeback ignores `allowTakeback`, does not restore the target node's clock snapshot, and can place the live path on an analysis branch. One current history-rewrite test encodes the incorrect continuation-pruning behaviour.
+- **Required outcome:** Preserve prior played continuations as variations only when play moves from a historical node, keep live and analysis paths valid, enforce takeback permissions, and restore clocks from the selected live node where required. This does not change `SCN-HIST-04`: an ordinary move from the latest live node still prunes the app user's exploratory analysis descendants.
 
 ### PREUI-06 — A move can resurrect an already expired clock
 
 - **Severity:** High
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [GameMoveComposable.ts](../src/state/game/GameMoveComposable.ts), [GameClockComposable.ts](../src/state/game/GameClockComposable.ts)
 - **Problem:** Live move commitment applies the move and increment without first reconciling elapsed time. A move received after expiry but before the next UI clock update can be accepted and make the clock positive again.
 - **Required outcome:** Reconcile the clock at the move boundary; an expired side must lose on time and receive neither the move nor increment.
@@ -126,9 +128,9 @@ The following existing TODOs remain intentionally deferred until UI implementati
    - Preserve the move tree, current node, position, clocks, and result when assigning `none` or a replacement player.
 2. **PREUI-05: history and clock consistency**
    - Retain an old live continuation as a variation when play resumes from history.
+   - Preserve automatic pruning of app-user analysis continuations when ordinary play resumes from the latest live node.
    - Enforce `allowTakeback` and constrain the new live path to a valid live ancestor.
    - Restore the selected node's clock snapshot with a fresh running timestamp where appropriate.
-   - Pause timed play while browsing or analysing away from the live node.
 3. **PREUI-06: timeout race**
    - Reconcile elapsed time inside the guarded live-move transaction before applying a move.
    - Finalise timeout immediately and reject the late move and increment.
@@ -207,8 +209,8 @@ Status values:
 | PREUI-02 | Engine-profile command surface | Not applicable | Closed | Not applicable | Not applicable | UI draft operations; configured profiles are read on demand |
 | PREUI-03 | Safe player reassignment | High | Closed | Implemented | Passing | Preserves the tree, joins cancellation, and stops the old runtime |
 | PREUI-04 | Resume restored engine turn | High | Closed | Implemented | Passing | Hydration and runtime registration precede one guarded turn request |
-| PREUI-05 | History and clock consistency | High | Confirmed | Not started | Missing | Replace conflicting continuation-pruning test |
-| PREUI-06 | Timeout reconciliation at move boundary | High | Confirmed | Not started | Missing | Atomic live-move guard |
+| PREUI-05 | History and clock consistency | High | Closed | Implemented | Passing | Retains previously played variations on history rewrite without disabling latest-node analysis pruning; guards takeback and restores historical clocks |
+| PREUI-06 | Timeout reconciliation at move boundary | High | Closed | Implemented | Passing | Atomic live-move guard settles timeout before move or increment |
 | PREUI-07 | Terminal-result protection | High | Confirmed | Not started | Missing | Cover all terminal result types |
 | PREUI-08 | Malformed UCI analysis isolation | High | Confirmed | Not started | Missing | Preserve last valid result and session |
 | PREUI-09 | Guarded player-engine failure recovery | High | Confirmed | Not started | Missing | No timer-based retry |

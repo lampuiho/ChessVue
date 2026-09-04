@@ -52,7 +52,7 @@ interface IMoveRuntime {
   uci?: string
 }
 
-type MovePath = readonly number[]
+type MovePath = number[]
 
 interface IMoveNodeRuntime {
   parent?: IMoveNode
@@ -92,6 +92,7 @@ interface IMoveTree {
 - `IMove.checkState` persists whether the destination gives check or checkmate. Game completion remains represented by `resultState` and `resultReason`. **Why:** check is a fact about this transition and may occur in history or analysis, while terminal outcome may instead come from timeout, resignation, agreement, or abandonment; storing both on the game would conflate position state with lifecycle result.
 - Alternative live continuations remain `live` nodes; `mainlineChildIndex` decides which continuation is currently authoritative.
 - `IMoveNode.$` is runtime-only. Hydration rebuilds `$.parent`; `$.isHighlighted` is reserved for the deferred event-driven UI highlight state. Persistence omits all `$` data. **Why:** parent links would make the persisted tree cyclic, while highlighting follows the rendered selector and must not change chess history. Hydration must restore every parent before node-based traversal is enabled.
-- `MovePath` is the persisted selector used by workspace state to point to one node by traversal from the root.
+- `MovePath` is the mutable persisted selector used by workspace state to point to one node by traversal from the root. State workflows own its mutation; deep-readonly store projections prevent presentation consumers from changing it directly.
 - Each `MovePath[index]` value is the zero-based index into the current node's `children` array at that traversal step.
+- Appending a child index advances an owned selector in place so readers deliberately sharing that selector observe the same transition. Redirecting a selector through navigation or analysis detachment installs a different array instead.
 - Example: `[1, 0, 2]` means `root.children[1].children[0].children[2]`.

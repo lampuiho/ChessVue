@@ -15,7 +15,7 @@ function pruneDescendants(node: IMoveNode): void {
 function getAncestorNode(node: IMoveNode, distance: number): IMoveNode {
   let currentNode = node;
   let remainingDistance = distance;
-  while (remainingDistance > 0 && currentNode.$?.parent !== undefined) {
+  while (remainingDistance > 0 && currentNode.$?.parent) {
     currentNode = currentNode.$.parent;
     remainingDistance -= 1;
   }

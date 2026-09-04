@@ -22,7 +22,7 @@ const moveKinds = [MoveKind.Normal, MoveKind.Castle, MoveKind.EnPassant, MoveKin
 const moveNodeKinds = [MoveNodeKind.Live, MoveNodeKind.Analysis] as const;
 const ambiguityKinds = [AmbiguityKind.SameRankOnly, AmbiguityKind.SameFileOnly, AmbiguityKind.Both] as const;
 
-export type MovePath = readonly number[];
+export type MovePath = number[];
 
 export interface IMoveRuntime {
   ponderMove?: IMove; // moves (only 1 for now) suggested to speculate on

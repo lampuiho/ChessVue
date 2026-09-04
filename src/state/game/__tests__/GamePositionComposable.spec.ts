@@ -31,6 +31,22 @@ describe('useGamePosition', () => {
     expect(runtime.renderedNode).toBe(renderedNode);
     expect(runtime.liveNode).toBe(liveNode);
   });
+  it('aliases matching restored selectors and their lazily resolved caches', () => {
+    const game = createGame();
+    const child = appendChild(game.moveTree.root, createMove(), MoveNodeKind.Live);
+    game.livePath = [0];
+    game.renderedPath = [0];
+    game.$ = undefined;
+    const position = useGamePosition();
+
+    position.hydrateGame(game);
+
+    const runtime = position.requireGameRuntime(game);
+    expect(game.renderedPath).toBe(game.livePath);
+    expect(position.getRenderedNode(game)).toBe(child);
+    expect(position.getLiveNode(game)).toBe(child);
+    expect(runtime.renderedNode).toBe(runtime.liveNode);
+  });
   it('rejects nodes detached from the current hydrated tree', () => {
     const position = useGamePosition();
     const game = position.hydrateGame(createGame());
@@ -57,6 +73,54 @@ describe('useGamePosition', () => {
     expect(runtime.liveNode).toBe(liveNode);
     expect(position.getRenderedNode(game)).toBe(game.moveTree.root);
     expect(position.getLiveNode(game)).toBe(child);
+  });
+  it('sets selector references exactly as supplied', () => {
+    const position = useGamePosition();
+    const game = position.hydrateGame(createGame());
+    const renderedPath: number[] = [];
+    const livePath: number[] = [];
+
+    position.setRenderedPath(game, renderedPath);
+    position.setLivePath(game, livePath);
+
+    expect(game.renderedPath).toBe(renderedPath);
+    expect(game.livePath).toBe(livePath);
+    expect(game.renderedPath).not.toBe(game.livePath);
+  });
+  it('appends selectors in place and advances their corresponding node caches', () => {
+    const game = createGame();
+    const renderedChild = appendChild(game.moveTree.root, createMove(), MoveNodeKind.Analysis);
+    const liveChild = appendChild(game.moveTree.root, createMove(PlayerColour.Black), MoveNodeKind.Live);
+    const position = useGamePosition();
+    position.hydrateGame(game);
+    const renderedPath: number[] = [];
+    const livePath: number[] = [];
+    position.setRenderedPath(game, renderedPath, { node: game.moveTree.root });
+    position.setLivePath(game, livePath, { node: game.moveTree.root });
+
+    position.appendRenderedPath(game, renderedChild);
+    position.appendLivePath(game, liveChild);
+
+    expect(game.renderedPath).toBe(renderedPath);
+    expect(game.renderedPath).toEqual([0]);
+    expect(game.livePath).toBe(livePath);
+    expect(game.livePath).toEqual([1]);
+    expect(game.$?.renderedNode).toBe(renderedChild);
+    expect(game.$?.liveNode).toBe(liveChild);
+  });
+  it('advances shared rendered and live selectors through one live append', () => {
+    const position = useGamePosition();
+    const game = position.hydrateGame(createGame());
+    const sharedPath = game.livePath!;
+    const liveChild = appendChild(game.moveTree.root, createMove(), MoveNodeKind.Live);
+    position.getLiveNode(game);
+
+    position.appendLivePath(game, liveChild);
+
+    expect(game.livePath).toBe(sharedPath);
+    expect(game.renderedPath).toBe(sharedPath);
+    expect(sharedPath).toEqual([0]);
+    expect(game.$?.liveNode).toBe(liveChild);
   });
   it('invalidates rendered caches on path changes and both caches on tree replacement', () => {
     const game = createGame();

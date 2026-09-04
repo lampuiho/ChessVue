@@ -55,15 +55,15 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
     async function showSaveDialog(suggestedPath?: string): Promise<string> {
       const input = _createFileInput();
       input.type = 'file';
-      if (suggestedPath !== undefined) input.setAttribute('nwsaveas', pathModule.basename(suggestedPath));
+      if (suggestedPath != null) input.setAttribute('nwsaveas', pathModule.basename(suggestedPath));
       const workingDirectory = suggestedPath === undefined ? undefined : pathModule.dirname(suggestedPath);
-      if (workingDirectory !== undefined) input.setAttribute('nwworkingdir', workingDirectory);
+      if (workingDirectory != null) input.setAttribute('nwworkingdir', workingDirectory);
       return _resolveFileDialog(input, 'showSaveDialog');
     }
     async function showOpenDialog(startDirectory?: string): Promise<string> {
       const input = _createFileInput();
       input.type = 'file';
-      if (startDirectory !== undefined) input.setAttribute('nwworkingdir', startDirectory);
+      if (startDirectory != null) input.setAttribute('nwworkingdir', startDirectory);
       return _resolveFileDialog(input, 'showOpenDialog');
     }
     async function listDirectory(targetPath: string): Promise<IFileSystemEntry[]> {

@@ -388,12 +388,12 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User clicks node in history tree.
   2. App navigates board state to selected node.
-  3. Analysis panel switches to selected FEN context.
+  3. Analysis panel switches to selected FEN context while live play and its clock continue independently.
 - **Branch Paths**:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
   - `BR-HIST-01-PAUSED`: Game is paused -> block history navigation until the game resumes.
-- **Postconditions**: Board and analysis context match selected history node.
+- **Postconditions**: Board and analysis context match the selected history node without changing the live clock.
 - **Implementation Touchpoints**:
   - `HistoryPanel.onNavigateNode`
   - `GamesStore.navigateToNode`
@@ -402,7 +402,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.getGame`
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Convert review position into new active mainline when rules allow takeback.
 - **Preconditions**: User is on prior node; the current game's takeback policy allows live-mainline rewrite.
 - **Entry Points**: Move made from a non-terminal historical node.
@@ -422,7 +422,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Allow history exploration without altering live game progression.
 - **Preconditions**: User on prior node; takeback disabled.
 - **Entry Points**: Move made while browsing history.
@@ -441,7 +441,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
 
 ### SCN-HIST-04 - Automatic Pruning After Live Move From The Latest Node
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Run the automatic pruning action that removes exploratory in-game-analysis continuations from the latest live node once real play resumes from that same node.
 - **Preconditions**: User entered in-game analysis from the latest live node, created at least one analysis-only continuation, and then exited back to the live node.
 - **Entry Points**: Real move committed from the latest live node after leaving in-game analysis.
@@ -454,7 +454,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-HIST-04-NO-CLEANUP`: Analysis did not originate from the latest live node, or live play resumed from a different node -> no automatic cleanup path runs.
   - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
-- **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs.
+- **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs. Historical rewrites covered by `SCN-HIST-02` retain previously played continuations as variations.
 - **Implementation Touchpoints**:
   - `MoveHistoryService.pruneFutureMoves`
   - `GamesStore.exitInGameAnalysis`

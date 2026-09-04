@@ -25,11 +25,11 @@ interface IGameClockDependency {
 export function useGameClock(dependency: IGameClockDependency) {
   const { position, status, touchGame, clearPlayerTurnRuntime, flushDeferredPlayerMove } = dependency;
   function isTimedGame(game: IGame): boolean {
-    return game.timeControl.initialMs !== undefined && game.timeControl.preset !== 'untimed';
+    return game.timeControl.initialMs != null && game.timeControl.preset !== 'untimed';
   }
   function hasRunningClock(snapshot: IClockSnapshot): boolean {
-    return snapshot.activeColour !== undefined
-      && snapshot.startedAtUtc !== undefined
+    return !!snapshot.activeColour
+      && !!snapshot.startedAtUtc
       && (snapshot.white.isRunning || snapshot.black.isRunning);
   }
   function canPauseForReason(game: IGame, reason: PauseReason): boolean {
@@ -52,12 +52,13 @@ export function useGameClock(dependency: IGameClockDependency) {
     const runtime = position.requireGameRuntime(game);
     runtime.focusReturnUnsubscribe?.();
     runtime.focusReturnUnsubscribe = undefined;
-    if (!status.isLiveState(game.gameState) || game.resultState !== ResultState.Ongoing || !isTimedGame(game)) return;
+    const hasLiveClock = status.isLiveState(game.gameState) || status.isLiveAnalysisState(game.gameState);
+    if (!hasLiveClock || game.resultState !== ResultState.Ongoing || !isTimedGame(game) || !hasRunningClock(game.clockSnapshot)) return;
     runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, new ClockTimestamp()), `sync-clock-${game.metadata.id}`);
   }
-  async function syncClock(game: IGame, nowUtc: ClockTimestamp): Promise<void> {
-    if (!status.isLiveState(game.gameState) && !status.isPausedLiveState(game.gameState)) return;
-    if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return;
+  function reconcileTimeout(game: IGame, nowUtc: ClockTimestamp): boolean {
+    if (!status.isLiveState(game.gameState) && !status.isPausedLiveState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) return false;
+    if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return false;
     const remainingTime = TimeControlService.getRemainingTime(game.clockSnapshot, nowUtc);
     const expiredColour = (remainingTime.white ?? 1) <= 0 ? PlayerColour.White : PlayerColour.Black;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, nowUtc);
@@ -67,6 +68,10 @@ export function useGameClock(dependency: IGameClockDependency) {
     clearPlayerTurnRuntime(game);
     touchGame(game);
     refreshRuntimeRegistrations(game);
+    return true;
+  }
+  async function syncClock(game: IGame, nowUtc: ClockTimestamp): Promise<void> {
+    reconcileTimeout(game, nowUtc);
   }
   async function pauseGame(game: IGame, reason: PauseReason): Promise<void> {
     const runtime = position.requireGameRuntime(game);
@@ -103,6 +108,7 @@ export function useGameClock(dependency: IGameClockDependency) {
     resumeClock,
     applyMove,
     refreshRuntimeRegistrations,
+    reconcileTimeout,
     syncClock,
     pauseGame,
     resumeGame,

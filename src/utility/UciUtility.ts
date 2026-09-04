@@ -168,13 +168,13 @@ function _getOptionFieldValues(tokens: string[], fieldName: string): string[][] 
   return values;
 }
 function _movesMatch(left: IMove | undefined, right: IMove): boolean {
-  return left !== undefined && left.from === right.from && left.to === right.to && left.promotionPiece === right.promotionPiece;
+  return left != null && left.from === right.from && left.to === right.to && left.promotionPiece === right.promotionPiece;
 }
 function _parseBoardId(notation: string): BoardId {
   const file = notation.charCodeAt(0) - 'a'.charCodeAt(0);
   const rank = Number.parseInt(notation[1]!, 10) - 1;
   const boardId = coordsToBoardId(file, rank);
-  if (boardId !== undefined) return boardId;
+  if (boardId != null) return boardId;
   throw new Error(`Invalid UCI square notation: ${notation}.`);
 }
 function _parseOptionDefault(type: EngineOptionType, tokens: string[]): string | number | boolean | undefined {
@@ -206,10 +206,10 @@ function _parseOptionLine(line: string): IEngineOptionMeta {
   const choices = type === EngineOptionType.Choice ? _getOptionFieldValues(fieldTokens, 'var').map((value) => value.join(' ')) : undefined;
   const defaultValue = _parseOptionDefault(type, fieldTokens);
   const option: IEngineOptionMeta = { name, type };
-  if (defaultValue !== undefined) option.defaultValue = defaultValue;
-  if (minimumValue !== undefined) option.minimum = _parseOptionInteger(minimumValue, 'minimum');
-  if (maximumValue !== undefined) option.maximum = _parseOptionInteger(maximumValue, 'maximum');
-  if (choices !== undefined) option.choices = choices;
+  if (defaultValue != null) option.defaultValue = defaultValue;
+  if (minimumValue) option.minimum = _parseOptionInteger(minimumValue, 'minimum');
+  if (maximumValue) option.maximum = _parseOptionInteger(maximumValue, 'maximum');
+  if (choices != null) option.choices = choices;
   return option;
 }
 function _parseOptionType(type: string): EngineOptionType {

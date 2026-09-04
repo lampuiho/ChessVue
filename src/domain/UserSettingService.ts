@@ -67,7 +67,7 @@ async function _writeSettingsDocument(path: string, snapshot: ISettingsSnapshot)
 
 export const UserSettingService = {
   async getSettingsOrDefault(): Promise<ISettingsSnapshot> {
-    if (_cachedSettings !== undefined) return _cachedSettings;
+    if (_cachedSettings) return _cachedSettings;
     try {
       return _cacheAcceptedSettings(await _readSettingsDocument(BuildConfig.persistence.settingsPath));
     } catch (error) {

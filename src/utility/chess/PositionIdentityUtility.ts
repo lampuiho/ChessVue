@@ -11,7 +11,7 @@ function buildCastlingField(position: IBoardPosition): string {
 export function buildPositionKey(position: IBoardPosition): string {
   const pieceTokens = position.board
     .map((piece, boardId) => piece === undefined ? undefined : `${boardId}:${piece.kind}:${piece.colour}`)
-    .filter((token): token is string => token !== undefined);
+    .filter((token): token is string => !!token);
   return [
     pieceTokens.join('|'),
     position.sideToMove,

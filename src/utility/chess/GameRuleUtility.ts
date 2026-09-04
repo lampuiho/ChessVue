@@ -67,7 +67,7 @@ function _getPiece(position: IBoardPosition, boardId: BoardId) {
   return position.board[boardId];
 }
 function isOccupied(position: IBoardPosition, boardId: BoardId): boolean {
-  return _getPiece(position, boardId) !== undefined;
+  return _getPiece(position, boardId) != null;
 }
 function getOccupancyKind(position: IBoardPosition, boardId: BoardId, colour: PlayerColour): OccupancyKind {
   const piece = _getPiece(position, boardId);
@@ -128,14 +128,14 @@ function _genPawnAttackMoves(from: BoardId, colour: PlayerColour): IMoveRaw[] {
   const rank = origin.rank + getForwardDirection(colour);
   return [-1, 1]
     .map(fileOffset => tryCoordsToBoardId(origin.file + fileOffset, rank))
-    .filter((to): to is BoardId => to !== undefined)
+    .filter((to): to is BoardId => to != null)
     .map(to => ({ from, to }));
 }
 function _genOffsetMoves(from: BoardId, offsets: Array<{ file: number; rank: number }>) {
   const candidateBoardPos = offsets.map(({ file, rank }) => {
     const target = tryCoordsToBoardId(boardIdToCoords(from).file + file, boardIdToCoords(from).rank + rank);
     return target
-  }).filter((boardId): boardId is BoardId => boardId !== undefined);
+  }).filter((boardId): boardId is BoardId => boardId != null);
   return candidateBoardPos.map((to) => ({ from, to }));
 }
 // these pseudo legal moves may include walking into checks or capturing the king or owned pieces but are otherwise moves that the pieces can move to/attack
@@ -197,7 +197,7 @@ function _isAttackedByDirection(position: IBoardPosition, target: BoardId, byCol
       const attackerBoardId = tryCoordsToBoardId(file, rank);
       if (attackerBoardId === undefined) break;
       const attacker = _getPiece(position, attackerBoardId);
-      if (attacker !== undefined) {
+      if (attacker) {
         if (attacker.colour === byColour && kinds.includes(attacker.kind)) return true;
         break;
       }
@@ -500,7 +500,7 @@ export function genLegalMoves(position: IBoardPosition) {
 export function isMoveLegal(position: IBoardPosition, move: IMoveRaw): boolean {
   const candidate = _genLegalRawMoves(position).find((item) => moveMatches(item, move));
   if (candidate === undefined) return false;
-  if (_getMoveKind(position, candidate) === MoveKind.Promotion) return move.promotionPiece !== undefined && promotionPieces.includes(move.promotionPiece);
+  if (_getMoveKind(position, candidate) === MoveKind.Promotion) return move.promotionPiece != null && promotionPieces.includes(move.promotionPiece);
   return move.promotionPiece === undefined;
 }
 export function requiresPromotionSelection(position: IBoardPosition, move: IMoveRaw): boolean {
@@ -574,12 +574,12 @@ export function createInitialBoardPosition(): IBoardPosition {
 }
 /** Reads standard-root identity through `position.$`, populating the derived runtime cache on first lookup. */
 export function isStandardInitialPosition(position: IBoardPosition): boolean {
-  if (position.$?.isStandardInitialPosition !== undefined) return position.$.isStandardInitialPosition;
+  if (position.$?.isStandardInitialPosition != null) return position.$.isStandardInitialPosition;
   function _computeIsStandardInitialPosition(position: IBoardPosition): boolean {
-    if (position.board.length !== 64 || position.sideToMove !== PlayerColour.White || position.enPassantTarget !== undefined || position.halfMoveClock !== 0 || position.fullMoveNumber !== 1) return false;
+    if (position.board.length !== 64 || position.sideToMove !== PlayerColour.White || position.enPassantTarget != null || position.halfMoveClock !== 0 || position.fullMoveNumber !== 1) return false;
     const castling = position.castlingAvailability;
     if (!castling.whiteKingSide || !castling.whiteQueenSide || !castling.blackKingSide || !castling.blackQueenSide) return false;
-    if (position.castlingRook != null) return false;
+    if (position.castlingRook) return false;
     return position.board.every((piece, boardId) => {
       const initialPiece = standardInitialBoard[boardId];
       return piece?.colour === initialPiece?.colour && piece?.kind === initialPiece?.kind;
@@ -604,5 +604,5 @@ export function applyMove(position: IBoardPosition, move: IMove): IBoardPosition
   }
   else position.board[move.to] = movingPiece;
   position.board[move.from] = undefined;
-  return _updatePositionAfterMove(position, move, movingPiece, captureMeta !== undefined);
+  return _updatePositionAfterMove(position, move, movingPiece, !!captureMeta);
 }
