@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import {
+  GameState,
   ResultState,
   type ICreateGameRequest,
   type IGame,
@@ -122,7 +123,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const insertedGame = await hydrateAndInsertGame(game);
     playerTurn.requestPlayerMoveIfNeeded(insertedGame);
     const settings = await UserSettingService.getSettingsOrDefault();
-    if (settings.analysis.resumeLiveAnalysisAfterRestore && insertedGame.analysis.snapshots.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
+    if (settings.analysis.resumeLiveAnalysisAfterRestore && insertedGame.gameState !== GameState.BoardEdit && insertedGame.analysis.snapshots.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
     return insertedGame;
   }
   /** Observes a live workspace game; mutation remains owned by explicit store actions. */

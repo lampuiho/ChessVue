@@ -862,8 +862,12 @@ describe('useGamesStore', () => {
     await store.refreshAnalysis(game);
     expect(store.getVisibleAnalysis(game)?.engineSnapshots).toHaveLength(1);
 
+    const startCountBeforeAdd = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
     await store.addAnalysisEngine(game, createEngineRecord('engine-d', 'Berserk'));
     const addedEngine = game.analysis.snapshots[1]!.assignedEngine;
+    expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(startCountBeforeAdd);
+    expect(analysisSubscriptions.has(addedEngine)).toBe(false);
+    await store.refreshAnalysis(game);
     const analysisUpdate: IEngineAnalysisUpdate = {
       position: structuredClone(game.rootPosition),
       positionKey: domain.PositionIdentityService.buildPositionKey(game.rootPosition),
@@ -898,6 +902,31 @@ describe('useGamesStore', () => {
     store.enterBoardEdit(game);
     expect(game.gameState).toBe(GameState.AnalysisBlackMove);
     expect(() => store.applyBoardEdit(game, sparseBoard)).toThrow('board edit mode');
+  });
+  it('retains an analysis engine added during board edit and starts it once on exit', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Board Edit Analysis Assignment',
+      whitePlayer: undefined,
+      blackPlayer: undefined,
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: true,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    store.enterBoardEdit(game);
+    await store.addAnalysisEngine(game, createEngineRecord('engine-board-edit', 'Stockfish'));
+    const assignedEngine = game.analysis.snapshots[0]!.assignedEngine;
+    const getAssignedEngineReadyCount = () => domain.EngineRuntimeService.ensureReady.mock.calls.filter(([engine]) => engine === assignedEngine).length;
+    const getAssignedEngineStartCount = () => domain.EngineRuntimeService.startAnalysis.mock.calls.filter(([engine]) => engine === assignedEngine).length;
+    expect(game.analysis.snapshots).toHaveLength(1);
+    expect(getAssignedEngineReadyCount()).toBe(0);
+    expect(getAssignedEngineStartCount()).toBe(0);
+    expect(analysisSubscriptions.has(assignedEngine)).toBe(false);
+
+    store.enterBoardEdit(game);
+    await vi.waitFor(() => expect(getAssignedEngineStartCount()).toBe(1));
+    expect(game.gameState).toBe(GameState.AnalysisWhiteMove);
+    expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledWith(assignedEngine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
   });
   it('manipulates pieces only in board edit and promotes the first edited position to root', async () => {
     const store = useGamesStore();
@@ -1247,7 +1276,7 @@ describe('useGamesStore', () => {
     expect(game.moveTree.root.children).toHaveLength(1);
     expect(game.moveTree.root.children[0]!.move?.from).toBe(12);
   });
-  it('restarts restored analysis only when the setting enables it', async () => {
+  it('restarts restored analysis only when enabled and eligible', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Restore Analysis',
@@ -1265,6 +1294,11 @@ describe('useGamesStore', () => {
     expect(domain.EngineRuntimeService.startAnalysis).not.toHaveBeenCalled();
 
     settingsSnapshot.analysis.resumeLiveAnalysisAfterRestore = true;
+    payload.gameState = GameState.BoardEdit;
+    await store.insertGame(payload);
+    expect(domain.EngineRuntimeService.startAnalysis).not.toHaveBeenCalled();
+
+    payload.gameState = GameState.AnalysisWhiteMove;
     await store.insertGame(payload);
     expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalled();
   });

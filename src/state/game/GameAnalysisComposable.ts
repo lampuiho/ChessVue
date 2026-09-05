@@ -107,7 +107,6 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     const snapshot = createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(position.getRenderedPosition(game)), new Date());
     game.analysis.snapshots.push(snapshot);
     touchGame(game);
-    await refreshAnalysisForGame(game, game.analysis.snapshots.length - 1);
   }
   async function removeAnalysisEngine(game: IGame, engineIndex: number): Promise<void> {
     const snapshot = game.analysis.snapshots[engineIndex];

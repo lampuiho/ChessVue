@@ -99,10 +99,10 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-12 — Assigning an analysis engine starts it during BoardEdit
 
 - **Severity:** Medium
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [GameAnalysisComposable.ts](../src/state/game/GameAnalysisComposable.ts)
 - **Problem:** Adding an analysis engine starts analysis immediately even when the game is in BoardEdit. Refresh and retry paths contain a guard, but initial assignment does not.
-- **Required outcome:** The assignment may be retained, but its runtime must not start until BoardEdit ends and the game is eligible for analysis.
+- **Required outcome:** Adding an analysis engine only changes the game configuration. Workflow entry points must call analysis refresh only from eligible states, and leaving BoardEdit may explicitly refresh every retained assignment after completing the mode transition.
 
 ### PREUI-13 — Player-turn work can outlive the turn that authorised it
 
@@ -166,9 +166,10 @@ Store assertions used by this pre-UI work are temporary diagnostics for exposing
    - Contain parse and legality failures at the individual message boundary.
    - Preserve the last valid result and continue the engine session after a discarded message.
 3. **PREUI-12: BoardEdit analysis gate**
-   - Use one eligibility predicate for add, refresh, retry, restore, and mode-change paths.
-   - Retain configuration during BoardEdit without starting a process.
-   - Start once, if still eligible, after leaving BoardEdit.
+   - Keep analysis-engine assignment configuration-only.
+   - Keep refresh and retry unavailable during BoardEdit, and prevent restore from requesting refresh for a persisted BoardEdit workspace.
+   - Retain configuration during BoardEdit without starting a search.
+   - Complete the mode transition before requesting one refresh when leaving BoardEdit.
 
 **Phase exit:** Engine processes start, stop, fail, and restore only through current guarded state transitions, and malformed output cannot destabilise a session.
 
@@ -220,7 +221,7 @@ Status values:
 | PREUI-09 | Detached player-engine retry | Not applicable | Closed | Not applicable | Not applicable | Duplicate symptom covered by the PREUI-13 player-turn lifetime fix |
 | PREUI-10 | Managed-save validation ownership | Not applicable | Closed | Not applicable | Not applicable | Presentation validates once; managed IDs are app-owned rather than editable input |
 | PREUI-11 | Partial restore isolation | Medium | Closed | Implemented | Passing | Returns ordered per-target outcomes and preserves valid payloads |
-| PREUI-12 | BoardEdit analysis start guard | Medium | Confirmed | Not started | Missing | Share eligibility predicate across entry points |
+| PREUI-12 | BoardEdit analysis start guard | Medium | Closed | Implemented | Passing | Addition is configuration-only; eligible workflow transitions own refresh calls explicitly |
 | PREUI-13 | Player-turn lifetime cancellation | High | Confirmed | Not started | Missing | Join invalidating transitions, remove detached retry, and gate the final player-move commit |
 
 Pre-UI completion requires every row to have `Finding: Closed`; confirmed findings must also have `Fix: Implemented` and `Test: Passing`, while findings closed without a required fix may use `Not applicable`.
