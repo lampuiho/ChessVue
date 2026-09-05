@@ -91,7 +91,7 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-11 — Restoring multiple games is all-or-nothing
 
 - **Severity:** Medium
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [SavedGamesStore.ts](../src/state/SavedGamesStore.ts)
 - **Problem:** A missing or corrupt requested save rejects the whole restoration call, preventing valid games in the same request from being restored.
 - **Required outcome:** Isolate each restoration target, return per-game outcomes, and retain every valid restored game.
@@ -219,7 +219,7 @@ Status values:
 | PREUI-08 | Malformed UCI analysis isolation | High | Closed | Implemented | Passing | Runtime validates the evolving PV; the client discards rejected messages without replacing valid output or failing the session |
 | PREUI-09 | Detached player-engine retry | Not applicable | Closed | Not applicable | Not applicable | Duplicate symptom covered by the PREUI-13 player-turn lifetime fix |
 | PREUI-10 | Managed-save validation ownership | Not applicable | Closed | Not applicable | Not applicable | Presentation validates once; managed IDs are app-owned rather than editable input |
-| PREUI-11 | Partial restore isolation | Medium | Confirmed | Not started | Missing | Return per-target outcomes |
+| PREUI-11 | Partial restore isolation | Medium | Closed | Implemented | Passing | Returns ordered per-target outcomes and preserves valid payloads |
 | PREUI-12 | BoardEdit analysis start guard | Medium | Confirmed | Not started | Missing | Share eligibility predicate across entry points |
 | PREUI-13 | Player-turn lifetime cancellation | High | Confirmed | Not started | Missing | Join invalidating transitions, remove detached retry, and gate the final player-move commit |
 

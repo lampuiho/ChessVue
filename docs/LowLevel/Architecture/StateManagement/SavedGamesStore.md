@@ -5,8 +5,12 @@ Own saved-game browsing, saved-game serialisation, saved-document loading, resto
 
 ## Public Interface
 ```ts
+type GameRestoreOutcome =
+  | { gameId: string; status: 'restored'; game: IGame }
+  | { gameId: string; status: 'failed'; error: unknown }
+
 listSavedGames(): Promise<ISavedGameGroup[]>
-restoreGames(gameIds: string[]): Promise<IGame[]>
+restoreGames(gameIds: string[]): Promise<GameRestoreOutcome[]>
 loadGame(gameId: string, saveName?: string): Promise<IGame>
 loadRecentGame(gameId: string): Promise<IGame>
 saveGame(game: IGame, options: ISaveGameOptions): Promise<string>
@@ -21,7 +25,7 @@ importGame(): Promise<IGame | undefined>
 - list grouped save entries for the route-level save/load views
 - serialise and write the current game to autosave, managed-save, or external-file targets once the owning flow has selected that target
 - read and deserialise canonical saved-game documents from managed saves, recent entries, session restore, or external import; future version conversion remains inside `SerializationService` because allowing each load path to interpret versions would create multiple compatibility policies
-- resolve the latest available managed save target for each remembered `gameId` during session restore, then return the loaded game payload to presentation
+- resolve the latest available managed save target for each remembered `gameId` during session restore, then return a success or failure outcome for every target so presentation can insert all valid payloads and report invalid ones
 - resolve a selected managed save or recent-game entry into a loaded saved-game payload later inserted into `GamesStore`
 - let presentation decide when a successfully loaded payload should become an open active workspace by passing it into `GamesStore.insertGame(...)`
 - delete the selected managed save target from the route-level save/load UI once the user confirms the action
@@ -59,6 +63,6 @@ importGame(): Promise<IGame | undefined>
 - Save-folder grouping belongs to `SavedGameIndexService`, not to `SavedGamesStore` and not to `StorageAdapter`.
 - User-entered managed save names are validated by `SavedGamesView` before `saveGame(...)` is called. `SavedGamesStore` consumes that accepted form value without repeating presentation validation.
 - Saved-game directory enumeration, saved-document reads and writes, and import/export picker access belong to `SerializationService`, not to `GamesStore` and not to `StorageAdapter`.
-- `saveGame(...)`, `loadGame(...)`, `loadRecentGame(...)`, and `restoreGames(...)` all return or consume canonical persisted `IGame` payloads without runtime-only hydration. `GamesStore.insertGame(...)` remains the boundary that turns those payloads into active runtime workspaces.
+- `saveGame(...)`, `loadGame(...)`, and `loadRecentGame(...)` return or consume canonical persisted `IGame` payloads without runtime-only hydration. Each `restoreGames(...)` outcome contains either one such payload or the isolated target error. `GamesStore.insertGame(...)` remains the boundary that turns successful payloads into active runtime workspaces.
 - `deleteSave(...)` removes only the selected managed save target. It does not mutate the currently open in-memory workspace collection directly.
 - `registerAutosaveOnClose(...)` is a persistence convenience boundary for presentation. The caller still decides when the app should begin or stop close-trigger autosave and which active games are supplied to that callback.

@@ -98,7 +98,9 @@ describe('useSavedGamesStore', () => {
     const game = createGame({ metadata: { id: 'game-a', name: 'Current', createdAt: new RecordTimestamp('2026-04-17T12:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T12:00:00.000Z') } });
 
     expect(await store.listSavedGames()).toEqual(saveGroups);
-    expect((await store.restoreGames(['game-a']))[0]?.metadata.name).toBe('Manual');
+    expect(await store.restoreGames(['game-a'])).toMatchObject([
+      { gameId: 'game-a', status: 'restored', game: { metadata: { name: 'Manual' } } },
+    ]);
     expect((await store.loadGame('game-a', 'manual')).metadata.name).toBe('Manual');
     expect((await store.loadRecentGame('game-a')).metadata.name).toBe('Manual');
     expect(await store.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: 'manual' })).toBe('saves/game-a/manual.json');
@@ -115,6 +117,29 @@ describe('useSavedGamesStore', () => {
     const store = useSavedGamesStore();
 
     await expect(store.importGame()).resolves.toBeUndefined();
+  });
+  it('isolates missing and corrupt games while restoring every valid target', async () => {
+    saveGroups.push(
+      createSavedGameGroup('game-b', [createSavedGameEntry('game-b', 'auto', '2026-04-17T10:00:00.000Z', true, 'saves/game-b/auto.json')]),
+      createSavedGameGroup('game-c', [createSavedGameEntry('game-c', 'auto', '2026-04-17T10:00:00.000Z', true, 'saves/game-c/auto.json')]),
+    );
+    storedGamesByPath.set('saves/game-c/auto.json', createGame({ metadata: { id: 'game-c', name: 'Game C', createdAt: new RecordTimestamp('2026-04-17T09:00:00.000Z'), updatedAt: new RecordTimestamp('2026-04-17T10:00:00.000Z') } }));
+    const corruptError = new Error('Invalid saved game document.');
+    domain.SerializationService.readGameDocument.mockImplementation(async (filePath: string) => {
+      if (filePath === 'saves/game-b/auto.json') throw corruptError;
+      const game = storedGamesByPath.get(filePath);
+      if (!game) throw new Error(`Missing test game document: ${filePath}.`);
+      return resolveWithRandomDelay(game);
+    });
+    const store = useSavedGamesStore();
+
+    const outcomes = await store.restoreGames(['game-a', 'missing-game', 'game-b', 'game-c']);
+
+    expect(outcomes[0]).toMatchObject({ gameId: 'game-a', status: 'restored', game: { metadata: { name: 'Manual' } } });
+    expect(outcomes[1]).toMatchObject({ gameId: 'missing-game', status: 'failed', error: { message: 'Saved game entry not found for missing-game.' } });
+    expect(outcomes[2]).toEqual({ gameId: 'game-b', status: 'failed', error: corruptError });
+    expect(outcomes[3]).toMatchObject({ gameId: 'game-c', status: 'restored', game: { metadata: { name: 'Game C' } } });
+    expect(domain.SerializationService.readGameDocument).toHaveBeenCalledTimes(3);
   });
   it('registers and disposes close autosave subscriptions through the persistence boundary', async () => {
     const store = useSavedGamesStore();

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 
 import type { IGame } from '@/contracts';
-import type { ISavedGameGroup } from '@/contracts/domain';
+import type { GameRestoreOutcome, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind, type ISaveGameOptions } from '@/contracts/state';
 import { PlatformEventService, SavedGameIndexService, SerializationService, UserSettingService } from '@/domain';
 
@@ -27,6 +27,15 @@ function getTargetPath(rootPath: string, game: IGame, options: ISaveGameOptions)
     case SaveGameTargetKind.ExternalFile: return options.filePath!;
   }
 }
+async function restoreGame(groups: ISavedGameGroup[], gameId: string): Promise<GameRestoreOutcome> {
+  try {
+    const targetEntry = SavedGameIndexService.getLatestSaveEntryForGame(groups, gameId);
+    if (!targetEntry) throw new Error(`Saved game entry not found for ${gameId}.`);
+    return { gameId, status: 'restored', game: await SerializationService.readGameDocument(targetEntry.filePath) };
+  } catch (error) {
+    return { gameId, status: 'failed', error };
+  }
+}
 
 export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   let _appCloseUnsubscribe: (() => void) | undefined;
@@ -34,16 +43,10 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   async function listSavedGames(): Promise<ISavedGameGroup[]> {
     return _listManagedSaveGroups(await getSaveRootPath());
   }
-  async function restoreGames(gameIds: string[]): Promise<IGame[]> {
+  async function restoreGames(gameIds: string[]): Promise<GameRestoreOutcome[]> {
     if (gameIds.length === 0) return [];
     const groups = await listSavedGames();
-    const loadedGames: IGame[] = [];
-    for (const gameId of gameIds) {
-      const targetEntry = SavedGameIndexService.getLatestSaveEntryForGame(groups, gameId);
-      if (!targetEntry) throw new Error(`Saved game entry not found for ${gameId}.`);
-      loadedGames.push(await SerializationService.readGameDocument(targetEntry.filePath));
-    }
-    return loadedGames;
+    return Promise.all(gameIds.map((gameId) => restoreGame(groups, gameId)));
   }
   async function loadGame(gameId: string, saveName?: string): Promise<IGame> {
     return SerializationService.readGameDocument(getTargetEntry(await listSavedGames(), gameId, saveName).filePath);
