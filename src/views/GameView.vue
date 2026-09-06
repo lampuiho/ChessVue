@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, toRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AppModalKind,
@@ -118,10 +118,15 @@ const capturedByColour = computed(() => {
 
 onMounted(() => {
   if (!game.value) void router.replace('/home');
+  else void run(handleMenuInterruptionCompleted);
   clockTimer = setInterval(() => {
     now.value = Date.now();
     void reconcileTimeout();
   }, 250);
+});
+watch(gameId, () => void run(handleMenuInterruptionCompleted));
+watch(() => uiStateStore.modalState?.kind, (nextKind, previousKind) => {
+  if (previousKind === AppModalKind.NewGame && nextKind !== AppModalKind.NewGame) void run(handleMenuInterruptionCompleted);
 });
 onBeforeUnmount(() => {
   if (clockTimer) clearInterval(clockTimer);
@@ -153,6 +158,17 @@ async function quickNewGame(): Promise<void> {
     uiStateStore.openTab(createdGame.metadata.id);
     await router.push(`/game/${createdGame.metadata.id}`);
   });
+}
+async function handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown): Promise<void> {
+  const currentGame = game.value;
+  if (!currentGame) return;
+  if (settings.value?.gameSession.autoPauseOnMenu) await gamesStore.pauseGame(currentGame, PauseReason.Menu);
+  await action();
+}
+async function handleMenuInterruptionCompleted(): Promise<void> {
+  const currentGame = game.value;
+  if (!currentGame?.$?.pauseReasons?.includes(PauseReason.Menu)) return;
+  await gamesStore.resumeGame(currentGame, PauseReason.Menu);
 }
 async function selectTab(id: string): Promise<void> {
   uiStateStore.setActiveGame(id);
@@ -230,7 +246,7 @@ async function run(action: () => Promise<void> | void): Promise<void> {
 
 <template>
   <main v-if="game && position" class="game-page">
-    <MenuBar can-save @home-requested="router.push('/home')" @quick-new-game-requested="quickNewGame" @custom-new-game-requested="uiStateStore.showModal({ kind: AppModalKind.NewGame })" @load-game-requested="router.push('/saved-games/load')" @save-game-requested="router.push(`/saved-games/save/${game.metadata.id}`)" @settings-requested="router.push('/settings/session')" />
+    <MenuBar can-save @home-requested="run(() => handleMenuInterruptionRequested(() => router.push('/home')))" @quick-new-game-requested="quickNewGame" @custom-new-game-requested="run(() => handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame })))" @load-game-requested="run(() => handleMenuInterruptionRequested(() => router.push('/saved-games/load')))" @save-game-requested="run(() => handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))" @settings-requested="run(() => handleMenuInterruptionRequested(() => router.push('/settings/session')))" />
     <GameTabs :tabs="tabs" :active-id="game.metadata.id" @tab-selected="selectTab" @tab-closed="closeTab" />
     <div class="game-stage">
       <section class="board-column">

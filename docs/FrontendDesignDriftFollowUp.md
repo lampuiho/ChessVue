@@ -10,12 +10,13 @@ Work through these follow-ups independently. Update each status as it is reviewe
 ### FRONTEND-DRIFT-01 — Menu flows do not auto-pause timed games
 
 - **Priority:** P1
-- **Status:** Pending
+- **Status:** Resolved
 - **Implementation:** `src/views/GameView.vue:233`, `src/views/GameView.vue:282`
 - **Design:** `docs/HighLevel/settings_contract.md:61`, `docs/HighLevel/scenarios.md:247`
 - **Problem:** Home, settings, save, load, and custom-new actions navigate or open a modal directly. Production code never pauses with `PauseReason.Menu` and has no paired menu-owned auto-resume path.
 - **Impact:** A timed game can continue consuming clock time while an interrupting menu surface covers the game.
 - **Acceptance criteria:** Eligible timed live games pause before an interrupting menu flow when `gameSession.autoPauseOnMenu` is enabled. Returning resumes only a pause owned by that menu flow and does not resume manual or analysis-owned pauses.
+- **Resolution:** `GameView` now routes Home, Settings, Save, Load, and Custom New through paired menu-interruption handlers. Menu-owned pauses resume only when the interrupted game is shown again or Custom New is cancelled; creating another workspace leaves the previous game paused until its tab is revisited.
 
 ### FRONTEND-DRIFT-02 — Named saves overwrite without confirmation
 

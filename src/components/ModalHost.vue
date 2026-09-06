@@ -69,8 +69,8 @@ async function createGame(request: ICreateGameRequest): Promise<void> {
   await run(async () => {
     const game = await gamesStore.createGame(request);
     uiStateStore.openTab(game.metadata.id);
-    uiStateStore.hideModal();
     await router.push(`/game/${game.metadata.id}`);
+    uiStateStore.hideModal();
   });
 }
 async function confirmPlayerSelection(): Promise<void> {
