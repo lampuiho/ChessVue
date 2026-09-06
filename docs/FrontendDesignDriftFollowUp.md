@@ -5,6 +5,8 @@ Track frontend implementation drift found while reviewing commit `e21973712a683f
 
 Work through these follow-ups independently. Update each status as it is reviewed or resolved.
 
+Analysis follow-ups FRONTEND-DRIFT-03, FRONTEND-DRIFT-04, and FRONTEND-DRIFT-09 are coordinated by the [Analysis Feature Drift And Fix Plan](AnalysisFeatureDriftAndFixPlan.md), reviewed on 6 September 2026. That review also records lifecycle, runtime ownership, persistence, and specification gaps beyond the frontend. Their implementations remain pending; a panel-only filter does not complete the analysis feature fix.
+
 ## Follow-Ups
 
 ### FRONTEND-DRIFT-01 — Menu flows do not auto-pause timed games
@@ -38,6 +40,8 @@ Work through these follow-ups independently. Update each status as it is reviewe
 - **Problem:** `GameView` passes `game.analysis.snapshots` directly instead of consuming `GamesStore.getVisibleAnalysis(...)`, which filters snapshots by the rendered position key.
 - **Impact:** After history navigation or another rendered-position change, the panel can display an evaluation belonging to the previous position.
 - **Acceptance criteria:** The panel receives only snapshots matching the currently rendered position. Stale persisted results are not presented as current-position analysis.
+- **Review:** The existing specification filters latest stored results by position, while the expected clear-and-restart lifecycle is not implemented for every rendered-position transition. History navigation does not restart analysis, multi-engine refresh invalidates rows sequentially, and superseded runtime work needs ownership guards. See ANALYSIS-DRIFT-01 to ANALYSIS-DRIFT-06 and ANALYSIS-DRIFT-11 in the [whole-feature plan](AnalysisFeatureDriftAndFixPlan.md).
+- **Planned resolution:** Establish synchronous current-position invalidation and guarded replacement searches behind the store/service boundary, replace the saved analysis schema with results belonging to the saved rendered position, and expose results and engine metadata through the store API. Remove per-result persisted position keys and filtering; no save compatibility or migration is required for this unfinished application. Preserve assigned rows and action identity without frontend access to raw snapshots or runtime line caches. Implementation pending.
 
 ### FRONTEND-DRIFT-04 — Analysis-line clicks apply the entire principal variation
 
@@ -48,6 +52,7 @@ Work through these follow-ups independently. Update each status as it is reviewe
 - **Problem:** Each principal variation is rendered as one button that emits the full `line.pv`; `GameView` then applies every emitted move. The design requires individual move targets within the line.
 - **Impact:** A live-game click can attempt multiple consecutive moves instead of committing one selected suggestion. Analysis contexts cannot stop at a chosen move within a line.
 - **Acceptance criteria:** Each eligible move is independently selectable. Live play commits only the selected first-move suggestion; analysis contexts apply only the continuation prefix ending at the clicked move.
+- **Plan:** Coordinate with ANALYSIS-DRIFT-09 in the [whole-feature plan](AnalysisFeatureDriftAndFixPlan.md). Bind selections to the displayed result context and dispatch the accepted move/prefix through the store so stale clicks cannot act on a different position. Implementation pending.
 
 ### FRONTEND-DRIFT-05 — Board and piece customisation is deferred
 
@@ -99,6 +104,7 @@ Work through these follow-ups independently. Update each status as it is reviewe
 - **Problem:** `GameView` disables the analysis panel while paused, and `AnalysisPanel` applies that flag to refresh, retry, and stop controls.
 - **Impact:** Users cannot manage analysis runtime while the game is paused, despite these actions being explicit non-gameplay exceptions.
 - **Acceptance criteria:** Suggested moves remain read-only while paused, but refresh, retry, stop, add-engine, remove-engine, and folding actions remain available.
+- **Plan:** Coordinate with ANALYSIS-DRIFT-08 in the [whole-feature plan](AnalysisFeatureDriftAndFixPlan.md). Separate move-selection permission from runtime and roster controls, including rows without a current result. Implementation pending.
 
 ### FRONTEND-DRIFT-10 — Theme previews bypass the appearance projection
 
