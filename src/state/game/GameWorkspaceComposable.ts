@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { markRaw, ref } from 'vue';
 import {
   GameState,
   ResultState,
@@ -50,6 +50,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     return new Set(games.value.filter((game) => game.metadata.id !== excludedGameId).map((game) => game.metadata.id));
   }
   function replaceGame(game: IGame): void {
+    markRaw(game);
     const gameIndex = getGameIndex(game.metadata.id);
     if (gameIndex >= 0) games.value.splice(gameIndex, 1, game);
     else games.value.push(game);
@@ -92,6 +93,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     return insertedGame;
   }
   async function startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void> {
+    await playerTurn.clearPlayerTurnRuntime(game);
     game.metadata.name = request.name ?? game.metadata.name;
     game.whitePlayer = playerTurn.createPlayerSnapshot(request.whitePlayer);
     game.blackPlayer = playerTurn.createPlayerSnapshot(request.blackPlayer);
@@ -100,7 +102,6 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const renderedPosition = position.getRenderedPosition(game);
     game.analysis.snapshots = request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(renderedPosition), new Date()));
     game.clockSnapshot = clock.initialiseClockSnapshot(game.timeControl);
-    playerTurn.clearPlayerTurnRuntime(game);
     if (game.whitePlayer && game.blackPlayer) startLiveGame(game, renderedPosition);
     else {
       position.setLivePath(game, undefined);

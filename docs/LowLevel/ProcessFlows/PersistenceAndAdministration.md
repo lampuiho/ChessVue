@@ -371,8 +371,8 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
 - Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
-- Settings coverage: `appearance.themeMode` is handled alongside the existing appearance fields. `ThemeMode.System` follows the layer-2 theme-resolution path, while `ThemeMode.Light` and `ThemeMode.Dark` force built-in app themes.
-- Requirement verification: `Pass`. Validation happens before apply or persistence, only committed user-setting fields are writable through `SettingsStore`, engine-profile configuration remains owned by `EnginesStore`, and accepted appearance changes refresh the shared app-theme variables immediately.
+- Settings coverage: `appearance.themeMode` is the only app-chrome theme setting in the baseline. `ThemeMode.System` lets CSS follow the system colour scheme, while `ThemeMode.Light` and `ThemeMode.Dark` force the corresponding configured profile snapshot; profiles themselves are not persisted settings.
+- Requirement verification: `Pass`. Validation happens before apply or persistence, only committed user-setting fields are writable through `SettingsStore`, engine-profile configuration remains owned by `EnginesStore`, and accepted appearance changes refresh both shared app-theme variable banks immediately.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 

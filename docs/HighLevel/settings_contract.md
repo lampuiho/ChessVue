@@ -32,7 +32,7 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `gameplay.promotionPolicy` | Decide how promotion is resolved | `requireExplicitSelection` | `requireExplicitSelection` only in baseline | Settings snapshot |
 | `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
 | `analysis.engineInventory` | User-managed engine profile registry | `[]` | Unique profile names only; remaining profile fields are user-managed values | Settings snapshot |
-| `appearance.themeMode` | Decide whether app chrome follows the OS theme or uses an explicit built-in theme | `system` | `system`, `light`, or `dark` | Settings snapshot |
+| `appearance.themeMode` | Decide whether app chrome follows the OS colour scheme or forces light or dark | `system` | `system`, `light`, or `dark` | Settings snapshot |
 | `appearance.boardTheme` | Board colours or theme selection | `classic` | Non-empty theme key | Settings snapshot |
 | `appearance.pieceTheme` | Piece style selection | `classic` | Non-empty theme key | Settings snapshot |
 | `appearance.uiScalePercent` | Global UI scale for desktop layout | `100` | Integer from `75` to `200` | Settings snapshot |
@@ -64,7 +64,8 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - `gameplay.analysisBranchExitBehaviour` defines the global default exit behaviour after analysis-only historical-node moves. Whether a game rewrites live mainline or stays analysis-only is persisted per game.
 - `analysis.resumeLiveAnalysisAfterRestore` applies only after saved-game restore completes.
 - `analysis.engineInventory` validates only that profile names are unique within the saved profile list. Executable path and option values are stored as entered and are consumed later when a profile is used to create an engine participant.
-- `appearance.themeMode = system` follows the active OS theme, while `light` and `dark` force the corresponding built-in UI theme.
+- `appearance.themeMode = system` follows the active OS colour scheme, while `light` and `dark` force that colour scheme.
+- Theme-profile selection and profile snapshots are not user settings in the baseline. The appearance projection is profile-shaped so that capability can be connected later without changing component CSS.
 - `appearance.themeMode` applies to app chrome only; board and piece themes remain separate appearance settings.
 
 ## Explicit Non-Baseline Settings

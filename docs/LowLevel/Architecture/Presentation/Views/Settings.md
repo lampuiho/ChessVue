@@ -25,7 +25,8 @@ Render user-editable settings and engine inventory management.
 - Opening settings may trigger menu-driven auto-pause through store coordination, not view logic.
 - `SettingsView` switches between settings categories through a tab-style control that maps to `/settings/:category` rather than presenting all categories in one long page.
 - The baseline settings categories are `session`, `gameplay`, `appearance`, and `engines`, with `/settings` redirecting to `/settings/session`.
-- The appearance category includes both visual theme settings and layout-related presentation preferences such as `uiScalePercent`, `boardOrientation`, `showCoordinates`, and `highlightLastMove`.
+- The appearance category chooses the colour-scheme policy and includes layout-related presentation preferences such as `uiScalePercent`, `boardOrientation`, `showCoordinates`, and `highlightLastMove`.
+- Theme-profile selection is not exposed by the baseline settings view. Its previews consume the same configured readonly profiles as the root appearance projection.
 - The engines category contains both `analysis.resumeLiveAnalysisAfterRestore` and engine inventory fields.
 - User-setting edits stay in the `SettingsStore` draft; engine-profile configuration remains owned separately by `EnginesStore` even though profiles are serialised in settings data.
 - Inside the engines category, each engine-profile row shows the profile name on the left and icon buttons for copy, edit, and delete on the right.

@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { defineComponent, h, isReadonly, nextTick } from 'vue';
+import { defineComponent, h, isReadonly, nextTick, toRaw } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResolvedThemeMode, ThemeMode, type ISettingsSnapshot } from '@/contracts';
@@ -62,6 +62,9 @@ describe('useSettingsStore', () => {
     expect(store.settings?.analysis.engineInventory).toHaveLength(2);
     expect(isReadonly(store.settings)).toBe(true);
     expect(store.draftSettings).not.toBe(store.settings);
+    const { defaultDarkThemeProfile, defaultLightThemeProfile } = await import('@/config/AppearanceConfig');
+    expect(toRaw(store.appearanceProjection!.lightThemeProfile)).toBe(defaultLightThemeProfile);
+    expect(toRaw(store.appearanceProjection!.darkThemeProfile)).toBe(defaultDarkThemeProfile);
     expect(store.appearanceProjection?.resolvedThemeMode).toBe(ResolvedThemeMode.Light);
     store.draftSettings!.appearance.themeMode = ThemeMode.Dark;
     expect(store.hasPendingChanges).toBe(true);

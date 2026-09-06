@@ -2,29 +2,8 @@ import { defineStore } from 'pinia';
 import { computed, onScopeDispose, readonly, ref, shallowRef, toRaw } from 'vue';
 
 import { ResolvedThemeMode, ThemeMode, type DeepReadonly, type IAppearanceProjection, type ISettingsSnapshot } from '@/contracts';
+import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
 import { PlatformEventService, UserSettingService } from '@/domain';
-const lightVariables = {
-  '--surface-app': '#f4efe3',
-  '--surface-panel': '#fffaf0',
-  '--surface-dialog': '#fffdf7',
-  '--border-subtle': '#d6c7a7',
-  '--text-primary': '#2f2617',
-  '--text-muted': '#6c5d43',
-  '--accent': '#b6692d',
-  '--danger': '#a53030',
-  '--focus-ring': '#d18a2f',
-} satisfies IAppearanceProjection['cssVariables'];
-const darkVariables = {
-  '--surface-app': '#171b1f',
-  '--surface-panel': '#222931',
-  '--surface-dialog': '#29323b',
-  '--border-subtle': '#465465',
-  '--text-primary': '#eef2f6',
-  '--text-muted': '#b2bfcb',
-  '--accent': '#d7a24d',
-  '--danger': '#f06b6b',
-  '--focus-ring': '#f2c46d',
-} satisfies IAppearanceProjection['cssVariables'];
 
 function mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISettingsSnapshot>): ISettingsSnapshot {
   return {
@@ -35,6 +14,16 @@ function mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISetti
     gameplay: patch.gameplay ? { ...currentSettings.gameplay, ...patch.gameplay } : currentSettings.gameplay,
     analysis: patch.analysis ? { ...currentSettings.analysis, ...patch.analysis } : currentSettings.analysis,
     appearance: patch.appearance ? { ...currentSettings.appearance, ...patch.appearance } : currentSettings.appearance,
+  };
+}
+function cloneSettings(settings: ISettingsSnapshot): ISettingsSnapshot {
+  return {
+    ...settings,
+    gameSession: { ...settings.gameSession },
+    gameDefaults: { ...settings.gameDefaults, defaultTimeControl: { ...settings.gameDefaults.defaultTimeControl } },
+    gameplay: { ...settings.gameplay },
+    analysis: { ...settings.analysis, engineInventory: settings.analysis.engineInventory.map((engine) => ({ ...engine, options: { ...engine.options } })) },
+    appearance: { ...settings.appearance },
   };
 }
 function resolveThemeMode(settings: ISettingsSnapshot, systemTheme: ResolvedThemeMode): ResolvedThemeMode {
@@ -48,7 +37,8 @@ function buildAppearanceProjection(settings: ISettingsSnapshot, resolvedThemeMod
   return {
     themeMode: settings.appearance.themeMode,
     resolvedThemeMode,
-    cssVariables: resolvedThemeMode === ResolvedThemeMode.Dark ? darkVariables : lightVariables,
+    lightThemeProfile: defaultLightThemeProfile,
+    darkThemeProfile: defaultDarkThemeProfile,
   };
 }
 
@@ -79,7 +69,7 @@ export const useSettingsStore = defineStore('settingsStore', () => {
   }
   function _acceptSettings(acceptedSettings: ISettingsSnapshot): void {
     _settings.value = acceptedSettings;
-    draftSettings.value = structuredClone(acceptedSettings);
+    draftSettings.value = cloneSettings(acceptedSettings);
   }
   function _subscribeToSystemTheme(): void {
     if (_disposeThemeSubscription) return;
@@ -106,7 +96,7 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     _acceptSettings(await UserSettingService.saveSettings(toRaw(_requireDraftSettings())));
   }
   function discardPendingSettings(): void {
-    draftSettings.value = structuredClone(_requireSettings());
+    draftSettings.value = cloneSettings(_requireSettings());
   }
   async function applySettings(): Promise<void> {
     await _saveDraftSettings();

@@ -102,11 +102,10 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
         }
         return;
       } finally {
-        if (runtime.pendingPlayerTurnPromise === pendingPlayerMove) {
+        //if (runtime.pendingPlayerTurnPromise === pendingPlayerMove) guard uneccessary because only 1 player turn can start. old promise must be aborted / completed before another turn can start
           runtime.pendingPlayerTurnPromise = undefined;
           runtime.pendingPlayerTurnHandlePromise = undefined;
           runtime.pendingPlayerTurnAbortController = undefined;
-        }
       }
       if (status.isPausedState(game.gameState)) runtime.deferredPlayerMove = move;
       else commitLiveMove(game, move);

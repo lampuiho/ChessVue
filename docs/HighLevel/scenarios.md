@@ -136,7 +136,7 @@ Each scenario in this document uses the same structure:
 - **Main Steps**:
   1. User launches app.
   2. App loads persisted settings and UI state.
-  3. App resolves the effective app theme from `appearance.themeMode` and the current system theme when required.
+  3. App installs the configured light and dark profile snapshots and resolves the effective colour scheme from `appearance.themeMode` and the current system theme when required.
   4. App restores game collection.
   5. App routes to persisted active game if valid.
 - **Branch Paths**:
@@ -1078,14 +1078,14 @@ Each scenario in this document uses the same structure:
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - **Status**: Current
-- **Goal**: Change app theme mode, piece style, board colors, and UI scaling preferences.
+- **Goal**: Change app colour-scheme mode, piece style, board colours, and UI scaling preferences.
 - **Preconditions**: User on settings view.
 - **Entry Points**: `/settings`, `/settings/:category`.
 - **Main Steps**:
   1. User edits one or more settings fields.
   2. User applies settings to preview or commit the pending changes without leaving the settings view, or saves settings to commit and finish the flow.
   3. App persists settings and applies theme/UI updates for the accepted changes.
-  4. When `themeMode = system`, later OS theme changes update app chrome without rewriting the persisted settings snapshot.
+  4. When `themeMode = system`, later OS theme changes make CSS select the corresponding saved light or dark profile without rewriting the persisted settings snapshot.
 - **Branch Paths**:
   - `BR-SETTINGS-01-INVALID-VALUE`: Value fails schema validation -> block save and show field errors.
   - `BR-SETTINGS-01-APPLY-FAIL`: Apply-on-save fails partially -> persist known-good subset.

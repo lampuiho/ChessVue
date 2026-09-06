@@ -600,6 +600,127 @@ describe('useGamesStore', () => {
     expect(domain.MoveApplicationService.applyMove).not.toHaveBeenCalled();
     expect(domain.MoveHistoryService.addMainlineMove).not.toHaveBeenCalled();
   });
+  it('keeps a move committed before a later resignation', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Move Before Resignation',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    domain.MoveApplicationService.applyMove.mockClear();
+    domain.MoveHistoryService.addMainlineMove.mockClear();
+
+    await store.makeMove(game, createMove(PlayerColour.White));
+    await store.resignGame(game, PlayerColour.Black);
+
+    expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
+    expect(game.resultState).toBe(ResultState.WhiteWon);
+    expect(game.resultReason).toBe(ResultReason.Resignation);
+    expect(game.livePath).toEqual([0]);
+    expect(game.renderedPath).toEqual([0]);
+    expect(domain.MoveApplicationService.applyMove).toHaveBeenCalledOnce();
+    expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledOnce();
+  });
+  it('discards a local move submitted after resignation starts cancelling the turn', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Resignation Before Move',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    const pendingPlayerTurnAbortController = game.$!.pendingPlayerTurnAbortController!;
+    domain.MoveApplicationService.applyMove.mockClear();
+    domain.MoveHistoryService.addMainlineMove.mockClear();
+
+    const resignation = store.resignGame(game, PlayerColour.White);
+    const moveSubmission = store.makeMove(game, createMove(PlayerColour.White));
+    await Promise.all([resignation, moveSubmission]);
+
+    expect(pendingPlayerTurnAbortController.signal.aborted).toBe(true);
+    expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
+    expect(game.resultState).toBe(ResultState.BlackWon);
+    expect(game.resultReason).toBe(ResultReason.Resignation);
+    expect(game.livePath).toEqual([]);
+    expect(game.renderedPath).toEqual([]);
+    expect(domain.MoveApplicationService.applyMove).not.toHaveBeenCalled();
+    expect(domain.MoveHistoryService.addMainlineMove).not.toHaveBeenCalled();
+  });
+  it('discards an engine move submitted after draw acceptance starts cancelling the turn', async () => {
+    let attemptEngineMove: ((move: IMove) => Promise<void>) | undefined;
+    domain.EngineRuntimeService.startPlayerTurn.mockImplementationOnce(async (_engine, _game, attemptPlayerMove) => {
+      attemptEngineMove = attemptPlayerMove;
+    });
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Concurrent Draw',
+      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    await vi.waitFor(() => expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledOnce());
+    await store.offerDraw(game);
+    const pendingPlayerTurnAbortController = game.$!.pendingPlayerTurnAbortController!;
+    domain.MoveApplicationService.applyMove.mockClear();
+    domain.MoveHistoryService.addMainlineMove.mockClear();
+
+    const drawAcceptance = store.acceptDrawOffer(game);
+    const engineMoveAttempt = attemptEngineMove!(createMove(PlayerColour.White));
+    await Promise.all([drawAcceptance, engineMoveAttempt]);
+
+    expect(pendingPlayerTurnAbortController.signal.aborted).toBe(true);
+    expect(game.resultState).toBe(ResultState.Drawn);
+    expect(game.resultReason).toBe(ResultReason.DrawAgreement);
+    expect(game.livePath).toEqual([]);
+    expect(game.renderedPath).toEqual([]);
+    expect(domain.MoveApplicationService.applyMove).not.toHaveBeenCalled();
+    expect(domain.MoveHistoryService.addMainlineMove).not.toHaveBeenCalled();
+  });
+  it('discards a local move submitted after timeout settlement starts cancelling the turn', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Concurrent Timeout',
+      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 1000, incrementMs: 2000 },
+    });
+    const pendingPlayerTurnAbortController = game.$!.pendingPlayerTurnAbortController!;
+    domain.TimeControlService.hasExpired.mockReturnValueOnce(true);
+    domain.TimeControlService.getRemainingTime.mockReturnValueOnce({ white: 0, black: 1000 });
+    domain.TimeControlService.pauseClock.mockImplementationOnce((clockSnapshot: IClockSnapshot, nowUtc: ClockTimestamp) => {
+      expect(pendingPlayerTurnAbortController.signal.aborted).toBe(true);
+      expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
+      return {
+        ...structuredClone(clockSnapshot),
+        pausedAtUtc: nowUtc,
+        white: { ...structuredClone(clockSnapshot.white), isRunning: false },
+        black: { ...structuredClone(clockSnapshot.black), isRunning: false },
+      };
+    });
+    domain.MoveApplicationService.applyMove.mockClear();
+    domain.MoveHistoryService.addMainlineMove.mockClear();
+
+    const timeoutSettlement = store.syncClock(game, new ClockTimestamp('2026-04-18T12:00:00.000Z'));
+    const moveSubmission = store.makeMove(game, createMove(PlayerColour.White));
+    await Promise.all([timeoutSettlement, moveSubmission]);
+
+    expect(pendingPlayerTurnAbortController.signal.aborted).toBe(true);
+    expect(game.resultState).toBe(ResultState.BlackWon);
+    expect(game.resultReason).toBe(ResultReason.Timeout);
+    expect(game.livePath).toEqual([]);
+    expect(game.renderedPath).toEqual([]);
+    expect(domain.MoveApplicationService.applyMove).not.toHaveBeenCalled();
+    expect(domain.MoveHistoryService.addMainlineMove).not.toHaveBeenCalled();
+  });
   it('detaches rendered analysis from the live position and re-aliases it on exit', async () => {
     const store = useGamesStore();
     const game = await store.createGame({
@@ -1051,6 +1172,37 @@ describe('useGamesStore', () => {
     expect(localGame.gameState).toBe(GameState.AnalysisBlackMove);
     expect(localGame.resultState).toBe(ResultState.BlackWon);
     expect(localGame.resultReason).toBe(ResultReason.Resignation);
+  });
+  it('retries failed engine-turn work', async () => {
+    vi.useFakeTimers();
+    const engineFailure = new Error('player engine failed');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    domain.EngineRuntimeService.startPlayerTurn.mockRejectedValueOnce(engineFailure);
+    try {
+      const store = useGamesStore();
+      const game = await store.createGame({
+        name: 'Failed Engine Turn',
+        whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
+        blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+        analysisEngineProfiles: [],
+        showLiveAnalysisMoves: false,
+        timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+      });
+      const pendingPlayerTurnHandle = game.$!.pendingPlayerTurnHandlePromise!;
+
+      await vi.runAllTimersAsync();
+      await expect(pendingPlayerTurnHandle).resolves.toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(2);
+      expect(game.$?.pendingPlayerTurnPromise).toBeDefined();
+      expect(game.$?.pendingPlayerTurnHandlePromise).toBeDefined();
+      expect(game.livePath).toEqual([0]);
+      expect(game.gameState).toBe(GameState.LiveBlackTurn);
+      expect(consoleError).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('plays scholar mate through local player turns only', async () => {
     installScholarMateRules();

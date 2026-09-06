@@ -1,90 +1,77 @@
-/* color palette from <https://github.com/vuejs/theme> */
 :root {
-  --vt-c-white: #ffffff;
-  --vt-c-white-soft: #f8f8f8;
-  --vt-c-white-mute: #f2f2f2;
-
-  --vt-c-black: #181818;
-  --vt-c-black-soft: #222222;
-  --vt-c-black-mute: #282828;
-
-  --vt-c-indigo: #2c3e50;
-
-  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
-  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
-  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
-  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
-
-  --vt-c-text-light-1: var(--vt-c-indigo);
-  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
-  --vt-c-text-dark-1: var(--vt-c-white);
-  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+  color-scheme: light dark;
+  --root-font-size-browser: 100%;
+  --root-font-size-landscape: 2vh;
+  --root-font-size-portrait: 2vw;
+  --surface-app: light-dark(var(--theme-light-surface-app), var(--theme-dark-surface-app));
+  --surface-panel: light-dark(var(--theme-light-surface-panel), var(--theme-dark-surface-panel));
+  --surface-dialog: light-dark(var(--theme-light-surface-dialog), var(--theme-dark-surface-dialog));
+  --surface-raised: light-dark(var(--theme-light-surface-raised), var(--theme-dark-surface-raised));
+  --surface-sunken: light-dark(var(--theme-light-surface-sunken), var(--theme-dark-surface-sunken));
+  --surface-overlay: light-dark(var(--theme-light-surface-overlay), var(--theme-dark-surface-overlay));
+  --surface-highlight: light-dark(var(--theme-light-surface-highlight), var(--theme-dark-surface-highlight));
+  --border-subtle: light-dark(var(--theme-light-border-subtle), var(--theme-dark-border-subtle));
+  --text-primary: light-dark(var(--theme-light-text-primary), var(--theme-dark-text-primary));
+  --text-muted: light-dark(var(--theme-light-text-muted), var(--theme-dark-text-muted));
+  --text-on-accent: light-dark(var(--theme-light-text-on-accent), var(--theme-dark-text-on-accent));
+  --text-on-accent-muted: light-dark(var(--theme-light-text-on-accent-muted), var(--theme-dark-text-on-accent-muted));
+  --accent: light-dark(var(--theme-light-accent), var(--theme-dark-accent));
+  --accent-soft: light-dark(var(--theme-light-accent-soft), var(--theme-dark-accent-soft));
+  --accent-strong: light-dark(var(--theme-light-accent-strong), var(--theme-dark-accent-strong));
+  --accent-ambient: light-dark(var(--theme-light-accent-ambient), var(--theme-dark-accent-ambient));
+  --accent-watermark: light-dark(var(--theme-light-accent-watermark), var(--theme-dark-accent-watermark));
+  --accent-shadow: light-dark(var(--theme-light-accent-shadow), var(--theme-dark-accent-shadow));
+  --danger: light-dark(var(--theme-light-danger), var(--theme-dark-danger));
+  --danger-soft: light-dark(var(--theme-light-danger-soft), var(--theme-dark-danger-soft));
+  --success: light-dark(var(--theme-light-success), var(--theme-dark-success));
+  --success-soft: light-dark(var(--theme-light-success-soft), var(--theme-dark-success-soft));
+  --success-strong: light-dark(var(--theme-light-success-strong), var(--theme-dark-success-strong));
+  --warning: light-dark(var(--theme-light-warning), var(--theme-dark-warning));
+  --focus-ring: light-dark(var(--theme-light-focus-ring), var(--theme-dark-focus-ring));
+  --focus-ring-soft: light-dark(var(--theme-light-focus-ring-soft), var(--theme-dark-focus-ring-soft));
+  --scrollbar-thumb: light-dark(var(--theme-light-scrollbar-thumb), var(--theme-dark-scrollbar-thumb));
+  --scrim: light-dark(var(--theme-light-scrim), var(--theme-dark-scrim));
+  --shadow-sm-primary-colour: light-dark(var(--theme-light-shadow-sm-primary-colour), var(--theme-dark-shadow-sm-primary-colour));
+  --shadow-sm-secondary-colour: light-dark(var(--theme-light-shadow-sm-secondary-colour), var(--theme-dark-shadow-sm-secondary-colour));
+  --shadow-md-primary-colour: light-dark(var(--theme-light-shadow-md-primary-colour), var(--theme-dark-shadow-md-primary-colour));
+  --shadow-md-secondary-colour: light-dark(var(--theme-light-shadow-md-secondary-colour), var(--theme-dark-shadow-md-secondary-colour));
+  --shadow-header-colour: light-dark(var(--theme-light-shadow-header-colour), var(--theme-dark-shadow-header-colour));
+  --shadow-control-colour: light-dark(var(--theme-light-shadow-control-colour), var(--theme-dark-shadow-control-colour));
+  --shadow-sm: 0 0.0625rem 0.125rem var(--shadow-sm-primary-colour), 0 0.3125rem 0.875rem var(--shadow-sm-secondary-colour);
+  --shadow-md: 0 1rem 2.75rem var(--shadow-md-primary-colour), 0 0.1875rem 0.625rem var(--shadow-md-secondary-colour);
+  --shadow-header: 0 0.125rem 1.125rem var(--shadow-header-colour);
+  --shadow-control: 0 0.0625rem 0.1875rem var(--shadow-control-colour);
+  --radius-sm: 0.45rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.1rem;
+  --font-ui: Inter, Aptos, "Segoe UI", sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
 }
-/* semantic color variables for this project */
-:root {
-  --color-background: var(--vt-c-white);
-  --color-background-soft: var(--vt-c-white-soft);
-  --color-background-mute: var(--vt-c-white-mute);
-
-  --color-border: var(--vt-c-divider-light-2);
-  --color-border-hover: var(--vt-c-divider-light-1);
-
-  --color-heading: var(--vt-c-text-light-1);
-  --color-text: var(--vt-c-text-light-1);
-
-  --section-gap: 160px;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: var(--vt-c-black);
-    --color-background-soft: var(--vt-c-black-soft);
-    --color-background-mute: var(--vt-c-black-mute);
-
-    --color-border: var(--vt-c-divider-dark-2);
-    --color-border-hover: var(--vt-c-divider-dark-1);
-
-    --color-heading: var(--vt-c-text-dark-1);
-    --color-text: var(--vt-c-text-dark-2);
-  }
-}
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-weight: normal;
-}
-
+* { box-sizing: border-box; }
+html, body, #app { width: 100%; min-width: 20rem; height: 100%; }
+html { background: var(--surface-app); font-size: var(--root-font-size-browser); }
+html[data-theme-mode="light"] { color-scheme: light; }
+html[data-theme-mode="dark"] { color-scheme: dark; }
+html[data-app-mode="true"] { font-size: var(--root-font-size-landscape); }
 body {
-  height: 100vh;
-  width: 100vw;
-  color: var(--color-text);
-  background: var(--color-background);
-  transition:
-    color 0.5s,
-    background-color 0.5s;
-  line-height: 1.6;
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Fira Sans',
-    'Droid Sans',
-    'Helvetica Neue',
-    sans-serif;
-  font-size: 16px;
+  margin: 0;
+  color: var(--text-primary);
+  background: var(--surface-app);
+  font-family: var(--font-ui);
+  line-height: 1.45;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
-
-#app {
-  height: 100%;
-  width: 100%;
-}
+button, input, select, textarea { color: inherit; font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { border: 0; }
+button:not(:disabled), a { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.48; }
+a { color: inherit; text-decoration: none; }
+svg { display: block; }
+::selection { color: var(--surface-dialog); background: var(--accent); }
+:focus-visible { outline: 0.125rem solid var(--focus-ring); outline-offset: 0.125rem; }
+::-webkit-scrollbar { width: 0.65rem; height: 0.65rem; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border: 0.18rem solid transparent; border-radius: 999rem; background-clip: padding-box; }
+@media (orientation: portrait) { html[data-app-mode="true"] { font-size: var(--root-font-size-portrait); } }

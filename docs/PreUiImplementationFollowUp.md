@@ -74,12 +74,12 @@ The following existing TODOs remain intentionally deferred until UI implementati
 - **Problem:** Principal-variation moves are expanded without validating every move against the evolving position. A malformed or illegal UCI analysis line can reach the analysis panel, be trusted by move handling, or throw through the engine session and terminate it.
 - **Required outcome:** Treat engine output as untrusted: discard an invalid message, retain the last valid analysis result, and keep the session alive.
 
-### PREUI-09 — Player-engine retry is a symptom of incomplete turn cancellation
+### PREUI-09 — Aborted player-engine turns already suppress retry
 
 - **Severity:** Not applicable
 - **Finding status:** Closed
 - **Affected implementation:** [GamePlayerTurnComposable.ts](../src/state/game/GamePlayerTurnComposable.ts)
-- **Closure reasoning:** The detached retry timer is not a separate engine-recovery concern. It is one consequence of player-turn work escaping the lifetime of the turn that authorised it. PREUI-13 owns that invariant: invalidating a turn must cancel and join its work, failed work must settle without creating a detached continuation, and any later turn request must enter through the normal guarded request path. Removing the automatic timer and covering the failure path therefore belong to PREUI-13 rather than a separate reactionary fix.
+- **Closure reasoning:** Retrying an unexpected player-engine failure is intentional. Cancellation rejects the turn with `Aborted`, which the handler explicitly excludes from retry. PREUI-13 therefore needs to abort and join invalidated turns while preserving retry for non-abort failures.
 
 ### PREUI-10 — Managed save input validation ownership was unspecified
 
@@ -107,10 +107,10 @@ The following existing TODOs remain intentionally deferred until UI implementati
 ### PREUI-13 — Player-turn work can outlive the turn that authorised it
 
 - **Severity:** High
-- **Finding status:** Confirmed
+- **Finding status:** Closed
 - **Affected implementation:** [GameStatusComposable.ts](../src/state/game/GameStatusComposable.ts), [GamePlayerTurnComposable.ts](../src/state/game/GamePlayerTurnComposable.ts), [GameClockComposable.ts](../src/state/game/GameClockComposable.ts)
-- **Problem:** Resignation, accepted draw, and timeout signal player-turn cancellation without joining it, while engine failure creates a detached retry outside the current turn lifetime. If a local or engine move has already resolved, the shared handler can still commit it after the turn becomes invalid and overwrite later state.
-- **Required outcome:** Treat all asynchronous player-turn work as owned by the turn that authorised it. Every path that invalidates that turn must close it through the same settlement boundary: external transitions cancel and join it, while its owning handler settles itself. Failure must not schedule a detached retry, and live-turn eligibility must be rechecked immediately before every resolved player move commits. Any subsequent request must enter through the normal guarded request path.
+- **Problem:** Resignation, accepted draw, and timeout signal player-turn cancellation without joining it. If a local or engine move has already resolved, the shared handler can still commit it after the turn becomes invalid and overwrite later state.
+- **Required outcome:** Treat all asynchronous player-turn work as owned by the turn that authorised it. Move resolution and cancellation race through the same deferred, so the first settlement decides whether the handler commits or returns. Every path that invalidates the turn must abort and join it before changing game state. Aborted turns must not retry; unexpected engine-turn failures retain their existing retry behaviour.
 
 ## Plan for Fixing the Findings
 
@@ -149,9 +149,9 @@ Store assertions used by this pre-UI work are temporary diagnostics for exposing
    - Prevent analysis navigation or moves from mutating a terminal result.
    - Apply ongoing-game, live-path, and mode guards consistently to resign and draw commands.
 5. **PREUI-13: player-turn lifetime**
-   - Close the active turn through one settlement boundary whenever it becomes invalid; external transitions such as resignation, accepted draw, and timeout cancel and join the existing owner.
-   - Settle failed player-turn work without a detached retry; any later request must pass through the normal current-state gate.
-   - Recheck live-turn eligibility at the resolved player-move commit boundary so late local or engine output is discarded after the authorising turn ends.
+   - Close the active turn whenever it becomes invalid; external transitions such as resignation, accepted draw, and timeout abort and join the existing owner before changing game state, then clear its runtime ownership from the caller.
+   - Suppress retry only when player-turn work ends with `Aborted`; retain the existing retry for unexpected failures.
+   - Route move resolution and cancellation through the same deferred so a move settled first commits before a later transition, while cancellation settled first discards late local or engine output without duplicating game-state eligibility guards.
 
 **Phase exit:** Tree, path, clock, player, and result state remain mutually consistent across live play, history browsing, takeback, analysis, reassignment, and terminal games.
 
@@ -194,7 +194,7 @@ The following design-derived scenarios are the minimum regression set. A finding
 6. Navigating and analysing after resignation, agreed draw, and checkmate leaves all terminal result fields unchanged. Covers **PREUI-07**.
 7. Malformed and illegal UCI analysis lines are ignored while the session and last valid result remain available. Covers **PREUI-08**.
 8. An analysis-engine assignment made during BoardEdit is retained without starting a runtime, then starts once after a valid mode exit. Covers **PREUI-12**.
-9. A local or engine move resolving concurrently with resignation, accepted draw, or timeout never commits after the terminal result; an unexpected player-engine failure settles the same turn without an unhandled rejection or automatic retry. Covers **PREUI-13**.
+9. A local or engine move resolving concurrently with resignation, accepted draw, or timeout never commits after the terminal result; an aborted turn does not retry, while an unexpected player-engine failure does. Covers **PREUI-13**.
 
 After the focused tests pass, run the complete unit suite, the application build, and the platform TypeScript check. Review the final diff for accidental changes to the intentionally deferred UI-dependent TODOs.
 
@@ -218,10 +218,10 @@ Status values:
 | PREUI-06 | Timeout reconciliation at move boundary | High | Closed | Implemented | Passing | Atomic live-move guard settles timeout before move or increment |
 | PREUI-07 | Terminal-result protection | High | Closed | Implemented | Passing | Analysis cannot record results; result commands require the rendered live position of an ongoing game |
 | PREUI-08 | Malformed UCI analysis isolation | High | Closed | Implemented | Passing | Runtime validates the evolving PV; the client discards rejected messages without replacing valid output or failing the session |
-| PREUI-09 | Detached player-engine retry | Not applicable | Closed | Not applicable | Not applicable | Duplicate symptom covered by the PREUI-13 player-turn lifetime fix |
+| PREUI-09 | Aborted player-engine retry | Not applicable | Closed | Not applicable | Not applicable | Aborted turns do not retry; unexpected engine failures retain automatic retry |
 | PREUI-10 | Managed-save validation ownership | Not applicable | Closed | Not applicable | Not applicable | Presentation validates once; managed IDs are app-owned rather than editable input |
 | PREUI-11 | Partial restore isolation | Medium | Closed | Implemented | Passing | Returns ordered per-target outcomes and preserves valid payloads |
 | PREUI-12 | BoardEdit analysis start guard | Medium | Closed | Implemented | Passing | Addition is configuration-only; eligible workflow transitions own refresh calls explicitly |
-| PREUI-13 | Player-turn lifetime cancellation | High | Confirmed | Not started | Missing | Join invalidating transitions, remove detached retry, and gate the final player-move commit |
+| PREUI-13 | Player-turn lifetime cancellation | High | Closed | Implemented | Passing | First deferred settlement wins; invalidating transitions join before changing state; only aborted turns suppress retry |
 
 Pre-UI completion requires every row to have `Finding: Closed`; confirmed findings must also have `Fix: Implemented` and `Test: Passing`, while findings closed without a required fix may use `Not applicable`.

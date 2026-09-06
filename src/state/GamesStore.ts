@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
 import { GameState, type IBoardPosition, type IGame, type IMove } from '@/contracts';
 import { RecordTimestamp } from '@/utility/date';
@@ -12,8 +13,11 @@ import { useGameStatus } from './game/GameStatusComposable';
 import { useGameWorkspace } from './game/GameWorkspaceComposable';
 
 export const useGamesStore = defineStore('gamesStore', () => {
+  // Canonical games stay raw; completed store transitions publish one shallow invalidation here.
+  const workspaceRevision = ref(0);
   function touchGame(game: IGame): void {
     game.metadata.updatedAt = new RecordTimestamp();
+    workspaceRevision.value += 1;
   }
   const position = useGamePosition();
   let clock: GameClockComposable;
@@ -46,6 +50,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   const boardEdit = useGameBoardEdit({ position, status, analysis, move, touchGame });
   const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, touchGame });
   return {
+    workspaceRevision,
     createGame: workspace.createGame,
     startGameFromSetup: workspace.startGameFromSetup,
     insertGame: workspace.insertGame,

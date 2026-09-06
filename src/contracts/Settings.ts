@@ -1,13 +1,9 @@
 import { z } from 'zod'
+import { themeModeSchema, type ThemeMode } from './Appearance'
 import { engineRecordSchema, type IEngineRecord } from './Engine'
 import { playerTypeSchema, type PlayerType } from './Game'
 import { timeControlSchema, type ITimeControl } from './TimeControl'
 
-export const enum ThemeMode {
-  System = 'system',
-  Light = 'light',
-  Dark = 'dark',
-}
 export const enum AnalysisBranchExitBehaviour {
   ReturnToLiveNode = 'returnToLiveNode',
   StayOnBranch = 'stayOnBranch',
@@ -19,7 +15,6 @@ export const enum BoardOrientation {
   White = 'white',
   Black = 'black',
 }
-export const themeModes = [ThemeMode.System, ThemeMode.Light, ThemeMode.Dark] as const
 export const analysisBranchExitBehaviours = [AnalysisBranchExitBehaviour.ReturnToLiveNode, AnalysisBranchExitBehaviour.StayOnBranch] as const
 export const promotionPolicies = [PromotionPolicy.RequireExplicitSelection] as const
 export const boardOrientations = [BoardOrientation.White, BoardOrientation.Black] as const
@@ -62,7 +57,6 @@ export interface ISettingsSnapshot {
   analysis: ISettingsAnalysis
   appearance: ISettingsAppearance
 }
-export const themeModeSchema = z.enum(themeModes)
 export const analysisBranchExitBehaviourSchema = z.enum(analysisBranchExitBehaviours)
 export const promotionPolicySchema = z.enum(promotionPolicies)
 export const boardOrientationSchema = z.enum(boardOrientations)

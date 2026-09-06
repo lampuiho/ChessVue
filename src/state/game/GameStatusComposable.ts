@@ -16,7 +16,7 @@ type LiveGame = IGame & { livePath: MovePath };
 interface IGameStatusDependency {
   position: GamePositionComposable;
   touchGame: (game: IGame) => void;
-  clearPlayerTurnRuntime: (game: IGame) => void;
+  clearPlayerTurnRuntime: (game: IGame) => Promise<void>;
   refreshRuntimeRegistrations: (game: IGame) => void;
 }
 
@@ -122,11 +122,11 @@ export function useGameStatus(dependency: IGameStatusDependency) {
   }
   async function resignGame(game: IGame, colour: PlayerColour): Promise<void> {
     assertOngoingLiveAction(game, 'Resignation');
+    await clearPlayerTurnRuntime(game);
     game.resultState = colour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
     game.resultReason = ResultReason.Resignation;
     game.gameState = getAnalysisState(getOpponentColour(colour));
     game.drawOfferState = undefined;
-    clearPlayerTurnRuntime(game);
     touchGame(game);
     refreshRuntimeRegistrations(game);
   }
@@ -139,11 +139,11 @@ export function useGameStatus(dependency: IGameStatusDependency) {
   async function acceptDrawOffer(game: IGame): Promise<void> {
     assertOngoingLiveAction(game, 'Draw acceptance');
     if (!game.drawOfferState) return;
+    await clearPlayerTurnRuntime(game);
     game.resultState = ResultState.Drawn;
     game.resultReason = ResultReason.DrawAgreement;
     game.gameState = getAnalysisState(position.getRenderedPosition(game).sideToMove);
     game.drawOfferState = undefined;
-    clearPlayerTurnRuntime(game);
     touchGame(game);
     refreshRuntimeRegistrations(game);
   }

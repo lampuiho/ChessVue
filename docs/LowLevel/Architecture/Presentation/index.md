@@ -27,10 +27,13 @@ These rules exist so the later low-level CSS design can scope spacing cleanly:
 ## Appearance Variable Rules
 This section defines the low-level app-theme contract that presentation components must preserve.
 
-- One root app surface owns the effective theme attribute and the reactive semantic CSS-variable map from `IAppearanceProjection`.
+- The document element is the single root appearance host. It owns the colour-scheme policy attribute, the light and dark CSS-variable banks from `IAppearanceProjection`, and the root font size from which `rem` derives.
 - Shared UI chrome must read semantic CSS variables rather than hardcoded palette values.
 - Common components may define local aliases over the semantic variables, but they must not fork separate light/dark palettes internally.
-- The CSS-variable map is configuration-reactive so accepted settings changes and system-theme changes can restyle app chrome without component remounts.
+- Stable semantic variables select between the two banks with CSS `light-dark(...)`. `color-scheme: light dark` follows the OS in system mode, while explicit light and dark modes constrain `color-scheme` through the root policy attribute.
+- The document declares the same supported scheme policy through `<meta name="color-scheme">`, and the active surface through `<meta name="theme-color">`, so browser controls and auto-detecting dark-mode extensions receive standard signals.
+- Do not opt out of extension processing with extension-specific lock markers. Theme compatibility is based on standards, semantic colours, and accurate surface/text contrast.
+- Both CSS-variable banks are configuration-reactive so accepted profile changes can restyle app chrome without component remounts; system-theme changes switch the CSS-selected bank without rewriting settings.
 - `themeMode` styles app chrome only. `boardTheme` and `pieceTheme` remain separate appearance paths owned by their respective presentation surfaces.
 
 ## Spacing Variable Rules
@@ -50,6 +53,7 @@ This section defines the baseline layout-scaling expectations for presentation c
 - Parent shells and layout components should prefer flexible growth and shrink behaviour over hardcoded widths and heights.
 - Fixed dimensions are reserved only for genuine invariants such as square board geometry, icon glyph boxes, or minimum hit targets.
 - Even when an invariant requires a fixed dimension, prefer `rem` or other relative units over raw pixel values where practical.
+- Browser mode applies `uiScalePercent` to the document root as a percentage. App mode derives the document-root font size from `vh` in landscape and `vw` in portrait so the whole `rem`-based interface follows the viewport's short edge.
 
 ## Runtime Error Surface
 This section defines the baseline presentation rule for exceptional runtime errors that do not belong to the ordinary feature-modal matrix.

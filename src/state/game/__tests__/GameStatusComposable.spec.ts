@@ -9,7 +9,7 @@ describe('useGameStatus', () => {
   function createSubject() {
     const position = useGamePosition();
     const touchGame = vi.fn();
-    const clearPlayerTurnRuntime = vi.fn();
+    const clearPlayerTurnRuntime = vi.fn(async (): Promise<void> => {});
     const refreshRuntimeRegistrations = vi.fn();
     const status = useGameStatus({ position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations });
     return { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations };
@@ -25,9 +25,16 @@ describe('useGameStatus', () => {
   it('finalises an accepted draw and invokes session teardown hooks', async () => {
     const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = createSubject();
     const game = position.hydrateGame(createGame({ drawOfferState: createOutgoingDrawOffer(PlayerColour.White) }));
+    let completeTurnCancellation!: () => void;
+    clearPlayerTurnRuntime.mockImplementationOnce(() => new Promise<void>((resolve) => completeTurnCancellation = resolve));
 
-    await status.acceptDrawOffer(game);
+    const drawAcceptance = status.acceptDrawOffer(game);
+    await Promise.resolve();
 
+    expect(game.resultState).toBe(ResultState.Ongoing);
+    expect(touchGame).not.toHaveBeenCalled();
+    completeTurnCancellation();
+    await drawAcceptance;
     expect(game.resultState).toBe(ResultState.Drawn);
     expect(game.resultReason).toBe(ResultReason.DrawAgreement);
     expect(game.drawOfferState).toBeUndefined();

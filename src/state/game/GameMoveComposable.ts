@@ -45,7 +45,6 @@ export function useGameMove(dependency: IGameMoveDependency) {
     if (game.resultState === ResultState.Ongoing && !isLivePositionRendered) game.gameState = status.getLiveAnalysisState(livePosition.sideToMove, renderedColour);
     else status.updateGameStateAfterPosition(game, renderedColour);
     touchGame(game);
-    playerTurn.clearPlayerTurnRuntime(game);
     clock.refreshRuntimeRegistrations(game);
     void analysis.refreshAnalysisForGame(game);
     playerTurn.requestPlayerMoveIfNeeded(game);
@@ -122,7 +121,6 @@ export function useGameMove(dependency: IGameMoveDependency) {
     game.resultState = ResultState.Ongoing;
     game.resultReason = undefined;
     game.drawOfferState = undefined;
-    playerTurn.clearPlayerTurnRuntime(game);
     game.gameState = nextState;
     touchGame(game);
   }

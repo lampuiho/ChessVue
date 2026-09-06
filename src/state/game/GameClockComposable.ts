@@ -18,7 +18,7 @@ interface IGameClockDependency {
   status: GameStatusComposable;
   // game persistent data touched event (internally updating update time)
   touchGame: (game: IGame) => void;
-  clearPlayerTurnRuntime: (game: IGame) => void;
+  clearPlayerTurnRuntime: (game: IGame) => Promise<void>;
   flushDeferredPlayerMove: (game: IGame) => Promise<void>;
 }
 
@@ -56,22 +56,31 @@ export function useGameClock(dependency: IGameClockDependency) {
     if (!hasLiveClock || game.resultState !== ResultState.Ongoing || !isTimedGame(game) || !hasRunningClock(game.clockSnapshot)) return;
     runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, new ClockTimestamp()), `sync-clock-${game.metadata.id}`);
   }
-  function reconcileTimeout(game: IGame, nowUtc: ClockTimestamp): boolean {
-    if (!status.isLiveState(game.gameState) && !status.isPausedLiveState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) return false;
-    if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return false;
+  function getExpiredColour(game: IGame, nowUtc: ClockTimestamp): PlayerColour | undefined {
+    if (!status.isLiveState(game.gameState) && !status.isPausedLiveState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) return;
+    if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return;
     const remainingTime = TimeControlService.getRemainingTime(game.clockSnapshot, nowUtc);
-    const expiredColour = (remainingTime.white ?? 1) <= 0 ? PlayerColour.White : PlayerColour.Black;
+    return (remainingTime.white ?? 1) <= 0 ? PlayerColour.White : PlayerColour.Black;
+  }
+  function finaliseTimeout(game: IGame, nowUtc: ClockTimestamp, expiredColour: PlayerColour): void {
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, nowUtc);
     game.resultState = expiredColour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
     game.resultReason = ResultReason.Timeout;
     game.gameState = status.getAnalysisState(getOpponentColour(expiredColour));
-    clearPlayerTurnRuntime(game);
     touchGame(game);
     refreshRuntimeRegistrations(game);
+  }
+  function reconcileTimeout(game: IGame, nowUtc: ClockTimestamp): boolean {
+    const expiredColour = getExpiredColour(game, nowUtc);
+    if (!expiredColour) return false;
+    finaliseTimeout(game, nowUtc, expiredColour);
     return true;
   }
   async function syncClock(game: IGame, nowUtc: ClockTimestamp): Promise<void> {
-    reconcileTimeout(game, nowUtc);
+    const expiredColour = getExpiredColour(game, nowUtc);
+    if (!expiredColour) return;
+    await clearPlayerTurnRuntime(game);
+    finaliseTimeout(game, nowUtc, expiredColour);
   }
   async function pauseGame(game: IGame, reason: PauseReason): Promise<void> {
     const runtime = position.requireGameRuntime(game);
