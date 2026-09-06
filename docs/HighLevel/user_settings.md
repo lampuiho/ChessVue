@@ -40,12 +40,12 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Setting | Baseline Notes |
 | --- | --- |
 | Theme mode | Built-in `light` and `dark` app themes with `system` as the default mode. |
-| Board theme | Board colour and styling choice. |
-| Piece theme | Piece style selection. |
 | UI scale | Desktop UI scale percentage. |
 | Board orientation | Default orientation for the board. |
 | Show coordinates | Board coordinate visibility. |
 | Highlight last move | Whether the board highlights the most recent move. |
+
+Board and piece theme fields are reserved in the schema for future support. The baseline uses a fixed presentation and exposes no board or piece theme selection controls.
 
 ## Not Baseline User Settings
 The following items are not committed baseline settings and should not appear in the low-level settings schema unless later promoted:

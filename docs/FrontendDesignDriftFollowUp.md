@@ -21,12 +21,13 @@ Work through these follow-ups independently. Update each status as it is reviewe
 ### FRONTEND-DRIFT-02 — Named saves overwrite without confirmation
 
 - **Priority:** P1
-- **Status:** Pending
+- **Status:** Resolved
 - **Implementation:** `src/views/SavedGamesView.vue:75`
 - **Design:** `docs/HighLevel/scenarios.md:943`, `docs/LowLevel/ProcessFlows/PersistenceAndAdministration.md:100`
 - **Problem:** Managed saves always pass `overwrite: true` without first checking for a matching save name or asking the user to confirm replacement.
 - **Impact:** Reusing a save name can silently destroy an existing named snapshot.
 - **Acceptance criteria:** A unique valid name saves immediately. A colliding name opens the shared overwrite-confirmation flow; cancelling performs no write, while confirming performs the replacement.
+- **Resolution:** `SavedGamesView` uses the shared dialog shell to confirm replacement of an existing name. Unconfirmed writes disable overwrite and also prompt on storage-reported collisions. Dismissing the dialog preserves the existing save and keeps the form open; confirming replaces the captured target. View tests cover unique names, cancellation, confirmation, stale listings, validation, and write failures.
 
 ### FRONTEND-DRIFT-03 — Analysis panel can show snapshots for another position
 
@@ -48,15 +49,16 @@ Work through these follow-ups independently. Update each status as it is reviewe
 - **Impact:** A live-game click can attempt multiple consecutive moves instead of committing one selected suggestion. Analysis contexts cannot stop at a chosen move within a line.
 - **Acceptance criteria:** Each eligible move is independently selectable. Live play commits only the selected first-move suggestion; analysis contexts apply only the continuation prefix ending at the clicked move.
 
-### FRONTEND-DRIFT-05 — Board and piece appearance settings are not rendered
+### FRONTEND-DRIFT-05 — Board and piece customisation is deferred
 
 - **Priority:** P2
-- **Status:** Pending
-- **Implementation:** `src/views/SettingsView.vue:164`, `src/views/GameView.vue:238`, `src/components/Chessboard.vue:169`
+- **Status:** Resolved
+- **Implementation:** `src/views/SettingsView.vue`
 - **Design:** `docs/HighLevel/settings_contract.md:36`, `docs/HighLevel/ui_layout.md:44`, `docs/LowLevel/Architecture/Presentation/index.md:37`
-- **Problem:** Settings exposes `boardTheme` and `pieceTheme`, but `GameView` does not pass either value to `Chessboard`. Board colours and Unicode piece rendering are hardcoded.
-- **Impact:** Accepted board and piece appearance changes have no visible effect.
-- **Acceptance criteria:** `Chessboard` consumes both settings through their separate appearance paths, and every offered board or piece option produces the corresponding visible presentation.
+- **Problem:** The review incorrectly treated future board and piece customisation as an initial-phase implementation requirement. Settings exposed selectors for styles that were not implemented.
+- **Impact:** The selectors implied supported customisation and the original acceptance criteria expanded the initial scope.
+- **Acceptance criteria:** The initial phase uses a fixed board and piece presentation without customisation controls. Retain the separate appearance code structure and reserved `boardTheme` and `pieceTheme` schema fields for future implementation.
+- **Resolution:** Removed the board and piece theme selectors and clarified the design documents. Customisation remains deferred; no additional themes or rendering integration are required for this follow-up.
 
 ### FRONTEND-DRIFT-06 — Interface-scale control does not expose the full contract range
 

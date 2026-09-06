@@ -14,7 +14,7 @@ Examples of baseline capabilities that are not themselves settings:
 - in-game analysis exists
 - saved-game restore exists
 
-Only the user-editable choices listed below belong in the committed settings schema.
+Only the user-editable choices listed below and the explicitly reserved appearance fields belong in the committed settings schema.
 
 ## Settings Table
 | Setting | Purpose | Default | Validation | Persistence Owner |
@@ -33,12 +33,13 @@ Only the user-editable choices listed below belong in the committed settings sch
 | `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
 | `analysis.engineInventory` | User-managed engine profile registry | `[]` | Unique profile names only; remaining profile fields are user-managed values | Settings snapshot |
 | `appearance.themeMode` | Decide whether app chrome follows the OS colour scheme or forces light or dark | `system` | `system`, `light`, or `dark` | Settings snapshot |
-| `appearance.boardTheme` | Board colours or theme selection | `classic` | Non-empty theme key | Settings snapshot |
-| `appearance.pieceTheme` | Piece style selection | `classic` | Non-empty theme key | Settings snapshot |
 | `appearance.uiScalePercent` | Global UI scale for desktop layout | `100` | Integer from `75` to `200` | Settings snapshot |
 | `appearance.boardOrientation` | Default board orientation | `white` | `white` or `black` | Settings snapshot |
 | `appearance.showCoordinates` | Show board coordinates | `true` | Boolean | Settings snapshot |
 | `appearance.highlightLastMove` | Highlight the most recent move on the board | `true` | Boolean | Settings snapshot |
+
+## Reserved Appearance Fields
+`appearance.boardTheme` and `appearance.pieceTheme` remain in the schema as non-empty theme keys defaulting to `classic` to support future implementation. They are not user-editable baseline settings. The initial phase uses a fixed board and piece presentation; theme selection, additional styles, and customisation UI are deferred. Keep board and piece appearance separate from app chrome in the code structure.
 
 ## Built-In Defaults
 The baseline built-in time presets are:
@@ -66,7 +67,7 @@ Custom time controls are allowed where scenarios require them, but the quick new
 - `analysis.engineInventory` validates only that profile names are unique within the saved profile list. Executable path and option values are stored as entered and are consumed later when a profile is used to create an engine participant.
 - `appearance.themeMode = system` follows the active OS colour scheme, while `light` and `dark` force that colour scheme.
 - Theme-profile selection and profile snapshots are not user settings in the baseline. The appearance projection is profile-shaped so that capability can be connected later without changing component CSS.
-- `appearance.themeMode` applies to app chrome only; board and piece themes remain separate appearance settings.
+- `appearance.themeMode` applies to app chrome only; board and piece themes remain separate future appearance paths.
 
 ## Explicit Non-Baseline Settings
 The following are intentionally excluded from the baseline settings contract and are tracked in [ideas.md](ideas.md) if needed:

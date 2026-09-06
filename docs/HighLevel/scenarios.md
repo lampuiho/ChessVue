@@ -1078,7 +1078,7 @@ Each scenario in this document uses the same structure:
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - **Status**: Current
-- **Goal**: Change app colour-scheme mode, piece style, board colours, and UI scaling preferences.
+- **Goal**: Change app colour-scheme mode and UI scaling preferences. Board and piece customisation is deferred; only its supporting code structure belongs in the initial phase.
 - **Preconditions**: User on settings view.
 - **Entry Points**: `/settings`, `/settings/:category`.
 - **Main Steps**:

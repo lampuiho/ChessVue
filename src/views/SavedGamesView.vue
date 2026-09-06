@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { AppModalKind, type IGame } from '@/contracts';
+import { AppModalKind, PlatformErrorKind, type IGame } from '@/contracts';
 import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind } from '@/contracts/state';
 import { useGamesStore, useSavedGamesStore, useUiStateStore } from '@/state';
@@ -22,6 +22,7 @@ const isWorking = ref(false);
 const message = ref('');
 const errorMessage = ref('');
 const deleteTarget = ref<ISavedGameFileEntry>();
+const overwriteTarget = ref<{ game: IGame; saveName: string }>();
 const isSaveMode = computed(() => route.name === 'save-game');
 const isDetailMode = computed(() => route.name === 'load-game' || isSaveMode.value);
 const routeGameId = computed(() => String(route.params.name ?? ''));
@@ -37,7 +38,10 @@ const saveNameError = computed(() => {
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` : '/home');
 
 onMounted(refreshGroups);
-watch(() => route.fullPath, () => initialiseRoute());
+watch(() => route.fullPath, () => {
+  overwriteTarget.value = undefined;
+  initialiseRoute();
+});
 async function refreshGroups(): Promise<void> {
   isLoading.value = true;
   errorMessage.value = '';
@@ -74,12 +78,31 @@ async function loadGame(gameId: string, entryName?: string): Promise<void> {
 }
 async function saveGame(): Promise<void> {
   const currentGame = activeGame.value;
-  if (!currentGame || saveNameError.value) return;
+  if (!currentGame || saveNameError.value || isLoading.value || isWorking.value || overwriteTarget.value) return;
+  const target = { game: currentGame, saveName: saveName.value.trim() };
   await run(async () => {
-    await savedGamesStore.saveGame(currentGame, { targetKind: SaveGameTargetKind.ManagedSave, saveName: saveName.value.trim(), overwrite: true });
-    message.value = `Saved “${saveName.value.trim()}”.`;
-    await refreshGroups();
+    if (selectedGroup.value?.saves.some((entry) => entry.saveName === target.saveName)) {
+      overwriteTarget.value = target;
+      return;
+    }
+    try {
+      await writeSave(target.game, target.saveName, false);
+    } catch (error) {
+      if (typeof error !== 'object' || error === null || !('kind' in error) || error.kind !== PlatformErrorKind.AlreadyExists) throw error;
+      overwriteTarget.value = target;
+    }
   });
+}
+async function writeSave(game: IGame, name: string, overwrite: boolean): Promise<void> {
+  await savedGamesStore.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: name, overwrite });
+  overwriteTarget.value = undefined;
+  message.value = `Saved “${name}”.`;
+  await refreshGroups();
+}
+async function confirmOverwrite(): Promise<void> {
+  const target = overwriteTarget.value;
+  if (!target || isWorking.value) return;
+  await run(() => writeSave(target.game, target.saveName, true));
 }
 async function importGame(): Promise<void> {
   await run(async () => {
@@ -161,6 +184,7 @@ function formatDate(entry: ISavedGameFileEntry): string {
       </section>
     </div>
     <ModalDialog v-if="deleteTarget" title="Delete this save?" :subtitle="`“${deleteTarget.saveName}” will be permanently removed from this game.`" @dismissed="deleteTarget = undefined"><p class="delete-warning">Other snapshots of this game will not be affected.</p><template #actions><button class="text-button text-button--ghost" @click="deleteTarget = undefined">Cancel</button><button class="text-button text-button--danger" @click="confirmDelete">Delete save</button></template></ModalDialog>
+    <ModalDialog v-if="overwriteTarget" title="Replace this save?" :subtitle="`“${overwriteTarget.saveName}” already exists for this game.`" :dismissible="!isWorking" @dismissed="overwriteTarget = undefined"><p class="delete-warning">Replacing it will overwrite the existing snapshot with the current game.</p><template #actions><button class="text-button text-button--ghost" :disabled="isWorking" @click="overwriteTarget = undefined">Cancel</button><button class="text-button text-button--danger" :disabled="isWorking" @click="confirmOverwrite">Replace save</button></template></ModalDialog>
   </main>
 </template>
 

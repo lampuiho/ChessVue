@@ -29,7 +29,7 @@ Use [ideas.md](ideas.md) when a configuration topic is:
 - intentionally excluded from the current rewrite baseline
 
 ## Quick Rule of Thumb
-- `piece theme` -> user setting
+- `piece theme` -> reserved code structure; user selection is deferred
 - `theme mode` -> user setting
 - `auto-pause on menu interruption` -> user setting
 - `engine executable path` -> user-managed settings data

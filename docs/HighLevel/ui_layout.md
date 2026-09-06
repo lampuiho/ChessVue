@@ -41,7 +41,7 @@ This theme support applies to app-shell and shared UI chrome such as:
 - `SettingsView`
 - shared dialog surfaces
 
-Board appearance and piece appearance remain separate appearance concerns rather than being merged into app theme mode.
+Board appearance and piece appearance remain separate appearance concerns in the code structure rather than being merged into app theme mode. The initial phase uses a fixed board and piece presentation; selection controls and customisation are deferred.
 
 Potential support for user-created themes is a deferred idea, not part of the baseline layout contract.
 

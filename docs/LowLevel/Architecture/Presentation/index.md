@@ -34,7 +34,7 @@ This section defines the low-level app-theme contract that presentation componen
 - The document declares the same supported scheme policy through `<meta name="color-scheme">`, and the active surface through `<meta name="theme-color">`, so browser controls and auto-detecting dark-mode extensions receive standard signals.
 - Do not opt out of extension processing with extension-specific lock markers. Theme compatibility is based on standards, semantic colours, and accurate surface/text contrast.
 - Both CSS-variable banks are configuration-reactive so accepted profile changes can restyle app chrome without component remounts; system-theme changes switch the CSS-selected bank without rewriting settings.
-- `themeMode` styles app chrome only. `boardTheme` and `pieceTheme` remain separate appearance paths owned by their respective presentation surfaces.
+- `themeMode` styles app chrome only. `boardTheme` and `pieceTheme` remain separate appearance paths owned by their respective presentation surfaces for future implementation. The initial phase uses a fixed presentation and does not expose theme selection or require additional board or piece styles.
 
 ## Spacing Variable Rules
 This section defines the low-level spacing contract that presentation components must preserve.

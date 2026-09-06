@@ -47,6 +47,7 @@ Anything in this document is excluded from that baseline unless it is later prom
 ## Settings and Schema Ideas
 | Idea | Source | Why Deferred |
 | --- | --- | --- |
+| Board and piece appearance customisation, including theme selection | Initial-phase scope clarification for `FRONTEND-DRIFT-05` | Retain separate appearance paths and reserved schema fields for future implementation; the initial phase uses a fixed presentation without selection controls. |
 | User-created or importable custom UI themes | appearance/theme extension path after baseline `light`, `dark`, and `system` support | Baseline built-in themes only need one stable semantic CSS-variable contract before user-authored theme data is introduced. |
 | Sound enablement as a committed user setting | previous low-level drift | Not required by current or planned scenarios. |
 | Extra inferred board-display toggles beyond the committed baseline | previous `user_settings.md` inferred rows | Only the settings promoted into `settings_contract.md` should shape the rewrite. |

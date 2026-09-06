@@ -15,4 +15,4 @@ Render a single chess piece token according to the selected piece theme and piec
 ## Notes
 - `ChessPiece` is a presentational child of `Chessboard`.
 - It does not own square selection, move rules, or drag/drop orchestration.
-- Theme switching changes the rendered asset or glyph set without changing board logic.
+- Future theme switching will change the rendered asset or glyph set without changing board logic. The initial phase requires only a fixed piece presentation and the code structure to support that future extension.
