@@ -8,6 +8,7 @@ import {
   EngineProtocol,
   MoveKind,
   PieceKind,
+  PlatformErrorKind,
   PlayerColour,
   ResultState,
   type IAssignedEngine,
@@ -19,6 +20,8 @@ import {
   type IMove,
 } from '@/contracts';
 import { createInitialBoardPosition } from '@/utility/chess';
+import { Deferred } from '@/utility/async/Deferred';
+let Aborted: typeof import('@/contracts/errors/Aborted').default;
 
 let EngineRuntimeService: typeof import('..').EngineRuntimeService;
 const spawnProcess = vi.fn();
@@ -127,6 +130,7 @@ describe('EngineRuntimeService', () => {
       }),
     }));
     ({ EngineRuntimeService } = await import('..'));
+    ({ default: Aborted } = await import('@/contracts/errors/Aborted'));
   });
 
   it('initialises an engine through the mocked platform process manager', async () => {
@@ -138,6 +142,48 @@ describe('EngineRuntimeService', () => {
     expect(initialiseEngine).toHaveBeenCalledWith(engine);
     expect(engine.$?.processHandle).toBe('process-1');
     expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+  });
+  it('rejects missing analysis base runtime through the existing promise contract', async () => {
+    const engine = createAssignedEngine();
+    delete engine.$;
+    await expect(EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest())).rejects.toThrow('Engine runtime state is not available');
+    expect(spawnProcess).not.toHaveBeenCalled();
+  });
+  it('cancels superseded analysis readiness and starts only the latest request', async () => {
+    const engine = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const ready = new Deferred<void>();
+    initialiseEngine.mockImplementationOnce(() => { entered.resolve(); return ready; });
+    const first = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    await entered;
+    const intermediate = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    const secondGame = createGame();
+    const second = EngineRuntimeService.startAnalysis(engine, secondGame, createAnalysisRequest());
+    expect(await first).toBeInstanceOf(Aborted);
+    expect(await intermediate).toBeInstanceOf(Aborted);
+    expect(startAnalysis).not.toHaveBeenCalled();
+    ready.resolve();
+    await second;
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(startAnalysis.mock.calls[0]?.[1]).toBe(secondGame);
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
+  });
+  it('rejects old output after resubscription and leaves the replacement status intact', async () => {
+    const engine = createAssignedEngine();
+    const oldSubscriber = vi.fn();
+    const subscriber = vi.fn();
+    const update: IEngineAnalysisUpdate = { position: createInitialBoardPosition(), lines: [], isFinal: true };
+    EngineRuntimeService.subscribeToAnalysis(engine, oldSubscriber);
+    await EngineRuntimeService.ensureReady(engine);
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    const oldCallback = startAnalysis.mock.calls[0]![3];
+    EngineRuntimeService.subscribeToAnalysis(engine, subscriber);
+    expect(oldCallback(update)).toBe(false);
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(oldCallback(update)).toBe(false);
+    expect(oldSubscriber).not.toHaveBeenCalled();
+    expect(subscriber).not.toHaveBeenCalled();
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
   });
 
   it('discovers copied option metadata through a temporary engine and closes it before returning', async () => {
@@ -197,7 +243,7 @@ describe('EngineRuntimeService', () => {
     expect(startAnalysis.mock.calls[0]?.[1]).toBe(game);
     expect(startAnalysis.mock.calls[0]?.[2]).toEqual(createAnalysisRequest());
     const guardedOnUpdate = startAnalysis.mock.calls[0]?.[3] as (update: IEngineAnalysisUpdate) => boolean;
-    const validUpdate: IEngineAnalysisUpdate = { position, positionKey: 'initial', lines: [{ depth: 1, pv: [createMove(), createPonderMove()] }], isFinal: false };
+    const validUpdate: IEngineAnalysisUpdate = { position, lines: [{ depth: 1, pv: [createMove(), createPonderMove()] }], isFinal: false };
     const illegalPvMove: IMove = { from: boardId(4, 3), to: boardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
     const illegalBestMove: IMove = { ...createMove(), to: boardId(4, 4) };
 
@@ -354,6 +400,138 @@ describe('EngineRuntimeService', () => {
     expect(engine.$?.lastError).toBe('ponder boom');
   });
 
+  it('drains an issued start before replacement and suppresses its late error and output', async () => {
+    const engine = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const started = new Deferred<void>();
+    startAnalysis.mockImplementationOnce(() => { entered.resolve(); return started; });
+    const first = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    await entered;
+    const oldCallback = startAnalysis.mock.calls[0]![3];
+    const replacement = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(await first).toBeInstanceOf(Aborted);
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(oldCallback({ position: createInitialBoardPosition(), lines: [], isFinal: true })).toBe(false);
+    expect(engine.$?.availability).toBe(EngineAvailability.Starting);
+    started.reject(new Error('obsolete startup failure'));
+    await replacement;
+    expect(startAnalysis).toHaveBeenCalledTimes(2);
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
+    expect(engine.$?.lastError).toBeUndefined();
+  });
+  it('cancels readiness on Stop without sending an analysis start or stop command', async () => {
+    const engine = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const ready = new Deferred<void>();
+    initialiseEngine.mockImplementationOnce(() => { entered.resolve(); return ready; });
+    const starting = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    await entered;
+    const stopping = EngineRuntimeService.stopAnalysis(engine);
+    expect(await starting).toBeInstanceOf(Aborted);
+    ready.resolve();
+    await stopping;
+    expect(startAnalysis).not.toHaveBeenCalled();
+    expect(stopAnalysis).not.toHaveBeenCalled();
+    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+  });
+  it('waits for a stopping search before starting a replacement', async () => {
+    const engine = createAssignedEngine();
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    const entered = new Deferred<void>();
+    const stopped = new Deferred<void>();
+    stopAnalysis.mockImplementationOnce(() => { entered.resolve(); return stopped; });
+    const stopping = EngineRuntimeService.stopAnalysis(engine).catch((error) => error);
+    await entered;
+    const replacement = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(await stopping).toBeInstanceOf(Aborted);
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    stopped.resolve();
+    await replacement;
+    expect(startAnalysis).toHaveBeenCalledTimes(2);
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
+  });
+  it('clears a stale process handle when stopping analysis fails its liveness check', async () => {
+    const engine = createAssignedEngine();
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    const error = Object.assign(new Error('Process closed'), { kind: PlatformErrorKind.InvalidProcessHandle, operation: 'assertProcessHandleOpen' });
+    assertProcessHandleOpen.mockImplementationOnce(() => { throw error; });
+    await expect(EngineRuntimeService.stopAnalysis(engine)).rejects.toBe(error);
+    expect(stopAnalysis).not.toHaveBeenCalled();
+    expect(engine.$?.processHandle).toBeUndefined();
+    expect(engine.$?.availability).toBe(EngineAvailability.Failed);
+    expect(engine.$?.lastError).toBe('Process closed');
+  });
+  it('releases a process spawned after removal without initialising its client', async () => {
+    const engine = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const spawned = new Deferred<string>();
+    spawnProcess.mockImplementationOnce(() => { entered.resolve(); return spawned; });
+    const starting = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    await entered;
+    const disposal = EngineRuntimeService.stopEngine(engine);
+    expect(await starting).toBeInstanceOf(Aborted);
+    spawned.resolve('late-process');
+    await disposal;
+    expect(stopProcess).toHaveBeenCalledWith('late-process');
+    expect(initialiseEngine).not.toHaveBeenCalled();
+    expect(startAnalysis).not.toHaveBeenCalled();
+    expect(engine.$?.processHandle).toBeUndefined();
+    expect(engine.$?.availability).toBe(EngineAvailability.Unavailable);
+  });
+  it('preserves natural completion received before the startup promise resolves', async () => {
+    const engine = createAssignedEngine();
+    startAnalysis.mockImplementationOnce((_engine, _game, _request, onUpdate) => {
+      onUpdate({ position: createInitialBoardPosition(), lines: [], isFinal: true });
+    });
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+    await EngineRuntimeService.stopAnalysis(engine);
+    expect(stopAnalysis).not.toHaveBeenCalled();
+  });
+  it('preserves a reused subscription when a new start follows pending engine disposal', async () => {
+    const engine = createAssignedEngine();
+    const subscriber = vi.fn();
+    EngineRuntimeService.subscribeToAnalysis(engine, subscriber);
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    const entered = new Deferred<void>();
+    const stopped = new Deferred<void>();
+    stopProcess.mockImplementationOnce(() => { entered.resolve(); return stopped; });
+    const disposal = EngineRuntimeService.stopEngine(engine).catch((error) => error);
+    await entered;
+    const starting = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(await disposal).toBeInstanceOf(Aborted);
+    stopped.resolve();
+    await starting;
+    const onUpdate = startAnalysis.mock.calls[1]![3];
+    const update = { position: createInitialBoardPosition(), lines: [], isFinal: false };
+    expect(onUpdate(update)).toBe(true);
+    expect(subscriber).toHaveBeenCalledWith(update);
+  });
+  it('starts another assigned engine while the first waits for readiness', async () => {
+    const engine = createAssignedEngine();
+    const peer = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const ready = new Deferred<void>();
+    initialiseEngine.mockImplementationOnce(() => { entered.resolve(); return ready; });
+    const waiting = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    await entered;
+    await EngineRuntimeService.startAnalysis(peer, createGame(), createAnalysisRequest());
+    expect(startAnalysis.mock.calls[0]![0]).toBe(peer);
+    ready.resolve();
+    await waiting;
+    expect(startAnalysis.mock.calls[1]![0]).toBe(engine);
+  });
+  it('validates lines beyond the three rendered ranks', async () => {
+    const engine = createAssignedEngine();
+    const subscriber = vi.fn();
+    EngineRuntimeService.subscribeToAnalysis(engine, subscriber);
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    const onUpdate = startAnalysis.mock.calls[0]![3];
+    const lines = [1, 2, 3].map(() => ({ depth: 1, pv: [createMove()] }));
+    lines.push({ depth: 1, pv: [{ ...createMove(), to: boardId(4, 4) }] });
+    expect(onUpdate({ position: createInitialBoardPosition(), lines, isFinal: false })).toBe(false);
+    expect(subscriber).not.toHaveBeenCalled();
+  });
   it('stops the engine and clears runtime state through the mocked platform services', async () => {
     const engine = createAssignedEngine();
     engine.$!.processHandle = 'process-1';

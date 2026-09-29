@@ -1,13 +1,6 @@
-import {
-  EngineAnalysisSearchMode,
-  GameState,
-  type IAnalysisSnapshot,
-  type IAssignedEngine,
-  type IEngineRecord,
-  type IGame,
-  type IVisibleAnalysisSnapshot,
-} from '@/contracts';
-import { EngineRuntimeService, PositionIdentityService } from '@/domain';
+import { EngineAnalysisSearchMode, GameState, type IAnalysisSeat, type IAssignedEngine, type IEngineRecord, type IGame, type IVisibleAnalysis } from '@/contracts';
+import Aborted from '@/contracts/errors/Aborted';
+import { EngineRuntimeService } from '@/domain';
 import { logHandledError } from '@/utility/errors';
 import { AnalysisTimestamp } from '@/utility/date';
 import type { GamePositionComposable } from './GamePositionComposable';
@@ -16,7 +9,6 @@ interface IGameAnalysisDependency {
   position: GamePositionComposable;
   touchGame: (game: IGame) => void;
 }
-
 export function useGameAnalysis(dependency: IGameAnalysisDependency) {
   const { position, touchGame } = dependency;
   const analysisDisposers = new WeakMap<IAssignedEngine, () => void>();
@@ -29,92 +21,95 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       options: { ...engineProfile.options },
     };
   }
-  function createAnalysisSnapshot(engineProfile: IEngineRecord, positionKey: string, updatedAt: Date): IAnalysisSnapshot {
-    return {
-      assignedEngine: createAssignedEngine(engineProfile),
-      positionKey,
-      updatedAt: new AnalysisTimestamp(updatedAt),
-      lines: [],
-      isComplete: false,
-    };
+  function createAnalysisSeat(engineProfile: IEngineRecord, updatedAt: Date): IAnalysisSeat {
+    return { assignedEngine: createAssignedEngine(engineProfile), updatedAt: new AnalysisTimestamp(updatedAt), lines: [], isComplete: false };
   }
-  async function stopAssignedEngine(engine?: IAssignedEngine): Promise<void> {
-    if (!engine) return;
+  async function stopAssignedEngine(engine: IAssignedEngine): Promise<void> {
     try {
       await EngineRuntimeService.stopEngine(engine);
     } catch (error) {
-      logHandledError('GamesStore', 'stopEngine', error);
+      if (!(error instanceof Aborted)) logHandledError('GamesStore', 'stopEngine', error);
     }
   }
   function disposeAnalysisSubscription(engine: IAssignedEngine): void {
-    const dispose = analysisDisposers.get(engine);
-    if (dispose) dispose();
+    analysisDisposers.get(engine)?.();
     analysisDisposers.delete(engine);
   }
-  function resolveAnalysisSnapshot(game: IGame, engine: IAssignedEngine): IAnalysisSnapshot | undefined {
-    return game.analysis.snapshots.find((snapshot) => snapshot.assignedEngine === engine);
+  function resolveAnalysisSeat(game: IGame, engine: IAssignedEngine): IAnalysisSeat | undefined {
+    return game.analysis.seats.find((seat) => seat.assignedEngine === engine);
   }
-  function subscribeToAnalysis(game: IGame, engine: IAssignedEngine): void {
+  function subscribeToAnalysis(game: IGame, seat: IAnalysisSeat): () => boolean {
+    const engine = seat.assignedEngine;
     disposeAnalysisSubscription(engine);
-    const dispose = EngineRuntimeService.subscribeToAnalysis(engine, (update) => {
-      const snapshot = resolveAnalysisSnapshot(game, engine);
-      if (!snapshot) return;
-      snapshot.positionKey = update.positionKey;
-      snapshot.updatedAt = new AnalysisTimestamp();
-      snapshot.bestMove = update.bestMove;
-      snapshot.lines = update.lines;
-      snapshot.isComplete = update.isFinal;
+    let active = true;
+    const isCurrent = () => active && resolveAnalysisSeat(game, engine) === seat;
+    const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, (update) => {
+      if (!isCurrent() || game.gameState === GameState.BoardEdit) return;
+      seat.updatedAt = new AnalysisTimestamp();
+      seat.bestMove = update.bestMove;
+      seat.lines = update.lines.slice(0, 3);
+      seat.isComplete = update.isFinal;
       touchGame(game);
     });
-    analysisDisposers.set(engine, dispose);
+    analysisDisposers.set(engine, () => { active = false; unsubscribe(); });
+    return isCurrent;
   }
-  function resetAnalysisSnapshot(snapshot: IAnalysisSnapshot, isComplete: boolean = false): void {
-    snapshot.bestMove = undefined;
-    snapshot.lines = [];
-    snapshot.isComplete = isComplete;
+  function clearAnalysisSeatLines(seat: IAnalysisSeat): void {
+    seat.bestMove = undefined;
+    seat.lines = [];
+    seat.isComplete = false;
   }
-  async function startAnalysisSnapshot(game: IGame, snapshot: IAnalysisSnapshot): Promise<void> {
-    const renderedPosition = position.getRenderedPosition(game);
-    subscribeToAnalysis(game, snapshot.assignedEngine);
-    snapshot.positionKey = PositionIdentityService.buildPositionKey(renderedPosition);
-    snapshot.updatedAt = new AnalysisTimestamp();
-    resetAnalysisSnapshot(snapshot);
-    if (snapshot.assignedEngine.$) snapshot.assignedEngine.$.lastError = undefined;
-    await EngineRuntimeService.ensureReady(snapshot.assignedEngine);
-    await EngineRuntimeService.startAnalysis(snapshot.assignedEngine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
-  }
-  async function refreshAnalysisForGame(game: IGame, engineIndex?: number): Promise<void> {
-    const targetSnapshots = engineIndex === undefined ? game.analysis.snapshots : [game.analysis.snapshots[engineIndex]!].filter((snapshot) => !!snapshot);
-    for (const snapshot of targetSnapshots) {
-      try {
-        await startAnalysisSnapshot(game, snapshot);
-      } catch (error) {
-        resetAnalysisSnapshot(snapshot, true);
-        if (snapshot.assignedEngine.$) snapshot.assignedEngine.$.lastError = error instanceof Error ? error.message : 'Analysis failed.';
-        logHandledError('GamesStore', 'startAnalysis', error);
-      }
+  async function startAnalysisSeat(game: IGame, seat: IAnalysisSeat): Promise<void> {
+    const isCurrent = subscribeToAnalysis(game, seat);
+    seat.updatedAt = new AnalysisTimestamp();
+    try {
+      await EngineRuntimeService.startAnalysis(seat.assignedEngine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
+    } catch (error) {
+      if (isCurrent() && !(error instanceof Aborted)) logHandledError('GamesStore', 'startAnalysis', error);
+    } finally {
+      if (isCurrent()) touchGame(game);
     }
   }
-  function getVisibleAnalysis(game: IGame): IVisibleAnalysisSnapshot | undefined {
-    const positionKey = PositionIdentityService.buildPositionKey(position.getRenderedPosition(game));
-    const engineSnapshots = game.analysis.snapshots.filter((snapshot) => snapshot.positionKey === positionKey);
-    if (engineSnapshots.length === 0) return;
-    return { engineSnapshots };
+  function getTargetSeats(game: IGame, engineIndex?: number): IAnalysisSeat[] {
+    if (engineIndex === undefined) return [...game.analysis.seats];
+    const seat = game.analysis.seats[engineIndex];
+    return seat ? [seat] : [];
+  }
+  function refreshAnalysisForGame(game: IGame, engineIndex?: number): Promise<void> {
+    const seats = getTargetSeats(game, engineIndex);
+    for (const seat of seats) {
+      disposeAnalysisSubscription(seat.assignedEngine);
+      clearAnalysisSeatLines(seat);
+    }
+    position.getRenderedPosition(game);
+    const work = game.gameState === GameState.BoardEdit ? stopAnalysis(game, engineIndex) : Promise.all(seats.map((seat) => startAnalysisSeat(game, seat)));
+    touchGame(game);
+    return work.then(() => undefined);
+  }
+  function getVisibleAnalysis(game: IGame): IVisibleAnalysis | undefined {
+    if (game.analysis.seats.length === 0) return;
+    return { engineSeats: [...game.analysis.seats] };
   }
   async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord): Promise<void> {
-    if (game.analysis.snapshots.some((snapshot) => snapshot.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
-    if (game.analysis.snapshots.length >= 4) throw new Error('A game cannot have more than four analysis engines.');
-    const snapshot = createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(position.getRenderedPosition(game)), new Date());
-    game.analysis.snapshots.push(snapshot);
+    if (game.analysis.seats.some((seat) => seat.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
+    if (game.analysis.seats.length >= 4) throw new Error('A game cannot have more than four analysis engines.');
+    game.analysis.seats.push(createAnalysisSeat(engineProfile, new Date()));
     touchGame(game);
   }
   async function removeAnalysisEngine(game: IGame, engineIndex: number): Promise<void> {
-    const snapshot = game.analysis.snapshots[engineIndex];
-    if (!snapshot) return;
-    disposeAnalysisSubscription(snapshot.assignedEngine);
-    await stopAssignedEngine(snapshot.assignedEngine);
-    game.analysis.snapshots.splice(engineIndex, 1);
+    const seat = game.analysis.seats[engineIndex];
+    if (!seat) return;
+    disposeAnalysisSubscription(seat.assignedEngine);
+    const cleanup = stopAssignedEngine(seat.assignedEngine);
+    game.analysis.seats.splice(game.analysis.seats.indexOf(seat), 1);
     touchGame(game);
+    await cleanup;
+  }
+  async function disposeAnalysisForGame(game: IGame): Promise<void> {
+    await Promise.all(game.analysis.seats.map((seat) => {
+      disposeAnalysisSubscription(seat.assignedEngine);
+      return stopAssignedEngine(seat.assignedEngine);
+    }));
   }
   async function refreshAnalysis(game: IGame): Promise<void> {
     if (game.gameState === GameState.BoardEdit) throw new Error('Analysis refresh is not allowed during board edit.');
@@ -125,26 +120,17 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     await refreshAnalysisForGame(game, engineIndex);
   }
   async function stopAnalysis(game: IGame, engineIndex?: number): Promise<void> {
-    const targetSnapshots = engineIndex === undefined ? game.analysis.snapshots : [game.analysis.snapshots[engineIndex]!].filter((snapshot) => !!snapshot);
-    for (const snapshot of targetSnapshots) {
-      disposeAnalysisSubscription(snapshot.assignedEngine);
+    await Promise.all(getTargetSeats(game, engineIndex).map(async (seat) => {
+      disposeAnalysisSubscription(seat.assignedEngine);
       try {
-        await EngineRuntimeService.stopAnalysis(snapshot.assignedEngine);
+        await EngineRuntimeService.stopAnalysis(seat.assignedEngine);
       } catch (error) {
-        logHandledError('GamesStore', 'stopAnalysis', error);
+        if (!(error instanceof Aborted)) logHandledError('GamesStore', 'stopAnalysis', error);
+      } finally {
+        if (game.analysis.seats.includes(seat) && !analysisDisposers.has(seat.assignedEngine)) touchGame(game);
       }
-      resetAnalysisSnapshot(snapshot, true);
-    }
+    }));
   }
-  return {
-    createAnalysisSnapshot,
-    refreshAnalysisForGame,
-    getVisibleAnalysis,
-    addAnalysisEngine,
-    removeAnalysisEngine,
-    refreshAnalysis,
-    retryAnalysis,
-    stopAnalysis,
-  };
+  return { createAnalysisSeat, refreshAnalysisForGame, getVisibleAnalysis, addAnalysisEngine, removeAnalysisEngine, disposeAnalysisForGame, refreshAnalysis, retryAnalysis, stopAnalysis };
 }
 export type GameAnalysisComposable = ReturnType<typeof useGameAnalysis>;

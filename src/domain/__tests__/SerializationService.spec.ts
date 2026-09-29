@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AnalysisBranchExitBehaviour,
   BoardOrientation,
+  EngineAvailability,
   EngineClientType,
   EngineProtocol,
   GameState,
@@ -26,7 +27,8 @@ import {
   TimeControlService,
 } from '..';
 import { createInitialBoardPosition, getSan, getUci, toDetailedMove } from '@/utility/chess';
-import { ClockTimestamp, RecordTimestamp } from '@/utility/date';
+import { AnalysisTimestamp, ClockTimestamp, RecordTimestamp } from '@/utility/date';
+import { createAnalysisSeat } from '@/state/__tests__/StateStoreTestUtility';
 
 const boardId = (file: number, rank: number) => file + (rank * 8);
 
@@ -120,12 +122,40 @@ function createGame(): IGame {
       showLiveAnalysisMoves: false,
     },
     analysis: {
-      snapshots: [],
+      seats: [],
     },
   };
 }
 
 describe('SerializationService', () => {
+  it('round-trips empty and populated analysis seats without runtime data or position keys', () => {
+    const game = createGame();
+    const seat = createAnalysisSeat();
+    seat.updatedAt = new AnalysisTimestamp();
+    seat.lines = [{ depth: 10, scoreCp: 25, pv: [], $: { reference: 1 } }];
+    seat.assignedEngine.$ = { availability: EngineAvailability.Running, analysisLines: new Map([[4, { depth: 12, pv: [] }]]) };
+    game.analysis.seats = [seat, createAnalysisSeat()];
+    const raw = SerializationService.serialiseGame(game);
+    const restored = SerializationService.deserialiseGame(raw);
+    expect(restored.analysis.seats).toHaveLength(2);
+    expect(restored.analysis.seats[0]!.lines).toEqual([{ depth: 10, scoreCp: 25, pv: [] }]);
+    expect(restored.analysis.seats[1]!.lines).toEqual([]);
+    expect(restored.analysis.seats[0]!.assignedEngine.$).toBeUndefined();
+    expect(raw).not.toContain('positionKey');
+    expect(raw).not.toContain('analysisLines');
+    expect(raw).not.toContain('reference');
+    expect(restored.renderedPath).toEqual(game.renderedPath);
+  });
+  it('rejects saved seats with more than three rendered lines', () => {
+    const game = createGame();
+    const document = JSON.parse(SerializationService.serialiseGame(game));
+    const seat = createAnalysisSeat();
+    seat.lines = Array.from({ length: 4 }, () => ({ depth: 1, pv: [] }));
+    game.analysis.seats = [seat];
+    expect(() => SerializationService.serialiseGame(game)).toThrow(SerializationError);
+    document.analysis.seats = [seat];
+    expect(() => SerializationService.deserialiseGame(JSON.stringify(document))).toThrow(SerializationError);
+  });
   it('round-trips settings snapshots', () => {
     const snapshot = createSettingsSnapshot();
     const restored = SerializationService.deserialiseSettings(SerializationService.serialiseSettings(snapshot));

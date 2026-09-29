@@ -5,7 +5,7 @@ Track frontend implementation drift found while reviewing commit `e21973712a683f
 
 Work through these follow-ups independently. Update each status as it is reviewed or resolved.
 
-Analysis follow-ups FRONTEND-DRIFT-03, FRONTEND-DRIFT-04, and FRONTEND-DRIFT-09 are coordinated by the [Analysis Feature Drift And Fix Plan](AnalysisFeatureDriftAndFixPlan.md), reviewed on 6 September 2026. That review also records lifecycle, runtime ownership, persistence, and specification gaps beyond the frontend. Their implementations remain pending; a panel-only filter does not complete the analysis feature fix.
+Analysis follow-ups FRONTEND-DRIFT-03, FRONTEND-DRIFT-04, and FRONTEND-DRIFT-09 are coordinated by the [Analysis Feature Drift And Fix Plan](AnalysisFeatureDriftAndFixPlan.md), replanned and implemented on 29 September 2026. The lifecycle, seat ownership, persistence, and paused-control changes resolve FRONTEND-DRIFT-03 and FRONTEND-DRIFT-09. Individual move/prefix selection remains pending under FRONTEND-DRIFT-04; unsolicited runtime-exit publication remains a separate service follow-up.
 
 ## Follow-Ups
 
@@ -34,14 +34,13 @@ Analysis follow-ups FRONTEND-DRIFT-03, FRONTEND-DRIFT-04, and FRONTEND-DRIFT-09 
 ### FRONTEND-DRIFT-03 — Analysis panel can show snapshots for another position
 
 - **Priority:** P1
-- **Status:** Pending
-- **Implementation:** `src/views/GameView.vue:258`
+- **Status:** Resolved
+- **Implementation:** `src/state/game/GameAnalysisComposable.ts`, `src/state/game/GameMoveComposable.ts`, `src/domain/EngineRuntimeService.ts`, `src/views/GameView.vue`
 - **Design:** `docs/LowLevel/Architecture/Presentation/Views/Game.md:8`, `docs/LowLevel/Architecture/Presentation/Components/AnalysisPanel.md:4`
-- **Problem:** `GameView` passes `game.analysis.snapshots` directly instead of consuming `GamesStore.getVisibleAnalysis(...)`, which filters snapshots by the rendered position key.
+- **Original problem:** Stored analysis results could survive a rendered-position change and reach the panel without a complete clear-and-restart lifecycle.
 - **Impact:** After history navigation or another rendered-position change, the panel can display an evaluation belonging to the previous position.
-- **Acceptance criteria:** The panel receives only snapshots matching the currently rendered position. Stale persisted results are not presented as current-position analysis.
-- **Review:** The existing specification filters latest stored results by position, while the expected clear-and-restart lifecycle is not implemented for every rendered-position transition. History navigation does not restart analysis, multi-engine refresh invalidates rows sequentially, and superseded runtime work needs ownership guards. See ANALYSIS-DRIFT-01 to ANALYSIS-DRIFT-06 and ANALYSIS-DRIFT-11 in the [whole-feature plan](AnalysisFeatureDriftAndFixPlan.md).
-- **Planned resolution:** Establish synchronous current-position invalidation and guarded replacement searches behind the store/service boundary, replace the saved analysis schema with results belonging to the saved rendered position, and expose results and engine metadata through the store API. Remove per-result persisted position keys and filtering; no save compatibility or migration is required for this unfinished application. Preserve assigned rows and action identity without frontend access to raw snapshots or runtime line caches. Implementation pending.
+- **Acceptance criteria:** Each assigned seat contains current rendered-position results or no lines. Position changes clear results before publication, and superseded work cannot repopulate them. Persisted results belong to the saved rendered selection.
+- **Resolution:** Analysis seats preserve assignments and hold at most three rendered lines selected by the subscription callback. Runtime updates retain all ranked lines. Position-changing actions invalidate synchronously; the service cancels superseded promises and guards callbacks/status writes. `getVisibleAnalysis` exposes all seats without keys or filters, and the view republishes raw-seat changes through `workspaceRevision`. Persistence validates the three-line cap and excludes runtime data. Tests cover ownership races, independent engines, navigation, Stop retention, board edits, teardown, serialization, and view publication.
 
 ### FRONTEND-DRIFT-04 — Analysis-line clicks apply the entire principal variation
 
@@ -98,13 +97,13 @@ Analysis follow-ups FRONTEND-DRIFT-03, FRONTEND-DRIFT-04, and FRONTEND-DRIFT-09 
 ### FRONTEND-DRIFT-09 — Paused analysis disables permitted runtime actions
 
 - **Priority:** P2
-- **Status:** Pending
+- **Status:** Resolved
 - **Implementation:** `src/views/GameView.vue:258`, `src/components/AnalysisPanel.vue:39`
 - **Design:** `docs/LowLevel/Architecture/Presentation/Components/AnalysisPanel.md:32`, `docs/LowLevel/Architecture/StateManagement/GamesStore.md:100`
 - **Problem:** `GameView` disables the analysis panel while paused, and `AnalysisPanel` applies that flag to refresh, retry, and stop controls.
 - **Impact:** Users cannot manage analysis runtime while the game is paused, despite these actions being explicit non-gameplay exceptions.
 - **Acceptance criteria:** Suggested moves remain read-only while paused, but refresh, retry, stop, add-engine, remove-engine, and folding actions remain available.
-- **Plan:** Coordinate with ANALYSIS-DRIFT-08 in the [whole-feature plan](AnalysisFeatureDriftAndFixPlan.md). Separate move-selection permission from runtime and roster controls, including rows without a current result. Implementation pending.
+- **Resolution:** `AnalysisPanel` separates move-selection disabling from startup permissions. Paused play keeps refresh, retry, Stop, roster, and fold controls available; BoardEdit blocks refresh/retry. Assigned seats remain visible when empty or failed, and retained lines stay visible alongside errors. Panel and view tests verify these permissions without depending on clock ticks.
 
 ### FRONTEND-DRIFT-10 — Theme previews bypass the appearance projection
 
@@ -148,9 +147,11 @@ Analysis follow-ups FRONTEND-DRIFT-03, FRONTEND-DRIFT-04, and FRONTEND-DRIFT-09 
 
 ## Verification Baseline
 
-At the time of review:
+At the original review:
 
 - production build and TypeScript checking passed
 - all `200` unit tests passed
 - no view or feature-component tests existed to cover these frontend contracts
 - the worktree was clean
+
+On 29 September 2026, the final analysis lifecycle implementation passed all 249 tests across 29 files, including Stop during startup and stale-process-handle cleanup. The production build and TypeScript check passed. A desktop smoke test with real engines remains outstanding. These checks close FRONTEND-DRIFT-03 and FRONTEND-DRIFT-09 only; the other pending frontend issues retain their separate scope.

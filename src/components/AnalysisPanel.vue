@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { EngineAvailability, type IAnalysisSnapshot, type IMove } from '@/contracts';
+import { EngineAvailability, type ReadonlyAnalysisSeat, type IMove } from '@/contracts';
 import { getSan } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 
-defineProps<{ snapshots: readonly IAnalysisSnapshot[]; collapsed?: boolean; expandedByIndex?: readonly boolean[]; showMoves?: boolean; disabled?: boolean; canAdd?: boolean }>();
+defineProps<{ seats: readonly ReadonlyAnalysisSeat[]; collapsed?: boolean; expandedByIndex?: readonly boolean[]; showMoves?: boolean; disabled?: boolean; startDisabled?: boolean; canAdd?: boolean }>();
 const emit = defineEmits<{
   collapseToggled: [];
   engineExpandedToggled: [index: number];
@@ -14,8 +14,8 @@ const emit = defineEmits<{
   engineRemoveRequested: [index: number];
   moveSelected: [moves: readonly IMove[]];
 }>();
-function score(snapshot: IAnalysisSnapshot): string {
-  const line = snapshot.lines[0];
+function score(seat: ReadonlyAnalysisSeat): string {
+  const line = seat.lines[0];
   if (line?.scoreMate !== undefined) return line.scoreMate > 0 ? `M${line.scoreMate}` : `−M${Math.abs(line.scoreMate)}`;
   if (line?.scoreCp !== undefined) {
     const value = line.scoreCp / 100;
@@ -23,8 +23,17 @@ function score(snapshot: IAnalysisSnapshot): string {
   }
   return '—';
 }
-function availability(snapshot: IAnalysisSnapshot): EngineAvailability {
-  return snapshot.assignedEngine.$?.availability ?? (snapshot.isComplete ? EngineAvailability.Ready : EngineAvailability.Starting);
+function availability(seat: ReadonlyAnalysisSeat): EngineAvailability {
+  return seat.assignedEngine.$?.availability ?? EngineAvailability.Unavailable;
+}
+function summary(seat: ReadonlyAnalysisSeat): string {
+  switch (availability(seat)) {
+    case EngineAvailability.Running: return 'Evaluating position';
+    case EngineAvailability.Starting: return 'Waiting for engine';
+    case EngineAvailability.Failed: return 'Analysis failed';
+    case EngineAvailability.Unavailable: return 'Engine unavailable';
+    default: return seat.isComplete ? 'Analysis complete' : 'Analysis stopped';
+  }
 }
 function lineText(moves: readonly IMove[]): string {
   return moves.map((move) => getSan(move)).join(' ');
@@ -35,25 +44,25 @@ function lineText(moves: readonly IMove[]): string {
   <section class="side-panel analysis-panel">
     <header class="side-panel__header">
       <button class="side-panel__collapse" :aria-label="collapsed ? 'Expand analysis' : 'Collapse analysis'" @click="emit('collapseToggled')"><AppIcon :name="collapsed ? 'chevron-right' : 'chevron-down'" /></button>
-      <div><h2>Analysis</h2><span v-if="!collapsed">{{ snapshots.length ? `${snapshots.length} engine${snapshots.length === 1 ? '' : 's'}` : 'engine lines' }}</span></div>
-      <div v-if="!collapsed" class="panel-actions"><button class="icon-button" title="Refresh analysis" :disabled="disabled || !snapshots.length" @click="emit('refreshRequested')"><AppIcon name="rotate" /></button><button class="icon-button" title="Add engine" :disabled="!canAdd" @click="emit('engineAddRequested')"><AppIcon name="plus" /></button></div>
+      <div><h2>Analysis</h2><span v-if="!collapsed">{{ seats.length ? `${seats.length} engine${seats.length === 1 ? '' : 's'}` : 'engine lines' }}</span></div>
+      <div v-if="!collapsed" class="panel-actions"><button class="icon-button" title="Refresh analysis" :disabled="startDisabled || !seats.length" @click="emit('refreshRequested')"><AppIcon name="rotate" /></button><button class="icon-button" title="Add engine" :disabled="!canAdd" @click="emit('engineAddRequested')"><AppIcon name="plus" /></button></div>
     </header>
     <div v-if="!collapsed" class="side-panel__body analysis-list">
-      <div v-if="snapshots.length === 0" class="panel-empty"><AppIcon name="activity" /><strong>No engine assigned</strong><span>Add an engine to evaluate this position.</span><button class="text-button" :disabled="!canAdd" @click="emit('engineAddRequested')"><AppIcon name="plus" />Add engine</button></div>
-      <article v-for="(snapshot, index) in snapshots" v-else :key="`${snapshot.assignedEngine.displayName}-${index}`" class="engine-section">
+      <div v-if="seats.length === 0" class="panel-empty"><AppIcon name="activity" /><strong>No engine assigned</strong><span>Add an engine to evaluate this position.</span><button class="text-button" :disabled="!canAdd" @click="emit('engineAddRequested')"><AppIcon name="plus" />Add engine</button></div>
+      <article v-for="(seat, index) in seats" v-else :key="`${seat.assignedEngine.displayName}-${index}`" class="engine-section">
         <header class="engine-section__header">
-          <button class="engine-section__fold" @click="emit('engineExpandedToggled', index)"><AppIcon :name="expandedByIndex?.[index] === false ? 'chevron-right' : 'chevron-down'" /><span class="engine-section__status" :class="`engine-section__status--${availability(snapshot)}`"></span><strong>{{ snapshot.assignedEngine.displayName }}</strong></button>
-          <span class="engine-section__score">{{ score(snapshot) }}</span>
-          <button v-if="availability(snapshot) === EngineAvailability.Failed" class="icon-button" title="Retry engine" :disabled="disabled" @click="emit('retryRequested', index)"><AppIcon name="rotate" /></button>
-          <button v-else-if="availability(snapshot) === EngineAvailability.Running" class="icon-button" title="Stop engine" :disabled="disabled" @click="emit('stopRequested', index)"><AppIcon name="x" /></button>
+          <button class="engine-section__fold" @click="emit('engineExpandedToggled', index)"><AppIcon :name="expandedByIndex?.[index] === false ? 'chevron-right' : 'chevron-down'" /><span class="engine-section__status" :class="`engine-section__status--${availability(seat)}`"></span><strong>{{ seat.assignedEngine.displayName }}</strong></button>
+          <span class="engine-section__score">{{ score(seat) }}</span>
+          <button v-if="availability(seat) === EngineAvailability.Failed" class="icon-button" title="Retry engine" :disabled="startDisabled" @click="emit('retryRequested', index)"><AppIcon name="rotate" /></button>
+          <button v-else-if="availability(seat) === EngineAvailability.Running || availability(seat) === EngineAvailability.Starting" class="icon-button" title="Stop engine" @click="emit('stopRequested', index)"><AppIcon name="x" /></button>
           <button class="icon-button icon-button--danger" title="Remove engine" @click="emit('engineRemoveRequested', index)"><AppIcon name="trash" /></button>
         </header>
         <template v-if="expandedByIndex?.[index] !== false">
-          <p v-if="snapshot.assignedEngine.$?.lastError" class="engine-error">{{ snapshot.assignedEngine.$.lastError }}</p>
-          <div v-else-if="showMoves && snapshot.lines.length" class="analysis-lines">
-            <button v-for="(line, lineIndex) in snapshot.lines.slice(0, 3)" :key="lineIndex" :disabled="disabled || !line.pv.length" @click="emit('moveSelected', line.pv)"><span>{{ lineIndex + 1 }}</span><strong>{{ lineText(line.pv) }}</strong><small>d{{ line.depth }}</small></button>
+          <p v-if="seat.assignedEngine.$?.lastError" class="engine-error">{{ seat.assignedEngine.$.lastError }}</p>
+          <div v-if="showMoves && seat.lines.length" class="analysis-lines">
+            <button v-for="(line, lineIndex) in seat.lines" :key="lineIndex" :disabled="disabled || !line.pv.length" @click="emit('moveSelected', line.pv)"><span>{{ lineIndex + 1 }}</span><strong>{{ lineText(line.pv) }}</strong><small>d{{ line.depth }}</small></button>
           </div>
-          <div v-else class="engine-summary"><span>{{ availability(snapshot) === EngineAvailability.Running ? 'Evaluating position' : snapshot.isComplete ? 'Analysis complete' : 'Waiting for engine' }}</span><small>{{ snapshot.lines[0] ? `Depth ${snapshot.lines[0].depth}` : 'No principal variation yet' }}</small></div>
+          <div v-else class="engine-summary"><span>{{ summary(seat) }}</span><small>{{ seat.lines[0] ? `Depth ${seat.lines[0].depth}` : 'No principal variation yet' }}</small></div>
         </template>
       </article>
     </div>

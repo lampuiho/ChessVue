@@ -552,7 +552,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-01-LIVE-SCORE-ONLY`: In any `liveGame` context, the current game's live-analysis preference may keep the panel score-only instead of rendering PV moves.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
   - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
-  - `BR-ANALYSIS-01-PAUSED`: If live play is paused after analysis search has already started, the current search may finish and update the latest snapshot read-only. Paused state still blocks move commits and move-target clicks, but non-gameplay analysis controls such as refresh, retry, stop, and engine-roster management remain allowed.
+  - `BR-ANALYSIS-01-PAUSED`: If live play is paused after analysis search has already started, the current search may finish and update the seat's rendered results. Paused state still blocks move commits and move-target clicks, but non-gameplay analysis controls such as refresh, retry, stop, and engine-roster management remain allowed.
 - **Postconditions**: The latest valid eval for the active position is available on the game-owned analysis data, and it may continue to improve while the engine keeps searching even when the panel renders score-only rows.
 - **Implementation Touchpoints**:
   - `GameView.onStartAnalysis`
@@ -570,7 +570,7 @@ Each scenario in this document uses the same structure:
   2. App starts each selected engine session.
   3. App dispatches position to all selected engines.
   4. Each engine continues searching and emits updated best lines over time.
-  5. App aggregates evaluations keyed by `gameId + engineId + positionKey`, replacing older lines with newer best results from the same engine.
+  5. Each assigned engine retains unrestricted runtime lines. Its game subscription replaces the seat's rendered results with the best three lines in engine rank order. Position changes clear those results and supersede the service operation; no analysis position key or visible-result filter is used.
   6. Analysis panel renders one row/group per engine, always shows score/status, shows up to `3` visible lines only when the current workspace context allows rendered move targets, and updates each row independently as new output arrives.
 - **Branch Paths**:
   - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.
@@ -578,7 +578,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
   - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, engine rows still update independently without rendering move lists.
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
-  - `BR-ANALYSIS-02-PAUSED`: If live play is paused after multi-engine search has already started, each current search may finish independently and update read-only snapshots, while move-target clicks remain blocked until resume.
+  - `BR-ANALYSIS-02-PAUSED`: If live play is paused after multi-engine search has already started, each current search may finish independently and update its seat's rendered results, while move-target clicks remain blocked until resume.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.
 - **Implementation Touchpoints**:
   - `EnginesStore.listConfiguredEngines`

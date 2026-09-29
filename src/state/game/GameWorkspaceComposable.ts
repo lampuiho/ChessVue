@@ -8,7 +8,7 @@ import {
   type MovePath,
   type ReadonlyGame,
 } from '@/contracts';
-import { MoveHistoryService, PositionIdentityService, UserSettingService } from '@/domain';
+import { MoveHistoryService, UserSettingService } from '@/domain';
 import { createInitialBoardPosition } from '@/utility/chess';
 import { ClockTimestamp, RecordTimestamp } from '@/utility/date';
 import type { GameAnalysisComposable } from './GameAnalysisComposable';
@@ -83,24 +83,26 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       timeControl: request.timeControl,
       clockSnapshot: isLiveGame ? clock.startClock(initialClockSnapshot, rootPosition.sideToMove, new ClockTimestamp(nowUtc)) : initialClockSnapshot,
       analysis: {
-        snapshots: request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(rootPosition), nowUtc)),
+        seats: request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSeat(engineProfile, nowUtc)),
       },
       gameplayOptions: { allowTakeback: request.allowTakeback, showLiveAnalysisMoves: request.showLiveAnalysisMoves },
     };
     const insertedGame = await hydrateAndInsertGame(game);
     playerTurn.requestPlayerMoveIfNeeded(insertedGame);
-    if (insertedGame.analysis.snapshots.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
+    if (insertedGame.analysis.seats.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
     return insertedGame;
   }
   async function startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void> {
+    const analysisCleanup = analysis.disposeAnalysisForGame(game);
     await playerTurn.clearPlayerTurnRuntime(game);
+    await analysisCleanup;
     game.metadata.name = request.name ?? game.metadata.name;
     game.whitePlayer = playerTurn.createPlayerSnapshot(request.whitePlayer);
     game.blackPlayer = playerTurn.createPlayerSnapshot(request.blackPlayer);
     game.timeControl = request.timeControl;
     game.gameplayOptions = { showLiveAnalysisMoves: request.showLiveAnalysisMoves, allowTakeback: request.allowTakeback };
     const renderedPosition = position.getRenderedPosition(game);
-    game.analysis.snapshots = request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSnapshot(engineProfile, PositionIdentityService.buildPositionKey(renderedPosition), new Date()));
+    game.analysis.seats = request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSeat(engineProfile, new Date()));
     game.clockSnapshot = clock.initialiseClockSnapshot(game.timeControl);
     if (game.whitePlayer && game.blackPlayer) startLiveGame(game, renderedPosition);
     else {
@@ -124,7 +126,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const insertedGame = await hydrateAndInsertGame(game);
     playerTurn.requestPlayerMoveIfNeeded(insertedGame);
     const settings = await UserSettingService.getSettingsOrDefault();
-    if (settings.analysis.resumeLiveAnalysisAfterRestore && insertedGame.gameState !== GameState.BoardEdit && insertedGame.analysis.snapshots.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
+    if (settings.analysis.resumeLiveAnalysisAfterRestore && insertedGame.gameState !== GameState.BoardEdit && insertedGame.analysis.seats.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
     return insertedGame;
   }
   /** Observes a live workspace game; mutation remains owned by explicit store actions. */

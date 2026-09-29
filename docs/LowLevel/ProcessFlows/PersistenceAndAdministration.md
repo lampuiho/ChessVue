@@ -165,10 +165,10 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | GamesStore.refreshAnalysis |
 | --- |
 | GameAnalysisComposable.refreshAnalysisForGame |
-| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSeat |
 | GameAnalysisComposable.subscribeToAnalysis |
 
-| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSeat |
 | --- |
 | EngineRuntimeService.ensureReady |
 | EngineRuntimeService.startAnalysis |
@@ -274,7 +274,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | GamesStore.refreshAnalysis |
 | --- |
 | GameAnalysisComposable.refreshAnalysisForGame |
-| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSeat |
 | GameAnalysisComposable.subscribeToAnalysis |
 
 | `GameView._handleAnalysisRuntimeUpdate` |

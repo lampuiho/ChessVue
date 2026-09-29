@@ -2,7 +2,9 @@
 
 ## Status and implementation boundary
 
-Replanned on 29 September 2026 against commit `3eaad84`. Implementation pending. This revision replaces the 6 September plan; it describes proposed changes, not completed behaviour. Only documentation was changed during this review.
+Replanned on 29 September 2026 against commit `3eaad84`, then implemented within the boundaries below. The findings table records the pre-implementation behaviour; subsequent sections retain the approved implementation decisions and verification criteria. The service owns analysis cancellation, the existing client remains a state machine, and analysis seats hold at most three rendered lines separately from unrestricted runtime lines.
+
+Automated coverage now includes deferred startup/stop/disposal, stale callbacks and failures, MultiPV ordering, captured client input, rendered-position invalidation, Stop retention, persistence, and panel permissions. FRONTEND-DRIFT-03 and FRONTEND-DRIFT-09 are resolved. Individual move/prefix selection (FRONTEND-DRIFT-04), unsolicited process-exit publication (ANALYSIS-DRIFT-12), and a desktop smoke test with real engines remain follow-ups.
 
 The objective is to repair analysis lifecycle and data ownership within the existing structure. Keep `GamesStore`, `GameAnalysisComposable`, `EngineRuntimeService`, `IEngineClient`, and the existing UCI state machine. Most of their contracts are suitable already. This is not an instruction to rewrite those layers or introduce another analysis architecture.
 
@@ -17,9 +19,9 @@ The implementation must follow these boundaries:
 
 The application is unfinished and save compatibility is not required. Update schemas and fixtures together without migration or legacy readers. This does not authorise unrelated persistence changes.
 
-## Current code and remaining problems
+## Pre-implementation findings
 
-These findings come from source inspection. The asynchronous cases need deterministic regression tests; this review does not claim a runtime reproduction of every race. Finding IDs are retained for links from the frontend follow-up document.
+These findings came from source inspection before implementation. Deterministic regression tests now cover the asynchronous ownership cases. Finding IDs are retained for links from the frontend follow-up document.
 
 | ID | Current code reference and behaviour | Required adjustment |
 | --- | --- | --- |
@@ -123,7 +125,7 @@ Create a new array of up to three entries in the callback, sharing immutable lin
 ```text
 GameView computed read, depending on workspaceRevision
   -> GamesStore.getVisibleAnalysis(game)
-     -> { engineSeats: game.analysis.seats }, or undefined if no seats
+     -> { engineSeats: [...game.analysis.seats] }, or undefined if no seats
   -> AnalysisPanel :seats="visibleAnalysis?.engineSeats ?? []"
      -> render seat.lines directly
 ```
@@ -140,7 +142,7 @@ Client `startAnalysis` currently resolves after startup commands; streaming cont
 
 The service owns the pending readiness/start promise and the operation identity that remains valid during streaming. Replacement, Stop, restart, and engine disposal synchronously invalidate that identity and cancel any pending service promise. The client still owns protocol completions for `uciok`, `readyok`, and terminating `bestmove`.
 
-Keep bookkeeping on `engine.$` to retain the attached-runtime structure. A small optional analysis-operation record can contain an abort controller, deferred startup completion, captured subscriber, and outstanding work/cleanup handle. Reuse [Deferred](../src/utility/async/Deferred.ts) and [Aborted](../src/contracts/errors/Aborted.ts) where useful. Do not add a global scheduler, new service class, persistent search IDs, or another game-level operation queue.
+Keep bookkeeping on `engine.$` to retain the attached-runtime structure. The optional analysis-operation record holds an abort controller, deferred startup completion, and final-update state; the runtime also holds the outstanding work/cleanup handle. Keep `analysisCallback` as the only stored subscriber field and capture its reference locally in service closures for ownership checks. Reuse [Deferred](../src/utility/async/Deferred.ts) and [Aborted](../src/contracts/errors/Aborted.ts) where useful. Do not add a global scheduler, new service class, persistent search IDs, or another game-level operation queue.
 
 Cancellation rejects the pending service startup promise with `Aborted`. `startAnalysisSeat` consumes this expected cancellation without clearing a newer result, marking completion, or logging failure. Attach rejection handlers immediately and observe underlying client work until it settles: rejecting a wrapper promise does not stop a process or cancel protocol work.
 
@@ -148,13 +150,13 @@ Allow one client operation in flight per assigned engine and retain only the new
 
 ### Start and replacement
 
-Private helper names below are proposed, not current APIs. Implement them within the existing service.
+The flow below maps to `_beginAnalysisOperation`, `_queueAnalysisOperation`, and `_isCurrentAnalysis` in the existing service. These remain private helpers; public signatures are unchanged.
 
 ```text
 GameAnalysisComposable.startAnalysisSeat(game, seat)
   -> subscribeToAnalysis(game, seat.assignedEngine)
   -> EngineRuntimeService.startAnalysis(engine, game, request)
-     -> _cancelAnalysisOperation(engine)                       [synchronous]
+     -> _beginAnalysisOperation(runtimeState)                  [synchronous]
      -> install new operation; capture subscriber; mark Starting
      -> wait for prior client work to reach its boundary
      -> if superseded: finish without starting
@@ -170,7 +172,7 @@ GameAnalysisComposable.startAnalysisSeat(game, seat)
 
 Move the composable's existing `await ensureReady` into this service-owned sequence. Keep `ensureReady` as the explicit process creation implementation and retain the base-runtime assertion established by subscription/initialisation. Do not make every service method silently create missing runtime. Document this bounded change to the service contract: analysis start now coordinates readiness, so its cancellation covers pending initialisation. Player-turn, ponder, option-discovery, and other flows remain unchanged.
 
-Capture `analysisCallback` at operation creation. The callback passed to the client checks that its operation is current, not aborted, and its captured subscriber remains registered before validation/forwarding. `_acceptAnalysisUpdate` invokes the captured subscriber rather than discovering a replacement through the mutable callback slot. Keep the `false` rejection return and runtime-line rollback.
+Capture `analysisCallback` locally at operation creation. The callback passed to the client checks that its captured subscriber remains registered, then `_acceptAnalysisUpdate` checks operation ownership, validates the update, and changes runtime status. The client callback invokes the captured subscriber only when that guard accepts the update. Do not store another callback on the operation. Keep the `false` rejection return and runtime-line rollback.
 
 Check ownership after awaits and in catch/finally paths. Review `_runEngineOperation`, `_runInitialisedEngineOperation`, `_initialiseEngine`, and `_setRuntimeAvailability`: a composable guard is too late if an old service continuation already wrote `Ready`, `Running`, or `lastError`. Guard analysis-owned writes without changing unrelated player operations. A final update during command writing must prevent the later startup continuation changing Ready back to Running.
 
@@ -182,7 +184,7 @@ GamesStore.stopAnalysis(game, index?)
      -> capture target seats
      -> dispose subscriptions; call service Stop for every target
         EngineRuntimeService.stopAnalysis(engine)
-        -> _cancelAnalysisOperation(engine)                   [before await]
+        -> _beginAnalysisOperation(runtimeState)              [before await]
         -> wait for issued client startup work to settle
         -> IEngineClient.stopAnalysis(engine)
            Ready: existing no-op
@@ -347,7 +349,7 @@ npm run test:unit -- --run
 npm run build
 ```
 
-The build includes type checking. Use portable Node at `E:\PortableApps\nodejs` in this workspace. After implementation, smoke-test two engines while navigating, stopping/retrying independently, editing, and restoring with automatic resume disabled. No runtime tests or desktop smoke checks were run for this documentation-only revision.
+The build includes type checking. Use portable Node at `E:\PortableApps\nodejs` in this workspace. Final verification on 29 September 2026: all 249 tests across 29 files passed, including Stop during startup and stale-process-handle cleanup. The production build and type check passed. A desktop smoke test with two real engines remains outstanding: navigate, stop/retry independently, edit, and restore with automatic resume disabled.
 
 ## Completion criteria
 

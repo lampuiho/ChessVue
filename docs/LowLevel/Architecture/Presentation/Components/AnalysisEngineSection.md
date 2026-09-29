@@ -3,10 +3,12 @@
 ## Purpose
 Render one engine's availability state, summary row, and analysis lines.
 
+This remains a planned component boundary under FRONTEND-DRIFT-12. The current `AnalysisPanel.vue` owns the engine sections directly. Individual move targets described below remain pending under FRONTEND-DRIFT-04.
+
 ## Consumes
 - engine metadata
 - engine availability
-- current analysis snapshot
+- current analysis seat
 - whether the current workspace context renders engine move targets
 - selected move identity
 

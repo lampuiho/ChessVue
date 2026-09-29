@@ -44,10 +44,10 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
@@ -87,7 +87,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | `GameAnalysisComposable.subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
@@ -95,7 +95,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
 
 - State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and paused live-family states block move submission; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
-- Continuous analysis update loop: `GameAnalysisComposable.refreshAnalysisForGame` -> `GameAnalysisComposable.startAnalysisSnapshot` -> `GameAnalysisComposable.subscribeToAnalysis` -> `EngineRuntimeService.ensureReady` -> `EngineRuntimeService.startAnalysis(engine, game, request)` -> client state-machine updates -> the subscribed snapshot callback -> `AnalysisPanel` rerender for the affected engine row.
+- Continuous analysis update loop: `GameAnalysisComposable.refreshAnalysisForGame` -> `GameAnalysisComposable.startAnalysisSeat` -> `GameAnalysisComposable.subscribeToAnalysis` -> `EngineRuntimeService.startAnalysis(engine, game, request)` (owns `ensureReady` and cancellation) -> client state-machine updates -> guarded subscription callback selects three rendered lines -> `touchGame` -> `AnalysisPanel` rerenders the affected seat. A live move while browsing history preserves the unchanged rendered analysis.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer state transitions behind analysis start, streamed updates, player turns, and pondering.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
@@ -427,7 +427,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 - State coverage: manual and menu pause or resume are valid only for ongoing timed live-family states with an active clock. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state. `PauseReason.Analysis` may still pause untimed live play for in-game analysis entry.
 - Paused-surface rule: once paused, the game surface blocks history navigation, move entry, takeback, draw, resign, in-game-analysis entry, and board edit until resume, and those blocked store actions throw through the shared paused-state assertion boundary instead of silently returning.
 - Paused-exception rule: player reassignment and analysis-engine management remain allowed while paused because they are treated as configuration actions rather than gameplay actions.
-- Deferred-engine rule: analysis searches may finish while paused and update read-only snapshots, while any guarded player-engine move that resolves during pause is held as deferred output and committed without a second validation once play returns to a playable live state.
+- Deferred-engine rule: analysis searches may finish while paused and update rendered seat results, while any guarded player-engine move that resolves during pause is held as deferred output and committed without a second validation once play returns to a playable live state.
 - Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally, and paused live play is interaction-locked apart from resume.
 
 ### SCN-TIME-03 - Increment Applied After Move

@@ -17,7 +17,7 @@ import {
   ResultState,
   ThemeMode,
   TimeControlPreset,
-  type IAnalysisSnapshot,
+  type IAnalysisSeat,
   type IAssignedEngine,
   type IClockSnapshot,
   type IEngineAnalysisUpdate,
@@ -193,10 +193,9 @@ export function getRootNode(node: IMoveNode): IMoveNode {
 export function cloneTree(tree: IMoveTree): IMoveTree {
   return { root: attachParents(structuredClone(tree.root)) };
 }
-export function createAnalysisSnapshot(engine: IEngineRecord = createEngineRecord(), positionKey: string = 'position:white'): IAnalysisSnapshot {
+export function createAnalysisSeat(engine: IEngineRecord = createEngineRecord()): IAnalysisSeat {
   return {
     assignedEngine: createAssignedEngine(engine),
-    positionKey,
     updatedAt: new AnalysisTimestamp('2026-04-17T12:00:00.000Z'),
     lines: [],
     isComplete: false,
@@ -237,7 +236,7 @@ export function createGame(overrides: Partial<IGame> = {}): IGame {
     timeControl: structuredClone(overrides.timeControl ?? { preset: TimeControlPreset.Untimed, incrementMs: 0 }),
     clockSnapshot,
     gameplayOptions: structuredClone(overrides.gameplayOptions ?? { allowTakeback: false, showLiveAnalysisMoves: false }),
-    analysis: structuredClone(overrides.analysis ?? { snapshots: [] }),
+    analysis: structuredClone(overrides.analysis ?? { seats: [] }),
     $: overrides.$ ? structuredClone(overrides.$) : undefined,
   };
 }

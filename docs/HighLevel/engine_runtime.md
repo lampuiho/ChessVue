@@ -65,7 +65,7 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - If player reassignment results in both sides being assigned again, live play restarts from the preserved setup/history with a newly chosen time control and fresh live clock state.
 - After that restarted live game is created, the normal live-state gate decides whether the side to move should immediately receive an engine turn.
 - If a timed live game is paused while a player-engine turn search or analysis search is already in flight, that current search may continue until it reaches a best line or move result.
-- Analysis output produced while paused may update the stored analysis snapshot for read-only display, but it must not unlock paused interaction.
+- Analysis output produced while paused may update the stored analysis seat for read-only display, but it must not unlock paused interaction.
 - A player-engine move produced while paused has already passed the common engine-result legality boundary against its searched position. It is stored as deferred output and must not mutate the game tree or clocks until the game resumes.
 - On resume, deferred player-engine output commits only when the live turn is still ready; otherwise it is discarded. **Why:** paused gameplay cannot change the live position and ownership-changing actions clear the pending or deferred runtime, so a second legality check would duplicate the completed engine-boundary decision.
 
@@ -82,6 +82,8 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - Each engine updates its own row or group in the analysis UI independently.
 - The app stores the latest valid result from each copied in-game analysis engine inside that game's persisted analysis data.
 - Each engine group may expose up to `3` visible lines for the active position.
+- Each assignment is an analysis seat. The client retains every reported runtime rank, while the game's subscription selects the first three ranked lines for rendering and persistence. Position changes clear these rendered results before publication; visible reads do not filter by a position key.
+- The service cancels and serialises requests per assigned engine, including readiness. It forwards only the current operation's captured subscriber; the client remains a protocol state machine with its existing stop acknowledgement boundary.
 - Each engine group may be folded or expanded independently without affecting the other engine groups.
 - Partial failure of one engine must not stop the remaining engines.
 
@@ -96,14 +98,14 @@ If the user selects more than the supported concurrent analysis engines, the app
 ## Search and Streaming Behaviour
 - Analysis engines stream incremental results over time.
 - The latest valid output from an engine replaces its earlier displayed result for that same position.
-- Paused live play does not permit new user-triggered analysis or move application, but an already running engine search may still complete and publish its last valid output under the paused rules above.
+- Paused live play blocks suggested-move application but permits Refresh, Retry, Stop, assignment controls, and continued streamed updates. Board editing blocks analysis startup.
 - Protocol parsing remains an internal engine-boundary concern owned by `EngineClient`; upper layers consume app-facing analysis updates and awaited moves rather than raw engine lines.
 - If the engine stops unexpectedly, the next attempted runtime operation fails explicitly for that engine. The last valid displayed result remains visible until replaced.
 
 ## Failure and Retry Behaviour
 - Engine start failure must be isolated to the affected engine.
 - Unexpected engine stop is detected when the next runtime operation checks or uses that process handle and fails for that engine.
-- The explicit initialisation path is `EngineRuntimeService.ensureReady(...)`. Other runtime actions assert that a live, already initialised engine exists.
+- The explicit initialisation path is `EngineRuntimeService.ensureReady(...)`. Analysis start coordinates that path internally after claiming its cancellable operation; player operations retain their explicit readiness flow.
 - If a runtime action finds that a previously stored process handle has gone stale, that action may retry once by re-running the same explicit initialisation path before continuing.
 - The user may retry engine start manually.
 - Automatic reconnect or backoff retry is not part of the baseline and is deferred to [ideas.md](ideas.md).
@@ -117,7 +119,7 @@ If the user selects more than the supported concurrent analysis engines, the app
 - `EnginesStore` owns configured engine profiles, exposes them for selection flows, and caches separately discovered option metadata for profile configuration.
 - `SettingsStore` owns user settings and appearance projection, not engine-profile configuration.
 - `GamesStore` owns copying a selected reusable engine profile into the current game's assigned-engine snapshot, plus assignment on the current game, turn waiting, and analysis coordination for already copied engine participants.
-- `GamesStore` persists streamed evaluation snapshots on the game and exposes the visible-analysis read model.
+- `GamesStore` persists up to three rendered lines per analysis seat and exposes all seats through the existing readonly accessor. Stop retains accepted results; Refresh/Retry and position changes clear the affected results.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore` and the temporary option-discovery runtime used by `EnginesStore`.
 - `EngineRuntimeService` composes `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation.
 - `EngineClient` owns protocol sequencing, engine-output interpretation, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.

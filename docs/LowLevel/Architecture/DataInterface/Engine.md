@@ -77,6 +77,15 @@ interface IAssignedEngineRuntime {
   lastError?: string
   analysisCallback?: (update: IEngineAnalysisUpdate) => void
   analysisLines: Map<number, IAnalysisLine>
+  analysisOperation?: IEngineAnalysisOperation;
+  analysisWork?: Promise<void>;
+  analysisNeedsStop?: boolean;
+}
+
+interface IEngineAnalysisOperation {
+  abortController: AbortController;
+  completion: Deferred<void>;
+  isFinal: boolean;
 }
 
 interface IAssignedEngine {
@@ -95,7 +104,6 @@ interface IEngineAnalysisRequest {
 
 interface IEngineAnalysisUpdate {
   readonly position: DeepReadonly<IBoardPosition>
-  readonly positionKey: string
   readonly bestMove?: DeepReadonly<IMove>
   readonly lines: readonly DeepReadonly<IAnalysisLine>[]
   readonly isFinal: boolean
@@ -127,7 +135,7 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.
 - `clientType` identifies which platform engine client is responsible for the profile or assigned-engine snapshot.
 - When a selected reusable engine profile is assigned to a game, `GamesStore` copies the display name, executable path, client type, protocol, and option values into the saved game payload. The option map is shallow-copied because it remains mutable on the source profile and every allowed value is a primitive; a deep clone provides no additional isolation. Runtime `$` data is excluded because process handles, callbacks, and protocol sessions belong to one active assignment and cannot be reused safely.
-- `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis snapshots.
+- `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis seats.
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.
 - `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process handle, availability, last error, active analysis callback, and cached analysis lines for that engine instance.
@@ -139,5 +147,6 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - The baseline runtime design uses explicit object-attached fields for shared runtime state and explicit object-attached fields for client-private runtime state. It does not rely on hidden side tables.
 - Higher layers use ChessVue board and move structures; protocol-specific payloads and strings are an internal detail of the concrete engine client implementation.
 - Purpose-level analysis, player-turn, and ponder calls receive the canonical `IGame`. The concrete engine client derives the required rendered or live path, current position, and protocol-specific new-game boundary internally without an intermediate projection contract.
-- `IEngineAnalysisUpdate` is an app-facing readonly streamed update shape. It includes both the current `position` and the derived `positionKey` so higher layers can reject stale results deterministically when the target changes. The client allocates a new ordered lines array for each emission and does not mutate an emitted payload afterwards, allowing `GamesStore` to retain its result references.
+- `IEngineAnalysisUpdate` contains the fixed searched `position` and every retained line in engine rank order. It has no position key or three-line cap. The client allocates a new ordered array per emission and keeps line/PV objects immutable; the game subscription selects up to three rendered lines while retaining those objects.
+- `analysisOperation`, `analysisWork`, and `analysisNeedsStop` are service-owned runtime fields. The operation holds cancellation/completion and final-update state; the work handle serialises issued operations while superseded requests skip startup; the stop flag records whether a client search needs draining. `analysisCallback` is the only stored subscriber field. The service captures its reference locally when starting analysis or disposing an engine, so old work cannot invoke or clear a replacement subscription. These fields do not expose protocol states and are never persisted.
 - `executablePath` and `options` are user-managed profile values and are not strictly validated at settings-edit time beyond being storable in the profile record.

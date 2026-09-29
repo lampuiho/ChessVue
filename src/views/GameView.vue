@@ -96,8 +96,12 @@ const canTakeBack = computed(() => {
   return hasMove && (!currentGame.livePath || !!currentGame.gameplayOptions.allowTakeback || controlMode.value === 'inGameAnalysis');
 });
 const canPause = computed(() => game.value?.timeControl.initialMs !== undefined && game.value.timeControl.preset !== 'untimed');
-const canAddEngine = computed(() => !!game.value && game.value.analysis.snapshots.length < 4 && (settings.value?.analysis.engineInventory.length ?? 0) > game.value.analysis.snapshots.length);
+const canAddEngine = computed(() => !!game.value && game.value.analysis.seats.length < 4 && (settings.value?.analysis.engineInventory.length ?? 0) > game.value.analysis.seats.length);
 const showAnalysisMoves = computed(() => !game.value?.livePath || !!game.value.gameplayOptions.showLiveAnalysisMoves);
+const analysisSeats = computed(() => {
+  void gamesStore.workspaceRevision;
+  return game.value ? gamesStore.getVisibleAnalysis(game.value)?.engineSeats ?? [] : [];
+});
 const topColour = computed(() => settings.value?.appearance.boardOrientation === BoardOrientation.Black ? PlayerColour.White : PlayerColour.Black);
 const bottomColour = computed(() => topColour.value === PlayerColour.White ? PlayerColour.Black : PlayerColour.White);
 const topPlayer = computed(() => topColour.value === PlayerColour.White ? game.value?.whitePlayer : game.value?.blackPlayer);
@@ -220,7 +224,7 @@ function requestPlayerSelection(colour: PlayerColour): void {
 function requestAnalysisEngine(): void {
   const currentGame = game.value;
   if (!currentGame) return;
-  uiStateStore.showModal({ kind: AppModalKind.AnalysisEngineSelection, payload: { gameId: currentGame.metadata.id, currentAnalysisEngines: currentGame.analysis.snapshots.map((snapshot) => snapshot.assignedEngine) } });
+  uiStateStore.showModal({ kind: AppModalKind.AnalysisEngineSelection, payload: { gameId: currentGame.metadata.id, currentAnalysisEngines: currentGame.analysis.seats.map((seat) => seat.assignedEngine) } });
 }
 function toggleSection(section: 'history' | 'analysis'): void {
   uiStateStore.setSectionCollapsed(section);
@@ -229,6 +233,17 @@ function toggleSection(section: 'history' | 'analysis'): void {
 function toggleAnalysisEngine(index: number): void {
   uiStateStore.setAnalysisEngineExpanded(index);
   void run(() => uiStateStore.saveLayoutState());
+}
+async function removeAnalysisEngine(index: number): Promise<void> {
+  const currentGame = game.value;
+  if (!currentGame?.analysis.seats[index]) return;
+  const cleanup = gamesStore.removeAnalysisEngine(currentGame, index);
+  if (layout.value) {
+    const expanded = [...layout.value.analysisEngineExpandedByIndex];
+    expanded.splice(index, 1);
+    uiStateStore.setLayoutState({ ...layout.value, analysisEngineExpandedByIndex: expanded });
+  }
+  await cleanup;
 }
 function showNotice(message: string): void {
   notice.value = message;
@@ -273,11 +288,12 @@ async function run(action: () => Promise<void> | void): Promise<void> {
         <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused'" @collapse-toggled="toggleSection('history')" @node-selected="navigateToNode" @return-to-live-requested="game.$?.liveNode && navigateToNode(game.$.liveNode)" />
         <AnalysisPanel
           v-if="layout?.showAnalysisPanel"
-          :snapshots="game.analysis.snapshots"
+          :seats="analysisSeats"
           :collapsed="layout.analysisCollapsed"
           :expanded-by-index="layout.analysisEngineExpandedByIndex"
           :show-moves="showAnalysisMoves"
           :disabled="controlMode === 'paused' || controlMode === 'boardEdit'"
+          :start-disabled="controlMode === 'boardEdit'"
           :can-add="canAddEngine"
           @collapse-toggled="toggleSection('analysis')"
           @engine-expanded-toggled="toggleAnalysisEngine"
@@ -285,7 +301,7 @@ async function run(action: () => Promise<void> | void): Promise<void> {
           @retry-requested="(index) => run(() => gamesStore.retryAnalysis(game!, index))"
           @stop-requested="(index) => run(() => gamesStore.stopAnalysis(game!, index))"
           @engine-add-requested="requestAnalysisEngine"
-          @engine-remove-requested="(index) => run(() => gamesStore.removeAnalysisEngine(game!, index))"
+          @engine-remove-requested="(index) => run(() => removeAnalysisEngine(index))"
           @move-selected="playAnalysisLine"
         />
         <GameControlPanel

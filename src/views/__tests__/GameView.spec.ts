@@ -1,9 +1,11 @@
 import { flushPromises, shallowMount, type VueWrapper } from '@vue/test-utils';
-import { reactive } from 'vue';
+import { nextTick, reactive } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AppModalKind,
+  EngineAvailability,
+  GameState,
   PauseReason,
   PlayerColour,
   TimeControlPreset,
@@ -11,7 +13,7 @@ import {
   type IGame,
   type ISettingsSnapshot,
 } from '@/contracts';
-import { createClockSnapshot, createGame, createGameSessionSnapshot, createSettingsSnapshot, createUiLayoutState } from '@/state/__tests__/StateStoreTestUtility';
+import { createAnalysisSeat, createClockSnapshot, createGame, createGameSessionSnapshot, createSettingsSnapshot, createUiLayoutState } from '@/state/__tests__/StateStoreTestUtility';
 import GameView from '../GameView.vue';
 
 interface ITestDependency {
@@ -20,6 +22,7 @@ interface ITestDependency {
   gamesStore: {
     workspaceRevision: number;
     getGame: ReturnType<typeof vi.fn>;
+    getVisibleAnalysis: ReturnType<typeof vi.fn>;
     listGames: ReturnType<typeof vi.fn>;
     pauseGame: ReturnType<typeof vi.fn>;
     resumeGame: ReturnType<typeof vi.fn>;
@@ -73,9 +76,10 @@ describe('GameView menu interruptions', () => {
     games = new Map();
     dependency.route = reactive({ params: { id: 'game-1' } });
     dependency.router = { push: vi.fn(async () => undefined), replace: vi.fn(async () => undefined) };
-    dependency.gamesStore = {
+    dependency.gamesStore = reactive({
       workspaceRevision: 0,
       getGame: vi.fn((id: string) => games.get(id)),
+      getVisibleAnalysis: vi.fn((game: IGame) => ({ engineSeats: [...game.analysis.seats] })),
       listGames: vi.fn(() => [...games.values()]),
       pauseGame: vi.fn(async (game: IGame, reason: PauseReason) => {
         game.$ ??= {};
@@ -85,7 +89,7 @@ describe('GameView menu interruptions', () => {
         if (!game.$?.pauseReasons?.includes(reason)) return;
         game.$.pauseReasons = game.$.pauseReasons.filter((candidate) => candidate !== reason);
       }),
-    };
+    });
     dependency.settingsStore = reactive({ settings: createSettingsSnapshot() });
     dependency.uiStateStore = reactive({
       gameSession: createGameSessionSnapshot(),
@@ -98,6 +102,27 @@ describe('GameView menu interruptions', () => {
   afterEach(() => {
     for (const wrapper of wrappers.splice(0)) wrapper.unmount();
     vi.useRealTimers();
+  });
+  it('publishes raw seat changes through workspaceRevision and allows paused runtime controls', async () => {
+    const game = createTimedGame();
+    game.gameState = GameState.PausedWhiteTurn;
+    const seat = createAnalysisSeat();
+    game.analysis.seats = [seat];
+    const wrapper = mountView(game);
+    await flushPromises();
+    const panel = wrapper.getComponent({ name: 'AnalysisPanel' });
+    const previousSeats = panel.props('seats');
+    expect(panel.props('disabled')).toBe(true);
+    expect(panel.props('startDisabled')).toBe(false);
+    seat.assignedEngine.$ = { availability: EngineAvailability.Failed, lastError: 'Startup failed', analysisLines: new Map() };
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    expect(panel.props('seats')).not.toBe(previousSeats);
+    expect(panel.props('seats')[0].assignedEngine.$.lastError).toBe('Startup failed');
+    game.gameState = GameState.BoardEdit;
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    expect(panel.props('startDisabled')).toBe(true);
   });
 
   it.each([

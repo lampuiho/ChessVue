@@ -59,7 +59,7 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `loadGameSession()` and `loadLayoutState()` are lazy single-flight hydration boundaries intended for route or view setup paths rather than an eager startup phase. Commands reject use before their corresponding state has loaded.
 - `setActiveGame(...)` is selection-only. It updates `activeGameId` and the routed game target only when the supplied id is already open, and it never appends unknown ids into `openGameIds`.
 - `togglePanel(...)`, `setSectionCollapsed(...)`, and `setLayoutState(...)` apply to the shared app shell layout and never take a `gameId`.
-- `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis snapshot rows to derive the current mapping.
+- `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis seat rows to derive the current mapping.
 - UI state is not a draft: every visible mutation is immediately current state, so the store does not clone reads or use immutable snapshot replacement. `setLayoutState(...)` accepts the supplied state directly.
 - Persistence methods use `toRaw(...)` when handing the reactive state to `SerializationService`. This removes the Vue proxy at the layer boundary without copying the state.
 - Modal state is transient shared state rather than a persistence snapshot. It remains a shallow ref because modal payloads may contain engine callbacks, maps, or host values whose identity must be retained; replacement and removal remain owned by `showModal(...)` and `hideModal()`.

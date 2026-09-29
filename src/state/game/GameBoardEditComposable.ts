@@ -35,13 +35,12 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     game.resultReason = undefined;
     game.drawOfferState = undefined;
     position.invalidateRenderedPosition(game);
-    touchGame(game);
+    void analysis.refreshAnalysisForGame(game);
   }
   function enterBoardEdit(game: IGame): void {
     status.assertNotPausedForAction(game, 'Board edit entry');
     if (game.gameState === GameState.BoardEdit) {
       game.gameState = status.getAnalysisState(game.rootPosition.sideToMove);
-      touchGame(game);
       void analysis.refreshAnalysisForGame(game);
       return;
     }

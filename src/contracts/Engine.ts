@@ -3,6 +3,7 @@ import type { IBoardPosition } from './ChessboardState'
 import type { IMove } from './Move'
 import type { IAnalysisLine } from './Analysis'
 import type { DeepReadonly } from './Readonly'
+import type { Deferred } from '@/utility/async/Deferred';
 
 export type ProcessHandle = string
 export const enum EngineProtocol {
@@ -52,12 +53,20 @@ export interface IEngineRecord {
   protocol: EngineProtocol
   options: IEngineOptionMap
 }
+export interface IEngineAnalysisOperation {
+  abortController: AbortController;
+  completion: Deferred<void>;
+  isFinal: boolean;
+}
 export interface IAssignedEngineRuntime {
   processHandle?: ProcessHandle
   availability: EngineAvailability
   lastError?: string
   analysisCallback?: (update: IEngineAnalysisUpdate) => void
   analysisLines: Map<number, IAnalysisLine>
+  analysisOperation?: IEngineAnalysisOperation;
+  analysisWork?: Promise<void>;
+  analysisNeedsStop?: boolean;
 }
 export interface IAssignedEngine {
   displayName: string
@@ -73,9 +82,9 @@ export interface IEngineAnalysisRequest {
 }
 export interface IEngineAnalysisUpdate {
   readonly position: DeepReadonly<IBoardPosition>
-  readonly positionKey: string
   readonly bestMove?: DeepReadonly<IMove>
-  readonly lines: readonly DeepReadonly<IAnalysisLine>[]
+  /** All retained lines in engine rank order; the rendered-line limit belongs to the game subscription. */
+  readonly lines: readonly DeepReadonly<IAnalysisLine>[];
   readonly isFinal: boolean
 }
 export type EngineAnalysisUpdateHandler = (update: IEngineAnalysisUpdate) => boolean | void;

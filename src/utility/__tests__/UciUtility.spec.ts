@@ -48,7 +48,7 @@ describe('UciUtility', () => {
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 1000 },
       clockSnapshot: { white: { remainingMs: 60000, isRunning: false }, black: { remainingMs: 45000, isRunning: true }, activeColour: PlayerColour.Black },
       gameplayOptions: {},
-      analysis: { snapshots: [] },
+      analysis: { seats: [] },
     };
 
     expect(buildPositionCommand(game)).toBe('position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4');

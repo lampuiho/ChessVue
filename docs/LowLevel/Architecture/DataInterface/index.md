@@ -10,7 +10,7 @@ This folder defines the shared low-level types used across the platform, domain,
 - [Move](Move.md): move payloads, nodes, and move-tree structure.
 - [TimeControl](TimeControl.md): time-control config and live clock snapshots.
 - [Engine](Engine.md): configured engines, per-game assignment, and runtime sessions.
-- [Analysis](Analysis.md): streamed engine output and visible analysis snapshots.
+- [Analysis](Analysis.md): streamed engine output and visible analysis seats.
 - [ModalState](ModalState.md): typed transient modal kinds and payloads.
 - [PlatformError](PlatformError.md): shared typed platform-layer failure contract.
 - [PlatformEventRegistration](PlatformEventRegistration.md): active platform event-registration snapshot entries.

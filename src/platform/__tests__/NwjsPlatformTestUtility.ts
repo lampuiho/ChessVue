@@ -270,7 +270,7 @@ export function createPersistedGame(): IGame {
     timeControl,
     clockSnapshot,
     gameplayOptions: { showLiveAnalysisMoves: false, allowTakeback: false },
-    analysis: { snapshots: [] },
+    analysis: { seats: [] },
   };
 }
 export function normaliseTestPath(targetPath: string): string {

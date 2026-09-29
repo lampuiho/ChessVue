@@ -12,7 +12,7 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 - Runtime state changes use explicit object-attached state. No flow relies on hidden side tables or silent runtime initialisation.
 
 ## Owner And Mutable State
-`EngineRuntimeService` may mutate `engine.$.processHandle`, `availability`, `lastError`, `analysisCallback`, and `analysisLines`.
+`EngineRuntimeService` may mutate `engine.$.processHandle`, `availability`, `lastError`, `analysisCallback`, `analysisOperation`, `analysisWork`, `analysisNeedsStop`, and analysis-cache cleanup. The client owns normal map entry updates.
 
 The concrete `EngineClient` may refine `engine.$` with a private session. Its UCI session records stable game-boundary and process-listener data plus a discriminated context for the current protocol state. Handshake lines and completions, active positions, the expected ponder move, the stopping completion, and a ready player move are owned only by the states that require them.
 
@@ -35,47 +35,56 @@ The temporary engine is never stored by `EnginesStore` or attached to a game. `E
 ## Analysis Runtime
 
 ### Start Or Refresh Analysis
-| `GamesStore.refreshAnalysis` |
-| --- |
-| `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
-| `EngineRuntimeService.ensureReady` |
-| `EngineRuntimeService.startAnalysis(engine, game, request)` |
 
-| `EngineRuntimeService.startAnalysis` |
-| --- |
-| assert base runtime and live process |
-| create a callback that validates every analysis move against its evolving position |
-| `EngineClient.startAnalysis(engine, game, request, guardedAnalysisCallback)` |
-| set runtime availability to `Running` |
+```text
+GamesStore.refreshAnalysis / retryAnalysis / rendered-position action
+  -> GameAnalysisComposable.refreshAnalysisForGame
+     -> dispose targeted subscriptions and clear all targeted seat results
+     -> ensure the rendered-position cache exists
+     -> startAnalysisSeat for each engine independently
+        -> subscribeToAnalysis
+        -> EngineRuntimeService.startAnalysis(engine, game, request)
+           -> _beginAnalysisOperation: abort/reject prior service operation
+           -> mark Starting; _queueAnalysisOperation
+           -> drain prior issued work; skip superseded pending requests
+           -> ensureReady(engine, operation.abortController.signal)
+           -> if current, EngineClient.startAnalysis(..., capturedGuard)
+     -> touchGame publishes empty/starting seats before awaiting startup
+```
 
-| `EngineClient.startAnalysis` |
-| --- |
-| require an initialised session |
-| stop and consume an existing analysis search when necessary |
-| send `ucinewgame` and `isready` when the game id or root changed |
-| derive the highlighted position command from `IGame` |
-| enter `Analysing` and send the analysis commands |
+The service startup promise resolves after commands are issued, while its operation identity remains active for streaming. Replacing or stopping pending startup rejects it with `Aborted`. The composable consumes expected cancellation and checks subscription membership before publishing completion/error. Late service writes are guarded by operation identity, not position keys. Player-turn coordination remains separate.
+
+The UCI client captures its detached parsing board, commands, game ID, root FEN, and MultiPV option before awaiting anything. It retains its existing replacement sequence: `Analysing -> StoppingSearch -> bestmove -> Ready`, followed by any game-boundary readiness, then `Analysing`. Already issued work drains before a replacement enters the client; cancellation does not retract written commands.
 
 ### Stream Analysis Output
-| `EngineClient._consumeLine` while `Analysing` |
-| --- |
-| parse `info` into `IAnalysisLine` |
-| stage the line by `IAnalysisLine.$.reference` |
-| invoke the guarded runtime callback with a protocol-neutral update |
-| retain the staged line only when the runtime accepts every move, otherwise restore the previous line |
 
-The runtime callback forwards accepted updates to `engine.$.analysisCallback`; rejected updates never cross into game state. `bestmove` completes the analysis search, emits a guarded final update, and returns the session to `Ready`. Unrecognised ancillary output is ignored. A recognised control response that is invalid in the current state fails the session rather than being consumed by an unrelated parser.
+```text
+NwjsUciEngineClient._consumeAnalysingLine
+  -> parse against the captured board
+  -> stage engine.$.analysisLines[reported rank], with no display cap
+  -> _buildAnalysisUpdate: all retained lines in numeric rank order
+  -> service guard checks current operation and captured subscriber
+  -> validate every line and best move, including non-displayed ranks
+  -> game subscription verifies its captured seat is still assigned
+     -> seat.lines = update.lines.slice(0, 3)
+     -> update bestMove, updatedAt, isComplete; touchGame
+```
 
-### Stop Analysis
-| `GamesStore.stopAnalysis` |
-| --- |
-| dispose the analysis subscription |
-| `EngineRuntimeService.stopAnalysis` |
-| `EngineClient.stopAnalysis` |
-| enter `StoppingSearch`, send `stop`, and consume the terminating `bestmove` |
-| return the session to `Ready` |
+A rejected update returns `false`, restoring the prior runtime entry. Emitted line/PV objects remain immutable. `bestmove` returns the client to Ready and publishes a final update; a final update during startup cannot be overwritten with Running afterwards. `getVisibleAnalysis` returns all seats in roster order without filtering, and the panel renders their prepared lines directly.
+
+### Stop, Remove, And Edit
+
+```text
+GamesStore.stopAnalysis(game, index?)
+  -> dispose each targeted subscription
+  -> EngineRuntimeService.stopAnalysis for each engine independently
+     -> invalidate operation/reject pending service startup immediately
+     -> drain issued startup; stop only when a search needs stopping
+     -> client StoppingSearch consumes terminating bestmove, then Ready
+  -> retain rendered results and isComplete; publish current status
+```
+
+Position changes and Refresh/Retry clear results before publication. Board-edit entry cancels work; effective edits clear results; exit restarts analysis. Removal starts service disposal and removes the captured seat before awaiting process cleanup. Setup replacement disposes old engine objects. Terminal disposal can reject pending client waits, releases late-spawned processes, and prevents delayed startup from reviving a stopped session.
 
 ## Player Turn Runtime
 
@@ -131,4 +140,4 @@ Analysis and ponder searches share `StoppingSearch` because their stop protocol 
 ## Stop, Restart, And Failure
 `EngineRuntimeService.stopEngine(...)` asks the client to reject and clear private session work, then stops the process and clears shared analysis runtime. `restartEngine(...)` replaces or respawns the process before explicitly initialising a fresh protocol session.
 
-`startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` may retry once only after `InvalidProcessHandle`, using the explicit engine initialisation path. Missing base runtime or a missing client session remains an exception and is not hidden by lazy repair. Start, await, or validation failure rejects the game-level deferred through the provider path; the owning handler logs an unexpected failure and schedules the existing delayed player-turn retry. An `Aborted` cancellation returns without retry. Pondering failure alone preserves the accepted or deferred move.
+`startPlayerTurn(...)` and `startPondering(...)` may retry once only after `InvalidProcessHandle`, using the explicit engine initialisation path. Missing base runtime or a missing client session remains an exception and is not hidden by lazy repair. Start, await, or validation failure rejects the game-level deferred through the provider path; the owning handler logs an unexpected failure and schedules the existing delayed player-turn retry. An `Aborted` cancellation returns without retry. Pondering failure alone preserves the accepted or deferred move.

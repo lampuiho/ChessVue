@@ -90,8 +90,11 @@ async function confirmAnalysisEngine(): Promise<void> {
   const engine = engines.value.find((candidate) => candidate.id === selectedEngineId.value);
   if (!game || !engine) return;
   await run(async () => {
-    await gamesStore.addAnalysisEngine(game, engine);
-    if (game.gameState !== 'boardEdit') await gamesStore.refreshAnalysis(game);
+    const adding = gamesStore.addAnalysisEngine(game, engine);
+    const seat = game.analysis.seats.find((candidate) => candidate.assignedEngine.displayName === engine.displayName);
+    await adding;
+    const index = seat ? game.analysis.seats.indexOf(seat) : -1;
+    if (game.gameState !== 'boardEdit' && index >= 0) await gamesStore.retryAnalysis(game, index);
     uiStateStore.hideModal();
   });
 }
@@ -105,7 +108,7 @@ async function confirmSetupStart(): Promise<void> {
     await gamesStore.startGameFromSetup(game, {
       whitePlayer: assignedPlayer(setupWhite.value, PlayerColour.White),
       blackPlayer: assignedPlayer(setupBlack.value, PlayerColour.Black),
-      analysisEngineProfiles: engines.value.filter((engine) => game.analysis.snapshots.some((snapshot) => snapshot.assignedEngine.displayName === engine.displayName)),
+      analysisEngineProfiles: engines.value.filter((engine) => game.analysis.seats.some((seat) => seat.assignedEngine.displayName === engine.displayName)),
       showLiveAnalysisMoves: false,
       allowTakeback: true,
       timeControl: { ...defaults.defaultTimeControl },

@@ -91,10 +91,10 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
@@ -232,7 +232,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GameWorkspaceComposable.createGame` |
 | `GamePlayerTurnComposable.createPlayerSnapshot` |
 | `GameClockComposable.initialiseClockSnapshot` |
-| `GameAnalysisComposable.createAnalysisSnapshot` |
+| `GameAnalysisComposable.createAnalysisSeat` |
 
 | `UiStateStore.hideModal` |
 | --- |
@@ -245,7 +245,7 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | `GameAnalysisComposable.subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |

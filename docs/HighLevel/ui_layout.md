@@ -197,7 +197,7 @@ Example collapsed analysis state:
 - when `showLiveAnalysisMoves = true`, `liveGame + inGameAnalysis` renders move targets and clicking one applies the selected path as analysis moves inside that mode
 - per-engine-title `-` action on the right for removing that engine from the current game
 - Each engine can be folded by clicking the chevron to the left of the engine name
-- Per-engine fold state is remembered through the single persisted app-shell layout snapshot by rendered engine-row index for the active game, using that game's ordered persisted analysis snapshot rows; missing entries default to expanded
+- Per-engine fold state is remembered through the single persisted app-shell layout snapshot by rendered engine-row index for the active game, using that game's ordered persisted analysis seat rows; missing entries default to expanded
 
 
 ## Player Strip Design
@@ -421,7 +421,7 @@ This layout contract is consistent with the existing high-level baseline:
 - integrated `GameView` analysis workspace from [architecture.md](architecture.md)
 - remembered app-level panel visibility and foldable-section state from [persistence_contract.md](persistence_contract.md)
 Remembered UI state may hide, show, or collapse the shared history and analysis panels without redefining the baseline parent layout regions described here. Per-engine analysis-group folding is also remembered through that same UI-layout state by rendered row index for the active game.
-That analysis-group index is derived from the active game's rendered engine-row order, which follows the game's ordered persisted analysis snapshot rows rather than a cross-game global list.
+That analysis-group index is derived from the active game's rendered engine-row order, which follows the game's ordered persisted analysis seat rows rather than a cross-game global list.
 
 ## Non-Goals
 This document does not define:

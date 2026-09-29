@@ -71,7 +71,7 @@ Contains:
 - gameState, result state, and unresolved draw-offer state when present
 - board root, move tree, and minimal selector paths for `livePath` and `renderedPath`
 - clock configuration and current clock snapshot
-- persisted analysis snapshots with copied engine payloads
+- persisted analysis seats with copied engine payloads
 - schema version metadata
 
 Does not contain:
@@ -93,6 +93,8 @@ That means restore must show:
 
 Only after that game state is restored may live analysis resume.
 
+Analysis seats retain up to three rendered lines each, belonging to the saved root and `renderedPath`. Empty seats remain valid assignments. There is no analysis position key or visibility filter; position-changing actions clear old rendered results before publication or saving. Runtime line maps, promises, subscriptions, and process state are excluded. Restored results remain available when automatic resume is disabled or engines are unavailable. The revised analysis schema replaces the unfinished earlier format without migration support.
+
 ## Ownership Boundaries
 ### Saved Game Payload Owns
 - game identity and lifecycle state
@@ -111,7 +113,7 @@ Only after that game state is restored may live analysis resume.
 
 ### UI Layout State Owns
 - remembered non-modal UI state such as history/analysis panel visibility and fold state for all committed foldable sections
-- analysis-engine fold state keyed by the active game's rendered analysis-row order, recalculated from that game's ordered persisted analysis snapshot rows when the active game changes
+- analysis-engine fold state keyed by the active game's rendered analysis-row order, recalculated from that game's ordered persisted analysis seat rows when the active game changes
 - layout restoration that remains useful even when prior open games are not restored
 
 ### Settings Snapshot Owns
@@ -145,7 +147,7 @@ Only after that game state is restored may live analysis resume.
 - `SavedGamesStore` and `SavedGameIndexService` consume these already-owned values and do not repeat presentation form validation. External file paths remain separately owned by the OS picker flow.
 
 ## Analysis Persistence Rule
-The baseline contract persists saved analysis snapshots directly inside the saved game payload.
+The baseline contract persists saved analysis seats directly inside the saved game payload.
 
 On restore, those persisted snapshots are restored with the game, and analysis may then restart from the restored game state when engines are available and the relevant setting allows it.
 

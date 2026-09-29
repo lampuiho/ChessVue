@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, MoveKind, PieceKind, PlatformErrorKind, PlayerColour, type IGame, type IMove } from '@/contracts';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
-import { EngineRuntimeService, MoveApplicationService, MoveHistoryService, PositionIdentityService } from '@/domain';
+import { EngineRuntimeService, MoveApplicationService, MoveHistoryService } from '@/domain';
+import { flushPromises } from '@vue/test-utils';
 import { createAssignedEngine, createEngineGame, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
 
 const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironment();
@@ -24,6 +25,63 @@ function appendLiveMove(game: IGame, move: IMove): void {
 }
 
 describe('NwjsUciEngineClient', () => {
+  it('retains every reported MultiPV rank in ordered runtime updates', async () => {
+    const platform = getPlatformService();
+    const engine = createAssignedEngine();
+    const updates: IEngineAnalysisUpdate[] = [];
+    await EngineRuntimeService.ensureReady(engine);
+    EngineRuntimeService.subscribeToAnalysis(engine, (update) => updates.push(update));
+    const process = getEnvironment().latestProcess();
+    process.queueResponse('go infinite', [5, 2, 4, 1, 3].map((rank) => `info depth 12 multipv ${rank} score cp ${40 - rank} pv e7e5`));
+    await EngineRuntimeService.startAnalysis(engine, createEngineGame(), { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
+    expect(engine.$!.analysisLines.size).toBe(5);
+    expect(updates[updates.length - 1]!.lines.map((line) => line.$!.reference)).toEqual([1, 2, 3, 4, 5]);
+    const retained = updates[updates.length - 1]!.lines;
+    process.queueResponse('stop', ['bestmove e7e5']);
+    await platform.getEngineClient(engine.clientType).stopAnalysis(engine);
+    process.queueResponse('go infinite', []);
+    await EngineRuntimeService.startAnalysis(engine, createEngineGame(), { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
+    expect(engine.$!.analysisLines.size).toBe(0);
+    expect(retained).toHaveLength(5);
+  });
+  it('captures matching commands and parsing position before a delayed game-boundary response', async () => {
+    const engine = createAssignedEngine();
+    const game = createEngineGame();
+    const updates: IEngineAnalysisUpdate[] = [];
+    await EngineRuntimeService.ensureReady(engine);
+    const client = getPlatformService().getEngineClient(engine.clientType);
+    const process = getEnvironment().latestProcess();
+    process.queueResponse('isready', []);
+    process.queueResponse('go infinite', ['info depth 10 score cp 20 pv e7e5 g1f3']);
+    const starting = client.startAnalysis(engine, game, { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }, (update) => { updates.push(update); });
+    await flushPromises();
+    expect(process.getCommandLog().slice(-1)).toEqual(['isready']);
+    appendLiveMove(game, { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
+    MoveApplicationService.deletePiece(game.rootPosition, getBoardId(0, 0));
+    process.stdout.write('readyok\n');
+    await starting;
+    expect(process.getCommandLog().slice(-2)).toEqual(['position startpos moves e2e4', 'go infinite']);
+    expect(updates[0]!.position.sideToMove).toBe(PlayerColour.Black);
+    expect(updates[0]!.position.board[getBoardId(4, 6)]?.kind).toBe(PieceKind.Pawn);
+    expect(updates[0]!.lines[0]!.pv).toHaveLength(2);
+    expect(game.$!.renderedPosition!.sideToMove).toBe(PlayerColour.White);
+  });
+  it('disposes an analysis startup waiting for readyok without reviving the client', async () => {
+    const engine = createAssignedEngine();
+    await EngineRuntimeService.ensureReady(engine);
+    const process = getEnvironment().latestProcess();
+    process.queueResponse('isready', []);
+    const starting = EngineRuntimeService.startAnalysis(engine, createEngineGame(), { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }).catch((error) => error);
+    await flushPromises();
+    expect(process.getCommandLog().slice(-1)).toEqual(['isready']);
+    await EngineRuntimeService.stopEngine(engine);
+    expect(await starting).toBeInstanceOf(Error);
+    process.stdout.write('readyok\n');
+    await flushPromises();
+    expect(process.getCommandLog()).not.toContain('go infinite');
+    expect(engine.$!.processHandle).toBeUndefined();
+    expect(engine.$!.availability).toBe(EngineAvailability.Unavailable);
+  });
   it('collects engine option metadata during initialisation', async () => {
     const platform = getPlatformService();
     const manager = platform.getProcessManager();
@@ -60,7 +118,7 @@ describe('NwjsUciEngineClient', () => {
       'info depth 14 multipv 2 score cp 18 pv c7c5',
     ]);
     // captured before appendLiveMove advances the same object in place
-    const analysedPositionKey = PositionIdentityService.buildPositionKey(game.$!.renderedPosition!);
+    const analysedPosition = MoveApplicationService.genPosition(game.$!.renderedPosition!, []);
     await client.startAnalysis(engine, game, { multiPv: 2, searchMode: EngineAnalysisSearchMode.Infinite }, (update) => { updates.push(update); });
     process.queueResponse('stop', ['bestmove e7e5']);
     await client.stopAnalysis(engine);
@@ -102,7 +160,8 @@ describe('NwjsUciEngineClient', () => {
     expect(commandLog[ponderMissStopIndex + 1]).toMatch(/^position startpos /);
     expect(commandLog[ponderMissStopIndex + 2]).toBe(timedGo);
     expect(updates).toHaveLength(2);
-    expect(updates[1]!.positionKey).toBe(analysedPositionKey);
+    expect(updates[1]!.position).toEqual(analysedPosition);
+    expect(updates[1]!.position).not.toBe(game.$!.renderedPosition);
     expect(firstMove.$?.ponderMove?.$?.uci).toBe('g1f3');
     expect(ponderHitMove.$?.uci).toBe('b8c6');
     expect(ponderMissMove.$?.uci).toBe('g8f6');

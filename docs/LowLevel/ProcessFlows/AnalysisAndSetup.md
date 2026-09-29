@@ -5,6 +5,25 @@ This document covers `SCN-FREE-ANALYSIS-01` to `SCN-ANALYSIS-05`.
 
 Persistence note: this document focuses on setup and analysis mutation rules. Any later persistence of the changed `IGame` payload is caller-owned and runs through `SavedGamesStore.saveGame(...)`, so save steps are omitted here unless persistence itself is the subject of the scenario.
 
+The implementation keeps the existing store/composable/service/client boundaries. [GameAnalysisComposable](../../../src/state/game/GameAnalysisComposable.ts) clears all targeted seat results before launching independent starts. [EngineRuntimeService](../../../src/domain/EngineRuntimeService.ts) owns cancellation and sequencing; [NwjsUciEngineClient](../../../src/platform/nwjs/NwjsUciEngineClient.ts) owns protocol states. See [EngineRuntimeOwnership](EngineRuntimeOwnership.md) for the detailed calls and stale-output guards.
+
+```text
+GameMoveComposable.publishRenderedPosition(game, changed)
+  -> changed: GameAnalysisComposable.refreshAnalysisForGame(game)
+     -> disposeAnalysisSubscription and clearAnalysisSeatLines for every seat
+     -> startAnalysisSeat -> subscribeToAnalysis -> EngineRuntimeService.startAnalysis
+        -> _beginAnalysisOperation -> _queueAnalysisOperation -> ensureReady -> client.startAnalysis
+     -> touchGame publishes empty/starting seats before any engine completes
+  -> unchanged: touchGame only; existing searches and results survive
+
+client update -> EngineRuntimeService._acceptAnalysisUpdate
+  -> validate all runtime lines -> captured subscription callback
+     -> seat.lines = update.lines.slice(0, 3); update result metadata; touchGame
+  -> GameView workspaceRevision -> GamesStore.getVisibleAnalysis -> AnalysisPanel.seats
+```
+
+`getVisibleAnalysis` returns all assignments in order without filtering or selecting lines. Effective board edits clear results through the same refresh preparation, but its BoardEdit gate stops engines instead of starting them. Empty, stopped, failed, and restored seats remain present.
+
 ## Free Analysis / Setup
 
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
@@ -43,17 +62,16 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | --- |
-| `EngineRuntimeService.ensureReady` |
-| `EngineRuntimeService.startAnalysis` |
+| `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
+| --- |
+| select the first three ranked lines; update seat metadata; `touchGame` |
 
 - Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to an omitted player value yields a non-live workspace while preserving engine-driven analysis when configured.
 
@@ -110,17 +128,16 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | --- |
-| `EngineRuntimeService.ensureReady` |
-| `EngineRuntimeService.startAnalysis` |
+| `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
+| --- |
+| select the first three ranked lines; update seat metadata; `touchGame` |
 
 - UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
@@ -135,9 +152,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | --- |
 | `UiStateStore.showModal` |
 | `GamesStore.startGameFromSetup` |
-| `GameView._refreshRuntimeAfterSetupStart` |
-| `GamesStore.refreshAnalysis` |
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `GameWorkspaceComposable.startGameFromSetup` owns cleanup, replacement, player startup, and analysis refresh |
 | `UiStateStore.hideModal` |
 
 | `UiStateStore.showModal` |
@@ -146,18 +161,23 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GamesStore.startGameFromSetup` |
 | --- |
 | `GameWorkspaceComposable.startGameFromSetup` |
+| `GameAnalysisComposable.disposeAnalysisForGame` cancels captured old assignments before awaiting cleanup |
+| `GamePlayerTurnComposable.clearPlayerTurnRuntime` |
 | `GamePlayerTurnComposable.createPlayerSnapshot` |
+| `GameAnalysisComposable.createAnalysisSeat` installs the new roster |
 | `GameWorkspaceComposable.startLiveGame` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
 
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSnapshot` |
+| `GameAnalysisComposable.startAnalysisSeat` |
 | `GameAnalysisComposable.subscribeToAnalysis` |
 
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
+| --- |
+| select the first three ranked lines; update seat metadata; `touchGame` |
 
 | `UiStateStore.hideModal` |
 | --- |
@@ -170,24 +190,23 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 ### SCN-ANALYSIS-01 - Start Single Engine Analysis
 
 #### Flow
-| `GameView._refreshVisibleAnalysis` |
+| `GamesStore.refreshAnalysis / rendered-position action` |
 | --- |
 | GamesStore.refreshAnalysis |
 
 | GamesStore.refreshAnalysis |
 | --- |
 | GameAnalysisComposable.refreshAnalysisForGame |
-| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSeat |
 | GameAnalysisComposable.subscribeToAnalysis |
 
-| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSeat |
 | --- |
-| EngineRuntimeService.ensureReady |
-| EngineRuntimeService.startAnalysis |
+| `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
+| --- |
+| select the first three ranked lines; update seat metadata; `touchGame` |
 
 | GamesStore.getVisibleAnalysis |
 | --- |
@@ -200,7 +219,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
 
 #### Flow
-| `GameView._refreshVisibleAnalysis` |
+| `GamesStore.refreshAnalysis / rendered-position action` |
 | --- |
 | GamesStore.refreshAnalysis |
 | EnginesStore.validateAnalysisSelection |
@@ -227,7 +246,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | --- |
 | GameAnalysisComposable.stopAnalysis |
 | EngineRuntimeService.stopAnalysis |
-| GameAnalysisComposable.resetAnalysisSnapshot |
+| retain seat lines, bestMove, timestamp, and completion; publish stopped availability |
 
 #### Flow B - Retry A Failed Engine
 | AnalysisPanel.retryRequested |
@@ -237,17 +256,16 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | GamesStore.retryAnalysis |
 | --- |
 | GameAnalysisComposable.refreshAnalysisForGame |
-| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSeat |
 | GameAnalysisComposable.subscribeToAnalysis |
 
-| GameAnalysisComposable.startAnalysisSnapshot |
+| GameAnalysisComposable.startAnalysisSeat |
 | --- |
-| EngineRuntimeService.ensureReady |
-| EngineRuntimeService.startAnalysis |
+| `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
+| --- |
+| select the first three ranked lines; update seat metadata; `touchGame` |
 
 #### Flow C - Unexpected Analysis Engine Exit
 | `NwjsUciEngineClient` process-exit listener |
@@ -255,19 +273,21 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `NwjsUciEngineClient._failUciSession` |
 
 - Failure handling: malformed analysis output keeps the existing baseline rule and is discarded per message without stopping the session.
-- Unexpected-exit handling: the client fails its UCI session and leaves the last valid analysis snapshot intact; no store-level polling helper exists.
+- Unexpected-exit handling: the client fails its UCI session and leaves the last valid rendered lines intact. Immediate publication of an otherwise idle process exit remains pending under ANALYSIS-DRIFT-12; no runtime event subscription or store-level polling helper was added. Failures observed by service operations do publish availability and errors.
 - Retry rule: retry remains manual through `AnalysisPanel.retryRequested`; the baseline does not invent timeout, auto-reconnect, or backoff behaviour.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit restart, stop, malformed-output, and unexpected-exit runtime mutations.
-- Requirement verification: `Pass`. Stop, crash, malformed-output discard, and retry behaviour are explicit at the runtime-owner boundary and preserve last-known visible output.
+- Requirement verification: Stop retention, cancellation, malformed-output discard, and manual retry have automated coverage. Immediate unsolicited exit reporting remains pending.
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
+
+Implementation pending (FRONTEND-DRIFT-04): the target flows below describe individual move/prefix selection. The current panel still emits whole PVs. Analysis lifecycle and paused-control fixes do not complete this interaction work.
 
 #### Flow A - Free Analysis / Setup Suggestion
 | `AnalysisPanel.moveSelected` |
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.makeMove` |
-| `GameView._refreshVisibleAnalysis` |
+| `GamesStore.refreshAnalysis / rendered-position action` |
 
 | `GamesStore.getGame` |
 | --- |
@@ -282,7 +302,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.makeMove` |
-| `GameView._refreshVisibleAnalysis` |
+| `GamesStore.refreshAnalysis / rendered-position action` |
 
 | `GamesStore.getGame` |
 | --- |
@@ -297,7 +317,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.makeMove` |
-| `GameView._refreshVisibleAnalysis` |
+| `GamesStore.refreshAnalysis / rendered-position action` |
 
 | `GamesStore.getGame` |
 | --- |
@@ -313,7 +333,7 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | --- |
 | `GamesStore.getGame` |
 | `GamesStore.makeMove` |
-| `GameView._refreshVisibleAnalysis` |
+| `GamesStore.refreshAnalysis / rendered-position action` |
 
 | `GamesStore.getGame` |
 | --- |
@@ -323,34 +343,30 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GameMoveComposable.makeMove` |
 | `GameMoveComposable.advanceRenderedAnalysisBranch` |
 
-- State/settings coverage: non-live analysis always renders per-move engine targets. Live and live-analysis states render engine move targets only when `gameplayOptions.showLiveAnalysisMoves = true`. Paused live play keeps any visible analysis read-only and does not allow move-target clicks.
+- Target state/settings coverage: non-live analysis should render per-move engine targets. Live and live-analysis states should render those targets only when `gameplayOptions.showLiveAnalysisMoves = true`. The current implementation still renders whole-PV buttons. Paused live play keeps visible analysis read-only and blocks those clicks.
 - Runtime selector coverage: analysis-panel move selection reuses the current visible hydrated node. Any persisted `MovePath` updates remain store-internal bookkeeping derived from that node and are not a public runtime interaction contract.
-- Requirement verification: `Pass`. Suggested moves are interactive only where the workspace policy allows them, and live-game suggestion clicks reuse the same context-specific move policy as ordinary move entry.
+- Requirement verification: `Pending` under FRONTEND-DRIFT-04. Paused permissions are covered; individual move selection and prefix application are not implemented.
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 
 #### Flow A - Add An Analysis Engine
-| `AnalysisPanel.analysisEngineAddRequested` |
-| --- |
-| `UiStateStore.showModal` |
-| `GamesStore.addAnalysisEngine` |
-| `EnginesStore.validateAnalysisSelection` |
-| `GamesStore.refreshAnalysis` |
 
-| `UiStateStore.showModal` |
-| --- |
+```text
+AnalysisPanel.engineAddRequested
+  -> UiStateStore.showModal
+  -> ModalHost.confirmAnalysisEngine
+     -> GamesStore.addAnalysisEngine
+        -> GameAnalysisComposable.addAnalysisEngine
+        -> createAnalysisSeat; validate duplicate/count; publish assignment
+     -> capture new seat before awaiting add completion
+     -> re-find that seat's index
+     -> GamesStore.retryAnalysis(game, index), unless BoardEdit or removed
+```
 
-| `GamesStore.addAnalysisEngine` |
-| --- |
-| `GameAnalysisComposable.addAnalysisEngine` |
-| `GameAnalysisComposable.createAnalysisSnapshot` |
-| `GameAnalysisComposable.refreshAnalysisForGame` |
-
-| `EnginesStore.validateAnalysisSelection` |
-| --- |
+Add remains assignment-only. The modal starts only that seat, preserving other engines' searches and results. During editing, the new seat waits for exit.
 
 #### Flow B - Remove An Analysis Engine
-| `AnalysisPanel.analysisEngineRemoveRequested` |
+| `AnalysisPanel.engineRemoveRequested` |
 | --- |
 | `GamesStore.removeAnalysisEngine` |
 
@@ -359,6 +375,9 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 | `GameAnalysisComposable.removeAnalysisEngine` |
 | `GameAnalysisComposable.disposeAnalysisSubscription` |
 | `GameAnalysisComposable.stopAssignedEngine` |
+| remove the captured seat synchronously; `touchGame`; then await cleanup |
+
+`GameView.removeAnalysisEngine` removes the corresponding remembered fold entry immediately after the store removes the seat, preserving indexes for the remaining assignments.
 
 - UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine.
 - State gate: roster add and remove are valid in live states, paused live states, live-analysis states, and non-live analysis states. Paused live play keeps move-target selection blocked, but analysis-engine management remains allowed because it is treated as configuration rather than gameplay.

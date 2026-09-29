@@ -46,6 +46,7 @@ import {
   stripRuntimeMetadata,
 } from './StateStoreTestUtility';
 import { ClockTimestamp } from '@/utility/date';
+import { Deferred } from '@/utility/async/Deferred';
 
 let useGamesStore: typeof import('..').useGamesStore;
 let settingsSnapshot = createSettingsSnapshot();
@@ -154,6 +155,25 @@ function installScholarMateRules(): void {
 async function awaitPendingPlayerTurn(game: IGame): Promise<void> {
   const pendingPlayerTurn = game.$?.pendingPlayerTurnHandlePromise;
   if (pendingPlayerTurn) await pendingPlayerTurn;
+}
+async function createAnalysisWorkspace(engineCount: number = 2) {
+  const store = useGamesStore();
+  const game = await store.createGame({
+    name: 'Analysis lifecycle',
+    analysisEngineProfiles: Array.from({ length: engineCount }, (_, index) => createEngineRecord(`analysis-${index}`, `Engine ${index}`)),
+    timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    showLiveAnalysisMoves: true,
+  });
+  return { store, game };
+}
+function emitSeatLines(game: IGame, index: number, count: number = 1): IEngineAnalysisUpdate {
+  const update: IEngineAnalysisUpdate = {
+    position: game.$!.renderedPosition!,
+    lines: Array.from({ length: count }, (_, rank) => ({ depth: 12, scoreCp: 30 - rank, pv: [createMove(PlayerColour.White)], $: { reference: rank + 1 } })),
+    isFinal: false,
+  };
+  emitAnalysisUpdate(analysisSubscriptions, game.analysis.seats[index]!.assignedEngine, update);
+  return update;
 }
 async function playEngineOnlyGame(game: IGame, maxTurns: number = scholarMateSequence.length): Promise<void> {
   for (let turnIndex = 0; turnIndex < maxTurns && game.resultState === ResultState.Ongoing; turnIndex += 1) await awaitPendingPlayerTurn(game);
@@ -943,7 +963,7 @@ describe('useGamesStore', () => {
       name: 'History Engine Deferral',
       whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
       blackPlayer: createEnginePlayer(PlayerColour.Black, 'Engine Black'),
-      analysisEngineProfiles: [],
+      analysisEngineProfiles: [createEngineRecord('analysis', 'Analysis engine')],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
     });
@@ -954,6 +974,9 @@ describe('useGamesStore', () => {
     const engineTurn = game.$!.pendingPlayerTurnHandlePromise;
     store.navigateToNode(game, game.moveTree.root);
     const renderedPath = game.renderedPath;
+    emitSeatLines(game, 0);
+    const renderedLines = game.analysis.seats[0]!.lines;
+    const analysisStarts = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
     await engineTurn;
 
     expect(game.livePath).toBe(livePath);
@@ -962,12 +985,143 @@ describe('useGamesStore', () => {
     expect(game.renderedPath).toEqual([]);
     expect(game.$!.deferredPlayerMove).toBeUndefined();
     expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnWhiteMove);
+    expect(game.analysis.seats[0]!.lines).toBe(renderedLines);
+    expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(analysisStarts);
     store.navigateToNode(game, game.moveTree.root.children[0]!.children[0]!);
     expect(game.livePath).toEqual([0, 0]);
     expect(game.renderedPath).toBe(livePath);
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);
   });
 
+  it('selects three rendered lines without altering the engine update or hiding empty seats', async () => {
+    const { store, game } = await createAnalysisWorkspace();
+    const update = emitSeatLines(game, 0, 5);
+    const rendered = game.analysis.seats[0]!.lines;
+    expect(rendered).toHaveLength(3);
+    expect(update.lines).toHaveLength(5);
+    expect(rendered).not.toBe(update.lines);
+    expect(rendered[0]).toBe(update.lines[0]);
+    expect(rendered[2]).toBe(update.lines[2]);
+    expect(store.getVisibleAnalysis(game)?.engineSeats).toEqual(game.analysis.seats);
+    expect(store.getVisibleAnalysis(game)?.engineSeats[1]!.lines).toEqual([]);
+    await store.stopAnalysis(game, 0);
+    expect(game.analysis.seats[0]!.lines).toBe(rendered);
+    expect(game.analysis.seats[0]!.isComplete).toBe(false);
+  });
+  it('clears all seats synchronously and lets a second engine stream during delayed first startup', async () => {
+    const { store, game } = await createAnalysisWorkspace();
+    emitSeatLines(game, 0);
+    emitSeatLines(game, 1);
+    const delayed = new Deferred<void>();
+    domain.EngineRuntimeService.startAnalysis.mockClear();
+    domain.EngineRuntimeService.startAnalysis.mockImplementationOnce(() => delayed);
+    const refreshing = store.refreshAnalysis(game);
+    expect(game.analysis.seats.every((seat) => seat.lines.length === 0)).toBe(true);
+    expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(2);
+    emitSeatLines(game, 1);
+    expect(game.analysis.seats[1]!.lines).toHaveLength(1);
+    expect(game.analysis.seats[0]!.lines).toEqual([]);
+    delayed.resolve();
+    await refreshing;
+  });
+  it('invalidates navigation immediately and rejects callbacks from the original A after A to B to A', async () => {
+    const { store, game } = await createAnalysisWorkspace(1);
+    const seat = game.analysis.seats[0]!;
+    const oldCallback = analysisSubscriptions.get(seat.assignedEngine)!;
+    const update = emitSeatLines(game, 0);
+    const child = appendChild(game.moveTree.root, createMove(PlayerColour.White), MoveNodeKind.Analysis);
+    const revision = store.workspaceRevision;
+    store.navigateToNode(game, child);
+    expect(seat.lines).toEqual([]);
+    expect(store.workspaceRevision).toBeGreaterThan(revision);
+    store.navigateToNode(game, game.moveTree.root);
+    oldCallback(update);
+    expect(seat.lines).toEqual([]);
+    emitSeatLines(game, 0);
+    const rendered = seat.lines;
+    const calls = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
+    store.navigateToNode(game, game.moveTree.root);
+    expect(seat.lines).toBe(rendered);
+    expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(calls);
+    await store.stopAnalysis(game);
+  });
+  it('does not let obsolete startup failure clear or publish over replacement results', async () => {
+    const { store, game } = await createAnalysisWorkspace(1);
+    const delayed = new Deferred<void>();
+    domain.EngineRuntimeService.startAnalysis.mockImplementationOnce(() => delayed);
+    const previous = store.refreshAnalysis(game);
+    await store.refreshAnalysis(game);
+    emitSeatLines(game, 0);
+    const rendered = game.analysis.seats[0]!.lines;
+    const revision = store.workspaceRevision;
+    delayed.reject(new Error('old startup'));
+    await previous;
+    expect(game.analysis.seats[0]!.lines).toBe(rendered);
+    expect(store.workspaceRevision).toBe(revision);
+  });
+  it('preserves Stop results, ignores late output, and clears them on the next position', async () => {
+    const { store, game } = await createAnalysisWorkspace(1);
+    const seat = game.analysis.seats[0]!;
+    const callback = analysisSubscriptions.get(seat.assignedEngine)!;
+    const update = emitSeatLines(game, 0);
+    const rendered = seat.lines;
+    await store.stopAnalysis(game);
+    callback({ ...update, lines: [], isFinal: true });
+    expect(seat.lines).toBe(rendered);
+    expect(seat.isComplete).toBe(false);
+    await store.makeMove(game, createMove(PlayerColour.White));
+    expect(seat.lines).toEqual([]);
+    await store.stopAnalysis(game);
+  });
+  it('removes captured seats before delayed cleanup and ignores their callbacks', async () => {
+    const { store, game } = await createAnalysisWorkspace();
+    const removed = [...game.analysis.seats];
+    const callback = analysisSubscriptions.get(removed[0]!.assignedEngine)!;
+    const update = emitSeatLines(game, 0);
+    const cleanup = new Deferred<void>();
+    domain.EngineRuntimeService.stopEngine.mockImplementationOnce(() => cleanup);
+    const removingFirst = store.removeAnalysisEngine(game, 0);
+    const removingSecond = store.removeAnalysisEngine(game, 0);
+    expect(game.analysis.seats).toEqual([]);
+    callback(update);
+    expect(store.getVisibleAnalysis(game)).toBeUndefined();
+    cleanup.resolve();
+    await Promise.all([removingFirst, removingSecond]);
+    expect(domain.EngineRuntimeService.stopEngine).toHaveBeenCalledWith(removed[0]!.assignedEngine);
+    expect(domain.EngineRuntimeService.stopEngine).toHaveBeenCalledWith(removed[1]!.assignedEngine);
+  });
+  it('retains lines on edit entry and no-op edits, then clears on the first effective edit', async () => {
+    const { store, game } = await createAnalysisWorkspace(1);
+    game.rootPosition.board[4] = { kind: PieceKind.King, colour: PlayerColour.White };
+    emitSeatLines(game, 0);
+    const seat = game.analysis.seats[0]!;
+    const rendered = seat.lines;
+    store.enterBoardEdit(game);
+    expect(seat.lines).toBe(rendered);
+    store.deleteChessPiece(game, 20);
+    expect(seat.lines).toBe(rendered);
+    store.deleteChessPiece(game, 4);
+    expect(seat.lines).toEqual([]);
+    const count = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
+    store.enterBoardEdit(game);
+    expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(count + 1);
+    await store.stopAnalysis(game);
+  });
+  it('disposes replaced setup assignments before starting new seats', async () => {
+    const { store, game } = await createAnalysisWorkspace(1);
+    const oldSeat = game.analysis.seats[0]!;
+    const callback = analysisSubscriptions.get(oldSeat.assignedEngine)!;
+    const update = emitSeatLines(game, 0);
+    await store.startGameFromSetup(game, {
+      analysisEngineProfiles: [createEngineRecord('replacement', oldSeat.assignedEngine.displayName)],
+      timeControl: game.timeControl,
+      showLiveAnalysisMoves: true,
+    });
+    expect(domain.EngineRuntimeService.stopEngine).toHaveBeenCalledWith(oldSeat.assignedEngine);
+    expect(game.analysis.seats[0]).not.toBe(oldSeat);
+    callback(update);
+    expect(game.analysis.seats[0]!.lines).toEqual([]);
+  });
   it('manages analysis engines, visible analysis, and direct board editing with mocked engine services', async () => {
     const store = useGamesStore();
     const primaryEngine = createEngineRecord('engine-c', 'Komodo');
@@ -981,32 +1135,33 @@ describe('useGamesStore', () => {
     });
 
     await store.refreshAnalysis(game);
-    expect(store.getVisibleAnalysis(game)?.engineSnapshots).toHaveLength(1);
+    expect(store.getVisibleAnalysis(game)?.engineSeats).toHaveLength(1);
 
     const startCountBeforeAdd = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
     await store.addAnalysisEngine(game, createEngineRecord('engine-d', 'Berserk'));
-    const addedEngine = game.analysis.snapshots[1]!.assignedEngine;
+    const addedEngine = game.analysis.seats[1]!.assignedEngine;
     expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(startCountBeforeAdd);
     expect(analysisSubscriptions.has(addedEngine)).toBe(false);
     await store.refreshAnalysis(game);
     const analysisUpdate: IEngineAnalysisUpdate = {
       position: structuredClone(game.rootPosition),
-      positionKey: domain.PositionIdentityService.buildPositionKey(game.rootPosition),
       bestMove: createMove(PlayerColour.White),
       lines: [{ depth: 12, pv: [createMove(PlayerColour.White)], scoreCp: 32 }],
       isFinal: false,
     };
     emitAnalysisUpdate(analysisSubscriptions, addedEngine, analysisUpdate);
-    const addedSnapshot = game.analysis.snapshots[1]!;
+    const addedSnapshot = game.analysis.seats[1]!;
     expect(addedSnapshot.bestMove).toBe(analysisUpdate.bestMove);
-    expect(addedSnapshot.lines).toBe(analysisUpdate.lines);
-    expect(store.getVisibleAnalysis(game)?.engineSnapshots[1]).toBe(addedSnapshot);
+    expect(addedSnapshot.lines).not.toBe(analysisUpdate.lines);
+    expect(addedSnapshot.lines[0]).toBe(analysisUpdate.lines[0]);
+    expect(store.getVisibleAnalysis(game)?.engineSeats[1]).toBe(addedSnapshot);
     expect(addedSnapshot.bestMove?.from).toBe(12);
 
     await store.stopAnalysis(game, 1);
-    expect(game.analysis.snapshots[1]!.isComplete).toBe(true);
+    expect(game.analysis.seats[1]!.isComplete).toBe(false);
+    expect(game.analysis.seats[1]!.lines[0]).toBe(analysisUpdate.lines[0]);
     await store.removeAnalysisEngine(game, 1);
-    expect(game.analysis.snapshots).toHaveLength(1);
+    expect(game.analysis.seats).toHaveLength(1);
 
     store.enterBoardEdit(game);
     expect(game.gameState).toBe(GameState.BoardEdit);
@@ -1036,10 +1191,10 @@ describe('useGamesStore', () => {
     });
     store.enterBoardEdit(game);
     await store.addAnalysisEngine(game, createEngineRecord('engine-board-edit', 'Stockfish'));
-    const assignedEngine = game.analysis.snapshots[0]!.assignedEngine;
+    const assignedEngine = game.analysis.seats[0]!.assignedEngine;
     const getAssignedEngineReadyCount = () => domain.EngineRuntimeService.ensureReady.mock.calls.filter(([engine]) => engine === assignedEngine).length;
     const getAssignedEngineStartCount = () => domain.EngineRuntimeService.startAnalysis.mock.calls.filter(([engine]) => engine === assignedEngine).length;
-    expect(game.analysis.snapshots).toHaveLength(1);
+    expect(game.analysis.seats).toHaveLength(1);
     expect(getAssignedEngineReadyCount()).toBe(0);
     expect(getAssignedEngineStartCount()).toBe(0);
     expect(analysisSubscriptions.has(assignedEngine)).toBe(false);
@@ -1586,10 +1741,9 @@ describe('useGamesStore', () => {
       showLiveAnalysisMoves: true,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
     });
-    const snapshot = game.analysis.snapshots[0]!;
+    const snapshot = game.analysis.seats[0]!;
     emitAnalysisUpdate(analysisSubscriptions, snapshot.assignedEngine, {
       position: structuredClone(game.rootPosition),
-      positionKey: domain.PositionIdentityService.buildPositionKey(game.rootPosition),
       bestMove: createMove(PlayerColour.White),
       lines: [{ depth: 10, pv: [createMove(PlayerColour.White)], scoreCp: 24 }],
       isFinal: false,
@@ -1597,14 +1751,16 @@ describe('useGamesStore', () => {
     expect(snapshot.bestMove?.from).toBe(12);
 
     await store.stopAnalysis(game);
-    expect(snapshot.bestMove).toBeUndefined();
+    expect(snapshot.bestMove?.from).toBe(12);
 
     snapshot.bestMove = createMove(PlayerColour.White, 14, 30);
     await store.refreshAnalysis(game);
     expect(snapshot.bestMove).toBeUndefined();
 
     snapshot.bestMove = createMove(PlayerColour.White, 15, 31);
-    domain.EngineRuntimeService.startAnalysis.mockImplementationOnce(async () => {
+    domain.EngineRuntimeService.startAnalysis.mockImplementationOnce(async (engine: IAssignedEngine) => {
+      engine.$!.availability = EngineAvailability.Failed;
+      engine.$!.lastError = 'analysis boom';
       throw new Error('analysis boom');
     });
     await store.retryAnalysis(game, 0);
