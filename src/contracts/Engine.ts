@@ -66,6 +66,10 @@ export interface IAssignedEngineRuntime {
   analysisLines: Map<number, IAnalysisLine>
   analysisOperation?: IEngineAnalysisOperation;
   analysisWork?: Promise<void>;
+  /** Settles when the current client call drains, even if its caller has been cancelled. */
+  analysisClientWork?: Promise<void>;
+  /** Issued physical shutdown shared by successive terminal requests. */
+  analysisShutdownWork?: Promise<void>;
   analysisNeedsStop?: boolean;
 }
 export interface IAssignedEngine {

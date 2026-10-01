@@ -25,6 +25,74 @@ function appendLiveMove(game: IGame, move: IMove): void {
 }
 
 describe('NwjsUciEngineClient', () => {
+  it.each(['stopEngine', 'restartEngine'] as const)('does not deliver another analysis call\'s move after superseded %s', async (terminalAction) => {
+    const engine = createAssignedEngine();
+    const game = createEngineGame();
+    const request = { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite };
+    const updates: IEngineAnalysisUpdate[] = [];
+    EngineRuntimeService.subscribeToAnalysis(engine, (update) => updates.push(update));
+    await EngineRuntimeService.startAnalysis(engine, game, request);
+    const process = getEnvironment().latestProcess();
+    const handle = engine.$!.processHandle;
+    const nextGame = createEngineGame();
+    appendLiveMove(nextGame, { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
+    // B waits for A's Stop response; disposal D is then superseded by C returning to A's position.
+    const replacing = EngineRuntimeService.startAnalysis(engine, nextGame, request).catch((error) => error);
+    await flushPromises();
+    expect(process.getCommandLog().slice(-1)).toEqual(['stop']);
+    const disposal = EngineRuntimeService[terminalAction](engine).catch((error) => error);
+    const latest = EngineRuntimeService.startAnalysis(engine, game, request);
+    await flushPromises();
+    // This old move is also legal in C's position, so legality validation cannot hide misrouting.
+    process.stdout.write('info depth 10 score cp 20 pv e7e5\nbestmove e7e5\n');
+    await flushPromises();
+    expect(updates).toHaveLength(0);
+    expect(process.getCommandLog().filter((command) => command === 'stop')).toHaveLength(2);
+    expect(process.getCommandLog().slice(-3)).toEqual(['position startpos moves e2e4 e7e5', 'go infinite', 'stop']);
+    expect(engine.$!.availability).toBe(EngineAvailability.Starting);
+    // C must also drain B's own final reply before sending its position/go commands.
+    process.stdout.write('info depth 11 score cp 25 pv g1f3\nbestmove g1f3\n');
+    await latest;
+    expect(updates).toHaveLength(0);
+    expect(engine.$!.analysisLines.size).toBe(0);
+    expect(process.getCommandLog().filter((command) => command === 'uci')).toHaveLength(1);
+    expect(process.getCommandLog().slice(-2)).toEqual(['position startpos moves e2e4', 'go infinite']);
+    expect(await replacing).toBeInstanceOf(Error);
+    expect(await disposal).toBeInstanceOf(Error);
+    expect(engine.$!.processHandle).toBe(handle);
+    expect(getEnvironment().latestProcess()).toBe(process);
+    expect(engine.$!.availability).toBe(EngineAvailability.Running);
+    process.stdout.write('info depth 12 score cp 30 pv c7c5\nbestmove c7c5\n');
+    expect(updates.map((update) => ({ isFinal: update.isFinal, bestMove: update.bestMove?.$?.uci, pv: update.lines[0]!.pv.map((move) => move.$?.uci) }))).toEqual([
+      { isFinal: false, bestMove: 'c7c5', pv: ['c7c5'] },
+      { isFinal: true, bestMove: 'c7c5', pv: ['c7c5'] },
+    ]);
+    expect(engine.$!.availability).toBe(EngineAvailability.Ready);
+    await EngineRuntimeService.stopEngine(engine);
+  });
+  it('keeps the original Stop response context when Stop Analysis supersedes engine disposal', async () => {
+    const engine = createAssignedEngine();
+    const game = createEngineGame();
+    const request = { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite };
+    EngineRuntimeService.subscribeToAnalysis(engine, () => undefined);
+    await EngineRuntimeService.startAnalysis(engine, game, request);
+    const process = getEnvironment().latestProcess();
+    const handle = engine.$!.processHandle;
+    const replacing = EngineRuntimeService.startAnalysis(engine, game, request).catch((error) => error);
+    await flushPromises();
+    const disposal = EngineRuntimeService.stopEngine(engine).catch((error) => error);
+    const stopping = EngineRuntimeService.stopAnalysis(engine);
+    process.stdout.write('bestmove e7e5\n');
+    await flushPromises();
+    expect(process.getCommandLog().filter((command) => command === 'stop')).toHaveLength(2);
+    process.stdout.write('bestmove e7e5\n');
+    await stopping;
+    expect(await replacing).toBeInstanceOf(Error);
+    expect(await disposal).toBeInstanceOf(Error);
+    expect(engine.$!.processHandle).toBe(handle);
+    expect(engine.$!.availability).toBe(EngineAvailability.Ready);
+    await EngineRuntimeService.stopEngine(engine);
+  });
   it('retains every reported MultiPV rank in ordered runtime updates', async () => {
     const platform = getPlatformService();
     const engine = createAssignedEngine();
@@ -66,21 +134,29 @@ describe('NwjsUciEngineClient', () => {
     expect(updates[0]!.lines[0]!.pv).toHaveLength(2);
     expect(game.$!.renderedPosition!.sideToMove).toBe(PlayerColour.White);
   });
-  it('disposes an analysis startup waiting for readyok without reviving the client', async () => {
+  it.each(['stopEngine', 'restartEngine'] as const)('%s releases an analysis startup waiting for readyok without reviving the old client', async (terminalAction) => {
     const engine = createAssignedEngine();
     await EngineRuntimeService.ensureReady(engine);
     const process = getEnvironment().latestProcess();
+    const handle = engine.$!.processHandle;
     process.queueResponse('isready', []);
     const starting = EngineRuntimeService.startAnalysis(engine, createEngineGame(), { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }).catch((error) => error);
     await flushPromises();
     expect(process.getCommandLog().slice(-1)).toEqual(['isready']);
-    await EngineRuntimeService.stopEngine(engine);
+    await EngineRuntimeService[terminalAction](engine);
     expect(await starting).toBeInstanceOf(Error);
     process.stdout.write('readyok\n');
     await flushPromises();
     expect(process.getCommandLog()).not.toContain('go infinite');
-    expect(engine.$!.processHandle).toBeUndefined();
-    expect(engine.$!.availability).toBe(EngineAvailability.Unavailable);
+    if (terminalAction === 'stopEngine') {
+      expect(engine.$!.processHandle).toBeUndefined();
+      expect(engine.$!.availability).toBe(EngineAvailability.Unavailable);
+    } else {
+      expect(engine.$!.processHandle).toBeDefined();
+      expect(engine.$!.processHandle).not.toBe(handle);
+      expect(engine.$!.availability).toBe(EngineAvailability.Ready);
+      await EngineRuntimeService.stopEngine(engine);
+    }
   });
   it('collects engine option metadata during initialisation', async () => {
     const platform = getPlatformService();

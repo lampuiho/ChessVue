@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 
 import {
   EngineAnalysisSearchMode,
@@ -487,6 +488,96 @@ describe('EngineRuntimeService', () => {
     expect(engine.$?.availability).toBe(EngineAvailability.Ready);
     await EngineRuntimeService.stopAnalysis(engine);
     expect(stopAnalysis).not.toHaveBeenCalled();
+  });
+  it.each(['stopEngine', 'restartEngine'] as const)('reuses a late spawn when %s is superseded before shutdown starts', async (terminalAction) => {
+    const engine = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const spawned = new Deferred<string>();
+    spawnProcess.mockImplementationOnce(() => { entered.resolve(); return spawned; });
+    const starting = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    await entered;
+    const disposal = EngineRuntimeService[terminalAction](engine).catch((error) => error);
+    const replacement = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(await starting).toBeInstanceOf(Aborted);
+    expect(await disposal).toBeInstanceOf(Aborted);
+    expect(initialiseEngine).not.toHaveBeenCalled();
+    spawned.resolve('late-process');
+    await replacement;
+    expect(spawnProcess).toHaveBeenCalledOnce();
+    expect(stopProcess).not.toHaveBeenCalled();
+    expect(stopEngine).not.toHaveBeenCalled();
+    expect(initialiseEngine).toHaveBeenCalledOnce();
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(engine.$?.processHandle).toBe('late-process');
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
+  });
+  it('waits for issued shutdown and interrupted client work before starting another search', async () => {
+    const engine = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const ready = new Deferred<void>();
+    const shutdownEntered = new Deferred<void>();
+    const stopped = new Deferred<void>();
+    initialiseEngine.mockImplementationOnce(() => { entered.resolve(); return ready; });
+    spawnProcess.mockResolvedValueOnce('process-1').mockResolvedValue('process-2');
+    stopProcess.mockImplementationOnce(() => { shutdownEntered.resolve(); return stopped; });
+    const starting = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    await entered;
+    const disposal = EngineRuntimeService.stopEngine(engine).catch((error) => error);
+    await shutdownEntered;
+    const restart = EngineRuntimeService.restartEngine(engine).catch((error) => error);
+    await flushPromises();
+    expect(stopProcess).toHaveBeenCalledOnce();
+    const replacement = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(await starting).toBeInstanceOf(Aborted);
+    expect(await disposal).toBeInstanceOf(Aborted);
+    expect(await restart).toBeInstanceOf(Aborted);
+    expect(stopEngine).not.toHaveBeenCalled();
+    stopped.resolve();
+    await flushPromises();
+    expect(stopEngine).toHaveBeenCalledOnce();
+    expect(spawnProcess).toHaveBeenCalledOnce();
+    expect(startAnalysis).not.toHaveBeenCalled();
+    ready.reject(new Error('Process exited during readiness.'));
+    await replacement;
+    expect(spawnProcess).toHaveBeenCalledTimes(2);
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(engine.$?.processHandle).toBe('process-2');
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
+  });
+  it('retains the client wait and handle when physical shutdown fails', async () => {
+    const engine = createAssignedEngine();
+    const entered = new Deferred<void>();
+    const ready = new Deferred<void>();
+    initialiseEngine.mockImplementationOnce(() => { entered.resolve(); return ready; });
+    stopProcess.mockRejectedValueOnce(new Error('Shutdown failed.'));
+    const starting = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest()).catch((error) => error);
+    await entered;
+    await expect(EngineRuntimeService.stopEngine(engine)).rejects.toThrow('Shutdown failed.');
+    expect(await starting).toBeInstanceOf(Aborted);
+    expect(engine.$?.availability).toBe(EngineAvailability.Failed);
+    expect(engine.$?.processHandle).toBe('process-1');
+    expect(stopEngine).not.toHaveBeenCalled();
+    const replacement = EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    await flushPromises();
+    expect(initialiseEngine).toHaveBeenCalledOnce();
+    expect(startAnalysis).not.toHaveBeenCalled();
+    ready.resolve();
+    await replacement;
+    expect(spawnProcess).toHaveBeenCalledOnce();
+    expect(stopEngine).not.toHaveBeenCalled();
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
+    expect(engine.$?.lastError).toBeUndefined();
+  });
+  it('starts a later request after the current startup fails without poisoning the queue', async () => {
+    const engine = createAssignedEngine();
+    startAnalysis.mockRejectedValueOnce(new Error('Startup failed.'));
+    await expect(EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest())).rejects.toThrow('Startup failed.');
+    expect(engine.$?.availability).toBe(EngineAvailability.Failed);
+    expect(startAnalysis.mock.calls[0]![3]({ position: createInitialBoardPosition(), lines: [], isFinal: true })).toBe(false);
+    await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    expect(startAnalysis).toHaveBeenCalledTimes(2);
+    expect(engine.$?.availability).toBe(EngineAvailability.Running);
+    expect(engine.$?.lastError).toBeUndefined();
   });
   it('preserves a reused subscription when a new start follows pending engine disposal', async () => {
     const engine = createAssignedEngine();

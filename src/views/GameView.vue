@@ -238,12 +238,14 @@ async function removeAnalysisEngine(index: number): Promise<void> {
   const currentGame = game.value;
   if (!currentGame?.analysis.seats[index]) return;
   const cleanup = gamesStore.removeAnalysisEngine(currentGame, index);
+  let saving = Promise.resolve();
   if (layout.value) {
     const expanded = [...layout.value.analysisEngineExpandedByIndex];
     expanded.splice(index, 1);
     uiStateStore.setLayoutState({ ...layout.value, analysisEngineExpandedByIndex: expanded });
+    saving = uiStateStore.saveLayoutState();
   }
-  await cleanup;
+  await Promise.all([cleanup, saving]);
 }
 function showNotice(message: string): void {
   notice.value = message;
