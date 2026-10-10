@@ -23,6 +23,7 @@ const domain = {
     }),
   },
   UserSettingService: {
+    getLoadWarning: vi.fn(() => ''),
     getSettings: vi.fn(() => structuredClone(settingsSnapshot)),
     getSettingsOrDefault: vi.fn(() => resolveWithRandomDelay(settingsSnapshot)),
     getSystemTheme: vi.fn(() => systemTheme),

@@ -1,6 +1,7 @@
 import {
   DrawOfferDirection,
   GameState,
+  PauseReason,
   PlayerColour,
   ResultReason,
   ResultState,
@@ -94,12 +95,21 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     if (!isPausedState(game.gameState)) return;
     throw new Error(`${action} is not allowed while gameState is ${game.gameState}.`);
   }
+  function canExploreAnalysis(game: IGame): boolean {
+    return isPausedLiveAnalysisState(game.gameState) && !!game.$?.pauseReasons?.includes(PauseReason.Analysis)
+      && game.$.pauseReasons.every((reason) => reason === PauseReason.Analysis);
+  }
+  function assertExplorationAllowed(game: IGame, action: string): void {
+    if (game.gameState === GameState.BoardEdit) throw new Error(`${action} is not allowed while editing the board.`);
+    if (!canExploreAnalysis(game)) assertNotPausedForAction(game, action);
+  }
   function assertOngoingLiveAction(game: IGame, action: string): void {
     assertNotPausedForAction(game, action);
     if (isLiveTurnReadyForMove(game)) return;
     throw new Error(`${action} is only allowed for an ongoing game at its live position.`);
   }
   function assertMoveAllowed(game: IGame): void {
+    if (canExploreAnalysis(game)) return;
     switch (game.gameState) {
       case GameState.LiveWhiteTurn:
       case GameState.LiveBlackTurn:
@@ -174,6 +184,8 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     updateGameStateAfterPosition,
     updateGameResultFromLivePosition,
     assertNotPausedForAction,
+    canExploreAnalysis,
+    assertExplorationAllowed,
     assertOngoingLiveAction,
     assertMoveAllowed,
     isOngoingLiveGame,

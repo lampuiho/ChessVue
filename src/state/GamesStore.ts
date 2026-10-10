@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-import { GameState, type IBoardPosition, type IGame, type IMove } from '@/contracts';
+import { GameState, SaveGameTargetKind, type IBoardPosition, type IGame, type IMove } from '@/contracts';
+import { UserSettingService } from '@/domain';
+import { useSavedGamesStore } from './SavedGamesStore';
 import { RecordTimestamp } from '@/utility/date';
 import { useGameAnalysis, type GameAnalysisComposable } from './game/GameAnalysisComposable';
 import { useGameBoardEdit } from './game/GameBoardEditComposable';
@@ -15,6 +17,21 @@ import { useGameWorkspace } from './game/GameWorkspaceComposable';
 export const useGamesStore = defineStore('gamesStore', () => {
   // Canonical games stay raw; completed store transitions publish one shallow invalidation here.
   const workspaceRevision = ref(0);
+  const autosaveError = ref('');
+  const _moveCounts = new WeakMap<IGame, number>();
+  let _autosaveQueue = Promise.resolve();
+  function moveCommitted(game: IGame): void {
+    const interval = UserSettingService.getSettings().gameSession.autosaveAfterMoveCount;
+    const count = (_moveCounts.get(game) ?? 0) + 1;
+    _moveCounts.set(game, interval > 0 ? count % interval : 0);
+    if (interval <= 0 || count < interval) return;
+    _autosaveQueue = _autosaveQueue.then(async () => {
+      await useSavedGamesStore().saveGame(game, { targetKind: SaveGameTargetKind.Autosave });
+      autosaveError.value = '';
+    }).catch((error: unknown) => {
+      autosaveError.value = error instanceof Error ? error.message : 'Automatic save failed.';
+    });
+  }
   function touchGame(game: IGame): void {
     game.metadata.updatedAt = new RecordTimestamp();
     workspaceRevision.value += 1;
@@ -46,11 +63,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     flushDeferredPlayerMove: (game: IGame) => playerTurn.flushDeferredPlayerMove(game),
   });
-  move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame });
+  move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame, moveCommitted });
   const boardEdit = useGameBoardEdit({ position, status, analysis, move, touchGame });
   const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, touchGame });
   return {
     workspaceRevision,
+    autosaveError,
     createGame: workspace.createGame,
     startGameFromSetup: workspace.startGameFromSetup,
     insertGame: workspace.insertGame,

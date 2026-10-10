@@ -33,7 +33,7 @@ importGame(): Promise<IGame | undefined>
 - open external import and export dialogs and complete the associated read or write flow
 - replace an external import's metadata ID with a fresh app-generated game ID before returning the payload to presentation, so imported metadata is never reused as a managed folder name
 - register and tear down close-trigger autosave callbacks through the layer-2 platform-event boundary when presentation decides the current UI context should autosave on app close
-- support UI-owned persistence timing such as save-after-move by exposing one canonical `saveGame(...)` boundary for active `IGame` payloads
+- expose one canonical `saveGame(...)` boundary for explicit saves, close-trigger saves and the serial move-count autosave queue owned by `GamesStore`
 - enumerate managed-save directory contents through `SerializationService` before projecting them through `SavedGameIndexService`
 - use `SavedGameIndexService` for save-root, folder, latest-save, and file-path logic
 - keep saved-game menu data, latest-save choice, and file-path lookup inside one owning store even when later caller-owned sequencing also updates open tabs, active route, or runtime restart state
@@ -58,10 +58,12 @@ importGame(): Promise<IGame | undefined>
 - `SCN-LIFECYCLE-01` and `SCN-LIFECYCLE-02`
 
 ## Notes
+- Selected/latest/recent managed loads assign identity from the enumerated save group before returning the game. Recent-game projection uses that same group identity. Imports receive a fresh UUID before presentation; workspace insertion still repairs collisions. Internal session restore keeps its separate identity policy.
+- Autosaves overwrite the previous `auto.json` by default. Explicit overwrite options remain honoured.
 - `SavedGamesStore` consumes only layer-2 persistence, settings, and platform-event services. It does not resolve `StorageAdapter` directly.
 - `SavedGamesStore` does not call sibling stores directly. Presentation sequences any later `GamesStore.insertGame(...)`, tab or session update, or runtime restart after the saved-game operation completes.
 - Save-folder grouping belongs to `SavedGameIndexService`, not to `SavedGamesStore` and not to `StorageAdapter`.
-- User-entered managed save names are validated by `SavedGamesView` before `saveGame(...)` is called. `SavedGamesStore` consumes that accepted form value without repeating presentation validation.
+- `SavedGamesView` validates user-entered names before submission. `SavedGameIndexService` also rejects unsafe path segments when composing managed targets and excludes enumerated entries outside their expected managed parent.
 - Saved-game directory enumeration, saved-document reads and writes, and import/export picker access belong to `SerializationService`, not to `GamesStore` and not to `StorageAdapter`.
 - `saveGame(...)`, `loadGame(...)`, and `loadRecentGame(...)` return or consume canonical persisted `IGame` payloads without runtime-only hydration. Each `restoreGames(...)` outcome contains either one such payload or the isolated target error. `GamesStore.insertGame(...)` remains the boundary that turns successful payloads into active runtime workspaces.
 - `deleteSave(...)` removes only the selected managed save target. It does not mutate the currently open in-memory workspace collection directly.

@@ -1,6 +1,15 @@
 import { getMockNodeChildProcess, getMockNodeFs, getMockNodePath } from './NwjsMockUtility';
 
 type NodeRequire = <T = unknown>(moduleName: string) => T;
+interface INodeModuleOverrides {
+  fs: typeof import('node:fs');
+  path: typeof import('node:path');
+  childProcess: Pick<typeof import('node:child_process'), 'spawn'>;
+}
+let _overrides: INodeModuleOverrides | undefined;
+export function setNodeModuleOverrides(overrides?: INodeModuleOverrides): void {
+  _overrides = overrides;
+}
 
 function _getNodeRequire(): NodeRequire | undefined {
   const globalObject = globalThis as typeof globalThis & { require?: NodeRequire };
@@ -18,11 +27,11 @@ function _getNodeModule<T>(moduleName: string): T | undefined {
 }
 
 export function getNodeFs(): typeof import('node:fs') {
-  return _getNodeModule<typeof import('node:fs')>('fs') ?? getMockNodeFs();
+  return _overrides?.fs ?? _getNodeModule<typeof import('node:fs')>('fs') ?? getMockNodeFs();
 }
 export function getNodePath(): typeof import('node:path') {
-  return _getNodeModule<typeof import('node:path')>('path') ?? getMockNodePath();
+  return _overrides?.path ?? _getNodeModule<typeof import('node:path')>('path') ?? getMockNodePath();
 }
 export function getNodeChildProcess(): Pick<typeof import('node:child_process'), 'spawn'> {
-  return _getNodeModule<typeof import('node:child_process')>('child_process') ?? getMockNodeChildProcess();
+  return _overrides?.childProcess ?? _getNodeModule<typeof import('node:child_process')>('child_process') ?? getMockNodeChildProcess();
 }

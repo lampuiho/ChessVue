@@ -126,8 +126,10 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     requestPlayerMove(game);
   }
   async function reassignPlayer(game: IGame, colour: PlayerColour, player?: IPlayer): Promise<void> {
+    if (game.gameState === GameState.BoardEdit) throw new Error('Player reassignment is not allowed while editing the board.');
     const nextPlayer = createPlayerSnapshot(player);
     const previousPlayer = colour === PlayerColour.White ? game.whitePlayer : game.blackPlayer;
+    if (JSON.stringify(playerSchema.optional().parse(previousPlayer)) === JSON.stringify(playerSchema.optional().parse(nextPlayer))) return;
     await clearPlayerTurnRuntime(game);
     if (isEnginePlayer(previousPlayer)) await EngineRuntimeService.stopEngine(previousPlayer.assignedEngine);
     const selectedPosition = position.getRenderedPosition(game);

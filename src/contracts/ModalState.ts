@@ -4,7 +4,6 @@ import { assignedEngineSchema, type IAssignedEngine } from './Engine';
 import { type PlayerType, playerTypeSchema, resultReasonSchema, resultStateSchema } from './Game';
 import { moveSchema, type IMove } from './Move';
 import { type PlayerColour, playerColourSchema } from './Chess';
-import { activeRouteSchema, type IGameSessionSnapshot } from './SessionSnapshot';
 
 export const enum AppModalKind {
   NewGame = 'newGame',
@@ -111,7 +110,7 @@ export type IAppModalState =
   | {
     kind: AppModalKind.SettingsDirtyLeave;
     payload: {
-      targetRoute: IGameSessionSnapshot['activeRoute'];
+      targetRoute: string;
     };
   }
   | {
@@ -205,7 +204,7 @@ export const appModalStateSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal(AppModalKind.SettingsDirtyLeave),
     payload: z.object({
-      targetRoute: activeRouteSchema,
+      targetRoute: z.string().startsWith('/'),
     }),
   }),
   z.object({

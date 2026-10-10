@@ -5,6 +5,17 @@ import { createAnalysisSeat, createEngineRecord, createMove } from '@/state/__te
 import AnalysisPanel from '../AnalysisPanel.vue';
 
 describe('AnalysisPanel seats', () => {
+  it('selects only the suggested prefix ending at the clicked move', async () => {
+    const seat = createAnalysisSeat();
+    const moves = [createMove(PlayerColour.White), createMove(PlayerColour.Black)];
+    seat.lines = [{ depth: 12, pv: moves }];
+    const wrapper = mount(AnalysisPanel, { props: { seats: [seat], showMoves: true } });
+    const buttons = wrapper.findAll('.analysis-lines button');
+    await buttons[0]!.trigger('click');
+    await buttons[1]!.trigger('click');
+    expect(wrapper.emitted('moveSelected')).toEqual([[[moves[0]]], [moves]]);
+    wrapper.unmount();
+  });
   it('renders prepared lines and keeps restored empty assignments manageable', () => {
     const populated = createAnalysisSeat();
     const empty = createAnalysisSeat(createEngineRecord('second', 'Second engine'));

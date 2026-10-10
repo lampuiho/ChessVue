@@ -134,9 +134,9 @@ The UI must enforce this matrix through control visibility and enablement so pla
 
 ### Pausing And Interruptions
 - Menu-driven interruptions in timed games follow the auto-pause behaviour from [settings_contract.md](settings_contract.md).
-- While paused, gameplay interaction on the game surface is read-only apart from `Resume`. The user may still leave the game surface for menu or route flows.
-- While paused, gameplay actions inside the game tab are blocked apart from `Resume`, but player reassignment and analysis-engine management remain allowed as explicit non-play exceptions.
-- If a player-engine turn search or analysis search was already in flight when pause began, that current search may finish, but no move, clock, or move-tree mutation may be committed while the game remains paused.
+- Manual and menu pauses make gameplay and history read-only apart from `Resume`. Menu and route flows remain available.
+- An analysis-only pause permits both colours to explore and select history while the live node and clock stay fixed. Takeback still requires the game's permission. `Exit analysis` removes only the analysis pause. Player reassignment and analysis-engine management remain available outside board edit.
+- Adding a manual or menu pause to analysis suspends exploration until that owner resumes. Engine searches already in flight may finish during any pause, but player output cannot advance the live node or clock until resume; analysis-only exploration is the exception for move-tree changes.
 - A player-engine move produced while paused has already been validated at the engine-result boundary and is deferred until resume. It commits only if the live turn is still ready; otherwise it is discarded. **Why:** pause cannot change the live position and ownership-changing actions clear the turn runtime, so repeating legality or pondering would duplicate work and could start the same engine side effect twice.
 - Paused live-analysis states preserve the same live anchor and visible analysis side-to-move information as their unpaused `LiveAnalysisFrom*` counterparts.
 - Auto-resume is allowed only when the same interruption flow caused the pause.

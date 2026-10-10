@@ -80,6 +80,10 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
   const gameSession = ref<IGameSessionSnapshot>();
   const layoutState = ref<IUiLayoutState>();
   const modalState = shallowRef<IAppModalState>();
+  const recoveryWarnings = ref<string[]>([]);
+  function addRecoveryWarning(message: string): void {
+    recoveryWarnings.value.push(message);
+  }
   let _gameSessionPromise: Promise<void> | undefined;
   let _layoutStatePromise: Promise<void> | undefined;
 
@@ -98,7 +102,10 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
       try {
         gameSession.value = coerceGameSessionSnapshot(await SerializationService.readGameSessionDocument(BuildConfig.persistence.gameSessionPath));
       } catch (error) {
-        if (!(typeof error === 'object' && error !== null && 'kind' in error && (error as { kind?: unknown }).kind === PlatformErrorKind.NotFound)) logHandledError('UiStateStore', 'readGameSessionDocument', error);
+        if (!(typeof error === 'object' && error !== null && 'kind' in error && (error as { kind?: unknown }).kind === PlatformErrorKind.NotFound)) {
+          logHandledError('UiStateStore', 'readGameSessionDocument', error);
+          addRecoveryWarning('The previous session could not be read. Open saved games to recover a saved board.');
+        }
         gameSession.value = createDefaultGameSession();
       }
     })();
@@ -115,7 +122,10 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
       try {
         layoutState.value = await SerializationService.readUiLayoutDocument(BuildConfig.persistence.layoutStatePath);
       } catch (error) {
-        if (!(typeof error === 'object' && error !== null && 'kind' in error && (error as { kind?: unknown }).kind === PlatformErrorKind.NotFound)) logHandledError('UiStateStore', 'readUiLayoutDocument', error);
+        if (!(typeof error === 'object' && error !== null && 'kind' in error && (error as { kind?: unknown }).kind === PlatformErrorKind.NotFound)) {
+          logHandledError('UiStateStore', 'readUiLayoutDocument', error);
+          addRecoveryWarning('The saved layout could not be read. The default layout is in use.');
+        }
         layoutState.value = createDefaultLayoutState();
       }
     })();
@@ -179,6 +189,8 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     gameSession,
     layoutState,
     modalState,
+    recoveryWarnings,
+    addRecoveryWarning,
     loadGameSession,
     saveGameSession,
     loadLayoutState,

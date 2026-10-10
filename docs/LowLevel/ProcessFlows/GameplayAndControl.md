@@ -94,7 +94,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
 
-- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and paused live-family states block move submission; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
+- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and manual/menu-paused states block move submission; an analysis-only pause permits rendered-branch moves while the live node and clock remain fixed; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
 - Continuous analysis update loop: `GameAnalysisComposable.refreshAnalysisForGame` -> `GameAnalysisComposable.startAnalysisSeat` -> `GameAnalysisComposable.subscribeToAnalysis` -> `EngineRuntimeService.startAnalysis(engine, game, request)` (owns `ensureReady` and cancellation) -> client state-machine updates -> guarded subscription callback selects three rendered lines -> `touchGame` -> `AnalysisPanel` rerenders the affected seat. A live move while browsing history preserves the unchanged rendered analysis.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer state transitions behind analysis start, streamed updates, player turns, and pondering.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
@@ -234,7 +234,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.refreshAnalysis` |
 | `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 
-- State coverage: player reassignment is valid in live states, paused live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model. Board edit has no player-reassignment presentation entry point, so this flow does not require a store-level BoardEdit guard.
+- State coverage: player reassignment is valid in live states, paused live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model. Board edit disables player-reassignment presentation and rejects reassignment at the store boundary.
 - Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate.
 
 ## History And Branching
@@ -259,7 +259,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.getVisibleAnalysis` |
 
 - Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
-- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state without pausing the live clock or current player turn. A player-engine result that completes while browsing advances the live selector while the rendered selector remains on the historical node. Returning to the live node restores the matching live state. Paused live and paused live-analysis states block history navigation until resume.
+- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state without pausing the live clock or current player turn. A player-engine result that completes while browsing advances the live selector while the rendered selector remains on the historical node. Returning to the live node restores the matching live state. Manual and menu pauses block history navigation; an analysis-only pause permits rendered-branch navigation without advancing the live node or clock.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the selected visible node while live play remains independent.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
@@ -425,7 +425,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamePlayerTurnComposable.requestPlayerMove` |
 
 - State coverage: manual and menu pause or resume are valid only for ongoing timed live-family states with an active clock. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state. `PauseReason.Analysis` may still pause untimed live play for in-game analysis entry.
-- Paused-surface rule: once paused, the game surface blocks history navigation, move entry, takeback, draw, resign, in-game-analysis entry, and board edit until resume, and those blocked store actions throw through the shared paused-state assertion boundary instead of silently returning.
+- Paused-surface rule: manual/menu pauses block gameplay and history until resume. An analysis-only pause permits rendered-branch moves, history and policy-permitted takeback; live result actions and board edit remain blocked. Blocked store actions throw through the owning assertion boundary.
 - Paused-exception rule: player reassignment and analysis-engine management remain allowed while paused because they are treated as configuration actions rather than gameplay actions.
 - Deferred-engine rule: analysis searches may finish while paused and update rendered seat results, while any guarded player-engine move that resolves during pause is held as deferred output and committed without a second validation once play returns to a playable live state.
 - Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally, and paused live play is interaction-locked apart from resume.
@@ -539,7 +539,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 
 - Requirement verification: `Pass`. Live-game takeback is policy-gated, rewinds from the authoritative live node to a live ancestor even while an analysis branch is rendered, and restarts that node's clock snapshot from the current timestamp.
-- State gate: paused live play and paused live-analysis block takeback through the same paused-state assertion boundary used by other game-surface mutations.
+- State gate: manual/menu pauses block takeback. An analysis-only pause permits it when the game allows takeback and retains the analysis pause on the rewound clock.
 
 ### SCN-CTRL-02 - Resign Game
 

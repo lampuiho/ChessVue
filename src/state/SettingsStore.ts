@@ -46,6 +46,7 @@ export const useSettingsStore = defineStore('settingsStore', () => {
   const _settings = shallowRef<ISettingsSnapshot>();
   const draftSettings = ref<ISettingsSnapshot>(); //required for switching tabs. otherwise we would have local state in the vue component
   const _systemTheme = ref<ResolvedThemeMode>();
+  const recoveryWarning = ref('');
   let _initialisePromise: Promise<void> | undefined;
   let _disposeThemeSubscription: (() => void) | undefined;
 
@@ -82,6 +83,7 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     if (_initialisePromise) return _initialisePromise;
     _initialisePromise = (async () => {
       const acceptedSettings = await UserSettingService.getSettingsOrDefault();
+      recoveryWarning.value = UserSettingService.getLoadWarning();
       _acceptSettings(acceptedSettings);
       _systemTheme.value = UserSettingService.getSystemTheme();
       _subscribeToSystemTheme();
@@ -118,6 +120,7 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     draftSettings,
     appearanceProjection,
     hasPendingChanges,
+    recoveryWarning,
     loadSettings,
     updateSettings,
     applySettings,

@@ -4,10 +4,11 @@ import { MoveNodeKind, type IMoveNode, type MovePath } from '@/contracts';
 import { getSan } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 
-const props = defineProps<{ root: IMoveNode; renderedPath: MovePath; livePath?: MovePath; collapsed?: boolean; disabled?: boolean }>();
+const props = defineProps<{ root: IMoveNode; renderedPath: MovePath; livePath?: MovePath; collapsed?: boolean; disabled?: boolean; revision?: number }>();
 const emit = defineEmits<{ collapseToggled: []; nodeSelected: [node: IMoveNode]; returnToLiveRequested: [] }>();
 interface IHistoryRow { node: IMoveNode; path: MovePath; depth: number; isVariation: boolean }
 const rows = computed<IHistoryRow[]>(() => {
+  void props.revision;
   const result: IHistoryRow[] = [];
   function walk(node: IMoveNode, path: MovePath, depth: number, isVariation: boolean): void {
     if (node.move) result.push({ node, path, depth, isVariation });

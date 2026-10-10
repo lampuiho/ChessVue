@@ -106,7 +106,9 @@ describe('useSavedGamesStore', () => {
     expect(await store.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: 'manual' })).toBe('saves/game-a/manual.json');
     await store.deleteSave('game-a', 'manual');
     expect(await store.exportGame(game)).toBe('exports/game-a.json');
-    expect((await store.importGame())?.metadata.id).toBe('imported-game');
+    const imported = await store.importGame();
+    expect(imported?.metadata.id).not.toBe('imported-game');
+    expect(imported?.metadata.name).toBe('Imported');
     expect(domain.SerializationService.deleteDocument).toHaveBeenCalledWith('saves/game-a/manual.json');
     expect(domain.SerializationService.writeGameDocument).toHaveBeenCalledWith('saves/game-a/manual.json', game, true);
     expect(domain.SerializationService.writeGameDocument).toHaveBeenCalledWith('exports/game-a.json', game, true);
@@ -151,8 +153,8 @@ describe('useSavedGamesStore', () => {
 
     await appCloseHandler?.();
 
-    expect(domain.SerializationService.writeGameDocument).toHaveBeenCalledWith('saves/game-a/auto.json', gameA, false);
-    expect(domain.SerializationService.writeGameDocument).toHaveBeenCalledWith('saves/game-b/auto.json', gameB, false);
+    expect(domain.SerializationService.writeGameDocument).toHaveBeenCalledWith('saves/game-a/auto.json', gameA, true);
+    expect(domain.SerializationService.writeGameDocument).toHaveBeenCalledWith('saves/game-b/auto.json', gameB, true);
 
     store.disposeAutosaveOnClose();
     expect(unsubscribeMock).toHaveBeenCalledTimes(1);

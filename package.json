@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "journey": "node journeys/RunJourney.mjs",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",

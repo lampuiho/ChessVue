@@ -36,6 +36,11 @@ async function restoreGame(groups: ISavedGameGroup[], gameId: string): Promise<G
     return { gameId, status: 'failed', error };
   }
 }
+async function readManagedGame(filePath: string, gameId: string): Promise<IGame> {
+  const game = await SerializationService.readGameDocument(filePath);
+  game.metadata.id = gameId;
+  return game;
+}
 
 export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   let _appCloseUnsubscribe: (() => void) | undefined;
@@ -49,17 +54,17 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
     return Promise.all(gameIds.map((gameId) => restoreGame(groups, gameId)));
   }
   async function loadGame(gameId: string, saveName?: string): Promise<IGame> {
-    return SerializationService.readGameDocument(getTargetEntry(await listSavedGames(), gameId, saveName).filePath);
+    return readManagedGame(getTargetEntry(await listSavedGames(), gameId, saveName).filePath, gameId);
   }
   async function loadRecentGame(gameId: string): Promise<IGame> {
     const targetEntry = SavedGameIndexService.getLatestSaveEntryForGame(await listSavedGames(), gameId);
     if (!targetEntry) throw new Error(`Saved game entry not found for ${gameId}.`);
-    return SerializationService.readGameDocument(targetEntry.filePath);
+    return readManagedGame(targetEntry.filePath, gameId);
   }
   async function saveGame(game: IGame, options: ISaveGameOptions): Promise<string> {
     const rootPath = await getSaveRootPath();
     const targetPath = getTargetPath(rootPath, game, options);
-    await SerializationService.writeGameDocument(targetPath, game, options.overwrite ?? options.targetKind !== SaveGameTargetKind.Autosave);
+    await SerializationService.writeGameDocument(targetPath, game, options.overwrite ?? true);
     return targetPath;
   }
   async function registerAutosaveOnClose(getGames: () => readonly IGame[]): Promise<void> {
@@ -89,7 +94,9 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
     } catch {
       return;
     }
-    return SerializationService.readGameDocument(filePath);
+    const game = await SerializationService.readGameDocument(filePath);
+    game.metadata.id = crypto.randomUUID();
+    return game;
   }
 
   return { listSavedGames, restoreGames, loadGame, loadRecentGame, saveGame, registerAutosaveOnClose, disposeAutosaveOnClose, deleteSave, exportGame, importGame };

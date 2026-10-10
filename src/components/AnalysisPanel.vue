@@ -35,9 +35,6 @@ function summary(seat: ReadonlyAnalysisSeat): string {
     default: return seat.isComplete ? 'Analysis complete' : 'Analysis stopped';
   }
 }
-function lineText(moves: readonly IMove[]): string {
-  return moves.map((move) => getSan(move)).join(' ');
-}
 </script>
 
 <template>
@@ -60,7 +57,7 @@ function lineText(moves: readonly IMove[]): string {
         <template v-if="expandedByIndex?.[index] !== false">
           <p v-if="seat.assignedEngine.$?.lastError" class="engine-error">{{ seat.assignedEngine.$.lastError }}</p>
           <div v-if="showMoves && seat.lines.length" class="analysis-lines">
-            <button v-for="(line, lineIndex) in seat.lines" :key="lineIndex" :disabled="disabled || !line.pv.length" @click="emit('moveSelected', line.pv)"><span>{{ lineIndex + 1 }}</span><strong>{{ lineText(line.pv) }}</strong><small>d{{ line.depth }}</small></button>
+            <div v-for="(line, lineIndex) in seat.lines" :key="lineIndex" class="analysis-line"><span>{{ lineIndex + 1 }}</span><div class="analysis-line__moves"><button v-for="(move, moveIndex) in line.pv" :key="moveIndex" :disabled="disabled" :aria-label="`Play through ${getSan(move)}`" @click="emit('moveSelected', line.pv.slice(0, moveIndex + 1))">{{ getSan(move) }}</button></div><small>d{{ line.depth }}</small></div>
           </div>
           <div v-else class="engine-summary"><span>{{ summary(seat) }}</span><small>{{ seat.lines[0] ? `Depth ${seat.lines[0].depth}` : 'No principal variation yet' }}</small></div>
         </template>
@@ -97,7 +94,9 @@ function lineText(moves: readonly IMove[]): string {
 .engine-section__score { min-width: 3.25rem; padding: 0.2rem 0.35rem; border-radius: 0.3rem; background: var(--surface-app); font-size: 0.72rem; font-variant-numeric: tabular-nums; font-weight: 800; text-align: right; }
 .engine-section__header .icon-button { width: 1.65rem; height: 1.65rem; font-size: 0.8rem; }
 .analysis-lines { display: grid; padding: 0 0.5rem 0.5rem; gap: 0.18rem; }
-.analysis-lines button { display: grid; min-height: 1.9rem; padding: 0.3rem 0.45rem; grid-template-columns: 1rem minmax(0, 1fr) auto; align-items: center; gap: 0.35rem; color: var(--text-primary); border-radius: 0.3rem; background: var(--surface-app); text-align: left; }
+.analysis-line { display: grid; min-height: 1.9rem; padding: 0.2rem 0.45rem; grid-template-columns: 1rem minmax(0, 1fr) auto; align-items: baseline; gap: 0.35rem; border-radius: 0.3rem; background: var(--surface-app); }
+.analysis-line__moves { display: flex; flex-wrap: wrap; gap: 0.1rem; }
+.analysis-lines button { min-height: 1.7rem; padding: 0.2rem; color: var(--text-primary); border-radius: 0.2rem; background: transparent; font-size: 0.65rem; font-weight: 650; }
 .analysis-lines button:hover:not(:disabled) { background: var(--accent-soft); }
 .analysis-lines span, .analysis-lines small { color: var(--text-muted); font-size: 0.58rem; }
 .analysis-lines strong { overflow: hidden; font-size: 0.65rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }

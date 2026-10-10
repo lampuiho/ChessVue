@@ -33,7 +33,7 @@ export function useGameClock(dependency: IGameClockDependency) {
       && (snapshot.white.isRunning || snapshot.black.isRunning);
   }
   function canPauseForReason(game: IGame, reason: PauseReason): boolean {
-    if (reason === PauseReason.Analysis) return true;
+    if (reason === PauseReason.Analysis || status.isPausedState(game.gameState)) return true;
     return isTimedGame(game) && hasRunningClock(game.clockSnapshot);
   }
   function initialiseClockSnapshot(timeControl: ITimeControl): IClockSnapshot {
@@ -87,6 +87,7 @@ export function useGameClock(dependency: IGameClockDependency) {
     if (!canPauseForReason(game, reason)) return;
     if (status.isPausedState(game.gameState)) {
       runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
+      touchGame(game);
       return;
     }
     if ((!status.isLiveState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) || game.resultState !== ResultState.Ongoing) return;
@@ -102,7 +103,10 @@ export function useGameClock(dependency: IGameClockDependency) {
     if (!status.isPausedState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
     const runtime = position.requireGameRuntime(game);
     runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== reason);
-    if ((runtime.pauseReasons ?? []).length > 0) return;
+    if ((runtime.pauseReasons ?? []).length > 0) {
+      touchGame(game);
+      return;
+    }
     game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, new ClockTimestamp());
     if (status.isPausedLiveState(game.gameState)) game.gameState = status.getLiveState(position.getRenderedPosition(game).sideToMove);
     else game.gameState = status.getLiveAnalysisState(status.getLiveAnchorColour(game), position.getRenderedPosition(game).sideToMove);

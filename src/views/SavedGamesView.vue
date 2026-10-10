@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { AppModalKind, PlatformErrorKind, type IGame } from '@/contracts';
 import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind } from '@/contracts/state';
+import { SavedGameIndexService } from '@/domain';
 import { useGamesStore, useSavedGamesStore, useUiStateStore } from '@/state';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
@@ -16,6 +17,10 @@ const uiStateStore = useUiStateStore();
 const groups = ref<ISavedGameGroup[]>([]);
 const gameNames = ref(new Map<string, string>());
 const selectedGameId = ref('');
+const selectedSaveName = ref('');
+const selectedDocument = shallowRef<IGame>();
+const detailError = ref('');
+let detailGeneration = 0;
 const saveName = ref('');
 const isLoading = ref(true);
 const isWorking = ref(false);
@@ -28,6 +33,8 @@ const isDetailMode = computed(() => route.name === 'load-game' || isSaveMode.val
 const routeGameId = computed(() => String(route.params.name ?? ''));
 const activeGame = computed(() => gamesStore.getGame(routeGameId.value) as unknown as IGame | undefined);
 const selectedGroup = computed(() => groups.value.find((group) => group.gameId === routeGameId.value));
+const orderedSaves = computed(() => [...(selectedGroup.value?.saves ?? [])].sort((left, right) => Number(right.isAutosave) - Number(left.isAutosave)));
+const selectedEntry = computed(() => selectedGroup.value?.saves.find((entry) => entry.saveName === selectedSaveName.value));
 const saveNameError = computed(() => {
   const value = saveName.value.trim();
   if (!value) return 'Enter a save name.';
@@ -38,6 +45,21 @@ const saveNameError = computed(() => {
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` : '/home');
 
 onMounted(refreshGroups);
+watch(selectedGroup, (group) => {
+  if (!group?.saves.some((entry) => entry.saveName === selectedSaveName.value)) selectedSaveName.value = group ? SavedGameIndexService.getLatestSaveEntry(group.saves)?.saveName ?? '' : '';
+}, { immediate: true });
+watch(selectedEntry, async (entry) => {
+  const generation = ++detailGeneration;
+  selectedDocument.value = undefined;
+  detailError.value = '';
+  if (!entry) return;
+  try {
+    const game = await savedGamesStore.loadGame(entry.gameId, entry.saveName);
+    if (generation === detailGeneration) selectedDocument.value = game;
+  } catch (error) {
+    if (generation === detailGeneration) detailError.value = error instanceof Error ? error.message : 'This snapshot could not be read.';
+  }
+});
 watch(() => route.fullPath, () => {
   overwriteTarget.value = undefined;
   initialiseRoute();
@@ -67,6 +89,11 @@ async function refreshGroups(): Promise<void> {
 function initialiseRoute(): void {
   if (isSaveMode.value && activeGame.value && !saveName.value) saveName.value = activeGame.value.metadata.name.replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Game';
   if (route.name === 'load-game') selectedGameId.value = routeGameId.value;
+  else if (!isSaveMode.value && !groups.value.some((group) => group.gameId === selectedGameId.value)) selectedGameId.value = groups.value.find((group) => group.gameId === uiStateStore.gameSession?.activeGameId)?.gameId ?? groups.value[0]?.gameId ?? '';
+}
+function selectSave(entry: ISavedGameFileEntry): void {
+  selectedSaveName.value = entry.saveName;
+  if (isSaveMode.value && !entry.isAutosave) saveName.value = entry.saveName;
 }
 async function loadGame(gameId: string, entryName?: string): Promise<void> {
   await run(async () => {
@@ -159,6 +186,15 @@ function formatDate(entry: ISavedGameFileEntry): string {
     <div class="library-shell">
       <section class="library-heading"><p class="page-kicker">Local library</p><h1 class="page-heading">{{ isSaveMode ? 'Save your game' : isDetailMode ? gameNames.get(routeGameId) ?? 'Saved game' : 'Saved games' }}</h1><p class="page-description">{{ isSaveMode ? 'Create a named snapshot of the current board.' : isDetailMode ? 'Choose a snapshot to return to.' : 'Every game and analysis study saved on this desktop.' }}</p></section>
       <section class="library-surface surface">
+        <div v-if="!isLoading && isDetailMode && selectedGroup" class="snapshot-browser">
+          <div class="save-list" aria-label="Saved snapshots">
+            <template v-for="(entry, index) in orderedSaves" :key="entry.filePath">
+              <div v-if="index > 0 && orderedSaves[index - 1]?.isAutosave && !entry.isAutosave" class="save-separator" role="separator">Named saves</div>
+              <article class="save-row" :class="{ selected: entry.saveName === selectedSaveName }"><span class="save-row__icon"><AppIcon :name="entry.isAutosave ? 'clock' : 'save'" /></span><button class="save-row__content" :aria-pressed="entry.saveName === selectedSaveName" @click="selectSave(entry)" @dblclick="!isSaveMode && loadGame(entry.gameId, entry.saveName)"><strong>{{ entry.isAutosave ? 'Automatic save' : entry.saveName }}</strong><small>{{ formatDate(entry) }}</small></button><span v-if="entry.isAutosave" class="auto-badge">Auto</span><button class="icon-button icon-button--danger" title="Delete save" :disabled="isWorking" @click="deleteTarget = entry"><AppIcon name="trash" /></button><button v-if="!isSaveMode" class="text-button" :disabled="isWorking" @click="loadGame(entry.gameId, entry.saveName)">Load</button></article>
+            </template>
+          </div>
+          <aside class="snapshot-details" aria-label="Selected save details"><h2>{{ selectedEntry?.isAutosave ? 'Automatic save' : selectedEntry?.saveName }}</h2><p v-if="detailError" class="library-feedback--error">{{ detailError }}</p><template v-else-if="selectedDocument"><strong>{{ selectedDocument.metadata.name }}</strong><dl><dt>Saved</dt><dd>{{ selectedEntry && formatDate(selectedEntry) }}</dd><dt>Position</dt><dd>{{ selectedDocument.renderedPath.length }} plies</dd><dt>White</dt><dd>{{ selectedDocument.whitePlayer?.displayName ?? 'Unassigned' }}</dd><dt>Black</dt><dd>{{ selectedDocument.blackPlayer?.displayName ?? 'Unassigned' }}</dd><dt>Clock</dt><dd>{{ selectedDocument.timeControl.initialMs === undefined ? 'Untimed' : `${selectedDocument.timeControl.initialMs / 60000} minutes + ${selectedDocument.timeControl.incrementMs / 1000} seconds` }}</dd><dt>Result</dt><dd>{{ selectedDocument.resultState }}{{ selectedDocument.resultReason ? ` (${selectedDocument.resultReason})` : '' }}</dd></dl></template><p v-else>Reading snapshot…</p></aside>
+        </div>
         <div v-if="isLoading" class="empty-state"><span class="library-spinner">♞</span><strong>Opening your library…</strong></div>
         <template v-else-if="isSaveMode">
           <div v-if="activeGame" class="save-layout">
@@ -169,10 +205,7 @@ function formatDate(entry: ISavedGameFileEntry): string {
           <div v-else class="empty-state"><AppIcon name="info" /><strong>No active game</strong><span>Open a game before creating a save.</span></div>
         </template>
         <template v-else-if="route.name === 'load-game'">
-          <div v-if="selectedGroup" class="save-list">
-            <article v-for="entry in selectedGroup.saves" :key="entry.filePath" class="save-row"><span class="save-row__icon"><AppIcon :name="entry.isAutosave ? 'clock' : 'save'" /></span><button class="save-row__content" @dblclick="loadGame(entry.gameId, entry.saveName)"><strong>{{ entry.isAutosave ? 'Automatic save' : entry.saveName }}</strong><small>{{ formatDate(entry) }}</small></button><span v-if="entry.isAutosave" class="auto-badge">Auto</span><button class="icon-button icon-button--danger" title="Delete save" @click="deleteTarget = entry"><AppIcon name="trash" /></button><button class="text-button" :disabled="isWorking" @click="loadGame(entry.gameId, entry.saveName)">Load</button></article>
-          </div>
-          <div v-else class="empty-state"><AppIcon name="folder" /><strong>Saved game not found</strong><span>This game may have been moved or deleted.</span></div>
+          <div v-if="!selectedGroup" class="empty-state"><AppIcon name="folder" /><strong>Saved game not found</strong><span>This game may have been moved or deleted.</span></div>
         </template>
         <template v-else>
           <div v-if="groups.length" class="game-list">
@@ -180,7 +213,7 @@ function formatDate(entry: ISavedGameFileEntry): string {
           </div>
           <div v-else class="empty-state library-empty"><AppIcon name="folder" /><strong>No saved games yet</strong><span>Your named saves and automatic snapshots will appear here.</span><button class="text-button text-button--primary" @click="router.push(returnRoute)">Return to your board</button></div>
         </template>
-        <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedGroup || isWorking" @click="selectedGroup && loadGame(selectedGroup.gameId)">Load latest</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && router.push(`/saved-games/load/${selectedGameId}`)">Select game<AppIcon name="arrow-right" /></button></footer>
+        <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedEntry || isWorking" @click="selectedEntry && loadGame(selectedEntry.gameId, selectedEntry.saveName)">Load selected</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && router.push(`/saved-games/load/${selectedGameId}`)">Select game<AppIcon name="arrow-right" /></button></footer>
       </section>
     </div>
     <ModalDialog v-if="deleteTarget" title="Delete this save?" :subtitle="`“${deleteTarget.saveName}” will be permanently removed from this game.`" @dismissed="deleteTarget = undefined"><p class="delete-warning">Other snapshots of this game will not be affected.</p><template #actions><button class="text-button text-button--ghost" @click="deleteTarget = undefined">Cancel</button><button class="text-button text-button--danger" @click="confirmDelete">Delete save</button></template></ModalDialog>
@@ -189,6 +222,16 @@ function formatDate(entry: ISavedGameFileEntry): string {
 </template>
 
 <style scoped>
+.snapshot-browser { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(15rem, 1fr); border-bottom: 0.0625rem solid var(--border-subtle); }
+.snapshot-browser .save-list { min-height: 14rem; }
+.snapshot-details { padding: 1rem; border-left: 0.0625rem solid var(--border-subtle); background: var(--surface-app); font-size: 0.75rem; }
+.snapshot-details h2 { margin: 0 0 0.5rem; font-size: 1rem; }
+.snapshot-details dl { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 0.8rem; }
+.snapshot-details dt { color: var(--text-muted); }
+.snapshot-details dd { margin: 0; overflow-wrap: anywhere; }
+.save-separator { padding: 0.5rem 1rem; border-bottom: 0.0625rem solid var(--border-subtle); color: var(--text-muted); background: var(--surface-app); font-size: 0.65rem; }
+.save-row.selected { background: var(--accent-soft); box-shadow: inset 0.2rem 0 0 var(--accent); }
+@media (max-width: 43.75rem) { .snapshot-browser { grid-template-columns: 1fr; }.snapshot-details { border-top: 0.0625rem solid var(--border-subtle); border-left: 0; } }
 .saved-page { min-height: 100vh; }
 .app-brand { padding: 0; border: 0; background: transparent; text-align: left; }.app-brand__text { display: grid; }
 .library-tabs { display: flex; height: 100%; margin-left: 1rem; align-self: stretch; gap: 0.25rem; }.library-tabs button { position: relative; min-width: 5rem; padding: 0 0.8rem; color: var(--text-muted); background: transparent; font-size: 0.75rem; font-weight: 700; }.library-tabs button.active { color: var(--text-primary); }.library-tabs button.active::after { position: absolute; right: 0.65rem; bottom: -0.0625rem; left: 0.65rem; height: 0.125rem; border-radius: 0.125rem; background: var(--accent); content: ''; }

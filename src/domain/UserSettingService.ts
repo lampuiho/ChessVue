@@ -3,6 +3,7 @@ import { BuildConfig } from '@/config/BuildConfig';
 import { usePlatformService } from '@/platform';
 
 let _cachedSettings: ISettingsSnapshot | undefined;
+let _loadWarning = '';
 
 function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
@@ -71,12 +72,18 @@ export const UserSettingService = {
     try {
       return _cacheAcceptedSettings(await _readSettingsDocument(BuildConfig.persistence.settingsPath));
     } catch (error) {
-      if (!(_isPlatformError(error) && error.kind === PlatformErrorKind.NotFound)) console.error('[UserSettingService] Falling back to default settings.', error);
+      if (!(_isPlatformError(error) && error.kind === PlatformErrorKind.NotFound)) {
+        console.error('[UserSettingService] Falling back to default settings.', error);
+        _loadWarning = 'Settings could not be read. Default preferences are in use; open Settings to review and save them.';
+      }
       return _cacheAcceptedSettings(_createDefaultSettingsSnapshot());
     }
   },
   getSettings(): ISettingsSnapshot {
     return _cachedSettings ?? _cacheAcceptedSettings(_createDefaultSettingsSnapshot());
+  },
+  getLoadWarning(): string {
+    return _loadWarning;
   },
   getSystemTheme(): ResolvedThemeMode {
     return usePlatformService().getSystemThemeAdapter().getSystemTheme();

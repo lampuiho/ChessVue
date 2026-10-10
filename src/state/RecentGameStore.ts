@@ -22,7 +22,7 @@ export const useRecentGameStore = defineStore('recentGameStore', () => {
       try {
         const game = await SerializationService.readGameDocument(latestEntry.filePath);
         const projectedEntry: IRecentGameEntry = {
-          gameId: game.metadata.id,
+          gameId: latestEntry.gameId,
           displayName: game.metadata.name,
           sourceKind: latestEntry.isAutosave ? RecentGameSourceKind.Autosave : RecentGameSourceKind.SaveFile,
           filePath: latestEntry.isAutosave ? undefined : latestEntry.filePath,

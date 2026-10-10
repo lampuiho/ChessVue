@@ -392,7 +392,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
-  - `BR-HIST-01-PAUSED`: Game is paused -> block history navigation until the game resumes.
+  - `BR-HIST-01-PAUSED`: Manual and menu pauses block history navigation until resume. An analysis-only pause permits rendered-branch navigation while the live node and clock stay fixed.
 - **Postconditions**: Board and analysis context match the selected history node without changing the live clock.
 - **Implementation Touchpoints**:
   - `HistoryPanel.onNavigateNode`
@@ -626,7 +626,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-04-LIVE-SCORE-ONLY`: In any live-game context where `showLiveAnalysisMoves = false`, no move target is rendered from the analysis panel.
   - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `game.gameplayOptions.allowTakeback = false`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
-  - `BR-ANALYSIS-04-PAUSED`: In paused live play, analysis results are read-only and clicking any suggested move is blocked until resume.
+  - `BR-ANALYSIS-04-PAUSED`: Manual and menu pauses make suggested moves read-only until resume. An analysis-only pause permits move-prefix playback on the rendered branch while the live node and clock stay fixed.
 - **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.
 - **Implementation Touchpoints**:
   - `AnalysisPanel.moveSelected`

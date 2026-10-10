@@ -59,6 +59,10 @@ function selectSquare(boardId: BoardId): void {
     return;
   }
   const piece = props.position.board[boardId];
+  if (selectedBoardId.value === boardId) {
+    clearSelection();
+    return;
+  }
   if (selectedBoardId.value === undefined) {
     if (piece?.colour === props.position.sideToMove) selectedBoardId.value = boardId;
     return;

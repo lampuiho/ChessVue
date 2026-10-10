@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive } from 'vue';
 import {
   EngineClientType,
   EngineProtocol,
@@ -9,35 +9,46 @@ import {
   type ICreateGameRequest,
   type IEnginePlayer,
   type IEngineRecord,
+  type IGame,
   type IPlayer,
   type ISettingsSnapshot,
 } from '@/contracts';
 import ModalDialog from './common/ModalDialog.vue';
 
-const props = defineProps<{ settings: ISettingsSnapshot; engines: readonly IEngineRecord[] }>();
+const props = defineProps<{ settings: ISettingsSnapshot; engines: readonly IEngineRecord[]; setupGame?: IGame; errorMessage?: string; busy?: boolean }>();
 const emit = defineEmits<{ createRequested: [request: ICreateGameRequest]; cancelRequested: [] }>();
 const form = reactive({
-  name: props.settings.gameDefaults.quickNewGameName,
+  name: props.setupGame?.metadata.name ?? props.settings.gameDefaults.quickNewGameName,
   mode: 'live' as 'live' | 'analysis',
-  white: props.settings.gameDefaults.defaultWhitePlayerType === PlayerType.Local ? 'local' : 'none',
-  black: props.settings.gameDefaults.defaultBlackPlayerType === PlayerType.Local ? 'local' : 'none',
-  timePreset: props.settings.gameDefaults.defaultTimeControl.preset ?? TimeControlPreset.Untimed,
+  white: defaultPlayer(props.settings.gameDefaults.defaultWhitePlayerType),
+  black: defaultPlayer(props.settings.gameDefaults.defaultBlackPlayerType),
+  timePreset: (props.settings.gameDefaults.defaultTimeControl.preset ?? TimeControlPreset.Untimed) as TimeControlPreset | 'custom',
   minutes: Math.max(1, Math.round((props.settings.gameDefaults.defaultTimeControl.initialMs ?? 600000) / 60000)),
   incrementSeconds: Math.round(props.settings.gameDefaults.defaultTimeControl.incrementMs / 1000),
-  allowTakeback: true,
-  showLiveAnalysisMoves: false,
-  analysisEngineIds: [] as string[],
+  allowTakeback: props.setupGame?.gameplayOptions.allowTakeback ?? true,
+  showLiveAnalysisMoves: props.setupGame?.gameplayOptions.showLiveAnalysisMoves ?? false,
+  analysisEngineIds: props.engines.filter((engine) => props.setupGame?.analysis.seats.some((seat) => seat.assignedEngine.displayName === engine.displayName)).map((engine) => engine.id),
 });
-const canCreate = computed(() => form.name.trim().length > 0 && (form.mode === 'analysis' || form.white !== 'none' && form.black !== 'none'));
-watch(() => form.mode, (mode) => {
-  if (mode === 'analysis') {
-    form.white = 'none';
-    form.black = 'none';
-  } else {
-    if (form.white === 'none') form.white = 'local';
-    if (form.black === 'none') form.black = 'local';
+const validationMessage = computed(() => {
+  if (!form.name.trim()) return 'Enter a game name.';
+  if (form.timePreset !== TimeControlPreset.Untimed) {
+    if (typeof form.minutes !== 'number' || !Number.isFinite(form.minutes) || form.minutes < 1 || form.minutes > 600) return 'Enter minutes between 1 and 600.';
+    if (!Number.isInteger(form.incrementSeconds) || form.incrementSeconds < 0 || form.incrementSeconds > 300) return 'Enter an increment between 0 and 300 seconds.';
   }
+  if (form.mode === 'live') {
+    for (const selection of [form.white, form.black]) {
+      if (selection === 'none' && !props.setupGame || selection === 'local') continue;
+      if (!props.engines.find((engine) => `engine:${engine.id}` === selection)?.executablePath.trim()) return 'Choose an available engine for each required seat.';
+    }
+  }
+  if (form.analysisEngineIds.length > 4 || form.analysisEngineIds.some((id) => !props.engines.find((engine) => engine.id === id)?.executablePath.trim())) return 'Choose up to four available analysis engines.';
+  return '';
 });
+const canCreate = computed(() => !props.busy && !validationMessage.value);
+function defaultPlayer(type: PlayerType): string {
+  if (props.setupGame || type === PlayerType.Local) return 'local';
+  return `engine:${props.engines[0]?.id ?? ''}`;
+}
 
 function createPlayer(selection: string, colour: PlayerColour): IPlayer | undefined {
   if (selection === 'none') return;
@@ -60,7 +71,7 @@ function createPlayer(selection: string, colour: PlayerColour): IPlayer | undefi
 }
 function submit(): void {
   if (!canCreate.value) return;
-  const preset = form.timePreset;
+  const preset = form.timePreset === 'custom' ? undefined : form.timePreset;
   const timeControl = preset === TimeControlPreset.Untimed
     ? { preset, incrementMs: 0 }
     : { preset, initialMs: Math.round(form.minutes * 60000), incrementMs: Math.round(form.incrementSeconds * 1000) };
@@ -70,7 +81,7 @@ function submit(): void {
     whitePlayer: form.mode === 'live' ? createPlayer(form.white, PlayerColour.White) : undefined,
     blackPlayer: form.mode === 'live' ? createPlayer(form.black, PlayerColour.Black) : undefined,
     analysisEngineProfiles: selectedEngines.map((engine) => ({ ...engine, options: { ...engine.options } })),
-    showLiveAnalysisMoves: form.mode === 'live' ? form.showLiveAnalysisMoves : true,
+    showLiveAnalysisMoves: form.mode === 'live' && form.white !== 'none' && form.black !== 'none' ? form.showLiveAnalysisMoves : true,
     allowTakeback: form.allowTakeback,
     timeControl,
   });
@@ -78,7 +89,7 @@ function submit(): void {
 </script>
 
 <template>
-  <ModalDialog title="Set up a new board" subtitle="Choose a quick match or open a free analysis study." wide @dismissed="emit('cancelRequested')">
+  <ModalDialog :title="setupGame ? 'Start from this position' : 'Set up a new board'" :subtitle="setupGame ? 'Choose players, clocks and analysis for the board you prepared.' : 'Choose a quick match or open a free analysis study.'" :dismissible="!busy" wide @dismissed="emit('cancelRequested')">
     <form id="new-game-form" @submit.prevent="submit">
       <section class="form-section">
         <h3 class="form-section__heading">Game</h3>
@@ -86,7 +97,7 @@ function submit(): void {
           <label class="field-label" for="game-name">Name<span class="field-help">Shown in the workspace tab</span></label>
           <input id="game-name" v-model="form.name" class="field-control" autocomplete="off" autofocus>
         </div>
-        <div class="field-row">
+        <div v-if="!setupGame" class="field-row">
           <span class="field-label">Workspace</span>
           <div class="segmented-control">
             <button type="button" :class="{ active: form.mode === 'live' }" @click="form.mode = 'live'">Play a game</button>
@@ -99,6 +110,8 @@ function submit(): void {
         <div class="field-row">
           <label class="field-label" for="white-player">White</label>
           <select id="white-player" v-model="form.white" class="field-control">
+            <option v-if="!setupGame" value="none">Unassigned (free analysis)</option>
+            <option v-if="form.white === 'engine:'" value="engine:" disabled>Choose an engine</option>
             <option value="local">Local player</option>
             <option v-for="engine in engines" :key="engine.id" :value="`engine:${engine.id}`">{{ engine.displayName }}</option>
           </select>
@@ -106,6 +119,8 @@ function submit(): void {
         <div class="field-row">
           <label class="field-label" for="black-player">Black</label>
           <select id="black-player" v-model="form.black" class="field-control">
+            <option v-if="!setupGame" value="none">Unassigned (free analysis)</option>
+            <option v-if="form.black === 'engine:'" value="engine:" disabled>Choose an engine</option>
             <option value="local">Local player</option>
             <option v-for="engine in engines" :key="engine.id" :value="`engine:${engine.id}`">{{ engine.displayName }}</option>
           </select>
@@ -121,6 +136,7 @@ function submit(): void {
             <option :value="TimeControlPreset.Blitz">Blitz</option>
             <option :value="TimeControlPreset.Rapid">Rapid</option>
             <option :value="TimeControlPreset.Classical">Classical</option>
+            <option value="custom">Custom</option>
           </select>
         </div>
         <div v-if="form.timePreset !== TimeControlPreset.Untimed" class="time-fields">
@@ -135,9 +151,11 @@ function submit(): void {
         </div>
       </section>
     </form>
+    <p v-if="validationMessage" class="inline-message inline-message--error" role="alert">{{ validationMessage }}</p>
+    <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }}</p>
     <template #actions>
-      <button class="text-button text-button--ghost" @click="emit('cancelRequested')">Cancel</button>
-      <button class="text-button text-button--primary" :disabled="!canCreate" form="new-game-form" type="submit">Create workspace</button>
+      <button class="text-button text-button--ghost" :disabled="busy" @click="emit('cancelRequested')">Cancel</button>
+      <button class="text-button text-button--primary" :disabled="!canCreate" form="new-game-form" type="submit">{{ setupGame ? 'Start game' : 'Create workspace' }}</button>
     </template>
   </ModalDialog>
 </template>

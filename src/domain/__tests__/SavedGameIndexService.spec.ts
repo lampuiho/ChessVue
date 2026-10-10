@@ -16,6 +16,18 @@ function createEntry(path: string, isDirectory: boolean, lastModifiedUtc?: strin
 }
 
 describe('SavedGameIndexService', () => {
+  it.each(['../other', 'a/b', 'a\\b', 'C:other', '.', '..', 'NUL', 'name.'])('rejects an unsafe managed identity %s', (identity) => {
+    expect(() => SavedGameIndexService.getAutosaveFilePath('saves', identity)).toThrow();
+    expect(() => SavedGameIndexService.getNamedSaveFilePath('saves', 'game', identity)).toThrow();
+  });
+  it('excludes enumerated entries outside their managed parent', () => {
+    const escaped = { ...createEntry('elsewhere/game', true), name: 'game' };
+    const entries = new Map<string, IFileSystemEntry[]>([
+      ['saves', [escaped, createEntry('saves/valid', true)]],
+      ['saves/valid', [{ ...createEntry('elsewhere/auto.json', false), name: 'auto.json' }]],
+    ]);
+    expect(SavedGameIndexService.projectSaveGroups('saves', entries)).toEqual([]);
+  });
   it('normalises save paths and builds file locations per game', () => {
     expect(SavedGameIndexService.normaliseSaveRootPath('saves\\\\')).toBe('saves');
     expect(SavedGameIndexService.getGameFolderPath('saves\\\\', 'game-1')).toBe('saves/game-1');

@@ -8,6 +8,7 @@ const props = defineProps<{
   player?: IPlayer;
   remainingMs?: number;
   active?: boolean;
+  selectionDisabled?: boolean;
   capturedPieces?: readonly ICapturedPieceGroup[];
 }>();
 const emit = defineEmits<{ playerSelectionRequested: [colour: PlayerColour] }>();
@@ -37,7 +38,7 @@ function glyph(kind: keyof typeof pieceGlyphs.white): string {
   <section class="player-panel" :class="{ 'player-panel--active': active }">
     <span class="player-avatar" :class="`player-avatar--${colour}`">{{ colour === PlayerColour.White ? '♙' : '♟' }}<i v-if="active"></i></span>
     <div class="player-identity">
-      <button class="player-name" @click="emit('playerSelectionRequested', colour)">{{ player?.displayName ?? 'Unassigned' }}<AppIcon name="chevron-down" /></button>
+      <button class="player-name" :disabled="selectionDisabled" @click="emit('playerSelectionRequested', colour)">{{ player?.displayName ?? 'Unassigned' }}<AppIcon v-if="!selectionDisabled" name="chevron-down" /></button>
       <div class="player-meta">
         <span>{{ colour === PlayerColour.White ? 'White' : 'Black' }}</span>
         <span v-if="player?.type === PlayerType.Engine" class="engine-state"><i :class="`engine-state--${engineStatus}`"></i>{{ engineStatus }}</span>

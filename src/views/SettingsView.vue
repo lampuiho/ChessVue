@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import {
   AnalysisBranchExitBehaviour,
   AppModalKind,
@@ -37,6 +37,11 @@ const categories = [
   { id: SettingsCategory.Engines, label: 'Engines', icon: 'activity' },
 ];
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` as const : '/home' as const);
+onBeforeRouteLeave((to) => {
+  if (!settingsStore.hasPendingChanges) return true;
+  uiStateStore.showModal({ kind: AppModalKind.SettingsDirtyLeave, payload: { targetRoute: to.fullPath } });
+  return false;
+});
 
 function themePreviewStyle(theme: ThemeMode): Record<string, string> {
   const light = defaultLightThemeProfile.cssVariables;

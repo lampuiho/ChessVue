@@ -36,5 +36,5 @@ Render the integrated gameplay workspace for one active game.
 - `GameView` owns the local pure derivation of captured-piece groups from the visible position before passing them into `PlayerPanel`.
 - `GameView` wires player-strip player-label clicks into the player-selection dialog flow and forwards confirmed assignment changes to `GamesStore`.
 - `GameView` wires the analysis-panel title `+` action and each engine-title-row `-` action into the per-game analysis-engine assignment flow.
-- When the active game is paused, `GameView` still allows top-menu navigation plus the explicit non-play exceptions for player reassignment and analysis-engine management, while keeping gameplay actions and history navigation disabled until resume.
+- Manual and menu pauses permit menu navigation, player reassignment and analysis-engine management while disabling gameplay and history. An analysis-only pause exposes `Exit analysis` and permits both colours to explore and select history without advancing the live node or clock. Board edit disables player reassignment and history.
 - `GameView` contains no HTML or template markup and wires feature adapters into common render surfaces only.
