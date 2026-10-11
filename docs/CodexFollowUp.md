@@ -1,6 +1,6 @@
 # Codex Follow-Up
 
-The current UI scenario review is tracked in [UiFollowUp.md](UiFollowUp.md), with repeatable starting data in [testing journeys](../journeys/README.md).
+Completed UI scenario fixes are covered by [application regressions](../journeys/__tests__/UiFollowUp.spec.ts), with repeatable starting data in [testing journeys](../journeys/README.md).
 
 ## Completed
 - Consolidated `createInitialBoardPosition(...)` into `GameRuleUtility` after the temporary `GameRuleService` boundary was removed.

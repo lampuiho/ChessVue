@@ -42,7 +42,7 @@ npm run journey -- list
 npm run journey -- history --open
 ```
 
-See [journeys/README.md](journeys/README.md) for the available data, manual steps, reset controls and end-to-end testing hooks. Outstanding scenario gaps are tracked in [docs/UiFollowUp.md](docs/UiFollowUp.md).
+See [journeys/README.md](journeys/README.md) for the available data, manual steps, reset controls and end-to-end testing hooks.
 
 ### Type-Check, Compile and Minify for Production
 

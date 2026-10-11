@@ -23,7 +23,7 @@ The command prints its URL and uses port 5173 by default. Each command run gets 
 | `settings` | Dark theme, black orientation, three engine profiles, return game | Apply/reset, dirty navigation, inventory refresh |
 | `recovery` | Corrupt settings/layout, missing and unsupported active saves, one valid game | Startup fallback, repaired session, warning |
 
-[Catalogue.json](Catalogue.json) holds the scenario IDs and ordered manual steps for each journey. These are also available in the browser console as `window.chessVueJourney.steps`. Stable game IDs follow the names in [definitions/](definitions/), such as `history-allowed`, `promotion-white` and `clocks-timeout-b`. The [UI follow-up](../docs/UiFollowUp.md) records current failures to expect while testing.
+[Catalogue.json](Catalogue.json) holds the scenario IDs and ordered manual steps for each journey. These are also available in the browser console as `window.chessVueJourney.steps`. Stable game IDs follow the names in [definitions/](definitions/), such as `history-allowed`, `promotion-white` and `clocks-timeout-b`.
 
 ## Reset and switch
 
@@ -69,8 +69,8 @@ Engine profiles `journey://a` and `journey://b` implement UCI handshake, legal d
 Each journey lives in `definitions/<name>.ts`; shared game builders validate moves against the chess rules and serialise canonical version-1 documents. Add its description/scenarios/steps to `Catalogue.json` and register it in `index.ts`. Keep IDs and timestamps stable; only paused clock anchors use the seed time. Corrupt documents should be explicit overrides, as in `recovery` and `saves`.
 
 ```sh
-npm run test:unit -- --run journeys
+npm run test:unit -- --run journeys --maxWorkers=1
 npm run type-check
 ```
 
-Fixture checks validate legal move trees, document round trips, committed-scenario coverage, persistence/reset isolation and the scripted UCI lifecycle. [UiFollowUp.spec.ts](__tests__/UiFollowUp.spec.ts) adds application regressions for UI-02, UI-04, UI-06 and UI-08; its known defects use `it.fails` to assert the target behaviour, with the failure evidence and modifier-removal policy recorded in the [follow-up plan](../docs/UiFollowUp.md#regression-coverage-from-the-further-review). Use `--maxWorkers=1` for these application checks to avoid the observed parallel-bootstrap timeout. The journey entry point replaces `/src/main.ts` only for the journey command; ordinary development and production builds retain the normal entry point.
+Fixture checks validate legal move trees, document round trips, committed-scenario coverage, persistence/reset isolation and the scripted UCI lifecycle. [UiFollowUp.spec.ts](__tests__/UiFollowUp.spec.ts) covers the completed UI-01–UI-17 fixes with 32 passing application regressions, supported by component and store tests. Use `--maxWorkers=1` for these application checks to avoid the observed parallel-bootstrap timeout. The journey entry point replaces `/src/main.ts` only for the journey command; ordinary development and production builds retain the normal entry point.
