@@ -3,8 +3,8 @@ import { onScopeDispose } from 'vue';
 import { PlatformErrorKind, ResolvedThemeMode, type IPlatformError } from '@/contracts';
 import { EngineClientType, PlatformEventKey, type IEngineClient, type IPlatformEventRegistration, type IPlatformService, type IProcessManager } from '@/contracts/platform';
 import { RegistrationTimestamp } from '@/utility/date';
-import { BrowserEngineClient } from './BrowserEngineClient';
-import { BrowserProcessManager } from './BrowserProcessManager';
+import { defineBrowserUciEngineClientStore } from './BrowserEngineClient';
+import { BrowserProcessManager, type BrowserEngineRegistry } from './BrowserProcessManager';
 import { defineBrowserStorageAdapterStore } from './BrowserStorageAdapter';
 import { BrowserSystemThemeAdapter } from './BrowserSystemThemeAdapter';
 
@@ -24,7 +24,9 @@ export function setBrowserPlatformOptions(options: IBrowserPlatformOptions = {})
 }
 export const useBrowserPlatformService = defineStore('platformService', () => {
   const storageAdapter = defineBrowserStorageAdapterStore(_options.storage, _options.storageKey)();
-  const { processManager, engineClient } = _options.createEngineServices?.() ?? { processManager: new BrowserProcessManager(), engineClient: new BrowserEngineClient() };
+  const registry: BrowserEngineRegistry = new Map();
+  const browserProcessManager = new BrowserProcessManager(registry);
+  const { processManager, engineClient } = _options.createEngineServices?.() ?? { processManager: browserProcessManager, engineClient: defineBrowserUciEngineClientStore(registry)() };
   const systemThemeAdapter = new BrowserSystemThemeAdapter();
   const closeRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
   const focusRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
@@ -96,6 +98,7 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
     window.removeEventListener('focus', _onFocus);
     document.removeEventListener('visibilitychange', _onVisibility);
     mediaQuery.removeEventListener('change', _onTheme);
+    browserProcessManager.dispose();
     reset();
   });
   const platformService = {

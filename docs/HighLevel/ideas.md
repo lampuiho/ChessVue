@@ -17,7 +17,6 @@ Anything in this document is excluded from that baseline unless it is later prom
 ## Platform and Runtime Ideas
 | Idea | Source | Why Deferred |
 | --- | --- | --- |
-| WASM engine runtime | `plan.md`, `engine_runtime.md` | Browser app adapters are committed for early testing; running real engines in a browser remains deferred. Desktop engines use local child-process UCI. |
 | Remote engine or server-backed analysis transport | `plan.md`, previous `build_settings.md` | Adds network/runtime complexity not required for the current desktop-first slice. |
 | Additional host shells such as Electron, Capacitor, or mobile packaging | previous `architecture.md`, previous `build_settings.md` | The baseline only needs desktop capabilities, not cross-platform bootstrap decisions. |
 | Automatic engine restart and reconnect policy | `scenarios.md` idea scenario `SCN-IDEA-07` | Manual retry is sufficient for the baseline; auto-reconnect needs separate UX and runtime policy. |

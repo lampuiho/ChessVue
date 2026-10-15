@@ -23,12 +23,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe('browser host services', () => {
-  it('reports desktop engine limitations through the existing typed errors', async () => {
+  it('exposes UCI support while rejecting native executables through typed errors', async () => {
     const platform = useBrowserPlatformService();
     expect(platform.getSystemThemeAdapter().getSystemTheme()).toBe(ResolvedThemeMode.Dark);
     await expect(platform.getProcessManager().spawnProcess('stockfish.exe')).rejects.toMatchObject({ kind: 'processStartFailed', message: expect.stringContaining('desktop') });
     expect(() => platform.getProcessManager().assertProcessHandleOpen('missing')).toThrow();
-    await expect(platform.getEngineClient(EngineClientType.Uci).initialiseEngine({} as never)).rejects.toMatchObject({ kind: 'invalidOperation' });
+    expect(typeof platform.getEngineClient(EngineClientType.Uci).startAnalysis).toBe('function');
   });
   it('dispatches focus/theme events, tracks copied registrations and unsubscribes', async () => {
     const platform = useBrowserPlatformService();

@@ -35,7 +35,7 @@ Use [ideas.md](ideas.md) when a configuration topic is:
 - `engine executable path` -> user-managed settings data
 - `local child-process UCI runtime` -> build/runtime baseline
 - `user-created custom theme` -> deferred idea
-- `WASM engine support` -> deferred idea
+- `browser UCI worker runtime, including Stockfish.js` -> build/runtime baseline
 
 ## Notes
 - Per-game engine assignment belongs to the game model, not to the global settings schema.

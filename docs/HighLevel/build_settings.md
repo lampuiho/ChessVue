@@ -38,7 +38,7 @@ That means:
 | Setting Area | Baseline Decision |
 | --- | --- |
 | Engine protocol | `UCI` only |
-| Engine transport | Local child process |
+| Engine transport | Local child process on desktop; UCI worker messages in browser |
 | Protocol/session ownership | Managed through `EngineRuntimeService` using `EngineClient` |
 | Raw process lifecycle ownership | Managed through `EngineRuntimeService` using `ProcessManager` |
 | Concurrent analysis | Up to `4` analysis engines per game |
@@ -82,7 +82,6 @@ Browser managed files use a versioned localStorage namespace with the same logic
 ## Explicitly Deferred
 The following are outside the current build/runtime baseline:
 
-- WASM engine support
 - remote engine services
 - mobile host targets
 - standalone analysis route/view

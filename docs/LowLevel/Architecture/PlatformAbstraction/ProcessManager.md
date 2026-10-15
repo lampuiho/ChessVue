@@ -33,7 +33,7 @@ restartProcess(processHandle: ProcessHandle, executablePath: string, args?: stri
 - Post-start termination is observed by later process-handle checks or engine I/O failures rather than through a callback subscription contract.
 
 ## Browser Adaptation
-`BrowserProcessManager` never launches local executables. Spawn/restart reject with `processStartFailed` and explain that local UCI engines require the desktop app. Handle checks and stop reject with `invalidProcessHandle`. Journey bootstrap can inject scripted process services for browser tests.
+`BrowserProcessManager` owns dedicated workers behind opaque process handles. `stockfish.js` resolves to the bundled Stockfish.js worker; other locations resolve to same-origin worker URLs. It never launches native executables and rejects desktop paths or arguments with `processStartFailed`. Worker errors invalidate the affected handle and reject pending UCI work. Stop terminates only that worker; restart allocates a fresh handle; platform disposal terminates remaining workers. Stale handles reject with `invalidProcessHandle`. Journey bootstrap can inject scripted process services.
 
 ## Lifecycle Example
 `ProcessManager` only sees process creation and termination boundaries.

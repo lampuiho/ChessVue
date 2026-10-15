@@ -18,9 +18,17 @@ npm run dev
 
 Forcing `nwjs` retains the mock NW.js/Node fallback when the host is unavailable, so desktop adapters can still be tested without NW.js. Automatic platform detection selects the browser when no real NW.js runtime exists.
 
-Browser games, settings, session and layout use localStorage for the current origin. The save folder is a virtual directory; it does not grant disk access. Import opens a browser file picker and export downloads canonical JSON. Local UCI executables require NW.js; normal browser runs report that limitation through the existing engine error handling. WASM/remote engines remain deferred.
+Browser games, settings, session and layout use localStorage for the current origin. The save folder is a virtual directory; it does not grant disk access. Import opens a browser file picker and export downloads canonical JSON. Native UCI executables use NW.js. Browser UCI engines run in dedicated workers; the bundled Stockfish.js engine uses a small single-threaded WASM build. Remote engine services remain deferred.
 
 Browser visibility-hidden and page-hide events request autosave checkpoints. Browsers cannot await asynchronous shutdown handlers, so a final tab-close autosave is best effort. Explicit saves and move-count autosaves complete during normal use.
+
+## Browser engines
+
+In Settings > Engines, add an engine profile with location `stockfish.js`, then select it as an analysis engine or computer player in Custom game. Computer players use timed games. Each engine assignment gets an independent worker; stopping or restarting one does not affect the others. Other UCI worker scripts can use a URL served from the same site.
+
+The engine remains `EngineClientType.Uci`. Desktop process I/O and browser worker messages share the same UCI session implementation. Vite serves the pinned Stockfish.js 19.0.1 worker and matching WASM during development and includes both in production builds. Its GPL licence and matching source links accompany the engine under `engines/stockfish/`.
+
+See [upstream Stockfish.js](https://github.com/nmrugg/stockfish.js/tree/v19.0.1) for engine source and build instructions.
 
 ## Journeys and browser end-to-end tests
 
@@ -31,7 +39,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Playwright starts ordinary browser development and journey servers on ports 4173 and 4174. Tests cover play/save/reload, real file import/download, appearance persistence, all journey bootstraps, scripted analysis, and journey export/import. No NW.js installation or local engine is required.
+Playwright starts ordinary browser development and journey servers on ports 4173 and 4174. Tests cover play/save/reload, real file import/download, appearance persistence, all journey bootstraps, scripted analysis, journey export/import, real concurrent Stockfish analysis and a real engine opponent. No NW.js installation or local engine is required.
 
 Journeys use the browser platform with isolated sessionStorage, deterministic dialog choices and scripted UCI transport. See [journeys/README.md](journeys/README.md) for fixtures, manual steps and reset controls. Real NW.js dialogs, local processes and awaited shutdown still need desktop integration checks.
 

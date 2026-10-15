@@ -1,7 +1,7 @@
 # EngineClient
 
 ## Browser Adaptation
-`BrowserEngineClient` satisfies the engine contract but rejects native-engine operations with typed `invalidOperation` failures explaining the desktop requirement. It does not pretend to produce analysis. Browser journey runs inject the existing UCI client with scripted transport; real WASM and remote transports remain deferred.
+`defineBrowserUciEngineClientStore` provides `EngineClientType.Uci` over browser workers, including Stockfish.js. Both it and the NW.js adapter compose `defineUciEngineClientStore`, which owns the protocol state machine. The private `IUciTransport` seam supplies line writes, output and exit notifications; desktop adapts Node streams and browser adapts worker messages. Stop/restart/failure semantics and copied in-game engine contracts remain shared. Browser journeys can still inject scripted transport.
 
 ## Purpose
 Own the full engine-protocol conversation with the engine while hiding protocol-specific details such as UCI strings, handshake ordering, and raw engine-output parsing from upper layers.

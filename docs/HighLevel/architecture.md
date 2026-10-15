@@ -120,7 +120,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `EngineClient` translates between ChessVue engine structures and the active engine protocol and hides raw engine message formats from higher layers.
   It is consumed through `EngineRuntimeService`, not by layer-3 stores directly.
 - `IPlatformService` also owns the small typed app-event registration surface for app close, focus return, and system-theme change notifications plus active-registration inspection.
-- Bootstrap defaults to automatic NW.js detection and otherwise selects the browser implementation. An explicit build target may force either host. Browser engine adapters report desktop-only capabilities as typed failures; scripted engines are injected only by journey bootstrap.
+- Bootstrap defaults to automatic NW.js detection and otherwise selects the browser implementation. An explicit build target may force either host. Browser UCI engines run in dedicated workers, including the bundled Stockfish.js engine, while native executables remain desktop-only. Both hosts share the UCI protocol implementation; scripted engines are injected only by journey bootstrap.
 
 ### Domain Logic
 - `MoveApplicationService` is the store-facing board-position transition boundary. Move application and direct board edits mutate caller-owned positions in place; only position replay through `genPosition` creates a detached result.
@@ -212,7 +212,7 @@ The high-level contracts divide behaviour ownership as follows:
 ## Explicitly Deferred
 The following concepts are not part of the baseline architecture and are tracked in [ideas.md](ideas.md):
 
-- WASM engine, mobile, and remote runtime targets
+- mobile and remote runtime targets
 - standalone analysis routes or views
 - extra chess variants
 - bookmarks and batch workflows

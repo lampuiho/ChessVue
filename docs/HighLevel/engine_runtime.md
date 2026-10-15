@@ -7,10 +7,10 @@ The baseline is desktop-first and multi-engine now. Engine behaviour must follow
 
 ## Runtime Baseline
 - Engine protocol: `UCI`
-- Engine transport: local child process
+- Engine transport: local child process on desktop; Web Worker messages in browser
 - Engine host capability: desktop shell with process and filesystem access
 
-Browser app adapters are committed for early verification, while real browser/WASM, network and remote-engine transports remain deferred in [ideas.md](ideas.md). Normal browser engine/process adapters return typed desktop-capability failures. Journey runs inject scripted UCI processes behind the same interfaces without launching local executables.
+Stockfish.js and other same-origin browser UCI workers are supported through the existing `EngineClientType.Uci` contract. The browser process-lifecycle adapter owns a worker per engine session, while the shared UCI client owns handshake, options, analysis, player turns and pondering. The bundled Stockfish.js lite single-threaded build needs no cross-origin-isolation headers. Native executables remain desktop-only; remote transports remain deferred in [ideas.md](ideas.md). Journey runs inject scripted UCI transport behind the same interfaces.
 
 ## Engine Roles
 ChessVue supports two committed engine roles.
@@ -123,13 +123,12 @@ If the user selects more than the supported concurrent analysis engines, the app
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore` and the temporary option-discovery runtime used by `EnginesStore`.
 - `EngineRuntimeService` composes `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation.
 - `EngineClient` owns protocol sequencing, engine-output interpretation, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.
-- `ProcessManager` owns child-process lifecycle only and is consumed by `EngineRuntimeService`.
+- `ProcessManager` owns child-process or browser-worker lifecycle only and is consumed by `EngineRuntimeService`.
 
 ## Non-Baseline Exclusions
 The following are explicitly out of scope for the rewrite baseline:
 
 - `xboard` or other non-UCI protocols
 - remote engines
-- browser or WASM engines
 - automatic crash recovery
 
