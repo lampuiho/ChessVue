@@ -31,7 +31,8 @@ The low-level rewrite may depend on:
 The low-level rewrite must not use [ideas.md](ideas.md) as a source of committed behaviour.
 
 ## Key Design Decisions
-- The app shell is desktop-first and must support local file dialogs and local child-process UCI engines.
+- Desktop-first describes the design and implementation contracts: local file dialogs and child-process UCI engines remain desktop requirements. It does not require desktop integration to be tested first.
+- Browser adapters implement the existing platform interfaces so gameplay, persistence, settings and seeded end-to-end journeys can be verified in a browser before desktop integration. Browser constraints stay inside the platform boundary; WASM and remote engines remain deferred.
 - Multi-engine concurrent analysis is part of the baseline, not a future enhancement.
 - Analysis is integrated into `GameView`; it is not a standalone route or view in the baseline.
 - The canonical persisted game format is one internal JSON document used for both autosave and file export.
@@ -52,10 +53,16 @@ Deferred or speculative concepts must be collected in [ideas.md](ideas.md), not 
 
 That includes, for example:
 
-- browser or WASM runtimes
+- WASM or remote engine runtimes
 - standalone analysis routes
 - extra rule variants
 - study extensions such as bookmarks or analysis undo/redo
+
+## Verification Sequence
+
+1. Run browser unit and end-to-end journeys against the shared domain, stores and desktop-first UI.
+2. Use browser storage, file import/download, theme and lifecycle implementations; inject scripted UCI transport only in journey runs.
+3. Verify real NW.js dialogs, disk persistence, shutdown ordering and local processes separately during desktop integration.
 
 ## Verification Goals
 The documentation is only ready for low-level rewrite when:

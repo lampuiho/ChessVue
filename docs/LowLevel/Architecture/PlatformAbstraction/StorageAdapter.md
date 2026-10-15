@@ -50,5 +50,8 @@ deleteFile(path: string): Promise<void>
 - Readable-but-invalid payloads are not silently repaired here; layer-2 services still pass loaded artefacts through `SerializationService` for schema-version and corruption decisions.
 
 ## Notes
-- The current implementation uses `NW.js` file inputs for open/save selection and Node file APIs for raw file-system work.
+- NW.js uses file inputs for open/save selection and Node file APIs for raw file-system work.
+- Browser managed files use localStorage (`chessvue:files:v1`) with virtual directories, UTF-8 text, overwrite checks and modification timestamps. Each operation reads the current index so adapter instances do not overwrite a stale cached snapshot. Storage/quota failures are typed `permissionDenied` errors; invalid indexes are `invalidDocument`.
+- Browser open selection reads a real File and returns an opaque transient import token; the following read consumes it. Browser save selection returns a transient download token; the following write downloads the JSON document. Suggested paths supply filenames only, and browser pickers cannot honour a desktop start directory. Cancelling import rejects with `cancelled`; downloads follow browser save preferences.
+- Journey bootstrap selects isolated sessionStorage and deterministic virtual import/export paths while using the same browser managed-file implementation.
 - The adapter remains rootless and path-based even though the host is desktop-specific.

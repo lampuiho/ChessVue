@@ -42,7 +42,7 @@ Committed platform modules:
 - `SystemThemeAdapter` for current OS theme detection
 - `EngineClient` for concrete engine-protocol transport
 
-During the rewrite phase, these adapters are backed by mocked `NW.js`-style host services rather than final real host bindings.
+Desktop-first governs the design and implementation contracts. NW.js provides desktop capabilities; browser adapters adapt the same contracts for early browser testing. The ordinary browser app uses persistent browser storage and real file import/download; journey runs inject scripted engine transport.
 
 This layer does not depend on domain, state, or presentation modules.
 
@@ -120,7 +120,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `EngineClient` translates between ChessVue engine structures and the active engine protocol and hides raw engine message formats from higher layers.
   It is consumed through `EngineRuntimeService`, not by layer-3 stores directly.
 - `IPlatformService` also owns the small typed app-event registration surface for app close, focus return, and system-theme change notifications plus active-registration inspection.
-- The first implementation uses mocked `NW.js`-style services behind those adapters so the rewrite can proceed before final desktop host wiring exists.
+- Bootstrap defaults to automatic NW.js detection and otherwise selects the browser implementation. An explicit build target may force either host. Browser engine adapters report desktop-only capabilities as typed failures; scripted engines are injected only by journey bootstrap.
 
 ### Domain Logic
 - `MoveApplicationService` is the store-facing board-position transition boundary. Move application and direct board edits mutate caller-owned positions in place; only position replay through `genPosition` creates a detached result.
@@ -212,7 +212,7 @@ The high-level contracts divide behaviour ownership as follows:
 ## Explicitly Deferred
 The following concepts are not part of the baseline architecture and are tracked in [ideas.md](ideas.md):
 
-- browser, mobile, and remote runtime targets
+- WASM engine, mobile, and remote runtime targets
 - standalone analysis routes or views
 - extra chess variants
 - bookmarks and batch workflows

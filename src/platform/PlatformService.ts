@@ -1,17 +1,10 @@
-import { getPlatformTarget, getNwjs } from '@/utility/nwjs/NwjsUtility';
-
+import { getPlatformTarget, getNwjs, PlatformTarget } from '@/utility/nwjs/NwjsUtility';
+import { useBrowserPlatformService } from './browser/BrowserPlatformService';
 import { defineNwjsPlatformServiceStore } from './nwjs/NwjsPlatformService';
 
-function _resolveNw() {
-  return getNwjs();
-}
 export const usePlatformService = (() => {
-  const platform = getPlatformTarget();
-  switch (platform) {
-    case 'nwjs': {
-      const nw = _resolveNw();
-      return defineNwjsPlatformServiceStore(nw);
-    }
-    default: throw new Error(`${platform} not supported.`);
+  switch (getPlatformTarget()) {
+    case PlatformTarget.Nwjs: return defineNwjsPlatformServiceStore(getNwjs());
+    case PlatformTarget.Browser: return useBrowserPlatformService;
   }
 })();

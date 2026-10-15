@@ -1,5 +1,8 @@
 # SystemThemeAdapter
 
+## Browser Adaptation
+`BrowserSystemThemeAdapter` reads `prefers-color-scheme` through `matchMedia`. The browser platform dispatches changes through the same system-theme subscription contract and detaches its listener when disposed.
+
 ## Purpose
 Expose desktop system-theme detection without leaking host globals into stores or presentation code.
 

@@ -45,7 +45,7 @@ await expect(page).toHaveURL(/\/game\/promotion-white$/);
 // Continue with normal UI clicks/assertions.
 ```
 
-`ready` means settings/layout, restored games and the current session route have settled. It does not mean analysis has finished or that the scenario passed. Wait for the expected rendered engine lines when testing analysis. Timed fixtures begin paused so tests control when their deadlines start. This repository currently uses Vitest; the example can be reused by an external end-to-end suite without adding Playwright as an application dependency.
+`ready` means settings/layout, restored games and the current session route have settled. It does not mean analysis has finished or that the scenario passed. Wait for the expected rendered engine lines when testing analysis. Timed fixtures begin paused so tests control when their deadlines start. The repository includes Playwright as a development dependency. Run `npx playwright install chromium` once and `npm run test:e2e` to start both the ordinary browser app and journey servers and execute the browser suite. Use `npm run test:e2e -- --project=journeys` for just seeded journeys.
 
 Native file dialogs are replaced with repeatable choices. Import defaults to `imports/valid.json`; choose another fixture before clicking Import:
 
@@ -73,4 +73,4 @@ npm run test:unit -- --run journeys --maxWorkers=1
 npm run type-check
 ```
 
-Fixture checks validate legal move trees, document round trips, committed-scenario coverage, persistence/reset isolation and the scripted UCI lifecycle. [UiFollowUp.spec.ts](__tests__/UiFollowUp.spec.ts) covers the completed UI-01–UI-17 fixes with 32 passing application regressions, supported by component and store tests. Use `--maxWorkers=1` for these application checks to avoid the observed parallel-bootstrap timeout. The journey entry point replaces `/src/main.ts` only for the journey command; ordinary development and production builds retain the normal entry point.
+Fixture checks validate legal move trees, document round trips, committed-scenario coverage, persistence/reset isolation and the scripted UCI lifecycle. [UiFollowUp.spec.ts](__tests__/UiFollowUp.spec.ts) covers the completed UI-01–UI-17 fixes with 32 passing application regressions, supported by component and store tests. Use `--maxWorkers=1` for these application checks to avoid the observed parallel-bootstrap timeout. The journey entry point replaces `/src/main.ts` only for the journey command; ordinary development and production builds retain the normal entry point. Journeys force the browser platform and use the same managed-file adapter as normal browser runs, with an isolated sessionStorage key per run/journey. Only picker choices and engine transport are replaced; the scripted transport reuses the desktop UCI protocol client without starting native processes.

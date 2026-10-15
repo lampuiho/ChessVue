@@ -133,11 +133,11 @@ Each entry must define:
 ### NwjsUtility
 - Purpose: share typed access to the shared `nw` host object used by the concrete NW.js platform implementation.
 - Touched contract models: none directly; supports typed implementation of platform-owned contracts without extending the public abstraction surface.
-- Allowed importers: `PlatformService`, `NwjsPlatformService`, `NwjsStorageAdapter`, `NwjsProcessManager`, `NwjsSystemThemeAdapter`, `NwjsUciEngineClient`.
+- Allowed importers: platform bootstrap and NW.js implementations, plus the app shell for resolved host styling.
 - Owner-private delegates:
-  - `PlatformService._resolveNw`
+  - `PlatformService` bootstrap
 - Classification: `mixed`.
-- Validation or failure semantics: the utility must return one shared typed `nw` object for the active build target, allow explicit test or bootstrap override, and fall back to the temporary mock host only when the real NW.js bindings are unavailable. `PlatformService` resolves that shared instance once, and the concrete NW.js store definitions receive it through injected parameters rather than resolving host globals independently.
+- Validation or failure semantics: the utility must return one shared typed `nw` object for the active build target, allow explicit test or bootstrap override, and fall back to the cached mock host when real NW.js bindings are unavailable. `getNwjs()` throws when the resolved target is not `PlatformTarget.Nwjs`, before resolving overrides, real bindings or fallback mocks. The `PlatformTarget` enum represents resolved targets. Automatic selection ignores the mock fallback and uses the browser platform when no real or explicitly injected NW.js runtime exists. `PlatformService` resolves that shared instance once, and the concrete NW.js store definitions receive it through injected parameters rather than resolving host globals independently.
 
 ### NodeUtility
 - Purpose: share access to Node modules exposed through the NW.js host and the temporary mock-module fallback required before the real desktop bootstrap is present.

@@ -10,7 +10,7 @@ The baseline is desktop-first and multi-engine now. Engine behaviour must follow
 - Engine transport: local child process
 - Engine host capability: desktop shell with process and filesystem access
 
-The baseline does not commit to browser, WASM, network, or remote-engine transports. Those options are tracked in [ideas.md](ideas.md).
+Browser app adapters are committed for early verification, while real browser/WASM, network and remote-engine transports remain deferred in [ideas.md](ideas.md). Normal browser engine/process adapters return typed desktop-capability failures. Journey runs inject scripted UCI processes behind the same interfaces without launching local executables.
 
 ## Engine Roles
 ChessVue supports two committed engine roles.

@@ -3,6 +3,9 @@
 ## Purpose
 This document defines what ChessVue persists, how persisted artefacts are separated, and what restore guarantees the low-level rewrite must honour.
 
+## Browser Adaptation
+Desktop persistence remains the design contract. Browser adapters store the same canonical artefacts at logical paths in an origin-local localStorage namespace, with virtual directory enumeration and timestamps. Imports read selected files; exports download canonical JSON. Browser lifecycle checkpoints are best effort because tab shutdown cannot await asynchronous callbacks; ordinary explicit and move-count saves remain awaited. Seeded browser journeys use isolated sessionStorage with the same file representation.
+
 ## Canonical Persisted Artefacts
 ChessVue persists four artefact types.
 

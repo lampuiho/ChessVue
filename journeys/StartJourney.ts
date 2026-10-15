@@ -1,5 +1,5 @@
 import { createApp, watch } from 'vue';
-import { createPinia } from 'pinia';
+import { createPinia, disposePinia } from 'pinia';
 import { prepareJourney } from './PrepareJourney';
 
 export async function startJourney(run: { name: string; id: string }) {
@@ -8,7 +8,8 @@ export async function startJourney(run: { name: string; id: string }) {
     import('@/App.vue'), import('@/router'), import('@/platform'), import('@/state'),
   ]);
   const app = createApp(App);
-  app.use(createPinia());
+  const pinia = createPinia();
+  app.use(pinia);
   installDialogs(usePlatformService().getStorageAdapter());
   app.use(router);
   await router.isReady();
@@ -22,6 +23,7 @@ export async function startJourney(run: { name: string; id: string }) {
       && ui.gameSession.openGameIds.every((id) => !!games.getGame(id))
       && router.currentRoute.value.path === ui.gameSession.activeRoute;
   }, (ready) => { api.ready = ready; }, { immediate: true, flush: 'post' });
+  app.onUnmount(() => { stopReady(); disposePinia(pinia); });
   console.info(`[journey:${api.name}] ${api.title}`, { gameIds: api.gameIds, scenarios: api.scenarios, steps: api.steps });
   return { api, app, router, games, stopReady };
 }

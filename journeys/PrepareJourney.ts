@@ -2,12 +2,16 @@ import { PlatformErrorKind } from '@/contracts';
 import type { IStorageAdapter } from '@/contracts/platform';
 import { setNodeModuleOverrides } from '@/utility/nwjs/NodeUtility';
 import { getMockNodePath, getMockNwjs } from '@/utility/nwjs/NwjsMockUtility';
-import { setNwjsOverride } from '@/utility/nwjs/NwjsUtility';
+import { setBrowserPlatformOptions } from '@/platform/browser/BrowserPlatformService';
+import { BrowserFileSystem } from '@/platform/browser/BrowserFileSystem';
+import { createNwjsProcessRegistry } from '@/platform/nwjs/NwjsProcessRegistry';
+import { defineNwjsProcessManagerStore } from '@/platform/nwjs/NwjsProcessManager';
+import { defineNwjsUciEngineClientStore } from '@/platform/nwjs/NwjsUciEngineClient';
 import { JourneyFileSystem } from './JourneyFileSystem';
 import { ScriptedEngine } from './ScriptedEngine';
 import type { IJourneyApi } from './Journey';
 
-function createDialogs(api: IJourneyApi, fs: JourneyFileSystem) {
+function createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
   let importPath: string | null = 'imports/valid.json';
   let exportPath: string | null | undefined;
   api.chooseImport = (path) => { importPath = path; };
@@ -25,9 +29,22 @@ function createDialogs(api: IJourneyApi, fs: JourneyFileSystem) {
     storage.showSaveDialog = async (suggested) => resolve(exportPath === undefined ? `exports/${getMockNodePath().basename(suggested ?? 'game.json')}` : exportPath, 'showSaveDialog');
   };
 }
+function installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem): void {
+  const nw = getMockNwjs();
+  setNodeModuleOverrides({
+    fs: fs as unknown as typeof import('node:fs'), path: getMockNodePath(),
+    childProcess: { spawn: ((path: string) => new ScriptedEngine(path)) as unknown as typeof import('node:child_process')['spawn'] },
+  });
+  setBrowserPlatformOptions({
+    storage, storageKey: key,
+    createEngineServices: () => {
+      const registry = createNwjsProcessRegistry();
+      return { processManager: defineNwjsProcessManagerStore(nw, registry)(), engineClient: defineNwjsUciEngineClientStore(nw, registry)() };
+    },
+  });
+}
 export async function prepareJourney(run: { name: string; id: string }, storage = window.sessionStorage) {
   // Install the platform seam before importing services or creating any stores.
-  setNwjsOverride(getMockNwjs());
   const { createJourney, journeyCatalogue } = await import('./index');
   const selectionKey = `chessvue:journey:${run.id}:selection`;
   const query = new URLSearchParams(window.location.search);
@@ -37,16 +54,14 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
   const key = `chessvue:journey:${run.id}:${name}`;
   if (query.get('reset') === '1') storage.removeItem(key);
   const fs = new JourneyFileSystem(storage, key, seed.files);
-  setNodeModuleOverrides({
-    fs: fs as unknown as typeof import('node:fs'), path: getMockNodePath(),
-    childProcess: { spawn: ((path: string) => new ScriptedEngine(path)) as unknown as typeof import('node:child_process')['spawn'] },
-  });
+  installBrowserPlatform(storage, key, fs);
+  const browserFiles = new BrowserFileSystem(storage, key);
   const api: IJourneyApi = {
     ...journeyCatalogue[name]!, name, gameIds: seed.gameIds, ready: false,
-    listFiles: () => fs.listFiles(), readFile: (path) => fs.readFile(path),
+    listFiles: () => browserFiles.listFiles(), readFile: (path) => browserFiles.readFile(path),
     chooseImport: () => {}, chooseExport: () => {}, reset: () => { fs.reset(); window.location.reload(); },
   };
-  const installDialogs = createDialogs(api, fs);
+  const installDialogs = createDialogs(api, browserFiles);
   window.chessVueJourney = api;
   // App restores its persisted route after loading games, just as on a normal launch.
   window.history.replaceState({}, '', '/home');

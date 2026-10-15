@@ -32,6 +32,9 @@ restartProcess(processHandle: ProcessHandle, executablePath: string, args?: stri
 - `assertProcessHandleOpen(...)` throws `IPlatformError` of kind `invalidProcessHandle` when the stored process handle is no longer valid.
 - Post-start termination is observed by later process-handle checks or engine I/O failures rather than through a callback subscription contract.
 
+## Browser Adaptation
+`BrowserProcessManager` never launches local executables. Spawn/restart reject with `processStartFailed` and explain that local UCI engines require the desktop app. Handle checks and stop reject with `invalidProcessHandle`. Journey bootstrap can inject scripted process services for browser tests.
+
 ## Lifecycle Example
 `ProcessManager` only sees process creation and termination boundaries.
 

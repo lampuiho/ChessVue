@@ -1,5 +1,8 @@
 # EngineClient
 
+## Browser Adaptation
+`BrowserEngineClient` satisfies the engine contract but rejects native-engine operations with typed `invalidOperation` failures explaining the desktop requirement. It does not pretend to produce analysis. Browser journey runs inject the existing UCI client with scripted transport; real WASM and remote transports remain deferred.
+
 ## Purpose
 Own the full engine-protocol conversation with the engine while hiding protocol-specific details such as UCI strings, handshake ordering, and raw engine-output parsing from upper layers.
 

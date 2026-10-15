@@ -1,12 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, MoveKind, PieceKind, PlatformErrorKind, PlayerColour, type IGame, type IMove } from '@/contracts';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
-import { EngineRuntimeService, MoveApplicationService, MoveHistoryService } from '@/domain';
+import { MoveApplicationService, MoveHistoryService } from '@/domain';
 import { flushPromises } from '@vue/test-utils';
 import { createAssignedEngine, createEngineGame, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
 
 const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironment();
+let EngineRuntimeService: typeof import('@/domain').EngineRuntimeService;
+beforeEach(async () => {
+  ({ EngineRuntimeService } = await import('@/domain'));
+});
 
 function appendLiveMove(game: IGame, move: IMove): void {
   let node = game.moveTree.root;

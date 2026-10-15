@@ -16,7 +16,7 @@ if (['list', '--help', '-h'].includes(name)) {
     const options = parseOptions(args);
     const server = await createServer({
       root: fileURLToPath(new URL('../', import.meta.url)),
-      define: { __CHESSVUE_JOURNEY_RUN__: JSON.stringify({ name, id: randomUUID() }) },
+      define: { __CHESSVUE_PLATFORM__: JSON.stringify('browser'), __CHESSVUE_JOURNEY_RUN__: JSON.stringify({ name, id: randomUUID() }) },
       plugins: [{
         name: 'chessvue-journey-entry',
         transformIndexHtml: (html) => html.replace('/src/main.ts', '/journeys/main.ts'),

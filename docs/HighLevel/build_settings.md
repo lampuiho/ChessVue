@@ -10,26 +10,26 @@ Unlike earlier notes, this is not a catalogue of all possible future targets. It
 - local filesystem access
 - local child-process engine runtime
 - canonical internal JSON persistence
-- `NW.js` build target
+- `NW.js` desktop target plus browser adapters for early verification
 
 Deferred runtime options are tracked in [ideas.md](ideas.md).
 
 ## Host Assumption
-The current rewrite implementation targets `NW.js`, and the Vue app reaches host capabilities only through the platform stores plus layer-2 services.
+The design and implementation remain desktop-first. Browser verification comes first, using adapters of the same contracts. The Vue app reaches host capabilities only through the platform stores plus layer-2 services.
 
 That means:
 
-- build configuration selects the active platform target
+- `CHESSVUE_PLATFORM=auto` (the default) selects NW.js when its runtime is present and browser otherwise; `browser` and `nwjs` explicitly force a target
 - `usePlatformService()` exposes one `IPlatformService` implementation for that build target
 - the `NW.js` implementation is built from one shared injected `nw` runtime instance and real NW.js plus Node APIs
-- later host implementations may replace the NW.js stores without changing layer-3 or layer-4 contracts
+- browser storage, import/download, theme and lifecycle adapters satisfy the same interfaces without changing layer-3 or layer-4 contracts
 
 ## Platform Runtime
 | Setting Area | Baseline Decision |
 | --- | --- |
 | Host capability | Desktop shell with filesystem and process access |
-| Supported runtime family | Desktop only for the current rewrite baseline |
-| Environment detection | Build-selected platform target |
+| Supported runtime family | NW.js desktop and browser adaptation for testing |
+| Environment detection | Build-selected target or automatic NW.js runtime detection |
 | Current host target | `NW.js` |
 | Platform composition seam | `usePlatformService()` Pinia store exposing `IPlatformService` |
 | Responsive target | Desktop layout first; compact and mobile-specific behaviour is deferred |
@@ -61,6 +61,8 @@ The detailed behaviour lives in [engine_runtime.md](engine_runtime.md).
 
 The detailed behaviour lives in [persistence_contract.md](persistence_contract.md).
 
+Browser managed files use a versioned localStorage namespace with the same logical paths and JSON documents. The configured save folder is a virtual path in this namespace. External import uses a file input; export downloads a JSON file with a suggested filename. Browser code cannot enumerate arbitrary disk directories or guarantee asynchronous work completes when a tab closes. Visibility/page-hide events request a best-effort autosave checkpoint. Journeys use an isolated sessionStorage namespace and deterministic picker choices.
+
 ## Routing and Shell Baseline
 | Setting Area | Baseline Decision |
 | --- | --- |
@@ -80,7 +82,7 @@ The detailed behaviour lives in [persistence_contract.md](persistence_contract.m
 ## Explicitly Deferred
 The following are outside the current build/runtime baseline:
 
-- browser or WASM engine support
+- WASM engine support
 - remote engine services
 - mobile host targets
 - standalone analysis route/view

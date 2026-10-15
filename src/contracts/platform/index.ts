@@ -9,3 +9,4 @@ export * from './IStorageAdapter';
 export * from './ISystemThemeAdapter';
 export * from './IWriteTextFileOptions';
 export * from './PlatformEventKey';
+export * from './PlatformTarget';

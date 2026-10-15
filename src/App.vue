@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch, watchEffect } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import { ResolvedThemeMode, ThemeMode, type IThemeProfileSnapshot } from '@/contracts';
+import { getPlatformTarget, PlatformTarget } from '@/utility/nwjs/NwjsUtility';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
 import { useGamesStore, useSavedGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import ModalHost from '@/components/ModalHost.vue';
@@ -45,7 +46,7 @@ watchEffect(() => {
   root.style.setProperty('--root-font-size-portrait', `${scale / appViewportRemCount}vw`);
   root.dataset.theme = mode;
   root.dataset.themeMode = themeMode;
-  root.dataset.appMode = String(__CHESSVUE_PLATFORM__ === 'nwjs');
+  root.dataset.appMode = String(getPlatformTarget() === PlatformTarget.Nwjs);
   const colourSchemeMeta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
   if (colourSchemeMeta) colourSchemeMeta.content = themeMode === ThemeMode.System ? 'light dark' : themeMode;
   const themeColourMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
