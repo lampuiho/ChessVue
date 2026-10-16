@@ -1,0 +1,28 @@
+[
+  {
+    "id": "JRN-SETUP-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-01"
+    ],
+    "branches": [
+      "BR-FREE-ANALYSIS-01-NO-ENGINES"
+    ],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-01",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/Exploration.spec.ts",
+        "titles": [
+          "JRN-SETUP-01 explores both colours and branches without engines or live play"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

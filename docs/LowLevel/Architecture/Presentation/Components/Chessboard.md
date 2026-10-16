@@ -6,26 +6,22 @@ Render the visible board state and collect move or board-edit input.
 ## Consumes
 - visible board position
 - orientation and appearance settings
-- current legal-move highlights supplied by the owning view/store layer
-- `ChessPiece` for piece rendering inside squares
-- `BoardSquare` for square-level interaction and highlight rendering
-- `PiecePalette` for promotion and setup piece-choice flows
+- input-disabled and board-edit flags from the owning view
+- last move for highlights and legal-move generation
 
 ## Emits
 - `moveAttempted`
-- `promotionRequested`
 - `chessPieceToggled`
 - `chessPieceDeleted`
+- `chessPieceMoved`
 - `boardCleared`
-- `boardResetToStartPosition`
-- `selectionCleared`
+- `boardReset`
 
 ## Notes
-- The component does not run move-legality rules itself.
-- `Chessboard` composes square rendering, drag/select interactions, and `ChessPiece` presentation.
-- Piece-choice overlays for promotion or setup flows may use `AnalysisChessPieceButton`.
+- `Chessboard.vue` renders the square buttons, piece glyphs, legal targets, promotion popover and setup palette directly in its template.
+- Legal targets come from the shared chess utilities for the selected piece. Click and drag moves emit detailed legal moves; promotion waits for a selected kind or cancellation.
 - Board editing is enabled only when the workspace context allows it.
 - The rendered board uses eight explicit equal grid rows and columns, including empty ranks, so legal click and drag targets retain their dimensions after moves and route changes.
-- `chessPieceToggled` carries a `BoardId` and `IChessPiece`; `chessPieceDeleted` carries a `BoardId`; and `boardCleared` carries no payload. The owning layer maps them to the matching guarded `GamesStore` APIs and applies each edit immediately.
-- `boardResetToStartPosition` carries no payload and maps to `GamesStore.resetBoardToStartPosition(...)`.
-- `Chessboard` contains no HTML or template markup and binds board view models into `BoardGrid`, `BoardSquare`, and `PiecePalette`.
+- In board edit, the inline palette selects a colour and kind using accessible labels. Clicking a square emits `chessPieceToggled` with a `BoardId` and `IChessPiece`; right-click emits `chessPieceDeleted`; dragging emits `chessPieceMoved` with source and target IDs.
+- Clear emits `boardCleared`; Reset emits `boardReset`. The owning view maps these to the guarded `GamesStore` actions, including `resetBoardToStartPosition(...)`, and applies edits immediately.
+- Selection and pending promotion clear when the position or editing mode changes. Disabled board squares expose their disabled state to accessibility consumers.

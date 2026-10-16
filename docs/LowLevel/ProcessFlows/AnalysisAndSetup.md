@@ -139,10 +139,10 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | --- |
 | select the first three ranked lines; update seat metadata; `touchGame` |
 
-- UI surface coverage: free-analysis board editing reuses `PiecePalette` as the piece-choice surface and keeps that surface close to the active board-edit controls instead of treating it as a sidebar panel.
+- UI surface coverage: free-analysis board editing uses the inline piece palette in `Chessboard.vue`, close to the active board-edit controls. `PiecePalette` remains a proposed component extraction rather than a separate runtime module.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
-- Process note: because board editing is restricted to non-live analysis, the first effective piece mutation updates the rendered position and `GameMoveComposable.replaceWithAnalysisRoot(...)` promotes it while creating the genuinely new root-only history. Later effective edits mutate that same root in place. Deleting an empty square or clearing an already empty board is a no-op and does not clear history.
-- Control note: the same board-edit control toggles the mode on and off. Leaving board edit does not perform a second confirm step; it only ends the direct-edit session and allows analysis refresh to resume.
+- Process note: because board editing is restricted to non-live analysis, the first effective piece mutation updates the rendered position and `GameMoveComposable.replaceWithAnalysisRoot(...)` promotes it while creating the genuinely new root-only history. This also clears children when the user edits at the existing root. Later effective edits mutate that same root in place. Deleting an empty square, dragging from an empty square or onto the same square, and clearing an already empty board are no-ops and do not clear history.
+- Control note: Edit board enters the mode and Finish editing exits through the same store action. Leaving without an effective edit preserves the tree and rendered selection, and derives the analysis state from that visible position's side to move. Exit performs no second confirmation; it allows analysis refresh to resume.
 - Requirement verification: `Pass`. The public surface covers edit entry, direct board mutation, first-edit history clearing, analysis suspension during edit, and analysis refresh after board edit ends.
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup

@@ -1,0 +1,28 @@
+[
+  {
+    "id": "JRN-SETUP-09",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-01",
+      "SCN-FREE-ANALYSIS-02"
+    ],
+    "branches": [],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-09",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/Persistence.spec.ts",
+        "titles": [
+          "JRN-SETUP-09 restores a free analysis branch and continues both exploration and history review",
+          "JRN-SETUP-09 restores an edited workspace and continues editing from its single root"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

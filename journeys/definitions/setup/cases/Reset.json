@@ -1,0 +1,28 @@
+[
+  {
+    "id": "JRN-SETUP-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-FREE-ANALYSIS-02-FIRST-EDIT-CLEAR"
+    ],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-04",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/Reset.spec.ts",
+        "titles": [
+          "JRN-SETUP-04 clears and resets the board and restarts analysis on the initial position"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

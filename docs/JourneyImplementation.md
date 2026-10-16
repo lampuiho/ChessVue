@@ -109,8 +109,39 @@ Final checks on **16 October 2026**:
 
 The browser report starts at `2026-10-16T16:22:25.451Z`. All 32 groups have passing execution evidence: 31 have complete available implementation, while JRN-SAVE-07 retains partial acceptance. Evidence remains generated under ignored `test-results/JourneyResults.json`; source metadata contains no hand-edited pass flags. The initial restricted browser invocation failed before execution with Vite `spawn EPERM`; approved child-process access enabled verification. The initial focused run exposed the documented runtime defects and one unchanged-default Settings test incorrectly attempting to click disabled Save; the final complete run passes without retries. One recording unit assertion compared JSON object-key order and was corrected to compare parsed values before the final full unit run. Production bundling was checked separately from the development-server runtime tests; no native NW.js or production-server engine execution is claimed.
 
+## Setup tranche
+
+Implemented JRN-SETUP-01–09 on 16 October 2026 with **24 independent browser variants** in [focused Setup specs](../e2e/journeys/setup/) and **eight integration checks** in [Setup application regressions](../journeys/__tests__/setup/). [Owned metadata and scenario review](../journeys/definitions/setup/ScenarioReview.md) link each required branch to its exact executable titles. The seed moved into `definitions/setup/index.ts` and its owned `data/SetupWorkspace.ts`, preserving both original IDs, the d4/d5/c4 history, editable endgame and untimed defaults. Registry discovery and fresh-seed ownership checks now include Setup.
+
+Coverage includes both-colour free exploration and branching; no-op versus effective editing at both the visible continuation and the selected root; all twelve palette kind/colour combinations with add/toggle/replace/delete/drag; clear/reset with fresh engine output; locked history/player/gameplay/analysis controls; analysis assignment deferred until editing ends; failed analysis recovery; custom start cancellation and confirmation from edited and historical positions; required-engine validation/retry; and free-analysis/editor save/reload followed by continued use. Both start variants are included in `@smoke`.
+
+Two implementation defects were reproduced and corrected:
+
+- Finishing an unchanged edit session derived the analysis turn from the original root. It now derives it from the visible position, preserving the black-to-move opening state and history.
+- An effective edit made while the existing root was selected retained its children. It now promotes a fresh root-only tree whenever history exists, so old moves cannot reappear against a changed root. Later edits preserve that single new root.
+
+The UI-10/UI-17 setup regression moved intact out of `UiFollowUp.spec.ts`; its separate takeback-policy regression remains there. Focused integration checks reject prohibited direct actions without mutation, verify no engine work during editing, count exactly one analysis start after finishing, and compare all canonical setup fields after failed player validation before a single successful due-turn retry. All new owned modules remain below 200 lines. The reviewed free-analysis scenario labels and first-edit/Finish editing wording were corrected; no new position-validation policy or unresolved acceptance question was introduced.
+
+## Setup verification
+
+Final checks on **16 October 2026**:
+
+| Check | Result |
+| --- | --- |
+| `npm run test:unit -- --run --maxWorkers=1` | **395 passed across 54 files**, including all eight Setup integration checks; no unhandled errors |
+| `npm run test:e2e -- --workers=4 --retries=0` | **105/105 seeded checks passed**, including all 24 Setup variants; two ordinary-browser checks passed and three reached the 30-second outer deadline |
+| `npm run test:e2e -- --project=browser --workers=2 --timeout=90000 --retries=0 --output=test-results/browser` | **5/5 ordinary-browser checks passed**, including real Stockfish, persistence and file transfer; no skipped, failed or flaky tests |
+| `npm run build` | Passed, including `npm run type-check` for application, unit and end-to-end code, and bundled Stockfish assets |
+| `npm run journey -- list` | All ten launch names/descriptions resolve |
+| `npm run journey -- report` and title audit | All **95 named variants** match **41 registered groups**; no missing or unregistered variants, all nine Setup groups passed |
+| Module/whitespace review | New owned modules remain below 200 lines; `git diff --check` passed |
+
+The full browser report starts at `2026-10-16T17:54:23.910Z` and remains in ignored `test-results/JourneyResults.json`. All 41 registered groups have passing journey execution evidence: 40 have complete available implementation, while JRN-SAVE-07 retains partial acceptance. The three ordinary-browser deadline failures remain visible in that report; it is not described as a wholly passing combined run. The separate ordinary-browser report starts at `2026-10-16T18:01:01.722Z` in `test-results/BrowserResults.json`, selected with `PLAYWRIGHT_JSON_OUTPUT_FILE`. Its separate output directory preserves the completed journey report and diagnostic traces. Both lanes pass without retries; existing assertion and engine-readiness timeouts were unchanged. The ordinary-browser rerun used the longer outer budget and reduced worker count already documented for this host.
+
+The unit run completed before the user's PC shutdown. The browser run then in progress was interrupted without a completed report, so browser verification resumed after restart. Initial focused runs reproduced the two board-edit defects and corrected test-only targeting, radio/toggle interaction and typed-error expectations. Final evidence above uses the corrected source, complete seeded execution and the separately passing ordinary-browser lane. No native NW.js or production-server engine execution is claimed.
+
 ## Remaining work
 
-The Fresh, Play and History tranches complete 31 of the 147 planned groups, with one further group partial. They do not complete Phase 1. The remaining scenario/branch register, feature suites, further application-regression splits, controlled engine/storage faults, rules fixture, composed sessions and usability work remain in the plan. Other fixture descriptions still establish starting data rather than executed branch coverage.
+The Fresh, Play, History and Setup tranches complete 40 of the 147 planned groups, with one further group partial. They do not complete Phase 1. The remaining scenario/branch register, feature suites, further application-regression splits, controlled engine/storage faults, rules fixture, composed sessions and usability work remain in the plan. Other fixture descriptions still establish starting data rather than executed branch coverage.
 
 Actual-move recording acceptance remains separate from temporary exploration and current-position multi-engine output. History establishes the available-output capture baseline; remaining recording save/import/session cases still need their own acceptance work. No exploratory Keep/Record flow was added. Existing design review prompts remain non-blocking for independent work. Native NW.js dialogs/files/processes and production-build worker execution remain unverified.

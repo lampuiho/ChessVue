@@ -1,0 +1,32 @@
+import { test, expect } from './SetupTest';
+import { openJourney } from '../../support/JourneyBootstrap';
+import { playMove, square } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { expectFreeWorkspace, historyRow } from './SetupAction';
+
+test('JRN-SETUP-01 explores both colours and branches without engines or live play', async ({ page }) => {
+  await openJourney(page, 'setup');
+  const before = await saveCurrentGame(page, 'before-exploration');
+  await playMove(page, 'e7', 'e6');
+  await playMove(page, 'g1', 'f3');
+  await historyRow(page, 'c4').click();
+  await playMove(page, 'g8', 'f6');
+  await playMove(page, 'b1', 'c3');
+  await expect(page.locator('.history-row')).toHaveCount(7);
+  await expect(page.locator('.history-row--selected')).toContainText('Nc3');
+  await expect(square(page, 'c3')).toHaveAttribute('aria-label', 'c3 white knight');
+  await expect(square(page, 'f6')).toHaveAttribute('aria-label', 'f6 black knight');
+  await expect(page.locator('.result-badge')).toHaveText('black to move');
+  await expect(page.locator('.engine-section, .engine-error, .turn-indicator, .player-clock--running')).toHaveCount(0);
+  const after = await saveCurrentGame(page, 'explored');
+  expectFreeWorkspace(after);
+  expect(after.clockSnapshot).toEqual(before.clockSnapshot);
+  expect(after.rootPosition).toEqual(before.rootPosition);
+  expect(after.renderedPath).toEqual([0, 0, 0, 1, 0]);
+  const branch = after.moveTree.root.children[0]!.children[0]!.children[0]!;
+  expect(branch.children).toHaveLength(2);
+  expect(branch.children.map((node) => node.move?.to)).toEqual([44, 45]);
+  await historyRow(page, 'Nf3').click();
+  await expect(square(page, 'f3')).toHaveAttribute('aria-label', 'f3 white knight');
+  await expect(square(page, 'e6')).toHaveAttribute('aria-label', 'e6 black pawn');
+});

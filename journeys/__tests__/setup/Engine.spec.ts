@@ -1,0 +1,50 @@
+import { flushPromises } from '@vue/test-utils';
+import { describe, expect, it, vi } from 'vitest';
+import { PlayerColour, type IGame } from '@/contracts';
+import { boot, clickButton, clickSquare } from '../support/UiHarness';
+
+describe('JRN-SETUP-05/06 engine ownership', () => {
+  it('UI-10 rejects direct gameplay, history, reassignment and analysis starts while editing', async () => {
+    const context = await boot('setup');
+    const { games, domain } = context;
+    const game = games.getGame('setup-analysis') as unknown as IGame;
+    games.enterBoardEdit(game);
+    const start = vi.spyOn(domain.EngineRuntimeService, 'startAnalysis');
+    const player = vi.spyOn(domain.EngineRuntimeService, 'startPlayerTurn');
+    const before = domain.SerializationService.serialiseGame(game);
+    expect(() => games.navigateToNode(game, game.moveTree.root)).toThrow('editing');
+    await expect(games.makeMove(game, context.rules.toDetailedMove(context.fixtures.getPosition(game, game.renderedPath), { from: 52, to: 44 }))).rejects.toThrow();
+    await expect(games.reassignPlayer(game, PlayerColour.White)).rejects.toThrow('editing');
+    await expect(games.takeBack(game)).rejects.toThrow();
+    await expect(games.refreshAnalysis(game)).rejects.toThrow('board edit');
+    await expect(games.retryAnalysis(game, 0)).rejects.toThrow('board edit');
+    expect(domain.SerializationService.serialiseGame(game)).toBe(before);
+    expect(start).not.toHaveBeenCalled();
+    expect(player).not.toHaveBeenCalled();
+  });
+  it('starts an assignment exactly once after UI edits finish and uses only the completed position', async () => {
+    const { games, domain } = await boot('setup');
+    const game = games.getGame('setup-analysis') as unknown as IGame;
+    const start = vi.spyOn(domain.EngineRuntimeService, 'startAnalysis');
+    const player = vi.spyOn(domain.EngineRuntimeService, 'startPlayerTurn');
+    await clickButton('Edit board', '.control-button');
+    await clickButton('Add engine', '.analysis-panel button');
+    document.querySelector<HTMLInputElement>('input[value="journey-a"]')!.click();
+    await flushPromises();
+    await clickButton('Add engine', '[role="dialog"] button');
+    await clickSquare('a3');
+    await clickSquare('a3');
+    expect(game.analysis.seats).toHaveLength(1);
+    expect(game.analysis.seats[0]!.lines).toEqual([]);
+    expect(start).not.toHaveBeenCalled();
+    await clickButton('Finish editing', '.control-button');
+    await vi.waitFor(() => expect(game.analysis.seats[0]!.lines).toHaveLength(3));
+    await flushPromises();
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start.mock.calls[0]![1]).toBe(game);
+    expect(game.renderedPath).toEqual([]);
+    expect(game.rootPosition.board[27]).toEqual({ kind: 'pawn', colour: 'white' });
+    expect(game.analysis.seats[0]!.lines[0]!.pv[0]!.movingColour).toBe('black');
+    expect(player).not.toHaveBeenCalled();
+  });
+});

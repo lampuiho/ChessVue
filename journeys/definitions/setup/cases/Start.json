@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-SETUP-07",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-03"
+    ],
+    "branches": [
+      "BR-FREE-ANALYSIS-03-CANCEL"
+    ],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-07",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/Start.spec.ts",
+        "titles": [
+          "JRN-SETUP-07 @smoke cancels then starts the edited position with custom players, clock and policies",
+          "JRN-SETUP-07 @smoke cancels then starts the history position with custom players, clock and policies"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

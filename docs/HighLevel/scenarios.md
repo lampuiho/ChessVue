@@ -472,7 +472,7 @@ Each scenario in this document uses the same structure:
 ## Free Analysis / Setup
 
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Open a non-live chess workspace where the user can explore positions before starting a real game.
 - **Preconditions**: User creates a flow with at least one side unassigned, reassigns one side of an existing live game to `none`, or opens a dedicated setup path.
 - **Entry Points**: Custom new-game flow with an unassigned side, or player reassignment to `none` from a live game.
@@ -493,17 +493,17 @@ Each scenario in this document uses the same structure:
   - `GamesStore.refreshAnalysis`
 
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Let the user directly edit the board position and clear move history while in free analysis / setup.
 - **Preconditions**: Free analysis / setup context is active.
 - **Entry Points**: Setup board edit action.
 - **Main Steps**:
   1. User enters board-editing mode from free analysis / setup.
   2. User adds, removes, or relocates pieces to define a new position.
-  3. On the first actual board edit, app clears existing move history and treats the edited board as the new root position.
+  3. Entering without an effective edit preserves history. On the first actual board edit, app clears existing move history, including when its root is selected, and treats the edited visible board as the new root position.
   4. Later board edits in the same board-edit session continue mutating that new root directly.
-  5. User leaves board-editing mode through the same board-edit control.
-  6. If engines were configured at creation, app requests analysis for the edited position after board editing ends.
+  5. User selects Finish editing; app returns to free analysis with the visible position's side to move.
+  6. If analysis engines are assigned, including assignments added during editing, app requests analysis for the edited position after board editing ends.
 - **Branch Paths**:
   - `BR-FREE-ANALYSIS-02-FIRST-EDIT-CLEAR`: If history exists, the first actual board edit discards it immediately as the edited board becomes the new root.
   - `BR-FREE-ANALYSIS-02-ENGINE-REFRESH-FAIL`: If engines cannot refresh on the edited position, keep the edited board and show evaluation as unavailable.
@@ -519,7 +519,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.refreshAnalysis`
 
 ### SCN-FREE-ANALYSIS-03 - Start a Real Game from Free Analysis / Setup
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Turn the current free-analysis position into the starting point of a real game.
 - **Preconditions**: Free analysis / setup context is active.
 - **Entry Points**: Start-game action from free analysis / setup.

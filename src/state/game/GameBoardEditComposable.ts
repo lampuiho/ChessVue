@@ -21,13 +21,13 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board manipulation is only allowed while board edit mode is active.');
   }
   /**
-   * Board edits mutate in place. The first effective edit to a non-root rendered position promotes it
+   * Board edits mutate in place. The first effective edit to a position with history promotes it
    * to the new board root and clears prior history; later edits target that root directly.
    */
   function applyEdit(game: IGame, edit: (boardPosition: IBoardPosition) => boolean): void {
     const renderedPosition = game.renderedPath.length === 0 ? game.rootPosition : position.getRenderedPosition(game);
     if (!edit(renderedPosition)) return; // nothing changed, so prior history survives
-    if (renderedPosition !== game.rootPosition) {
+    if (renderedPosition !== game.rootPosition || game.moveTree.root.children.length > 0) {
       move.replaceWithAnalysisRoot(game, renderedPosition, GameState.BoardEdit);
       return;
     }
@@ -41,7 +41,7 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     status.assertNotPausedForAction(game, 'Board edit entry');
     if (game.livePath) return;
     if (game.gameState === GameState.BoardEdit) {
-      game.gameState = status.getAnalysisState(game.rootPosition.sideToMove);
+      game.gameState = status.getAnalysisState(position.getRenderedPosition(game).sideToMove);
       void analysis.refreshAnalysisForGame(game);
       return;
     }

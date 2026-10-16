@@ -1,0 +1,37 @@
+[
+  {
+    "id": "JRN-SETUP-03",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-02"
+    ],
+    "branches": [],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-03",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/Palette.spec.ts",
+        "titles": [
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a white king",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a white queen",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a white rook",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a white bishop",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a white knight",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a white pawn",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a black king",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a black queen",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a black rook",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a black bishop",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a black knight",
+          "JRN-SETUP-03 adds, toggles, replaces, deletes and drags a black pawn"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

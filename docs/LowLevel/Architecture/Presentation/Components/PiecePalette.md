@@ -1,5 +1,7 @@
 # PiecePalette
 
+Status: design-only component boundary. The current `Chessboard.vue` implements its setup palette and promotion choices inline; there is no separate `PiecePalette.vue` module. The interface below describes the proposed extraction, not an existing runtime surface.
+
 ## Purpose
 Render a small piece-choice control surface for promotion and setup/edit flows.
 

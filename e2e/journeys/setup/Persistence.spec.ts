@@ -1,0 +1,54 @@
+import { test, expect } from './SetupTest';
+import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
+import { playMove, square } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { expectFreeWorkspace, finishEditing, historyRow, selectSetupBoard } from './SetupAction';
+
+test('JRN-SETUP-09 restores a free analysis branch and continues both exploration and history review', async ({ page }) => {
+  await openJourney(page, 'setup');
+  await playMove(page, 'e7', 'e6');
+  await historyRow(page, 'c4').click();
+  await playMove(page, 'g8', 'f6');
+  const saved = await saveCurrentGame(page, 'free-branch');
+  await page.reload();
+  await waitForJourney(page);
+  await expect(page.locator('.history-row')).toHaveCount(5);
+  await expect(page.locator('.history-row--selected')).toContainText('Nf6');
+  await expect(square(page, 'f6')).toHaveAttribute('aria-label', 'f6 black knight');
+  const restored = await saveCurrentGame(page, 'restored-branch');
+  expectFreeWorkspace(restored);
+  expect({ ...restored, metadata: saved.metadata }).toEqual(saved);
+  await playMove(page, 'b1', 'c3');
+  await expect(page.locator('.history-row')).toHaveCount(6);
+  await historyRow(page, 'e6').click();
+  await expect(square(page, 'e6')).toHaveAttribute('aria-label', 'e6 black pawn');
+  await expect(square(page, 'g8')).toHaveAttribute('aria-label', 'g8 black knight');
+  const continued = await saveCurrentGame(page, 'continued');
+  expectFreeWorkspace(continued);
+  expect(continued.renderedPath).toEqual([0, 0, 0, 0]);
+  expect(continued.moveTree.root.children[0]!.children[0]!.children[0]!.children).toHaveLength(2);
+});
+
+test('JRN-SETUP-09 restores an edited workspace and continues editing from its single root', async ({ page }) => {
+  await openJourney(page, 'setup');
+  await selectSetupBoard(page);
+  await square(page, 'd5').locator('.chess-piece').dragTo(square(page, 'd6'));
+  const saved = await saveCurrentGame(page, 'edited-workspace');
+  await page.reload();
+  await waitForJourney(page);
+  await expect(page.locator('.piece-palette')).toBeVisible();
+  await expect(square(page, 'd6')).toHaveAttribute('aria-label', 'd6 white pawn');
+  const restored = await saveCurrentGame(page, 'restored-edit');
+  expectFreeWorkspace(restored);
+  expect({ ...restored, metadata: saved.metadata }).toEqual(saved);
+  await square(page, 'a3').click();
+  await square(page, 'a3').click({ button: 'right' });
+  await finishEditing(page);
+  await playMove(page, 'd6', 'd7');
+  await expect(page.locator('.history-row')).toHaveCount(1);
+  const continued = await saveCurrentGame(page, 'continued-edit');
+  expectFreeWorkspace(continued);
+  expect(continued.rootPosition).toEqual(saved.rootPosition);
+  expect(continued.moveTree.root.children).toHaveLength(1);
+  expect(continued.renderedPath).toEqual([0]);
+});

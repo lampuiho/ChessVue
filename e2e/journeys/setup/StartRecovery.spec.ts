@@ -1,0 +1,37 @@
+import { test, expect } from './SetupTest';
+import { openJourney } from '../../support/JourneyBootstrap';
+import { square } from '../../support/BoardInteraction';
+import { setCustomClock } from '../../support/GameCreation';
+import { saveCurrentGame } from '../../support/GameSave';
+import { managedFiles, readFile, readSession } from '../../support/SaveInspection';
+import { openSetupStart } from './SetupAction';
+
+test('JRN-SETUP-08 preserves setup after a required engine failure and retries in the same form', async ({ page }) => {
+  await openJourney(page, 'setup');
+  const before = await saveCurrentGame(page, 'recoverable');
+  const files = await managedFiles(page);
+  const original = await readFile(page, 'saves/setup-analysis/recoverable.json');
+  const dialog = await openSetupStart(page);
+  await setCustomClock(dialog, '9', '2');
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey unavailable' });
+  await dialog.getByRole('button', { name: 'Start game', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Journey unavailable is unavailable. Choose another player engine and try again.');
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('.history-row')).toHaveCount(3);
+  await expect(page.locator('.result-badge')).toHaveText('black to move');
+  await expect(square(page, 'c4')).toHaveAttribute('aria-label', 'c4 white pawn');
+  expect(await managedFiles(page)).toEqual(files);
+  expect(await readFile(page, 'saves/setup-analysis/recoverable.json')).toBe(original);
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey A' });
+  await dialog.getByRole('button', { name: 'Start game', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.history-row')).toHaveCount(4);
+  await expect(page.locator('.result-badge')).toHaveText('white to move');
+  const after = await saveCurrentGame(page, 'recovered');
+  expect(after.rootPosition).toEqual(before.rootPosition);
+  expect(after.metadata.id).toBe(before.metadata.id);
+  expect(after.livePath).toEqual([0, 0, 0, 0]);
+  expect(after.moveTree.root.children[0]!.children[0]!.children[0]!.children).toHaveLength(1);
+  expect(after.timeControl).toEqual({ initialMs: 540000, incrementMs: 2000 });
+  expect((await readSession(page)).openGameIds).toEqual(['setup-analysis', 'setup-board']);
+});

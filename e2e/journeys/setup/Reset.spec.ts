@@ -1,0 +1,38 @@
+import { test, expect } from './SetupTest';
+import { openJourney } from '../../support/JourneyBootstrap';
+import { square } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { addAnalysisEngine, expectFreeWorkspace, finishEditing } from './SetupAction';
+
+test('JRN-SETUP-04 clears and resets the board and restarts analysis on the initial position', async ({ page }) => {
+  await openJourney(page, 'setup');
+  const original = await saveCurrentGame(page, 'original');
+  await addAnalysisEngine(page);
+  await expect(page.locator('.analysis-line')).toHaveCount(3);
+  await page.getByRole('button', { name: /Edit board/ }).click();
+  await page.locator('.piece-palette').getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(page.locator('.board-square .chess-piece')).toHaveCount(0);
+  await expect(page.locator('.history-row, .analysis-line')).toHaveCount(0);
+  const cleared = await saveCurrentGame(page, 'cleared');
+  expectFreeWorkspace(cleared);
+  expect(cleared.gameState).toBe('boardEdit');
+  expect(cleared.rootPosition.board).toEqual(Array(64).fill(null));
+  await page.locator('.piece-palette').getByRole('button', { name: 'Reset', exact: true }).click();
+  await expect(page.locator('.board-square .chess-piece')).toHaveCount(32);
+  await expect(square(page, 'e1')).toHaveAttribute('aria-label', 'e1 white king');
+  await expect(square(page, 'e8')).toHaveAttribute('aria-label', 'e8 black king');
+  await expect(page.locator('.analysis-line')).toHaveCount(0);
+  const reset = await saveCurrentGame(page, 'reset');
+  expect(reset.rootPosition).toEqual(original.rootPosition);
+  expect(reset.rootPosition.enPassantTarget).toBeUndefined();
+  expect(reset.renderedPath).toEqual([]);
+  expect(reset.moveTree.root.children).toEqual([]);
+  await finishEditing(page);
+  await expect(page.locator('.result-badge')).toHaveText('white to move');
+  await expect(page.locator('.analysis-line')).toHaveCount(3);
+  await page.locator('.analysis-line__moves button').first().click();
+  await expect(page.locator('.history-row')).toHaveCount(1);
+  const continued = await saveCurrentGame(page, 'reset-analysis');
+  expect(continued.moveTree.root.children[0]!.move?.movingColour).toBe('white');
+  expect(continued.rootPosition).toEqual(original.rootPosition);
+});

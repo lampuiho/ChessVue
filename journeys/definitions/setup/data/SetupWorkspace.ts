@@ -1,8 +1,7 @@
 import { GameState, PieceKind, PlayerColour } from '@/contracts';
 import { createSparseBoard } from '@/utility/chess';
-import { createGame } from '../builders/GameFixtureBuilder';
-import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
-export function create() {
+import { createGame } from '../../../builders/GameFixtureBuilder';
+export function createSetupGames() {
   const analysis = createGame('setup-analysis', 'Free opening analysis', ['d2d4', 'd7d5', 'c2c4'], { freeAnalysis: true });
   const board = createGame('setup-board', 'Editable endgame setup', [], {
     freeAnalysis: true, state: GameState.BoardEdit,
@@ -12,5 +11,5 @@ export function create() {
       { boardId: 35, piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
     ]),
   });
-  return createWorkspace([analysis, board]);
+  return [analysis, board];
 }

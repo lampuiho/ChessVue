@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-SETUP-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-01",
+      "SCN-FREE-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-FREE-ANALYSIS-01-ENGINE-NOT-RUNNING",
+      "BR-FREE-ANALYSIS-02-ENGINE-REFRESH-FAIL"
+    ],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-06",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/Engine.spec.ts",
+        "titles": [
+          "JRN-SETUP-06 retains an assignment during editing and analyses only the finished position",
+          "JRN-SETUP-06 preserves an edited board when its assigned analysis engine cannot start"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -240,34 +240,7 @@ describe('UI-09 suggested move-prefix playback', () => {
     expect(document.querySelectorAll('.history-row')).toHaveLength(5);
   });
 });
-describe('UI-10 and UI-17 setup controls', () => {
-  it('locks player/history actions in board edit and starts with validated options from the edited board', async () => {
-    const { games, router } = await boot('setup');
-    await clickButton('Edit board', '.control-button');
-    expect([...document.querySelectorAll<HTMLButtonElement>('.history-row')].every((button) => button.disabled)).toBe(true);
-    const game = games.getGame('setup-board') as unknown as IGame;
-    await router.push('/game/setup-board');
-    await flushPromises();
-    expect([...document.querySelectorAll<HTMLButtonElement>('.player-name')].every((button) => button.disabled)).toBe(true);
-    expect(() => games.navigateToNode(game, game.moveTree.root)).toThrow('editing');
-    await clickButton('Finish editing', '.control-button');
-    const board = JSON.stringify(game.rootPosition.board);
-    await clickButton('Start game', '.control-button');
-    setField('#time-preset', 'custom');
-    await nextTick();
-    setField('input[type="number"]', '9');
-    setField('.time-fields label:nth-child(2) input', '2');
-    setField('.toggle-row input', false);
-    setField('.toggle-row:nth-of-type(2) input', true);
-    await nextTick();
-    document.querySelector<HTMLFormElement>('#new-game-form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    await flushPromises();
-    expect(JSON.stringify(game.rootPosition.board)).toBe(board);
-    expect(game.timeControl).toEqual({ initialMs: 540000, incrementMs: 2000 });
-    expect(game.gameplayOptions).toEqual({ allowTakeback: false, showLiveAnalysisMoves: true });
-    expect(game.livePath).toEqual([]);
-    expect(game.gameState).toBe(GameState.LiveWhiteTurn);
-  });
+describe('UI-17 analysis takeback policy', () => {
   it('keeps takeback disabled in analysis when game policy disallows it', async () => {
     const context = await createTimedContext();
     const { game, games } = context;

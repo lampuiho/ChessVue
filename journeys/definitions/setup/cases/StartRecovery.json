@@ -1,0 +1,28 @@
+[
+  {
+    "id": "JRN-SETUP-08",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-03"
+    ],
+    "branches": [
+      "BR-FREE-ANALYSIS-03-INVALID-ENGINE"
+    ],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-08",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/StartRecovery.spec.ts",
+        "titles": [
+          "JRN-SETUP-08 preserves setup after a required engine failure and retries in the same form"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

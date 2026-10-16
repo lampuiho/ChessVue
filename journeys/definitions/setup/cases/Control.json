@@ -1,0 +1,27 @@
+[
+  {
+    "id": "JRN-SETUP-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-02",
+      "SCN-CTRL-05"
+    ],
+    "branches": [],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-05",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/Control.spec.ts",
+        "titles": [
+          "JRN-SETUP-05 blocks history, players, gameplay and analysis starts while editing"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

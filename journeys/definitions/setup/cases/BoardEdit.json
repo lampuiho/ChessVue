@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-SETUP-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-FREE-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-FREE-ANALYSIS-02-FIRST-EDIT-CLEAR"
+    ],
+    "fixture": "setup",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/setup/ScenarioReview.md#jrn-setup-02",
+    "data": [
+      "journeys/definitions/setup/data/SetupWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/setup/BoardEdit.spec.ts",
+        "titles": [
+          "JRN-SETUP-02 preserves current history until the first effective edit",
+          "JRN-SETUP-02 preserves root history until the first effective edit"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]
