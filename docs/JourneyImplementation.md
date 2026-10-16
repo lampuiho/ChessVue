@@ -140,8 +140,35 @@ The full browser report starts at `2026-10-16T17:54:23.910Z` and remains in igno
 
 The unit run completed before the user's PC shutdown. The browser run then in progress was interrupted without a completed report, so browser verification resumed after restart. Initial focused runs reproduced the two board-edit defects and corrected test-only targeting, radio/toggle interaction and typed-error expectations. Final evidence above uses the corrected source, complete seeded execution and the separately passing ordinary-browser lane. No native NW.js or production-server engine execution is claimed.
 
+## Promotion tranche
+
+Implemented JRN-PROMO-01–05 on 16 October 2026 with **36 independent browser variants** in [focused Promotion specs](../e2e/journeys/promotion/), [owned case metadata](../journeys/definitions/promotion/cases/) and [scenario review](../journeys/definitions/promotion/ScenarioReview.md). The seed moved into `definitions/promotion/index.ts` and `data/PromotionWorkspace.ts`, retaining both original IDs, positions, local players, takeback permission and untimed defaults. Small owned parameter tables describe colours, choices and gestures; registry and seed-ownership checks include Promotion.
+
+Four cancellation variants cover both colours and quiet/capture attempts, comparing all 64 square labels, canonical game, history, captures, turn and stored files before making a different legal move. Eight quiet and eight capture variants select every promotion piece and verify the board, SAN, exact single live move and saved result/check fields. Queen/rook capture promotions give check; bishop/knight capture promotions draw by insufficient material. Twelve gesture variants cover click/drag with black orientation and drag with white orientation, changing orientation through the real Settings UI. Four persistence variants restore quiet rook/capture knight underpromotions, including drawn results, take back to the original canonical workspace, preserve the promoted named snapshot and play a different promotion.
+
+The inline chooser's glyph-only buttons lacked accessible names. It now exposes a named Pawn promotion group and colour/kind choice names, used by every journey without glyph indexes. The broader keyboard/focus journey remains separately planned. The stale promotion Planned label and shared-modal/palette process description now describe the exercised inline flow. No new promotion preference, rule policy or unresolved acceptance question was introduced. All eight quiet-choice variants join `@smoke`; new owned modules remain below 200 lines.
+
+## Promotion verification
+
+Final checks on **16 October 2026**:
+
+| Check | Result |
+| --- | --- |
+| Focused `e2e/journeys/promotion` run, two workers, `--timeout=90000 --retries=0` | **36/36 passed**, covering all five Promotion groups |
+| `npm run test:unit -- --run --maxWorkers=1` | **396 passed across 54 files**, no unhandled errors |
+| `npm run test:e2e -- --project=journeys --workers=4 --timeout=90000 --retries=0` | **141/141 passed**: 131 named variants and ten bootstraps; no skipped, failed or flaky tests |
+| `npm run test:e2e -- --project=browser --workers=2 --timeout=90000 --retries=0 --output=test-results/browser` | **5/5 passed**, including real Stockfish, persistence and file transfer; no skipped, failed or flaky tests |
+| `npm run type-check` and `npm run build` | Passed, including application/unit/end-to-end type checks and bundled Stockfish worker/WASM assets |
+| `npm run journey -- list` | All ten launch names/descriptions resolve |
+| `npm run journey -- report` and title audit | All **131 named variants** match **46 registered groups**; no missing or unregistered variants, all five Promotion groups passed |
+| Module/whitespace review | All 16 owned Promotion modules remain below 200 lines, with no trailing whitespace; `git diff --check` passed |
+
+The completed seeded report starts at `2026-10-16T21:15:07.914Z` in ignored `test-results/JourneyResults.json`. All 46 groups have passing execution evidence: 45 have complete available implementation, while JRN-SAVE-07 retains its existing partial acceptance. The focused run was not used to claim execution of other groups. Source metadata contains no hand-edited pass flags. Restricted Vite startup failed with `spawn EPERM` before execution; approved child-process access enabled the unit/browser runs. The longer outer browser budget follows the existing host procedure; assertions and engine-readiness deadlines were unchanged. Production bundling was checked separately from development-server runtime tests.
+
+The ordinary-browser report starts at `2026-10-16T21:22:34.923Z` in `test-results/BrowserResults.json`, selected with `PLAYWRIGHT_JSON_OUTPUT_FILE`. Its separate output directory preserves the complete seeded report. Both reports have zero errors; both lanes passed without retries. No native NW.js or production-server engine execution is claimed.
+
 ## Remaining work
 
-The Fresh, Play, History and Setup tranches complete 40 of the 147 planned groups, with one further group partial. They do not complete Phase 1. The remaining scenario/branch register, feature suites, further application-regression splits, controlled engine/storage faults, rules fixture, composed sessions and usability work remain in the plan. Other fixture descriptions still establish starting data rather than executed branch coverage.
+The Fresh, Play, History, Setup and Promotion tranches complete 45 of the 147 planned groups, with one further group partial. They do not complete Phase 1. The remaining scenario/branch register, feature suites, further application-regression splits, controlled engine/storage faults, rules fixture, composed sessions and usability work remain in the plan. Other fixture descriptions still establish starting data rather than executed branch coverage.
 
 Actual-move recording acceptance remains separate from temporary exploration and current-position multi-engine output. History establishes the available-output capture baseline; remaining recording save/import/session cases still need their own acceptance work. No exploratory Keep/Record flow was added. Existing design review prompts remain non-blocking for independent work. Native NW.js dialogs/files/processes and production-build worker execution remain unverified.

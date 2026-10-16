@@ -366,23 +366,23 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
 
 ### SCN-MOVE-03 - Pawn Promotion Resolution
-- **Status**: Planned
-- **Goal**: Resolve promotion piece selection before finalizing move.
+- **Status**: Current
+- **Goal**: Resolve promotion piece selection before finalising the move.
 - **Preconditions**: Legal pawn move reaches final rank.
 - **Entry Points**: Chessboard move attempt resulting in promotion.
 - **Main Steps**:
   1. User moves pawn to promotion rank.
-  2. App opens promotion selection UI.
+  2. App opens the board-local promotion chooser with named queen, rook, bishop and knight choices for the moving colour. The board, history, captured material and turn stay unchanged until a choice is made.
   3. User selects piece type and the board interaction completes a normal `IMove`.
   4. App submits that completed `IMove` through the normal `GamesStore.makeMove` path and updates history/clock.
 - **Branch Paths**:
-  - `BR-MOVE-03-CANCEL`: User closes promotion UI -> no `IMove` is submitted.
+  - `BR-MOVE-03-CANCEL`: User selects Cancel -> no `IMove` is submitted, selection clears and another move may be selected.
 - **Postconditions**: Promotion move is explicit and deterministic.
 - **Implementation Touchpoints**:
-  - `Chessboard.moveAttempt`
-  - `GameRuleUtility.isMoveLegal`
+  - `Chessboard.commitTarget` / `pendingPromotionMoves`
+  - `Chessboard.choosePromotion` / `emitMove` / `clearSelection`
+  - `GameRuleUtility.genLegalMovesForPiece` / `toDetailedMove`
   - `GamesStore.makeMove`
-  - `UiStateStore.showModal`
 
 ### SCN-HIST-01 - Navigate Move History Node
 - **Status**: Current

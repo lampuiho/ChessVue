@@ -1,0 +1,37 @@
+[
+  {
+    "id": "JRN-PROMO-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-03",
+      "SCN-MOVE-01"
+    ],
+    "branches": [
+      "BR-MOVE-01-GAME-OVER"
+    ],
+    "fixture": "promotion",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/promotion/ScenarioReview.md#jrn-promo-03",
+    "data": [
+      "journeys/definitions/promotion/data/PromotionWorkspace.ts",
+      "journeys/definitions/promotion/data/PromotionScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/promotion/Capture.spec.ts",
+        "titles": [
+          "JRN-PROMO-03 promotes white with capture to queen and preserves notation, material and result",
+          "JRN-PROMO-03 promotes white with capture to rook and preserves notation, material and result",
+          "JRN-PROMO-03 promotes white with capture to bishop and preserves notation, material and result",
+          "JRN-PROMO-03 promotes white with capture to knight and preserves notation, material and result",
+          "JRN-PROMO-03 promotes black with capture to queen and preserves notation, material and result",
+          "JRN-PROMO-03 promotes black with capture to rook and preserves notation, material and result",
+          "JRN-PROMO-03 promotes black with capture to bishop and preserves notation, material and result",
+          "JRN-PROMO-03 promotes black with capture to knight and preserves notation, material and result"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

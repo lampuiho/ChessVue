@@ -1,0 +1,33 @@
+[
+  {
+    "id": "JRN-PROMO-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-03",
+      "SCN-MOVE-02"
+    ],
+    "branches": [
+      "BR-MOVE-03-CANCEL"
+    ],
+    "fixture": "promotion",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/promotion/ScenarioReview.md#jrn-promo-01",
+    "data": [
+      "journeys/definitions/promotion/data/PromotionWorkspace.ts",
+      "journeys/definitions/promotion/data/PromotionScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/promotion/Cancellation.spec.ts",
+        "titles": [
+          "JRN-PROMO-01 cancels white quiet promotion without mutation and permits another move",
+          "JRN-PROMO-01 cancels white capture promotion without mutation and permits another move",
+          "JRN-PROMO-01 cancels black quiet promotion without mutation and permits another move",
+          "JRN-PROMO-01 cancels black capture promotion without mutation and permits another move"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

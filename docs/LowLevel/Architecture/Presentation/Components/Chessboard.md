@@ -20,6 +20,7 @@ Render the visible board state and collect move or board-edit input.
 ## Notes
 - `Chessboard.vue` renders the square buttons, piece glyphs, legal targets, promotion popover and setup palette directly in its template.
 - Legal targets come from the shared chess utilities for the selected piece. Click and drag moves emit detailed legal moves; promotion waits for a selected kind or cancellation.
+- The inline Pawn promotion group names each choice by moving colour and piece kind. Pending choices leave the canonical position unchanged; Cancel clears the local attempt and permits another selection.
 - Board editing is enabled only when the workspace context allows it.
 - The rendered board uses eight explicit equal grid rows and columns, including empty ranks, so legal click and drag targets retain their dimensions after moves and route changes.
 - In board edit, the inline palette selects a colour and kind using accessible labels. Clicking a square emits `chessPieceToggled` with a `BoardId` and `IChessPiece`; right-click emits `chessPieceDeleted`; dragging emits `chessPieceMoved` with source and target IDs.

@@ -122,33 +122,27 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 ### SCN-MOVE-03 - Pawn Promotion Resolution
 
 #### Flow A - Build The Promotion Move Before Submission
-| `Chessboard.moveAttempt` |
+| `Chessboard.commitTarget` |
 | --- |
-| `UiStateStore.showModal` |
-| `Chessboard._completePromotionMove` |
+| `Chessboard.pendingPromotionMoves` *(board-local chooser; no move submitted)* |
+| `Chessboard.choosePromotion` |
+| `Chessboard.emitMove` |
+| `GameRuleUtility.toDetailedMove` |
+| `Chessboard.moveAttempted` |
+| `GameView.makeMove` / `requestMoves` |
 | `GamesStore.makeMove` |
-| `GameView._handleCommittedMoveResult` |
-
-| `UiStateStore.showModal` |
-| --- |
-
-| `Chessboard._completePromotionMove` |
-| --- |
-| `GameRuleUtility.isMoveLegal` |
 
 #### Flow B - Cancel Promotion Before Submission
-| `PromotionModal.cancelled` |
+| `Chessboard` inline chooser `Cancel` |
 | --- |
-| `UiStateStore.showModal` |
-| `UiStateStore.hideModal` |
+| `Chessboard.clearSelection` *(clears selected square and pending choices)* |
 
-| `UiStateStore.hideModal` |
-| --- |
-
-- UI surface coverage: promotion uses the shared `PiecePalette` surface, hosted either as a board-local overlay or inside the shared dialog shell, and stays local to the current move attempt.
+- UI surface coverage: promotion uses the inline Chessboard popover, exposed as the named Pawn promotion group. Each choice has an accessible name identifying colour and kind. There is no separate PiecePalette or shared modal in this flow.
+- Cancellation and pending-choice boundary: no move, capture, turn or history mutation occurs before a choice. Cancel permits a different move to be selected. Position/edit-mode changes also clear local selection.
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received.
 - Process note: once the selected piece is merged into the move, `GamesStore.makeMove` simply follows the same context-specific commit path as `SCN-MOVE-01`. There is no pending-promotion state on the game model.
 - Requirement verification: `Pass`. Promotion remains explicit without introducing a special pending-move game state.
+- Journey verification: JRN-PROMO-01–05 cover both colours, every quiet/capture choice, gestures/orientation and promoted save/reload/takeback; see [the owned review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../JourneyImplementation.md#promotion-verification).
 
 ## Engine-Controlled Turn
 

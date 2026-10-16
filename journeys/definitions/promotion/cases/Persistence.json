@@ -1,0 +1,33 @@
+[
+  {
+    "id": "JRN-PROMO-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-03",
+      "SCN-CTRL-01",
+      "SCN-SESSION-02",
+      "SCN-SAVE-03"
+    ],
+    "branches": ["BR-CTRL-01-NO-MOVES"],
+    "fixture": "promotion",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/promotion/ScenarioReview.md#jrn-promo-05",
+    "data": [
+      "journeys/definitions/promotion/data/PromotionWorkspace.ts",
+      "journeys/definitions/promotion/data/PromotionScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/promotion/Persistence.spec.ts",
+        "titles": [
+          "JRN-PROMO-05 restores white quiet underpromotion then takes back to the original position",
+          "JRN-PROMO-05 restores white capture underpromotion then takes back to the original position",
+          "JRN-PROMO-05 restores black quiet underpromotion then takes back to the original position",
+          "JRN-PROMO-05 restores black capture underpromotion then takes back to the original position"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

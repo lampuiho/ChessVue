@@ -1,0 +1,35 @@
+[
+  {
+    "id": "JRN-PROMO-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-03",
+      "SCN-MOVE-01"
+    ],
+    "branches": [],
+    "fixture": "promotion",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/promotion/ScenarioReview.md#jrn-promo-02",
+    "data": [
+      "journeys/definitions/promotion/data/PromotionWorkspace.ts",
+      "journeys/definitions/promotion/data/PromotionScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/promotion/Quiet.spec.ts",
+        "titles": [
+          "JRN-PROMO-02 @smoke promotes white quietly to queen exactly once",
+          "JRN-PROMO-02 @smoke promotes white quietly to rook exactly once",
+          "JRN-PROMO-02 @smoke promotes white quietly to bishop exactly once",
+          "JRN-PROMO-02 @smoke promotes white quietly to knight exactly once",
+          "JRN-PROMO-02 @smoke promotes black quietly to queen exactly once",
+          "JRN-PROMO-02 @smoke promotes black quietly to rook exactly once",
+          "JRN-PROMO-02 @smoke promotes black quietly to bishop exactly once",
+          "JRN-PROMO-02 @smoke promotes black quietly to knight exactly once"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

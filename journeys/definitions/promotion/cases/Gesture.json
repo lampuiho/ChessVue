@@ -1,0 +1,39 @@
+[
+  {
+    "id": "JRN-PROMO-04",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-MOVE-03",
+      "SCN-MOVE-01"
+    ],
+    "branches": [],
+    "fixture": "promotion",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/promotion/ScenarioReview.md#jrn-promo-04",
+    "data": [
+      "journeys/definitions/promotion/data/PromotionWorkspace.ts",
+      "journeys/definitions/promotion/data/PromotionScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/promotion/Gesture.spec.ts",
+        "titles": [
+          "JRN-PROMO-04 promotes white quiet by drag with white orientation",
+          "JRN-PROMO-04 promotes white quiet by drag with black orientation",
+          "JRN-PROMO-04 promotes white quiet by click with black orientation",
+          "JRN-PROMO-04 promotes white capture by drag with white orientation",
+          "JRN-PROMO-04 promotes white capture by drag with black orientation",
+          "JRN-PROMO-04 promotes white capture by click with black orientation",
+          "JRN-PROMO-04 promotes black quiet by drag with white orientation",
+          "JRN-PROMO-04 promotes black quiet by drag with black orientation",
+          "JRN-PROMO-04 promotes black quiet by click with black orientation",
+          "JRN-PROMO-04 promotes black capture by drag with white orientation",
+          "JRN-PROMO-04 promotes black capture by drag with black orientation",
+          "JRN-PROMO-04 promotes black capture by click with black orientation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

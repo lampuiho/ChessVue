@@ -152,9 +152,9 @@ function showFile(index: number): boolean {
           <span v-if="position.board[boardId]" class="chess-piece" :class="`chess-piece--${position.board[boardId]?.colour}`" :draggable="!inputDisabled" @dragstart.stop="onDragStart(boardId, $event)">{{ pieceGlyph(position.board[boardId]!) }}</span>
           <span v-if="isLegalTarget(boardId) && !position.board[boardId]" class="move-dot"></span>
         </button>
-        <div v-if="pendingPromotionMoves.length" class="promotion-popover">
+        <div v-if="pendingPromotionMoves.length" class="promotion-popover" role="group" aria-label="Pawn promotion">
           <span>Promote to</span>
-          <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" @click="choosePromotion(kind)">{{ pieceGlyph({ kind, colour: position.sideToMove }) }}</button></div>
+          <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${position.sideToMove} ${kind}`" @click="choosePromotion(kind)">{{ pieceGlyph({ kind, colour: position.sideToMove }) }}</button></div>
           <button class="promotion-popover__cancel" @click="clearSelection">Cancel</button>
         </div>
       </div>
