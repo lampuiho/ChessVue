@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createRecordedAnalysisSchema, type IRecordedAnalysis } from './AnalysisSeat';
 import { checkStateSchema, type CheckState } from './ChessboardState';
 import { clockSnapshotSchema, type IClockSnapshot } from './TimeControl';
 import { boardIdSchema, pieceKindSchema, playerColourSchema, type BoardId, type PieceKind, type PlayerColour } from './Chess';
@@ -57,6 +58,7 @@ export interface IMoveNode {
   kind: MoveNodeKind;
   move?: IMove;
   clockSnapshot?: IClockSnapshot;
+  recordedAnalysis?: IRecordedAnalysis;
   plyIndex: number;
   mainlineChildIndex?: number;
   children: IMoveNode[];
@@ -83,10 +85,12 @@ export const moveSchema: z.ZodType<IMove, z.ZodTypeDef, IMoveSchemaInput> = z.ob
   promotionPiece: pieceKindSchema.optional(),
 });
 type IMoveInput = IMoveSchemaInput;
+export const recordedAnalysisSchema = createRecordedAnalysisSchema(moveSchema);
 interface IMoveNodeInput {
   kind: MoveNodeKind;
   move?: IMoveInput | null;
   clockSnapshot?: z.input<typeof clockSnapshotSchema> | null;
+  recordedAnalysis?: z.input<typeof recordedAnalysisSchema>;
   plyIndex: number;
   mainlineChildIndex?: number | null;
   children: IMoveNodeInput[];
@@ -99,6 +103,7 @@ export const moveNodeSchema: z.ZodType<IMoveNode, z.ZodTypeDef, IMoveNodeInput> 
     kind: moveNodeKindSchema,
     move: moveSchema.optional(),
     clockSnapshot: clockSnapshotSchema.optional(),
+    recordedAnalysis: recordedAnalysisSchema.optional(),
     plyIndex: z.number().int().min(0),
     mainlineChildIndex: z.number().int().min(0).optional(),
     children: z.array(moveNodeSchema),

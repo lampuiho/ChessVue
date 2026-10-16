@@ -1,4 +1,4 @@
-import { EngineAnalysisSearchMode, GameState, type IAnalysisSeat, type IAssignedEngine, type IEngineRecord, type IGame, type IVisibleAnalysis } from '@/contracts';
+import { EngineAnalysisSearchMode, GameState, analysisSeatSchema, type IAnalysisSeat, type IAssignedEngine, type IEngineRecord, type IGame, type IRecordedAnalysis, type IVisibleAnalysis } from '@/contracts';
 import Aborted from '@/contracts/errors/Aborted';
 import { EngineRuntimeService } from '@/domain';
 import { logHandledError } from '@/utility/errors';
@@ -90,6 +90,11 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     if (game.analysis.seats.length === 0) return;
     return { engineSeats: [...game.analysis.seats] };
   }
+  function captureMoveAnalysis(game: IGame): IRecordedAnalysis | undefined {
+    if (!position.pathsEqual(game.renderedPath, game.livePath)) return;
+    const seats = game.analysis.seats.filter((seat) => seat.lines.length > 0).map((seat) => analysisSeatSchema.parse(seat));
+    return seats.length ? { recordedAt: new AnalysisTimestamp(), seats } : undefined;
+  }
   async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord): Promise<void> {
     if (game.analysis.seats.some((seat) => seat.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
     if (game.analysis.seats.length >= 4) throw new Error('A game cannot have more than four analysis engines.');
@@ -131,6 +136,6 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       }
     }));
   }
-  return { createAnalysisSeat, refreshAnalysisForGame, getVisibleAnalysis, addAnalysisEngine, removeAnalysisEngine, disposeAnalysisForGame, refreshAnalysis, retryAnalysis, stopAnalysis };
+  return { createAnalysisSeat, refreshAnalysisForGame, getVisibleAnalysis, captureMoveAnalysis, addAnalysisEngine, removeAnalysisEngine, disposeAnalysisForGame, refreshAnalysis, retryAnalysis, stopAnalysis };
 }
 export type GameAnalysisComposable = ReturnType<typeof useGameAnalysis>;

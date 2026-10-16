@@ -24,6 +24,8 @@ Recording applies only to actual moves played in games, not exploratory moves. T
 
 ## Remaining decision to clarify
 
+Implemented baseline on 16 October 2026 during JRN-HIST-01–09: actual moves automatically snapshot available engine seats from their rendered parent at commit. The payload includes copied engine configuration, output/capture timestamps, depth, scores, principal variations and available best move. Records are stored on played nodes and shown as pre-move output separately from fresh analysis. Empty output creates no record; exploratory moves cannot overwrite one. This implementation direction does not assert a user decision about later replacement, depth thresholds or analysis produced after the move. JRN-HIST-06 covers its preservation and two-engine provenance; broader policy alternatives below remain review prompts.
+
 What analysis payload is recorded for each actual game move, and when is it captured: at the move, as the engine produces a useful result, or through an explicit action on that actual move? What is the minimum information the user needs when revisiting the move?
 
 Eligible moves and exploratory retention are settled. This question must not reopen them. Per-engine comparison/provenance details are owned by Q-ENGINE-001.

@@ -132,6 +132,7 @@ function showFile(index: number): boolean {
           v-for="(boardId, index) in displayedBoardIds"
           :key="boardId"
           class="board-square"
+          :disabled="inputDisabled"
           :class="{
             'board-square--light': (Math.floor(boardId / 8) + boardId % 8) % 2 === 1,
             'board-square--dark': (Math.floor(boardId / 8) + boardId % 8) % 2 === 0,

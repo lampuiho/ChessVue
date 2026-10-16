@@ -39,6 +39,7 @@ function movePrefix(node: IMoveNode): string {
       <button v-if="livePath && !isAtLive && !collapsed" class="panel-chip" :disabled="disabled" @click="emit('returnToLiveRequested')"><span></span>Live position</button>
     </header>
     <div v-if="!collapsed" class="side-panel__body history-list">
+      <button class="history-start" :class="{ 'history-row--selected': renderedPath.length === 0 }" :disabled="disabled" aria-label="Start position" @click="emit('nodeSelected', root)">Start position</button>
       <div v-if="rows.length === 0" class="panel-empty"><AppIcon name="history" /><span>Moves will appear here as the game unfolds.</span></div>
       <button
         v-for="row in rows"
@@ -72,6 +73,7 @@ function movePrefix(node: IMoveNode): string {
 .panel-empty .app-icon { font-size: 1.25rem; opacity: 0.6; }
 .history-row { display: grid; width: 100%; min-height: 2.15rem; padding: 0.36rem 0.65rem; grid-template-columns: 2.5rem auto 1fr auto; align-items: center; gap: 0.4rem; color: var(--text-primary); border-bottom: 0.0625rem solid var(--border-subtle); background: transparent; text-align: left; }
 .history-row:hover:not(:disabled) { background: var(--accent-soft); }
+.history-start { width: 100%; min-height: 2rem; padding: 0.36rem 0.65rem; color: var(--text-muted); background: transparent; text-align: left; font-size: 0.65rem; }
 .history-row--selected { background: var(--accent-soft); box-shadow: inset 0.18rem 0 0 var(--accent); }
 .history-row--variation { color: var(--text-muted); }
 .history-row__number { color: var(--text-muted); font-size: 0.65rem; font-variant-numeric: tabular-nums; }

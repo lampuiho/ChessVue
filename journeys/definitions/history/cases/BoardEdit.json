@@ -1,0 +1,28 @@
+[
+  {
+    "id": "JRN-HIST-08",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-CTRL-04",
+      "SCN-CTRL-05"
+    ],
+    "branches": [],
+    "fixture": "history",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/history/ScenarioReview.md#jrn-hist-08",
+    "data": [
+      "journeys/definitions/history/data/HistoryWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/history/BoardEdit.spec.ts",
+        "titles": [
+          "JRN-HIST-08 keeps free-board editing unavailable in analysis game controls",
+          "JRN-HIST-08 keeps free-board editing unavailable in finished game controls"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

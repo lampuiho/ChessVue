@@ -259,6 +259,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.getVisibleAnalysis` |
 
 - Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
+- Start position selects the root through the same navigation boundary. Live position resolves the persisted live path through the current tree rather than requiring a populated runtime cache. Membership checks validate every parent-child link before deriving a path, including detached nodes whose stale parent reference remains.
 - State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state without pausing the live clock or current player turn. A player-engine result that completes while browsing advances the live selector while the rendered selector remains on the historical node. Returning to the live node restores the matching live state. Manual and menu pauses block history navigation; an analysis-only pause permits rendered-branch navigation without advancing the live node or clock.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the selected visible node while live play remains independent.
 

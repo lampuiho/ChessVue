@@ -122,6 +122,7 @@ If the user selects more than the supported concurrent analysis engines, the app
 - `SettingsStore` owns user settings and appearance projection, not engine-profile configuration.
 - `GamesStore` owns copying a selected reusable engine profile into the current game's assigned-engine snapshot, plus assignment on the current game, turn waiting, and analysis coordination for already copied engine participants.
 - `GamesStore` persists up to three rendered lines per analysis seat and exposes all seats through the existing readonly accessor. Stop retains accepted results; Refresh/Retry and position changes clear the affected results.
+- Actual move commits copy available analysis of the rendered live parent into that move node's optional `recordedAnalysis`. These pre-move snapshots exclude runtime state and remain independent of later engine output; exploratory commits create no records. No output is copied from a different rendered context during a background reply.
 - `EngineRuntimeService` owns the layer-2 engine runtime boundary consumed by `GamesStore` and the temporary option-discovery runtime used by `EnginesStore`.
 - `EngineRuntimeService` composes `ProcessManager` for process lifecycle and `EngineClient` for protocol conversation.
 - `EngineClient` owns protocol sequencing, engine-output interpretation, move or line parsing, and new-game-boundary decisions behind `EngineRuntimeService`.

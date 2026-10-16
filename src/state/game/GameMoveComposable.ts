@@ -39,8 +39,10 @@ export function useGameMove(dependency: IGameMoveDependency) {
     const liveNode = position.getLiveNode(game);
     const livePos = position.getLivePosition(game);
     const nextClockSnapshot = clock.applyMove(game, move.movingColour, moveTimestamp);
+    const recordedAnalysis = analysis.captureMoveAnalysis(game);
     MoveApplicationService.applyMove(livePos, move);
     const nextNode = MoveHistoryService.addMainlineMove(liveNode, move, nextClockSnapshot);
+    nextNode.recordedAnalysis = recordedAnalysis;
     position.appendLivePath(game, nextNode);
     game.clockSnapshot = nextClockSnapshot;
     moveCommitted(game);

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-HIST-06",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-HIST-04",
+      "SCN-HIST-02"
+    ],
+    "branches": [
+      "BR-HIST-04-NO-CLEANUP",
+      "BR-HIST-04-NO-ANALYSIS-CHILDREN"
+    ],
+    "fixture": "history",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/history/ScenarioReview.md#jrn-hist-06",
+    "data": [
+      "journeys/definitions/history/data/HistoryWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/history/Pruning.spec.ts",
+        "titles": [
+          "JRN-HIST-06 prunes only superseded latest-node exploration after latest analysis and reload",
+          "JRN-HIST-06 prunes only superseded latest-node exploration after earlier analysis and reload",
+          "JRN-HIST-06 preserves actual-move engine records through exploration, pruning, continued play and reload"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

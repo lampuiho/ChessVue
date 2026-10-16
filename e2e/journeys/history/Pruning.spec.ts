@@ -1,0 +1,62 @@
+import { test, expect } from './HistoryTest';
+import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
+import { playMove, square } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { addAnalysisEngine, createTimedHistory, historyRow, nodeAt } from './HistorySetup';
+
+for (const origin of ['latest', 'earlier']) {
+  test(`JRN-HIST-06 prunes only superseded latest-node exploration after ${origin} analysis and reload`, async ({ page }) => {
+    await openJourney(page, 'history');
+    const original = await saveCurrentGame(page, 'original');
+    await page.getByRole('button', { name: /Analyse/ }).click();
+    if (origin === 'earlier') await historyRow(page, 'e5').click();
+    await playMove(page, origin === 'latest' ? 'b5' : 'f1', origin === 'latest' ? 'a4' : 'c4');
+    await playMove(page, 'g8', 'f6');
+    const explored = await saveCurrentGame(page, 'temporary');
+    expect(explored.livePath).toEqual(original.livePath);
+    await page.getByRole('button', { name: /Exit analysis/ }).click();
+    await expect(page.locator('.history-row')).toHaveCount(16);
+    await playMove(page, 'd2', 'd4');
+    const saved = await saveCurrentGame(page, 'continued');
+    expect(nodeAt(saved, original.livePath!).children).toHaveLength(1);
+    expect(nodeAt(saved, original.livePath!).children[0]!.kind).toBe('live');
+    if (origin === 'latest') expect(nodeAt(saved, [0, 0]).children[1]).toEqual(nodeAt(original, [0, 0]).children[1]);
+    else expect(nodeAt(saved, [0, 0]).children[2]).toEqual(nodeAt(explored, [0, 0]).children[2]);
+    expect(nodeAt(saved, [0]).children[1]).toEqual(nodeAt(original, [0]).children[1]);
+    await page.reload();
+    await waitForJourney(page);
+    await expect(square(page, 'd4')).toHaveAttribute('aria-label', 'd4 white pawn');
+    const restored = await saveCurrentGame(page, 'restored');
+    expect(restored.moveTree).toEqual(saved.moveTree);
+    expect(restored.livePath).toEqual(saved.livePath);
+  });
+}
+test('JRN-HIST-06 preserves actual-move engine records through exploration, pruning, continued play and reload', async ({ page }) => {
+  await openJourney(page, 'history');
+  await createTimedHistory(page);
+  await addAnalysisEngine(page);
+  await playMove(page, 'g1', 'f3');
+  await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toContainText('Journey A');
+  const played = await saveCurrentGame(page, 'recorded');
+  const record = nodeAt(played, [0, 0, 0]).recordedAnalysis;
+  expect(record?.seats[0]?.lines).toHaveLength(3);
+  await page.getByRole('button', { name: /Analyse/ }).click();
+  await playMove(page, 'b8', 'c6');
+  await playMove(page, 'f1', 'b5');
+  const explored = await saveCurrentGame(page, 'record-explored');
+  expect(nodeAt(explored, [0, 0, 0]).recordedAnalysis).toEqual(record);
+  expect(nodeAt(explored, [0, 0, 0, 0]).recordedAnalysis).toBeUndefined();
+  expect(nodeAt(explored, [0, 0, 0, 0, 0]).recordedAnalysis).toBeUndefined();
+  await page.getByRole('button', { name: /Exit analysis/ }).click();
+  await expect(page.locator('.analysis-line')).toHaveCount(3);
+  await playMove(page, 'g8', 'f6');
+  const continued = await saveCurrentGame(page, 'record-continued');
+  expect(nodeAt(continued, [0, 0, 0]).recordedAnalysis).toEqual(record);
+  expect(nodeAt(continued, [0, 0, 0]).children).toHaveLength(1);
+  await page.reload();
+  await waitForJourney(page);
+  await historyRow(page, 'Nf3').click();
+  await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toContainText('Before this move');
+  const restored = await saveCurrentGame(page, 'record-restored');
+  expect(nodeAt(restored, [0, 0, 0]).recordedAnalysis).toEqual(record);
+});

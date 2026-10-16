@@ -99,7 +99,6 @@ export function useGameClock(dependency: IGameClockDependency) {
     refreshRuntimeRegistrations(game);
   }
   async function resumeGame(game: IGame, reason: PauseReason): Promise<void> {
-    if (reason !== PauseReason.Analysis && !isTimedGame(game)) return;
     if (!status.isPausedState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
     const runtime = position.requireGameRuntime(game);
     runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== reason);

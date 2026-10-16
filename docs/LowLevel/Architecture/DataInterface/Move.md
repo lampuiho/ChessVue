@@ -68,6 +68,7 @@ interface IMoveNode {
   kind: MoveNodeKind
   move?: IMove
   clockSnapshot?: IClockSnapshot
+  recordedAnalysis?: IRecordedAnalysis
   plyIndex: number
   mainlineChildIndex?: number
   children: IMoveNode[]
@@ -80,6 +81,7 @@ interface IMoveTree {
 ```
 
 ## Notes
+- Actual played nodes may retain `IRecordedAnalysis` with a capture timestamp and copied engine seats for their pre-move position. This is evaluation output, not a position snapshot or current engine runtime. No available output means the field is omitted; exploratory nodes do not capture it. Later rendered analysis refreshes cannot mutate these copies.
 - Persisted move trees are single-direction nested structures rooted at `root`.
 - `IMoveNode` stores a transition and history structure, not a board position. Selected positions are reconstructed from `IGame.rootPosition` and a move sequence. **Why:** a full mutable position per node would become a second persisted authority, replace piece identities during navigation, and prevent the step-by-step replay needed for movement animation. Reintroducing snapshots is safe only if they remain derived, preserve identity between adjacent positions, and cannot override the root-plus-moves authority.
 - `mainlineChildIndex` selects the current live continuation from the node's local `children` array and lets `MoveHistoryService` rewrite that continuation without global node identity. `MoveNodeKind` records only committed-live versus analysis-only history. **Why:** mainline and variation are parent-child relationships that a rewrite can change without changing the child; encoding them as the child's kind would immediately make the kind stale. Any richer kind must describe an intrinsic persisted distinction.

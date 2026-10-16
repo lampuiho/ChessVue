@@ -3,7 +3,7 @@ import { loadJourneyCatalogue } from './CatalogueLoader.mjs';
 import type { IJourneyDescription, IJourneySeed } from './Journey';
 import * as fresh from './definitions/fresh/index';
 import * as play from './definitions/play/index';
-import * as history from './definitions/history';
+import * as history from './definitions/history/index';
 import * as setup from './definitions/setup';
 import * as promotion from './definitions/promotion';
 import * as analysis from './definitions/analysis';

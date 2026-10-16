@@ -1,0 +1,27 @@
+[
+  {
+    "id": "JRN-HIST-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-HIST-01"
+    ],
+    "branches": [],
+    "fixture": "history",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/history/ScenarioReview.md#jrn-hist-01",
+    "data": [
+      "journeys/definitions/history/data/HistoryWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/history/Navigation.spec.ts",
+        "titles": [
+          "JRN-HIST-01 reviews root, mainline, sibling and nested positions without changing live history",
+          "JRN-HIST-01 keeps the live clock running during ordinary timed history review"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

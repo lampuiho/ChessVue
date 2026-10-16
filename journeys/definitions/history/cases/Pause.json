@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-HIST-07",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-HIST-01",
+      "SCN-CTRL-04"
+    ],
+    "branches": [
+      "BR-HIST-01-PAUSED"
+    ],
+    "fixture": "history",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/history/ScenarioReview.md#jrn-hist-07",
+    "data": [
+      "journeys/definitions/history/data/HistoryWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/history/Pause.spec.ts",
+        "titles": [
+          "JRN-HIST-07 layers a manual pause over analysis without removing its ownership",
+          "JRN-HIST-07 layers a menu pause over analysis without removing its ownership"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

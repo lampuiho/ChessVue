@@ -36,6 +36,8 @@ Proposed starting point: verify the existing independent multi-engine experience
 
 ## Journey impact
 
+The 16 October 2026 History implementation adds per-actual-move snapshots of all available engine seats, including copied identities/options, timestamps, depth, scores, principal variations and best moves. A separate Recorded analysis panel identifies the pre-move context. JRN-HIST-06 has two-engine integration coverage for independent copies and canonical serialisation; this does not complete the separate comparison UI or save/import acceptance groups below.
+
 Affected cases: JRN-ANALYSIS-01/07/09/11/12, JRN-SAVE-07/15 and JRN-SESSION-02. Existing concurrent output, scoped failure and seat restore tests can proceed independently.
 
 Test actual-move identity/provenance, later live moves, recomputation, exploration/pruning, save/load and export/import under the chosen content policy. Exploratory results must not create or overwrite actual-move records. Keep a recorded observation distinct from a fresh engine result; do not compare real engines using exact expected scores.

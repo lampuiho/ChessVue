@@ -1,0 +1,30 @@
+import { test, expect } from './HistoryTest';
+import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
+import { square } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { readGame } from '../../support/SaveInspection';
+import { historyRow, returnLive } from './HistorySetup';
+
+test('JRN-HIST-09 restores nested branches, mainline and rendered selection after saving and reloading', async ({ page }) => {
+  await openJourney(page, 'history');
+  await historyRow(page, 'Nc3').click();
+  const saved = await saveCurrentGame(page, 'nested');
+  expect(saved.renderedPath).toEqual([0, 0, 1, 0, 1]);
+  expect(saved.livePath).toEqual([0, 0, 0, 0, 0, 0]);
+  await page.reload();
+  await waitForJourney(page);
+  await expect(page.locator('.history-row--selected')).toContainText('Nc3');
+  await expect(square(page, 'c3')).toHaveAttribute('aria-label', 'c3 white knight');
+  await expect(square(page, 'f6')).toHaveAttribute('aria-label', 'f6 black knight');
+  const restored = await readGame(page, 'saves/history-allowed/nested.json');
+  expect(restored.moveTree).toEqual(saved.moveTree);
+  await returnLive(page);
+  await expect(square(page, 'a6')).toHaveAttribute('aria-label', 'a6 black pawn');
+  await expect(square(page, 'b5')).toHaveAttribute('aria-label', 'b5 white bishop');
+  await historyRow(page, 'd4').click();
+  await expect(square(page, 'd4')).toHaveAttribute('aria-label', 'd4 white pawn');
+  const after = await saveCurrentGame(page, 'restored-branch');
+  expect(after.moveTree).toEqual(saved.moveTree);
+  expect(after.livePath).toEqual(saved.livePath);
+  expect(after.renderedPath).toEqual([0, 1, 0, 0, 0]);
+});

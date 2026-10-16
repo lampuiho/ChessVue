@@ -1,0 +1,54 @@
+[
+  {
+    "id": "JRN-HIST-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-HIST-02"
+    ],
+    "branches": [
+      "BR-HIST-02-DECLINE-REWRITE"
+    ],
+    "fixture": "history",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/history/ScenarioReview.md#jrn-hist-02",
+    "data": [
+      "journeys/definitions/history/data/HistoryWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/history/Rewrite.spec.ts",
+        "titles": [
+          "JRN-HIST-02 cancels a historical rewrite without committing a partial move"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-HIST-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-HIST-02"
+    ],
+    "branches": [
+      "BR-HIST-02-CONFIRM-REWRITE"
+    ],
+    "fixture": "history",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/history/ScenarioReview.md#jrn-hist-03",
+    "data": [
+      "journeys/definitions/history/data/HistoryWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/history/Rewrite.spec.ts",
+        "titles": [
+          "JRN-HIST-03 @smoke confirms a new mainline and retains the previous continuation as a variation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

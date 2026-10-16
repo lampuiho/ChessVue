@@ -39,6 +39,7 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
   }
   function enterBoardEdit(game: IGame): void {
     status.assertNotPausedForAction(game, 'Board edit entry');
+    if (game.livePath) return;
     if (game.gameState === GameState.BoardEdit) {
       game.gameState = status.getAnalysisState(game.rootPosition.sideToMove);
       void analysis.refreshAnalysisForGame(game);

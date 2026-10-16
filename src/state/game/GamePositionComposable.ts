@@ -121,7 +121,11 @@ export function useGamePosition() {
   }
   function isNodeInTree(tree: IMoveTree, node: IMoveNode): boolean {
     let currentNode: IMoveNode | undefined = node;
-    while (currentNode?.$?.parent) currentNode = currentNode.$.parent;
+    while (currentNode?.$?.parent) {
+      const parent: IMoveNode = currentNode.$.parent;
+      if (!parent.children.includes(currentNode)) return false;
+      currentNode = parent;
+    }
     return currentNode === tree.root;
   }
   function hydrateGame(game: IGame): IGame {

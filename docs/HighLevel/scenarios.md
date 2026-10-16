@@ -393,6 +393,7 @@ Each scenario in this document uses the same structure:
   1. User clicks node in history tree.
   2. App navigates board state to selected node.
   3. Analysis panel switches to selected FEN context while live play and its clock continue independently.
+  4. The selected actual move's recorded pre-move analysis, when present, remains visible separately from the refreshed current-position analysis. Start position selects the root; Live position returns to the actual live node even after restoring a reviewed branch.
 - **Branch Paths**:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
@@ -460,6 +461,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
 - **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs. Historical rewrites covered by `SCN-HIST-02` retain previously played continuations as variations.
 - **Recording boundary**: These exploratory continuations do not create recorded-analysis entries. Pruning them must preserve actual game moves and their associated analysis records; exploratory retention is not a prerequisite for the recording feature.
+- **Capture baseline**: An actual move copies available pre-move engine analysis onto its own node at commit, including engine identity, timestamp, depth, scores and principal variations. No available output means no record; analysis from another rendered position is never copied. Review and save/reload retain these independent snapshots.
 - **Implementation Touchpoints**:
   - `MoveHistoryService.pruneFutureMoves`
   - `GamesStore.exitInGameAnalysis`
@@ -851,7 +853,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.withdrawDrawOffer`
   - `SavedGamesStore.saveGame`
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Enter a mode from an active game where the user controls both sides for exploration without progressing the live game.
 - **Preconditions**: Active game is open and not paused, unless the flow is a timeout-ended review state that explicitly allows post-timeout analysis.
 - **Entry Points**: Control panel `Analysis Mode` from a live game.

@@ -30,6 +30,7 @@ import Chessboard from '@/components/Chessboard.vue';
 import PlayerPanel from '@/components/PlayerPanel.vue';
 import HistoryPanel from '@/components/HistoryPanel.vue';
 import AnalysisPanel from '@/components/AnalysisPanel.vue';
+import RecordedAnalysisPanel from '@/components/RecordedAnalysisPanel.vue';
 import GameControlPanel from '@/components/GameControlPanel.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
@@ -217,6 +218,13 @@ async function navigateToNode(node: IMoveNode): Promise<void> {
   if (!game.value) return;
   await run(async () => gamesStore.navigateToNode(game.value!, node));
 }
+async function returnToLivePosition(): Promise<void> {
+  const currentGame = game.value;
+  if (!currentGame?.livePath) return;
+  let node = currentGame.moveTree.root;
+  for (const index of currentGame.livePath) node = node.children[index]!;
+  await navigateToNode(node);
+}
 async function playAnalysisLine(moves: readonly IMove[]): Promise<void> {
   const currentGame = game.value;
   if (!currentGame || isPlayingLine.value) return;
@@ -362,7 +370,7 @@ async function run(action: () => Promise<void> | void): Promise<void> {
       </section>
       <aside class="game-sidebar surface">
         <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1>{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? position.sideToMove + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
-        <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine" @collapse-toggled="toggleSection('history')" @node-selected="navigateToNode" @return-to-live-requested="game.$?.liveNode && navigateToNode(game.$.liveNode)" />
+        <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine" @collapse-toggled="toggleSection('history')" @node-selected="navigateToNode" @return-to-live-requested="returnToLivePosition" />
         <AnalysisPanel
           v-if="layout?.showAnalysisPanel"
           :seats="analysisSeats"
@@ -381,6 +389,7 @@ async function run(action: () => Promise<void> | void): Promise<void> {
           @engine-remove-requested="(index) => run(() => removeAnalysisEngine(index))"
           @move-selected="playAnalysisLine"
         />
+        <RecordedAnalysisPanel v-if="renderedNode?.recordedAnalysis" :record="renderedNode.recordedAnalysis" />
         <GameControlPanel
           class="game-sidebar__controls"
           :mode="controlMode"

@@ -1,0 +1,46 @@
+import { test, expect } from './HistoryTest';
+import { openJourney } from '../../support/JourneyBootstrap';
+import { playMove, square } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { historyRow, nodeAt, returnLive } from './HistorySetup';
+
+test('JRN-HIST-02 cancels a historical rewrite without committing a partial move', async ({ page }) => {
+  await openJourney(page, 'history');
+  await historyRow(page, 'e5').click();
+  const before = await saveCurrentGame(page, 'before-cancel');
+  await playMove(page, 'f1', 'c4');
+  const dialog = page.getByRole('dialog', { name: 'Continue from this position?', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(square(page, 'f1')).toHaveAttribute('aria-label', 'f1 white bishop');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.locator('.history-row--selected')).toContainText('e5');
+  const after = await saveCurrentGame(page, 'after-cancel');
+  expect(after.moveTree).toEqual(before.moveTree);
+  expect(after.livePath).toEqual(before.livePath);
+  expect(after.renderedPath).toEqual([0, 0]);
+  expect(after.clockSnapshot).toEqual(before.clockSnapshot);
+  await returnLive(page);
+  await expect(square(page, 'b5')).toHaveAttribute('aria-label', 'b5 white bishop');
+});
+test('JRN-HIST-03 @smoke confirms a new mainline and retains the previous continuation as a variation', async ({ page }) => {
+  await openJourney(page, 'history');
+  const before = await saveCurrentGame(page, 'before-rewrite');
+  await historyRow(page, 'e5').click();
+  await playMove(page, 'f1', 'c4');
+  await page.getByRole('dialog').getByRole('button', { name: 'Continue game', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.history-row--selected')).toContainText('Bc4');
+  await expect(square(page, 'c4')).toHaveAttribute('aria-label', 'c4 white bishop');
+  await expect(square(page, 'a7')).toHaveAttribute('aria-label', 'a7 black pawn');
+  const after = await saveCurrentGame(page, 'after-rewrite');
+  expect(after.livePath).toEqual([0, 0, 2]);
+  expect(after.renderedPath).toEqual(after.livePath);
+  expect(nodeAt(after, [0, 0]).mainlineChildIndex).toBe(2);
+  expect(nodeAt(after, [0, 0]).children.slice(0, 2)).toEqual(nodeAt(before, [0, 0]).children);
+  await historyRow(page, 'a6').click();
+  await expect(square(page, 'b5')).toHaveAttribute('aria-label', 'b5 white bishop');
+  await returnLive(page);
+  await expect(square(page, 'c4')).toHaveAttribute('aria-label', 'c4 white bishop');
+  await playMove(page, 'g8', 'f6');
+  await expect(page.locator('.history-row--selected')).toContainText('Nf6');
+});
