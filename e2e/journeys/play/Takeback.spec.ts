@@ -1,0 +1,43 @@
+import { test, expect } from './PlayTest';
+import { openJourney } from '../../support/JourneyBootstrap';
+import { playMove, square } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { autoSave, createTimedPlay, playTime } from './PlaySetup';
+
+test('JRN-PLAY-07 restores the prior position and clock then blocks takeback at root', async ({ page }) => {
+  await openJourney(page, 'play');
+  const id = await createTimedPlay(page);
+  await expect(page.getByRole('button', { name: /Takeback/ })).toBeDisabled();
+  await playMove(page, 'e2', 'e4');
+  const first = await autoSave(page, id);
+  await page.clock.setFixedTime(new Date(playTime.getTime() + 1000));
+  await playMove(page, 'e7', 'e5');
+  await expect(page.locator('.history-row')).toHaveCount(2);
+  await page.getByRole('button', { name: /Takeback/ }).click();
+  await expect(page.locator('.history-row')).toHaveCount(1);
+  await expect(square(page, 'e7')).toHaveAttribute('aria-label', 'e7 black pawn');
+  await expect(square(page, 'e4')).toHaveAttribute('aria-label', 'e4 white pawn');
+  await expect(page.locator('.result-badge')).toHaveText('black to move');
+  const rewound = await saveCurrentGame(page, 'rewound');
+  expect(rewound.clockSnapshot.white.remainingMs).toBe(first.clockSnapshot.white.remainingMs);
+  expect(rewound.clockSnapshot.black.remainingMs).toBe(first.clockSnapshot.black.remainingMs);
+  expect(rewound.livePath).toEqual([0]);
+  await page.getByRole('button', { name: /Takeback/ }).click();
+  await expect(page.locator('.history-row')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Takeback/ })).toBeDisabled();
+  const root = await saveCurrentGame(page, 'root');
+  expect(root.livePath).toEqual([]);
+  expect(root.clockSnapshot.white.remainingMs).toBe(300000);
+  expect(root.clockSnapshot.black.remainingMs).toBe(300000);
+});
+test('JRN-PLAY-07 preserves a game with takebacks disabled', async ({ page }) => {
+  await openJourney(page, 'play');
+  await createTimedPlay(page, false);
+  await playMove(page, 'e2', 'e4');
+  await expect(page.getByRole('button', { name: /Takeback/ })).toBeDisabled();
+  await expect(page.locator('.history-row')).toHaveCount(1);
+  const saved = await saveCurrentGame(page, 'blocked');
+  expect(saved.livePath).toEqual([0]);
+  expect(saved.clockSnapshot.white.remainingMs).toBe(302000);
+  expect(saved.gameplayOptions.allowTakeback).toBe(false);
+});

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "JRN-PLAY-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-CTRL-03"
+    ],
+    "branches": [
+      "BR-CTRL-03-CANCEL",
+      "BR-CTRL-03-DECLINED"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-05",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Draw.spec.ts",
+        "titles": [
+          "JRN-PLAY-05 resolves a local draw using Cancel",
+          "JRN-PLAY-05 resolves a local draw using Decline",
+          "JRN-PLAY-05 resolves a local draw using Accept"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-PLAY-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-CTRL-03"
+    ],
+    "branches": [
+      "BR-CTRL-03-NON-LOCAL-NO-RESPONSE"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-06",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Draw.spec.ts",
+        "titles": [
+          "JRN-PLAY-06 keeps an engine draw pending until withdrawal without inventing a response"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

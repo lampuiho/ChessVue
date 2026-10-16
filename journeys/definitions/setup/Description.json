@@ -1,0 +1,14 @@
+{
+  "title": "Free analysis, board editing and starting from setup",
+  "scenarios": [
+    "SCN-FREE-ANALYSIS-01",
+    "SCN-FREE-ANALYSIS-02",
+    "SCN-FREE-ANALYSIS-03",
+    "SCN-CTRL-05"
+  ],
+  "steps": [
+    "Explore setup-analysis without moving a live game.",
+    "In setup-board, add/remove pieces with the palette, clear/reset the board and leave editing.",
+    "Start a game from setup; inspect player, clock and live-analysis options and retained position."
+  ]
+}

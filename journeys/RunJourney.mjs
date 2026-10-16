@@ -2,11 +2,19 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
+import { loadJourneyCatalogue } from './CatalogueLoader.mjs';
 
-const catalogue = JSON.parse(await readFile(new URL('./Catalogue.json', import.meta.url), 'utf8'));
+const registry = JSON.parse(await readFile(new URL('./Catalogue.json', import.meta.url), 'utf8'));
+const descriptions = Object.fromEntries(await Promise.all(Object.values(registry).map(async (path) =>
+  [path, JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'))])));
+const catalogue = loadJourneyCatalogue(registry, (path) => descriptions[path]);
 const [name = 'list', ...args] = process.argv.slice(2);
-if (['list', '--help', '-h'].includes(name)) {
+if (name === 'report') {
+  const { printCoverageReport } = await import('./coverage/CoverageReport.mjs');
+  printCoverageReport(args[0]);
+} else if (['list', '--help', '-h'].includes(name)) {
   console.log('Usage: npm run journey -- <name> [--port 5173] [--host 127.0.0.1] [--open]');
+  console.log('       npm run journey -- report [Playwright JSON results path]');
   for (const [id, entry] of Object.entries(catalogue)) console.log(`  ${id.padEnd(12)} ${entry.title}`);
 } else if (!Object.hasOwn(catalogue, name)) {
   console.error(`Unknown journey: ${name}. Run npm run journey -- list.`);

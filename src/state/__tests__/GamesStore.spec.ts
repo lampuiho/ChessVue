@@ -189,6 +189,7 @@ function expectScholarMateFinished(game: IGame): void {
 }
 const domain = {
   EngineRuntimeService: {
+    ensureRuntime: vi.fn((engine: IAssignedEngine) => engine.$ ??= { availability: EngineAvailability.Unavailable, analysisLines: new Map() }),
     ensureReady: vi.fn(async (engine: IAssignedEngine) => {
       engine.$ = engine.$ ?? { availability: EngineAvailability.Unavailable, analysisLines: new Map() };
       engine.$.availability = EngineAvailability.Ready;

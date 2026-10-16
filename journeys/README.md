@@ -1,5 +1,13 @@
 # Testing journeys
 
+See the [user journey test development plan](../docs/JourneyTestPlan.md) for prioritised cases, expected outcomes, additional fixture work and browser/desktop coverage.
+
+The plan requires [modular journey tests and fixture data](../docs/JourneyTestPlan.md#required-module-structure): journey-owned data/case metadata, focused shared builders/runtime helpers, and small specs grouped by behaviour. Follow that target structure when implementing the planned coverage, including migrating the launch catalogue to a small path registry.
+
+For each journey, perform the [scenario drift review](../docs/JourneyTestPlan.md#scenario-drift-review-while-writing-journeys) against high-level scenarios, contracts, implementation and the user's priorities: ease of use, recorded analysis, interactive analysis during play and multiple engines. Record unclear design decisions in [docs/questions](../docs/questions/README.md), linked to the affected cases; continue independent work while those details remain open.
+
+Recording is scoped to actual moves played in games. Exploratory moves remain temporary and the existing pruning policy is settled; see [Q-ANALYSIS-002](../docs/questions/analysis/Q-ANALYSIS-002-VariationRetention.md).
+
 Start the app with repeatable, prefilled data:
 
 ```sh
@@ -23,7 +31,7 @@ The command prints its URL and uses port 5173 by default. Each command run gets 
 | `settings` | Dark theme, black orientation, three engine profiles, return game | Apply/reset, dirty navigation, inventory refresh |
 | `recovery` | Corrupt settings/layout, missing and unsupported active saves, one valid game | Startup fallback, repaired session, warning |
 
-[Catalogue.json](Catalogue.json) holds the scenario IDs and ordered manual steps for each journey. These are also available in the browser console as `window.chessVueJourney.steps`. Stable game IDs follow the names in [definitions/](definitions/), such as `history-allowed`, `promotion-white` and `clocks-timeout-b`.
+[Catalogue.json](Catalogue.json) maps launch names to each journey's `Description.json`. The shared loader composes titles, scenario references and ordered manual steps for the CLI and app. Steps are also available in the browser console as `window.chessVueJourney.steps`. Stable game IDs follow the names in [definitions/](definitions/), such as `history-allowed`, `promotion-white` and `clocks-timeout-b`.
 
 ## Reset and switch
 
@@ -66,11 +74,21 @@ Engine profiles `journey://a` and `journey://b` implement UCI handshake, legal d
 
 ## Maintenance and checks
 
-Each journey lives in `definitions/<name>.ts`; shared game builders validate moves against the chess rules and serialise canonical version-1 documents. Add its description/scenarios/steps to `Catalogue.json` and register it in `index.ts`. Keep IDs and timestamps stable; only paused clock anchors use the seed time. Corrupt documents should be explicit overrides, as in `recovery` and `saves`.
+Migrated journeys live in `definitions/<name>/index.ts`, with owned `data/`, `cases/` and `ScenarioReview.md`; the remaining flat definitions migrate when their behaviour is developed. Descriptions for all ten journeys already live beside their definitions. Shared builders under `builders/` construct games, legal histories, clocks, settings, saves and workspaces; reusable profile/timestamp data lives under `data/`. Add a description path to `Catalogue.json` and compose the definition in `index.ts`. Keep IDs and timestamps stable; only paused clock anchors use the seed time. Corrupt documents should be explicit overrides, as in `recovery` and `saves`.
+
+Implemented coverage includes JRN-FRESH-01–09, JRN-PLAY-01–12, the save/import identity case JRN-SAVE-08, and the workspace portion of JRN-SAVE-07. Play owns move, mate, resignation, draw, takeback, navigation and player-assignment specs, with 24 independent browser variants. Feature specs live under `e2e/journeys/`; the catalogue sweep checks bootstrap only. Owned case metadata names every executable variant and links its scenario review. [JourneyImplementation.md](../docs/JourneyImplementation.md) records the baseline, scope and remaining work.
+
+```sh
+npm run test:e2e -- --project=journeys
+npm run test:e2e -- --project=journeys --grep @smoke
+npm run journey -- report
+```
+
+Playwright writes per-run evidence to ignored `test-results/JourneyResults.json`. The report joins those results to distributed case metadata; absent variants remain unverified, and retries remain flaky. `passed` describes the named assertions in that run, while `partial` implementation retains its outstanding acceptance work. Reports do not count catalogue scenario membership as executed coverage, and a filtered run does not carry forward results from an earlier run.
 
 ```sh
 npm run test:unit -- --run journeys --maxWorkers=1
 npm run type-check
 ```
 
-Fixture checks validate legal move trees, document round trips, committed-scenario coverage, persistence/reset isolation and the scripted UCI lifecycle. [UiFollowUp.spec.ts](__tests__/UiFollowUp.spec.ts) covers the completed UI-01–UI-17 fixes with 32 passing application regressions, supported by component and store tests. Use `--maxWorkers=1` for these application checks to avoid the observed parallel-bootstrap timeout. The journey entry point replaces `/src/main.ts` only for the journey command; ordinary development and production builds retain the normal entry point. Journeys force the browser platform and use the same managed-file adapter as normal browser runs, with an isolated sessionStorage key per run/journey. Only picker choices and engine transport are replaced; the scripted transport reuses the shared desktop/browser UCI protocol client without starting native processes.
+Fixture checks validate legal move trees, document round trips, scenario references, builder ownership, persistence/reset isolation and the scripted UCI lifecycle. Registry checks validate migrated case/data/spec/review references; coverage checks ensure missing, failed and retry-dependent runs are never reported as passes. [UiFollowUp.spec.ts](__tests__/UiFollowUp.spec.ts) and [focused Play regressions](__tests__/play/) retain the UI-01–UI-17 assertions using the shared mounted-app harness, supported by component and store tests. Use `--maxWorkers=1` for these application checks and run them separately from browser work to avoid the observed bootstrap instability. The journey entry point replaces `/src/main.ts` only for the journey command; ordinary development and production builds retain the normal entry point. Journeys force the browser platform and use the same managed-file adapter as normal browser runs, with an isolated sessionStorage key per run/journey. Only picker choices and engine transport are replaced; the scripted transport reuses the shared desktop/browser UCI protocol client without starting native processes.

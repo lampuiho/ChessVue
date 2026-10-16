@@ -5,6 +5,7 @@ Own the layer-2 engine runtime boundary consumed by state stores for temporary p
 
 ## Public Interface
 ```ts
+ensureRuntime(engine: IAssignedEngine): IAssignedEngineRuntime
 getOptions(engineProfile: IEngineRecord): Promise<readonly IEngineOptionMeta[]>
 ensureReady(engine: IAssignedEngine, signal?: AbortSignal): Promise<void>
 startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest): Promise<void>
@@ -46,6 +47,7 @@ stopEngine(engine: IAssignedEngine): Promise<void>
 - `SCN-ENGINE-03`
 
 ## Notes
+- `ensureRuntime(...)` creates the base runtime without launching a process and returns the existing runtime on subsequent calls. The state layer may wrap it with shallow reactivity before engine work starts; runtime creation and process/status ownership remain in this service.
 - `getOptions(...)` copies a reusable profile into a temporary `IAssignedEngine`, including its saved configured options, initialises that engine explicitly, copies the client-discovered metadata, and closes the engine in `finally`. The temporary runtime is never retained by a store or attached to a game.
 - Option discovery does not populate, validate, or reconcile `IEngineRecord.options`. Saved configured values remain authoritative, while `EnginesStore` caches the returned metadata separately for profile-editor rendering.
 - `GamesStore` owns runtime intent and session usage, but it reaches protocol and process behaviour only through this service. **Why:** `EngineRuntimeService` owns game-facing process state while `EngineClient` owns protocol-session state; merging them would leak protocol details upward, and allowing the two layer-1 adapters to call each other would obscure which owner mutates `engine.$`. A redesign must retain one owner for process state, one for protocol state, and an explicit composition boundary.

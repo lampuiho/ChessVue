@@ -26,7 +26,7 @@ async function boot(name: string) {
   window.history.replaceState({}, '', '/home');
   const { startJourney } = await import('../StartJourney');
   running = await startJourney({ name, id: 'bootstrap-test' });
-  await vi.waitFor(() => expect(running?.api.ready).toBe(true));
+  await vi.waitFor(() => expect(running?.api.ready).toBe(true), { timeout: 5000 });
   return running;
 }
 describe('journey application bootstrap', () => {

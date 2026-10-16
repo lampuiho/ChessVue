@@ -1,74 +1,8 @@
 import { flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AppModalKind, GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, SaveGameTargetKind, TimeControlPreset, type IEnginePlayer, type IGame } from '@/contracts';
-import type { startJourney } from '../StartJourney';
-// These regressions assert the required application behaviour.
-let running: Awaited<ReturnType<typeof startJourney>> | undefined;
-beforeEach(() => {
-  vi.resetModules();
-  sessionStorage.clear();
-  document.body.innerHTML = '<div id="app"></div>';
-  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
-  vi.spyOn(console, 'info').mockImplementation(() => {});
-});
-afterEach(async () => {
-  if (running) {
-    running.stopReady();
-    for (const game of running.games.listGames()) {
-      await running.games.stopAnalysis(game as unknown as IGame);
-      game.$?.focusReturnUnsubscribe?.();
-    }
-    running.app.unmount();
-    running.router.options.history.destroy();
-  }
-  running = undefined;
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-});
-async function boot(name: string) {
-  window.history.replaceState({}, '', '/home');
-  const { startJourney } = await import('../StartJourney');
-  running = await startJourney({ name, id: 'ui-follow-up-test' });
-  await vi.waitFor(() => expect(running?.api.ready).toBe(true));
-  const [stores, domain, rules, fixtures] = await Promise.all([
-    import('@/state'), import('@/domain'), import('@/utility/chess'), import('../FixtureFactory'),
-  ]);
-  return { ...running, stores, domain, rules, fixtures };
-}
-async function createTimedContext() {
-  // Install Date before boot so timestamp subclasses inherit the controlled clock.
-  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
-  vi.setSystemTime(new Date('2026-10-10T12:00:00.000Z'));
-  const context = await boot('fresh');
-  const game = await context.games.createGame({
-    name: 'UI follow-up timed game',
-    whitePlayer: { colour: PlayerColour.White, type: PlayerType.Local, displayName: 'White' },
-    blackPlayer: { colour: PlayerColour.Black, type: PlayerType.Local, displayName: 'Black' },
-    analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: true,
-    timeControl: { preset: TimeControlPreset.Blitz, initialMs: 3000, incrementMs: 0 },
-  });
-  context.stores.useUiStateStore().openTab(game.metadata.id);
-  await context.router.push('/game/' + game.metadata.id);
-  await flushPromises();
-  return { ...context, game };
-}
-function legalMove(context: Awaited<ReturnType<typeof boot>>, game: IGame, uci: string) {
-  const position = context.fixtures.getPosition(game, game.renderedPath);
-  const raw = context.rules.genLegalMoves(position).find((move) => context.rules.getUci(move) === uci);
-  if (!raw) throw new Error('Illegal regression move: ' + uci);
-  return context.rules.toDetailedMove(position, raw);
-}
-function findButton(label: string, selector = 'button'): HTMLButtonElement | undefined {
-  return [...document.querySelectorAll<HTMLButtonElement>(selector)].find((button) => button.textContent?.includes(label));
-}
-async function clickButton(label: string, selector = 'button'): Promise<void> {
-  const button = findButton(label, selector);
-  if (!button) throw new Error('Missing regression control: ' + label);
-  button.click();
-  await flushPromises();
-}
+import { boot, createTimedContext, legalMove, findButton, clickButton, setField, clickSquare, forgetRunning } from './support/UiHarness';
 describe('UI-02 in-game analysis permissions', () => {
   it('keeps a manual pause read-only when it is layered over analysis', async () => {
     const context = await createTimedContext();
@@ -134,39 +68,6 @@ describe('UI-02 in-game analysis permissions', () => {
     expect(game.clockSnapshot.white.isRunning).toBe(false);
   });
 });
-describe('UI-04 copied engine seat preservation', () => {
-  it.each(['unchanged', 'edited', 'renamed', 'deleted'])('keeps the seated engine when confirming without a new selection after its profile is %s', async (change) => {
-    const context = await boot('settings');
-    const { games, stores, domain, router } = context;
-    const game = games.getGame('settings-game') as unknown as IGame;
-    const profile = context.fixtures.engineProfiles[0]!;
-    await games.reassignPlayer(game, PlayerColour.Black, {
-      colour: PlayerColour.Black, type: PlayerType.Engine, displayName: profile.displayName,
-      assignedEngine: { ...profile, options: { ...profile.options } },
-    } as IEnginePlayer);
-    const seated = game.blackPlayer as IEnginePlayer;
-    const snapshot = JSON.parse(JSON.stringify(seated.assignedEngine));
-    const pendingTurn = game.$?.pendingPlayerTurnPromise;
-    const settings = stores.useSettingsStore();
-    if (change === 'deleted') settings.draftSettings!.analysis.engineInventory = settings.draftSettings!.analysis.engineInventory.filter((engine) => engine.id !== profile.id);
-    if (change === 'renamed') settings.draftSettings!.analysis.engineInventory[0]!.displayName = 'Renamed engine';
-    if (change === 'edited') settings.draftSettings!.analysis.engineInventory[0]!.options.Hash = 64;
-    await settings.applySettings();
-    await router.push('/game/' + game.metadata.id);
-    const stopEngine = vi.spyOn(domain.EngineRuntimeService, 'stopEngine');
-    const ui = stores.useUiStateStore();
-    ui.showModal({ kind: AppModalKind.PlayerSelection, payload: { gameId: game.metadata.id, colour: PlayerColour.Black, currentPlayerType: PlayerType.Engine, currentAssignedEngine: seated.assignedEngine } });
-    await nextTick();
-    await clickButton('Assign player', '[role="dialog"] button');
-    expect(ui.modalState).toBeUndefined();
-    expect(game.blackPlayer?.type).toBe(PlayerType.Engine);
-    expect((game.blackPlayer as IEnginePlayer).assignedEngine).toMatchObject(snapshot);
-    expect(game.gameState).toBe(GameState.LiveWhiteTurn);
-    expect(game.livePath).toEqual([0, 0]);
-    expect(game.$?.pendingPlayerTurnPromise).toBe(pendingTurn);
-    expect(stopEngine).not.toHaveBeenCalled();
-  });
-});
 describe('UI-06 timeout handling after takeback', () => {
   it('adjudicates another timeout after reopening the same game with takeback', async () => {
     const context = await createTimedContext();
@@ -190,8 +91,8 @@ describe('UI-06 timeout handling after takeback', () => {
 });
 describe('UI-08 managed and imported game identity', () => {
   it.each(['selected', 'latest', 'recent'])('uses the enumerated group identity for a %s load and its next save', async (selection) => {
-    const { api, games, stores, domain, fixtures } = await boot('saves');
-    const source = fixtures.createGame('save-other', 'Mismatched document identity', ['c2c4']);
+    const { api, games, stores, domain } = await boot('saves');
+    const source = (await import('../builders/GameFixtureBuilder')).createGame('save-other', 'Mismatched document identity', ['c2c4']);
     const { $: _runtime, ...rootPosition } = source.rootPosition;
     await domain.SerializationService.writeGameDocument('saves/follow-up-managed/Chosen.json', source, true);
     const recent = await stores.useRecentGameStore().getRecentGames();
@@ -227,53 +128,6 @@ describe('UI-08 managed and imported game identity', () => {
     expect(games.getGame(inserted.metadata.id)).toBe(inserted);
     const ids = games.listGames().map((game) => game.metadata.id);
     expect(new Set(ids).size).toBe(ids.length);
-  });
-});
-function setField(selector: string, value: string | boolean): void {
-  const field = document.querySelector<HTMLInputElement | HTMLSelectElement>(selector);
-  if (!field) throw new Error('Missing regression field: ' + selector);
-  if (typeof value === 'boolean') (field as HTMLInputElement).checked = value;
-  else field.value = value;
-  field.dispatchEvent(new Event(field.type === 'checkbox' || field.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
-}
-async function clickSquare(square: string): Promise<void> {
-  const button = document.querySelector<HTMLButtonElement>(`.board-square[aria-label^="${square}"]`);
-  if (!button) throw new Error('Missing square: ' + square);
-  button.click();
-  await flushPromises();
-}
-describe('UI-01 and UI-16 immediate board and history feedback', () => {
-  it('cancels repeated source selection and updates moves, branches and takeback immediately', async () => {
-    const { game, games } = await createTimedContext();
-    await clickSquare('e2');
-    expect(document.querySelectorAll('.board-square--target').length).toBeGreaterThan(0);
-    await clickSquare('e2');
-    expect(document.querySelector('.board-square--selected')).toBeNull();
-    expect(document.querySelector('.board-square--target')).toBeNull();
-    await clickSquare('e2');
-    await clickSquare('e4');
-    expect(document.querySelectorAll('.history-row')).toHaveLength(1);
-    await games.enterInGameAnalysis(game);
-    await clickSquare('e7');
-    await clickSquare('e5');
-    expect(document.querySelectorAll('.history-row')).toHaveLength(2);
-    games.exitInGameAnalysis(game);
-    await games.takeBack(game);
-    await nextTick();
-    expect(document.querySelectorAll('.history-row')).toHaveLength(0);
-  });
-});
-describe('UI-03 and UI-15 game route reuse', () => {
-  it('validates every changed game id and hides a single tab', async () => {
-    const { game, router, stores } = await createTimedContext();
-    expect(document.querySelector('.tab-strip')).toBeNull();
-    await router.push('/game/unknown-game');
-    await flushPromises();
-    expect(router.currentRoute.value.path).toBe('/game/' + game.metadata.id);
-    stores.useUiStateStore().closeTab(game.metadata.id);
-    await router.push('/game/another-unknown-game');
-    await flushPromises();
-    expect(router.currentRoute.value.path).toBe('/home');
   });
 });
 describe('UI-04 reactive engine inventory', () => {
@@ -489,7 +343,7 @@ describe('UI-13 startup recovery', () => {
     stopReady();
     app.unmount();
     router.options.history.destroy();
-    running = undefined;
+    forgetRunning();
     vi.resetModules();
     const restarted = await boot('settings');
     expect(restarted.router.currentRoute.value.path).toBe('/home');

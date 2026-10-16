@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-PLAY-07",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-CTRL-01"
+    ],
+    "branches": [
+      "BR-CTRL-01-NO-MOVES",
+      "BR-CTRL-01-POLICY-BLOCK"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-07",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Takeback.spec.ts",
+        "titles": [
+          "JRN-PLAY-07 restores the prior position and clock then blocks takeback at root",
+          "JRN-PLAY-07 preserves a game with takebacks disabled"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

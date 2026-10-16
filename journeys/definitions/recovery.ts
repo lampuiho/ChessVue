@@ -1,4 +1,5 @@
-import { createGame, createWorkspace } from '../FixtureFactory';
+import { createGame } from '../builders/GameFixtureBuilder';
+import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
 export function create() {
   return createWorkspace([createGame('recovery-valid', 'Recoverable valid game', ['e2e4'])], {
     openGameIds: ['recovery-missing', 'recovery-broken', 'recovery-valid'], route: '/game/recovery-missing',

@@ -28,6 +28,10 @@ const engineStatus = computed(() => {
   if (props.player?.type !== PlayerType.Engine) return;
   return (props.player as IEnginePlayer).assignedEngine.$?.availability ?? EngineAvailability.Ready;
 });
+const engineError = computed(() => {
+  if (props.player?.type === PlayerType.Engine) return (props.player as IEnginePlayer).assignedEngine.$?.lastError;
+  return;
+});
 function glyph(kind: keyof typeof pieceGlyphs.white): string {
   const capturedColour = props.colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
   return pieceGlyphs[capturedColour][kind];
@@ -44,6 +48,7 @@ function glyph(kind: keyof typeof pieceGlyphs.white): string {
         <span v-if="player?.type === PlayerType.Engine" class="engine-state"><i :class="`engine-state--${engineStatus}`"></i>{{ engineStatus }}</span>
         <span v-else>{{ player ? 'Local player' : 'Analysis seat' }}</span>
       </div>
+      <p v-if="engineError" class="engine-error" role="alert">{{ engineError }}</p>
     </div>
     <div v-if="capturedPieces?.length" class="captured-pieces" aria-label="Captured material">
       <template v-for="group in capturedPieces" :key="group.pieceKind"><span v-for="count in group.count" :key="count" :style="{ marginLeft: count === 1 ? '0' : '-0.42em' }">{{ glyph(group.pieceKind) }}</span></template>
@@ -60,6 +65,7 @@ function glyph(kind: keyof typeof pieceGlyphs.white): string {
 .player-avatar--black { color: #312b26; }
 .player-avatar i { position: absolute; right: -0.05rem; bottom: 0.05rem; width: 0.55rem; height: 0.55rem; border: 0.125rem solid var(--surface-panel); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0.125rem var(--accent-soft); }
 .player-identity { min-width: 0; }
+.engine-error { max-width: 14rem; margin: 0.2rem 0 0; color: var(--danger); font-size: 0.65rem; overflow-wrap: anywhere; }
 .player-name { display: flex; max-width: 14rem; padding: 0; align-items: center; gap: 0.25rem; overflow: hidden; background: transparent; font-family: var(--font-display); font-size: 0.93rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .player-name:hover { color: var(--accent); }
 .player-name .app-icon { font-size: 0.7rem; }

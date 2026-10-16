@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-PLAY-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-CTRL-02"
+    ],
+    "branches": [
+      "BR-CTRL-02-CANCEL",
+      "BR-CTRL-02-ALREADY-ENDED"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-04",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Resign.spec.ts",
+        "titles": [
+          "JRN-PLAY-04 cancels resignation without changing the game",
+          "JRN-PLAY-04 confirms white resignation once and keeps review usable",
+          "JRN-PLAY-04 confirms black resignation once and keeps review usable"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

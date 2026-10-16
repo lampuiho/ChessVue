@@ -1,0 +1,14 @@
+{
+  "title": "Empty first launch and game creation",
+  "scenarios": [
+    "SCN-SESSION-01",
+    "SCN-GAME-01",
+    "SCN-GAME-02",
+    "SCN-MOVE-02"
+  ],
+  "steps": [
+    "Confirm Home has no recent games.",
+    "Create a quick game; select e2 twice, then play e2-e4.",
+    "Open Custom New Game; try empty/negative time and a missing required engine."
+  ]
+}

@@ -18,6 +18,7 @@ These files define the committed implementation baseline that should be settled 
 - [user_settings.md](user_settings.md): reader-friendly summary of committed user settings.
 - [build_settings.md](build_settings.md): committed desktop-first build and runtime baseline.
 - [ideas.md](ideas.md): deferred or speculative concepts that are intentionally outside the low-level rewrite baseline.
+- [Design questions](../questions/README.md): focused unresolved decisions and scenario/implementation drift found while writing journeys, checked against the [clarified product intent](../JourneyTestPlan.md#product-intent-and-usability-baseline).
 
 ## Recommended Reading Order
 1. Start with [plan.md](plan.md) to understand the rewrite baseline.

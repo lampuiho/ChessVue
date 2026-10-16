@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppIcon from './common/AppIcon.vue';
 
-withDefaults(defineProps<{ canSave?: boolean; canDelete?: boolean }>(), { canSave: false, canDelete: false });
+withDefaults(defineProps<{ canSave?: boolean; canDelete?: boolean; canClose?: boolean }>(), { canSave: false, canDelete: false, canClose: false });
 const emit = defineEmits<{
   homeRequested: [];
   quickNewGameRequested: [];
@@ -10,6 +10,7 @@ const emit = defineEmits<{
   saveGameRequested: [];
   settingsRequested: [];
   deleteGameRequested: [];
+  closeGameRequested: [];
 }>();
 </script>
 
@@ -27,6 +28,7 @@ const emit = defineEmits<{
       <button class="menu-button" @click="emit('customNewGameRequested')"><AppIcon name="sliders" /><span>Custom</span></button>
       <button class="menu-button" @click="emit('loadGameRequested')"><AppIcon name="folder" /><span>Load</span></button>
       <button class="menu-button" :disabled="!canSave" @click="emit('saveGameRequested')"><AppIcon name="save" /><span>Save</span></button>
+      <button v-if="canClose" class="menu-button" @click="emit('closeGameRequested')"><AppIcon name="x" /><span>Close game</span></button>
     </nav>
     <nav class="header-actions header-actions--end" aria-label="Application actions">
       <button class="menu-button" @click="emit('settingsRequested')"><AppIcon name="settings" /><span>Settings</span></button>

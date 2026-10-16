@@ -1,0 +1,53 @@
+[
+  {
+    "id": "JRN-PLAY-10",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ENGINE-03"
+    ],
+    "branches": [],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-10",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/PlayerAssignment.spec.ts",
+        "titles": [
+          "JRN-PLAY-10 changes a local seat to an engine and back with exactly one reply"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-PLAY-11",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ENGINE-03",
+      "SCN-FREE-ANALYSIS-01"
+    ],
+    "branches": [],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-11",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/PlayerAssignment.spec.ts",
+        "titles": [
+          "JRN-PLAY-11 unassigns a seat from a visible branch preserving history and clearing live state",
+          "JRN-PLAY-11 clears the recorded result when converting play-drawn to free analysis",
+          "JRN-PLAY-11 clears the recorded result when converting play-resigned to free analysis"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

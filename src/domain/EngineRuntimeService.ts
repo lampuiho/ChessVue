@@ -90,7 +90,7 @@ function _failAnalysisOperation(runtimeState: IAssignedEngineRuntime, operation:
     return;
   }
   if (_isInvalidProcessHandleError(error)) runtimeState.processHandle = undefined;
-  if (!(error instanceof Aborted)) _setRuntimeAvailability(runtimeState, EngineAvailability.Failed, error instanceof Error ? error.message : 'Unknown engine runtime failure.');
+  if (!(error instanceof Aborted)) _setRuntimeAvailability(runtimeState, EngineAvailability.Failed, error instanceof Error || isPlatformError(error) ? error.message : 'Unknown engine runtime failure.');
   operation.completion.reject(error);
   operation.abortController.abort(error);
 }
@@ -154,7 +154,7 @@ async function _runEngineOperation<T>(runtimeState: IAssignedEngineRuntime, succ
   } catch (error) {
     if (!signal?.aborted) {
       if (_isInvalidProcessHandleError(error)) runtimeState.processHandle = undefined;
-      _setRuntimeAvailability(runtimeState, EngineAvailability.Failed, error instanceof Error ? error.message : 'Unknown engine runtime failure.');
+      _setRuntimeAvailability(runtimeState, EngineAvailability.Failed, error instanceof Error || isPlatformError(error) ? error.message : 'Unknown engine runtime failure.');
     }
     throw error;
   }
@@ -239,6 +239,10 @@ function _queueEngineDisposal(engine: IAssignedEngine, runtimeState: IAssignedEn
 }
 
 export const EngineRuntimeService = {
+  /** Creates engine.$ without starting a process and retains any existing runtime. */
+  ensureRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
+    return _createBaseRuntime(engine);
+  },
   /** Runs a temporary engine session, copies its discovered option metadata, and closes the session before returning. */
   async getOptions(engineProfile: IEngineRecord): Promise<readonly IEngineOptionMeta[]> {
     const engine = _createAssignedEngine(engineProfile);

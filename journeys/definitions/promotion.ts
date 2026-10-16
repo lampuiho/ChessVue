@@ -1,6 +1,7 @@
 import { PieceKind, PlayerColour } from '@/contracts';
 import { createSparseBoard } from '@/utility/chess';
-import { createGame, createWorkspace } from '../FixtureFactory';
+import { createGame } from '../builders/GameFixtureBuilder';
+import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
 export function create() {
   const games = [PlayerColour.White, PlayerColour.Black].map((colour) => createGame(`promotion-${colour}`, `${colour} to promote`, [], {
     rootPosition: createSparseBoard([

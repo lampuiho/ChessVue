@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-FRESH-03",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-GAME-02"
+    ],
+    "branches": [],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-03",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Cancellation.spec.ts",
+        "titles": [
+          "JRN-FRESH-03 dismisses custom creation using Cancel",
+          "JRN-FRESH-03 dismisses custom creation using Close dialog",
+          "JRN-FRESH-03 dismisses custom creation using Escape",
+          "JRN-FRESH-03 dismisses custom creation using backdrop"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

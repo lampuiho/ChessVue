@@ -1,0 +1,75 @@
+[
+  {
+    "id": "JRN-FRESH-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-01"
+    ],
+    "branches": [],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-01",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Creation.spec.ts",
+        "titles": [
+          "JRN-FRESH-01 opens empty screens without creating a game"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-FRESH-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-GAME-01",
+      "SCN-MOVE-01"
+    ],
+    "branches": [],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-02",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Creation.spec.ts",
+        "titles": [
+          "JRN-FRESH-02 @smoke creates a quick local game and restores e4"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-FRESH-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-GAME-02"
+    ],
+    "branches": [],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-04",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Creation.spec.ts",
+        "titles": [
+          "JRN-FRESH-04 creates one named timed game with takebacks disabled"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

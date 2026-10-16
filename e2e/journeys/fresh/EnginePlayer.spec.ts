@@ -1,0 +1,41 @@
+import { test, expect } from '../../support/TestEvidence';
+import { openJourney } from '../../support/JourneyBootstrap';
+import { playMove } from '../../support/BoardInteraction';
+import { createWorkspace, openCustomGame, setCustomClock } from '../../support/GameCreation';
+import { configureEngines } from '../../support/EngineInventory';
+import { managedFiles, readGame, readSession } from '../../support/SaveInspection';
+
+test('JRN-FRESH-06 creates a timed game with one legal engine reply', async ({ page }) => {
+  await openJourney(page, 'fresh');
+  await configureEngines(page, [{ name: 'Journey A', path: 'journey://a' }]);
+  const dialog = await openCustomGame(page);
+  await setCustomClock(dialog);
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey A' });
+  const gameId = await createWorkspace(page);
+  await playMove(page, 'e2', 'e4');
+  await expect(page.locator('.history-row')).toHaveCount(2);
+  await expect(page.locator('.result-badge')).toHaveText('white to move');
+  await expect(page.locator('.engine-error')).toHaveCount(0);
+  await expect.poll(async () => (await readGame(page, `saves/${gameId}/auto.json`)).livePath).toEqual([0, 0]);
+  const game = await readGame(page, `saves/${gameId}/auto.json`);
+  expect(game.blackPlayer?.displayName).toBe('Journey A');
+  expect(game.blackPlayer?.type).toBe('engine');
+  expect(game.moveTree.root.children[0]!.children).toHaveLength(1);
+  await expect(page.getByRole('button', { name: /^e4 white pawn$/i })).toBeVisible();
+});
+test('JRN-FRESH-06 rejects an unavailable engine and recovers in the same form', async ({ page }) => {
+  await openJourney(page, 'fresh');
+  await configureEngines(page, [{ name: 'Journey unavailable', path: 'journey://unavailable' }]);
+  const before = await managedFiles(page);
+  const dialog = await openCustomGame(page);
+  await setCustomClock(dialog);
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey unavailable' });
+  await dialog.getByRole('button', { name: 'Create workspace', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Journey unavailable is unavailable. Choose another player engine and try again.');
+  await expect(dialog).toBeVisible();
+  expect((await readSession(page)).openGameIds).toEqual([]);
+  expect(await managedFiles(page)).toEqual(before);
+  await dialog.getByLabel('Black', { exact: true }).selectOption('local');
+  const gameId = await createWorkspace(page);
+  expect((await readSession(page)).openGameIds).toEqual([gameId]);
+});

@@ -173,9 +173,9 @@ function showFile(index: number): boolean {
 <style scoped>
 .board-area { display: grid; gap: 0.65rem; justify-items: center; }
 .board-frame { width: 100%; padding: 0.45rem; border-radius: 0.48rem; background: #39291f; box-shadow: 0 1.125rem 2.5rem rgb(24 17 12 / 24%), 0 0.1875rem 0.5rem rgb(24 17 12 / 25%); }
-.board-grid { position: relative; display: grid; width: 100%; aspect-ratio: 1; grid-template-columns: repeat(8, 1fr); overflow: hidden; }
+.board-grid { position: relative; display: grid; width: 100%; aspect-ratio: 1; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); overflow: hidden; }
 .board-grid--disabled { cursor: not-allowed; }
-.board-square { position: relative; display: grid; min-width: 0; padding: 0; place-items: center; border-radius: 0; overflow: hidden; }
+.board-square { position: relative; display: grid; min-width: 0; min-height: 0; padding: 0; place-items: center; border-radius: 0; overflow: hidden; }
 .board-square--light { color: #7a4d2c; background: #e8d8b9; }
 .board-square--dark { color: #e8d8b9; background: #9b6744; }
 .board-square--last::before { position: absolute; inset: 0; background: rgb(224 174 55 / 42%); content: ''; }

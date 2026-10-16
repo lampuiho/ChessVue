@@ -48,6 +48,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
   }
   function _finaliseLiveMove(game: IGame, livePosition: IBoardPosition, isLivePositionRendered: boolean): void {
     status.updateGameResultFromLivePosition(game, livePosition);
+    if (game.resultState !== ResultState.Ongoing) position.getLiveNode(game).clockSnapshot = game.clockSnapshot;
     const renderedColour = isLivePositionRendered ? livePosition.sideToMove : position.getRenderedPosition(game).sideToMove;
     if (game.resultState === ResultState.Ongoing && !isLivePositionRendered) game.gameState = status.getLiveAnalysisState(livePosition.sideToMove, renderedColour);
     else status.updateGameStateAfterPosition(game, renderedColour);

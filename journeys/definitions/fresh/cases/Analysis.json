@@ -1,0 +1,59 @@
+[
+  {
+    "id": "JRN-FRESH-07",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-GAME-02",
+      "SCN-FREE-ANALYSIS-01"
+    ],
+    "branches": [
+      "BR-GAME-02-FREE-ANALYSIS-START"
+    ],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-07",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Analysis.spec.ts",
+        "titles": [
+          "JRN-FRESH-07 explores without live work using Free analysis",
+          "JRN-FRESH-07 explores without live work using White unassigned",
+          "JRN-FRESH-07 explores without live work using Black unassigned"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-FRESH-08",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-GAME-02",
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-GAME-02-FREE-ANALYSIS-START"
+    ],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-08",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Analysis.spec.ts",
+        "titles": [
+          "JRN-FRESH-08 refreshes two analysis engines after an exploratory move"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

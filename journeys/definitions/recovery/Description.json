@@ -1,0 +1,14 @@
+{
+  "title": "Corrupt settings/layout, missing game and unsupported game version",
+  "scenarios": [
+    "SCN-SESSION-02",
+    "SCN-SESSION-03",
+    "SCN-IMPORT-02",
+    "SCN-NAV-02"
+  ],
+  "steps": [
+    "Confirm the app remains usable with corrupt settings/layout and unavailable active game.",
+    "Verify recovery-valid is restored while recovery-broken and recovery-missing are removed from the open session.",
+    "Check the fallback route and recoverable warning; use reset() to repeat startup."
+  ]
+}

@@ -1,4 +1,6 @@
-import { appendMoves, createGame, createWorkspace } from '../FixtureFactory';
+import { appendMoves } from '../builders/HistoryFixtureBuilder';
+import { createGame } from '../builders/GameFixtureBuilder';
+import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
 export function create() {
   const games = [true, false].map((allowTakeback) => {
     const game = createGame(`history-${allowTakeback ? 'allowed' : 'blocked'}`, `Takeback ${allowTakeback ? 'allowed' : 'blocked'}`, ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'a7a6'], { allowTakeback });

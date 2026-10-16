@@ -1,0 +1,76 @@
+import { test, expect } from './PlayTest';
+import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
+import { playMove, square } from '../../support/BoardInteraction';
+import { selectGame } from '../../support/GameNavigation';
+import { saveCurrentGame } from '../../support/GameSave';
+import { readFile } from '../../support/SaveInspection';
+import { autoSave, choosePlayer, createTimedPlay } from './PlaySetup';
+
+test('JRN-PLAY-10 changes a local seat to an engine and back with exactly one reply', async ({ page }) => {
+  await openJourney(page, 'play');
+  const other = await readFile(page, 'saves/play-mate/auto.json');
+  const id = await createTimedPlay(page);
+  await choosePlayer(page, 'Black', 'Journey A');
+  await playMove(page, 'e2', 'e4');
+  await expect(page.locator('.history-row')).toHaveCount(2);
+  await expect(page.locator('.result-badge')).toHaveText('white to move');
+  await expect(page.locator('.player-name').first()).toHaveText('Journey A');
+  const replied = await saveCurrentGame(page, 'engine-reply');
+  expect(replied.livePath).toEqual([0, 0]);
+  expect(replied.timeControl).toEqual({ initialMs: 300000, incrementMs: 2000 });
+  expect(replied.clockSnapshot.white.remainingMs).toBe(302000);
+  expect(replied.clockSnapshot.black.remainingMs).toBe(302000);
+  await choosePlayer(page, 'Black', 'Local player');
+  await playMove(page, 'g1', 'f3');
+  await expect(page.locator('.history-row')).toHaveCount(3);
+  await expect(page.locator('.result-badge')).toHaveText('black to move');
+  await expect(square(page, 'f3')).toHaveAttribute('aria-label', 'f3 white knight');
+  expect((await autoSave(page, id)).blackPlayer?.type).toBe('local');
+  expect(await readFile(page, 'saves/play-mate/auto.json')).toBe(other);
+  await page.reload();
+  await waitForJourney(page);
+  await expect(page.locator('.history-row')).toHaveCount(3);
+  await expect(page.locator('.player-name').first()).toHaveText('Black');
+});
+test('JRN-PLAY-11 unassigns a seat from a visible branch preserving history and clearing live state', async ({ page }) => {
+  await openJourney(page, 'play');
+  await createTimedPlay(page);
+  await playMove(page, 'e2', 'e4');
+  await playMove(page, 'e7', 'e5');
+  await choosePlayer(page, 'Black', 'Journey A');
+  await page.getByRole('button', { name: 'Offer draw', exact: true }).click();
+  await page.getByRole('button', { name: /Analyse/ }).click();
+  await page.locator('.history-row').first().click();
+  await playMove(page, 'c7', 'c5');
+  const before = await saveCurrentGame(page, 'branch-before');
+  await choosePlayer(page, 'White', 'Unassigned');
+  await expect(page.getByRole('heading', { name: 'Study controls', exact: true })).toBeVisible();
+  await expect(square(page, 'c5')).toHaveAttribute('aria-label', 'c5 black pawn');
+  const after = await saveCurrentGame(page, 'branch-after');
+  expect(after.moveTree).toEqual(before.moveTree);
+  expect(after.renderedPath).toEqual(before.renderedPath);
+  expect(after.livePath).toBeUndefined();
+  expect(after.drawOfferState).toBeUndefined();
+  expect(after.resultState).toBe('ongoing');
+  expect(after.resultReason).toBeUndefined();
+  expect(after.clockSnapshot.white.isRunning).toBe(false);
+  expect(after.clockSnapshot.black.isRunning).toBe(false);
+  await playMove(page, 'g1', 'f3');
+  await expect(page.locator('.history-row')).toHaveCount(4);
+});
+for (const game of [{ id: 'play-drawn', name: 'Draw by agreement' }, { id: 'play-resigned', name: 'White resigned' }]) {
+  test(`JRN-PLAY-11 clears the recorded result when converting ${game.id} to free analysis`, async ({ page }) => {
+    await openJourney(page, 'play');
+    await selectGame(page, game.id, game.name);
+    await choosePlayer(page, 'White', 'Unassigned');
+    await expect(page.getByRole('heading', { name: 'Study controls', exact: true })).toBeVisible();
+    await expect(page.locator('.result-badge')).toHaveText('white to move');
+    const saved = await saveCurrentGame(page, 'converted');
+    expect(saved.resultState).toBe('ongoing');
+    expect(saved.resultReason).toBeUndefined();
+    expect(saved.livePath).toBeUndefined();
+    await page.reload();
+    await waitForJourney(page);
+    await expect(page.getByRole('button', { name: /Start game/ })).toBeVisible();
+  });
+}

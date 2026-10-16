@@ -1,0 +1,41 @@
+[
+  {
+    "id": "JRN-FRESH-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-GAME-02"
+    ],
+    "branches": [
+      "BR-GAME-02-INVALID-TIME"
+    ],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-05",
+    "data": [
+      "journeys/definitions/fresh/data/Validation.json"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Validation.spec.ts",
+        "titles": [
+          "JRN-FRESH-05 rejects empty name",
+          "JRN-FRESH-05 rejects whitespace name",
+          "JRN-FRESH-05 rejects empty minutes",
+          "JRN-FRESH-05 rejects zero minutes",
+          "JRN-FRESH-05 rejects negative minutes",
+          "JRN-FRESH-05 rejects excessive minutes",
+          "JRN-FRESH-05 rejects empty increment",
+          "JRN-FRESH-05 rejects negative increment",
+          "JRN-FRESH-05 rejects fractional increment",
+          "JRN-FRESH-05 rejects excessive increment",
+          "JRN-FRESH-05 accepts minimum minutes",
+          "JRN-FRESH-05 accepts maximum minutes",
+          "JRN-FRESH-05 accepts zero increment",
+          "JRN-FRESH-05 accepts maximum increment"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

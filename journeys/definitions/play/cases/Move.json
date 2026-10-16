@@ -1,0 +1,52 @@
+[
+  {
+    "id": "JRN-PLAY-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01"
+    ],
+    "branches": [],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-01",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Move.spec.ts",
+        "titles": [
+          "JRN-PLAY-01 @smoke commits one opening move with captures and immediate feedback"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-PLAY-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-MOVE-02"
+    ],
+    "branches": [],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-02",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Move.spec.ts",
+        "titles": [
+          "JRN-PLAY-02 rejects invalid clicks without adding time or history",
+          "JRN-PLAY-02 rejects wrong-colour drag and commits one valid drag"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

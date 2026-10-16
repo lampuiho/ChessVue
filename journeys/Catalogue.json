@@ -1,52 +1,12 @@
 {
-  "fresh": {
-    "title": "Empty first launch and game creation",
-    "scenarios": ["SCN-SESSION-01", "SCN-GAME-01", "SCN-GAME-02", "SCN-MOVE-02"],
-    "steps": ["Confirm Home has no recent games.", "Create a quick game; select e2 twice, then play e2-e4.", "Open Custom New Game; try empty/negative time and a missing required engine."]
-  },
-  "play": {
-    "title": "Multiple games, captures, game results and controls",
-    "scenarios": ["SCN-SESSION-02", "SCN-GAME-03", "SCN-MOVE-01", "SCN-NAV-02", "SCN-CTRL-01", "SCN-CTRL-02", "SCN-CTRL-03", "SCN-ENGINE-03"],
-    "steps": ["In play-opening play g1-f3; check board, turn, captures and history together.", "Switch to play-mate and play d8-h4 for checkmate; inspect play-drawn and play-resigned.", "Offer/accept/reject a draw, resign, take back and change a player in play-opening, resetting between destructive branches.", "Switch between tabs, close all but one, then navigate to /game/missing-game."]
-  },
-  "history": {
-    "title": "Mainline history, variations and takeback permissions",
-    "scenarios": ["SCN-HIST-01", "SCN-HIST-02", "SCN-HIST-03", "SCN-HIST-04", "SCN-CTRL-04", "SCN-CTRL-05"],
-    "steps": ["Expand the alternatives after e4/e5 in history-allowed and select each branch.", "Return to the e4/e5 node and play f1-c4; check the historical rewrite confirmation and resulting mainline.", "Repeat in history-blocked; verify the live continuation is preserved.", "Enter in-game analysis, explore a move and exit; verify live position/clocks resume and board editing stays unavailable."]
-  },
-  "setup": {
-    "title": "Free analysis, board editing and starting from setup",
-    "scenarios": ["SCN-FREE-ANALYSIS-01", "SCN-FREE-ANALYSIS-02", "SCN-FREE-ANALYSIS-03", "SCN-CTRL-05"],
-    "steps": ["Explore setup-analysis without moving a live game.", "In setup-board, add/remove pieces with the palette, clear/reset the board and leave editing.", "Start a game from setup; inspect player, clock and live-analysis options and retained position."]
-  },
-  "promotion": {
-    "title": "White/black promotion, capture promotion and cancellation",
-    "scenarios": ["SCN-MOVE-03", "SCN-MOVE-01", "SCN-MOVE-02"],
-    "steps": ["In promotion-white play a7-a8; cancel the chooser and verify no move was committed.", "Repeat and choose each piece with a reset between choices; also try a7-b8 capture promotion.", "In promotion-black repeat with h2-h1 and h2-g1."]
-  },
-  "analysis": {
-    "title": "Two scripted engines, three PVs and suggestion permissions",
-    "scenarios": ["SCN-ANALYSIS-01", "SCN-ANALYSIS-02", "SCN-ANALYSIS-03", "SCN-ANALYSIS-04", "SCN-ANALYSIS-05"],
-    "steps": ["Expand both engines in analysis-free; inspect three PVs, collapse/reopen and click a suggestion.", "Compare analysis-score-only with analysis-live-moves: live-game move suggestions should follow each preference.", "Add/remove engines; assign Journey unavailable to exercise engine failure while retaining the other seat.", "Change a player to Journey A and make a local move to exercise the UCI player response."]
-  },
-  "clocks": {
-    "title": "Paused increment game and two short timeout games",
-    "scenarios": ["SCN-TIME-01", "SCN-TIME-02", "SCN-TIME-03", "SCN-TIME-04", "SCN-TIME-05", "SCN-NAV-01"],
-    "steps": ["Resume clocks-increment and play g1-f3; verify a two-second increment and the active colour.", "Open Settings and return; compare automatic menu pause with a manual pause.", "Resume clocks-timeout-a, wait three seconds and dismiss its result; switch to clocks-timeout-b and repeat without reloading."]
-  },
-  "saves": {
-    "title": "Autosaves, named saves, recent games, import/export and deletion",
-    "scenarios": ["SCN-SAVE-01", "SCN-SAVE-02", "SCN-SAVE-03", "SCN-LOAD-01", "SCN-NAV-03", "SCN-EXPORT-01", "SCN-IMPORT-01", "SCN-IMPORT-02", "SCN-LIFECYCLE-01", "SCN-LIFECYCLE-02"],
-    "steps": ["Inspect save-library and save-other, their autosaves and named saves; select, load, overwrite and delete entries.", "Return Home and reopen a recent game.", "Import uses imports/valid.json by default; use chooseImport() for corrupt/version/duplicate-ID fixtures or cancellation.", "Export a game, then inspect its JSON using readFile('exports/<name>.json').", "Make moves and inspect auto.json for move-count autosave; reset and repeat a close/save flow against the existing autosave."]
-  },
-  "settings": {
-    "title": "Prefilled engine inventory, appearance and dirty settings",
-    "scenarios": ["SCN-SETTINGS-01", "SCN-SETTINGS-02", "SCN-ENGINE-01", "SCN-ENGINE-02", "SCN-NAV-01", "SCN-ENGINE-03"],
-    "steps": ["Inspect dark theme, black orientation and engine profiles A/B/unavailable.", "Edit/apply/reset appearance and verify changes without restart.", "Rename/remove/add an engine, apply, then open Custom New Game or Change Player and check the inventory.", "Leave an unsaved settings edit through Return, tabs and browser Back; check save/discard prompts."]
-  },
-  "recovery": {
-    "title": "Corrupt settings/layout, missing game and unsupported game version",
-    "scenarios": ["SCN-SESSION-02", "SCN-SESSION-03", "SCN-IMPORT-02", "SCN-NAV-02"],
-    "steps": ["Confirm the app remains usable with corrupt settings/layout and unavailable active game.", "Verify recovery-valid is restored while recovery-broken and recovery-missing are removed from the open session.", "Check the fallback route and recoverable warning; use reset() to repeat startup."]
-  }
+  "fresh": "./definitions/fresh/Description.json",
+  "play": "./definitions/play/Description.json",
+  "history": "./definitions/history/Description.json",
+  "setup": "./definitions/setup/Description.json",
+  "promotion": "./definitions/promotion/Description.json",
+  "analysis": "./definitions/analysis/Description.json",
+  "clocks": "./definitions/clocks/Description.json",
+  "saves": "./definitions/saves/Description.json",
+  "settings": "./definitions/settings/Description.json",
+  "recovery": "./definitions/recovery/Description.json"
 }

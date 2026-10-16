@@ -1,0 +1,16 @@
+{
+  "title": "Paused increment game and two short timeout games",
+  "scenarios": [
+    "SCN-TIME-01",
+    "SCN-TIME-02",
+    "SCN-TIME-03",
+    "SCN-TIME-04",
+    "SCN-TIME-05",
+    "SCN-NAV-01"
+  ],
+  "steps": [
+    "Resume clocks-increment and play g1-f3; verify a two-second increment and the active colour.",
+    "Open Settings and return; compare automatic menu pause with a manual pause.",
+    "Resume clocks-timeout-a, wait three seconds and dismiss its result; switch to clocks-timeout-b and repeat without reloading."
+  ]
+}

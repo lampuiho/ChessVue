@@ -451,6 +451,15 @@ describe('EngineRuntimeService', () => {
     expect(startAnalysis).toHaveBeenCalledTimes(2);
     expect(engine.$?.availability).toBe(EngineAvailability.Running);
   });
+  it.each(['player', 'analysis'])('retains typed platform startup feedback for %s engines', async (kind) => {
+    const engine = createAssignedEngine();
+    const error = { kind: PlatformErrorKind.ProcessStartFailed, operation: 'spawnProcess', message: 'Engine unavailable. Choose another player.' };
+    spawnProcess.mockRejectedValueOnce(error);
+    const starting = kind === 'player' ? EngineRuntimeService.ensureReady(engine) : EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());
+    await expect(starting).rejects.toBe(error);
+    expect(engine.$?.availability).toBe(EngineAvailability.Failed);
+    expect(engine.$?.lastError).toBe(error.message);
+  });
   it('clears a stale process handle when stopping analysis fails its liveness check', async () => {
     const engine = createAssignedEngine();
     await EngineRuntimeService.startAnalysis(engine, createGame(), createAnalysisRequest());

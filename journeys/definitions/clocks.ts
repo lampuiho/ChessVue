@@ -1,5 +1,7 @@
 import { TimeControlPreset } from '@/contracts';
-import { createGame, createWorkspace, setPausedClock } from '../FixtureFactory';
+import { createGame } from '../builders/GameFixtureBuilder';
+import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
+import { setPausedClock } from '../builders/ClockFixtureBuilder';
 export function create(now: number) {
   const increment = createGame('clocks-increment', 'Two-minute clock + 2 seconds', ['e2e4', 'e7e5'], {
     timeControl: { preset: TimeControlPreset.Blitz, initialMs: 120000, incrementMs: 2000 },

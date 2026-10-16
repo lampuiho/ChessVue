@@ -1,0 +1,16 @@
+{
+  "title": "Two scripted engines, three PVs and suggestion permissions",
+  "scenarios": [
+    "SCN-ANALYSIS-01",
+    "SCN-ANALYSIS-02",
+    "SCN-ANALYSIS-03",
+    "SCN-ANALYSIS-04",
+    "SCN-ANALYSIS-05"
+  ],
+  "steps": [
+    "Expand both engines in analysis-free; inspect three PVs, collapse/reopen and click a suggestion.",
+    "Compare analysis-score-only with analysis-live-moves: live-game move suggestions should follow each preference.",
+    "Add/remove engines; assign Journey unavailable to exercise engine failure while retaining the other seat.",
+    "Change a player to Journey A and make a local move to exercise the UCI player response."
+  ]
+}

@@ -1,5 +1,7 @@
 import { BoardOrientation, ThemeMode } from '@/contracts';
-import { createGame, createSettings, createWorkspace } from '../FixtureFactory';
+import { createGame } from '../builders/GameFixtureBuilder';
+import { createSettings } from '../builders/SettingsFixtureBuilder';
+import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
 export function create() {
   const settings = createSettings();
   settings.appearance.themeMode = ThemeMode.Dark;

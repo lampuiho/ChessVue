@@ -1,0 +1,13 @@
+{
+  "title": "White/black promotion, capture promotion and cancellation",
+  "scenarios": [
+    "SCN-MOVE-03",
+    "SCN-MOVE-01",
+    "SCN-MOVE-02"
+  ],
+  "steps": [
+    "In promotion-white play a7-a8; cancel the chooser and verify no move was committed.",
+    "Repeat and choose each piece with a reset between choices; also try a7-b8 capture promotion.",
+    "In promotion-black repeat with h2-h1 and h2-g1."
+  ]
+}

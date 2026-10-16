@@ -1,0 +1,22 @@
+{
+  "title": "Autosaves, named saves, recent games, import/export and deletion",
+  "scenarios": [
+    "SCN-SAVE-01",
+    "SCN-SAVE-02",
+    "SCN-SAVE-03",
+    "SCN-LOAD-01",
+    "SCN-NAV-03",
+    "SCN-EXPORT-01",
+    "SCN-IMPORT-01",
+    "SCN-IMPORT-02",
+    "SCN-LIFECYCLE-01",
+    "SCN-LIFECYCLE-02"
+  ],
+  "steps": [
+    "Inspect save-library and save-other, their autosaves and named saves; select, load, overwrite and delete entries.",
+    "Return Home and reopen a recent game.",
+    "Import uses imports/valid.json by default; use chooseImport() for corrupt/version/duplicate-ID fixtures or cancellation.",
+    "Export a game, then inspect its JSON using readFile('exports/<name>.json').",
+    "Make moves and inspect auto.json for move-count autosave; reset and repeat a close/save flow against the existing autosave."
+  ]
+}

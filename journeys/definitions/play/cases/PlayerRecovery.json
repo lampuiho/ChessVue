@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-PLAY-12",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ENGINE-03"
+    ],
+    "branches": [
+      "BR-ENGINE-03-SAME-SELECTION",
+      "BR-ENGINE-03-ENGINE-UNAVAILABLE"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-12",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/PlayerRecovery.spec.ts",
+        "titles": [
+          "JRN-PLAY-12 preserves the existing engine using Cancel",
+          "JRN-PLAY-12 preserves the existing engine using Keep",
+          "JRN-PLAY-12 reports an unavailable due engine and recovers by reassignment"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

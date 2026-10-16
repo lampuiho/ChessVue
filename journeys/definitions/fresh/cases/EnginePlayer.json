@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-FRESH-06",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-GAME-02"
+    ],
+    "branches": [
+      "BR-GAME-02-ENGINE-MISSING"
+    ],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-06",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/EnginePlayer.spec.ts",
+        "titles": [
+          "JRN-FRESH-06 creates a timed game with one legal engine reply",
+          "JRN-FRESH-06 rejects an unavailable engine and recovers in the same form"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

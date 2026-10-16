@@ -1,0 +1,21 @@
+{
+  "title": "Multiple games, captures, game results and controls",
+  "scenarios": [
+    "SCN-SESSION-02",
+    "SCN-GAME-03",
+    "SCN-MOVE-01",
+    "SCN-MOVE-02",
+    "SCN-NAV-02",
+    "SCN-CTRL-01",
+    "SCN-CTRL-02",
+    "SCN-CTRL-03",
+    "SCN-ENGINE-03",
+    "SCN-FREE-ANALYSIS-01"
+  ],
+  "steps": [
+    "In play-opening play g1-f3; check board, turn, captures and history together.",
+    "Switch to play-mate and play d8-h4 for checkmate; inspect play-drawn and play-resigned.",
+    "Offer/accept/reject a draw, resign, take back and change a player in play-opening, resetting between destructive branches.",
+    "Switch between tabs, close all but one, then navigate to /game/missing-game. Use Close game to close the final workspace without deleting its saves."
+  ]
+}

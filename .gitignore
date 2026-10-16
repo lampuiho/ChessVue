@@ -12,6 +12,8 @@ node_modules
 dist
 dist-ssr
 coverage
+!/journeys/coverage/
+!/journeys/coverage/**
 *.local
 
 # Editor directories and files

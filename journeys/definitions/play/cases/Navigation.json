@@ -1,0 +1,56 @@
+[
+  {
+    "id": "JRN-PLAY-08",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-GAME-03"
+    ],
+    "branches": [
+      "BR-GAME-03-ONE-TAB"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-08",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Navigation.spec.ts",
+        "titles": [
+          "JRN-PLAY-08 @smoke preserves four boards and saves while closing every tab"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-PLAY-09",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-NAV-02"
+    ],
+    "branches": [
+      "BR-NAV-02-HAS-GAMES",
+      "BR-NAV-02-NO-GAMES"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-09",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Navigation.spec.ts",
+        "titles": [
+          "JRN-PLAY-09 redirects an invalid route with play and handles Back and Forward",
+          "JRN-PLAY-09 redirects an invalid route with fresh and handles Back and Forward"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

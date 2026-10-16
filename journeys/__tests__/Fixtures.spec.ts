@@ -40,7 +40,7 @@ describe('journey fixture contracts', () => {
     expect(session.activeRoute).toBe(seed.activeRoute);
     expect(session.openGameIds.every((id) => seed.gameIds.includes(id))).toBe(true);
   });
-  it('covers every committed scenario and rejects unknown names', () => {
+  it('references every committed scenario in the launch descriptions and rejects unknown names', () => {
     const source = readFileSync('docs/HighLevel/scenarios.md', 'utf8');
     const ids = [...source.matchAll(/^### (SCN-(?!IDEA)[\w-]+)/gm)].map((match) => match[1]);
     const covered = new Set(Object.values(journeyCatalogue).flatMap((entry) => entry.scenarios));

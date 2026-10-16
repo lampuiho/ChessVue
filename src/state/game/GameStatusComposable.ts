@@ -11,6 +11,8 @@ import {
 } from '@/contracts';
 import { resolveGameResult } from '@/utility/chess';
 import { getOpponentColour } from '@/utility/chess/BoardUtility';
+import { TimeControlService } from '@/domain/TimeControlService';
+import { ClockTimestamp } from '@/utility/date';
 import type { GamePositionComposable } from './GamePositionComposable';
 
 type LiveGame = IGame & { livePath: MovePath };
@@ -90,6 +92,10 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     const resolvedResult = resolveGameResult(boardPosition);
     game.resultState = resolvedResult.resultState;
     game.resultReason = resolvedResult.resultReason;
+    if (game.resultState !== ResultState.Ongoing) {
+      game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
+      game.drawOfferState = undefined;
+    }
   }
   function assertNotPausedForAction(game: IGame, action: string): void {
     if (!isPausedState(game.gameState)) return;
@@ -134,6 +140,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     assertOngoingLiveAction(game, 'Resignation');
     await clearPlayerTurnRuntime(game);
     game.resultState = colour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
+    game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
     game.resultReason = ResultReason.Resignation;
     game.gameState = getAnalysisState(getOpponentColour(colour));
     game.drawOfferState = undefined;
@@ -151,6 +158,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     if (!game.drawOfferState) return;
     await clearPlayerTurnRuntime(game);
     game.resultState = ResultState.Drawn;
+    game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
     game.resultReason = ResultReason.DrawAgreement;
     game.gameState = getAnalysisState(position.getRenderedPosition(game).sideToMove);
     game.drawOfferState = undefined;

@@ -1,0 +1,20 @@
+{
+  "invalid": [
+    { "name": "empty name", "field": "name", "value": "", "message": "Enter a game name." },
+    { "name": "whitespace name", "field": "name", "value": "   ", "message": "Enter a game name." },
+    { "name": "empty minutes", "field": "minutes", "value": "", "message": "Enter minutes between 1 and 600." },
+    { "name": "zero minutes", "field": "minutes", "value": "0", "message": "Enter minutes between 1 and 600." },
+    { "name": "negative minutes", "field": "minutes", "value": "-1", "message": "Enter minutes between 1 and 600." },
+    { "name": "excessive minutes", "field": "minutes", "value": "601", "message": "Enter minutes between 1 and 600." },
+    { "name": "empty increment", "field": "increment", "value": "", "message": "Enter an increment between 0 and 300 seconds." },
+    { "name": "negative increment", "field": "increment", "value": "-1", "message": "Enter an increment between 0 and 300 seconds." },
+    { "name": "fractional increment", "field": "increment", "value": "0.5", "message": "Enter an increment between 0 and 300 seconds." },
+    { "name": "excessive increment", "field": "increment", "value": "301", "message": "Enter an increment between 0 and 300 seconds." }
+  ],
+  "valid": [
+    { "name": "minimum minutes", "minutes": "1", "increment": "2" },
+    { "name": "maximum minutes", "minutes": "600", "increment": "2" },
+    { "name": "zero increment", "minutes": "5", "increment": "0" },
+    { "name": "maximum increment", "minutes": "5", "increment": "300" }
+  ]
+}

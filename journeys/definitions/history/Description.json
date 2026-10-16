@@ -1,0 +1,17 @@
+{
+  "title": "Mainline history, variations and takeback permissions",
+  "scenarios": [
+    "SCN-HIST-01",
+    "SCN-HIST-02",
+    "SCN-HIST-03",
+    "SCN-HIST-04",
+    "SCN-CTRL-04",
+    "SCN-CTRL-05"
+  ],
+  "steps": [
+    "Expand the alternatives after e4/e5 in history-allowed and select each branch.",
+    "Return to the e4/e5 node and play f1-c4; check the historical rewrite confirmation and resulting mainline.",
+    "Repeat in history-blocked; verify the live continuation is preserved.",
+    "Enter in-game analysis, explore a move and exit; verify live position/clocks resume and board editing stays unavailable."
+  ]
+}

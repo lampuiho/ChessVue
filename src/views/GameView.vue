@@ -228,7 +228,7 @@ async function requestMoves(moves: readonly IMove[]): Promise<void> {
   if (!currentGame || !moves.length || isPlayingLine.value) return;
   const livePath = currentGame.livePath;
   const historical = livePath && currentGame.renderedPath.length < livePath.length && currentGame.renderedPath.every((part, index) => part === livePath[index]);
-  if (historical && currentGame.gameplayOptions.allowTakeback && !currentGame.gameState.startsWith('paused')) {
+  if (historical && currentGame.resultState === ResultState.Ongoing && currentGame.gameplayOptions.allowTakeback && !currentGame.gameState.startsWith('paused')) {
     pendingContinuation.value = { game: currentGame, node: renderedNode.value!, moves };
     return;
   }
@@ -329,7 +329,16 @@ async function run(action: () => Promise<void> | void): Promise<void> {
 
 <template>
   <main v-if="game && position" class="game-page">
-    <MenuBar can-save @home-requested="run(() => handleMenuInterruptionRequested(() => router.push('/home')))" @quick-new-game-requested="quickNewGame" @custom-new-game-requested="run(() => handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame })))" @load-game-requested="run(() => handleMenuInterruptionRequested(() => router.push('/saved-games/load')))" @save-game-requested="run(() => handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))" @settings-requested="run(() => handleMenuInterruptionRequested(() => router.push('/settings/session')))" />
+    <MenuBar
+      can-save
+      can-close
+      @close-game-requested="run(() => closeTab(game!.metadata.id))"
+      @home-requested="run(() => handleMenuInterruptionRequested(() => router.push('/home')))"
+      @quick-new-game-requested="quickNewGame"
+      @custom-new-game-requested="run(() => handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame })))"
+      @load-game-requested="run(() => handleMenuInterruptionRequested(() => router.push('/saved-games/load')))"
+      @save-game-requested="run(() => handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))"
+      @settings-requested="run(() => handleMenuInterruptionRequested(() => router.push('/settings/session')))" />
     <GameTabs v-if="tabs.length > 1" :tabs="tabs" :active-id="game.metadata.id" @tab-selected="selectTab" @tab-closed="closeTab" />
     <div class="game-stage">
       <section class="board-column">

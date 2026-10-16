@@ -87,6 +87,8 @@ Profile edits change the reusable engine profile only. They do not mutate alread
 - Each engine group may be folded or expanded independently without affecting the other engine groups.
 - Partial failure of one engine must not stop the remaining engines.
 
+Engines may evaluate actual game positions and temporary exploratory positions. The user's recording feature applies only to actual moves played in games; exploratory output must not create or replace those recorded-analysis entries. This does not prevent interactive analysis or change the existing current-seat output contract. Actual-move record review prompts are in [Q-ANALYSIS-001](../questions/analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) and [Q-ENGINE-001](../questions/engine/Q-ENGINE-001-ComparisonAndPersistence.md), to investigate during journey implementation/testing rather than resolve upfront; exploratory pruning is settled in [Q-ANALYSIS-002](../questions/analysis/Q-ANALYSIS-002-VariationRetention.md).
+
 ## Resource Limit Policy
 To prevent the low-level rewrite from inventing concurrency rules, the baseline high-level policy is:
 

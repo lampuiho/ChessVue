@@ -32,6 +32,9 @@ See [upstream Stockfish.js](https://github.com/nmrugg/stockfish.js/tree/v19.0.1)
 
 ## Journeys and browser end-to-end tests
 
+The [user journey test development plan](docs/JourneyTestPlan.md) defines the scenarios to automate, failure cases, priorities and completion criteria.
+The [implementation record](docs/JourneyImplementation.md) tracks the first creation/save cases and their validation; `npm run journey -- report` reports the latest run against distributed case metadata.
+
 ```sh
 npm run journey -- list
 npm run journey -- history --open

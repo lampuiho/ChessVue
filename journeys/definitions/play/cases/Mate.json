@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-PLAY-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01"
+    ],
+    "branches": [
+      "BR-MOVE-01-GAME-OVER"
+    ],
+    "fixture": "play",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-03",
+    "data": [
+      "journeys/definitions/play/data/PlayWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/play/Mate.spec.ts",
+        "titles": [
+          "JRN-PLAY-03 @smoke records seeded checkmate and preserves it through review and reload",
+          "JRN-PLAY-03 @smoke records timed checkmate and preserves it through review and reload"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

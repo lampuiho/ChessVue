@@ -1,0 +1,28 @@
+[
+  {
+    "id": "JRN-FRESH-09",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-GAME-01",
+      "SCN-GAME-02",
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/fresh/ScenarioReview.md#jrn-fresh-09",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/fresh/Defaults.spec.ts",
+        "titles": [
+          "JRN-FRESH-09 applies defaults to future games and preserves an existing game"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -1,6 +1,7 @@
 import { GameState, PieceKind, PlayerColour } from '@/contracts';
 import { createSparseBoard } from '@/utility/chess';
-import { createGame, createWorkspace } from '../FixtureFactory';
+import { createGame } from '../builders/GameFixtureBuilder';
+import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
 export function create() {
   const analysis = createGame('setup-analysis', 'Free opening analysis', ['d2d4', 'd7d5', 'c2c4'], { freeAnalysis: true });
   const board = createGame('setup-board', 'Editable endgame setup', [], {

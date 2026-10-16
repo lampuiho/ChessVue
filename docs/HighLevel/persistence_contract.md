@@ -98,6 +98,12 @@ Only after that game state is restored may live analysis resume.
 
 Analysis seats retain up to three rendered lines each, belonging to the saved root and `renderedPath`. Empty seats remain valid assignments. There is no analysis position key or visibility filter; position-changing actions clear old rendered results before publication or saving. Runtime line maps, promises, subscriptions, and process state are excluded. Restored results remain available when automatic resume is disabled or engines are unavailable. The revised analysis schema replaces the unfinished earlier format without migration support.
 
+## Recorded Analysis Scope
+
+The user confirmed that recorded analysis applies only to actual moves played in games. Exploratory moves are temporary and may be pruned under SCN-HIST-04; they do not create recorded-analysis entries. Saving/restoring a workspace may still include branches under the move-tree contract, which is distinct from the recording feature. See [Q-ANALYSIS-002 — resolved](../questions/analysis/Q-ANALYSIS-002-VariationRetention.md).
+
+Recorded analysis for actual moves must be preserved independently of temporary exploration/pruning. Review prompts for payload and capture timing are tracked in [Q-ANALYSIS-001](../questions/analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) and [Q-ENGINE-001](../questions/engine/Q-ENGINE-001-ComparisonAndPersistence.md); investigate them during journey implementation/testing and ask only when concrete findings require clarification. Current persisted analysis seats describe rendered-position output; this scope clarification does not claim that the existing schema already implements historical actual-move records or itself require a schema change.
+
 ## Ownership Boundaries
 ### Saved Game Payload Owns
 - game identity and lifecycle state

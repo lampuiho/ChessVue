@@ -1,0 +1,17 @@
+{
+  "title": "Prefilled engine inventory, appearance and dirty settings",
+  "scenarios": [
+    "SCN-SETTINGS-01",
+    "SCN-SETTINGS-02",
+    "SCN-ENGINE-01",
+    "SCN-ENGINE-02",
+    "SCN-NAV-01",
+    "SCN-ENGINE-03"
+  ],
+  "steps": [
+    "Inspect dark theme, black orientation and engine profiles A/B/unavailable.",
+    "Edit/apply/reset appearance and verify changes without restart.",
+    "Rename/remove/add an engine, apply, then open Custom New Game or Change Player and check the inventory.",
+    "Leave an unsaved settings edit through Return, tabs and browser Back; check save/discard prompts."
+  ]
+}

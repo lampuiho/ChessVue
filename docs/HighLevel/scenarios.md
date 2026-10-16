@@ -7,6 +7,10 @@ The goal is to map **user actions -> branch paths -> implementation ownership im
 
 This is a design artifact only. It introduces no runtime code/API changes.
 
+While writing journeys, compare each scenario and branch with the current implementation, owning contracts and the user's clarified product intent. This catalogue may contain gaps, ambiguous policies and stale implementation labels. Follow the [journey drift review](../JourneyTestPlan.md#scenario-drift-review-while-writing-journeys) and record unresolved design questions in [docs/questions](../questions/README.md); neither current code nor scenario wording alone settles unclear product behaviour.
+
+Recording scope, clarified by the user on 15 October 2026: recorded analysis belongs only to actual moves played in games. Exploratory moves remain temporary and are not recorded-analysis entries. Existing pruning under SCN-HIST-04 is accepted; see the [resolved decision](../questions/analysis/Q-ANALYSIS-002-VariationRetention.md). This does not change the separate workspace-restoration or historical-rewrite rules.
+
 ## Conventions
 - **Scenario ID**: stable identifier, e.g. `SCN-GAME-01`.
 - **Branch ID**: stable identifier, e.g. `BR-GAME-01-CANCEL`.
@@ -230,7 +234,7 @@ Each scenario in this document uses the same structure:
   1. User opens/creates multiple games.
   2. User switches game via tab.
   3. App updates active route and current game ID.
-  4. Game view rebinds board/history/analysis to selected game.
+  4. Game view rebinds board/history/analysis to selected game. Closing the last workspace through `Close game` returns Home without deleting its managed saves.
 - **Branch Paths**:
   - `BR-GAME-03-ONE-TAB`: If only one game remains, tab bar hides.
   - `BR-GAME-03-INVALID-TARGET`: If selected game no longer exists, fallback to first valid game/home.
@@ -272,21 +276,21 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.saveGameSession`
 
 ### SCN-NAV-02 - Invalid Game Route Handling
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Gracefully handle `/game/:id` when `id` is unknown.
 - **Preconditions**: User deep-links to invalid game ID.
 - **Entry Points**: URL route or internal navigate call.
 - **Main Steps**:
   1. User opens invalid game route.
-  2. Route guard validates game ID.
+  2. GameView validates the game ID on mount and parameter changes.
   3. App redirects to valid fallback route.
 - **Branch Paths**:
   - `BR-NAV-02-HAS-GAMES`: Redirect to first available game.
   - `BR-NAV-02-NO-GAMES`: Redirect to home/new-game prompt.
 - **Postconditions**: User never lands in broken game view.
 - **Implementation Touchpoints**:
-  - `Router.beforeRouteEnterGuard`
-  - `Router.beforeEachRouteGuard`
+  - `GameView.validateSelectedGame`
+  - `GameView` route-parameter watcher
   - `GamesStore.getGame`
   - `GamesStore.listGames`
 
@@ -455,6 +459,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-04-NO-CLEANUP`: Analysis did not originate from the latest live node, or live play resumed from a different node -> no automatic cleanup path runs.
   - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
 - **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs. Historical rewrites covered by `SCN-HIST-02` retain previously played continuations as variations.
+- **Recording boundary**: These exploratory continuations do not create recorded-analysis entries. Pruning them must preserve actual game moves and their associated analysis records; exploratory retention is not a prerequisite for the recording feature.
 - **Implementation Touchpoints**:
   - `MoveHistoryService.pruneFutureMoves`
   - `GamesStore.exitInGameAnalysis`
@@ -798,7 +803,7 @@ Each scenario in this document uses the same structure:
   - `TimeControlService.applyMove` (recompute policy)
 
 ### SCN-CTRL-02 - Resign Game
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: End game by resignation with confirmation.
 - **Preconditions**: Active non-ended game.
 - **Entry Points**: Control panel `Resign`.
@@ -1165,7 +1170,7 @@ Each scenario in this document uses the same structure:
   - `UserSettingService.saveSettings`
 
 ### SCN-ENGINE-03 - Change Player Assignment During Game
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Explicitly reassign one side to `none`, `local`, or a configured engine profile from the player strip.
 - **Preconditions**: The current game has a baseline reassignable seat and presentation exposes the player-selection entry point. Board-edit mode does not expose player reassignment.
 - **Entry Points**: Click the displayed player label in the player strip.

@@ -1,3 +1,4 @@
+import { shallowReactive } from 'vue';
 import {
   GameState,
   PlayerActivityState,
@@ -36,12 +37,16 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   function createPlayerSnapshot(player?: IPlayer): IPlayer | undefined {
     if (!player) return;
     const playerSnapshot: IPlayer = playerSchema.parse(player);
-    playerSnapshot.$ = { activityState: PlayerActivityState.Active };
+    initialisePlayerRuntime(playerSnapshot);
     return playerSnapshot;
   }
   function normalisePlayers(game: IGame): void {
-    if (game.whitePlayer) game.whitePlayer.$ = { activityState: PlayerActivityState.Active };
-    if (game.blackPlayer) game.blackPlayer.$ = { activityState: PlayerActivityState.Active };
+    if (game.whitePlayer) initialisePlayerRuntime(game.whitePlayer);
+    if (game.blackPlayer) initialisePlayerRuntime(game.blackPlayer);
+  }
+  function initialisePlayerRuntime(player: IPlayer): void {
+    player.$ = { activityState: PlayerActivityState.Active };
+    if (isEnginePlayer(player)) player.assignedEngine.$ = shallowReactive(EngineRuntimeService.ensureRuntime(player.assignedEngine));
   }
   function getSideToMovePlayer(game: IGame, positionColour: PlayerColour): IPlayer | undefined {
     return positionColour === PlayerColour.White ? game.whitePlayer : game.blackPlayer;
@@ -98,7 +103,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
       } catch (error) {
         if (!(error instanceof Aborted)) {
           logHandledError('GameStore', '_playerMoveHandler', error);
-          setTimeout(() => requestPlayerMove(game), 500);
+          setTimeout(() => requestPlayerMoveIfNeeded(game), 500);
         }
         return;
       } finally {
@@ -140,6 +145,9 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
       game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
       position.setLivePath(game, undefined);
       game.drawOfferState = undefined;
+      game.resultState = ResultState.Ongoing;
+      game.resultReason = undefined;
+      position.requireGameRuntime(game).pauseReasons = undefined;
       game.gameState = status.getAnalysisState(selectedPosition.sideToMove);
       touchGame(game);
     } else {
