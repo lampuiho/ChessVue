@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-CLOCK-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-02"
+    ],
+    "branches": [
+      "BR-TIME-02-DOUBLE-PAUSE"
+    ],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-02",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Pause.spec.ts",
+        "titles": [
+          "JRN-CLOCK-02 freezes white and blocks gameplay until its eligible clock resumes",
+          "JRN-CLOCK-02 freezes black and blocks gameplay until its eligible clock resumes"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -1,0 +1,67 @@
+import { test, expect } from './ClockTest';
+import { playMove } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { advanceClock, dismissTimeout, expectTimeout, openRunningClock, playerClock, selectClockGame } from './ClockAction';
+for (const colour of ['white', 'black'] as const) {
+  test(`JRN-CLOCK-06 expires ${colour} exactly at zero and cannot revive the finished live turn`, async ({ page }) => {
+    await openRunningClock(page, 'Timeout A');
+    if (colour === 'black') await playMove(page, 'e2', 'e4');
+    await advanceClock(page, 2999);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(playerClock(page, colour)).toHaveText('0:00.0');
+    await expect(page.getByRole('heading', { name: 'Game controls', exact: true })).toBeVisible();
+    await advanceClock(page, 1);
+    await expectTimeout(page, colour === 'white' ? 'Black' : 'White');
+    await dismissTimeout(page);
+    await advanceClock(page, 10000);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const before = await saveCurrentGame(page, 'expired');
+    expect(before.clockSnapshot[colour]).toEqual({ remainingMs: 0, isRunning: false });
+    expect(before.resultReason).toBe('timeout');
+    expect(before.resultState).toBe(colour === 'white' ? 'blackWon' : 'whiteWon');
+    await expect(page.getByRole('button', { name: /^Resume game/ })).toHaveCount(0);
+    await playMove(page, colour === 'white' ? 'e2' : 'e7', colour === 'white' ? 'e4' : 'e5');
+    const reviewed = await saveCurrentGame(page, 'timeout-review');
+    expect(reviewed.livePath).toEqual(before.livePath);
+    expect(reviewed.resultState).toBe(before.resultState);
+    expect(reviewed.resultReason).toBe(before.resultReason);
+    expect(reviewed.clockSnapshot).toEqual(before.clockSnapshot);
+  });
+}
+test('JRN-CLOCK-07 shows separate timeout results for A and B without remounting @smoke', async ({ page }) => {
+  await openRunningClock(page, 'Timeout A');
+  await page.locator('.game-page').evaluate((element) => element.setAttribute('data-clock-instance', 'retained'));
+  await advanceClock(page, 3000);
+  await expectTimeout(page);
+  await dismissTimeout(page);
+  await selectClockGame(page, 'Timeout B');
+  await expect(page.locator('.game-page')).toHaveAttribute('data-clock-instance', 'retained');
+  await page.getByRole('button', { name: /^Resume game/ }).click();
+  await playMove(page, 'e2', 'e4');
+  await advanceClock(page, 3000);
+  await expectTimeout(page, 'White');
+  await dismissTimeout(page);
+  expect((await saveCurrentGame(page, 'timeout-b')).resultState).toBe('whiteWon');
+  await selectClockGame(page, 'Timeout A');
+  expect((await saveCurrentGame(page, 'timeout-a')).resultState).toBe('blackWon');
+});
+test('JRN-CLOCK-08 shows a new timeout after takeback reopens the same game', async ({ page }) => {
+  await openRunningClock(page, 'Timeout A');
+  await playMove(page, 'e2', 'e4');
+  await advanceClock(page, 3000);
+  await expectTimeout(page, 'White');
+  await dismissTimeout(page);
+  await page.getByRole('button', { name: /^Takeback/ }).click();
+  await expect(page.getByRole('heading', { name: 'Game controls', exact: true })).toBeVisible();
+  await expect(playerClock(page, 'white')).toHaveClass(/player-clock--running/);
+  await expect(playerClock(page, 'white')).toHaveText('0:03.0');
+  await advanceClock(page, 3000);
+  await expectTimeout(page, 'Black');
+  await dismissTimeout(page);
+  const saved = await saveCurrentGame(page, 'reopened-timeout');
+  expect(saved.livePath).toEqual([]);
+  expect(saved.resultState).toBe('blackWon');
+  expect(saved.resultReason).toBe('timeout');
+  await advanceClock(page, 10000);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});

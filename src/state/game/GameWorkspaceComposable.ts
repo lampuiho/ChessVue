@@ -1,6 +1,7 @@
 import { markRaw, ref } from 'vue';
 import {
   GameState,
+  PauseReason,
   ResultState,
   type ICreateGameRequest,
   type IGame,
@@ -58,6 +59,11 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
   async function hydrateAndInsertGame(game: IGame): Promise<IGame> {
     repairDuplicateGameId(game, getExistingGameIds());
     const hydratedGame = position.hydrateGame(game);
+    if (status.isPausedState(hydratedGame.gameState)) {
+      // Saved states omit runtime owners; require an explicit resume after restore.
+      hydratedGame.$!.pauseReasons = status.isPausedLiveAnalysisState(hydratedGame.gameState)
+        ? [PauseReason.Analysis, PauseReason.Manual] : [PauseReason.Manual];
+    }
     playerTurn.normalisePlayers(hydratedGame);
     replaceGame(hydratedGame);
     clock.refreshRuntimeRegistrations(hydratedGame);

@@ -24,8 +24,8 @@ hasExpired(snapshot: IClockSnapshot, nowUtc: ClockTimestamp): boolean
 - initialise untimed and timed games correctly
 - provide an authoritative remaining-time read model for UI tick rendering
 - pause and resume without drift
-- finalise timeout once
-- keep free analysis, history review, and in-game analysis from consuming live time
+- detect expiry and clamp elapsed time at zero; `GamesStore` owns single timeout finalisation and turn cleanup
+- leave paused snapshots fixed during explicit analysis and other pauses; ordinary history review retains a running live snapshot
 
 ## Scenario Coverage
 - `SCN-TIME-01`

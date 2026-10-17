@@ -1,0 +1,63 @@
+import { describe, expect, it, vi } from 'vitest';
+import { AppModalKind, PauseReason, PlayerColour, ResultReason, ResultState } from '@/contracts';
+import { createTimedContext, legalMove } from '../support/UiHarness';
+describe('JRN-CLOCK-06/09/12 timeout finalisation', () => {
+  it('finalises once when delayed UI and focus reconciliation arrive together', async () => {
+    const { games, game, stores, router } = await createTimedContext();
+    const { ClockTimestamp } = await import('@/utility/date');
+    vi.setSystemTime(Date.now() + 10000);
+    const before = games.workspaceRevision;
+    const show = vi.spyOn(stores.useUiStateStore(), 'showModal');
+    await Promise.all([games.syncClock(game, new ClockTimestamp()), games.syncClock(game, new ClockTimestamp())]);
+    expect(games.workspaceRevision - before).toBe(1);
+    expect(game.resultReason).toBe(ResultReason.Timeout);
+    expect(game.clockSnapshot.white).toEqual({ remainingMs: 0, isRunning: false });
+    expect(game.$?.focusReturnUnsubscribe).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(show.mock.calls.filter(([modal]) => modal.kind === AppModalKind.Timeout)).toHaveLength(1);
+    stores.useUiStateStore().hideModal();
+    await router.push('/settings/session');
+    await router.push('/game/' + game.metadata.id);
+    window.dispatchEvent(new Event('focus'));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(show.mock.calls.filter(([modal]) => modal.kind === AppModalKind.Timeout)).toHaveLength(1);
+  });
+  it('settles expiry before a menu pause can hide a finished turn', async () => {
+    const { games, game } = await createTimedContext();
+    vi.setSystemTime(Date.now() + 3000);
+    await games.pauseGame(game, PauseReason.Menu);
+    expect(game.resultState).toBe(ResultState.BlackWon);
+    expect(game.resultReason).toBe(ResultReason.Timeout);
+    await games.resumeGame(game, PauseReason.Menu);
+    expect(game.clockSnapshot.white).toEqual({ remainingMs: 0, isRunning: false });
+    expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
+  });
+  it('rejects a live move at expiry without awarding its increment or changing the played line', async () => {
+    const context = await createTimedContext();
+    const { game, games } = context;
+    game.timeControl.incrementMs = 2000;
+    const move = legalMove(context, game, 'e2e4');
+    vi.setSystemTime(Date.now() + 3000);
+    await games.makeMove(game, move);
+    expect(game.livePath).toEqual([]);
+    expect(game.moveTree.root.children).toHaveLength(0);
+    expect(game.resultState).toBe(ResultState.BlackWon);
+    expect(game.clockSnapshot.white.remainingMs).toBe(0);
+    await games.resumeGame(game, PauseReason.Manual);
+    expect(game.clockSnapshot.white.isRunning).toBe(false);
+  });
+  it('keeps a result fixed when a late move is explored after timeout', async () => {
+    const context = await createTimedContext();
+    const { games, game } = context;
+    const { ClockTimestamp } = await import('@/utility/date');
+    vi.setSystemTime(Date.now() + 4000);
+    await games.syncClock(game, new ClockTimestamp());
+    await games.makeMove(game, legalMove(context, game, 'e2e4'));
+    expect(game.livePath).toEqual([]);
+    expect(game.renderedPath).toEqual([0]);
+    expect(game.resultState).toBe(ResultState.BlackWon);
+    expect(game.resultReason).toBe(ResultReason.Timeout);
+    expect(game.clockSnapshot.activeColour).toBe(PlayerColour.White);
+    expect(game.clockSnapshot.white.isRunning).toBe(false);
+  });
+});

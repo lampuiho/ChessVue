@@ -1,0 +1,58 @@
+[
+  {
+    "id": "JRN-CLOCK-09",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-TIME-01",
+      "SCN-TIME-04"
+    ],
+    "branches": [
+      "BR-TIME-01-BACKGROUND-THROTTLE",
+      "BR-TIME-01-SYNC-DRIFT",
+      "BR-TIME-04-LAG-COMPENSATE"
+    ],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-09",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Interruption.spec.ts",
+        "titles": [
+          "JRN-CLOCK-09 reconciles 5000ms of hidden time on visibility and focus return",
+          "JRN-CLOCK-09 reconciles 125000ms of hidden time on visibility and focus return"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-CLOCK-11",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-TIME-01"
+    ],
+    "branches": [],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-11",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Interruption.spec.ts",
+        "titles": [
+          "JRN-CLOCK-11 keeps the first game clock running while another game tab is selected"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

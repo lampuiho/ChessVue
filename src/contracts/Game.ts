@@ -110,6 +110,7 @@ export interface IGameplayOptions {
   showLiveAnalysisMoves?: boolean;
 }
 export interface IGameRuntime {
+  timeoutNotificationShown?: boolean;
   renderedPosition?: IBoardPosition;
   renderedNode?: IMoveNode;
   livePosition?: IBoardPosition;

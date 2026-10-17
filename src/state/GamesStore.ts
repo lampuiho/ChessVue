@@ -62,6 +62,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     touchGame,
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     flushDeferredPlayerMove: (game: IGame) => playerTurn.flushDeferredPlayerMove(game),
+    requestPlayerMoveIfNeeded: (game: IGame) => playerTurn.requestPlayerMoveIfNeeded(game),
   });
   move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame, moveCommitted });
   const boardEdit = useGameBoardEdit({ position, status, analysis, move, touchGame });

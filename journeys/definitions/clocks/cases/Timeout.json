@@ -1,0 +1,84 @@
+[
+  {
+    "id": "JRN-CLOCK-06",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-02",
+      "SCN-TIME-04"
+    ],
+    "branches": [
+      "BR-TIME-02-RESUME-GAME-OVER",
+      "BR-TIME-04-LAG-COMPENSATE",
+      "BR-TIME-04-ANALYSIS-ONLY"
+    ],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-06",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Timeout.spec.ts",
+        "titles": [
+          "JRN-CLOCK-06 expires white exactly at zero and cannot revive the finished live turn",
+          "JRN-CLOCK-06 expires black exactly at zero and cannot revive the finished live turn"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-CLOCK-07",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-04"
+    ],
+    "branches": [],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-07",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Timeout.spec.ts",
+        "titles": [
+          "JRN-CLOCK-07 shows separate timeout results for A and B without remounting @smoke"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-CLOCK-08",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-04",
+      "SCN-CTRL-01"
+    ],
+    "branches": [],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-08",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Timeout.spec.ts",
+        "titles": [
+          "JRN-CLOCK-08 shows a new timeout after takeback reopens the same game"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -1,0 +1,107 @@
+[
+  {
+    "id": "JRN-CLOCK-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-05",
+      "SCN-NAV-01"
+    ],
+    "branches": [],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-03",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Menu.spec.ts",
+        "titles": [
+          "JRN-CLOCK-03 freezes a running clock during Settings and resumes on return @smoke",
+          "JRN-CLOCK-03 freezes a running clock during Save and resumes on return @smoke",
+          "JRN-CLOCK-03 freezes a running clock during Load and resumes on return @smoke",
+          "JRN-CLOCK-03 freezes a running clock during Custom and resumes on return @smoke"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-CLOCK-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-02",
+      "SCN-TIME-05"
+    ],
+    "branches": [
+      "BR-TIME-05-ALREADY-PAUSED"
+    ],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-04",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Menu.spec.ts",
+        "titles": [
+          "JRN-CLOCK-04 preserves manual ownership through Settings return",
+          "JRN-CLOCK-04 preserves analysis ownership through Settings return",
+          "JRN-CLOCK-04 preserves restored manual ownership through Settings return",
+          "JRN-CLOCK-04 preserves manual ownership through Save return",
+          "JRN-CLOCK-04 preserves analysis ownership through Save return",
+          "JRN-CLOCK-04 preserves restored manual ownership through Save return",
+          "JRN-CLOCK-04 preserves manual ownership through Load return",
+          "JRN-CLOCK-04 preserves analysis ownership through Load return",
+          "JRN-CLOCK-04 preserves restored manual ownership through Load return",
+          "JRN-CLOCK-04 preserves manual ownership through Custom return",
+          "JRN-CLOCK-04 preserves analysis ownership through Custom return",
+          "JRN-CLOCK-04 preserves restored manual ownership through Custom return"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-CLOCK-05",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-TIME-05",
+      "SCN-NAV-01"
+    ],
+    "branches": [
+      "BR-TIME-05-AUTO-PAUSE-DISABLED",
+      "BR-TIME-05-NON-TIMED-GAME",
+      "BR-NAV-01-AUTO-PAUSE-DISABLED"
+    ],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-05",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Menu.spec.ts",
+        "titles": [
+          "JRN-CLOCK-05 keeps time running through Settings when menu pause is disabled",
+          "JRN-CLOCK-05 leaves an untimed game playable after Settings",
+          "JRN-CLOCK-05 keeps time running through Save when menu pause is disabled",
+          "JRN-CLOCK-05 leaves an untimed game playable after Save",
+          "JRN-CLOCK-05 keeps time running through Load when menu pause is disabled",
+          "JRN-CLOCK-05 leaves an untimed game playable after Load",
+          "JRN-CLOCK-05 keeps time running through Custom when menu pause is disabled",
+          "JRN-CLOCK-05 leaves an untimed game playable after Custom"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

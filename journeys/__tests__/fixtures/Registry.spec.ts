@@ -21,6 +21,7 @@ describe('modular journey discovery', () => {
     const cases = loadJourneyCases();
     expect(cases.map((entry) => entry.id).sort()).toEqual([
       ...Array.from({ length: 12 }, (_, index) => `JRN-ANALYSIS-${String(index + 1).padStart(2, '0')}`),
+      ...Array.from({ length: 12 }, (_, index) => `JRN-CLOCK-${String(index + 1).padStart(2, '0')}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-FRESH-0${index + 1}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-HIST-0${index + 1}`),
       ...Array.from({ length: 12 }, (_, index) => `JRN-PLAY-${String(index + 1).padStart(2, '0')}`),

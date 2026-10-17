@@ -42,7 +42,6 @@ const settingsStore = useSettingsStore();
 const uiStateStore = useUiStateStore();
 const now = ref(Date.now());
 const notice = ref('');
-const timeoutShown = ref(false);
 const isPlayingLine = ref(false);
 const pendingContinuation = shallowRef<{ game: IGame; node: IMoveNode; moves: readonly IMove[] }>();
 let playbackGeneration = 0;
@@ -139,12 +138,8 @@ watch(gameId, () => {
   playbackGeneration += 1;
   isPlayingLine.value = false;
   pendingContinuation.value = undefined;
-  timeoutShown.value = false;
   now.value = Date.now();
   void run(validateSelectedGame);
-});
-watch(() => game.value?.resultState, (result) => {
-  if (result === ResultState.Ongoing) timeoutShown.value = false;
 });
 watch(() => gamesStore.autosaveError, (message) => {
   if (message) showNotice(`Automatic save failed: ${message}`);
@@ -164,13 +159,15 @@ async function validateSelectedGame(): Promise<void> {
 }
 async function reconcileTimeout(): Promise<void> {
   const currentGame = game.value;
-  if (!currentGame || timeoutShown.value) return;
+  const runtime = currentGame?.$;
+  if (!currentGame || !runtime) return;
+  if (runtime.timeoutNotificationShown && currentGame.resultState !== ResultState.Ongoing) return;
   if (currentGame.resultReason !== ResultReason.Timeout && currentGame.resultState !== ResultState.Ongoing) return;
   if ((remainingTime.value.white ?? 1) > 0 && (remainingTime.value.black ?? 1) > 0) return;
   if (currentGame.resultState === ResultState.Ongoing) await gamesStore.syncClock(currentGame, new ClockTimestamp());
-  if (game.value !== currentGame || timeoutShown.value) return;
+  if (game.value !== currentGame || runtime.timeoutNotificationShown) return;
   if (currentGame.resultReason !== ResultReason.Timeout) return;
-  timeoutShown.value = true;
+  runtime.timeoutNotificationShown = true;
   uiStateStore.showModal({ kind: AppModalKind.Timeout, payload: { gameId: currentGame.metadata.id, resultState: currentGame.resultState as Exclude<ResultState, ResultState.Ongoing>, resultReason: ResultReason.Timeout } });
 }
 async function quickNewGame(): Promise<void> {

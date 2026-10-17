@@ -693,21 +693,22 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-01-SYNC-DRIFT`: Drift detected -> normalize to authoritative relative time model.
 - **Postconditions**: Clock remains consistent through normal and throttled runtime conditions.
 - **Implementation Touchpoints**:
-  - `GameView.onTimerTick`
+  - `GameView` timer callback and `reconcileTimeout`
   - `TimeControlService.getRemainingTime`
   - `TimeControlService.applyMove`
-  - `PlayerPanel.formatClock`
+  - `PlayerPanel.clockText`
 ### SCN-TIME-02 - Pause and Resume Clocks
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Temporarily stop game timing and resume safely.
 - **Preconditions**: Game in progress with clocks.
 - **Entry Points**: Game control `Pause`.
 - **Main Steps**:
   1. User clicks `Pause`.
-  2. App suspends timer updates, marks paused state, and locks the game surface for all game actions except `Resume`.
+  2. App freezes the clock snapshot, marks paused state and blocks board/history/gameplay mutations. Existing analysis output and engine management remain available.
   3. User clicks `Resume`.
   4. App restores active timer without losing elapsed data.
   5. If an already validated player-engine move became ready while paused, app commits it after pause clears only when the live turn is still ready; otherwise app discards it. It does not repeat legality validation or pondering because pause did not change the live position and the engine-boundary work has already completed.
+  6. A restored paused game requires explicit Resume. Restored paused analysis retains Analysis plus Manual ownership; Resume unlocks exploration and Exit analysis returns to live timing.
 - **Branch Paths**:
   - `BR-TIME-02-DOUBLE-PAUSE`: Pause clicked while already paused -> no-op.
   - `BR-TIME-02-RESUME-GAME-OVER`: Resume attempt after game end -> blocked.
@@ -718,14 +719,14 @@ Each scenario in this document uses the same structure:
   - `TimeControlService.getRemainingTime`
 
 ### SCN-TIME-03 - Increment Applied After Move
-- **Status**: Planned
-- **Goal**: Apply configured increment/delay rules correctly.
+- **Status**: Current
+- **Goal**: Apply the configured per-move increment correctly.
 - **Preconditions**: Incremental time control configured.
 - **Entry Points**: Successful move commit.
 - **Main Steps**:
   1. User completes legal move.
   2. App calculates elapsed time for mover.
-  3. App applies increment/delay policy.
+  3. App adds the configured increment exactly once to the mover and starts the opponent's clock.
   4. UI updates both clocks.
 - **Branch Paths**:
   - `BR-TIME-03-NO-INCREMENT`: Preset has zero increment -> skip add step.
@@ -737,7 +738,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
 
 ### SCN-TIME-04 - Timeout Ends Game
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Finish game automatically when a player runs out of time.
 - **Preconditions**: Clock reaches zero for active side.
 - **Entry Points**: Timer tick or move processing.
@@ -745,14 +746,14 @@ Each scenario in this document uses the same structure:
   1. A UI timer tick or move-processing boundary asks for an authoritative remaining-time read.
   2. If the time-control service reports expiry, the store finalises timeout once.
   3. App marks game result by time.
-  4. Move input is disabled.
+  4. Further live moves and Resume cannot revive the finished turn; subsequent moves are review-only analysis.
   5. History and result metadata are persisted.
 - **Branch Paths**:
   - `BR-TIME-04-LAG-COMPENSATE`: Negative time due to render lag -> clamp to zero and finalize once.
   - `BR-TIME-04-ANALYSIS-ONLY`: Analysis mode still allowed after timeout while game result remains fixed.
 - **Postconditions**: Timeout result is deterministic and prevents further live play.
 - **Implementation Touchpoints**:
-  - `GameView.onTimerTick`
+  - `GameView` timer callback and `reconcileTimeout`
   - `TimeControlService.getRemainingTime`
   - `GamesStore.syncClock`
   - `SavedGamesStore.saveGame`
@@ -760,7 +761,7 @@ Each scenario in this document uses the same structure:
 
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Prevent clocks from continuing to run while the user opens interrupting menus or modals from a timed game.
 - **Preconditions**: Timed game is active; an interrupting menu or modal is triggered from the game screen.
 - **Entry Points**: Menu `Save Game`, menu `Settings`, and any other interrupting menu/modal opened from the game screen.
@@ -770,7 +771,7 @@ Each scenario in this document uses the same structure:
   3. If enabled, app pauses the game before opening the interrupted flow.
   4. User completes or cancels the menu/modal flow.
   5. While paused, the game surface remains non-interactive apart from the eventual resume path, although any already running engine search may still finish under paused rules.
-  6. When the user returns to the game screen, app auto-resumes the clock if the pause came from this auto-pause flow.
+  6. Returning removes only Menu ownership and resumes when no Manual or Analysis owner remains. Selecting another game tab does not itself request a menu pause.
 - **Branch Paths**:
   - `BR-TIME-05-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, the menu action proceeds without changing the clock state.
   - `BR-TIME-05-NON-TIMED-GAME`: If the game has no active clock, no pause action is required.

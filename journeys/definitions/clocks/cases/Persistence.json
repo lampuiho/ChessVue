@@ -1,0 +1,34 @@
+[
+  {
+    "id": "JRN-CLOCK-10",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-TIME-01",
+      "SCN-TIME-02",
+      "SCN-TIME-05"
+    ],
+    "branches": [
+      "BR-TIME-05-ALREADY-PAUSED"
+    ],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-10",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Persistence.spec.ts",
+        "titles": [
+          "JRN-CLOCK-10 restores running timed save using its persisted timestamps",
+          "JRN-CLOCK-10 restores paused timed save using its persisted timestamps",
+          "JRN-CLOCK-10 restores expired timed save using its persisted timestamps",
+          "JRN-CLOCK-10 restores analysis pause until explicit resume and exit without charging hidden time"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

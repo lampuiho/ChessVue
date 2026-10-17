@@ -141,6 +141,7 @@ The UI must enforce this matrix through control visibility and enablement so pla
 - Paused live-analysis states preserve the same live anchor and visible analysis side-to-move information as their unpaused `LiveAnalysisFrom*` counterparts.
 - Auto-resume is allowed only when the same interruption flow caused the pause.
 - Manual pause remains paused until the user explicitly resumes.
+- Restored paused live games reconstruct Manual ownership because runtime owners are not persisted. Restored paused live-analysis games reconstruct Analysis plus Manual: Resume unlocks exploration, and Exit analysis starts live timing. Menu return cannot clear either owner.
 
 ### Terminal Results
 - Timeout, resignation, accepted draw, or abandonment set `resultState` and `resultReason`, then leave live play for analysis.
@@ -155,12 +156,13 @@ The UI must enforce this matrix through control visibility and enablement so pla
 - While that non-local pending-offer indicator is lit, pressing `Draw` accepts an incoming offer or withdraws an outgoing offer only when the game is in a playable live state. In paused live play the indicator is read-only until resume.
 
 ## Clock Rules
-- Clocks apply only to live and paused live states.
-- Live analysis, non-live analysis, board edit, and every terminal result state never consume live clock time.
+- Ongoing live games consume time during play, ordinary history review and game-tab switches. Explicit Analyse adds an independent pause owner and freezes the live clock.
+- Non-live analysis, board edit and terminal result states never consume live clock time.
 - Paused live states suspend clock consumption but do not require an already running engine search to stop before it yields its current best line.
 - UI timer loops are render cadence only; authoritative remaining-time reads come from relative timing data through the time-control service.
 - Clock drift must be corrected from relative timing data rather than UI tick counts.
 - Timeout finalises the result once, then leaves live play for analysis.
+- Concurrent timer/focus checks share one pending timeout settlement, cancelling the old turn before finalisation. Each timeout occurrence has one transient game-owned notification; route remounts and tab switches do not repeat a dismissed notification, and takeback permits a new occurrence.
 
 ## Ownership Boundaries
 - `gameState`, `resultState`, `resultReason`, unresolved `drawOfferState`, persisted analysis, and the per-game `showLiveAnalysisMoves` preference are game-related and must be represented in the game model or state derived directly from it.

@@ -1,0 +1,61 @@
+[
+  {
+    "id": "JRN-CLOCK-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-01",
+      "SCN-TIME-03"
+    ],
+    "branches": [],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-01",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Increment.spec.ts",
+        "titles": [
+          "JRN-CLOCK-01 awards exactly one two-second increment and starts Black after Nf3"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-CLOCK-12",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-TIME-01",
+      "SCN-TIME-02",
+      "SCN-TIME-03",
+      "SCN-TIME-04"
+    ],
+    "branches": [
+      "BR-TIME-02-DOUBLE-PAUSE",
+      "BR-TIME-03-NO-INCREMENT",
+      "BR-TIME-04-LAG-COMPENSATE"
+    ],
+    "fixture": "clocks",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/clocks/ScenarioReview.md#jrn-clock-12",
+    "data": [
+      "journeys/definitions/clocks/data/ClockWorkspace.ts",
+      "journeys/definitions/clocks/data/ClockScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/clocks/Increment.spec.ts",
+        "titles": [
+          "JRN-CLOCK-12 preserves time and awards one increment after repeated pauses with 0ms increment",
+          "JRN-CLOCK-12 preserves time and awards one increment after repeated pauses with 2000ms increment"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]
