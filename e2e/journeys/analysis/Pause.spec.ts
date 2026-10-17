@@ -1,0 +1,41 @@
+import { test, expect, analysisTime } from './AnalysisTest';
+import { openJourney } from '../../support/JourneyBootstrap';
+import { saveCurrentGame } from '../../support/GameSave';
+import { addEngine, analysisSeat, createTimedAnalysis, expectOutput } from './AnalysisAction';
+test('JRN-ANALYSIS-10 finishes pending output while paused and permits analysis management without moves', async ({ page }) => {
+  await openJourney(page, 'analysis');
+  await createTimedAnalysis(page);
+  await expectOutput(page);
+  await page.clock.pauseAt(new Date(analysisTime.getTime() + 60000));
+  await page.getByRole('button', { name: 'Refresh analysis', exact: true }).click();
+  await expect(page.locator('.analysis-line')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Pause Stop the clock', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Game paused', exact: true })).toBeVisible();
+  await page.clock.runFor(200);
+  await expectOutput(page);
+  const before = await saveCurrentGame(page, 'paused-anchor');
+  for (const name of ['Journey A', 'Journey B']) {
+    for (const button of await analysisSeat(page, name).getByRole('button', { name: /^Play through/ }).all()) await expect(button).toBeDisabled();
+  }
+  await analysisSeat(page).getByRole('button', { name: /^Play through/ }).first().click({ force: true });
+  await expect(page.locator('.board-square').first()).toBeDisabled();
+  await analysisSeat(page).getByRole('button', { name: 'Stop engine', exact: true }).click();
+  await expect(analysisSeat(page).getByRole('button', { name: 'Stop engine', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Refresh analysis', exact: true }).click();
+  await page.clock.runFor(200);
+  await expectOutput(page);
+  await addEngine(page, 'Journey unavailable');
+  await analysisSeat(page, 'Journey unavailable').getByRole('button', { name: 'Retry engine', exact: true }).click();
+  await expect(analysisSeat(page, 'Journey unavailable').locator('.engine-error')).toContainText('Process failed to start: journey://unavailable');
+  await analysisSeat(page, 'Journey unavailable').getByRole('button', { name: 'Remove engine', exact: true }).click();
+  await analysisSeat(page, 'Journey B').getByRole('button', { name: 'Remove engine', exact: true }).click();
+  await page.clock.runFor(2000);
+  const after = await saveCurrentGame(page, 'paused-managed');
+  expect(after.analysis.seats.map((seat) => seat.assignedEngine.displayName)).toEqual(['Journey A']);
+  expect(after.moveTree).toEqual(before.moveTree);
+  expect(after.livePath).toEqual(before.livePath);
+  expect(after.renderedPath).toEqual(before.renderedPath);
+  expect(after.clockSnapshot).toEqual(before.clockSnapshot);
+  await page.getByRole('button', { name: /Resume game/ }).click();
+  await expect(analysisSeat(page).getByRole('button', { name: /^Play through/ }).first()).toBeEnabled();
+});

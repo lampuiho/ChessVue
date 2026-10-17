@@ -32,6 +32,11 @@ describe('journey coverage execution evidence', () => {
     expect(aggregateCaseResults([entry], report('flaky', [{ status: 'failed' }, { status: 'passed' }]), '/repo')[0]!.execution).toBe('flaky');
     expect(aggregateCaseResults([entry], report('unexpected', [{ status: 'failed' }, { status: 'failed' }]), '/repo')[0]!.execution).toBe('failed');
   });
+  it('accepts an explicit ordinary-browser reference only in its declared project', () => {
+    const browser = { ...entry, tests: entry.tests.map((test) => ({ ...test, project: 'browser' as const })) };
+    expect(aggregateCaseResults([browser], report(), '/repo')[0]!.execution).toBe('unverified');
+    expect(aggregateCaseResults([browser], report('expected', [{ status: 'passed' }], 'browser'), '/repo')[0]!.execution).toBe('passed');
+  });
   it('retains partial acceptance even after all implemented assertions pass', () => {
     const partial = { ...entry, implementation: 'partial' as const, remaining: ['Recorded-analysis payload still needs coverage.'] };
     expect(aggregateCaseResults([partial], report(), '/repo')[0]).toMatchObject({ implementation: 'partial', execution: 'passed', remaining: partial.remaining });

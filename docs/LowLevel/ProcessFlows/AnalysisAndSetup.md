@@ -280,7 +280,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
 
-Implementation pending (FRONTEND-DRIFT-04): the target flows below describe individual move/prefix selection. The current panel still emits whole PVs. Analysis lifecycle and paused-control fixes do not complete this interaction work.
+`AnalysisPanel` renders an individual button per PV move and emits the selected prefix. `GameView.playAnalysisLine` chooses prefix playback for exploration or first-move submission for normal live play. `applyMoves` validates the entire requested sequence before committing its first move, applies subsequent moves at 350 ms intervals, and checks game, selection and playback generation before each commit. Route changes/unmount cancel the remaining playback. JRN-ANALYSIS-03–06/10 exercise this interaction; FRONTEND-DRIFT-04's pending label was documentation drift.
 
 #### Flow A - Free Analysis / Setup Suggestion
 | `AnalysisPanel.moveSelected` |
@@ -343,9 +343,9 @@ Implementation pending (FRONTEND-DRIFT-04): the target flows below describe indi
 | `GameMoveComposable.makeMove` |
 | `GameMoveComposable.advanceRenderedAnalysisBranch` |
 
-- Target state/settings coverage: non-live analysis should render per-move engine targets. Live and live-analysis states should render those targets only when `gameplayOptions.showLiveAnalysisMoves = true`. The current implementation still renders whole-PV buttons. Paused live play keeps visible analysis read-only and blocks those clicks.
+- State/settings coverage: non-live analysis renders per-move engine targets. Live and live-analysis states render them only when `gameplayOptions.showLiveAnalysisMoves = true`. Manual/menu pauses make targets read-only; an analysis-only pause permits prefix exploration while the live node and clock stay fixed.
 - Runtime selector coverage: analysis-panel move selection reuses the current visible hydrated node. Any persisted `MovePath` updates remain store-internal bookkeeping derived from that node and are not a public runtime interaction contract.
-- Requirement verification: `Pending` under FRONTEND-DRIFT-04. Paused permissions are covered; individual move selection and prefix application are not implemented.
+- Requirement verification: individual move selection, exact prefix playback, first-move live submission, whole-prefix stale rejection and cancellation on game switch have automated Analysis journey/integration coverage. The separate History tranche covers rewrite/no-takeback branch policies. See the [analysis review](../../../journeys/definitions/analysis/ScenarioReview.md) and [execution evidence](../../JourneyImplementation.md#analysis-verification).
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 

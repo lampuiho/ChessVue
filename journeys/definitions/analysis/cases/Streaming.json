@@ -1,0 +1,86 @@
+[
+  {
+    "id": "JRN-ANALYSIS-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-AUTO-ON-MOVE",
+      "BR-ANALYSIS-01-POSITION-CHANGED",
+      "BR-ANALYSIS-02-DESYNC"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-01",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Streaming.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-01 supersedes two pending searches with three current PVs per engine"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-ANALYSIS-02",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-ENGINE-FOLDED",
+      "BR-ANALYSIS-02-FOLD-ONE"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-02",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Streaming.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-02 folds one engine and the panel while refreshed output continues"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-ANALYSIS-12",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-POSITION-CHANGED"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-12",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Streaming.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-12 clears unevaluated history selections and rejects superseded output during rapid navigation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

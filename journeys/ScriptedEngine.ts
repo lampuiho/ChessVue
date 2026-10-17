@@ -1,6 +1,7 @@
 import { PieceKind, PlayerColour, type IBoardPosition, type IMove } from '@/contracts';
 import { applyMove, createInitialBoardPosition, createSparseBoard, genLegalMoves, getUci, toDetailedMove } from '@/utility/chess';
 import type { ISpawnedProcess } from '@/utility/nwjs/models';
+import { smotheredMateReply } from './definitions/play/data/SmotheredMate';
 
 type Listener = (...args: any[]) => void;
 class JourneyEmitter {
@@ -125,7 +126,9 @@ export class ScriptedEngine extends JourneyEmitter implements ISpawnedProcess {
   private finishSearch(): void {
     clearTimeout(this._timer);
     this._searching = false;
-    const move = genLegalMoves(this._position)[0];
+    const legal = genLegalMoves(this._position);
+    const scripted = smotheredMateReply(this._position);
+    const move = legal.find((candidate) => getUci(candidate) === scripted) ?? legal[0];
     queueMicrotask(() => this.output(`bestmove ${move ? getUci(move) : '(none)'}`));
   }
 }

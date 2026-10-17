@@ -568,7 +568,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.getVisibleAnalysis`
 
 ### SCN-ANALYSIS-02 - Multi-Engine Concurrent Analysis
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Compare multiple engines on same position concurrently.
 - **Preconditions**: Two or more engines configured.
 - **Entry Points**: Multi-engine analysis enable action.
@@ -581,7 +581,7 @@ Each scenario in this document uses the same structure:
   6. Analysis panel renders one row/group per engine, always shows score/status, shows up to `3` visible lines only when the current workspace context allows rendered move targets, and updates each row independently as new output arrives.
 - **Branch Paths**:
   - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.
-  - `BR-ANALYSIS-02-TOO-MANY`: Resource limit reached -> throttle, queue, or reject additional engines.
+  - `BR-ANALYSIS-02-TOO-MANY`: Four analysis engines are assigned -> disable Add and reject any additional assignment; existing engines continue independently.
   - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
   - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, engine rows still update independently without rendering move lists.
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
@@ -596,15 +596,15 @@ Each scenario in this document uses the same structure:
   - `EngineRuntimeService.subscribeToAnalysis`
 
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Handle runtime engine interruptions safely.
 - **Preconditions**: Active analysis session exists.
 - **Entry Points**: Unexpected process exit or user stop command.
 - **Main Steps**:
   1. Engine exits or user stops it.
-  2. App marks engine as unavailable/stopped.
+  2. User Stop marks the search stopped. Unexpected exits surface when the next engine operation checks or uses that process handle.
   3. Existing cached evaluations remain visible as the last known result for that engine.
-  4. User can retry start.
+  4. User can restart a stopped seat with Refresh, or use Retry on a failed seat.
 - **Branch Paths**:
   - `BR-ANALYSIS-03-RETRY-SUCCESS`: Restart succeeds and analysis resumes.
   - `BR-ANALYSIS-03-RETRY-FAIL`: Restart fails repeatedly -> suggest settings edit/remove.
@@ -617,7 +617,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Let the user inspect or apply engine moves from the analysis panel according to the current workspace context.
 - **Preconditions**: At least one analysis line is available in a context that renders move targets.
 - **Entry Points**: Analysis move click within a visible suggested line.
@@ -625,11 +625,11 @@ Each scenario in this document uses the same structure:
   1. User clicks a move inside a rendered suggested engine line.
   2. In `freeAnalysisSetup`, app plays move animation through the suggested moves up to the selected move and applies them as analysis moves.
   3. In `liveGame + inGameAnalysis`, app does the same only when that live game enables rendered move targets, and the live node still does not advance.
-  4. In `liveGame + livePlay`, app commits the selected suggestion as a normal live move only when that live game enables rendered move targets.
+  4. In `liveGame + livePlay`, app submits only the first move of the selected prefix as the current live turn, even when a later PV move was clicked, and only when that live game enables rendered move targets.
   5. In `liveGame + historyReview`, app reuses the ordinary history-move policy only when that live game enables rendered move targets, rewriting mainline when allowed or otherwise keeping the continuation analysis-only.
   6. Board, history, clocks, and analysis update according to the resulting context.
 - **Branch Paths**:
-  - `BR-ANALYSIS-04-MOVE-STALE`: Selected move path is no longer legal from the current node -> reject and refresh eval list.
+  - `BR-ANALYSIS-04-MOVE-STALE`: Selected prefix is no longer legal from the current node -> reject the entire prefix before applying any move and show a notice asking the user to Refresh analysis.
   - `BR-ANALYSIS-04-LIVE-SCORE-ONLY`: In any live-game context where `showLiveAnalysisMoves = false`, no move target is rendered from the analysis panel.
   - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `game.gameplayOptions.allowTakeback = false`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
@@ -644,7 +644,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Manage the current game's ordered analysis-engine rows from the analysis panel without changing other games.
 - **Preconditions**: Active game exists; at least one configured engine profile may be available.
 - **Entry Points**: Analysis panel title-row `+` action, per-engine remove action.

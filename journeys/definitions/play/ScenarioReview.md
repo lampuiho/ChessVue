@@ -4,7 +4,7 @@ Reviewed on 15–16 October 2026 against the working-tree scenarios/contracts ba
 
 Sources: [scenarios](../../../docs/HighLevel/scenarios.md), [state model](../../../docs/HighLevel/state_model.md), [persistence contract](../../../docs/HighLevel/persistence_contract.md), [engine runtime](../../../docs/HighLevel/engine_runtime.md), `Chessboard.vue`, `GameView.vue`, `GameControlPanel.vue`, `ModalHost.vue`, and the game move/status/player/clock composables. Existing decisions about temporary exploration and actual-move recording remain unchanged. These cases establish play controls and current-position interaction, not historical analysis recording or native engine integration.
 
-Execution: 24 named browser variants under `e2e/journeys/play/`; [implementation record](../../../docs/JourneyImplementation.md) records verification. `npm run journey -- report` joins the exact titles to the latest run; absent variants remain unverified. Timed variants create 5+2 games through Custom and install a fixed browser Date before loading timestamp classes. Seeded game identities, positions, four-tab order and untimed behaviour are preserved.
+Execution: 26 named browser variants under `e2e/journeys/play/`; [implementation record](../../../docs/JourneyImplementation.md) records verification. `npm run journey -- report` joins the exact titles to the latest run; absent variants remain unverified. Timed variants create 5+2 games through Custom and install a fixed browser Date before loading timestamp classes. Seeded game identities, positions, four-tab order and untimed behaviour are preserved.
 
 ## JRN-PLAY-01
 
@@ -45,6 +45,10 @@ Intent: BR-NAV-02-HAS-GAMES/NO-GAMES replace invalid URLs with the first eligibl
 ## JRN-PLAY-10
 
 Intent: SCN-ENGINE-03 copies Journey A into Black's seat, commits exactly one reply, and permits return to local play while retaining time control, history, board and another tab's file. Classification: aligned. Both players receive one increment; subsequent White play and reload establish no duplicate reply and a durable local Black assignment. Pending-output cancellation permutations remain in JRN-RACE-03.
+
+Additional engine continuation coverage: import the classic smothered-mate position (White Ka1/Qe6/Nf7; Black Kg8/Rf8/Pg7/Ph7; White to move) through the file picker. The legal line is Nh6+ Kh8 Qg8+ Rxg8 Nf7#. Both Black replies are forced, verified by a focused legality check. Two browser variants assign Journey A to Black (two replies, engine loses) or White (three moves, engine wins), checking each ply, finality, stopped clocks, no later move and persisted result/history after reload. The scripted UCI transport selects this line only at matching puzzle positions; this verifies player orchestration and results, not native-engine playing strength. The puzzle is an import fixture so the existing four-tab workspace is unchanged.
+
+Real Stockfish integration verified on 17 October 2026: two additional variants in [Browser.spec.ts](../../../e2e/Browser.spec.ts) use the normal browser app, configure `stockfish.js` through Settings, import a 1+2 puzzle through the actual file picker and resume play. The engine plays Black to lose or White to win along the same line, with worker creation and successful WASM loading checked. Every history ply and each engine-turn board are asserted; exported documents and reload verify the win, rule-resolved reason, five-ply live path, assigned Stockfish profile and stopped clocks. This exposed an engine-runtime defect: pondering the predicted mating reply started a search from a terminal position, and Stockfish's immediate bestmove was reported as a protocol error. Player turns now skip pondering when the predicted position is terminal, with a focused runtime regression. These real-worker variants supplement the 26 scripted journey variants.
 
 ## JRN-PLAY-11
 

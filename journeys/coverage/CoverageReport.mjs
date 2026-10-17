@@ -7,8 +7,8 @@ function executedTests(report) {
   function flatten(suites) {
     return suites.flatMap((suite) => [...(suite.specs ?? []), ...flatten(suite.suites ?? [])]);
   }
-  return flatten(report.suites).flatMap((spec) => spec.tests.filter((test) => test.projectName === 'journeys').map((test) => ({
-    spec: resolve(report.config.rootDir, spec.file), title: spec.title,
+  return flatten(report.suites).flatMap((spec) => spec.tests.map((test) => ({
+    spec: resolve(report.config.rootDir, spec.file), title: spec.title, project: test.projectName,
     passed: test.expectedStatus === 'passed' && test.status === 'expected' && test.results.length === 1 && test.results[0].status === 'passed',
     flaky: test.status === 'flaky' || test.results.length > 1,
     failed: test.status === 'unexpected' || ['failed', 'timedOut', 'interrupted'].includes(test.results.at(-1)?.status),
@@ -17,8 +17,8 @@ function executedTests(report) {
 export function aggregateCaseResults(cases, report, root = repositoryRoot) {
   const executions = executedTests(report);
   return cases.map((entry) => {
-    const expected = entry.tests.flatMap((test) => test.titles.map((title) => ({ spec: resolve(root, test.spec), title })));
-    const matches = expected.map((test) => executions.filter((execution) => execution.spec === test.spec && execution.title === test.title));
+    const expected = entry.tests.flatMap((test) => test.titles.map((title) => ({ spec: resolve(root, test.spec), title, project: test.project ?? 'journeys' })));
+    const matches = expected.map((test) => executions.filter((execution) => execution.spec === test.spec && execution.title === test.title && execution.project === test.project));
     const missing = expected.filter((_, index) => !matches[index].length).map((test) => test.title);
     const observed = matches.flat();
     let execution = 'unverified';

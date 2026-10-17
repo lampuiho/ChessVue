@@ -11,13 +11,29 @@
     "implementation": "available",
     "scenarioReview": "journeys/definitions/play/ScenarioReview.md#jrn-play-10",
     "data": [
-      "journeys/definitions/play/data/PlayWorkspace.ts"
+      "journeys/definitions/play/data/PlayWorkspace.ts",
+      "journeys/definitions/play/data/SmotheredMate.ts"
     ],
     "tests": [
       {
         "spec": "e2e/journeys/play/PlayerAssignment.spec.ts",
         "titles": [
           "JRN-PLAY-10 changes a local seat to an engine and back with exactly one reply"
+        ]
+      },
+      {
+        "spec": "e2e/journeys/play/EnginePuzzle.spec.ts",
+        "titles": [
+          "JRN-PLAY-10 plays repeated engine turns through smothered mate with engine losing",
+          "JRN-PLAY-10 plays repeated engine turns through smothered mate with engine winning"
+        ]
+      },
+      {
+        "spec": "e2e/Browser.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-PLAY-10 real Stockfish plays smothered mate with engine losing",
+          "JRN-PLAY-10 real Stockfish plays smothered mate with engine winning"
         ]
       }
     ],

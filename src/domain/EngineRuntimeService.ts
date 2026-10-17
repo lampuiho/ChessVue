@@ -2,11 +2,16 @@ import { EngineAvailability, PlatformError, PlatformErrorKind, ResultState, type
 import Aborted from '@/contracts/errors/Aborted';
 import { Deferred } from '@/utility/async/Deferred';
 import { usePlatformService } from '@/platform';
-import { isMoveLegal } from '@/utility/chess';
+import { isMoveLegal, resolveGameResult } from '@/utility/chess';
 import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
 import { MoveApplicationService } from './MoveApplicationService';
 
 type IRuntimeAssignedEngine = IAssignedEngine & { $: IAssignedEngineRuntime };
+
+function _canPonder(position: IBoardPosition, move: IMove, ponderMove: IMove): boolean {
+  const predictedPosition = MoveApplicationService.genPosition(position, [move, ponderMove]);
+  return resolveGameResult(predictedPosition).resultState === ResultState.Ongoing;
+}
 
 function _hasRuntimeState(engine: IAssignedEngine): engine is IRuntimeAssignedEngine {
   return !!engine.$;
@@ -319,7 +324,7 @@ export const EngineRuntimeService = {
     }
     if (!move || signal?.aborted) return;
     const ponderMove = move.$?.ponderMove;
-    const pondering = ponderMove && game.resultState === ResultState.Ongoing
+    const pondering = ponderMove && game.resultState === ResultState.Ongoing && _canPonder(searchedPosition, move, ponderMove)
       ? EngineRuntimeService.startPondering(engine, game, move, ponderMove).catch(() => undefined)
       : undefined;
     if (signal?.aborted) return;

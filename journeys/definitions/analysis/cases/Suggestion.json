@@ -1,0 +1,116 @@
+[
+  {
+    "id": "JRN-ANALYSIS-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02",
+      "SCN-ANALYSIS-04"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-LIVE-SCORE-ONLY",
+      "BR-ANALYSIS-02-LIVE-SCORE-ONLY",
+      "BR-ANALYSIS-04-LIVE-SCORE-ONLY"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-03",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Suggestion.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-03 keeps score-only output non-playable in live",
+          "JRN-ANALYSIS-03 keeps score-only output non-playable in in-game analysis",
+          "JRN-ANALYSIS-03 keeps score-only output non-playable in history"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-ANALYSIS-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-04"
+    ],
+    "branches": [
+      "BR-ANALYSIS-04-APPLY-AS-BRANCH",
+      "BR-ANALYSIS-04-PAUSED"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-04",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Suggestion.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-04 plays exactly 1 suggested move in free analysis",
+          "JRN-ANALYSIS-04 plays exactly 3 suggested moves in free analysis",
+          "JRN-ANALYSIS-04 plays exactly 1 suggested move in in-game analysis",
+          "JRN-ANALYSIS-04 plays exactly 3 suggested moves in in-game analysis",
+          "JRN-ANALYSIS-04 plays exactly 1 suggested move in timed in-game analysis",
+          "JRN-ANALYSIS-04 plays exactly 3 suggested moves in timed in-game analysis"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-ANALYSIS-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-04"
+    ],
+    "branches": [],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-05",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Suggestion.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-05 submits only the first suggestion when a later live PV move is clicked"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-ANALYSIS-06",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-04"
+    ],
+    "branches": [
+      "BR-ANALYSIS-04-MOVE-STALE"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-06",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Suggestion.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-06 cancels remaining PV playback when switching games"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

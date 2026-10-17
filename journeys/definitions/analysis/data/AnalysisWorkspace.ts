@@ -1,11 +1,10 @@
 import { AnalysisTimestamp } from '@/utility/date';
-import { createGame } from '../builders/GameFixtureBuilder';
-import { createWorkspace } from '../builders/WorkspaceFixtureBuilder';
-import { createEngineProfiles } from '../data/EngineProfile';
-import { fixtureTimestamp } from '../data/FixtureTimestamp';
-import { getPosition } from '../builders/HistoryFixtureBuilder';
-import { createVariations } from '../ScriptedEngine';
-export function create() {
+import { createGame } from '../../../builders/GameFixtureBuilder';
+import { getPosition } from '../../../builders/HistoryFixtureBuilder';
+import { createEngineProfiles } from '../../../data/EngineProfile';
+import { fixtureTimestamp } from '../../../data/FixtureTimestamp';
+import { createVariations } from '../../../ScriptedEngine';
+export function createAnalysisGames() {
   const free = createGame('analysis-free', 'Free analysis with two engines', ['e2e4', 'e7e5'], { freeAnalysis: true });
   const scoreOnly = createGame('analysis-score-only', 'Live score-only analysis', ['e2e4', 'e7e5']);
   const moves = createGame('analysis-live-moves', 'Live analysis moves enabled', ['e2e4', 'e7e5']);
@@ -17,5 +16,5 @@ export function create() {
       lines: variations.map((pv, index) => ({ depth: 12, scoreCp: 24 - index * 18, pv })),
     }));
   }
-  return createWorkspace([free, scoreOnly, moves]);
+  return [free, scoreOnly, moves];
 }

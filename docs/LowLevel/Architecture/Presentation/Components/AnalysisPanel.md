@@ -11,7 +11,7 @@ Props are `seats: readonly ReadonlyAnalysisSeat[]`, `collapsed`, `expandedByInde
 - `collapseToggled` and `engineExpandedToggled(index)` control folds.
 - `refreshRequested`, `retryRequested(index)`, and `stopRequested(index)` use existing store actions.
 - `engineAddRequested` and `engineRemoveRequested(index)` change assignments.
-- `moveSelected(moves)` currently emits a whole PV; individual targets/prefix dispatch remain FRONTEND-DRIFT-04.
+- `moveSelected(moves)` emits the PV prefix through the clicked move, using individual `Play through <SAN>` buttons. `GameView` validates the entire selected prefix before applying it; normal live play submits only its first move.
 
 ## Rendering and permissions
 
@@ -25,4 +25,4 @@ Props are `seats: readonly ReadonlyAnalysisSeat[]`, `collapsed`, `expandedByInde
 
 ## Remaining presentation work
 
-The component still contains its current template. Common-render-layer extraction remains FRONTEND-DRIFT-12. Individual move targets and applying only the selected move/prefix remain FRONTEND-DRIFT-04; this lifecycle repair does not claim those interactions implemented.
+The component still contains its current template. Common-render-layer extraction remains FRONTEND-DRIFT-12. Individual targets and prefix playback are implemented and exercised by JRN-ANALYSIS-03–06/10; the old FRONTEND-DRIFT-04 interaction note is superseded by that [scenario review](../../../../../journeys/definitions/analysis/ScenarioReview.md).

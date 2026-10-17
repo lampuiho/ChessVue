@@ -1,0 +1,90 @@
+[
+  {
+    "id": "JRN-ANALYSIS-07",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-03",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [
+      "BR-ANALYSIS-03-RETRY-SUCCESS"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-07",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Management.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-07 stops refreshes and removes one seat without stopping its neighbour"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-ANALYSIS-08",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-02",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [
+      "BR-ANALYSIS-02-TOO-MANY",
+      "BR-ANALYSIS-05-DUPLICATE",
+      "BR-ANALYSIS-05-LIMIT"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-08",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Management.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-08 blocks duplicate and fifth assignments while four distinct seats operate"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-ANALYSIS-09",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02",
+      "SCN-ANALYSIS-03",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-ENGINE-NOT-RUNNING",
+      "BR-ANALYSIS-02-PARTIAL-FAIL",
+      "BR-ANALYSIS-03-RETRY-FAIL",
+      "BR-ANALYSIS-05-START-FAIL"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-09",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Management.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-09 isolates unavailable engine retry and recovers by removing the failed seat"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -8,7 +8,7 @@ export interface IJourneyCase {
   implementation: 'available' | 'partial' | 'backlog';
   scenarioReview: string;
   data: string[];
-  tests: { spec: string; titles: string[] }[];
+  tests: { spec: string; titles: string[]; project?: 'journeys' | 'browser' }[];
   remaining: string[];
 }
 export interface IJourneyCaseResult {

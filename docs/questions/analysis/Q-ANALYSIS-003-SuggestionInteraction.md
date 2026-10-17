@@ -42,4 +42,6 @@ Continue stale-prefix rejection, one-move live submission and pause safety regre
 
 ## Resolution
 
+The 16 October 2026 Analysis tranche exercises live, in-game analysis and history with both preference values, one-move live submission, exact prefix playback in free/untimed/timed analysis, stale-prefix rejection, switching games during playback and manual-pause safety. The visible Live, Analysis mode and Study controls states and explicit Analyse/Exit analysis controls distinguish the existing contexts. [The case review](../../../journeys/definitions/analysis/ScenarioReview.md) records the assertions; [execution evidence](../../JourneyImplementation.md#analysis-verification) remains separate. No new interaction decision is needed for these specified regression cases. Broader usability assessment stays with the usability/session work rather than being inferred from deterministic passes.
+
 Exercise SCN-ANALYSIS-04 and its existing preference/context rules during journey work. Ask if a concrete usability or design conflict remains; this prompt alone does not block writing those tests.

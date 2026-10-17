@@ -6,7 +6,7 @@ import * as play from './definitions/play/index';
 import * as history from './definitions/history/index';
 import * as setup from './definitions/setup/index';
 import * as promotion from './definitions/promotion/index';
-import * as analysis from './definitions/analysis';
+import * as analysis from './definitions/analysis/index';
 import * as clocks from './definitions/clocks';
 import * as saves from './definitions/saves/index';
 import * as settings from './definitions/settings';

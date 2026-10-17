@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 export async function configureEngines(page: Page, profiles: { name: string; path: string }[]): Promise<void> {
+  const returnPath = new URL(page.url()).pathname;
   await page.getByRole('button', { name: /Settings/ }).click();
   await page.getByRole('button', { name: 'Engines', exact: true }).click();
   for (const profile of profiles) {
@@ -11,5 +12,5 @@ export async function configureEngines(page: Page, profiles: { name: string; pat
     await dialog.getByRole('button', { name: 'Save profile', exact: true }).click();
   }
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page).toHaveURL(/\/home$/);
+  await expect(page).toHaveURL(new RegExp(returnPath.startsWith('/game/') ? returnPath + '$' : '/home$'));
 }

@@ -26,6 +26,7 @@ export function loadJourneyCases(root = repositoryRoot) {
       if (typeof reference !== 'string' || !existsSync(resolve(root, reference.split('#')[0]))) throw new Error(`Missing reference for ${entry.id}: ${reference}.`);
     }
     for (const test of entry.tests) {
+      if (test.project !== undefined && !['journeys', 'browser'].includes(test.project)) throw new Error(`Invalid test project: ${entry.id}.`);
       if (!Array.isArray(test.titles) || !test.titles.length || test.titles.some((title) => !title.startsWith(entry.id + ' '))) throw new Error(`Invalid test titles: ${entry.id}.`);
     }
   }

@@ -19,7 +19,7 @@ Viewing multiple engine analyses is a confirmed capability. Recording applies on
 
 - [SCN-ANALYSIS-01/02/05](../../HighLevel/scenarios.md) describe independent results and per-game engine management.
 - The [engine runtime contract](../../HighLevel/engine_runtime.md) persists the latest valid result for each assigned engine, selects up to three visible lines, and clears current rendered results on position change. The stated concurrency limit is four analysis engines per game.
-- [Analysis.ts](../../../src/contracts/Analysis.ts) models copied engine assignment, timestamp, depth, score and PVs per seat for the current rendered position. It does not define an archive of comparison snapshots attached to historical nodes.
+- [Analysis.ts](../../../src/contracts/Analysis.ts) models current rendered seats; [AnalysisSeat.ts](../../../src/contracts/AnalysisSeat.ts) also defines recorded seat snapshots attached to actual [move nodes](../../../src/contracts/Move.ts). The History tranche added this separate pre-move archive on 16 October 2026.
 - The [persistence contract](../../HighLevel/persistence_contract.md) includes analysis seats, but restoring those seats alone is not proof that a user's chosen historical comparison was recorded.
 
 ## Decision to clarify
@@ -43,5 +43,7 @@ Affected cases: JRN-ANALYSIS-01/07/09/11/12, JRN-SAVE-07/15 and JRN-SESSION-02. 
 Test actual-move identity/provenance, later live moves, recomputation, exploration/pruning, save/load and export/import under the chosen content policy. Exploratory results must not create or overwrite actual-move records. Keep a recorded observation distinct from a fresh engine result; do not compare real engines using exact expected scores.
 
 ## Resolution
+
+The 16 October 2026 Analysis tranche independently exercises current multi-engine output, position supersession, scoped failure, roster limits, restore policy and rapid history navigation. It preserves the distinction between current seats and actual-move records; exploratory prefixes have no records, and selecting unevaluated history does not invent one. [The scenario review](../../../journeys/definitions/analysis/ScenarioReview.md) links these cases without claiming completion of the remaining actual-move save/import/session groups.
 
 Inspect and test actual-move recording and engine comparison behaviour during the relevant journeys. If the work exposes a specific payload/persistence ambiguity, record the evidence and ask then; this prompt is not a prerequisite to implementation.

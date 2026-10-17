@@ -20,7 +20,8 @@ import {
   type IGame,
   type IMove,
 } from '@/contracts';
-import { createInitialBoardPosition } from '@/utility/chess';
+import { applyMove, createInitialBoardPosition, genDetailedMoves } from '@/utility/chess';
+import { parseUciMove } from '@/utility/UciUtility';
 import { Deferred } from '@/utility/async/Deferred';
 let Aborted: typeof import('@/contracts/errors/Aborted').default;
 
@@ -399,6 +400,21 @@ describe('EngineRuntimeService', () => {
     expect(attemptPlayerMove).toHaveBeenCalledOnce();
     expect(engine.$?.availability).toBe(EngineAvailability.Failed);
     expect(engine.$?.lastError).toBe('ponder boom');
+  });
+  it('commits the engine move without pondering a predicted checkmate', async () => {
+    const engine = createAssignedEngine();
+    const position = createInitialBoardPosition();
+    for (const move of genDetailedMoves(position, ['f2f3', 'e7e5'].map(parseUciMove))) applyMove(position, move);
+    const [move, ponderMove] = genDetailedMoves(position, ['g2g4', 'd8h4'].map(parseUciMove));
+    move!.$ = { ponderMove };
+    engine.$!.processHandle = 'process-1';
+    assertProcessHandleOpen.mockReturnValue(undefined);
+    awaitPlayerTurnMove.mockResolvedValue(move);
+    const attemptPlayerMove = vi.fn(async () => undefined);
+    await EngineRuntimeService.startPlayerTurn(engine, createGame(position), attemptPlayerMove);
+    expect(attemptPlayerMove).toHaveBeenCalledExactlyOnceWith(move);
+    expect(startPondering).not.toHaveBeenCalled();
+    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
   });
 
   it('drains an issued start before replacement and suppresses its late error and output', async () => {

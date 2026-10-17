@@ -1,0 +1,34 @@
+[
+  {
+    "id": "JRN-ANALYSIS-10",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02",
+      "SCN-ANALYSIS-04",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-PAUSED",
+      "BR-ANALYSIS-02-PAUSED",
+      "BR-ANALYSIS-04-PAUSED",
+      "BR-ANALYSIS-05-PAUSED"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-10",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Pause.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-10 finishes pending output while paused and permits analysis management without moves"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

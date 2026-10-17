@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-ANALYSIS-11",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [
+      "BR-ANALYSIS-05-BOARD-EDIT"
+    ],
+    "fixture": "analysis",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/analysis/ScenarioReview.md#jrn-analysis-11",
+    "data": [
+      "journeys/definitions/analysis/data/AnalysisWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/analysis/Restore.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-11 restores assignments with resume on in analysis",
+          "JRN-ANALYSIS-11 restores assignments with resume on in board edit",
+          "JRN-ANALYSIS-11 restores assignments with resume off in analysis",
+          "JRN-ANALYSIS-11 restores assignments with resume off in board edit"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]
