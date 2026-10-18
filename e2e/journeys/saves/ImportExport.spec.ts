@@ -1,14 +1,16 @@
-import { test, expect } from '../../support/TestEvidence';
+import { test, expect } from './SaveTest';
 import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
 import { readFile, readGame, readSession } from '../../support/SaveInspection';
 import { saveCurrentGame } from '../../support/GameSave';
+import { expectCanonical } from './SaveAction';
+import { createRecordedWorkspace, reviewRecordedMove } from './RecordedAction';
 
-test('JRN-SAVE-07 round-trips the seeded workspace through export and import', async ({ page }) => {
-  await openJourney(page, 'saves');
-  const original = await readGame(page, 'saves/save-library/auto.json');
+test('JRN-SAVE-07 round-trips actual-move records after continued play and exploratory pruning', async ({ page }) => {
+  const original = await createRecordedWorkspace(page);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.evaluate(() => window.chessVueJourney.chooseExport('exports/round-trip.json'));
   await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(page.locator('.library-feedback')).toHaveText('Game exported.');
   const exported = await readGame(page, 'exports/round-trip.json');
   expect(exported).toEqual(original);
   expect(exported.schemaVersion).toBe(1);
@@ -16,13 +18,13 @@ test('JRN-SAVE-07 round-trips the seeded workspace through export and import', a
   await page.evaluate(() => window.chessVueJourney.chooseImport('exports/round-trip.json'));
   await page.getByRole('button', { name: 'Import file', exact: true }).click();
   await expect(page).toHaveURL(/\/game\/(?!save-library$).+/);
-  await expect(page.getByRole('button', { name: /^f3 white knight$/i })).toBeVisible();
   const imported = await saveCurrentGame(page, 'Round trip');
   expect(imported.metadata.id).not.toBe(original.metadata.id);
-  expect({ ...imported, metadata: { ...imported.metadata, id: original.metadata.id, updatedAt: original.metadata.updatedAt } }).toEqual(original);
+  expectCanonical(imported, original);
   await page.reload();
   await waitForJourney(page);
-  await expect(page.getByRole('button', { name: /^f3 white knight$/i })).toBeVisible();
+  expectCanonical(await saveCurrentGame(page, 'Restored transfer'), imported);
+  await reviewRecordedMove(page);
 });
 for (const fixture of ['valid', 'duplicate-id']) {
   test(`JRN-SAVE-08 @smoke imports ${fixture} with a fresh identity`, async ({ page }) => {

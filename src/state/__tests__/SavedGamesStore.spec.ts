@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SaveGameTargetKind, type IGame } from '@/contracts';
+import { PlatformErrorKind, SaveGameTargetKind, type IGame } from '@/contracts';
 import type { ISavedGameGroup } from '@/contracts/domain';
 
 import {
@@ -114,11 +114,25 @@ describe('useSavedGamesStore', () => {
     expect(domain.SerializationService.writeGameDocument).toHaveBeenCalledWith('exports/game-a.json', game, true);
   });
 
-  it('returns undefined when import selection fails', async () => {
-    domain.SerializationService.selectImportFile.mockImplementationOnce(async () => rejectWithRandomDelay(new Error('dialog failed')));
+  it('returns undefined when import selection is cancelled', async () => {
+    domain.SerializationService.selectImportFile.mockRejectedValueOnce({ kind: PlatformErrorKind.Cancelled });
     const store = useSavedGamesStore();
 
     await expect(store.importGame()).resolves.toBeUndefined();
+  });
+  it('returns undefined on export cancellation without writing', async () => {
+    domain.SerializationService.selectExportFile.mockRejectedValueOnce({ kind: PlatformErrorKind.Cancelled });
+    await expect(useSavedGamesStore().exportGame(createGame())).resolves.toBeUndefined();
+    expect(domain.SerializationService.writeGameDocument).not.toHaveBeenCalled();
+  });
+  it('propagates genuine picker failures for both transfer actions', async () => {
+    const error = new Error('dialog failed');
+    domain.SerializationService.selectImportFile.mockRejectedValueOnce(error);
+    domain.SerializationService.selectExportFile.mockRejectedValueOnce(error);
+    const store = useSavedGamesStore();
+    await expect(store.importGame()).rejects.toBe(error);
+    await expect(store.exportGame(createGame())).rejects.toBe(error);
+    expect(domain.SerializationService.writeGameDocument).not.toHaveBeenCalled();
   });
   it('isolates missing and corrupt games while restoring every valid target', async () => {
     saveGroups.push(

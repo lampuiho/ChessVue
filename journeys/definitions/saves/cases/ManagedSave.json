@@ -1,0 +1,99 @@
+[
+  {
+    "id": "JRN-SAVE-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SAVE-02",
+      "SCN-SAVE-03",
+      "SCN-LOAD-01"
+    ],
+    "branches": [],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-03",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/ManagedSave.spec.ts",
+        "titles": [
+          "JRN-SAVE-03 @smoke saves a new named snapshot then reloads and loads its canonical workspace"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SAVE-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SAVE-03"
+    ],
+    "branches": [
+      "BR-SAVE-03-COLLISION-CANCEL"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-04",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/ManagedSave.spec.ts",
+        "titles": [
+          "JRN-SAVE-04 cancels replacement of only the chosen snapshot",
+          "JRN-SAVE-04 confirms replacement of only the chosen snapshot"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SAVE-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SAVE-03"
+    ],
+    "branches": [
+      "BR-SAVE-03-INVALID-NAME"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-05",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts",
+      "journeys/definitions/saves/data/SaveName.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/ManagedSave.spec.ts",
+        "titles": [
+          "JRN-SAVE-05 rejects blank before writing a managed snapshot",
+          "JRN-SAVE-05 rejects whitespace before writing a managed snapshot",
+          "JRN-SAVE-05 rejects auto before writing a managed snapshot",
+          "JRN-SAVE-05 rejects uppercase auto before writing a managed snapshot",
+          "JRN-SAVE-05 rejects current directory before writing a managed snapshot",
+          "JRN-SAVE-05 rejects parent directory before writing a managed snapshot",
+          "JRN-SAVE-05 rejects slash before writing a managed snapshot",
+          "JRN-SAVE-05 rejects backslash before writing a managed snapshot",
+          "JRN-SAVE-05 rejects colon before writing a managed snapshot",
+          "JRN-SAVE-05 rejects asterisk before writing a managed snapshot",
+          "JRN-SAVE-05 rejects question mark before writing a managed snapshot",
+          "JRN-SAVE-05 rejects quote before writing a managed snapshot",
+          "JRN-SAVE-05 rejects less than before writing a managed snapshot",
+          "JRN-SAVE-05 rejects greater than before writing a managed snapshot",
+          "JRN-SAVE-05 rejects pipe before writing a managed snapshot",
+          "JRN-SAVE-05 rejects device name before writing a managed snapshot",
+          "JRN-SAVE-05 rejects device extension before writing a managed snapshot",
+          "JRN-SAVE-05 rejects trailing dot before writing a managed snapshot"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

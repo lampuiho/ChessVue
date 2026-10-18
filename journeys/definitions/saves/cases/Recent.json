@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-SAVE-13",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-NAV-03"
+    ],
+    "branches": [
+      "BR-NAV-03-MISSING-ENTRY",
+      "BR-NAV-03-LOAD-FAIL"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-13",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/Recent.spec.ts",
+        "titles": [
+          "JRN-SAVE-13 reopens unopened recent game with its latest appropriate workspace",
+          "JRN-SAVE-13 reopens open recent game with its latest appropriate workspace",
+          "JRN-SAVE-13 refreshes a missing unopened recent target without inserting a workspace",
+          "JRN-SAVE-13 refreshes a corrupt unopened recent target without inserting a workspace"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

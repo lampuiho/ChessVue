@@ -1,0 +1,62 @@
+[
+  {
+    "id": "JRN-SAVE-09",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-IMPORT-01",
+      "SCN-IMPORT-02"
+    ],
+    "branches": [
+      "BR-IMPORT-01-SCHEMA-VERSION",
+      "BR-IMPORT-02-INCOMPLETE"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-09",
+    "data": [
+      "journeys/definitions/saves/data/ImportFile.ts",
+      "journeys/definitions/saves/data/invalid/Incomplete.json"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/ImportFailure.spec.ts",
+        "titles": [
+          "JRN-SAVE-09 rejects corrupt import without partial insertion and then imports valid data",
+          "JRN-SAVE-09 rejects unsupported-version import without partial insertion and then imports valid data",
+          "JRN-SAVE-09 rejects incomplete import without partial insertion and then imports valid data"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SAVE-10",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-IMPORT-01",
+      "SCN-EXPORT-01"
+    ],
+    "branches": [
+      "BR-IMPORT-01-CANCEL",
+      "BR-EXPORT-01-CANCEL"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-10",
+    "data": [
+      "journeys/definitions/saves/data/ImportFile.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/ImportFailure.spec.ts",
+        "titles": [
+          "JRN-SAVE-10 cancels import without a write or success message and allows retry",
+          "JRN-SAVE-10 cancels export without a write or success message and allows retry"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -7,12 +7,15 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 ### SCN-SAVE-01 - Autosave Internal Save Entry
 
-Case 1: autosave after `n` moves. Presentation decides whether a committed move should trigger autosave; after `GamesStore.makeMove(...)` returns a committed move, the UI checks the configured threshold and then calls `SavedGamesStore.saveGame(...)` with reserved name `"auto"` and `autosave = true`.
+Case 1: autosave after `n` moves. `GamesStore` counts new committed live moves per hydrated workspace. A positive configured interval queues `SavedGamesStore.saveGame(...)` with `targetKind: SaveGameTargetKind.Autosave` at each threshold; zero disables this trigger. The store exposes recoverable write feedback through `autosaveError`.
 
 #### Flow A - Check Move-Threshold Autosave
-| `GameView._handleCommittedMoveResult` |
+| `GameMoveComposable._applyLiveMove` |
 | --- |
-| `GamesStore.getGame` |
+| `GamesStore.moveCommitted` |
+
+| `GamesStore.moveCommitted` |
+| --- |
 | `UserSettingService.getSettings` |
 | `SavedGamesStore.saveGame` |
 
@@ -21,10 +24,10 @@ Case 1: autosave after `n` moves. Presentation decides whether a committed move 
 | `SavedGameIndexService.getAutosaveFilePath` |
 | `SerializationService.writeGameDocument` |
 
-Case 2: autosave after quitting. Presentation decides when the current UI context should autosave on close and registers that callback through `SavedGamesStore`; when close-trigger autosave is enabled, the callback calls `saveGame(...)` with reserved name `"auto"` and `autosave = true` before shutdown completes.
+Case 2: autosave after quitting. Presentation registers a callback through `SavedGamesStore`; when close-trigger autosave is enabled, it calls `saveGame(...)` with `targetKind: SaveGameTargetKind.Autosave`. Browser lifecycle checkpoints remain best effort because tab shutdown cannot await asynchronous callbacks.
 
 #### Flow B - Register Close Autosave Callback
-| `GameView.setup` |
+| `App.onMounted` callback |
 | --- |
 | `SavedGamesStore.registerAutosaveOnClose` |
 
@@ -44,7 +47,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | `SavedGameIndexService.getAutosaveFilePath` |
 | `SerializationService.writeGameDocument` |
 
-- Settings coverage: `gameSession.autosaveAfterMoveCount` gates move-threshold autosave, while `gameSession.autosaveOnClose` gates close-trigger autosave. Accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`, so reopenable prior-session tabs always have close-trigger autosave available. Presentation decides when close-trigger registration is active. `SavedGamesStore.saveGame(..., { autosave: true })` is the write owner for both trigger kinds.
+- Settings coverage: `gameSession.autosaveAfterMoveCount` gates move-threshold autosave, while `gameSession.autosaveOnClose` gates close-trigger autosave. Accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`, so reopenable prior-session tabs always have close-trigger autosave available. Presentation decides when close-trigger registration is active. `SavedGamesStore.saveGame(..., { targetKind: SaveGameTargetKind.Autosave })` is the write owner for both trigger kinds.
 - Requirement verification: `Pass`. Autosave writes the dedicated internal save entry beneath the configured save root, leaves recent-game projection to later on-demand queries, and leaves in-memory game state intact when a write fails.
 
 ### SCN-SAVE-02 - Open Internal Save View
@@ -97,7 +100,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | SavedGameIndexService.getNamedSaveFilePath |
 | SerializationService.writeGameDocument |
 
-- UI surface coverage: overwrite confirmation uses the shared dialog shell, while the save-name field and Cancel or Save action row remain route-owned by SavedGamesView. The view blocks blank, reserved, or path-like names before emitting `saveRequested`; lower layers consume the accepted name without repeating form validation.
+- UI surface coverage: overwrite confirmation uses the shared dialog shell, while the save-name field and Cancel or Save game action row remain route-owned by SavedGamesView. The view blocks blank, reserved, path-like, device, trailing-dot and control-character names before calling `SavedGamesStore.saveGame`; lower layers consume the accepted name without repeating form validation.
 - Requirement verification: `Pass`. Internal named-save writes stay inside `SavedGamesStore` once the save route has resolved the validated target name, overwrite confirmation is explicit, and later recent-list queries can observe the new save without any same-layer store call.
 
 ### SCN-LOAD-01 - Load Valid Game from Internal Save View
@@ -229,6 +232,7 @@ Case 2: autosave after quitting. Presentation decides when the current UI contex
 | GameClockComposable.resumeGame |
 | GameView._resumeIfMenuOwnedPause |
 
+- Picker cancellation returns no path and writes nothing; the view shows success only after a completed write. Other picker failures remain errors.
 - Settings coverage: gameSession.autoPauseOnMenu controls whether export pauses a timed live game before the external file dialog opens. While paused for export, the game surface is interaction-locked and any player-engine move that becomes ready remains deferred until return.
 - Requirement verification: `Pass`. External export stays distinct from internal save slots, `SavedGamesStore` owns both destination selection and canonical saved-game payload write, and the flow returns through the menu-owned pause path without mutating game state beyond the export side effect.
 

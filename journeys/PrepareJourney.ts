@@ -8,6 +8,7 @@ import { createNwjsProcessRegistry } from '@/platform/nwjs/NwjsProcessRegistry';
 import { defineNwjsProcessManagerStore } from '@/platform/nwjs/NwjsProcessManager';
 import { defineNwjsUciEngineClientStore } from '@/platform/nwjs/NwjsUciEngineClient';
 import { JourneyFileSystem } from './JourneyFileSystem';
+import { changeManagedFile } from './JourneyStorageControl';
 import { ScriptedEngine } from './ScriptedEngine';
 import type { IJourneyApi } from './Journey';
 
@@ -59,6 +60,7 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
   const api: IJourneyApi = {
     ...journeyCatalogue[name]!, name, gameIds: seed.gameIds, ready: false,
     listFiles: () => browserFiles.listFiles(), readFile: (path) => browserFiles.readFile(path),
+    changeFile: (path, raw) => changeManagedFile(browserFiles, path, raw),
     chooseImport: () => {}, chooseExport: () => {}, reset: () => { fs.reset(); window.location.reload(); },
   };
   const installDialogs = createDialogs(api, browserFiles);

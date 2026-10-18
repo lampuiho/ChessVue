@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
-import { AppModalKind, GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, SaveGameTargetKind, TimeControlPreset, type IEnginePlayer, type IGame } from '@/contracts';
+import { AppModalKind, GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, TimeControlPreset, type IGame } from '@/contracts';
 import { boot, createTimedContext, legalMove, findButton, clickButton, setField, clickSquare, forgetRunning } from './support/UiHarness';
 describe('UI-02 in-game analysis permissions', () => {
   it('keeps a manual pause read-only when it is layered over analysis', async () => {
@@ -68,47 +68,6 @@ describe('UI-02 in-game analysis permissions', () => {
     expect(game.clockSnapshot.white.isRunning).toBe(false);
   });
 });
-describe('UI-08 managed and imported game identity', () => {
-  it.each(['selected', 'latest', 'recent'])('uses the enumerated group identity for a %s load and its next save', async (selection) => {
-    const { api, games, stores, domain } = await boot('saves');
-    const source = (await import('../builders/GameFixtureBuilder')).createGame('save-other', 'Mismatched document identity', ['c2c4']);
-    const { $: _runtime, ...rootPosition } = source.rootPosition;
-    await domain.SerializationService.writeGameDocument('saves/follow-up-managed/Chosen.json', source, true);
-    const recent = await stores.useRecentGameStore().getRecentGames();
-    expect(recent.some((entry) => entry.gameId === 'follow-up-managed')).toBe(true);
-    const saved = stores.useSavedGamesStore();
-    const game = selection === 'recent' ? await saved.loadRecentGame('follow-up-managed')
-      : await saved.loadGame('follow-up-managed', selection === 'selected' ? 'Chosen' : undefined);
-    const otherSave = api.readFile('saves/save-other/auto.json');
-    const inserted = await games.insertGame(game);
-    const target = await saved.saveGame(inserted, { targetKind: SaveGameTargetKind.Autosave, overwrite: true });
-    expect.soft(inserted.metadata.id).toBe('follow-up-managed');
-    expect.soft(target).toBe('saves/follow-up-managed/auto.json');
-    expect.soft(api.readFile('saves/save-other/auto.json')).toBe(otherSave);
-    expect(inserted.metadata.name).toBe(source.metadata.name);
-    expect(inserted.rootPosition).toMatchObject(rootPosition);
-  });
-  it('allocates a fresh import identity before workspace insertion even without a collision', async () => {
-    const { api, games, stores } = await boot('saves');
-    api.chooseImport('imports/valid.json');
-    const game = await stores.useSavedGamesStore().importGame();
-    expect(game).toBeDefined();
-    expect(games.getGame('import-external')).toBeUndefined();
-    expect(game!.metadata.id).not.toBe('import-external');
-    expect(game!.metadata.name).toBe('External imported game');
-  });
-  it('already repairs a colliding identity when inserting another workspace', async () => {
-    const { games, stores } = await boot('saves');
-    const existing = games.getGame('save-library');
-    const loaded = await stores.useSavedGamesStore().loadGame('save-library', 'Opening');
-    const inserted = await games.insertGame(loaded);
-    expect(inserted.metadata.id).not.toBe('save-library');
-    expect(games.getGame('save-library')).toBe(existing);
-    expect(games.getGame(inserted.metadata.id)).toBe(inserted);
-    const ids = games.listGames().map((game) => game.metadata.id);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-});
 describe('UI-04 reactive engine inventory', () => {
   it('refreshes assignment choices after applied profile edits', async () => {
     const { stores } = await boot('settings');
@@ -139,24 +98,6 @@ describe('UI-05 required engine availability', () => {
     await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toContain('unavailable'));
     expect(games.listGames()).toHaveLength(count);
     expect(stores.useUiStateStore().modalState?.kind).toBe(AppModalKind.NewGame);
-  });
-});
-describe('UI-07 move-count autosave', () => {
-  it('writes each configured interval and overwrites the previous autosave', async () => {
-    const context = await createTimedContext();
-    const { games, game, stores, api } = context;
-    const settings = stores.useSettingsStore();
-    settings.draftSettings!.gameSession.autosaveAfterMoveCount = 2;
-    await settings.applySettings();
-    const path = 'saves/' + game.metadata.id + '/auto.json';
-    await games.makeMove(game, legalMove(context, game, 'e2e4'));
-    expect(api.readFile(path)).toBeUndefined();
-    await games.makeMove(game, legalMove(context, game, 'e7e5'));
-    await vi.waitFor(() => expect(JSON.parse(api.readFile(path)!).renderedPath).toHaveLength(2));
-    await games.makeMove(game, legalMove(context, game, 'g1f3'));
-    await games.makeMove(game, legalMove(context, game, 'b8c6'));
-    await vi.waitFor(() => expect(JSON.parse(api.readFile(path)!).renderedPath).toHaveLength(4));
-    expect(games.autosaveError).toBe('');
   });
 });
 describe('UI-09 suggested move-prefix playback', () => {
@@ -243,24 +184,6 @@ describe('UI-11 historical continuation confirmation', () => {
     expect(document.querySelectorAll('.history-row__tag').length).toBeGreaterThan(0);
   });
 });
-describe('UI-12 saved snapshot selection', () => {
-  it('shows autosave first, selected-save details and loads the selected snapshot', async () => {
-    const { games, router } = await boot('saves');
-    await flushPromises();
-    const rows = document.querySelectorAll<HTMLElement>('.save-row');
-    expect(rows[0]?.textContent).toContain('Automatic save');
-    expect(document.querySelector('[role="separator"]')).not.toBeNull();
-    const opening = [...rows].find((row) => row.textContent?.includes('Opening'))!;
-    opening.querySelector<HTMLButtonElement>('.save-row__content')!.click();
-    await flushPromises();
-    expect(document.querySelector('.snapshot-details')?.textContent).toContain('Library opening');
-    await clickButton('Load selected', '.library-actions button');
-    expect(router.currentRoute.value.path).toMatch(/^\/game\//);
-    const loaded = games.getGame(String(router.currentRoute.value.params.id));
-    expect(loaded?.metadata.name).toBe('Library opening');
-    expect(loaded?.renderedPath).toHaveLength(2);
-  });
-});
 describe('UI-13 startup recovery', () => {
   it('chooses the first valid restored game and provides recovery actions', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -299,7 +222,7 @@ describe('UI-14 settings route guard', () => {
     expect(stores.useSettingsStore().hasPendingChanges).toBe(true);
     await router.push('/saved-games/load');
     await clickButton('Discard changes', '[role="dialog"] button');
-    expect(router.currentRoute.value.path).toBe('/saved-games/load');
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/saved-games/load'));
     expect(stores.useSettingsStore().hasPendingChanges).toBe(false);
   });
 });

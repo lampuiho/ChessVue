@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-SAVE-16",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SAVE-02",
+      "SCN-LOAD-01"
+    ],
+    "branches": [
+      "BR-SAVE-02-NO-CURRENT-GAME",
+      "BR-LOAD-01-NO-SELECTION"
+    ],
+    "fixture": "fresh",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-16",
+    "data": [
+      "journeys/definitions/fresh/data/EmptyWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/Empty.spec.ts",
+        "titles": [
+          "JRN-SAVE-16 blocks saving a missing workspace and leaves an empty load route usable"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -16,7 +16,8 @@ const isLoadingRecent = ref(true);
 const pendingGameId = ref<string>();
 const errorMessage = ref('');
 
-onMounted(async () => {
+onMounted(refreshRecentGames);
+async function refreshRecentGames(): Promise<void> {
   try {
     recentGames.value = await recentGameStore.getRecentGames();
   } catch {
@@ -24,7 +25,7 @@ onMounted(async () => {
   } finally {
     isLoadingRecent.value = false;
   }
-});
+}
 async function quickNewGame(): Promise<void> {
   const defaults = settingsStore.settings?.gameDefaults;
   if (!defaults) return;
@@ -45,13 +46,18 @@ async function quickNewGame(): Promise<void> {
 }
 async function openRecent(entry: IRecentGameEntry): Promise<void> {
   pendingGameId.value = entry.gameId;
-  await run(async () => {
+  try {
+    errorMessage.value = '';
     const existing = gamesStore.getGame(entry.gameId);
     const game = existing ?? await gamesStore.insertGame(await savedGamesStore.loadRecentGame(entry.gameId));
     uiStateStore.openTab(game.metadata.id);
     await router.push(`/game/${game.metadata.id}`);
-  });
-  pendingGameId.value = undefined;
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'The game could not be opened.';
+    await refreshRecentGames();
+  } finally {
+    pendingGameId.value = undefined;
+  }
 }
 async function run(action: () => Promise<void>): Promise<void> {
   errorMessage.value = '';

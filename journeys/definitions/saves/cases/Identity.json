@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-SAVE-14",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-LOAD-01"
+    ],
+    "branches": [
+      "BR-LOAD-01-DUPLICATE-ID"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-14",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/Identity.spec.ts",
+        "titles": [
+          "JRN-SAVE-14 repairs collision managed identity before the next write",
+          "JRN-SAVE-14 repairs mismatched managed identity before the next write"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

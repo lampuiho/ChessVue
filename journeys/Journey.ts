@@ -21,6 +21,7 @@ export interface IJourneyApi extends IJourneyDescription {
   ready: boolean;
   listFiles(): string[];
   readFile(path: string): string | undefined;
+  changeFile(path: string, raw: string | null): void;
   chooseImport(path: string | null): void;
   chooseExport(path: string | null): void;
   reset(): void;

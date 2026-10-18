@@ -26,7 +26,7 @@ Exclude ideas without a current user flow: premoves, bookmarks, evaluation expla
 
 ## Completion tracking
 
-Updated 17 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#clocks-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
+Updated 18 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#saves-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
 
 | Area / case range | Total | Complete | Partial | Backlog | Evidence or next work |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -37,7 +37,7 @@ Updated 17 October 2026 from the [implementation record and verified runs](Journ
 | Promotion — `JRN-PROMO-01–05` | 5 | 5 | 0 | 0 | [36 browser variants](../e2e/journeys/promotion/), [owned metadata](../journeys/definitions/promotion/cases/) and [scenario review](../journeys/definitions/promotion/ScenarioReview.md) |
 | Analysis — `JRN-ANALYSIS-01–12` | 12 | 12 | 0 | 0 | [22 browser variants](../e2e/journeys/analysis/), [three integration checks](../journeys/__tests__/analysis/), [owned metadata](../journeys/definitions/analysis/cases/) and [scenario review](../journeys/definitions/analysis/ScenarioReview.md) |
 | Clocks — `JRN-CLOCK-01–12` | 12 | 12 | 0 | 0 | [40 browser variants](../e2e/journeys/clocks/), [eleven integration checks](../journeys/__tests__/clocks/), [owned metadata](../journeys/definitions/clocks/cases/) and [scenario review](../journeys/definitions/clocks/ScenarioReview.md) |
-| Saves — `JRN-SAVE-01–16` | 16 | 1 | 1 | 14 | [JRN-SAVE-08 complete; JRN-SAVE-07 partial](../journeys/definitions/saves/cases/ImportExport.json). Workspace round trip passes; actual-move recorded-analysis round trip remains pending |
+| Saves — `JRN-SAVE-01–16` | 16 | 16 | 0 | 0 | [51 browser variants](../e2e/journeys/saves/), [seven migrated application regressions and a storage-control check](../journeys/__tests__/saves/), [owned metadata](../journeys/definitions/saves/cases/) and [scenario review](../journeys/definitions/saves/ScenarioReview.md), including actual-move recorded-analysis round trips |
 | Settings — `JRN-SETTINGS-01–11` | 11 | 0 | 0 | 11 | Implement appearance, dirty navigation, inventory and preference cases |
 | Recovery — `JRN-RECOVERY-01–08` | 8 | 0 | 0 | 8 | Add fallback assertions and independent persisted-fault variants |
 | Rules — `JRN-RULE-01–06` | 6 | 0 | 0 | 6 | Add the proposed fixture and special-move/result journeys |
@@ -47,9 +47,9 @@ Updated 17 October 2026 from the [implementation record and verified runs](Journ
 | NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 0 | 0 | 7 | Native runtime verification remains outstanding |
 | Complete sessions — `JRN-SESSION-01–04` | 4 | 0 | 0 | 4 | Compose the four sessions after their dependent cases pass |
 | Usability — `JRN-UX-01–04` | 4 | 0 | 0 | 4 | Perform keyboard/focus, layout and workload checks |
-| **Total** | **147** | **69** | **1** | **77** | **78 groups still need acceptance work, including the partial group** |
+| **Total** | **147** | **84** | **0** | **63** | **63 groups still need acceptance work** |
 
-Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for the Fresh, Play, History, Setup, Promotion, Analysis and Clocks tranches. The full scenario/branch register and remaining structural migrations are outstanding; no phase is complete yet. The latest verification is recorded in [Clocks verification](JourneyImplementation.md#clocks-verification). These totals do not imply completion of additional case groups.
+Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for the Fresh, Play, History, Setup, Promotion, Analysis, Clocks and Saves tranches. The full scenario/branch register and remaining structural migrations are outstanding; no phase is complete yet. The latest [Saves verification](JourneyImplementation.md#saves-verification) records a clean focused 51-variant run. The broader 260-test run passed every assertion but reported six worker shutdown errors, so it is not a clean whole-suite pass. Earlier tranches retain their dated passing evidence; the filtered Saves report does not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
 
 Update this table with each accepted work package, using owned case metadata and `npm run journey -- report` for execution evidence. Keep detailed results in the [implementation record](JourneyImplementation.md) and scenario reviews; a passing bootstrap or a filtered run must not mark unexecuted cases complete.
 
@@ -101,7 +101,7 @@ Add a compact `scenarioReview` entry to the journey's owned case metadata: revie
 | Existing asset | What it establishes | Gap to address |
 | --- | --- | --- |
 | [Ten journey definitions](../journeys/definitions/) and [catalogue](../journeys/Catalogue.json) | Repeatable starting data with references to all 48 non-idea scenarios | A scenario reference and manual instruction do not prove its actions or branches pass |
-| [Journey Playwright suite](../e2e/journeys/) | Ten bootstrap checks and 155 named creation/play/history/setup/promotion/analysis/transfer tests; completion is tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
+| [Journey Playwright suite](../e2e/journeys/) | Ten bootstrap checks and 243 named creation/play/history/setup/promotion/analysis/clock/save tests; completion is tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
 | [Ordinary browser suite](../e2e/Browser.spec.ts) | Seven tests covering save/reload, real upload/download, theme persistence, concurrent Stockfish, a legal reply and both smothered-mate continuations | Broader persistence, worker failure and navigation coverage |
 | [Application regressions](../journeys/__tests__/UiFollowUp.spec.ts) and [Play suites](../journeys/__tests__/play/) | Mounted-app and store regressions for UI-01 through UI-17, including pause, history, identity and route reuse | Many paths call stores directly and do not establish a complete browser journey |
 | Domain, store, component and platform tests under `src/**/__tests__` | Detailed rules, serialisation, runtime and adapter behaviour | Retain this coverage and add representative UI journeys instead of duplicating every unit permutation |

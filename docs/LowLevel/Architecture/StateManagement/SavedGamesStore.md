@@ -17,7 +17,7 @@ saveGame(game: IGame, options: ISaveGameOptions): Promise<string>
 registerAutosaveOnClose(getGames: () => readonly IGame[]): Promise<void>
 disposeAutosaveOnClose(): void
 deleteSave(gameId: string, saveName?: string): Promise<void>
-exportGame(game: IGame): Promise<string>
+exportGame(game: IGame): Promise<string | undefined>
 importGame(): Promise<IGame | undefined>
 ```
 
@@ -31,6 +31,7 @@ importGame(): Promise<IGame | undefined>
 - delete the selected managed save target from the route-level save/load UI once the user confirms the action
 - handle route-driven load behaviour, including selected-game navigation and double-click latest-save path resolution
 - open external import and export dialogs and complete the associated read or write flow
+- return no payload/path when the picker reports typed cancellation, and propagate genuine picker failures to presentation
 - replace an external import's metadata ID with a fresh app-generated game ID before returning the payload to presentation, so imported metadata is never reused as a managed folder name
 - register and tear down close-trigger autosave callbacks through the layer-2 platform-event boundary when presentation decides the current UI context should autosave on app close
 - expose one canonical `saveGame(...)` boundary for explicit saves, close-trigger saves and the serial move-count autosave queue owned by `GamesStore`

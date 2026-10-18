@@ -39,7 +39,7 @@ const saveNameError = computed(() => {
   const value = saveName.value.trim();
   if (!value) return 'Enter a save name.';
   if (value.toLowerCase() === 'auto') return '“auto” is reserved for automatic saves.';
-  if (/[\\/:*?"<>|]/.test(value) || value === '.' || value === '..') return 'Use a single file name without path characters.';
+  if (/[\\/:*?"<>|\x00-\x1f]/.test(value) || /[.]$/.test(value) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value)) return 'Use a single, non-reserved file name without path characters.';
   return '';
 });
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` : '/home');
@@ -125,6 +125,7 @@ async function writeSave(game: IGame, name: string, overwrite: boolean): Promise
   overwriteTarget.value = undefined;
   message.value = `Saved “${name}”.`;
   await refreshGroups();
+  selectedSaveName.value = name;
 }
 async function confirmOverwrite(): Promise<void> {
   const target = overwriteTarget.value;
@@ -143,8 +144,7 @@ async function importGame(): Promise<void> {
 async function exportCurrent(): Promise<void> {
   if (!activeGame.value) return;
   await run(async () => {
-    await savedGamesStore.exportGame(activeGame.value!);
-    message.value = 'Game exported.';
+    if (await savedGamesStore.exportGame(activeGame.value!)) message.value = 'Game exported.';
   });
 }
 async function confirmDelete(): Promise<void> {

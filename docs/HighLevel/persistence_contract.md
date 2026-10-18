@@ -153,7 +153,7 @@ Records belong to their played node and survive subsequent play, temporary explo
 
 ## Managed Save Input Ownership
 - `SavedGamesView` owns validation of a user-entered managed save name before it calls `SavedGamesStore`. Invalid input keeps the `Save` action disabled, remains editable with inline feedback, and never reaches the store.
-- An accepted save name is one non-reserved file-name segment, not a path. Blank names, `auto`, `.`, `..`, rooted-path syntax, and directory separators are invalid.
+- An accepted save name is one non-reserved file-name segment, not a path. Blank names, `auto`, `.`, `..`, rooted-path syntax, directory separators, device names, trailing dots and control characters are invalid.
 - Managed game-folder identifiers do not come from editable text. New games use an app-generated identity, managed loads use the identity of the enumerated save group, and external imports receive a fresh app-generated identity before insertion or any later managed save.
 - `SavedGamesStore` and `SavedGameIndexService` consume these already-owned values and do not repeat presentation form validation. External file paths remain separately owned by the OS picker flow.
 
@@ -179,6 +179,7 @@ On restore, those persisted snapshots are restored with the game, and analysis m
 - Writes the same canonical saved-game payload to a user-selected file through a normal OS save dialog.
 - Must preserve the same game-state restore fidelity as autosave and internal save files.
 - Must not depend on session-only data outside that payload.
+- Cancelling the picker writes nothing and shows no success notification. Other picker failures follow the normal error flow.
 
 ### External Import
 - Reads and validates the canonical saved game payload from file.

@@ -9,7 +9,7 @@
     "branches": [],
     "fixture": "saves",
     "lane": "seeded-browser",
-    "implementation": "partial",
+    "implementation": "available",
     "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-07",
     "data": [
       "journeys/definitions/saves/data/LibrarySnapshot.ts",
@@ -19,13 +19,11 @@
       {
         "spec": "e2e/journeys/saves/ImportExport.spec.ts",
         "titles": [
-          "JRN-SAVE-07 round-trips the seeded workspace through export and import"
+          "JRN-SAVE-07 round-trips actual-move records after continued play and exploratory pruning"
         ]
       }
     ],
-    "remaining": [
-      "Actual-move recorded-analysis round trip remains in the recording journey backlog; this fixture contains no analysis records."
-    ]
+    "remaining": []
   },
   {
     "id": "JRN-SAVE-08",

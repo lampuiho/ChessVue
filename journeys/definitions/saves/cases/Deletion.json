@@ -1,0 +1,59 @@
+[
+  {
+    "id": "JRN-SAVE-11",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-LIFECYCLE-01",
+      "SCN-LIFECYCLE-02"
+    ],
+    "branches": [
+      "BR-LIFECYCLE-01-CANCEL",
+      "BR-LIFECYCLE-02-HAS-FALLBACK",
+      "BR-LIFECYCLE-02-LAST-GAME"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-11",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/Deletion.spec.ts",
+        "titles": [
+          "JRN-SAVE-11 cancels deletion without changing the selected snapshot or stored bytes",
+          "JRN-SAVE-11 deletes selected and last snapshots with detail and route fallback"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SAVE-12",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-LIFECYCLE-01",
+      "SCN-LIFECYCLE-02"
+    ],
+    "branches": [
+      "BR-LIFECYCLE-02-LAST-GAME"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-12",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/Deletion.spec.ts",
+        "titles": [
+          "JRN-SAVE-12 empties the library while preserving an open playable workspace across load and save routes"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

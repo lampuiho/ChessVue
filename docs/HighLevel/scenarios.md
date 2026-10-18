@@ -129,7 +129,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.loadSettings`
   - `UiStateStore.loadLayoutState`
   - `UiStateStore.loadGameSession`
-  - `RecentGameStore.loadRecentGames`
+  - `RecentGameStore.getRecentGames`
   - `UserSettingService.getSettingsOrDefault`
 
 ### SCN-SESSION-02 - Restore Previous Session
@@ -295,7 +295,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.listGames`
 
 ### SCN-NAV-03 - Reopen Recent Game from Home
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Reopen a recently accessed game from the centred `HomeView` recent games list.
 - **Preconditions**: One or more recent game entries exist for the home screen.
 - **Entry Points**: `HomeView` recent games list.
@@ -303,14 +303,14 @@ Each scenario in this document uses the same structure:
   1. User lands on `HomeView`.
   2. App shows the centred single-row action buttons and a recent games list below them.
   3. User selects a recent game entry.
-  4. App resolves the selected recent entry and loads the referenced game from either autosave storage or a saved file path.
+  4. App activates an already-open workspace without replacing its unsaved state; otherwise it loads the latest managed save for the selected group.
   5. App opens the loaded game as the active context and routes to it.
 - **Branch Paths**:
   - `BR-NAV-03-MISSING-ENTRY`: The selected recent entry no longer resolves -> reload the recent list and keep the user on `HomeView`.
   - `BR-NAV-03-LOAD-FAIL`: Referenced game file is invalid or unreadable -> route through the normal invalid-load error flow.
 - **Postconditions**: A valid recent entry opens as the active game; invalid recent entries are removed without breaking the home screen.
 - **Implementation Touchpoints**:
-  - `RecentGameStore.loadRecentGames`
+  - `RecentGameStore.getRecentGames`
   - `SavedGamesStore.loadRecentGame`
   - `SavedGameIndexService.getLatestSaveEntryForGame`
   - `GamesStore.insertGame`
@@ -897,7 +897,7 @@ Each scenario in this document uses the same structure:
 ## Persistence, File I/O, Settings, and Engine Management
 
 ### SCN-SAVE-01 - Autosave Internal Save Entry
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Update the dedicated internal autosave entry for the current game without routing to the save/load views.
 - **Preconditions**: Active game exists; at least one autosave trigger is enabled.
 - **Entry Points**: Configured move-count threshold reached or close flow begins.
@@ -919,14 +919,14 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.loadSettings`
 
 ### SCN-SAVE-02 - Open Internal Save View
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Route to the ChessVue save view so the user can browse the current game's saves and stage an internal save.
 - **Preconditions**: Active game exists.
 - **Entry Points**: Menu `Save Game`.
 - **Main Steps**:
   1. User chooses save action.
   2. If a timed game is active and auto-pause-on-menu is enabled, app pauses the game before entering the save flow.
-  3. App routes to `/saved-games/save/:name` using the current game name.
+  3. App routes to `/saved-games/save/:name` using the app-owned current game ID.
   4. The save view opens directly in the selected game's save-list screen rather than a transient dialog.
   5. The save list shows the autosave entry first, then a separator when autosave exists, then the remaining saves with save-name and date columns.
   6. The right panel shows details for the selected save entry.
@@ -936,7 +936,7 @@ Each scenario in this document uses the same structure:
   10. When the user returns to the game screen, app auto-resumes if the pause came from this save flow.
 - **Branch Paths**:
   - `BR-SAVE-02-CANCEL`: User leaves the save view -> no save is written.
-  - `BR-SAVE-02-NO-CURRENT-GAME`: If no current game exists, the route is blocked or redirected because save requires one selected game.
+  - `BR-SAVE-02-NO-CURRENT-GAME`: If no current game exists, the route shows a usable empty state with Save and Export disabled.
   - `BR-SAVE-02-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, save proceeds without pausing the clock.
 - **Postconditions**: The user reaches a consistent route-level save surface without leaving the app context, and the save screen is ready for creating or replacing a save entry for the current game.
 - **Implementation Touchpoints**:
@@ -949,7 +949,7 @@ Each scenario in this document uses the same structure:
   - `SettingsStore.loadSettings`
 
 ### SCN-SAVE-03 - Confirm Internal Save Write
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Write the current game to an internal save file, including overwrite confirmation when the chosen save name already exists.
 - **Preconditions**: The save view is open at `/saved-games/save/:name` with a valid selected game.
 - **Entry Points**: Save view `Save` button.
@@ -973,7 +973,7 @@ Each scenario in this document uses the same structure:
   - `SerializationService.writeGameDocument`
 
 ### SCN-LOAD-01 - Load Valid Game from Internal Save View
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Open a ChessVue-managed save from the route-level load view and make it the active game context.
 - **Preconditions**: At least one valid internal save file exists.
 - **Entry Points**: Menu `Load Game`.
@@ -995,7 +995,7 @@ Each scenario in this document uses the same structure:
   15. When the user returns to the game screen, app auto-resumes if the pause came from this load flow.
 - **Branch Paths**:
   - `BR-LOAD-01-CANCEL`: User leaves either load route or presses `Cancel` -> no load occurs.
-  - `BR-LOAD-01-DUPLICATE-ID`: Loaded game ID collides with an already open or persisted game -> remap ID before insert.
+  - `BR-LOAD-01-DUPLICATE-ID`: Loaded managed-group ID collides with an already open game -> remap ID before insert.
   - `BR-LOAD-01-SCHEMA-VERSION`: Unsupported schema version detected -> reject the saved game without inserting a partial workspace.
   - `BR-LOAD-01-NO-SELECTION`: User presses `Select` without a selected game on `/saved-games/load` -> keep the user on the grouped game list and block navigation.
   - `BR-LOAD-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, load proceeds without pausing the clock.
@@ -1013,7 +1013,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.saveGameSession`
 
 ### SCN-EXPORT-01 - Export Game to External File
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Export the active game to a user-selected external file through a standard OS save dialog.
 - **Preconditions**: Active game exists.
 - **Entry Points**: Menu `Export Game`.
@@ -1039,7 +1039,7 @@ Each scenario in this document uses the same structure:
   - `SerializationService.writeGameDocument`
 
 ### SCN-IMPORT-01 - Import Valid Game from External File
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Import a saved game from an external file and open it as the active context.
 - **Preconditions**: Valid supported game file is available.
 - **Entry Points**: Menu `Import Game`.
@@ -1066,7 +1066,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.saveGameSession`
 
 ### SCN-IMPORT-02 - Reject Invalid External Game File
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Reject unsupported/corrupt import safely.
 - **Preconditions**: User selected malformed or unsupported external file.
 - **Entry Points**: Menu `Import Game`.
@@ -1203,7 +1203,7 @@ Each scenario in this document uses the same structure:
 ## Game Lifecycle Cleanup
 
 ### SCN-LIFECYCLE-01 - Delete Managed Save Entry
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Remove a managed save target from the saved-games surface.
 - **Preconditions**: A deletable managed save is selected in the saved-games UI.
 - **Entry Points**: Saved-games list or selected-save action.
@@ -1223,7 +1223,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
 
 ### SCN-LIFECYCLE-02 - Delete Selected Save and Switch Saved-Games Context
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Remove the currently selected managed save without leaving invalid saved-games route or selection state.
 - **Preconditions**: A selected game/save is active inside the saved-games route.
 - **Entry Points**: Delete action on the selected save.

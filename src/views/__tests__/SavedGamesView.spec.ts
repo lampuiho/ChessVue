@@ -89,7 +89,7 @@ describe('SavedGamesView named saves', () => {
     await wrapper.get('.modal-card__actions .text-button--ghost').trigger('click');
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledTimes(1);
   });
-  it.each(['', 'auto', '../Opening'])('does not write or prompt for invalid name %s', async (name) => {
+  it.each(['', ' ', 'auto', 'AUTO', '.', '..', '../Opening', '..\\Opening', 'CON', 'LPT1.json', 'Ending.', 'Bad\u0001'])('does not write or prompt for invalid name %s', async (name) => {
     await mountView();
     await wrapper.get('#save-name').setValue(name);
     await wrapper.get('#save-name').trigger('keydown', { key: 'Enter' });

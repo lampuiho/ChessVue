@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-SAVE-06",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SAVE-01"
+    ],
+    "branches": [
+      "BR-SAVE-01-MOVE-COUNT-DISABLED"
+    ],
+    "fixture": "saves",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/saves/ScenarioReview.md#jrn-save-06",
+    "data": [
+      "journeys/definitions/saves/data/LibrarySnapshot.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/saves/Autosave.spec.ts",
+        "titles": [
+          "JRN-SAVE-06 autosaves at three and six committed plies with interval 3",
+          "JRN-SAVE-06 autosaves at three and six committed plies with interval 0"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia';
 
-import type { IGame } from '@/contracts';
+import { PlatformErrorKind, type IGame } from '@/contracts';
 import type { GameRestoreOutcome, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind, type ISaveGameOptions } from '@/contracts/state';
 import { PlatformEventService, SavedGameIndexService, SerializationService, UserSettingService } from '@/domain';
 
 async function getSaveRootPath(): Promise<string> {
   return (await UserSettingService.getSettingsOrDefault()).gameSession.saveRootPath;
+}
+function isCancelled(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'kind' in error && error.kind === PlatformErrorKind.Cancelled;
 }
 async function _listManagedSaveGroups(rootPath: string): Promise<ISavedGameGroup[]> {
   return SavedGameIndexService.projectSaveGroups(rootPath, await SerializationService.listManagedSaveEntries(rootPath));
@@ -82,8 +85,14 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   async function deleteSave(gameId: string, saveName?: string): Promise<void> {
     await SerializationService.deleteDocument(getTargetEntry(await listSavedGames(), gameId, saveName).filePath);
   }
-  async function exportGame(game: IGame): Promise<string> {
-    const filePath = await SerializationService.selectExportFile(`${game.metadata.id}.json`);
+  async function exportGame(game: IGame): Promise<string | undefined> {
+    let filePath: string;
+    try {
+      filePath = await SerializationService.selectExportFile(`${game.metadata.id}.json`);
+    } catch (error) {
+      if (isCancelled(error)) return;
+      throw error;
+    }
     await saveGame(game, { targetKind: SaveGameTargetKind.ExternalFile, filePath, overwrite: true });
     return filePath;
   }
@@ -91,8 +100,9 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
     let filePath: string;
     try {
       filePath = await SerializationService.selectImportFile(await getSaveRootPath());
-    } catch {
-      return;
+    } catch (error) {
+      if (isCancelled(error)) return;
+      throw error;
     }
     const game = await SerializationService.readGameDocument(filePath);
     game.metadata.id = crypto.randomUUID();
