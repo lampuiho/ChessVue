@@ -1,6 +1,7 @@
 {
   "title": "Corrupt settings/layout, missing game and unsupported game version",
   "scenarios": [
+    "SCN-SESSION-01",
     "SCN-SESSION-02",
     "SCN-SESSION-03",
     "SCN-IMPORT-02",
@@ -9,6 +10,9 @@
   "steps": [
     "Confirm the app remains usable with corrupt settings/layout and unavailable active game.",
     "Verify recovery-valid is restored while recovery-broken and recovery-missing are removed from the open session.",
-    "Check the fallback route and recoverable warning; use reset() to repeat startup."
+    "Check the fallback route and recoverable warning; use reset() to repeat startup.",
+    "Use ?journey=recovery&variant=settings (or layout, missing-game, unsupported-game)&reset=1 to isolate a fault.",
+    "Use restore-game-on/off, restore-settings-on/off or restore-library-on/off to inspect ordered session restore and analysis policy.",
+    "Use unavailable-player, unavailable-analysis, paused or board-edit to inspect restored runtime eligibility."
   ]
 }

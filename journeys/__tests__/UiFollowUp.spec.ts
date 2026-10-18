@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 import { AppModalKind, GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, TimeControlPreset, type IGame } from '@/contracts';
-import { boot, createTimedContext, legalMove, findButton, clickButton, setField, clickSquare, forgetRunning } from './support/UiHarness';
+import { boot, createTimedContext, legalMove, findButton, clickButton, setField, clickSquare } from './support/UiHarness';
 describe('UI-02 in-game analysis permissions', () => {
   it('keeps a manual pause read-only when it is layered over analysis', async () => {
     const context = await createTimedContext();
@@ -164,32 +164,5 @@ describe('UI-11 historical continuation confirmation', () => {
     expect(parent.children[oldIndex]).toBe(oldContinuation);
     expect(parent.mainlineChildIndex).not.toBe(oldIndex);
     expect(document.querySelectorAll('.history-row__tag').length).toBeGreaterThan(0);
-  });
-});
-describe('UI-13 startup recovery', () => {
-  it('chooses the first valid restored game and provides recovery actions', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { router } = await boot('recovery');
-    expect(router.currentRoute.value.path).toBe('/game/recovery-valid');
-    expect(document.querySelector('.recovery-notice')?.textContent).toContain('Settings could not be read');
-    expect(findButton('Saved games', '.recovery-notice button')).toBeDefined();
-    await clickButton('Dismiss', '.recovery-notice button');
-    expect(document.querySelector('.recovery-notice')).toBeNull();
-  });
-  it('ignores the remembered route when restore-session is disabled', async () => {
-    const { stores, app, router, stopReady } = await boot('settings');
-    const settings = stores.useSettingsStore();
-    settings.draftSettings!.gameSession.restorePreviousSession = false;
-    await settings.applySettings();
-    stores.useUiStateStore().setActiveRoute('/settings/appearance');
-    await stores.useUiStateStore().saveGameSession();
-    stopReady();
-    app.unmount();
-    router.options.history.destroy();
-    forgetRunning();
-    vi.resetModules();
-    const restarted = await boot('settings');
-    expect(restarted.router.currentRoute.value.path).toBe('/home');
-    expect(restarted.games.listGames()).toHaveLength(0);
   });
 });

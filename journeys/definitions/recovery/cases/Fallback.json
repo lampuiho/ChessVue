@@ -1,0 +1,41 @@
+[
+  {
+    "id": "JRN-RECOVERY-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-01",
+      "SCN-SESSION-02",
+      "SCN-NAV-02"
+    ],
+    "branches": [
+      "BR-SESSION-01-HOME-FALLBACK",
+      "BR-SESSION-02-MISSING-GAME",
+      "BR-SESSION-02-PARTIAL-STATE",
+      "BR-NAV-02-HAS-GAMES",
+      "BR-NAV-02-NO-GAMES"
+    ],
+    "fixture": "recovery",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/recovery/ScenarioReview.md#jrn-recovery-05",
+    "data": [
+      "journeys/definitions/recovery/data/RecoveryWorkspace.ts",
+      "journeys/definitions/recovery/data/RecoveryScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/recovery/Fallback.spec.ts",
+        "titles": [
+          "JRN-RECOVERY-05 repairs no-valid-games without phantom tabs or implicit games",
+          "JRN-RECOVERY-05 repairs stale-active without phantom tabs or implicit games",
+          "JRN-RECOVERY-05 repairs unknown-game-route without phantom tabs or implicit games",
+          "JRN-RECOVERY-05 repairs invalid-route without phantom tabs or implicit games",
+          "JRN-RECOVERY-05 repairs nonmember-active without phantom tabs or implicit games",
+          "JRN-RECOVERY-05 repairs ui-only without phantom tabs or implicit games",
+          "JRN-RECOVERY-05 repairs duplicate-tabs without phantom tabs or implicit games"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

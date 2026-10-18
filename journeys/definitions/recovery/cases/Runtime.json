@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-RECOVERY-08",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SESSION-02"
+    ],
+    "branches": [],
+    "fixture": "recovery",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/recovery/ScenarioReview.md#jrn-recovery-08",
+    "data": [
+      "journeys/definitions/recovery/data/RecoveryWorkspace.ts",
+      "journeys/definitions/recovery/data/RecoveryScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/recovery/Runtime.spec.ts",
+        "titles": [
+          "JRN-RECOVERY-08 restores an unavailable player with scoped feedback and allows reassignment",
+          "JRN-RECOVERY-08 isolates an unavailable analysis seat while another engine and the board remain usable",
+          "JRN-RECOVERY-08 restores a paused engine game without arming a turn until explicit resume",
+          "JRN-RECOVERY-08 restores board edit without analysis or player work until editing finishes",
+          "JRN-RECOVERY-08 arms exactly one restored player reply across navigation and reload"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

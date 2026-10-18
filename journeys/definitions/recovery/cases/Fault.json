@@ -1,0 +1,64 @@
+[
+  {
+    "id": "JRN-RECOVERY-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-02",
+      "SCN-SESSION-03"
+    ],
+    "branches": [
+      "BR-SESSION-03-SETTINGS-CORRUPT",
+      "BR-SESSION-03-GAME-VERSION"
+    ],
+    "fixture": "recovery",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/recovery/ScenarioReview.md#jrn-recovery-01",
+    "data": [
+      "journeys/definitions/recovery/data/RecoveryWorkspace.ts",
+      "journeys/definitions/recovery/data/RecoveryScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/recovery/Fault.spec.ts",
+        "titles": [
+          "JRN-RECOVERY-01 restores the valid game with defaults and a recoverable combined warning @smoke"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-RECOVERY-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-02",
+      "SCN-SESSION-03"
+    ],
+    "branches": [
+      "BR-SESSION-02-MISSING-GAME",
+      "BR-SESSION-03-SETTINGS-CORRUPT",
+      "BR-SESSION-03-GAME-VERSION"
+    ],
+    "fixture": "recovery",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/recovery/ScenarioReview.md#jrn-recovery-02",
+    "data": [
+      "journeys/definitions/recovery/data/RecoveryWorkspace.ts",
+      "journeys/definitions/recovery/data/RecoveryScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/recovery/Fault.spec.ts",
+        "titles": [
+          "JRN-RECOVERY-02 isolates the settings fault and preserves valid preferences and saves",
+          "JRN-RECOVERY-02 isolates the layout fault and preserves valid preferences and saves",
+          "JRN-RECOVERY-02 isolates the missing-game fault and preserves valid preferences and saves",
+          "JRN-RECOVERY-02 isolates the unsupported-game fault and preserves valid preferences and saves"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

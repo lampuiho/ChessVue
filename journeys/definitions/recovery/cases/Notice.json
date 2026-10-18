@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-RECOVERY-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SESSION-03"
+    ],
+    "branches": [],
+    "fixture": "recovery",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/recovery/ScenarioReview.md#jrn-recovery-06",
+    "data": [
+      "journeys/definitions/recovery/data/RecoveryWorkspace.ts",
+      "journeys/definitions/recovery/data/RecoveryScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/recovery/Notice.spec.ts",
+        "titles": [
+          "JRN-RECOVERY-06 follows the recovery notice Dismiss action and continues normal play",
+          "JRN-RECOVERY-06 follows the recovery notice Saved games action and continues normal play",
+          "JRN-RECOVERY-06 follows the recovery notice Settings action and continues normal play"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

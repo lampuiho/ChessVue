@@ -1,0 +1,61 @@
+[
+  {
+    "id": "JRN-RECOVERY-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-02"
+    ],
+    "branches": [],
+    "fixture": "recovery",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/recovery/ScenarioReview.md#jrn-recovery-03",
+    "data": [
+      "journeys/definitions/recovery/data/RecoveryWorkspace.ts",
+      "journeys/definitions/recovery/data/RecoveryScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/recovery/Restore.spec.ts",
+        "titles": [
+          "JRN-RECOVERY-03 restores ordered tabs and game route with analysis resume on",
+          "JRN-RECOVERY-03 restores ordered tabs and game route with analysis resume off",
+          "JRN-RECOVERY-03 restores ordered tabs and settings route with analysis resume on",
+          "JRN-RECOVERY-03 restores ordered tabs and settings route with analysis resume off",
+          "JRN-RECOVERY-03 restores ordered tabs and library route with analysis resume on",
+          "JRN-RECOVERY-03 restores ordered tabs and library route with analysis resume off",
+          "JRN-RECOVERY-03 restores ordered tabs and library-selection route with analysis resume on",
+          "JRN-RECOVERY-03 restores ordered tabs and library-selection route with analysis resume off",
+          "JRN-RECOVERY-03 restores ordered tabs and save route with analysis resume on",
+          "JRN-RECOVERY-03 restores ordered tabs and save route with analysis resume off"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-RECOVERY-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-02"
+    ],
+    "branches": [],
+    "fixture": "recovery",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/recovery/ScenarioReview.md#jrn-recovery-04",
+    "data": [
+      "journeys/definitions/recovery/data/RecoveryWorkspace.ts",
+      "journeys/definitions/recovery/data/RecoveryScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/recovery/Restore.spec.ts",
+        "titles": [
+          "JRN-RECOVERY-04 disables session restore through Settings and retains loadable saved games"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

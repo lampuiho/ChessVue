@@ -133,18 +133,19 @@ Each scenario in this document uses the same structure:
   - `UserSettingService.getSettingsOrDefault`
 
 ### SCN-SESSION-02 - Restore Previous Session
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Resume prior UI/game context after restart.
-- **Preconditions**: Persisted `currentGameId`, game list, and UI preferences exist.
+- **Preconditions**: Persisted game-session `openGameIds`, `activeGameId`, `activeRoute`, and independent UI layout/preferences exist.
 - **Entry Points**: App startup.
 - **Main Steps**:
   1. User launches app.
   2. App loads persisted settings and UI state.
   3. App installs the configured light and dark profile snapshots and resolves the effective colour scheme from `appearance.themeMode` and the current system theme when required.
-  4. App restores game collection.
-  5. App routes to persisted active game if valid.
+  4. If Restore previous session is enabled, app loads only the remembered open games from their latest managed snapshots, preserving tab order.
+  5. App removes unrestorable IDs, repairs selection and restores the remembered game, Settings or library route after the required games load. Disabled restore opens Home without reopening workspaces; saved documents remain loadable.
+  6. Eligible analysis resumes according to preference; paused player turns and board-edit analysis remain inactive until the corresponding user action.
 - **Branch Paths**:
-  - `BR-SESSION-02-MISSING-GAME`: Persisted `currentGameId` not found -> route to first valid game or home.
+  - `BR-SESSION-02-MISSING-GAME`: Persisted `activeGameId` cannot be restored -> route to an available game or Home and persist the repaired session.
   - `BR-SESSION-02-PARTIAL-STATE`: UI state exists but games do not -> keep UI preferences, reset active game.
 - **Postconditions**: Prior session context is restored where valid; invalid pieces are safely repaired.
 - **Implementation Touchpoints**:
@@ -158,23 +159,24 @@ Each scenario in this document uses the same structure:
   - `SerializationService.readGameSessionDocument`
 
 ### SCN-SESSION-03 - Startup with Corrupt Persisted Data
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Prevent startup crash when stored JSON/state is corrupt.
 - **Preconditions**: At least one persisted payload is malformed.
 - **Entry Points**: App startup.
 - **Main Steps**:
   1. User launches app.
   2. App attempts to deserialize persisted state.
-  3. Corrupt payload is rejected and isolated.
+  3. Corrupt payload is rejected and isolated; valid independent settings, layout and saved games remain available.
   4. App continues with defaults and displays recoverable warning.
 - **Branch Paths**:
-  - `BR-SESSION-03-SETTINGS-CORRUPT`: Settings payload invalid -> `resetSettings` fallback.
+  - `BR-SESSION-03-SETTINGS-CORRUPT`: Settings payload invalid -> in-memory default settings with a recoverable warning; the corrupt file is retained until an explicit settings save/reset.
   - `BR-SESSION-03-GAME-VERSION`: Unsupported saved-game schema version -> reject the payload and continue the recoverable startup flow.
-- **Postconditions**: App remains usable; bad persistence does not block launch.
+- **Postconditions**: App remains usable; bad persistence does not block launch. The notice can be dismissed or open Saved games/Settings. Repaired session state is checkpointed without silently erasing corrupt settings/layout/game source files.
 - **Implementation Touchpoints**:
   - `SerializationService.deserialiseGame`
-  - `SerializationService.deserialiseGame`
-  - `SettingsStore.resetSettings`
+  - `UiStateStore.loadGameSession`
+  - `UiStateStore.loadLayoutState`
+  - `SettingsStore.loadSettings`
   - `UserSettingService.getSettingsOrDefault`
   - `SerializationService.readGameDocument`
 

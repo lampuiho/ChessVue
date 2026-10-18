@@ -29,7 +29,7 @@ describe('journey builder ownership', () => {
     profiles[0]!.options.Hash = 888;
     expect(createEngineProfiles()[0]!.options.Hash).toBe(16);
   });
-  it.each(['fresh', 'play', 'history', 'setup', 'promotion', 'analysis', 'clocks', 'saves', 'settings'])('%s does not share mutable seed files or game IDs', (name) => {
+  it.each(['fresh', 'play', 'history', 'setup', 'promotion', 'analysis', 'clocks', 'saves', 'settings', 'recovery'])('%s does not share mutable seed files or game IDs', (name) => {
     const first = createJourney(name, 1000);
     const second = createJourney(name, 1000);
     first.files.push({ path: 'injected.json', raw: 'changed' });

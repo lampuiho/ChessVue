@@ -1,0 +1,51 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { IGame } from '@/contracts';
+import { boot, clickButton } from '../support/UiHarness';
+describe('JRN-RECOVERY-08 restored runtime ownership', () => {
+  it('starts one player search and retains the same next-turn promise across route changes', async () => {
+    const { EngineRuntimeService } = await import('@/domain');
+    const starts = vi.spyOn(EngineRuntimeService, 'startPlayerTurn');
+    const { games, router } = await boot('recovery', 'live-engine');
+    const game = games.getGame('recovery-valid') as unknown as IGame;
+    await vi.waitFor(() => expect(game.livePath).toEqual([0, 0]));
+    const pending = game.$!.pendingPlayerTurnPromise;
+    const handler = game.$!.pendingPlayerTurnHandlePromise;
+    expect(pending).toBeDefined();
+    await router.push('/settings/session');
+    await router.push('/game/recovery-valid');
+    expect(game.$!.pendingPlayerTurnPromise).toBe(pending);
+    expect(game.$!.pendingPlayerTurnHandlePromise).toBe(handler);
+    expect(starts).toHaveBeenCalledTimes(1);
+    expect(games.listGames()).toHaveLength(1);
+  });
+  it('leaves a paused restored player unarmed and starts exactly once on resume', async () => {
+    const { EngineRuntimeService } = await import('@/domain');
+    const starts = vi.spyOn(EngineRuntimeService, 'startPlayerTurn');
+    const { games } = await boot('recovery', 'paused');
+    const game = games.getGame('recovery-valid') as unknown as IGame;
+    expect(game.$!.pendingPlayerTurnPromise).toBeUndefined();
+    expect(game.clockSnapshot.black.isRunning).toBe(false);
+    expect(starts).not.toHaveBeenCalled();
+    await clickButton('Resume game', '.control-button');
+    await vi.waitFor(() => expect(game.livePath).toEqual([0, 0]));
+    expect(starts).toHaveBeenCalledTimes(1);
+  });
+  it('leaves board edit without player searches or analysis subscriptions until editing finishes', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { EngineRuntimeService } = await import('@/domain');
+    const analysis = vi.spyOn(EngineRuntimeService, 'startAnalysis');
+    const player = vi.spyOn(EngineRuntimeService, 'startPlayerTurn');
+    const subscribe = vi.spyOn(EngineRuntimeService, 'subscribeToAnalysis');
+    const { games } = await boot('recovery', 'board-edit');
+    const game = games.getGame('recovery-valid') as unknown as IGame;
+    expect(game.$!.pendingPlayerTurnPromise).toBeUndefined();
+    expect(analysis).not.toHaveBeenCalled();
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(player).not.toHaveBeenCalled();
+    await clickButton('Finish editing', '.control-button');
+    await vi.waitFor(() => expect(game.analysis.seats[0]!.lines).toHaveLength(3));
+    expect(analysis).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(player).not.toHaveBeenCalled();
+  });
+});

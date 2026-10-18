@@ -50,9 +50,13 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
   const selectionKey = `chessvue:journey:${run.id}:selection`;
   const query = new URLSearchParams(window.location.search);
   const name = query.get('journey') ?? storage.getItem(selectionKey) ?? run.name;
-  const seed = createJourney(name);
+  const variantKey = `chessvue:journey:${run.id}:variant:${name}`;
+  const variant = query.has('journey') ? query.get('variant') : query.get('variant') ?? storage.getItem(variantKey);
+  const seed = createJourney(name, Date.now(), variant ?? undefined);
+  if (variant) storage.setItem(variantKey, variant);
+  else storage.removeItem(variantKey);
   storage.setItem(selectionKey, name);
-  const key = `chessvue:journey:${run.id}:${name}`;
+  const key = `chessvue:journey:${run.id}:${name}${variant ? `:${variant}` : ''}`;
   if (query.get('reset') === '1') storage.removeItem(key);
   const fs = new JourneyFileSystem(storage, key, seed.files);
   installBrowserPlatform(storage, key, fs);

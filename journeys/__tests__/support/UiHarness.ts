@@ -26,8 +26,8 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-export async function boot(name: string) {
-  window.history.replaceState({}, '', '/home');
+export async function boot(name: string, variant?: string) {
+  window.history.replaceState(null, '', variant ? '/home?variant=' + encodeURIComponent(variant) : '/home');
   const { startJourney } = await import('../../StartJourney');
   running = await startJourney({ name, id: 'ui-follow-up-test' });
   await vi.waitFor(() => expect(running?.api.ready).toBe(true), { timeout: 5000 });
