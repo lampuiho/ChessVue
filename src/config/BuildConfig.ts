@@ -5,9 +5,11 @@ export interface IPersistenceBuildConfig {
 }
 export interface IBuildConfig {
   persistence: IPersistenceBuildConfig;
+  engine: { untimedMoveTimeMs: number };
 }
 
 export const BuildConfig: IBuildConfig = {
+  engine: { untimedMoveTimeMs: 1000 },
   persistence: {
     settingsPath: 'settings.json',
     gameSessionPath: 'game-session.json',

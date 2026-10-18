@@ -14,8 +14,9 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Setting | Baseline Notes |
 | --- | --- |
 | Restore previous session on launch | Reopens prior session when valid. |
-| Autosave enabled | Controls whether meaningful state changes are persisted automatically. |
-| Autosave debounce | Reduces excessive write frequency during rapid changes. |
+| Save folder | Logical root for internal save groups; changing it does not migrate existing files. |
+| Autosave interval | Committed plies between automatic snapshots; 0 disables move-count autosave. |
+| Save on close | Persists the open games at close/checkpoint; required when restoring the previous session. |
 | Auto-pause on menu interruption | Applies to timed live games during settings, save, and similar flows, locking game interaction until the paired return or an explicit resume. |
 
 ## 2. Gameplay Policies
@@ -25,8 +26,6 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | Default time control | Default quick-new-game time control. |
 | Default white player type | `local` or `engine`. |
 | Default black player type | `local` or `engine`. |
-| Takeback policy | Decides whether moves made from history rewrite the live mainline or stay analysis-only. |
-| Confirm before mainline rewrite | Adds a confirmation gate before changing the main continuation. |
 | Analysis branch exit behaviour | Decides whether analysis-only history moves return to the live node or stay on the branch. |
 | Promotion policy | Baseline requires explicit promotion selection. |
 

@@ -110,6 +110,26 @@ async function exportGame(page: Page): Promise<IGame> {
   const download = await pending;
   return JSON.parse(await readFile((await download.path())!, 'utf8')) as IGame;
 }
+test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile is removed', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await configureStockfish(page);
+  await page.locator('#black-player').selectOption({ label: 'Browser Stockfish' });
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Engines', exact: true }).click();
+  await page.getByTitle('Delete', { exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await choosePlayer(page, 'Black', 'Keep Browser Stockfish');
+  await playOpening(page);
+  await expect(page.locator('.history-row')).toHaveCount(2, { timeout: 15000 });
+  await expect(page.locator('.engine-error')).toHaveCount(0);
+  const game = await exportGame(page);
+  expect(game.timeControl.preset).toBe('untimed');
+  expect(game.clockSnapshot.white.remainingMs).toBeUndefined();
+  expect((game.blackPlayer as IEnginePlayer).assignedEngine.executablePath).toBe('stockfish.js');
+  expect(errors).toEqual([]);
+});
 async function importStockfishPuzzle(page: Page): Promise<void> {
   await configureStockfish(page);
   await page.getByLabel('Clock', { exact: true }).selectOption('custom');

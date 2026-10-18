@@ -262,7 +262,7 @@ Each scenario in this document uses the same structure:
   6. User navigates back to prior game route.
   7. If the pause came from this auto-pause flow, app auto-resumes on return.
 - **Branch Paths**:
-  - `BR-NAV-01-DIRTY-LEAVE`: Unsaved form edits + navigation -> prompt save/discard.
+  - `BR-NAV-01-DIRTY-LEAVE`: Unsaved form edits + navigation -> offer Keep editing or Discard changes. Apply/Save commits explicitly from Settings.
   - `BR-NAV-01-NO-GAME-RETURN`: No active game available on return -> route to home/default.
   - `BR-NAV-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, settings open without pausing the clock.
 - **Postconditions**: Settings are persisted or intentionally discarded; navigation context remains clear.
@@ -1127,7 +1127,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
 
 ### SCN-ENGINE-01 - Add Engine Configuration
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Register a new engine for analysis/gameplay.
 - **Preconditions**: Settings engine section is available.
 - **Entry Points**: Add engine action in settings.
@@ -1135,12 +1135,12 @@ Each scenario in this document uses the same structure:
   1. User opens add-engine form.
   2. User enters profile name and other engine profile values.
   3. User may edit supported engine options through a name/value table inside the profile editor.
-  4. App stages the new engine inside the engine-profile workflow owned by `EnginesStore`.
-  5. User saves the engine profile.
-  6. Engine appears in the available list.
+  4. User saves the engine profile into the settings draft; profile save alone does not persist global settings.
+  5. User applies or saves Settings to commit the draft.
+  6. Engine appears in future assignment choices through `EnginesStore`.
 - **Branch Paths**:
   - `BR-ENGINE-01-DUPLICATE`: Duplicate engine profile name -> block save until the name is made unique.
-- **Postconditions**: Engine list contains unique named profiles owned by `EnginesStore`. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
+- **Postconditions**: Accepted settings contain unique named profiles, exposed for assignment by `EnginesStore`. Existing seated engine participants inside already-open games remain unchanged until explicitly swapped.
 - **Implementation Touchpoints**:
   - `EnginesStore`
   - `EnginesStore.refreshOptionMeta`
@@ -1149,7 +1149,7 @@ Each scenario in this document uses the same structure:
   - `UiStateStore.showModal`
 
 ### SCN-ENGINE-02 - Update or Remove Engine Configuration
-- **Status**: Planned
+- **Status**: Current
 - **Goal**: Maintain engine inventory as setups change.
 - **Preconditions**: At least one engine exists.
 - **Entry Points**: Engine edit/remove action in settings.
@@ -1158,9 +1158,9 @@ Each scenario in this document uses the same structure:
   2. If editing, the app opens the engine-profile editor and lets the user change general fields and option-table rows.
   3. If copying, the app duplicates the selected profile inside the engine-profile workflow.
   4. If deleting, the app removes the selected profile from the engine inventory.
-  5. App validates the edited inventory through `EnginesStore`.
-  6. User saves the engine-profile change.
-  7. App persists the updated engine profile list for future assignments.
+  5. The profile editor rejects empty/duplicate names and stages valid profile saves or removals in the settings draft.
+  6. User applies or saves Settings; schema validation runs before persistence.
+  7. App persists the updated engine profile list for future assignments through `EnginesStore`.
 - **Branch Paths**:
   - `BR-ENGINE-02-DUPLICATE-COPY`: Copied profile keeps a colliding name -> block save until renamed.
   - `BR-ENGINE-02-DELETE-IN-USE`: Deleting a profile already used by an open game leaves existing seated engine participants unchanged because their games already hold copied in-game engine payloads, while removing that profile from future assignment choices.

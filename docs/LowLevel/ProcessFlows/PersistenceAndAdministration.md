@@ -376,7 +376,7 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
 - Route coverage: settings categories are routed through `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, with `/settings` redirecting to `/settings/session`.
 - Settings coverage: `appearance.themeMode` is the only app-chrome theme setting in the baseline. `ThemeMode.System` lets CSS follow the system colour scheme, while `ThemeMode.Light` and `ThemeMode.Dark` force the corresponding configured profile snapshot; profiles themselves are not persisted settings.
-- Requirement verification: `Pass`. Validation happens before apply or persistence, only committed user-setting fields are writable through `SettingsStore`, engine-profile configuration remains owned by `EnginesStore`, and accepted appearance changes refresh both shared app-theme variable banks immediately.
+- Requirement verification: `Pass`. Validation happens before apply or persistence, only committed user-setting fields are writable through `SettingsStore`, engine-profile edits are staged in `SettingsStore` and accepted profiles are exposed by `EnginesStore`, and accepted appearance changes refresh both shared app-theme variable banks immediately.
 
 ### SCN-SETTINGS-02 - Reset Settings to Defaults
 
@@ -415,46 +415,30 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 
 ### SCN-ENGINE-01 - Add Engine Configuration
 
-#### Flow A - Discover Supported Options
-| `EngineInventoryEditor.addRequested` |
-| --- |
-| enter profile values in the engine-profile workflow owned by `EnginesStore` |
-| `EngineInventoryEditor.engineOptionMetaRefreshRequested` |
-| `EnginesStore.refreshOptionMeta` |
-| `EngineRuntimeService.getOptions` |
-| initialise temporary assigned-engine copy |
-| `EngineClient.getOptions` |
-| copy metadata |
-| stop temporary engine in `finally` |
-| cache metadata by profile id |
+#### Current flow
+| Step | Owner |
+| --- | --- |
+| Open the profile editor and edit name/path/options | `SettingsView.openEngineEditor`, `addOption` |
+| Validate the name and convert supported option values | `SettingsView.saveEngine` |
+| Stage the record without writing settings | `SettingsStore.draftSettings.analysis.engineInventory` |
+| Apply or Save Settings; validate and persist the entire draft | `SettingsStore.applySettings` / `saveSettings`, `UserSettingService.saveSettings` |
+| Expose accepted profiles in future selectors | `EnginesStore.listConfiguredEngines` |
 
-#### Flow B - Save The New Profile
-| `EngineInventoryEditor.addRequested` |
-| --- |
-| `EnginesStore` profile validation and save coordination |
-| `UserSettingService.saveSettings` |
+The current UI uses a name/value table, without option discovery controls. `EnginesStore.loadOptionMeta` / `refreshOptionMeta` separately initialise a temporary engine, read metadata, stop it in `finally` and cache metadata by profile identity/transport. Discovery does not merge engine defaults into configured values. The profile editor converts true/false to booleans and non-empty finite numeric strings to numbers; text and empty strings remain strings.
 
-- UI surface coverage: add opens the dedicated profile editor surface, where discovered metadata may inform rendering and option rows may be edited before the profile is saved.
-- Requirement verification: `Pass`. Unique profile-name validation happens before the engine record becomes part of the accepted settings snapshot. Saved option values are stored as entered and are never reconciled from discovered metadata.
+Verification: [JRN-SETTINGS-07/08/10](../../../journeys/definitions/settings/ScenarioReview.md#jrn-settings-07) cover staged profile saves, uniqueness, selector refresh, reload, typed values and UCI initialisation. The former EnginesStore-owned editor/save flow described a planned boundary rather than the current implementation.
 
 ### SCN-ENGINE-02 - Update or Remove Engine Configuration
 
-#### Flow A - Update An Existing Profile
-| `EngineInventoryEditor.editRequested` |
-| --- |
-| `EnginesStore.loadOptionMeta` |
-| return current cache or `EngineRuntimeService.getOptions` through a temporary runtime |
-| `EnginesStore` profile validation and save coordination |
-| `UserSettingService.saveSettings` |
+| Step | Owner |
+| --- | --- |
+| Copy with a fresh ID and unique suggested name | `SettingsView.copyEngine` |
+| Edit a detached form; Cancel leaves the draft record intact | `SettingsView.openEngineEditor` / `saveEngine` |
+| Remove a reusable profile from the draft | `SettingsView.removeEngine` |
+| Commit the settings draft for future assignments | `SettingsStore.applySettings` / `saveSettings` |
+| Keep existing copied in-game configuration until explicitly replaced | `ModalHost.confirmPlayerSelection`, `GamesStore.reassignPlayer` |
 
-#### Flow B - Remove An Existing Profile
-| `EngineInventoryEditor.deleteRequested` |
-| --- |
-| `EnginesStore` profile validation and save coordination |
-| `UserSettingService.saveSettings` |
-
-- UI surface coverage: copy, edit, and delete originate from the engine-profile row actions, with edit reopening the same dedicated profile editor surface.
-- Requirement verification: `Pass`. Profile changes remain owned by `EnginesStore`, while open games keep their copied in-game engine payloads when reusable profiles change.
+Verification: [JRN-SETTINGS-08/09](../../../journeys/definitions/settings/ScenarioReview.md#jrn-settings-09) cover editor cancellation, distinct copy identities, renamed/removed inventory choices, Keep existing, continued engine play and restoration. Profile removal never searches open games to replace their player payloads.
 
 ## Lifecycle Cleanup
 

@@ -66,6 +66,6 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
   const installDialogs = createDialogs(api, browserFiles);
   window.chessVueJourney = api;
   // App restores its persisted route after loading games, just as on a normal launch.
-  window.history.replaceState({}, '', '/home');
+  window.history.replaceState(null, '', '/home');
   return { api, fs, installDialogs };
 }

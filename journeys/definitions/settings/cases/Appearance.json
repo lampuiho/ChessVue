@@ -1,0 +1,53 @@
+[
+  {
+    "id": "JRN-SETTINGS-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-01",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Appearance.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-01 applies and restores appearance with white board input @smoke",
+          "JRN-SETTINGS-01 applies and restores appearance with black board input @smoke"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SETTINGS-02",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-02",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Appearance.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-02 responds to host changes in system mode after repeated navigation",
+          "JRN-SETTINGS-02 responds to host changes in light mode after repeated navigation",
+          "JRN-SETTINGS-02 responds to host changes in dark mode after repeated navigation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

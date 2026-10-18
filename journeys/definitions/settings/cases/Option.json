@@ -1,0 +1,26 @@
+[
+  {
+    "id": "JRN-SETTINGS-10",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ENGINE-01"
+    ],
+    "branches": [],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-10",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Option.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-10 preserves typed and empty options through reload and engine initialisation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

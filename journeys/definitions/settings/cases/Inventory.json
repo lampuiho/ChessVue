@@ -1,0 +1,55 @@
+[
+  {
+    "id": "JRN-SETTINGS-07",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ENGINE-01",
+      "SCN-ENGINE-03"
+    ],
+    "branches": [],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-07",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Inventory.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-07 stages a profile then applies it to all future assignment choices @smoke"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SETTINGS-08",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ENGINE-01",
+      "SCN-ENGINE-02"
+    ],
+    "branches": [
+      "BR-ENGINE-01-DUPLICATE",
+      "BR-ENGINE-02-DUPLICATE-COPY"
+    ],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-08",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Inventory.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-08 rejects invalid names gives copies distinct identities and cancels edits"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

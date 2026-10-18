@@ -1,0 +1,38 @@
+[
+  {
+    "id": "JRN-SETTINGS-09",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ENGINE-02",
+      "SCN-ENGINE-03"
+    ],
+    "branches": [
+      "BR-ENGINE-02-DELETE-IN-USE",
+      "BR-ENGINE-03-SAME-SELECTION"
+    ],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-09",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Assignment.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-09 preserves a copied assignment and Keep existing after profile rename",
+          "JRN-SETTINGS-09 preserves a copied assignment and Keep existing after profile remove"
+        ]
+      },
+      {
+        "spec": "e2e/Browser.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile is removed"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

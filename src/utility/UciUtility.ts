@@ -1,4 +1,5 @@
-import { EngineOptionType, PieceKind, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw } from '@/contracts';
+import { EngineOptionType, PieceKind, TimeControlPreset, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw } from '@/contracts';
+import { BuildConfig } from '@/config/BuildConfig';
 import { isStandardInitialPosition } from '@/utility/chess/GameRuleUtility';
 import { buildFen, getUci } from '@/utility/chess/MoveNotationUtility';
 import { coordsToBoardId } from '@/utility/chess/SquareUtility';
@@ -30,13 +31,13 @@ export function buildDebugCommand(enabled: boolean): string {
 export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMove): string[] {
   if (expectedPonderMove) return isPonderHit(game, expectedPonderMove) ? ['ponderhit'] : ['stop'];
   const liveMoves = _getLiveMoves(game);
-  return [_buildPositionCommand(game.rootPosition, liveMoves), _buildTimedGoCommand(game)];
+  return [_buildPositionCommand(game.rootPosition, liveMoves), _buildPlayerGoCommand(game)];
 }
 export function buildIsReadyCommand(): string {
   return 'isready';
 }
 export function buildPonderMoveCommands(game: IGame, engineMove: IMove, ponderMove: IMove): string[] {
-  return [_buildPositionCommand(game.rootPosition, [..._getLiveMoves(game), engineMove, ponderMove]), _buildTimedGoCommand(game, true)];
+  return [_buildPositionCommand(game.rootPosition, [..._getLiveMoves(game), engineMove, ponderMove]), _buildPlayerGoCommand(game, true)];
 }
 /** Builds the UCI position command from the game root and highlighted path, caching standard-root verification under the position's runtime metadata. */
 export function buildPositionCommand(game: IGame): string {
@@ -127,12 +128,12 @@ function _buildPositionCommand(rootPosition: IBoardPosition, moves: readonly IMo
 function _buildRootPosition(rootPosition: IBoardPosition): string {
   return isStandardInitialPosition(rootPosition) ? 'startpos' : `fen ${buildFen(rootPosition)}`;
 }
-function _buildTimedGoCommand(game: IGame, ponder: boolean = false): string {
+function _buildPlayerGoCommand(game: IGame, ponder: boolean = false): string {
+  const tokens = ponder ? ['go', 'ponder'] : ['go'];
+  if (game.timeControl.preset === TimeControlPreset.Untimed || game.timeControl.initialMs === undefined) return [...tokens, 'movetime', String(BuildConfig.engine.untimedMoveTimeMs)].join(' ');
   const whiteTime = game.clockSnapshot.white.remainingMs;
   const blackTime = game.clockSnapshot.black.remainingMs;
   if (whiteTime === undefined || blackTime === undefined) throw new Error(`Timed engine search requires both clocks for game ${game.metadata.id}.`);
-  const tokens = ['go'];
-  if (ponder) tokens.push('ponder');
   tokens.push('wtime', whiteTime.toString(), 'btime', blackTime.toString());
   if (game.timeControl.incrementMs > 0) tokens.push('winc', game.timeControl.incrementMs.toString(), 'binc', game.timeControl.incrementMs.toString());
   return tokens.join(' ');

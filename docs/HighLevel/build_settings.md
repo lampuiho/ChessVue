@@ -42,6 +42,7 @@ That means:
 | Protocol/session ownership | Managed through `EngineRuntimeService` using `EngineClient` |
 | Raw process lifecycle ownership | Managed through `EngineRuntimeService` using `ProcessManager` |
 | Concurrent analysis | Up to `4` analysis engines per game |
+| Untimed player search | Fixed 1000 ms per move (`BuildConfig.engine.untimedMoveTimeMs`), independent of game clocks; not a user setting |
 | Failure behaviour | Isolate failure per engine and allow manual retry |
 | Auto-reconnect | Deferred |
 

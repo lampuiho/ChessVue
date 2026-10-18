@@ -1,0 +1,27 @@
+[
+  {
+    "id": "JRN-SETTINGS-03",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-03",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Scale.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-03 keeps board dialogs and library reachable at 75%",
+          "JRN-SETTINGS-03 keeps board dialogs and library reachable at 150%"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

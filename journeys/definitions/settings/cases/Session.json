@@ -1,0 +1,35 @@
+[
+  {
+    "id": "JRN-SETTINGS-11",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SETTINGS-01",
+      "SCN-NAV-01"
+    ],
+    "branches": [
+      "BR-NAV-01-AUTO-PAUSE-DISABLED"
+    ],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-11",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Session.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-11 uses the new save namespace with autosave interval 0",
+          "JRN-SETTINGS-11 uses the new save namespace with autosave interval 2",
+          "JRN-SETTINGS-11 persists restore disabled and save on close false",
+          "JRN-SETTINGS-11 persists restore disabled and save on close true",
+          "JRN-SETTINGS-11 enabling restore requires close autosave and restores the workspace",
+          "JRN-SETTINGS-11 applies auto-pause false to the next menu interruption",
+          "JRN-SETTINGS-11 applies auto-pause true to the next menu interruption"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -27,6 +27,7 @@ describe('modular journey discovery', () => {
       ...Array.from({ length: 12 }, (_, index) => `JRN-PLAY-${String(index + 1).padStart(2, '0')}`),
       ...Array.from({ length: 5 }, (_, index) => `JRN-PROMO-0${index + 1}`),
       ...Array.from({ length: 16 }, (_, index) => `JRN-SAVE-${String(index + 1).padStart(2, '0')}`),
+      ...Array.from({ length: 11 }, (_, index) => `JRN-SETTINGS-${String(index + 1).padStart(2, '0')}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-SETUP-0${index + 1}`),
     ]);
     for (const entry of cases) {

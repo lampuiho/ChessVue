@@ -9,7 +9,7 @@ import * as promotion from './definitions/promotion/index';
 import * as analysis from './definitions/analysis/index';
 import * as clocks from './definitions/clocks/index';
 import * as saves from './definitions/saves/index';
-import * as settings from './definitions/settings';
+import * as settings from './definitions/settings/index';
 import * as recovery from './definitions/recovery';
 
 const descriptions = import.meta.glob<IJourneyDescription>('./definitions/*/Description.json', { eager: true, import: 'default' });

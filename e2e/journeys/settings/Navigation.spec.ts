@@ -1,0 +1,74 @@
+import { test, expect } from './SettingsTest';
+import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
+import { acceptedSettings, applySettings, openSettings, returnToGame } from './SettingsAction';
+for (const action of ['Return', 'Cancel', 'browser Back']) {
+  test(`JRN-SETTINGS-04 guards ${action} and preserves or discards the draft`, async ({ page }) => {
+    await openJourney(page, 'settings');
+    await returnToGame(page);
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const route = page.url();
+    const before = await acceptedSettings(page);
+    await page.getByLabel('Save folder').fill('pending-saves');
+    const leave = async () => {
+      if (action === 'browser Back') await page.goBack();
+      else await page.getByRole('button', { name: action === 'Return' ? 'Back to game' : 'Cancel', exact: true }).click();
+    };
+    await leave();
+    const guard = page.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true });
+    await expect(guard).toBeVisible();
+    await guard.getByRole('button', { name: 'Keep editing', exact: true }).click();
+    await expect(page).toHaveURL(route);
+    await expect(page.getByLabel('Save folder')).toHaveValue('pending-saves');
+    expect(await acceptedSettings(page)).toEqual(before);
+    await leave();
+    await guard.getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await expect(page).toHaveURL(/\/game\/settings-game$/);
+    expect(await acceptedSettings(page)).toEqual(before);
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await expect(page.getByLabel('Save folder')).toHaveValue('saves');
+    await expect(page.locator('.unsaved-badge')).toHaveCount(0);
+  });
+}
+test('JRN-SETTINGS-05 retains Apply across a later discard and Save persists then leaves', async ({ page }) => {
+  await openJourney(page, 'settings');
+  await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+  await page.getByRole('radio', { name: 'light', exact: true }).check();
+  await applySettings(page);
+  await expect(page).toHaveURL(/\/settings\/appearance$/);
+  await page.getByLabel('Orientation', { exact: true }).selectOption('white');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await expect(page).toHaveURL(/\/game\/settings-game$/);
+  expect((await acceptedSettings(page)).appearance).toMatchObject({ themeMode: 'light', boardOrientation: 'black' });
+  await openSettings(page, 'Appearance');
+  await page.getByLabel('Orientation', { exact: true }).selectOption('white');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL(/\/game\/settings-game$/);
+  await page.reload();
+  await waitForJourney(page);
+  expect((await acceptedSettings(page)).appearance).toMatchObject({ themeMode: 'light', boardOrientation: 'white' });
+  await expect(page.locator('.board-square').first()).toHaveAttribute('aria-label', /^a8/);
+});
+test('JRN-SETTINGS-06 cancels then confirms a persisted reset including engine profiles', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await openJourney(page, 'settings');
+  const original = await acceptedSettings(page);
+  await page.getByRole('button', { name: 'Reset to defaults', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(await acceptedSettings(page)).toEqual(original);
+  await expect(page.locator('.engine-list article')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Reset to defaults', exact: true }).click();
+  await page.getByRole('button', { name: 'Reset settings', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('No engines configured', { exact: true })).toBeVisible();
+  const reset = await acceptedSettings(page);
+  expect(reset.appearance).toMatchObject({ themeMode: 'system', uiScalePercent: 100, boardOrientation: 'white', showCoordinates: true, highlightLastMove: true });
+  expect(reset.analysis.engineInventory).toEqual([]);
+  expect(reset.gameSession).toEqual({ restorePreviousSession: true, saveRootPath: 'saves', autosaveAfterMoveCount: 1, autosaveOnClose: true, autoPauseOnMenu: true });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.reload();
+  await waitForJourney(page);
+  expect(await acceptedSettings(page)).toEqual(reset);
+  await returnToGame(page);
+  await expect(page.locator('.board-square').first()).toHaveAttribute('aria-label', /^a8/);
+});

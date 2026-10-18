@@ -81,6 +81,20 @@ describe('UciUtility', () => {
     expect(buildPositionCommand(game)).toBe('position startpos');
     expect((rootPosition as IBoardPosition).$?.isStandardInitialPosition).toBe(true);
   });
+  it('bounds untimed player and ponder searches without requiring clock values', () => {
+    const game = {
+      rootPosition: createInitialBoardPosition(),
+      moveTree: { root: { kind: MoveNodeKind.Live, plyIndex: 0, children: [] } }, livePath: [], renderedPath: [],
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+      clockSnapshot: { white: { isRunning: false }, black: { isRunning: false } },
+    } as unknown as IGame;
+    const move: IMove = { from: 12, to: 28, kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
+    const reply: IMove = { from: 52, to: 36, kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
+    expect(buildFindNextMoveCommands(game)).toEqual(['position startpos', 'go movetime 1000']);
+    expect(buildPonderMoveCommands(game, move, reply)).toEqual(['position startpos moves e2e4 e7e5', 'go ponder movetime 1000']);
+    expect(game.livePath).toEqual([]);
+    expect(game.clockSnapshot.white.remainingMs).toBeUndefined();
+  });
   it('parses the optional ponder move from a bestmove line', () => {
     const parsed = parseBestMoveLine('bestmove e2e4 ponder e7e5');
 

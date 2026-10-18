@@ -1,0 +1,83 @@
+[
+  {
+    "id": "JRN-SETTINGS-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-NAV-01"
+    ],
+    "branches": [
+      "BR-NAV-01-DIRTY-LEAVE"
+    ],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-04",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Navigation.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-04 guards Return and preserves or discards the draft",
+          "JRN-SETTINGS-04 guards Cancel and preserves or discards the draft",
+          "JRN-SETTINGS-04 guards browser Back and preserves or discards the draft"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SETTINGS-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-NAV-01",
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [
+      "BR-NAV-01-DIRTY-LEAVE"
+    ],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-05",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Navigation.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-05 retains Apply across a later discard and Save persists then leaves"
+        ]
+      }
+    ],
+    "remaining": []
+  },
+  {
+    "id": "JRN-SETTINGS-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SETTINGS-02"
+    ],
+    "branches": [
+      "BR-SETTINGS-02-CANCEL"
+    ],
+    "fixture": "settings",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/settings/ScenarioReview.md#jrn-settings-06",
+    "data": [
+      "journeys/definitions/settings/data/SettingsWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/settings/Navigation.spec.ts",
+        "titles": [
+          "JRN-SETTINGS-06 cancels then confirms a persisted reset including engine profiles"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

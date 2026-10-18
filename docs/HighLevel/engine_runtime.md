@@ -19,6 +19,7 @@ ChessVue supports two committed engine roles.
 - A side in a live game may be assigned an engine instead of a local player.
 - At most one player engine may control each side.
 - Player-engine behaviour is part of the live game flow, not the analysis flow.
+- Timed games supply their clocks to UCI. Untimed games use a fixed 1000 ms player-search budget from build configuration, so engine turns finish without introducing game clocks or a new user preference.
 - When both sides are engine-controlled, the same live-game player-turn loop continues turn by turn without a separate engine-vs-engine mode.
 
 ### 2. Analysis Engine

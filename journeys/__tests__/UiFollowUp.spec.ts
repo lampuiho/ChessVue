@@ -68,24 +68,6 @@ describe('UI-02 in-game analysis permissions', () => {
     expect(game.clockSnapshot.white.isRunning).toBe(false);
   });
 });
-describe('UI-04 reactive engine inventory', () => {
-  it('refreshes assignment choices after applied profile edits', async () => {
-    const { stores } = await boot('settings');
-    const ui = stores.useUiStateStore();
-    ui.showModal({ kind: AppModalKind.NewGame });
-    await nextTick();
-    expect(document.querySelector('#white-player')?.textContent).toContain('Journey A');
-    const settings = stores.useSettingsStore();
-    settings.draftSettings!.analysis.engineInventory[0]!.displayName = 'Updated engine choice';
-    settings.draftSettings!.analysis.engineInventory.splice(1, 1);
-    await settings.applySettings();
-    await nextTick();
-    const choices = document.querySelector('#white-player')?.textContent;
-    expect(choices).toContain('Updated engine choice');
-    expect(choices).not.toContain('Journey A');
-    expect(choices).not.toContain('Journey B');
-  });
-});
 describe('UI-05 required engine availability', () => {
   it('keeps custom creation open when its required engine cannot launch', async () => {
     const { games, stores } = await boot('settings');
@@ -209,20 +191,5 @@ describe('UI-13 startup recovery', () => {
     const restarted = await boot('settings');
     expect(restarted.router.currentRoute.value.path).toBe('/home');
     expect(restarted.games.listGames()).toHaveLength(0);
-  });
-});
-describe('UI-14 settings route guard', () => {
-  it('guards arbitrary navigation until changes are kept or discarded', async () => {
-    const { stores, router } = await boot('settings');
-    await router.push('/settings/appearance');
-    stores.useSettingsStore().draftSettings!.appearance.uiScalePercent = 125;
-    await router.push('/home');
-    expect(router.currentRoute.value.path).toBe('/settings/appearance');
-    await clickButton('Keep editing', '[role="dialog"] button');
-    expect(stores.useSettingsStore().hasPendingChanges).toBe(true);
-    await router.push('/saved-games/load');
-    await clickButton('Discard changes', '[role="dialog"] button');
-    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/saved-games/load'));
-    expect(stores.useSettingsStore().hasPendingChanges).toBe(false);
   });
 });
