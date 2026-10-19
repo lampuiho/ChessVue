@@ -18,9 +18,14 @@ export const useGamesStore = defineStore('gamesStore', () => {
   // Canonical games stay raw; completed store transitions publish one shallow invalidation here.
   const workspaceRevision = ref(0);
   const autosaveError = ref('');
+  const _autosaveFailureListeners = new Set<(message: string) => void>();
+  function onAutosaveFailed(listener: (message: string) => void) {
+    _autosaveFailureListeners.add(listener);
+    return () => { _autosaveFailureListeners.delete(listener); };
+  }
   const _moveCounts = new WeakMap<IGame, number>();
   let _autosaveQueue = Promise.resolve();
-  function moveCommitted(game: IGame): void {
+  function moveCommitted(game: IGame) {
     const interval = UserSettingService.getSettings().gameSession.autosaveAfterMoveCount;
     const count = (_moveCounts.get(game) ?? 0) + 1;
     _moveCounts.set(game, interval > 0 ? count % interval : 0);
@@ -30,9 +35,10 @@ export const useGamesStore = defineStore('gamesStore', () => {
       autosaveError.value = '';
     }).catch((error: unknown) => {
       autosaveError.value = error instanceof Error ? error.message : 'Automatic save failed.';
+      for (const listener of _autosaveFailureListeners) listener(autosaveError.value);
     });
   }
-  function touchGame(game: IGame): void {
+  function touchGame(game: IGame) {
     game.metadata.updatedAt = new RecordTimestamp();
     workspaceRevision.value += 1;
   }
@@ -70,6 +76,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   return {
     workspaceRevision,
     autosaveError,
+    onAutosaveFailed,
     createGame: workspace.createGame,
     startGameFromSetup: workspace.startGameFromSetup,
     insertGame: workspace.insertGame,

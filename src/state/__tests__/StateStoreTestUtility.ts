@@ -35,7 +35,7 @@ import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
 import { PlatformErrorKind, type IPlatformError } from '@/contracts/PlatformError';
 import { AnalysisTimestamp, ClockTimestamp, RecordTimestamp, SaveTimestamp } from '@/utility/date';
 
-export async function randomDelay(): Promise<void> {
+export async function randomDelay() {
   await new Promise((resolve) => setTimeout(resolve, 1 + Math.floor(Math.random() * 4)));
 }
 export async function resolveWithRandomDelay<T>(value: T): Promise<T> {
@@ -284,7 +284,7 @@ export function createOutgoingDrawOffer(colour: PlayerColour): IGame['drawOfferS
     direction: DrawOfferDirection.Outgoing,
   };
 }
-export function emitAnalysisUpdate(registry: Map<IAssignedEngine, (update: IEngineAnalysisUpdate) => void>, engine: IAssignedEngine, update: IEngineAnalysisUpdate): void {
+export function emitAnalysisUpdate(registry: Map<IAssignedEngine, (update: IEngineAnalysisUpdate) => void>, engine: IAssignedEngine, update: IEngineAnalysisUpdate) {
   registry.get(engine)?.(update);
 }
 export function stripRuntimeMetadata<T>(input: T): T {

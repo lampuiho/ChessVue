@@ -7,7 +7,7 @@ import { waitForJourney } from '../../support/JourneyBootstrap';
 import { saveCurrentGame } from '../../support/GameSave';
 import { readFile } from '../../support/SaveInspection';
 import { attemptPromotion, choosePromotion, expectPromotedBoard, expectPromotedGame, openPromotionGame } from './PromotionAction';
-async function takeBackPromotion(page: Page, scenario: IPromotionScenario, before: IGame): Promise<void> {
+async function takeBackPromotion(page: Page, scenario: IPromotionScenario, before: IGame) {
   await page.getByRole('button', { name: /Takeback/ }).click();
   await expect(square(page, scenario.from)).toHaveAttribute('aria-label', `${scenario.from} ${scenario.colour} pawn`);
   await expect(square(page, scenario.quiet)).toHaveAttribute('aria-label', scenario.quiet);

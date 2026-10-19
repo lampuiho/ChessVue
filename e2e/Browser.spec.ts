@@ -4,12 +4,12 @@ import type { IEnginePlayer, IGame } from '../src/contracts';
 import { playMove, square } from './support/BoardInteraction';
 import { choosePlayer } from './journeys/play/PlaySetup';
 
-async function createGame(page: Page): Promise<void> {
+async function createGame(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: /Quick game/ }).click();
   await expect(page).toHaveURL(/\/game\/.+/);
 }
-async function playOpening(page: Page): Promise<void> {
+async function playOpening(page: Page) {
   await page.getByRole('button', { name: /^e2 / }).click();
   await page.getByRole('button', { name: 'e4', exact: true }).click();
   await expect(page.getByRole('button', { name: /^e4 white pawn$/i })).toBeVisible();
@@ -60,7 +60,7 @@ test('persists appearance settings in browser storage', async ({ page }) => {
   await expect(page.getByRole('radio', { name: 'dark', exact: true })).toBeChecked();
 });
 
-async function configureStockfish(page: Page, engineCount = 1): Promise<void> {
+async function configureStockfish(page: Page, engineCount = 1) {
   await page.goto('/');
   await page.getByRole('button', { name: /Settings/ }).click();
   await page.getByRole('button', { name: 'Engines', exact: true }).click();
@@ -130,7 +130,7 @@ test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile
   expect((game.blackPlayer as IEnginePlayer).assignedEngine.executablePath).toBe('stockfish.js');
   expect(errors).toEqual([]);
 });
-async function importStockfishPuzzle(page: Page): Promise<void> {
+async function importStockfishPuzzle(page: Page) {
   await configureStockfish(page);
   await page.getByLabel('Clock', { exact: true }).selectOption('custom');
   await page.getByLabel('Minutes', { exact: true }).fill('1');
@@ -150,7 +150,7 @@ async function importStockfishPuzzle(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: game.metadata.name, exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Resume game/ }).click();
 }
-async function expectStockfishMate(page: Page, engineColour: 'White' | 'Black'): Promise<void> {
+async function expectStockfishMate(page: Page, engineColour: 'White' | 'Black') {
   await expect(page.locator('.result-badge')).toHaveText('white won');
   await expect(page.locator('.history-row').last()).toContainText('Nf7#');
   await expect(page.locator('.engine-error')).toHaveCount(0);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { AppModalKind, PlatformErrorKind, type IGame } from '@/contracts';
 import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
@@ -8,6 +8,8 @@ import { SavedGameIndexService } from '@/domain';
 import { useGamesStore, useSavedGamesStore, useUiStateStore } from '@/state';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
+import { OperationOwner } from '@/utility/async/OperationOwner';
+import { abortable } from '@/utility/async/Abortable';
 
 const route = useRoute();
 const router = useRouter();
@@ -20,6 +22,7 @@ const selectedGameId = ref('');
 const selectedSaveName = ref('');
 const selectedDocument = shallowRef<IGame>();
 const detailError = ref('');
+const details = new OperationOwner();
 const saveName = ref('');
 const isLoading = ref(true);
 const isWorking = ref(false);
@@ -44,27 +47,35 @@ const saveNameError = computed(() => {
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` : '/home');
 
 onMounted(refreshGroups);
-watch(selectedGroup, (group) => {
-  if (!group?.saves.some((entry) => entry.saveName === selectedSaveName.value)) selectedSaveName.value = group ? SavedGameIndexService.getLatestSaveEntry(group.saves)?.saveName ?? '' : '';
-}, { immediate: true });
-watch(selectedEntry, async (entry, _previousEntry, onCleanup) => {
-  let active = true;
-  onCleanup(() => { active = false; });
-  selectedDocument.value = undefined;
-  detailError.value = '';
-  if (!entry) return;
-  try {
-    const game = await savedGamesStore.loadGame(entry.gameId, entry.saveName);
-    if (active) selectedDocument.value = game;
-  } catch (error) {
-    if (active) detailError.value = error instanceof Error ? error.message : 'This snapshot could not be read.';
-  }
-});
-watch(() => route.fullPath, () => {
+const removeRouteActivation = router.afterEach((to, _from, failure) => {
+  if (failure || !['save-game', 'load-game', 'load-games'].includes(String(to.name))) return;
   overwriteTarget.value = undefined;
   initialiseRoute();
+  refreshSelection();
 });
-async function refreshGroups(): Promise<void> {
+onBeforeUnmount(() => { removeRouteActivation(); void details.dispose(); });
+function loadDetails(entry?: ISavedGameFileEntry) {
+  selectedDocument.value = undefined;
+  detailError.value = '';
+  return details.run(async (signal) => {
+    if (!entry) return;
+    try {
+      const game = await abortable(savedGamesStore.loadGame(entry.gameId, entry.saveName), signal);
+      signal.throwIfAborted();
+      selectedDocument.value = game;
+    } catch (error) {
+      if (!signal.aborted) detailError.value = error instanceof Error ? error.message : 'This snapshot could not be read.';
+    }
+  });
+}
+function refreshSelection() {
+  const group = selectedGroup.value;
+  const entry = group?.saves.find((candidate) => candidate.saveName === selectedSaveName.value)
+    ?? (group ? SavedGameIndexService.getLatestSaveEntry(group.saves) : undefined);
+  selectedSaveName.value = entry?.saveName ?? '';
+  void loadDetails(entry);
+}
+async function refreshGroups() {
   isLoading.value = true;
   errorMessage.value = '';
   try {
@@ -84,18 +95,20 @@ async function refreshGroups(): Promise<void> {
   } finally {
     isLoading.value = false;
     initialiseRoute();
+    refreshSelection();
   }
 }
-function initialiseRoute(): void {
+function initialiseRoute() {
   if (isSaveMode.value && activeGame.value && !saveName.value) saveName.value = activeGame.value.metadata.name.replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Game';
   if (route.name === 'load-game') selectedGameId.value = routeGameId.value;
   else if (!isSaveMode.value && !groups.value.some((group) => group.gameId === selectedGameId.value)) selectedGameId.value = groups.value.find((group) => group.gameId === uiStateStore.gameSession?.activeGameId)?.gameId ?? groups.value[0]?.gameId ?? '';
 }
-function selectSave(entry: ISavedGameFileEntry): void {
+function selectSave(entry: ISavedGameFileEntry) {
   selectedSaveName.value = entry.saveName;
   if (isSaveMode.value && !entry.isAutosave) saveName.value = entry.saveName;
+  return loadDetails(entry);
 }
-async function loadGame(gameId: string, entryName?: string): Promise<void> {
+async function loadGame(gameId: string, entryName?: string) {
   await run(async () => {
     const game = await savedGamesStore.loadGame(gameId, entryName);
     const insertedGame = await gamesStore.insertGame(game);
@@ -103,7 +116,7 @@ async function loadGame(gameId: string, entryName?: string): Promise<void> {
     await router.push(`/game/${insertedGame.metadata.id}`);
   });
 }
-async function saveGame(): Promise<void> {
+async function saveGame() {
   const currentGame = activeGame.value;
   if (!currentGame || saveNameError.value || isLoading.value || isWorking.value || overwriteTarget.value) return;
   const target = { game: currentGame, saveName: saveName.value.trim() };
@@ -120,19 +133,20 @@ async function saveGame(): Promise<void> {
     }
   });
 }
-async function writeSave(game: IGame, name: string, overwrite: boolean): Promise<void> {
+async function writeSave(game: IGame, name: string, overwrite: boolean) {
   await savedGamesStore.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: name, overwrite });
   overwriteTarget.value = undefined;
   message.value = `Saved “${name}”.`;
   await refreshGroups();
   selectedSaveName.value = name;
+  refreshSelection();
 }
-async function confirmOverwrite(): Promise<void> {
+async function confirmOverwrite() {
   const target = overwriteTarget.value;
   if (!target || isWorking.value) return;
   await run(() => writeSave(target.game, target.saveName, true));
 }
-async function importGame(): Promise<void> {
+async function importGame() {
   await run(async () => {
     const game = await savedGamesStore.importGame();
     if (!game) return;
@@ -141,13 +155,13 @@ async function importGame(): Promise<void> {
     await router.push(`/game/${insertedGame.metadata.id}`);
   }, true);
 }
-async function exportCurrent(): Promise<void> {
+async function exportCurrent() {
   if (!activeGame.value) return;
   await run(async () => {
     if (await savedGamesStore.exportGame(activeGame.value!)) message.value = 'Game exported.';
   });
 }
-async function confirmDelete(): Promise<void> {
+async function confirmDelete() {
   const target = deleteTarget.value;
   if (!target) return;
   await run(async () => {
@@ -160,7 +174,7 @@ async function confirmDelete(): Promise<void> {
     }
   });
 }
-async function run(action: () => Promise<void>, importAction: boolean = false): Promise<void> {
+async function run(action: () => Promise<void>, importAction: boolean = false) {
   isWorking.value = true;
   errorMessage.value = '';
   message.value = '';

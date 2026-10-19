@@ -24,14 +24,14 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
   function createAnalysisSeat(engineProfile: IEngineRecord, updatedAt: Date): IAnalysisSeat {
     return { assignedEngine: createAssignedEngine(engineProfile), updatedAt: new AnalysisTimestamp(updatedAt), lines: [], isComplete: false };
   }
-  async function stopAssignedEngine(engine: IAssignedEngine): Promise<void> {
+  async function stopAssignedEngine(engine: IAssignedEngine) {
     try {
       await EngineRuntimeService.stopEngine(engine);
     } catch (error) {
       if (!(error instanceof Aborted)) logHandledError('GamesStore', 'stopEngine', error);
     }
   }
-  function disposeAnalysisSubscription(engine: IAssignedEngine): void {
+  function disposeAnalysisSubscription(engine: IAssignedEngine) {
     analysisDisposers.get(engine)?.();
     analysisDisposers.delete(engine);
   }
@@ -54,12 +54,12 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     analysisDisposers.set(engine, () => { active = false; unsubscribe(); });
     return isCurrent;
   }
-  function clearAnalysisSeatLines(seat: IAnalysisSeat): void {
+  function clearAnalysisSeatLines(seat: IAnalysisSeat) {
     seat.bestMove = undefined;
     seat.lines = [];
     seat.isComplete = false;
   }
-  async function startAnalysisSeat(game: IGame, seat: IAnalysisSeat): Promise<void> {
+  async function startAnalysisSeat(game: IGame, seat: IAnalysisSeat) {
     const isCurrent = subscribeToAnalysis(game, seat);
     seat.updatedAt = new AnalysisTimestamp();
     try {
@@ -75,7 +75,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     const seat = game.analysis.seats[engineIndex];
     return seat ? [seat] : [];
   }
-  function refreshAnalysisForGame(game: IGame, engineIndex?: number): Promise<void> {
+  function refreshAnalysisForGame(game: IGame, engineIndex?: number) {
     const seats = getTargetSeats(game, engineIndex);
     for (const seat of seats) {
       disposeAnalysisSubscription(seat.assignedEngine);
@@ -95,13 +95,13 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     const seats = game.analysis.seats.filter((seat) => seat.lines.length > 0).map((seat) => analysisSeatSchema.parse(seat));
     return seats.length ? { recordedAt: new AnalysisTimestamp(), seats } : undefined;
   }
-  async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord): Promise<void> {
+  async function addAnalysisEngine(game: IGame, engineProfile: IEngineRecord) {
     if (game.analysis.seats.some((seat) => seat.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
     if (game.analysis.seats.length >= 4) throw new Error('A game cannot have more than four analysis engines.');
     game.analysis.seats.push(createAnalysisSeat(engineProfile, new Date()));
     touchGame(game);
   }
-  async function removeAnalysisEngine(game: IGame, engineIndex: number): Promise<void> {
+  async function removeAnalysisEngine(game: IGame, engineIndex: number) {
     const seat = game.analysis.seats[engineIndex];
     if (!seat) return;
     disposeAnalysisSubscription(seat.assignedEngine);
@@ -110,21 +110,21 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     touchGame(game);
     await cleanup;
   }
-  async function disposeAnalysisForGame(game: IGame): Promise<void> {
+  async function disposeAnalysisForGame(game: IGame) {
     await Promise.all(game.analysis.seats.map((seat) => {
       disposeAnalysisSubscription(seat.assignedEngine);
       return stopAssignedEngine(seat.assignedEngine);
     }));
   }
-  async function refreshAnalysis(game: IGame): Promise<void> {
+  async function refreshAnalysis(game: IGame) {
     if (game.gameState === GameState.BoardEdit) throw new Error('Analysis refresh is not allowed during board edit.');
     await refreshAnalysisForGame(game);
   }
-  async function retryAnalysis(game: IGame, engineIndex: number): Promise<void> {
+  async function retryAnalysis(game: IGame, engineIndex: number) {
     if (game.gameState === GameState.BoardEdit) throw new Error('Analysis retry is not allowed during board edit.');
     await refreshAnalysisForGame(game, engineIndex);
   }
-  async function stopAnalysis(game: IGame, engineIndex?: number): Promise<void> {
+  async function stopAnalysis(game: IGame, engineIndex?: number) {
     await Promise.all(getTargetSeats(game, engineIndex).map(async (seat) => {
       disposeAnalysisSubscription(seat.assignedEngine);
       try {

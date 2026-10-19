@@ -8,7 +8,7 @@ import { saveCurrentGame } from '../../support/GameSave';
 import { managedFiles, readSession } from '../../support/SaveInspection';
 import { finishEditing, openSetupStart, selectSetupBoard } from './SetupAction';
 
-async function configureStart(dialog: Locator, source: string): Promise<void> {
+async function configureStart(dialog: Locator, source: string) {
   await setCustomClock(dialog, '9', '2');
   await dialog.getByLabel('Name', { exact: false }).fill('Started study');
   await dialog.getByLabel(source === 'edited' ? 'Black' : 'White', { exact: true }).selectOption({ label: 'Journey B' });
@@ -19,7 +19,7 @@ async function configureStart(dialog: Locator, source: string): Promise<void> {
   await expect(dialog.getByRole('checkbox', { name: /Allow takebacks/ })).toBeChecked({ checked: source === 'history' });
   await expect(dialog.getByRole('checkbox', { name: /Show live analysis moves/ })).toBeChecked({ checked: source === 'edited' });
 }
-function expectStartedPosition(started: IGame, before: IGame, source: string): void {
+function expectStartedPosition(started: IGame, before: IGame, source: string) {
   expect(started.rootPosition).toEqual(before.rootPosition);
   expect(started.moveTree).toEqual(before.moveTree);
   expect(started.livePath).toEqual(before.renderedPath);
@@ -32,7 +32,7 @@ function expectStartedPosition(started: IGame, before: IGame, source: string): v
   expect(started.clockSnapshot.white.remainingMs).toBe(540000);
   expect(started.clockSnapshot.black.remainingMs).toBe(540000);
 }
-async function cancelChangedStart(page: Page, before: IGame): Promise<void> {
+async function cancelChangedStart(page: Page, before: IGame) {
   const files = await managedFiles(page);
   const dialog = await openSetupStart(page);
   await setCustomClock(dialog, '9', '2');

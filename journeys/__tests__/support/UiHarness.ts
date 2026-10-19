@@ -62,23 +62,23 @@ export function legalMove(context: Awaited<ReturnType<typeof boot>>, game: IGame
 export function findButton(label: string, selector = 'button'): HTMLButtonElement | undefined {
   return [...document.querySelectorAll<HTMLButtonElement>(selector)].find((button) => button.textContent?.includes(label));
 }
-export async function clickButton(label: string, selector = 'button'): Promise<void> {
+export async function clickButton(label: string, selector = 'button') {
   const button = findButton(label, selector);
   if (!button) throw new Error('Missing regression control: ' + label);
   button.click();
   await flushPromises();
 }
-export function setField(selector: string, value: string | boolean): void {
+export function setField(selector: string, value: string | boolean) {
   const field = document.querySelector<HTMLInputElement | HTMLSelectElement>(selector);
   if (!field) throw new Error('Missing regression field: ' + selector);
   if (typeof value === 'boolean') (field as HTMLInputElement).checked = value;
   else field.value = value;
   field.dispatchEvent(new Event(field.type === 'checkbox' || field.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
 }
-export async function clickSquare(square: string): Promise<void> {
+export async function clickSquare(square: string) {
   const button = document.querySelector<HTMLButtonElement>(`.board-square[aria-label^="${square}"]`);
   if (!button) throw new Error('Missing square: ' + square);
   button.click();
   await flushPromises();
 }
-export function forgetRunning(): void { running = undefined; }
+export function forgetRunning() { running = undefined; }

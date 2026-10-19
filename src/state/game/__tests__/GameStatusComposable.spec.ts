@@ -9,7 +9,7 @@ describe('useGameStatus', () => {
   function createSubject() {
     const position = useGamePosition();
     const touchGame = vi.fn();
-    const clearPlayerTurnRuntime = vi.fn(async (): Promise<void> => {});
+    const clearPlayerTurnRuntime = vi.fn(async () => {});
     const refreshRuntimeRegistrations = vi.fn();
     const status = useGameStatus({ position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations });
     return { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations };

@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { workspaceKinds } from '../../../journeys/definitions/saves/data/WorkspaceSnapshot';
 import { playMove, square } from '../../support/BoardInteraction';
-export async function exerciseWorkspace(page: Page, kind: typeof workspaceKinds[number], plies: number): Promise<void> {
+export async function exerciseWorkspace(page: Page, kind: typeof workspaceKinds[number], plies: number) {
   if (kind === 'edit') {
     await expect(page.locator('.piece-palette')).toBeVisible();
     await expect(square(page, 'a2')).toHaveAttribute('aria-label', 'a2');

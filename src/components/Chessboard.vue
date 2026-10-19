@@ -40,19 +40,21 @@ const glyphByPiece = {
 } as const;
 const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-watch(() => props.position, () => clearSelection());
-watch(() => props.boardEdit, () => clearSelection());
+// External board/mode props also change after engine replies and history navigation.
+// This synchronous input boundary only clears transient input; Vue disposes it with the board.
+watch([() => props.position, () => props.boardEdit], clearSelection, { flush: 'sync' });
 function pieceGlyph(piece: IChessPiece): string {
   return glyphByPiece[piece.colour][piece.kind];
 }
 function isLegalTarget(boardId: BoardId): boolean {
   return legalMoves.value.some((move) => move.to === boardId);
 }
-function clearSelection(): void {
+function clearSelection() {
   selectedBoardId.value = undefined;
+  draggedBoardId.value = undefined;
   pendingPromotionMoves.value = [];
 }
-function selectSquare(boardId: BoardId): void {
+function selectSquare(boardId: BoardId) {
   if (props.inputDisabled) return;
   if (props.boardEdit) {
     emit('chessPieceToggled', boardId, { ...editPiece.value });
@@ -73,7 +75,7 @@ function selectSquare(boardId: BoardId): void {
   }
   commitTarget(boardId);
 }
-function commitTarget(boardId: BoardId): void {
+function commitTarget(boardId: BoardId) {
   const matchingMoves = legalMoves.value.filter((move) => move.to === boardId);
   if (matchingMoves.length === 0) {
     clearSelection();
@@ -85,15 +87,15 @@ function commitTarget(boardId: BoardId): void {
   }
   emitMove(matchingMoves[0]!);
 }
-function emitMove(rawMove: IMoveRaw): void {
+function emitMove(rawMove: IMoveRaw) {
   emit('moveAttempted', toDetailedMove(props.position, rawMove));
   clearSelection();
 }
-function choosePromotion(kind: PieceKind): void {
+function choosePromotion(kind: PieceKind) {
   const move = pendingPromotionMoves.value.find((candidate) => candidate.promotionPiece === kind);
   if (move) emitMove(move);
 }
-function onDragStart(boardId: BoardId, event: DragEvent): void {
+function onDragStart(boardId: BoardId, event: DragEvent) {
   if (props.inputDisabled || !props.position.board[boardId]) {
     event.preventDefault();
     return;
@@ -103,14 +105,14 @@ function onDragStart(boardId: BoardId, event: DragEvent): void {
   event.dataTransfer?.setData('text/plain', String(boardId));
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
 }
-function onDrop(boardId: BoardId): void {
+function onDrop(boardId: BoardId) {
   const from = draggedBoardId.value;
   draggedBoardId.value = undefined;
   if (from === undefined) return;
   if (props.boardEdit) emit('chessPieceMoved', from, boardId);
   else commitTarget(boardId);
 }
-function onContextMenu(boardId: BoardId): void {
+function onContextMenu(boardId: BoardId) {
   if (props.boardEdit) emit('chessPieceDeleted', boardId);
 }
 function isLastMoveSquare(boardId: BoardId): boolean {

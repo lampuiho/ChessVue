@@ -78,14 +78,14 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
         throw _mapNodeError(error, 'listDirectory', `Directory was not found or could not be enumerated: ${targetPath}.`);
       }
     }
-    async function ensureDirectory(targetPath: string): Promise<void> {
+    async function ensureDirectory(targetPath: string) {
       try {
         await fs.promises.mkdir(targetPath, { recursive: true });
       } catch (error) {
         throw _mapNodeError(error, 'ensureDirectory', `Directory could not be created: ${targetPath}.`);
       }
     }
-    async function writeTextFile(targetPath: string, raw: string, options: IWriteTextFileOptions = {}): Promise<void> {
+    async function writeTextFile(targetPath: string, raw: string, options: IWriteTextFileOptions = {}) {
       const { overwrite = false, ensureParentDirectory = false } = options;
       try {
         if (!overwrite) await fs.promises.access(targetPath).then(() => {
@@ -110,7 +110,7 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
         throw _mapNodeError(error, 'readTextFile', `File could not be read as a valid text document: ${targetPath}.`);
       }
     }
-    async function deleteFile(targetPath: string): Promise<void> {
+    async function deleteFile(targetPath: string) {
       try {
         await fs.promises.unlink(targetPath);
       } catch (error) {

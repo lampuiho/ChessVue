@@ -4,7 +4,7 @@ import { SerializationService } from '@/domain/SerializationService';
 import { applyMove, genLegalMoves, getCheckState, getOpponentColour, isMoveLegal, resolveGameResult } from '@/utility/chess';
 import { createJourney } from '../../index';
 import { createRuleVariants } from '../../definitions/rules/data/RuleWorkspace';
-function validateTree(position: IBoardPosition, node: IMoveNode): void {
+function validateTree(position: IBoardPosition, node: IMoveNode) {
   for (const child of node.children) {
     expect(isMoveLegal(position, child.move!)).toBe(true);
     const next = structuredClone(position);

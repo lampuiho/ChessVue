@@ -82,7 +82,7 @@ function getMoveKey(move: IMove): string {
 function isSameMove(left: IMove, right: IMove): boolean {
   return getMoveKey(left) === getMoveKey(right);
 }
-function queueEngineMoves(displayName: string, moves: readonly IMove[]): void {
+function queueEngineMoves(displayName: string, moves: readonly IMove[]) {
   queuedEngineMovesByName.set(displayName, moves.map((move) => structuredClone(move)));
 }
 function dequeueEngineMove(engine: IAssignedEngine): IMove {
@@ -136,7 +136,7 @@ function applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGa
   if (isSameMove(move, scholarMateMoves.white[3]!)) (testPosition.$ ??= {}).checkState = CheckState.Checkmate;
   return testPosition;
 }
-function installScholarMateRules(): void {
+function installScholarMateRules() {
   utility.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
   utility.genLegalMoves.mockImplementation((position: IGame['rootPosition']) => {
     const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
@@ -152,7 +152,7 @@ function installScholarMateRules(): void {
     return createOngoingResult();
   });
 }
-async function awaitPendingPlayerTurn(game: IGame): Promise<void> {
+async function awaitPendingPlayerTurn(game: IGame) {
   const pendingPlayerTurn = game.$?.pendingPlayerTurnHandlePromise;
   if (pendingPlayerTurn) await pendingPlayerTurn;
 }
@@ -175,10 +175,10 @@ function emitSeatLines(game: IGame, index: number, count: number = 1): IEngineAn
   emitAnalysisUpdate(analysisSubscriptions, game.analysis.seats[index]!.assignedEngine, update);
   return update;
 }
-async function playEngineOnlyGame(game: IGame, maxTurns: number = scholarMateSequence.length): Promise<void> {
+async function playEngineOnlyGame(game: IGame, maxTurns: number = scholarMateSequence.length) {
   for (let turnIndex = 0; turnIndex < maxTurns && game.resultState === ResultState.Ongoing; turnIndex += 1) await awaitPendingPlayerTurn(game);
 }
-function expectScholarMateFinished(game: IGame): void {
+function expectScholarMateFinished(game: IGame) {
   expect(game.resultState).toBe(ResultState.WhiteWon);
   expect(game.resultReason).toBe(ResultReason.RuleResolved);
   expect(game.gameState).toBe(GameState.AnalysisBlackMove);
@@ -1381,7 +1381,7 @@ describe('useGamesStore', () => {
   });
   it('preserves resignation, agreed-draw, and checkmate results during later analysis', async () => {
     const store = useGamesStore();
-    async function expectResultPreserved(game: IGame): Promise<void> {
+    async function expectResultPreserved(game: IGame) {
       const resultState = game.resultState;
       const resultReason = game.resultReason;
 

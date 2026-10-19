@@ -166,6 +166,8 @@ The composed implementation depends on `MoveApplicationService`, `MoveHistorySer
 ## Notes
 - The public interface is intentionally broad enough to cover every committed game-facing mutation without leaking domain-service calls into presentation code.
 - `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` is the internal gate that arms the current live turn and any required non-local provider; it must remain a strict state check rather than a best-effort hint.
+- Private turn creation rejects an existing pending turn. Ownership-changing actions abort and drain the old handler before arming replacement; engine delivery observes its real abort signal rather than comparing promise identities.
+- `workspaceRevision` publishes mutations to deliberately raw canonical games through `touchGame`. GameView, HistoryPanel and journey readiness consume it for rendering; it does not invalidate async completions. Autosave failure emits `onAutosaveFailed` alongside the retained error state, with a disposer for presentation consumers.
 - `SavedGamesStore` owns saved-game serialisation, document reads and writes, restore lookup, and external picker flows. `GamesStore` owns only active-workspace creation, insertion, hydration, and gameplay mutation once a payload is already in hand.
 - `GamesStore` does not call sibling stores directly. Any engine-profile selection coming from `EnginesStore` is bridged through presentation as a selected reusable profile or equivalent seat-selection result.
 - Analysis-engine row identity is the current row index in `game.analysis.seats`; duplicate copied engines are blocked so row-targeted actions stay unambiguous.

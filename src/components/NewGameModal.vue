@@ -69,7 +69,7 @@ function createPlayer(selection: string, colour: PlayerColour): IPlayer | undefi
   };
   return enginePlayer;
 }
-function submit(): void {
+function submit() {
   if (!canCreate.value) return;
   const preset = form.timePreset === 'custom' ? undefined : form.timePreset;
   const timeControl = preset === TimeControlPreset.Untimed

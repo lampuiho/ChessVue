@@ -18,11 +18,11 @@ export class JourneyEngineBarrier extends JourneyEngineFault {
   private readonly _processes = new Map<number, { path: string; process: IJourneyProcess }>();
   private readonly _searches: IJourneySearch[] = [];
   stopHeld = false;
-  hold(kind: SearchKind, held = true): void {
+  hold(kind: SearchKind, held = true) {
     if (held) this._held.add(kind);
     else this._held.delete(kind);
   }
-  holdStops(held: boolean): void { this.stopHeld = held; }
+  holdStops(held: boolean) { this.stopHeld = held; }
   isHeld(kind: SearchKind): boolean { return this._held.has(kind); }
   attach(path: string, process: IJourneyProcess): number {
     const id = this._processes.size + 1;
@@ -34,28 +34,28 @@ export class JourneyEngineBarrier extends JourneyEngineFault {
     this._searches.push({ id, processId, path: this._processes.get(processId)!.path, kind, pending: true });
     return id;
   }
-  settle(id?: number): void {
+  settle(id?: number) {
     const search = this._searches.find((entry) => entry.id === id);
     if (search) search.pending = false;
   }
   searchKind(id?: number): SearchKind | undefined { return this._searches.find((entry) => entry.id === id)?.kind; }
   searches(): IJourneySearch[] { return this._searches.map((search) => ({ ...search })); }
   processes() { return [...this._processes].map(([id, entry]) => ({ id, path: entry.path, ...entry.process.diagnostics() })); }
-  release(id: number): void {
+  release(id: number) {
     const search = this.requireSearch(id);
     // A settled search cannot release into a newer search on the same process.
     if (search.pending) this._processes.get(search.processId)!.process.release();
   }
-  emit(id: number, line: string): void {
+  emit(id: number, line: string) {
     if (/[\r\n]/.test(line)) throw new Error('Emit one UCI record at a time.');
     this._processes.get(this.requireSearch(id).processId)!.process.emitLine(line);
   }
-  crash(processId: number): void {
+  crash(processId: number) {
     const entry = this._processes.get(processId);
     if (!entry) throw new Error('Unknown journey process.');
     entry.process.crash();
   }
-  override reset(): void {
+  override reset() {
     super.reset();
     this._held.clear();
     this.stopHeld = false;

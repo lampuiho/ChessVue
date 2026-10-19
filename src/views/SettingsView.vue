@@ -57,17 +57,17 @@ function themePreviewStyle(theme: ThemeMode): Record<string, string> {
   };
 }
 
-function changeCategory(nextCategory: SettingsCategory): void {
+function changeCategory(nextCategory: SettingsCategory) {
   void router.push(`/settings/${nextCategory}`);
 }
-function requestReturn(): void {
+function requestReturn() {
   if (settingsStore.hasPendingChanges) {
     uiStateStore.showModal({ kind: AppModalKind.SettingsDirtyLeave, payload: { targetRoute: returnRoute.value } });
     return;
   }
   void router.push(returnRoute.value);
 }
-async function applySettings(leave: boolean): Promise<void> {
+async function applySettings(leave: boolean) {
   errorMessage.value = '';
   successMessage.value = '';
   try {
@@ -79,7 +79,7 @@ async function applySettings(leave: boolean): Promise<void> {
     errorMessage.value = error instanceof Error ? error.message : 'Settings could not be saved.';
   }
 }
-function openEngineEditor(engine?: IEngineRecord, index?: number): void {
+function openEngineEditor(engine?: IEngineRecord, index?: number) {
   editingEngineIndex.value = index;
   engineForm.id = engine?.id ?? crypto.randomUUID();
   engineForm.displayName = engine?.displayName ?? '';
@@ -87,14 +87,14 @@ function openEngineEditor(engine?: IEngineRecord, index?: number): void {
   engineForm.options = Object.entries(engine?.options ?? {}).map(([name, value]) => ({ name, value: String(value) }));
   engineEditorOpen.value = true;
 }
-function copyEngine(engine: IEngineRecord): void {
+function copyEngine(engine: IEngineRecord) {
   const names = new Set(draft.value?.analysis.engineInventory.map((candidate) => candidate.displayName));
   let displayName = `${engine.displayName} copy`;
   let suffix = 2;
   while (names.has(displayName)) displayName = `${engine.displayName} copy ${suffix++}`;
   openEngineEditor({ ...engine, id: crypto.randomUUID(), displayName, options: { ...engine.options } });
 }
-function saveEngine(): void {
+function saveEngine() {
   const currentDraft = draft.value;
   if (!currentDraft) return;
   const name = engineForm.displayName.trim();
@@ -119,10 +119,10 @@ function saveEngine(): void {
   engineEditorOpen.value = false;
   errorMessage.value = '';
 }
-function removeEngine(index: number): void {
+function removeEngine(index: number) {
   draft.value?.analysis.engineInventory.splice(index, 1);
 }
-function addOption(): void {
+function addOption() {
   engineForm.options.push({ name: '', value: '' });
 }
 </script>

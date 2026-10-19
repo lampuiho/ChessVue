@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AppModalKind, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAppModalState } from '@/contracts';
+import { AppModalKind, PlayerColour, PlayerType, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAppModalState } from '@/contracts';
 
 import {
   createGameSessionSnapshot,
@@ -190,5 +190,38 @@ describe('useUiStateStore', () => {
 
     expect(domain.SerializationService.readGameSessionDocument).toHaveBeenCalledTimes(1);
     expect(domain.SerializationService.readUiLayoutDocument).toHaveBeenCalledTimes(1);
+  });
+  it('initialises each dialog explicitly without leaking the previous form or completion', async () => {
+    const store = useUiStateStore();
+    const closed = vi.fn(async () => {});
+    const selection = { kind: AppModalKind.PlayerSelection, payload: { gameId: 'game-1', colour: PlayerColour.Black, currentPlayerType: PlayerType.Engine } } as const;
+    store.showModal(selection, closed);
+    expect(store.modalForm.selectedPlayer).toBe('unchanged');
+    const oldForm = store.modalForm;
+    oldForm.errorMessage = 'Previous failure';
+    oldForm.isWorking = true;
+    store.showModal(selection);
+    oldForm.errorMessage = 'Late previous failure';
+    expect(store.modalForm).toEqual({ errorMessage: '', isWorking: false, selectedPlayer: 'unchanged', selectedEngineId: '' });
+    await store.hideModal();
+    await store.hideModal();
+    expect(closed).toHaveBeenCalledTimes(1);
+  });
+  it('settles the captured dialog completion once when cancellation is repeated', async () => {
+    const store = useUiStateStore();
+    const closed = vi.fn(async () => {});
+    store.showModal({ kind: AppModalKind.NewGame }, closed);
+    await Promise.all([store.hideModal(), store.hideModal()]);
+    expect(closed).toHaveBeenCalledTimes(1);
+    expect(store.modalState).toBeUndefined();
+  });
+  it('cancels dialog delivery when its store is disposed', () => {
+    const store = useUiStateStore();
+    const closed = vi.fn();
+    store.showModal({ kind: AppModalKind.NewGame }, closed);
+    const signal = store.getModalSignal();
+    store.$dispose();
+    expect(signal.aborted).toBe(true);
+    expect(closed).not.toHaveBeenCalled();
   });
 });

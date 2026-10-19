@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, toRef } from 'vue';
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import {
   AppModalKind,
   BoardEditBlockedReason,
@@ -23,6 +23,8 @@ import {
 import { MoveApplicationService, MoveHistoryService, TimeControlService } from '@/domain';
 import { ClockTimestamp } from '@/utility/date';
 import { isMoveLegal, toDetailedMove } from '@/utility/chess';
+import { OperationOwner } from '@/utility/async/OperationOwner';
+import { abortableDelay } from '@/utility/async/Abortable';
 import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import MenuBar from '@/components/MenuBar.vue';
 import GameTabs from '@/components/GameTabs.vue';
@@ -44,7 +46,7 @@ const now = ref(Date.now());
 const notice = ref('');
 const isPlayingLine = ref(false);
 const pendingContinuation = shallowRef<{ game: IGame; node: IMoveNode; moves: readonly IMove[] }>();
-let playbackGeneration = 0;
+const playback = new OperationOwner();
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 const gameId = computed(() => String(route.params.id));
@@ -128,36 +130,34 @@ const capturedByColour = computed(() => {
 });
 
 onMounted(() => {
-  void run(validateSelectedGame);
+  void run(async () => {
+    const fallback = await activateGame(gameId.value);
+    if (fallback) await router.replace(fallback);
+  });
   clockTimer = setInterval(() => {
     now.value = Date.now();
     void reconcileTimeout();
   }, 250);
 });
-watch(gameId, () => {
-  playbackGeneration += 1;
-  isPlayingLine.value = false;
-  pendingContinuation.value = undefined;
-  now.value = Date.now();
-  void run(validateSelectedGame);
-});
-watch(() => gamesStore.autosaveError, (message) => {
-  if (message) showNotice(`Automatic save failed: ${message}`);
-});
-watch(() => uiStateStore.modalState?.kind, (nextKind, previousKind) => {
-  if (previousKind === AppModalKind.NewGame && nextKind !== AppModalKind.NewGame) void run(handleMenuInterruptionCompleted);
-});
+onBeforeRouteUpdate((to) => activateGame(String(to.params.id)));
+onBeforeRouteLeave(() => playback.cancel());
+const disposeAutosaveNotice = gamesStore.onAutosaveFailed((message) => showNotice(`Automatic save failed: ${message}`));
 onBeforeUnmount(() => {
-  playbackGeneration += 1;
+  void playback.dispose();
+  disposeAutosaveNotice();
   if (clockTimer) clearInterval(clockTimer);
   if (noticeTimer) clearTimeout(noticeTimer);
 });
-async function validateSelectedGame(): Promise<void> {
-  if (game.value) return handleMenuInterruptionCompleted();
+async function activateGame(id: string) {
+  await playback.cancel();
+  pendingContinuation.value = undefined;
+  now.value = Date.now();
+  const selected = gamesStore.getGame(id) as IGame | undefined;
+  if (selected) return handleMenuInterruptionCompleted(selected);
   const fallbackId = uiStateStore.gameSession?.openGameIds.find((id) => gamesStore.getGame(id));
-  await router.replace(fallbackId ? `/game/${fallbackId}` : '/home');
+  return fallbackId ? `/game/${fallbackId}` : '/home';
 }
-async function reconcileTimeout(): Promise<void> {
+async function reconcileTimeout() {
   const currentGame = game.value;
   const runtime = currentGame?.$;
   if (!currentGame || !runtime) return;
@@ -170,7 +170,7 @@ async function reconcileTimeout(): Promise<void> {
   runtime.timeoutNotificationShown = true;
   uiStateStore.showModal({ kind: AppModalKind.Timeout, payload: { gameId: currentGame.metadata.id, resultState: currentGame.resultState as Exclude<ResultState, ResultState.Ongoing>, resultReason: ResultReason.Timeout } });
 }
-async function quickNewGame(): Promise<void> {
+async function quickNewGame() {
   const defaults = settings.value?.gameDefaults;
   if (!defaults) return;
   const request: ICreateGameRequest = {
@@ -188,47 +188,52 @@ async function quickNewGame(): Promise<void> {
     await router.push(`/game/${createdGame.metadata.id}`);
   });
 }
-async function handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown): Promise<void> {
+async function handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown) {
   const currentGame = game.value;
   if (!currentGame) return;
   if (settings.value?.gameSession.autoPauseOnMenu) await gamesStore.pauseGame(currentGame, PauseReason.Menu);
   await action();
 }
-async function handleMenuInterruptionCompleted(): Promise<void> {
-  const currentGame = game.value;
+async function handleMenuInterruptionCompleted(currentGame = game.value) {
   if (!currentGame?.$?.pauseReasons?.includes(PauseReason.Menu)) return;
   await gamesStore.resumeGame(currentGame, PauseReason.Menu);
 }
-async function selectTab(id: string): Promise<void> {
+function openCustomGame() {
+  const interrupted = game.value;
+  return handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame }, () => {
+    if (game.value === interrupted) return handleMenuInterruptionCompleted(interrupted);
+  }));
+}
+async function selectTab(id: string) {
   uiStateStore.setActiveGame(id);
   await router.push(`/game/${id}`);
 }
-async function closeTab(id: string): Promise<void> {
+async function closeTab(id: string) {
   uiStateStore.closeTab(id);
   const activeId = uiStateStore.gameSession?.activeGameId;
   await router.push(activeId ? `/game/${activeId}` : '/home');
 }
-async function makeMove(move: IMove): Promise<void> {
+async function makeMove(move: IMove) {
   await requestMoves([move]);
 }
-async function navigateToNode(node: IMoveNode): Promise<void> {
+async function navigateToNode(node: IMoveNode) {
   if (!game.value) return;
   await run(async () => gamesStore.navigateToNode(game.value!, node));
 }
-async function returnToLivePosition(): Promise<void> {
+async function returnToLivePosition() {
   const currentGame = game.value;
   if (!currentGame?.livePath) return;
   let node = currentGame.moveTree.root;
   for (const index of currentGame.livePath) node = node.children[index]!;
   await navigateToNode(node);
 }
-async function playAnalysisLine(moves: readonly IMove[]): Promise<void> {
+async function playAnalysisLine(moves: readonly IMove[]) {
   const currentGame = game.value;
   if (!currentGame || isPlayingLine.value) return;
   const explore = !currentGame.livePath || currentGame.resultState !== ResultState.Ongoing || currentGame.$?.pauseReasons?.includes(PauseReason.Analysis);
   await requestMoves(explore ? moves : moves.slice(0, 1));
 }
-async function requestMoves(moves: readonly IMove[]): Promise<void> {
+async function requestMoves(moves: readonly IMove[]) {
   const currentGame = game.value;
   if (!currentGame || !moves.length || isPlayingLine.value) return;
   const livePath = currentGame.livePath;
@@ -239,13 +244,13 @@ async function requestMoves(moves: readonly IMove[]): Promise<void> {
   }
   await run(() => applyMoves(currentGame, moves));
 }
-async function confirmContinuation(): Promise<void> {
+async function confirmContinuation() {
   const pending = pendingContinuation.value;
   pendingContinuation.value = undefined;
   if (!pending || game.value !== pending.game || renderedNode.value !== pending.node) return;
   await run(() => applyMoves(pending.game, pending.moves));
 }
-async function applyMoves(currentGame: IGame, moves: readonly IMove[]): Promise<void> {
+async function applyMoves(currentGame: IGame, moves: readonly IMove[]) {
   const validated: IMove[] = [];
   const preview = MoveApplicationService.genPosition(position.value!, []);
   for (const move of moves) {
@@ -254,21 +259,23 @@ async function applyMoves(currentGame: IGame, moves: readonly IMove[]): Promise<
     validated.push(detailed);
     MoveApplicationService.applyMove(preview, detailed);
   }
-  const generation = ++playbackGeneration;
-  isPlayingLine.value = validated.length > 1;
-  let expectedPath = [...currentGame.renderedPath];
-  try {
-    for (const [index, move] of validated.entries()) {
-      if (index > 0) await new Promise<void>((resolve) => setTimeout(resolve, 350));
-      if (generation !== playbackGeneration || game.value !== currentGame || JSON.stringify(expectedPath) !== JSON.stringify(currentGame.renderedPath)) return;
-      await gamesStore.makeMove(currentGame, move);
-      expectedPath = [...currentGame.renderedPath];
+  await playback.run(async (signal) => {
+    isPlayingLine.value = validated.length > 1;
+    let expectedPath = [...currentGame.renderedPath];
+    try {
+      for (const [index, move] of validated.entries()) {
+        if (index > 0) await abortableDelay(350, signal);
+        signal.throwIfAborted();
+        if (game.value !== currentGame || JSON.stringify(expectedPath) !== JSON.stringify(currentGame.renderedPath)) return;
+        await gamesStore.makeMove(currentGame, move);
+        expectedPath = [...currentGame.renderedPath];
+      }
+    } finally {
+      isPlayingLine.value = false;
     }
-  } finally {
-    if (generation === playbackGeneration) isPlayingLine.value = false;
-  }
+  });
 }
-async function toggleBoardEdit(): Promise<void> {
+async function toggleBoardEdit() {
   const currentGame = game.value;
   if (!currentGame) return;
   if (controlMode.value === 'inGameAnalysis') {
@@ -277,7 +284,7 @@ async function toggleBoardEdit(): Promise<void> {
   }
   await run(async () => gamesStore.enterBoardEdit(currentGame));
 }
-async function handleDraw(): Promise<void> {
+async function handleDraw() {
   const currentGame = game.value;
   if (!currentGame || !position.value) return;
   if (currentGame.drawOfferState?.direction === DrawOfferDirection.Incoming) return run(() => gamesStore.acceptDrawOffer(currentGame));
@@ -286,26 +293,26 @@ async function handleDraw(): Promise<void> {
   if (isLocalGame) uiStateStore.showModal({ kind: AppModalKind.DrawOffer, payload: { gameId: currentGame.metadata.id, offeringColour: position.value.sideToMove } });
   else await run(() => gamesStore.offerDraw(currentGame));
 }
-function requestPlayerSelection(colour: PlayerColour): void {
+function requestPlayerSelection(colour: PlayerColour) {
   const currentGame = game.value;
   if (!currentGame || controlMode.value === 'boardEdit') return;
   const player = colour === PlayerColour.White ? currentGame.whitePlayer : currentGame.blackPlayer;
   uiStateStore.showModal({ kind: AppModalKind.PlayerSelection, payload: { gameId: currentGame.metadata.id, colour, currentPlayerType: player?.type, currentAssignedEngine: player?.type === PlayerType.Engine ? (player as IEnginePlayer).assignedEngine : undefined } });
 }
-function requestAnalysisEngine(): void {
+function requestAnalysisEngine() {
   const currentGame = game.value;
   if (!currentGame) return;
   uiStateStore.showModal({ kind: AppModalKind.AnalysisEngineSelection, payload: { gameId: currentGame.metadata.id, currentAnalysisEngines: currentGame.analysis.seats.map((seat) => seat.assignedEngine) } });
 }
-function toggleSection(section: 'history' | 'analysis'): void {
+function toggleSection(section: 'history' | 'analysis') {
   uiStateStore.setSectionCollapsed(section);
   void run(() => uiStateStore.saveLayoutState());
 }
-function toggleAnalysisEngine(index: number): void {
+function toggleAnalysisEngine(index: number) {
   uiStateStore.setAnalysisEngineExpanded(index);
   void run(() => uiStateStore.saveLayoutState());
 }
-async function removeAnalysisEngine(index: number): Promise<void> {
+async function removeAnalysisEngine(index: number) {
   const currentGame = game.value;
   if (!currentGame?.analysis.seats[index]) return;
   const cleanup = gamesStore.removeAnalysisEngine(currentGame, index);
@@ -318,12 +325,12 @@ async function removeAnalysisEngine(index: number): Promise<void> {
   }
   await Promise.all([cleanup, saving]);
 }
-function showNotice(message: string): void {
+function showNotice(message: string) {
   notice.value = message;
   if (noticeTimer) clearTimeout(noticeTimer);
   noticeTimer = setTimeout(() => notice.value = '', 3600);
 }
-async function run(action: () => Promise<void> | void): Promise<void> {
+async function run(action: () => Promise<void> | void) {
   try {
     await action();
   } catch (error) {
@@ -340,7 +347,7 @@ async function run(action: () => Promise<void> | void): Promise<void> {
       @close-game-requested="run(() => closeTab(game!.metadata.id))"
       @home-requested="run(() => handleMenuInterruptionRequested(() => router.push('/home')))"
       @quick-new-game-requested="quickNewGame"
-      @custom-new-game-requested="run(() => handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame })))"
+      @custom-new-game-requested="run(openCustomGame)"
       @load-game-requested="run(() => handleMenuInterruptionRequested(() => router.push('/saved-games/load')))"
       @save-game-requested="run(() => handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))"
       @settings-requested="run(() => handleMenuInterruptionRequested(() => router.push('/settings/session')))" />

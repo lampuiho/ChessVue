@@ -8,6 +8,7 @@ Own shell/session state such as active route, open tabs, active game, remembered
 gameSession: IGameSessionSnapshot | undefined
 layoutState: IUiLayoutState | undefined
 modalState: IAppModalState | undefined
+modalForm: { errorMessage: string; isWorking: boolean; selectedEngineId: string; selectedPlayer: string }
 loadGameSession(): Promise<void>
 saveGameSession(): Promise<void>
 loadLayoutState(): Promise<void>
@@ -19,8 +20,9 @@ closeTab(gameId: string): void
 setLayoutState(layout: IUiLayoutState): void
 togglePanel(panel: "history" | "analysis", isVisible?: boolean): void
 setSectionCollapsed(section: "history" | "analysis", isCollapsed?: boolean): void
-showModal(modal: IAppModalState): void
-hideModal(): void
+showModal(modal: IAppModalState, onClosed?: () => Promise<void> | void): void
+hideModal(): Promise<void>
+getModalSignal(): AbortSignal
 setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 ```
 
@@ -63,4 +65,6 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - UI state is not a draft: every visible mutation is immediately current state, so the store does not clone reads or use immutable snapshot replacement. `setLayoutState(...)` accepts the supplied state directly.
 - Persistence methods use `toRaw(...)` when handing the reactive state to `SerializationService`. This removes the Vue proxy at the layer boundary without copying the state.
 - Modal state is transient shared state rather than a persistence snapshot. It remains a shallow ref because modal payloads may contain engine callbacks, maps, or host values whose identity must be retained; replacement and removal remain owned by `showModal(...)` and `hideModal()`.
+- `showModal` explicitly creates fresh form state and an abort controller, even for the same dialog kind/payload. `hideModal` aborts pending delivery and captures/clears the completion callback before awaiting it, so repeated cancellation invokes completion once. Replacement settles the previous callback independently; store disposal aborts delivery without starting a completion action.
+- `ModalHost` captures the active form and signal for each action. Late success/failure cannot close a replacement dialog, alter its error/busy state or navigate after cancelled creation. The form and dialog lifecycle require no watchers; already-started domain work retains its own completion semantics.
 - Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. Those functions remain store-private and are not shared utility-layer modules.

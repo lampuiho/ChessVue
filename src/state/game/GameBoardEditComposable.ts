@@ -17,14 +17,14 @@ interface IGameBoardEditDependency {
 
 export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
   const { position, status, analysis, move, touchGame } = dependency;
-  function assertBoardEditState(game: IGame): void {
+  function assertBoardEditState(game: IGame) {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board manipulation is only allowed while board edit mode is active.');
   }
   /**
    * Board edits mutate in place. The first effective edit to a position with history promotes it
    * to the new board root and clears prior history; later edits target that root directly.
    */
-  function applyEdit(game: IGame, edit: (boardPosition: IBoardPosition) => boolean): void {
+  function applyEdit(game: IGame, edit: (boardPosition: IBoardPosition) => boolean) {
     const renderedPosition = game.renderedPath.length === 0 ? game.rootPosition : position.getRenderedPosition(game);
     if (!edit(renderedPosition)) return; // nothing changed, so prior history survives
     if (renderedPosition !== game.rootPosition || game.moveTree.root.children.length > 0) {
@@ -37,7 +37,7 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     position.invalidateRenderedPosition(game);
     void analysis.refreshAnalysisForGame(game);
   }
-  function enterBoardEdit(game: IGame): void {
+  function enterBoardEdit(game: IGame) {
     status.assertNotPausedForAction(game, 'Board edit entry');
     if (game.livePath) return;
     if (game.gameState === GameState.BoardEdit) {
@@ -50,27 +50,27 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     game.gameState = GameState.BoardEdit;
     touchGame(game);
   }
-  function applyBoardEdit(game: IGame, rootPosition: IBoardPosition): void {
+  function applyBoardEdit(game: IGame, rootPosition: IBoardPosition) {
     assertBoardEditState(game);
     move.replaceWithAnalysisRoot(game, rootPosition, GameState.BoardEdit);
   }
-  function clearBoard(game: IGame): void {
+  function clearBoard(game: IGame) {
     assertBoardEditState(game);
     applyEdit(game, (boardPosition) => MoveApplicationService.clearBoard(boardPosition));
   }
-  function deleteChessPiece(game: IGame, boardId: BoardId): void {
+  function deleteChessPiece(game: IGame, boardId: BoardId) {
     assertBoardEditState(game);
     applyEdit(game, (boardPosition) => MoveApplicationService.deletePiece(boardPosition, boardId));
   }
-  function moveChessPiece(game: IGame, from: BoardId, to: BoardId): void {
+  function moveChessPiece(game: IGame, from: BoardId, to: BoardId) {
     assertBoardEditState(game);
     applyEdit(game, (boardPosition) => MoveApplicationService.movePiece(boardPosition, from, to));
   }
-  function resetBoardToStartPosition(game: IGame): void {
+  function resetBoardToStartPosition(game: IGame) {
     assertBoardEditState(game);
     move.replaceWithAnalysisRoot(game, createInitialBoardPosition(), GameState.BoardEdit);
   }
-  function toggleChessPiece(game: IGame, boardId: BoardId, piece: IChessPiece): void {
+  function toggleChessPiece(game: IGame, boardId: BoardId, piece: IChessPiece) {
     assertBoardEditState(game);
     applyEdit(game, (boardPosition) => MoveApplicationService.togglePiece(boardPosition, boardId, piece));
   }

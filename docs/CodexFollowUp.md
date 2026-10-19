@@ -40,12 +40,14 @@ Completed UI scenario fixes are covered by [application regressions](../journeys
 - Added `position startpos` output for standard initial roots, backed by runtime-only `IBoardPosition.$.isStandardInitialPosition` verification caching.
 - Added guarded board-edit APIs for toggling or deleting one chess piece, clearing the board, and resetting to the canonical start position, with first-edit root promotion, in-place later edits, and exact start-position cache handling.
 - Completed the remaining move-flow, cache, copy-ownership, and documentation reconciliation. The temporary change tracker was removed after its design rationale was transferred to the owning high-level and low-level documents.
+- Implemented the [code cleanup plan](CodeCleanupPlan.md): explicit cancellation and route/dialog/selection ownership replace async generation counters and orchestration watchers. Only two documented boundary watchers remain; the build enforces their allowlist and inferred implementation returns. Removed 440 redundant annotations after the behaviour refactors. The separate turn-flow/premove proposal remains open.
 
 ## Still Pending
-- [Code cleanup plan](CodeCleanupPlan.md): remove remaining generation-based invalidation, replace watcher-driven orchestration with explicit owners, restrict retained watchers, and remove redundant `: void` / `: Promise<void>` implementation annotations. The plan records the source inventory, migration order, enforcement work and focused acceptance checks.
 - Define the board-interaction move-submission boundary so legal move selection uses `IMoveRaw`, promotion selection completes that raw move, and conversion to `IMove` happens only afterwards for move-tree and service interactions.
 
 ## Verification
+- Current cleanup: **527/527 unit/application tests across 84 files**, code audit, type checking and production build passed. Browser scope and generated reports are recorded in the [cleanup verification](CodeCleanupPlan.md#verification).
+- The following 26-file/165-test record is the earlier baseline, not the current cleanup run.
 - `npm run type-check`
 - Result: passed.
 - `npm run test:unit -- --run`

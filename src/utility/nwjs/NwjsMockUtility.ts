@@ -25,16 +25,16 @@ class MockEmitter {
     this._listenerByEvent.get(eventName)?.delete(listener);
     return this;
   }
-  protected emit(eventName: string, ...args: any[]): void {
+  protected emit(eventName: string, ...args: any[]) {
     for (const listener of this._listenerByEvent.get(eventName) ?? []) listener(...args);
   }
 }
 class MockNwWindow extends MockEmitter implements INwjsWindow {
-  hide(): void {}
-  close(_force?: boolean): void {}
+  hide() {}
+  close(_force?: boolean) {}
 }
 class MockReadableStream extends MockEmitter {
-  push(chunk: string): void {
+  push(chunk: string) {
     this.emit('data', chunk);
   }
 }
@@ -117,7 +117,7 @@ class MockFsModule {
     error.code = code;
     return error;
   }
-  private ensureDirectoryTree(targetPath: string): void {
+  private ensureDirectoryTree(targetPath: string) {
     const normalisedPath = this.normalise(targetPath);
     const segments = normalisedPath.split('/');
     for (let index = 1; index <= segments.length; index += 1) {
@@ -129,10 +129,10 @@ class MockFsModule {
     const normalisedPath = this.normalise(targetPath);
     return this._directories.has(normalisedPath) || this._files.has(normalisedPath);
   }
-  private async access(targetPath: string): Promise<void> {
+  private async access(targetPath: string) {
     if (!this.hasEntry(targetPath)) throw this.createNodeError('ENOENT');
   }
-  private async mkdir(targetPath: string, _options?: { recursive?: boolean }): Promise<void> {
+  private async mkdir(targetPath: string, _options?: { recursive?: boolean }) {
     this.ensureDirectoryTree(targetPath);
   }
   private async readdir(targetPath: string, _options?: { withFileTypes?: boolean }): Promise<MockDirent[]> {
@@ -148,7 +148,7 @@ class MockFsModule {
     }
     return [...childEntries.entries()].map(([name, isDirectory]) => new MockDirent(name, isDirectory));
   }
-  private async writeFile(targetPath: string, raw: string): Promise<void> {
+  private async writeFile(targetPath: string, raw: string) {
     const normalisedPath = this.normalise(targetPath);
     const parentPath = this._path.dirname(normalisedPath);
     if (!this._directories.has(parentPath)) throw this.createNodeError('ENOENT');
@@ -164,7 +164,7 @@ class MockFsModule {
     if (file === undefined) throw this.createNodeError('ENOENT');
     return { mtime: file.mtime };
   }
-  private async unlink(targetPath: string): Promise<void> {
+  private async unlink(targetPath: string) {
     const normalisedPath = this.normalise(targetPath);
     if (!this._files.delete(normalisedPath)) throw this.createNodeError('ENOENT');
   }

@@ -19,17 +19,17 @@ export class BrowserProcessManager implements IProcessManager {
       throw this._startError('The UCI engine worker could not be started.', String(error));
     }
   }
-  assertProcessHandleOpen(processHandle: ProcessHandle): void {
+  assertProcessHandleOpen(processHandle: ProcessHandle) {
     this._requireTransport(processHandle);
   }
-  async stopProcess(processHandle: ProcessHandle): Promise<void> {
+  async stopProcess(processHandle: ProcessHandle) {
     this._requireTransport(processHandle).terminate();
   }
   async restartProcess(processHandle: ProcessHandle, executablePath: string, args?: string[]): Promise<ProcessHandle> {
     await this.stopProcess(processHandle);
     return this.spawnProcess(executablePath, args);
   }
-  dispose(): void {
+  dispose() {
     for (const transport of [...this._registry.values()]) transport.terminate();
   }
   private _requireTransport(handle: ProcessHandle): BrowserUciTransport {

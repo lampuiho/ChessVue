@@ -18,14 +18,14 @@ export async function createTimedHistory(page: Page, timed = true): Promise<stri
   await playMove(page, 'e7', 'e5');
   return id;
 }
-export async function addAnalysisEngine(page: Page): Promise<void> {
+export async function addAnalysisEngine(page: Page) {
   await page.getByRole('button', { name: 'Add engine', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Add analysis engine', exact: true });
   await dialog.getByRole('radio', { name: /Journey A/ }).check();
   await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
   await expect(page.locator('.analysis-line')).toHaveCount(3);
 }
-export async function returnLive(page: Page): Promise<void> {
+export async function returnLive(page: Page) {
   await page.getByRole('button', { name: 'Live position', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Live position', exact: true })).toHaveCount(0);
 }

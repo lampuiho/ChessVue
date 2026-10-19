@@ -62,7 +62,7 @@ function _serialiseSettings(snapshot: ISettingsSnapshot): string {
 async function _readSettingsDocument(path: string): Promise<ISettingsSnapshot> {
   return _deserialiseSettings(await usePlatformService().getStorageAdapter().readTextFile(path));
 }
-async function _writeSettingsDocument(path: string, snapshot: ISettingsSnapshot): Promise<void> {
+async function _writeSettingsDocument(path: string, snapshot: ISettingsSnapshot) {
   await usePlatformService().getStorageAdapter().writeTextFile(path, _serialiseSettings(snapshot), { overwrite: true });
 }
 

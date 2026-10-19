@@ -11,7 +11,7 @@ export function getPlatformTarget(): PlatformTarget {
   const nw = _nwOverride ?? (globalThis as typeof globalThis & { nw?: INwjsGlobal }).nw;
   return nw?.Window ? PlatformTarget.Nwjs : PlatformTarget.Browser;
 }
-export function setNwjsOverride(nw: INwjsGlobal | null): void {
+export function setNwjsOverride(nw: INwjsGlobal | null) {
   _nwOverride = nw;
 }
 export function getNwjs(): INwjsGlobal {

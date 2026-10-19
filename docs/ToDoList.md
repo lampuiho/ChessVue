@@ -2,9 +2,9 @@
 
 ## Code cleanup follow-up
 
-See [CodeCleanupPlan.md](CodeCleanupPlan.md) for the inspected sites, dependencies and acceptance checks.
+See [CodeCleanupPlan.md](CodeCleanupPlan.md) for implementation decisions, retained boundaries and acceptance evidence. The turn-flow/premove design note above remains open.
 
-- [ ] Remove remaining generation-based async invalidation and review turn/playback ownership, coordinated with the turn-flow item above.
-- [ ] Replace watcher-driven orchestration with explicit actions/events/lifecycle owners; justify and restrict any retained boundary watchers.
-- [ ] Remove unnecessary implementation `: void` and `: Promise<void>` annotations while preserving required callable contracts.
-- [ ] Add static enforcement for the agreed generation, watcher and return-inference rules.
+- [x] Remove remaining generation-based async invalidation and review turn/playback ownership, coordinated with the turn-flow item above.
+- [x] Replace watcher-driven orchestration with explicit actions/events/lifecycle owners; justify and restrict any retained boundary watchers.
+- [x] Remove unnecessary implementation `: void` and `: Promise<void>` annotations while preserving required callable contracts.
+- [x] Add static enforcement for the agreed generation, watcher and return-inference rules.

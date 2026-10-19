@@ -1,13 +1,13 @@
 import { MoveNodeKind, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree, type MovePath } from '@/contracts';
 
-function markPathKind(node: IMoveNode, kind: MoveNodeKind): void {
+function markPathKind(node: IMoveNode, kind: MoveNodeKind) {
   let currentNode: IMoveNode | undefined = node;
   while (currentNode) {
     currentNode.kind = kind;
     currentNode = currentNode.mainlineChildIndex === undefined ? undefined : currentNode.children[currentNode.mainlineChildIndex];
   }
 }
-function pruneDescendants(node: IMoveNode): void {
+function pruneDescendants(node: IMoveNode) {
   node.children.forEach((child) => child.$ = undefined);
   node.children.length = 0;
   node.mainlineChildIndex = undefined;
@@ -88,14 +88,14 @@ export const MoveHistoryService = {
     return retainedNode;
   },
   /** Mutates mainline selection and kinds along the supplied child continuation. */
-  rewriteMainline(parentNode: IMoveNode, childNode: IMoveNode): void {
+  rewriteMainline(parentNode: IMoveNode, childNode: IMoveNode) {
     const childIndex = parentNode.children.indexOf(childNode);
     if (childIndex < 0) throw new Error('Child node does not belong to the supplied parent node.');
     parentNode.mainlineChildIndex = childIndex;
     markPathKind(childNode, MoveNodeKind.Live);
   },
   /** Removes descendants from the supplied node while preserving the tree and children-array identities. */
-  pruneFutureMoves(node: IMoveNode): void {
+  pruneFutureMoves(node: IMoveNode) {
     pruneDescendants(node);
   },
 };

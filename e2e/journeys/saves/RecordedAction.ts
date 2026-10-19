@@ -2,20 +2,20 @@ import { expect, type Page } from '@playwright/test';
 import { playMove } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 import { nodeAt, openLibraryGame, setAutosaveInterval } from './SaveAction';
-async function addEngine(page: Page, name: string): Promise<void> {
+async function addEngine(page: Page, name: string) {
   await page.getByRole('button', { name: 'Add engine', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Add analysis engine', exact: true });
   await dialog.getByRole('radio', { name: new RegExp(name + ' ') }).check();
   await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
 }
-async function expectOutput(page: Page): Promise<void> {
+async function expectOutput(page: Page) {
   for (const name of ['Journey A', 'Journey B']) {
     const seat = page.locator('.analysis-panel .engine-section').filter({ has: page.getByRole('button', { name, exact: true }) });
     await expect(seat.locator('.engine-section__status--running')).toHaveCount(1);
     await expect(seat.locator('.engine-section__score')).toHaveText(name === 'Journey A' ? '+0.24' : '+0.36');
   }
 }
-async function stopOutput(page: Page): Promise<void> {
+async function stopOutput(page: Page) {
   while (await page.getByRole('button', { name: 'Stop engine', exact: true }).count()) {
     await page.getByRole('button', { name: 'Stop engine', exact: true }).first().click();
   }
@@ -45,7 +45,7 @@ export async function createRecordedWorkspace(page: Page) {
   expect(nodeAt(saved, saved.livePath!).kind).toBe('live');
   return saved;
 }
-async function exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof saveCurrentGame>>): Promise<void> {
+async function exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof saveCurrentGame>>) {
   await page.getByRole('button', { name: /^Analyse Explore/ }).click();
   await playMove(page, 'b5', 'a4');
   await playMove(page, 'g8', 'f6');
@@ -58,7 +58,7 @@ async function exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof s
   await playMove(page, 'd2', 'd3');
   await expectOutput(page);
 }
-export async function reviewRecordedMove(page: Page): Promise<void> {
+export async function reviewRecordedMove(page: Page) {
   await page.locator('.history-row').filter({ has: page.locator('strong').getByText('Bb5', { exact: true }) }).click();
   const panel = page.getByLabel('Recorded analysis', { exact: true });
   await expect(panel).toContainText('Before this move');

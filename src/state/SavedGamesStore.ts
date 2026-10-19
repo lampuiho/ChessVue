@@ -70,7 +70,7 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
     await SerializationService.writeGameDocument(targetPath, game, options.overwrite ?? true);
     return targetPath;
   }
-  async function registerAutosaveOnClose(getGames: () => readonly IGame[]): Promise<void> {
+  async function registerAutosaveOnClose(getGames: () => readonly IGame[]) {
     disposeAutosaveOnClose();
     _appCloseUnsubscribe = PlatformEventService.subscribeToAppCloseRequested('SavedGamesStore', async () => {
       const settings = await UserSettingService.getSettingsOrDefault();
@@ -78,11 +78,11 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
       for (const game of getGames()) await saveGame(game, { targetKind: SaveGameTargetKind.Autosave });
     }, 'autosave-on-close');
   }
-  function disposeAutosaveOnClose(): void {
+  function disposeAutosaveOnClose() {
     _appCloseUnsubscribe?.();
     _appCloseUnsubscribe = undefined;
   }
-  async function deleteSave(gameId: string, saveName?: string): Promise<void> {
+  async function deleteSave(gameId: string, saveName?: string) {
     await SerializationService.deleteDocument(getTargetEntry(await listSavedGames(), gameId, saveName).filePath);
   }
   async function exportGame(game: IGame): Promise<string | undefined> {

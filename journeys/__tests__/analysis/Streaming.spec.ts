@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { IEngineAnalysisUpdate, IGame } from '@/contracts';
 import { boot } from '../support/UiHarness';
-function expectIndependentUpdates(game: IGame, callbacks: ((update: IEngineAnalysisUpdate) => void)[], update: IEngineAnalysisUpdate): void {
+function expectIndependentUpdates(game: IGame, callbacks: ((update: IEngineAnalysisUpdate) => void)[], update: IEngineAnalysisUpdate) {
   const neighbour = JSON.stringify(game.analysis.seats[1]!.lines);
   callbacks[0]!({ ...update, lines: update.lines.map((line) => ({ ...line, depth: 19 })) });
   expect(game.analysis.seats[0]!.lines[0]!.depth).toBe(19);

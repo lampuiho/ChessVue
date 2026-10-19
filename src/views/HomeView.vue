@@ -17,7 +17,7 @@ const pendingGameId = ref<string>();
 const errorMessage = ref('');
 
 onMounted(refreshRecentGames);
-async function refreshRecentGames(): Promise<void> {
+async function refreshRecentGames() {
   try {
     recentGames.value = await recentGameStore.getRecentGames();
   } catch {
@@ -26,7 +26,7 @@ async function refreshRecentGames(): Promise<void> {
     isLoadingRecent.value = false;
   }
 }
-async function quickNewGame(): Promise<void> {
+async function quickNewGame() {
   const defaults = settingsStore.settings?.gameDefaults;
   if (!defaults) return;
   const request: ICreateGameRequest = {
@@ -44,7 +44,7 @@ async function quickNewGame(): Promise<void> {
     await router.push(`/game/${game.metadata.id}`);
   });
 }
-async function openRecent(entry: IRecentGameEntry): Promise<void> {
+async function openRecent(entry: IRecentGameEntry) {
   pendingGameId.value = entry.gameId;
   try {
     errorMessage.value = '';
@@ -59,7 +59,7 @@ async function openRecent(entry: IRecentGameEntry): Promise<void> {
     pendingGameId.value = undefined;
   }
 }
-async function run(action: () => Promise<void>): Promise<void> {
+async function run(action: () => Promise<void>) {
   errorMessage.value = '';
   try {
     await action();

@@ -1,90 +1,83 @@
-# Code cleanup follow-up and plan
+# Code cleanup follow-up and implementation
 
-Requested on 19 October 2026: remove generation-based async invalidation, restrict watcher use, and remove unnecessary implementation return annotations. These are coding requirements, not unresolved product questions. The source inventory below reviews the working tree based on `77acaa4`, including the IO changes and subsequent selected-details cleanup. Counts are source inspection, not test results or counts of confirmed defects.
+Requested and implemented on 19 October 2026: remove generation-based async invalidation, restrict watchers, and infer redundant implementation return types. [AGENTS.md](../AGENTS.md#async-work-and-watchers) records the durable rules. The separate [turn-flow/premove proposal](ToDoList.md) remains independent of this cleanup.
 
-## Current status
+## Status
 
-- The shared selected-details counter and its manual unmount increment have been removed from SavedGamesView. Its existing selected-entry watcher now invalidates pending delivery through watcher cleanup. Same-snapshot stale success/failure component regressions and all four JRN-IO-07 browser variants pass; see [verification](JourneyImplementation.md#storage-failure-verification).
-- One named async invalidation counter remains: `playbackGeneration` in [GameView](../src/views/GameView.vue). It increments on playback start, game change and unmount, and gates moves and final UI updates.
-- There are 12 watcher/effect calls: 11 in the application and one in the journey bootstrap. All are listed below. No watcher audit or removal is yet complete.
-- A TypeScript syntax-tree inspection found 445 explicit `void`/`Promise<void>` return annotations on functions with bodies across `src`, `journeys` and `e2e`. They are review candidates, not 445 proven redundant annotations. The same scan found 120 bodyless callable signatures, which are contract/type declarations rather than this removal list. Root configuration files and other callable forms need a separate pass.
-- [AGENTS.md](../AGENTS.md#async-work-and-watchers) now records the generation, watcher and return-inference rules. Automated enforcement remains planned.
-
-## 1. Async work ownership
-
-Do not replace a generation counter with an epoch, timestamp, random ID or another numeric version. First establish who starts the work, how overlapping starts are prevented, and how the previous work is cancelled and settled. A new object or promise comparison used only as a replacement version marker is also insufficient. Where external work cannot be cancelled, its owner must explicitly invalidate delivery and handle late success and failure.
-
-| Source | Finding | Planned cleanup |
+| Item | Result | Status |
 | --- | --- | --- |
-| [GameView](../src/views/GameView.vue), `applyMoves` | Shared playback counter controls delayed PV moves; a timeout is still awaited after cancellation | Give one playback operation ownership of its cancellable delay and UI state. Stop it explicitly on replacement, game/position changes and unmount; settle it before starting another. Keep complete-prefix legality validation and prevent an old completion from clearing a new operation's UI state. |
-| [GamePlayerTurnComposable](../src/state/game/GamePlayerTurnComposable.ts), `requestPlayerMove` and engine callback | A pending-promise identity guard coexists with the intended single-turn invariant and explicit abort/drain functions | Coordinate with the existing [turn-flow follow-up](ToDoList.md). Prove that cancellation/completion settles the old turn before a replacement is armed; then remove redundant guards. Preserve deferred moves, pause ownership and exactly one commit per eligible turn. |
-| [GameAnalysisComposable](../src/state/game/GameAnalysisComposable.ts) and [EngineRuntimeService](../src/domain/EngineRuntimeService.ts) | Seat/subscription ownership, abort signals and serialised client work already exist | Review each guard against its real resource owner. Consolidate redundant checks without losing independent engines, unsubscribe/dispose behaviour, UCI stop draining or late-output rejection. |
-| [SavedGamesView](../src/views/SavedGamesView.vue) and [ModalHost](../src/components/ModalHost.vue) | Watcher-local delivery invalidation and captured modal identity protect pending UI work | Move operation start/cancel/settle into selection and dialog activation/completion owners as watchers are removed. Keep the recently verified same-snapshot stale-success/failure protection. |
-| [GamesStore](../src/state/GamesStore.ts), `workspaceRevision` | Publication counter for deliberately raw canonical games, consumed by computed projections and history | Audit separately as a rendering/invalidation mechanism. Record its readers and evaluate a smaller explicit publication boundary. Preserve current rendering until a tested replacement exists. |
-| Platform registration/process handles and journey search/storage IDs | Identifiers name actual registrations, resources and diagnostic records | Keep identifiers with those concrete meanings. Review their lifecycle; distinguish them from counters whose only purpose is deciding whether a completion is obsolete. |
+| CLEAN-01 | Inventory and coding rules recorded | Complete |
+| CLEAN-02 | Playback counter removed; turn, analysis and publication ownership audited | Complete |
+| CLEAN-03 | Route/session, autosave feedback and menu/modal orchestration use explicit actions and lifecycle hooks | Complete |
+| CLEAN-04 | Saved selection and modal watchers removed; board observers consolidated; readiness directly derived | Complete |
+| CLEAN-05 | Redundant body return annotations removed across application, journeys, tests and tooling | Complete |
+| CLEAN-06 | Build-enforced AST audit rejects unlisted observers, invalidation-counter candidates and redundant return annotations | Complete |
 
-The follow-up must search for aliases as well as `*Generation`: revisions, epochs, tokens, version counters, request IDs, increments and post-await identity guards. Classify every match by purpose; schema versions, move counts, loop indexes and actual resource handles have different contracts. Re-run the inventory after each tranche so renaming cannot hide remaining work.
+The initial inventory based on `77acaa4` plus the IO follow-up found one remaining named async counter (`playbackGeneration`), 12 Vue observer calls, and 445 body return-annotation candidates. It also counted 120 bodyless callable signatures; those were contracts, not removal candidates. These are historical source counts, not defect or test counts. The earlier selected-details watcher-cleanup correction was an intermediate implementation; selection is now explicitly owned without a watcher.
 
-## 2. Watcher restrictions and inventory
+## Async ownership decisions
 
-The default is an explicit action or event at the point that owns a transition. Use computed values for pure derivation. Route updates belong to router lifecycle/commit hooks, and component activation/disposal belongs to lifecycle hooks. Do not replace a watcher with a deep watcher, `watchEffect`, an unrelated subscription, polling or a chain of computed side effects.
+| Owner | Implementation and retained constraints |
+| --- | --- |
+| [OperationOwner](../src/utility/async/OperationOwner.ts) | Aborts current work and serialises its settlement before replacement starts. Disposal prevents later starts. Real failures propagate; cancellation settles internally. No generation, timestamp or promise-identity version marker. |
+| [Abortable helpers](../src/utility/async/Abortable.ts) | Playback cancellation clears its actual timeout. Uncancellable file reads stop delivery immediately while their eventual success/rejection is still handled. |
+| [GameView](../src/views/GameView.vue) | Owns playback through `OperationOwner`; validates the whole PV prefix before its first commit. Route update/leave and unmount cancel playback. Before each move, checks the actual game and rendered path as legality/context constraints. Old cleanup completes before another playback can own its UI state. |
+| [GamePlayerTurnComposable](../src/state/game/GamePlayerTurnComposable.ts) | Rejects duplicate private turn creation and uses the existing abort-and-drain path before replacement. Engine delivery checks its actual abort signal. Removed the pending-promise equality guard. Existing deferred-move validation and pause ownership are preserved; this does not implement premoves. |
+| [GameAnalysisComposable](../src/state/game/GameAnalysisComposable.ts), [EngineRuntimeService](../src/domain/EngineRuntimeService.ts) | Retain actual seat/subscription ownership, abort controllers, serialised client work and UCI stop draining. Callback equality protects the callback registration being detached; it is not a numeric stale-result marker. Independent engine resources remain independent. |
+| [SavedGamesView](../src/views/SavedGamesView.vue) | Selection, route activation and refresh explicitly resolve a valid snapshot and start owned details delivery. Replacement/unmount cancels it, including selection away from and back to the same snapshot. Late success/error cannot overwrite current details. |
+| [UiStateStore](../src/state/UiStateStore.ts), [ModalHost](../src/components/ModalHost.vue) | Dialog activation creates fresh form state and an abort controller. Dismissal/replacement aborts delivery and invokes the captured completion once. Store disposal aborts delivery. Pending actions retain their own form; their late error, close or create-navigation cannot affect a replacement dialog. Already-started domain mutations retain their own completion semantics. |
+| [GamesStore](../src/state/GamesStore.ts), `workspaceRevision` | Retained as the publication count for deliberately raw canonical games, incremented at `touchGame`. Readers are GameView projections, HistoryPanel tree projection and journey readiness. This is an explicit rendering publication boundary, not a counter captured to reject async completion. Replacing it would require changing the raw-game reactivity contract. |
+| Platform and journey IDs | Retain IDs naming actual registrations, process/search handles and diagnostic/storage records. Schema versions, move sequences and loop indexes also retain their ordinary meanings. |
 
-A retained boundary observer must document its reactive source, why the owner cannot invoke the effect directly, its outputs, ordering and disposal. It must not write back into its own dependency chain. Handle async rejection and invalidate pending delivery when ownership ends. The selected-entry cleanup fix meets the minimum safety behaviour for an existing watcher; it is not a general pattern for starting new data flows.
+## Watcher disposition
 
-| Existing call | Owning source | Planned disposition |
-| --- | --- | --- |
-| `watchEffect` for theme/CSS/meta tags | [App](../src/App.vue) | Review as a possible output-only DOM bridge. Declare the actual appearance inputs and keep game/session mutation outside it; retain only with a recorded boundary justification. |
-| `watch(route.path)` for session mutation and checkpoint | [App](../src/App.vue) | Replace with one router commit owner, including back/forward and startup restoration. Preserve error feedback and ensure each committed route is checkpointed once. |
-| `watch(gameId)` for validation, playback reset and menu return | [GameView](../src/views/GameView.vue) | Use a shared activation action invoked by mount and route-update hooks. Cancel playback through its owner and validate once per activation. |
-| `watch(autosaveError)` for a toast | [GameView](../src/views/GameView.vue) | Publish failure through the autosave action's explicit result/notification boundary, with one presentation consumer and disposal. |
-| `watch(modalState.kind)` for menu resume | [GameView](../src/views/GameView.vue) | Add explicit dialog completion/cancellation notification to the interrupting-menu flow. Resume once after the owning operation settles, including Escape/backdrop cancellation. |
-| `watch(selectedGroup)` for selection fallback | [SavedGamesView](../src/views/SavedGamesView.vue) | Resolve valid selection in the group activation and refresh actions, including deletion and a vanished last group. |
-| `watch(selectedEntry)` for details I/O | [SavedGamesView](../src/views/SavedGamesView.vue) | Start details loading explicitly from initial/group/snapshot selection and refresh actions, with one cancellation/disposal owner. Preserve stale success and error isolation. |
-| `watch(route.fullPath)` for form/overwrite reset | [SavedGamesView](../src/views/SavedGamesView.vue) | Invoke one route activation action from router lifecycle and initial mount. Clear a pending overwrite at the owning transition. |
-| `watch(modal)` for form/error initialisation | [ModalHost](../src/components/ModalHost.vue) | Initialise transient state at explicit dialog activation, preferably within a dialog-scoped component. Test reopening the same kind with different payloads. |
-| `watch(props.position)` for board selection reset | [Chessboard](../src/components/Chessboard.vue) | Review selection ownership across external engine moves, history and game changes. Prefer state tied to the actual board context or an explicit activation/reset boundary; retain a prop observer only with a concrete justification. |
-| `watch(props.boardEdit)` for board selection reset | [Chessboard](../src/components/Chessboard.vue) | Reset in the board-mode transition/activation owner, covering promotion and drag state. Apply the same boundary review as position changes. |
-| `watch` for `api.ready` | [StartJourney](../journeys/StartJourney.ts) | Review as a test-only readiness projection. Prefer a directly derived API value or explicit readiness lifecycle; retain an observer only if necessary, read-only with respect to application state, and disposed on unmount. |
+Ten observer calls were removed or consolidated: only two synchronous Vue boundary watchers remain. No watcher performs gameplay, engine, persistence, modal-completion or details-I/O orchestration.
 
-Remove the old observer in the same change that introduces its explicit owner. Running both paths would create duplicate saves, resume calls, loads or notifications. Existing watcher use does not grant an exception for new watchers.
+| Initial site | Final owner |
+| --- | --- |
+| App appearance `watchEffect` | Narrow `watch` on appearance projection, accepted appearance and resolved host theme. Its synchronous callback runs immediately and in Vue's normal pre-render batch. Output is document CSS/meta tags only. |
+| App session route watcher | Router `afterEach` owns checkpoints for successful committed path changes; duplicate/query-only navigation is ignored. Startup owns its initial checkpoint. Hook is disposed with the app scope. |
+| GameView game-ID watcher | Shared activation action called on mount and by `onBeforeRouteUpdate`; validates destination and completes its Menu pause. |
+| GameView autosave-error watcher | Autosave failure action emits an explicit notification; the mounted view registers one consumer and disposes it on unmount. |
+| GameView modal-kind watcher | Custom-game activation supplies an exactly-once close callback. It resumes its interrupted game if still displayed; returning to that game completes the Menu pause through activation. |
+| SavedGamesView group fallback watcher | Refresh/activation actions resolve the current entry or latest valid fallback. |
+| SavedGamesView selected-entry watcher | Selection and refresh actions start/cancel owned details delivery. |
+| SavedGamesView route watcher | Successful saved-route commit clears overwrite intent and explicitly initialises/resolves selection; hook is disposed on unmount. |
+| ModalHost form watcher | `UiStateStore.showModal` creates a fresh form on every activation, including the same kind/payload. |
+| Chessboard position and board-edit watchers | One synchronous observer of these two external props clears transient selection/drag/promotion. Moves can originate from engines, history or another route outside the board's input actions. |
+| StartJourney readiness watcher | Read-only computed projection exposed through the journey API's `ready` getter; `stopReady` preserves explicit test teardown. |
 
-## 3. Return annotation cleanup
+The App and Chessboard comments state the external boundary and output. Vue disposes both watchers with their component scopes. Their exact inputs and reasons are the only observer exceptions in [CodeAuditPolicy.json](../scripts/CodeAuditPolicy.json). Adding another watcher requires a specific boundary justification and policy review; existing use is not precedent. Do not substitute polling, computed side effects or unrelated subscriptions for removed observers.
 
-Prefer inference on implementation functions whose bodies establish `void` or `Promise<void>`. Review named functions, object/class methods, arrows and callbacks in Vue scripts, TypeScript, journey tooling, tests and configuration. Keep necessary callable contracts and explain a non-obvious retained implementation annotation.
+## Return inference and enforcement
 
-| Inspected area | Functions with bodies to review | Bodyless signatures |
-| --- | ---: | ---: |
-| Application source, excluding tests | 285 | 86 |
-| Application tests | 31 | 21 |
-| Journey runtime/builders/definitions | 30 | 10 |
-| Journey tests | 8 | 2 |
-| End-to-end specs/helpers | 91 | 1 |
-| Total | 445 | 120 |
+After the ownership refactors, a TypeScript AST edit removed **440** redundant `void`/`Promise<void>` body return annotations across **90 files**. It selected function implementations, methods, arrows and callbacks rather than replacing text. Application, domain, stores, browser/NW.js adapters, UCI, journey tooling and test helpers now infer those returns. Type checking verifies the resulting call boundaries.
 
-Start with touched presentation functions such as `GameView.applyMoves`, `SavedGamesView.refreshGroups` and `App.saveSession`, then work through stores, domain/platform implementations and test/tooling helpers in separate changes. Inspect actual return statements and callers before removing an annotation, especially APIs inferred with `ReturnType` or callbacks whose return values are deliberately discarded.
+Bodyless interfaces/overloads and callable properties remain typed. Promise/Deferred generics, fields, `void` operators, meaningful result annotations and type predicates remain intact. The current audit has no implementation-return exceptions. Root configuration and audit tooling are included in ongoing inspection.
 
-Preserve interface/abstract/overload signatures, callable properties such as `() => void`, deliberate public API constraints and annotations needed for recursive or contextual inference. `new Promise<void>(...)`, `Deferred<void>`, a field of type `Promise<void>` and the `void somePromise` operator are not function return annotations. Do not use a textual search-and-replace over all occurrences of `void`.
+`npm run check:code` executes [CodeAudit.mjs](../scripts/CodeAudit.mjs) during `npm run build`. Its [syntax inspector](../scripts/audit/InspectSource.mjs) checks Vue scripts, TypeScript and tooling for:
 
-## Delivery order and acceptance
+- Unlisted watcher/effect calls, including imported aliases, Vue namespaces/bracket calls and direct `$watch`/Pinia `$subscribe` forms.
+- Generation/epoch/version-token candidates and mutable counters captured and compared around async work, including a renamed serial.
+- Implementation `void`/`Promise<void>` returns, separately from callable declarations and promise generics.
+- Duplicated allowed calls, missing justifications and stale policy entries.
 
-| Item | Priority | Scope and completion condition | Status |
-| --- | --- | --- | --- |
-| CLEAN-01 | P0 | Record this inventory and durable coding rules; distinguish prior verification from planned work | Complete: documentation/source audit only |
-| CLEAN-02 | P0 | Remove playback generation, audit revision/publication and turn/analysis ownership. No overlapping turn/playback work, unresolved old promises, late commits or stale UI completion | Planned |
-| CLEAN-03 | P0 | Replace modal/menu and route/session orchestration watchers with explicit owners. Preserve pause/resume, startup, back/forward, load and checkpoint recovery | Planned |
-| CLEAN-04 | P1 | Replace saved-selection/modal/board reset watchers; decide and document any narrowly retained appearance/readiness/prop observers | Planned |
-| CLEAN-05 | P1 | Remove redundant implementation return annotations by layer; review every candidate and record why any remain necessary | Planned |
-| CLEAN-06 | P1 | Reject unlisted watcher/effect calls, including aliased/namespace imports and equivalent Vue/Pinia observer forms. Baseline only named, justified transitional sites; remove entries as migrations finish. Report new counter/ownership-guard candidates for review and check annotation candidates separately from declarations; syntax checks do not prove lifecycle correctness | Planned |
+These checks identify syntax candidates; they do not prove arbitrary async code correct or replace ownership review. Actual resource IDs are retained by purpose. New aliases, identity guards and subscription forms still need semantic review.
 
-Each implementation tranche updates the owning low-level flow/component documentation, this inventory and its focused regression evidence. Keep the annotation-only changes separate from async behaviour changes. The cleanup is complete when invalidation counters are gone, every observer has been removed or justified at a real boundary, and all candidate implementation annotations have been removed or explained. No gameplay or persistence-schema change is required by this plan.
+## Verification
 
-## Verification by tranche
+Verification completed on 19 October 2026: **527 unit/application tests and 155 focused browser tests passed**. Reports are generated under ignored `test-results/`; source counts and discovery are not execution evidence. Earlier IO acceptance is recorded separately in [JourneyImplementation.md](JourneyImplementation.md#storage-failure-verification).
 
-- Ownership/playback: retain full-prefix validation; rapid start/stop/restart, game/history navigation, unmount, late success/error and independent engine tests. Use [Analysis suggestions](../e2e/journeys/analysis/Suggestion.spec.ts), [application suggestion checks](../journeys/__tests__/analysis/Suggestion.spec.ts), [engine races](../e2e/journeys/engine-races/) and [turn/store tests](../src/state/__tests__/GamesStore.spec.ts).
-- Route/modal/selection: cover startup and back/forward, one checkpoint per committed route, disabled/failed persistence, menu cancellation and same-kind dialog reopening. Keep [IO stale reads](../e2e/journeys/storage-failures/StaleRead.spec.ts), [SavedGamesView regressions](../src/views/__tests__/SavedGamesView.spec.ts), Settings, Saves, Recovery and clock/menu coverage.
-- Board selection: verify promotion/drag cancellation, orientation, history, engine replies, board editing and route reuse with the existing component and journey suites.
-- Return annotations: run `npm run type-check` across application/unit/end-to-end projects, inspect inferred contract changes and run the affected layer's tests. Use production build checking for boundary changes.
-- Run mounted application tests separately from browser tests. Start relevant browser acceptance with one worker and no retries on this host, retaining the existing assertion deadlines and reporting teardown errors separately from clean acceptance.
-- Validate the static audit itself with renamed/aliased observer calls and meaningful contract cases; do not present grep counts, discovery or the historical IO passes as execution of this cleanup.
+The broad browser regression run passed **128/128 tests**, with no errors, skips, failures, retries or flaky results and normal worker/server cleanup, in `test-results/CleanupBrowserResults.json`. It starts at `2026-10-19T14:34:08.123Z`, uses ports 4873/4874, one worker, a 180-second outer timeout and no retries, and took 569.67 seconds. It covers both projects: IO, Analysis, engine races, clock Menu ownership, Saves Load/ManagedSave/Deletion, Settings Appearance/Navigation and Fresh/Promotion cancellation. This run preceded the final drag reset correction, which has its own focused coverage.
 
-Implementation has not started beyond the already verified selected-details correction. Progress and new run artifacts belong here as the planned items are delivered; this plan adds no journey completion claims.
+Three new [board-component checks](../src/components/__tests__/Chessboard.spec.ts) cover external position/mode changes during a drag and pending-promotion replacement. With raw board fixtures matching GameView, the two drag cases first reproduced stale `chessPieceMoved` delivery; `clearSelection` now also clears its drag origin. All three pass in the final full unit run.
+
+After the board fix, **27/27 additional browser tests** passed with no errors, skips, failures, retries or flaky results and normal cleanup in `test-results/CleanupBoardBrowserResults.json`. This run starts at `2026-10-19T19:15:05.593Z`, uses ports 4973/4974, one worker, a 180-second outer timeout and no retries, and took 233.44 seconds. Its exact scope is Promotion `Gesture.spec.ts` and Setup `BoardEdit.spec.ts`, `Palette.spec.ts`, `Reset.spec.ts`: both colours/orientations, quiet/capture promotion, all palette pieces, history preservation, clear/reset and analysis restart. Together the two browser runs execute 155 distinct cases.
+
+The final complete unit and mounted application suite passed **527/527 tests across 84 files**, with no unhandled errors, in `test-results/CleanupFinalUnitResults.json`, starting at `2026-10-19T19:12:59.178Z`. It ran portable Node with `vitest run --maxWorkers=1 --pool=threads --testTimeout=90000` and took 110.72 seconds. This includes all 13 audit syntax regressions, four operation-owner cases, nine UI-store checks, four mounted route/dialog checks and three board-context checks. `npm run build` passed the code audit, application/unit/end-to-end TypeScript projects and production bundling. The code audit passed again after the final boundary comment/policy clarification. A read-only AST comparison against Git confirmed that all **81** previously existing code files changed outside the reviewed behaviour/test sites contain only the intended body-return annotation removals.
+
+- Ownership tests cover cleared timers, cancellation settlement before replacement, late uncancellable success/error, real failure recovery and disposal.
+- Mounted application tests cover exactly-once route checkpoints/back navigation, repeated dialog close, same-kind activation, stale dialog success/error/navigation and same-snapshot details success/error.
+- The full unit suite covers existing store/turn/runtime/UCI behaviour, all journey bootstraps and the audit's alias/counter/contract regressions.
+- Relevant browser acceptance covers IO, analysis, engine races, Menu pauses, saves, appearance/navigation and creation/promotion cancellation. Mounted application tests run separately from browsers, with one browser worker and no retries on this host.
+- The code audit, all TypeScript projects, production build, all 108 local links in 17 changed Markdown documents, and `git diff HEAD --check` pass. No whole-browser-catalogue or native NW.js runtime acceptance is claimed.

@@ -7,7 +7,7 @@ interface INodeModuleOverrides {
   childProcess: Pick<typeof import('node:child_process'), 'spawn'>;
 }
 let _overrides: INodeModuleOverrides | undefined;
-export function setNodeModuleOverrides(overrides?: INodeModuleOverrides): void {
+export function setNodeModuleOverrides(overrides?: INodeModuleOverrides) {
   _overrides = overrides;
 }
 

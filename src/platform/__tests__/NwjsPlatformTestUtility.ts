@@ -17,13 +17,13 @@ class FakeMediaQueryList {
   matches = false;
   private readonly _listeners = new Set<(event: { matches: boolean }) => void>();
 
-  addEventListener(_eventName: string, listener: (event: { matches: boolean }) => void): void {
+  addEventListener(_eventName: string, listener: (event: { matches: boolean }) => void) {
     this._listeners.add(listener);
   }
-  removeEventListener(_eventName: string, listener: (event: { matches: boolean }) => void): void {
+  removeEventListener(_eventName: string, listener: (event: { matches: boolean }) => void) {
     this._listeners.delete(listener);
   }
-  setMatches(matches: boolean): void {
+  setMatches(matches: boolean) {
     this.matches = matches;
     for (const listener of this._listeners) listener({ matches });
   }
@@ -32,10 +32,10 @@ class FakeNwWindow extends EventEmitter implements INwjsWindow {
   closeCalls: Array<boolean | undefined> = [];
   hideCalls = 0;
 
-  hide(): void {
+  hide() {
     this.hideCalls += 1;
   }
-  close(force?: boolean): void {
+  close(force?: boolean) {
     this.closeCalls.push(force);
   }
 }
@@ -74,7 +74,7 @@ class FakeChildProcess extends EventEmitter implements ISpawnedProcess {
     });
   }
 
-  queueResponse(command: string, lines: string[]): void {
+  queueResponse(command: string, lines: string[]) {
     this._responseByCommand.set(command, lines);
   }
   getCommandLog(): string[] {
@@ -87,9 +87,9 @@ class FakeChildProcess extends EventEmitter implements ISpawnedProcess {
     return true;
   }
   send(): boolean { return false; }
-  disconnect(): void {}
-  unref(): void {}
-  ref(): void {}
+  disconnect() {}
+  unref() {}
+  ref() {}
 }
 class FakeDirent {
   constructor(readonly name: string, private readonly _isDirectory: boolean) {}
@@ -128,7 +128,7 @@ class FakeFileSystemModule {
     error.code = code;
     return error;
   }
-  private ensureDirectoryTree(targetPath: string): void {
+  private ensureDirectoryTree(targetPath: string) {
     const segments = this.normalise(targetPath).split('/');
     for (let index = 1; index <= segments.length; index += 1) {
       const segmentPath = segments.slice(0, index).join('/');
@@ -139,10 +139,10 @@ class FakeFileSystemModule {
     const normalisedPath = this.normalise(targetPath);
     return this._directories.has(normalisedPath) || this._files.has(normalisedPath);
   }
-  private async access(targetPath: string): Promise<void> {
+  private async access(targetPath: string) {
     if (!this.hasEntry(targetPath)) throw this.createNodeError('ENOENT');
   }
-  private async mkdir(targetPath: string, options?: { recursive?: boolean }): Promise<void> {
+  private async mkdir(targetPath: string, options?: { recursive?: boolean }) {
     const normalisedPath = this.normalise(targetPath);
     const parentPath = this.normalise(path.dirname(targetPath));
     if (!options?.recursive && !this._directories.has(parentPath)) throw this.createNodeError('ENOENT');
@@ -161,7 +161,7 @@ class FakeFileSystemModule {
     }
     return [...childEntries.entries()].sort((left, right) => left[0].localeCompare(right[0])).map(([name, isDirectory]) => new FakeDirent(name, isDirectory));
   }
-  private async writeFile(targetPath: string, raw: string): Promise<void> {
+  private async writeFile(targetPath: string, raw: string) {
     const normalisedPath = this.normalise(targetPath);
     const parentPath = this.normalise(path.dirname(targetPath));
     if (!this._directories.has(parentPath)) throw this.createNodeError('ENOENT');
@@ -177,7 +177,7 @@ class FakeFileSystemModule {
     if (file === undefined) throw this.createNodeError('ENOENT');
     return { mtime: file.mtime };
   }
-  private async unlink(targetPath: string): Promise<void> {
+  private async unlink(targetPath: string) {
     if (!this._files.delete(this.normalise(targetPath))) throw this.createNodeError('ENOENT');
   }
 }
@@ -190,7 +190,7 @@ export class FakeNwjsEnvironment {
   private readonly _dialogResults: Array<{ kind: 'selected'; path: string } | { kind: 'cancelled' }> = [];
   private readonly _processes: FakeChildProcess[] = [];
 
-  queueDialogSelection(targetPath: string): void {
+  queueDialogSelection(targetPath: string) {
     this._dialogResults.push({ kind: 'selected', path: targetPath });
   }
   createInput(document: Document): HTMLInputElement & { oncancel: ((event: Event) => void) | null } {

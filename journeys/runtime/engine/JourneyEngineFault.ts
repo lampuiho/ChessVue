@@ -1,6 +1,6 @@
 export class JourneyEngineFault {
   private readonly _failures = new Map<string, number>();
-  failNext(path: string, count = 1): void {
+  failNext(path: string, count = 1) {
     if (!Number.isInteger(count) || count < 0) throw new Error('Failure count must be a non-negative integer.');
     this._failures.set(path, count);
   }
@@ -9,5 +9,5 @@ export class JourneyEngineFault {
     if (count) this._failures.set(path, count - 1);
     return count > 0;
   }
-  reset(): void { this._failures.clear(); }
+  reset() { this._failures.clear(); }
 }

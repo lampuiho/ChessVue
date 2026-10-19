@@ -255,7 +255,7 @@ function getCastlingSideForRook(position: IBoardPosition, boardId: BoardId, colo
   if (boardId === getCastlingRookBoardId(position, colour, CastlingType.CastlingQueenSide)) return CastlingType.CastlingQueenSide;
   return CastlingType.NotCastling;
 }
-function clearCastlingAvailability(position: IBoardPosition, colour: PlayerColour, type: CastlingType): void {
+function clearCastlingAvailability(position: IBoardPosition, colour: PlayerColour, type: CastlingType) {
   if (colour === PlayerColour.White) {
     if (type !== CastlingType.CastlingQueenSide) position.castlingAvailability.whiteKingSide = false;
     if (type !== CastlingType.CastlingKingSide) position.castlingAvailability.whiteQueenSide = false;
@@ -264,7 +264,7 @@ function clearCastlingAvailability(position: IBoardPosition, colour: PlayerColou
   if (type !== CastlingType.CastlingQueenSide) position.castlingAvailability.blackKingSide = false;
   if (type !== CastlingType.CastlingKingSide) position.castlingAvailability.blackQueenSide = false;
 }
-function _updateCastlingAvailability_(position: IBoardPosition, move: IMove, nextPosition: IBoardPosition): void {
+function _updateCastlingAvailability_(position: IBoardPosition, move: IMove, nextPosition: IBoardPosition) {
   const movingPiece = _getPiece(position, move.from)!;
   if (movingPiece.kind === PieceKind.King) clearCastlingAvailability(nextPosition, movingPiece.colour, CastlingType.NotCastling);
   else if (movingPiece.kind === PieceKind.Rook) {

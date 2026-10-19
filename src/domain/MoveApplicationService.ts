@@ -2,7 +2,7 @@ import type { BoardId, IBoardPosition, IChessPiece, IMove } from '@/contracts';
 import { applyMove as applyMoveToPosition, cloneBoardPosition } from '@/utility/chess/GameRuleUtility';
 
 /** drops the runtime metadata a direct board edit invalidates: check state, standard-start flag, cached fen */
-function _invalidateRuntimeMetadata(position: IBoardPosition): void {
+function _invalidateRuntimeMetadata(position: IBoardPosition) {
   position.$ = undefined;
 }
 

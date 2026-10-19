@@ -7,7 +7,7 @@ import { readFile } from '../../support/SaveInspection';
 import { selectGame } from '../../support/GameNavigation';
 import type { Page } from '@playwright/test';
 
-async function changeDefaults(page: Page): Promise<void> {
+async function changeDefaults(page: Page) {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Gameplay', exact: true }).click();
   await page.getByLabel('Game name', { exact: true }).fill('Default match');

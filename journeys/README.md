@@ -117,6 +117,8 @@ Engine profiles `journey://a` and `journey://b` implement UCI handshake, legal d
 
 ## Maintenance and checks
 
+Run `npm run check:code` for the shared watcher, async-counter and return-inference rules. The production build includes this audit. Journey readiness is a read-only computed API getter; it does not need an observer. See the [cleanup implementation and verification](../docs/CodeCleanupPlan.md) for retained boundaries and regression evidence.
+
 [Settings](definitions/settings/ScenarioReview.md) owns JRN-SETTINGS-01–11, with 24 seeded variants, one real Stockfish browser variant and four integration checks (including the migrated UI-04/UI-14 assertions). Coverage includes appearance/scale, theme subscription ownership, dirty navigation and reset, staged profiles/copies, copied assignments, typed options/UCI startup and session/save-root policies. Its seed preserves `settings-game` and the original preferences. The clean [Settings verification record](../docs/JourneyImplementation.md#settings-verification) covers all eleven groups. Settings acceptance uses both projects:
 
 ```powershell

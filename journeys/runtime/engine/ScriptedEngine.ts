@@ -39,16 +39,16 @@ export class ScriptedEngine extends JourneyEmitter implements ISpawnedProcess {
   diagnostics() {
     return { closed: this._closed, pendingTimer: this._timer !== undefined, searching: this._searching, listeners: this.listenerCount() + (this.stdout as unknown as JourneyEmitter).listenerCount() + (this.stderr as unknown as JourneyEmitter).listenerCount() };
   }
-  emitLine(line: string): void { (this.stdout as unknown as JourneyEmitter).emit('data', `${line}\n`); }
-  crash(): void { this.kill(); }
-  release(): void {
+  emitLine(line: string) { (this.stdout as unknown as JourneyEmitter).emit('data', `${line}\n`); }
+  crash() { this.kill(); }
+  release() {
     this.emitVariations();
     if (this._stopping || this._control?.searchKind(this._searchId) === 'player') this.finishSearch();
   }
-  private output(line: string): void {
+  private output(line: string) {
     if (!this._closed) this.emitLine(line);
   }
-  private command(command: string): void {
+  private command(command: string) {
     if (this._closed) return;
     if (command === 'uci') queueMicrotask(() => {
       this.output(`id name Journey ${this._path.endsWith('b') ? 'B' : 'A'}`);
@@ -66,7 +66,7 @@ export class ScriptedEngine extends JourneyEmitter implements ISpawnedProcess {
     }
     else if (command === 'quit') this.kill();
   }
-  private setPosition(command: string): void {
+  private setPosition(command: string) {
     const tokens = command.split(/\s+/);
     this._position = tokens[1] === 'startpos' ? createInitialBoardPosition() : parseFen(tokens.slice(2, 8));
     const movesIndex = tokens.indexOf('moves');
@@ -77,7 +77,7 @@ export class ScriptedEngine extends JourneyEmitter implements ISpawnedProcess {
       applyMove(this._position, toDetailedMove(this._position, raw));
     }
   }
-  private search(infinite: boolean): void {
+  private search(infinite: boolean) {
     clearTimeout(this._timer);
     this._timer = undefined;
     this._searching = true;
@@ -90,13 +90,13 @@ export class ScriptedEngine extends JourneyEmitter implements ISpawnedProcess {
       if (!infinite) this.finishSearch();
     }, 150);
   }
-  private emitVariations(): void {
+  private emitVariations() {
     createVariations(this._position, this._multiPv).forEach((pv, index) => {
       const score = (this._path.endsWith('b') ? 36 : 24) - index * 18;
       this.output(`info depth 12 multipv ${index + 1} score cp ${score} pv ${pv.map(getUci).join(' ')}`);
     });
   }
-  private finishSearch(): void {
+  private finishSearch() {
     clearTimeout(this._timer);
     this._timer = undefined;
     this._searching = false;

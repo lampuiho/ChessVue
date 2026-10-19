@@ -25,7 +25,7 @@ export function attachProcessLineListeners(process: ISpawnedProcess, onLine: (li
     process.removeListener('exit', onExit);
   };
 }
-export async function writeProcessLine(process: ISpawnedProcess, processHandle: ProcessHandle, command: string): Promise<void> {
+export async function writeProcessLine(process: ISpawnedProcess, processHandle: ProcessHandle, command: string) {
   if (!process.stdin) throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'engineClient', `Engine stdin is unavailable for process ${processHandle}.`);
   process.stdin.write(`${command}\n`);
 }

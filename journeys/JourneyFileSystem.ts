@@ -75,10 +75,10 @@ export class JourneyFileSystem {
   readFile(path: string): string | undefined {
     return this._files.get(normalise(path))?.raw;
   }
-  reset(): void {
+  reset() {
     this._storage.removeItem(this._key);
   }
-  private ensureDirectory(path: string): void {
+  private ensureDirectory(path: string) {
     const parts = normalise(path).split('/');
     for (let index = 1; index <= parts.length; index += 1) this._directories.add(parts.slice(0, index).join('/'));
   }
@@ -94,7 +94,7 @@ export class JourneyFileSystem {
     }
     return [...children].map(([child, directory]) => ({ name: child.slice(child.lastIndexOf('/') + 1), isDirectory: () => directory }));
   }
-  private persist(): void {
+  private persist() {
     const snapshot: IFileSystemSnapshot = { directories: [...this._directories], files: Object.fromEntries(this._files) };
     this._storage.setItem(this._key, JSON.stringify(snapshot));
   }

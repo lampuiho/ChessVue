@@ -39,7 +39,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     };
   }
   /** Insertion transfers ownership; duplicate repair mutates that supplied game before it enters the store. */
-  function repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>): void {
+  function repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>) {
     if (!existingGameIds.has(game.metadata.id)) return;
     game.metadata.id = crypto.randomUUID();
     game.metadata.updatedAt = new RecordTimestamp();
@@ -50,7 +50,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
   function getExistingGameIds(excludedGameId?: string): Set<string> {
     return new Set(games.value.filter((game) => game.metadata.id !== excludedGameId).map((game) => game.metadata.id));
   }
-  function replaceGame(game: IGame): void {
+  function replaceGame(game: IGame) {
     markRaw(game);
     const gameIndex = getGameIndex(game.metadata.id);
     if (gameIndex >= 0) games.value.splice(gameIndex, 1, game);
@@ -98,7 +98,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     if (insertedGame.analysis.seats.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
     return insertedGame;
   }
-  async function startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<void> {
+  async function startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest) {
     const analysisCleanup = analysis.disposeAnalysisForGame(game);
     await playerTurn.clearPlayerTurnRuntime(game);
     await analysisCleanup;
@@ -120,7 +120,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     playerTurn.requestPlayerMoveIfNeeded(game);
     await analysis.refreshAnalysisForGame(game);
   }
-  function startLiveGame(game: IGame, renderedPosition: ReturnType<GamePositionComposable['getRenderedPosition']>): void {
+  function startLiveGame(game: IGame, renderedPosition: ReturnType<GamePositionComposable['getRenderedPosition']>) {
     position.setLivePath(game, game.renderedPath, { node: position.getRenderedNode(game), position: renderedPosition });
     game.clockSnapshot = clock.startClock(game.clockSnapshot, renderedPosition.sideToMove, new ClockTimestamp());
     game.resultState = ResultState.Ongoing;

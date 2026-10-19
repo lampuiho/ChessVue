@@ -53,25 +53,25 @@ export function useGamePosition() {
     const runtime = requireGameRuntime(state);
     return runtime.livePosition ??= genPositionAtPath(state, state.livePath);
   }
-  function setRenderedPath(state: IGamePositionState, path: MovePath, cache?: ISelectionCache): void {
+  function setRenderedPath(state: IGamePositionState, path: MovePath, cache?: ISelectionCache) {
     state.renderedPath = path;
     const runtime = requireGameRuntime(state);
     runtime.renderedNode = cache?.node;
     runtime.renderedPosition = cache?.position;
   }
-  function setLivePath(state: IGamePositionState, path: MovePath | undefined, cache?: ISelectionCache): void {
+  function setLivePath(state: IGamePositionState, path: MovePath | undefined, cache?: ISelectionCache) {
     state.livePath = path;
     const runtime = requireGameRuntime(state);
     runtime.liveNode = cache?.node;
     runtime.livePosition = cache?.position;
   }
-  function appendRenderedPath(state: IGamePositionState, childNode: IMoveNode): void {
+  function appendRenderedPath(state: IGamePositionState, childNode: IMoveNode) {
     if (!state.renderedPath) throw new ReferenceError('Rendered path is not available')
     const parentNode = getRenderedNode(state);
     appendChildIndex(state.renderedPath, parentNode, childNode);
     if (state.$?.renderedNode) state.$.renderedNode = childNode;
   }
-  function appendLivePath(state: IGamePositionState, childNode: IMoveNode): void {
+  function appendLivePath(state: IGamePositionState, childNode: IMoveNode) {
     if (!state.livePath) throw new ReferenceError('Live path is not available.');
     const parentNode = getLiveNode(state);
     appendChildIndex(state.livePath, parentNode, childNode);
@@ -83,10 +83,10 @@ export function useGamePosition() {
     path.push(childIndex);
     return path;
   }
-  function invalidateRenderedPosition(state: IGamePositionState): void {
+  function invalidateRenderedPosition(state: IGamePositionState) {
     requireGameRuntime(state).renderedPosition = undefined;
   }
-  function replaceMoveTree(state: IGamePositionState, moveTree: IMoveTree): void {
+  function replaceMoveTree(state: IGamePositionState, moveTree: IMoveTree) {
     state.moveTree = moveTree;
     const runtime = requireGameRuntime(state);
     runtime.renderedNode = undefined;
@@ -103,7 +103,7 @@ export function useGamePosition() {
     if (!candidate || prefix.length >= candidate.length) return false;
     return prefix.every((segment, index) => candidate[index] === segment);
   }
-  function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode): void {
+  function hydrateMoveNode(node: IMoveNode, parent?: IMoveNode) {
     node.$ = parent ? { parent } : undefined;
     node.children.forEach((child) => hydrateMoveNode(child, node));
   }

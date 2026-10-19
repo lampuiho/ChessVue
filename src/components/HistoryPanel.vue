@@ -10,7 +10,7 @@ interface IHistoryRow { node: IMoveNode; path: MovePath; depth: number; isVariat
 const rows = computed<IHistoryRow[]>(() => {
   void props.revision;
   const result: IHistoryRow[] = [];
-  function walk(node: IMoveNode, path: MovePath, depth: number, isVariation: boolean): void {
+  function walk(node: IMoveNode, path: MovePath, depth: number, isVariation: boolean) {
     if (node.move) result.push({ node, path, depth, isVariation });
     const mainlineIndex = node.mainlineChildIndex;
     if (mainlineIndex !== undefined && node.children[mainlineIndex]) walk(node.children[mainlineIndex]!, [...path, mainlineIndex], depth, false);

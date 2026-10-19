@@ -14,7 +14,7 @@ test('JRN-IO-03 rejects a real browser storage write without accepting preferenc
   await page.getByRole('radio', { name: 'dark', exact: true }).check();
   await page.evaluate(() => {
     const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key: string, value: string): void {
+    Storage.prototype.setItem = function (key: string, value: string) {
       if (this === localStorage && key === 'chessvue:files:v1' && JSON.parse(value).files['settings.json']) {
         Storage.prototype.setItem = original;
         throw new DOMException('Controlled browser quota rejection', 'QuotaExceededError');

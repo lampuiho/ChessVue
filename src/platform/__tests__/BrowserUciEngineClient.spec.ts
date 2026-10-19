@@ -11,7 +11,7 @@ class FakeWorker extends EventTarget {
   terminated = false;
   respondToUci = true;
   constructor(readonly url: URL) { super(); }
-  postMessage(command: string): void {
+  postMessage(command: string) {
     this.commands.push(command);
     const output = command === 'uci' && this.respondToUci ? ['option name Hash type spin default 16 min 1 max 1024', 'uciok']
       : command === 'isready' ? ['readyok']
@@ -21,8 +21,8 @@ class FakeWorker extends EventTarget {
       if (!this.terminated) for (const line of output) this.dispatchEvent(new MessageEvent('message', { data: line }));
     });
   }
-  terminate(): void { this.terminated = true; }
-  crash(): void { this.dispatchEvent(new ErrorEvent('error', { message: 'WASM load failed', cancelable: true })); }
+  terminate() { this.terminated = true; }
+  crash() { this.dispatchEvent(new ErrorEvent('error', { message: 'WASM load failed', cancelable: true })); }
 }
 let pinia: Pinia;
 let registry: BrowserEngineRegistry;

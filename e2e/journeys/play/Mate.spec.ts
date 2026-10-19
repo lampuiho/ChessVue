@@ -6,7 +6,7 @@ import { selectGame } from '../../support/GameNavigation';
 import { saveCurrentGame } from '../../support/GameSave';
 import { createTimedPlay, expectStoppedClock } from './PlaySetup';
 
-async function prepareMate(page: Page, mode: string): Promise<void> {
+async function prepareMate(page: Page, mode: string) {
   await openJourney(page, 'play');
   if (mode === 'seeded') await selectGame(page, 'play-mate', 'One move to checkmate');
   else {

@@ -3,7 +3,7 @@ import type { IJourneySearch, SearchKind } from '../../../journeys/runtime/engin
 import { openJourney } from '../../support/JourneyBootstrap';
 import { selectGame } from '../../support/GameNavigation';
 export { analysisSeat } from '../analysis/AnalysisAction';
-export async function openRace(page: Page): Promise<void> {
+export async function openRace(page: Page) {
   await openJourney(page, 'engine-races');
   await page.evaluate(() => window.chessVueJourney.engines.hold('player'));
 }
@@ -16,13 +16,13 @@ export async function latestSearch(page: Page, kind: SearchKind, path = 'journey
   await expect.poll(read).toBeTruthy();
   return (await read())!;
 }
-export async function release(page: Page, id: number): Promise<void> {
+export async function release(page: Page, id: number) {
   await page.evaluate((id) => window.chessVueJourney.engines.release(id), id);
 }
-export async function emit(page: Page, id: number, line: string): Promise<void> {
+export async function emit(page: Page, id: number, line: string) {
   await page.evaluate(({ id, line }) => window.chessVueJourney.engines.emit(id, line), { id, line });
 }
-export async function releaseReplacement(page: Page, old: IJourneySearch, seat: Locator): Promise<void> {
+export async function releaseReplacement(page: Page, old: IJourneySearch, seat: Locator) {
   // An already issued intermediate request must drain its own UCI stop boundary too.
   let previous = old.id;
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -44,7 +44,7 @@ export async function openAnalysisRace(page: Page): Promise<IJourneySearch[]> {
 export async function playerSearchCount(page: Page): Promise<number> {
   return page.evaluate(() => window.chessVueJourney.engines.searches().filter((s) => s.kind === 'player').length);
 }
-export async function seedIndependentOutput(page: Page): Promise<void> {
+export async function seedIndependentOutput(page: Page) {
   await selectGame(page, 'race-independent', 'Independent analysis game');
   const after = await page.evaluate(() => window.chessVueJourney.engines.searches().at(-1)?.id ?? 0);
   await page.getByRole('button', { name: 'Refresh analysis', exact: true }).click();

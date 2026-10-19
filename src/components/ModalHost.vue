@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   AppModalKind,
@@ -25,10 +25,7 @@ const settingsStore = useSettingsStore();
 const gamesStore = useGamesStore();
 const enginesStore = useEnginesStore();
 const savedGamesStore = useSavedGamesStore();
-const errorMessage = ref('');
-const isWorking = ref(false);
-const selectedPlayer = ref('local');
-const selectedEngineId = ref('');
+const form = computed(() => uiStateStore.modalForm);
 const modal = computed(() => uiStateStore.modalState);
 const engines = computed(() => {
   void settingsStore.settings;
@@ -40,16 +37,6 @@ const availableAnalysisEngines = computed(() => {
   if (current?.kind !== AppModalKind.AnalysisEngineSelection) return [];
   return engines.value.filter((candidate) => !current.payload.currentAnalysisEngines.some((assigned) => assigned.displayName === candidate.displayName));
 });
-
-watch(modal, (nextModal) => {
-  errorMessage.value = '';
-  selectedEngineId.value = '';
-  if (nextModal?.kind === AppModalKind.PlayerSelection) {
-    selectedPlayer.value = nextModal.payload.currentPlayerType === PlayerType.Engine
-      ? 'unchanged'
-      : nextModal.payload.currentPlayerType === PlayerType.Local ? 'local' : 'none';
-  }
-}, { immediate: true });
 
 function mutableGame(gameId: string): IGame | undefined {
   return gamesStore.getGame(gameId) as unknown as IGame | undefined;
@@ -67,18 +54,18 @@ function assignedPlayer(selection: string, colour: PlayerColour): IPlayer | unde
   };
   return enginePlayer;
 }
-async function createGame(request: ICreateGameRequest): Promise<void> {
-  const current = modal.value;
-  await run(async () => {
+async function createGame(request: ICreateGameRequest) {
+  await run(async (signal) => {
     await validateRequiredEngines(request);
-    if (modal.value !== current) return;
+    signal.throwIfAborted();
     const game = await gamesStore.createGame(request);
+    signal.throwIfAborted();
     uiStateStore.openTab(game.metadata.id);
     await router.push(`/game/${game.metadata.id}`);
-    uiStateStore.hideModal();
+    await closeModal(signal);
   });
 }
-async function validateRequiredEngines(request: ICreateGameRequest): Promise<void> {
+async function validateRequiredEngines(request: ICreateGameRequest) {
   if (!request.whitePlayer || !request.blackPlayer) return;
   for (const player of [request.whitePlayer, request.blackPlayer]) {
     if (player.type !== PlayerType.Engine) continue;
@@ -90,47 +77,47 @@ async function validateRequiredEngines(request: ICreateGameRequest): Promise<voi
     }
   }
 }
-async function confirmPlayerSelection(): Promise<void> {
+async function confirmPlayerSelection() {
   const current = modal.value;
   if (current?.kind !== AppModalKind.PlayerSelection) return;
   const game = mutableGame(current.payload.gameId);
   if (!game) return;
-  await run(async () => {
-    if (selectedPlayer.value !== 'unchanged') await gamesStore.reassignPlayer(game, current.payload.colour, assignedPlayer(selectedPlayer.value, current.payload.colour));
-    uiStateStore.hideModal();
+  await run(async (signal) => {
+    if (form.value.selectedPlayer !== 'unchanged') await gamesStore.reassignPlayer(game, current.payload.colour, assignedPlayer(form.value.selectedPlayer, current.payload.colour));
+    await closeModal(signal);
   });
 }
-async function confirmAnalysisEngine(): Promise<void> {
+async function confirmAnalysisEngine() {
   const current = modal.value;
   if (current?.kind !== AppModalKind.AnalysisEngineSelection) return;
   const game = mutableGame(current.payload.gameId);
-  const engine = engines.value.find((candidate) => candidate.id === selectedEngineId.value);
+  const engine = engines.value.find((candidate) => candidate.id === form.value.selectedEngineId);
   if (!game || !engine) return;
-  await run(async () => {
+  await run(async (signal) => {
     const adding = gamesStore.addAnalysisEngine(game, engine);
     const seat = game.analysis.seats.find((candidate) => candidate.assignedEngine.displayName === engine.displayName);
     await adding;
     const index = seat ? game.analysis.seats.indexOf(seat) : -1;
     if (game.gameState !== 'boardEdit' && index >= 0) await gamesStore.retryAnalysis(game, index);
-    uiStateStore.hideModal();
+    await closeModal(signal);
   });
 }
-async function confirmSetupStart(request: ICreateGameRequest): Promise<void> {
+async function confirmSetupStart(request: ICreateGameRequest) {
   const current = modal.value;
   if (current?.kind !== AppModalKind.StartGameFromSetup) return;
   const game = mutableGame(current.payload.gameId);
   if (!game) return;
-  await run(async () => {
+  await run(async (signal) => {
     await validateRequiredEngines(request);
-    if (modal.value !== current) return;
+    signal.throwIfAborted();
     await gamesStore.startGameFromSetup(game, request);
-    uiStateStore.hideModal();
+    await closeModal(signal);
   });
 }
-async function confirmSimpleAction(): Promise<void> {
+async function confirmSimpleAction() {
   const current = modal.value;
   if (!current) return;
-  await run(async () => {
+  await run(async (signal) => {
     if (current.kind === AppModalKind.Resign) {
       const game = mutableGame(current.payload.gameId);
       if (game) await gamesStore.resignGame(game, current.payload.colour);
@@ -138,6 +125,7 @@ async function confirmSimpleAction(): Promise<void> {
       const game = mutableGame(current.payload.gameId);
       if (game) {
         await gamesStore.offerDraw(game);
+        signal.throwIfAborted();
         uiStateStore.showModal({ kind: AppModalKind.DrawResolve, payload: { gameId: current.payload.gameId, offeringColour: current.payload.offeringColour, respondingColour: current.payload.offeringColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White } });
         return;
       }
@@ -149,69 +137,76 @@ async function confirmSimpleAction(): Promise<void> {
       settingsStore.discardPendingSettings();
       await router.push(current.payload.targetRoute);
     } else if (current.kind === AppModalKind.DeleteGame) await savedGamesStore.deleteSave(current.payload.gameId);
-    uiStateStore.hideModal();
+    await closeModal(signal);
   });
 }
-async function declineDraw(): Promise<void> {
+async function declineDraw() {
   const current = modal.value;
   if (current?.kind !== AppModalKind.DrawResolve) return;
   const game = mutableGame(current.payload.gameId);
-  if (game) await gamesStore.declineDrawOffer(game);
-  uiStateStore.hideModal();
+  await run(async (signal) => {
+    if (game) await gamesStore.declineDrawOffer(game);
+    await closeModal(signal);
+  });
 }
-async function choosePromotion(pieceKind: PieceKind): Promise<void> {
+async function choosePromotion(pieceKind: PieceKind) {
   const current = modal.value;
   if (current?.kind !== AppModalKind.Promotion) return;
   const game = mutableGame(current.payload.gameId);
   if (!game) return;
   const position = MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, game.renderedPath));
   const move = toDetailedMove(position, { from: current.payload.move.from, to: current.payload.move.to, promotionPiece: pieceKind });
-  await run(async () => {
+  await run(async (signal) => {
     await gamesStore.makeMove(game, move);
-    uiStateStore.hideModal();
+    await closeModal(signal);
   });
 }
-async function run(action: () => Promise<void>): Promise<void> {
-  if (isWorking.value) return;
-  isWorking.value = true;
-  errorMessage.value = '';
+function closeModal(signal: AbortSignal) {
+  if (!signal.aborted) return uiStateStore.hideModal();
+}
+async function run(action: (signal: AbortSignal) => Promise<void>) {
+  const currentForm = form.value;
+  const signal = uiStateStore.getModalSignal();
+  if (currentForm.isWorking) return;
+  currentForm.isWorking = true;
+  currentForm.errorMessage = '';
   try {
-    await action();
+    await action(signal);
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'The action could not be completed.';
+    if (!signal.aborted) currentForm.errorMessage = error instanceof Error ? error.message : 'The action could not be completed.';
   } finally {
-    isWorking.value = false;
+    currentForm.isWorking = false;
   }
 }
 </script>
 
 <template>
-  <NewGameModal v-if="modal?.kind === AppModalKind.NewGame && settingsStore.draftSettings" :settings="settingsStore.draftSettings" :engines="engines" :error-message="errorMessage" :busy="isWorking" @create-requested="createGame" @cancel-requested="uiStateStore.hideModal" />
-  <NewGameModal v-else-if="modal?.kind === AppModalKind.StartGameFromSetup && settingsStore.draftSettings && setupGame" :settings="settingsStore.draftSettings" :engines="engines" :setup-game="setupGame" :error-message="errorMessage" :busy="isWorking" @create-requested="confirmSetupStart" @cancel-requested="uiStateStore.hideModal" />
+  <NewGameModal v-if="modal?.kind === AppModalKind.NewGame && settingsStore.draftSettings" :settings="settingsStore.draftSettings" :engines="engines" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="createGame" @cancel-requested="uiStateStore.hideModal" />
+  <NewGameModal v-else-if="modal?.kind === AppModalKind.StartGameFromSetup && settingsStore.draftSettings && setupGame" :settings="settingsStore.draftSettings" :engines="engines" :setup-game="setupGame" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="confirmSetupStart" @cancel-requested="uiStateStore.hideModal" />
   <ModalDialog v-else-if="modal?.kind === AppModalKind.PlayerSelection" title="Choose a player" :subtitle="`Assign the ${modal.payload.colour} seat for this game.`" @dismissed="uiStateStore.hideModal">
     <div class="choice-list">
-      <label v-if="modal.payload.currentPlayerType === PlayerType.Engine" class="choice-card"><input v-model="selectedPlayer" type="radio" value="unchanged"><span class="choice-card__piece">♞</span><span><strong>Keep {{ modal.payload.currentAssignedEngine?.displayName }}</strong><small>Keep the engine and options assigned to this game.</small></span></label>
-      <label class="choice-card"><input v-model="selectedPlayer" type="radio" value="none"><span class="choice-card__piece">○</span><span><strong>Unassigned</strong><small>Turn this game into a free analysis workspace.</small></span></label>
-      <label class="choice-card"><input v-model="selectedPlayer" type="radio" value="local"><span class="choice-card__piece">♙</span><span><strong>Local player</strong><small>Moves are entered on this board.</small></span></label>
-      <label v-for="engine in engines" :key="engine.id" class="choice-card"><input v-model="selectedPlayer" type="radio" :value="`engine:${engine.id}`"><span class="choice-card__piece">♞</span><span><strong>{{ engine.displayName }}</strong><small>Configured UCI engine.</small></span></label>
+      <label v-if="modal.payload.currentPlayerType === PlayerType.Engine" class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="unchanged"><span class="choice-card__piece">♞</span><span><strong>Keep {{ modal.payload.currentAssignedEngine?.displayName }}</strong><small>Keep the engine and options assigned to this game.</small></span></label>
+      <label class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="none"><span class="choice-card__piece">○</span><span><strong>Unassigned</strong><small>Turn this game into a free analysis workspace.</small></span></label>
+      <label class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="local"><span class="choice-card__piece">♙</span><span><strong>Local player</strong><small>Moves are entered on this board.</small></span></label>
+      <label v-for="engine in engines" :key="engine.id" class="choice-card"><input v-model="form.selectedPlayer" type="radio" :value="`engine:${engine.id}`"><span class="choice-card__piece">♞</span><span><strong>{{ engine.displayName }}</strong><small>Configured UCI engine.</small></span></label>
     </div>
-    <p v-if="errorMessage" class="inline-message inline-message--error">{{ errorMessage }}</p>
+    <p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="confirmPlayerSelection">Assign player</button></template>
   </ModalDialog>
   <ModalDialog v-else-if="modal?.kind === AppModalKind.AnalysisEngineSelection" title="Add analysis engine" subtitle="Assign a configured engine to this board." @dismissed="uiStateStore.hideModal">
     <div v-if="engines.length" class="choice-list">
-      <label v-for="engine in availableAnalysisEngines" :key="engine.id" class="choice-card"><input v-model="selectedEngineId" type="radio" :value="engine.id"><span class="choice-card__piece">♝</span><span><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'Executable not selected' }}</small></span></label>
+      <label v-for="engine in availableAnalysisEngines" :key="engine.id" class="choice-card"><input v-model="form.selectedEngineId" type="radio" :value="engine.id"><span class="choice-card__piece">♝</span><span><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'Executable not selected' }}</small></span></label>
     </div>
     <p v-else class="inline-message">Add an engine profile in Settings before assigning analysis.</p>
-    <p v-if="errorMessage" class="inline-message inline-message--error">{{ errorMessage }}</p>
-    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" :disabled="!selectedEngineId" @click="confirmAnalysisEngine">Add engine</button></template>
+    <p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
+    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" :disabled="!form.selectedEngineId" @click="confirmAnalysisEngine">Add engine</button></template>
   </ModalDialog>
   <ModalDialog v-else-if="modal?.kind === AppModalKind.Promotion" title="Choose promotion" subtitle="Select the piece your pawn should become." @dismissed="uiStateStore.hideModal">
     <div class="promotion-row"><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" @click="choosePromotion(kind)">{{ ({ queen: '♕', rook: '♖', bishop: '♗', knight: '♘' } as Record<string, string>)[kind] }}</button></div>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button></template>
   </ModalDialog>
   <ModalDialog v-else-if="modal?.kind === AppModalKind.Resign" title="Resign this game?" subtitle="This records the game as finished. You can still review the position afterwards." @dismissed="uiStateStore.hideModal">
-    <p>Confirm that {{ modal.payload.colour }} resigns.</p><p v-if="errorMessage" class="inline-message inline-message--error">{{ errorMessage }}</p>
+    <p>Confirm that {{ modal.payload.colour }} resigns.</p><p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="confirmSimpleAction">Resign</button></template>
   </ModalDialog>
   <ModalDialog v-else-if="modal?.kind === AppModalKind.DrawOffer" title="Offer a draw?" subtitle="The other side will be asked to accept or decline." @dismissed="uiStateStore.hideModal">

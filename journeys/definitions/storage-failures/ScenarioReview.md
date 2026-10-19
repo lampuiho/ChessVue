@@ -30,7 +30,7 @@ SCN-EXPORT-01, BR-EXPORT-01-IO-ERROR. Classification: aligned. Picker selection 
 
 ## JRN-IO-07
 
-SCN-SAVE-02/03 and SCN-LOAD-01. Classification: aligned with stale-result isolation. The selected-entry watcher's cleanup invalidates pending delivery when the selection changes or the view unmounts; it needs no shared counter. A captured Opening details read completes after selecting Current, changing to the other group, entering Save with a Current overwrite confirmation, or unmounting to the board. Its old two-ply payload cannot replace the current selection, another group's name/details or the confirmed overwrite target. Component regressions also reselect the same snapshot before its original read succeeds or fails, preserving its fresh details in both cases. All source bytes remain intact before explicit confirmation; the intended Current target alone can then be replaced.
+SCN-SAVE-02/03 and SCN-LOAD-01. Classification: aligned with stale-result isolation. Selection/refresh actions explicitly own details delivery through `OperationOwner`; selection replacement and unmount cancel delivery without a watcher or shared counter. A captured Opening details read completes after selecting Current, changing to the other group, entering Save with a Current overwrite confirmation, or unmounting to the board. Its old two-ply payload cannot replace the current selection, another group's name/details or the confirmed overwrite target. Component regressions also reselect the same snapshot before its original read succeeds or fails, preserving its fresh details in both cases. All source bytes remain intact before explicit confirmation; the intended Current target alone can then be replaced.
 
 ## JRN-IO-08
 

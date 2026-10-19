@@ -4,7 +4,7 @@ import { openJourney } from '../../support/JourneyBootstrap';
 import { square, playMove } from '../../support/BoardInteraction';
 import { openCustomGame } from '../../support/GameCreation';
 import { applySettings, returnToGame } from './SettingsAction';
-async function expectReachable(page: Page, control: Locator): Promise<void> {
+async function expectReachable(page: Page, control: Locator) {
   await control.scrollIntoViewIfNeeded();
   await expect(control).toBeVisible();
   const box = (await control.boundingBox())!;

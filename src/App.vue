@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, watchEffect } from 'vue';
+import { computed, onMounted, onScopeDispose, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import { ResolvedThemeMode, ThemeMode, type IThemeProfileSnapshot } from '@/contracts';
@@ -28,12 +28,13 @@ const resolvedThemeMode = computed(() => {
   if (settings.value?.appearance.themeMode === ThemeMode.Light) return ResolvedThemeMode.Light;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? ResolvedThemeMode.Dark : ResolvedThemeMode.Light;
 });
-function applyThemeProfile(root: HTMLElement, profile: IThemeProfileSnapshot): void {
+function applyThemeProfile(root: HTMLElement, profile: IThemeProfileSnapshot) {
   for (const [name, value] of Object.entries(profile.cssVariables)) {
     root.style.setProperty(`--theme-${profile.colourScheme}-${name.slice(2)}`, value);
   }
 }
-watchEffect(() => {
+// Output-only bridge to document chrome; appearance changes can originate from the host theme.
+watch([appearanceProjection, () => settings.value?.appearance, resolvedThemeMode], () => {
   const root = document.documentElement;
   const mode = resolvedThemeMode.value;
   const lightProfile = appearanceProjection.value?.lightThemeProfile ?? defaultLightThemeProfile;
@@ -52,9 +53,9 @@ watchEffect(() => {
   if (colourSchemeMeta) colourSchemeMeta.content = themeMode === ThemeMode.System ? 'light dark' : themeMode;
   const themeColourMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (themeColourMeta) themeColourMeta.content = (mode === ResolvedThemeMode.Light ? lightProfile : darkProfile).cssVariables['--surface-app'];
-});
+}, { immediate: true });
 
-async function restoreWorkspace(): Promise<void> {
+async function restoreWorkspace() {
   if (!gameSession.value) return;
   const requestedIds = [...gameSession.value.openGameIds];
   if (!settings.value?.gameSession.restorePreviousSession) {
@@ -82,7 +83,7 @@ async function restoreWorkspace(): Promise<void> {
 function isCommittedRoute(path: string): path is NonNullable<typeof gameSession.value>['activeRoute'] {
   return /^\/home$|^\/game\/.+$|^\/saved-games\/load(?:\/.+)?$|^\/saved-games\/save\/.+$|^\/settings\/(session|gameplay|appearance|engines)$/.test(path);
 }
-async function saveSession(): Promise<void> {
+async function saveSession() {
   try {
     await uiStateStore.saveGameSession();
     sessionSaveError.value = '';
@@ -110,12 +111,14 @@ onMounted(async () => {
   startupComplete.value = true;
   await saveSession();
 });
-watch(() => route.path, (path) => {
-  if (!isReady.value || !isCommittedRoute(path)) return;
+const removeRouteCheckpoint = router.afterEach((to, from, failure) => {
+  const path = to.path;
+  if (failure || to.path === from.path || !isReady.value || !isCommittedRoute(path)) return;
   if (path.startsWith('/game/')) uiStateStore.setActiveGame(path.slice('/game/'.length));
   else uiStateStore.setActiveRoute(path);
   void saveSession();
 });
+onScopeDispose(removeRouteCheckpoint);
 </script>
 
 <template>

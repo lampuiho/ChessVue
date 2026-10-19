@@ -24,3 +24,5 @@ Render the route-level ChessVue saved-games surface for internal save and load f
 - `/saved-games/load/:name` replaces the `Select` action with `Load`.
 - `/saved-games/save/:name` keeps the save-name text box focused on open and uses `Cancel` plus `Save`.
 - The `Save` action is disabled with inline feedback while the name is blank, reserved, or path-like. The store receives only an accepted value and does not repeat this form validation.
+- Selection, refresh and successful route-commit actions explicitly resolve the snapshot and start details delivery. `OperationOwner` aborts superseded delivery, settles before replacement and disposes on unmount; underlying read success/rejection remains handled. This view has no watchers.
+- Saved-route activation clears pending overwrite intent and preserves the save-name draft. The router callback is removed on unmount.

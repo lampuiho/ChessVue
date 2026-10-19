@@ -81,14 +81,14 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     ) return PlayerColour.White;
     return PlayerColour.Black;
   }
-  function updateGameStateAfterPosition(game: IGame, positionColour: PlayerColour): void {
+  function updateGameStateAfterPosition(game: IGame, positionColour: PlayerColour) {
     if (game.resultState !== ResultState.Ongoing) game.gameState = getAnalysisState(positionColour);
     else if (isLiveState(game.gameState)) game.gameState = getLiveState(positionColour);
     else if (isPausedLiveState(game.gameState)) game.gameState = getPausedState(positionColour);
     else if (isAnyLiveAnalysisState(game.gameState)) game.gameState = getLiveAnalysisState(getLiveAnchorColour(game), positionColour, isPausedLiveAnalysisState(game.gameState));
     else game.gameState = getAnalysisState(positionColour);
   }
-  function updateGameResultFromLivePosition(game: IGame, boardPosition: IBoardPosition): void {
+  function updateGameResultFromLivePosition(game: IGame, boardPosition: IBoardPosition) {
     const resolvedResult = resolveGameResult(boardPosition);
     game.resultState = resolvedResult.resultState;
     game.resultReason = resolvedResult.resultReason;
@@ -97,7 +97,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
       game.drawOfferState = undefined;
     }
   }
-  function assertNotPausedForAction(game: IGame, action: string): void {
+  function assertNotPausedForAction(game: IGame, action: string) {
     if (!isPausedState(game.gameState)) return;
     throw new Error(`${action} is not allowed while gameState is ${game.gameState}.`);
   }
@@ -105,16 +105,16 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     return isPausedLiveAnalysisState(game.gameState) && !!game.$?.pauseReasons?.includes(PauseReason.Analysis)
       && game.$.pauseReasons.every((reason) => reason === PauseReason.Analysis);
   }
-  function assertExplorationAllowed(game: IGame, action: string): void {
+  function assertExplorationAllowed(game: IGame, action: string) {
     if (game.gameState === GameState.BoardEdit) throw new Error(`${action} is not allowed while editing the board.`);
     if (!canExploreAnalysis(game)) assertNotPausedForAction(game, action);
   }
-  function assertOngoingLiveAction(game: IGame, action: string): void {
+  function assertOngoingLiveAction(game: IGame, action: string) {
     assertNotPausedForAction(game, action);
     if (isLiveTurnReadyForMove(game)) return;
     throw new Error(`${action} is only allowed for an ongoing game at its live position.`);
   }
-  function assertMoveAllowed(game: IGame): void {
+  function assertMoveAllowed(game: IGame) {
     if (canExploreAnalysis(game)) return;
     switch (game.gameState) {
       case GameState.LiveWhiteTurn:
@@ -136,7 +136,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
   function isLiveHistoryReview(game: LiveGame): boolean {
     return position.isPathPrefix(game.renderedPath, game.livePath);
   }
-  async function resignGame(game: IGame, colour: PlayerColour): Promise<void> {
+  async function resignGame(game: IGame, colour: PlayerColour) {
     assertOngoingLiveAction(game, 'Resignation');
     await clearPlayerTurnRuntime(game);
     game.resultState = colour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
@@ -147,13 +147,13 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     touchGame(game);
     refreshRuntimeRegistrations(game);
   }
-  async function offerDraw(game: IGame): Promise<void> {
+  async function offerDraw(game: IGame) {
     assertOngoingLiveAction(game, 'Draw offer');
     const offeringColour = position.getRenderedPosition(game).sideToMove;
     game.drawOfferState = { offeringColour, respondingColour: getOpponentColour(offeringColour), direction: DrawOfferDirection.Outgoing };
     touchGame(game);
   }
-  async function acceptDrawOffer(game: IGame): Promise<void> {
+  async function acceptDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw acceptance');
     if (!game.drawOfferState) return;
     await clearPlayerTurnRuntime(game);
@@ -165,12 +165,12 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     touchGame(game);
     refreshRuntimeRegistrations(game);
   }
-  async function declineDrawOffer(game: IGame): Promise<void> {
+  async function declineDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw decline');
     game.drawOfferState = undefined;
     touchGame(game);
   }
-  async function withdrawDrawOffer(game: IGame): Promise<void> {
+  async function withdrawDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw withdrawal');
     if (game.drawOfferState?.direction === DrawOfferDirection.Outgoing) game.drawOfferState = undefined;
     touchGame(game);

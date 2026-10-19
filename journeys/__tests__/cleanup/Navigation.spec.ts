@@ -1,0 +1,24 @@
+import { flushPromises } from '@vue/test-utils';
+import { expect, it, vi } from 'vitest';
+import { boot } from '../support/UiHarness';
+it('checkpoints each committed route once while ignoring duplicate and query-only navigation', async () => {
+  const { api, router } = await boot('storage-failures');
+  await flushPromises();
+  const writes = () => api.storage.operations().filter((call) => call.operation === 'writeTextFile' && call.path === 'game-session.json');
+  expect(writes()).toHaveLength(1);
+  await router.push('/settings/session');
+  await flushPromises();
+  expect(writes()).toHaveLength(2);
+  await router.push('/settings/session?tab=preferences');
+  await router.push('/settings/session?tab=preferences');
+  await flushPromises();
+  expect(writes()).toHaveLength(2);
+  await router.push('/settings/gameplay');
+  await flushPromises();
+  expect(writes()).toHaveLength(3);
+  router.back();
+  await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/session'));
+  await flushPromises();
+  expect(writes()).toHaveLength(4);
+  expect(JSON.parse(api.readFile('game-session.json')!).activeRoute).toBe('/settings/session');
+});

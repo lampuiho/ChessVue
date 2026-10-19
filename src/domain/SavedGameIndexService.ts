@@ -19,7 +19,7 @@ function isSafeSegment(value: string): boolean {
   return !!value.trim() && !/[\\/:*?"<>|\x00-\x1f]/.test(value) && !/[. ]$/.test(value)
     && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value);
 }
-function assertSafeSegment(value: string): void {
+function assertSafeSegment(value: string) {
   if (!isSafeSegment(value)) throw new Error('Managed save identity and name must be single file-name segments.');
 }
 function compareSaveEntries(left: ISavedGameFileEntry, right: ISavedGameFileEntry): number {

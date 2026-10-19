@@ -6,7 +6,7 @@ import SavedGamesView from '../SavedGamesView.vue';
 
 const dependency = vi.hoisted(() => ({
   route: { name: 'save-game', params: { name: 'game-a' }, fullPath: '/saved-games/save/game-a' },
-  router: { push: vi.fn(), replace: vi.fn() },
+  router: { push: vi.fn(), replace: vi.fn(), afterEach: vi.fn(() => () => {}) },
   gamesStore: { getGame: vi.fn() },
   savedGamesStore: { listSavedGames: vi.fn(), loadGame: vi.fn(), saveGame: vi.fn() },
   uiStateStore: { gameSession: { activeGameId: 'game-a' } },
@@ -19,16 +19,16 @@ vi.mock('@/state', () => ({
 }));
 let wrapper: VueWrapper;
 let game: IGame;
-async function mountView(): Promise<void> {
+async function mountView() {
   wrapper = mount(SavedGamesView);
   await flushPromises();
 }
-async function requestSave(name: string): Promise<void> {
+async function requestSave(name: string) {
   await wrapper.get('#save-name').setValue(name);
   await wrapper.get('.library-actions .text-button--primary').trigger('click');
   await flushPromises();
 }
-async function selectSnapshot(name: string): Promise<void> {
+async function selectSnapshot(name: string) {
   await wrapper.findAll('.save-row__content').find((row) => row.get('strong').text() === name)!.trigger('click');
   await flushPromises();
 }

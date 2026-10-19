@@ -6,7 +6,7 @@ export async function openCustomGame(page: Page): Promise<Locator> {
   await expect(dialog).toBeVisible();
   return dialog;
 }
-export async function setCustomClock(dialog: Locator, minutes = '5', increment = '2'): Promise<void> {
+export async function setCustomClock(dialog: Locator, minutes = '5', increment = '2') {
   await dialog.getByLabel('Clock', { exact: true }).selectOption('custom');
   await dialog.getByLabel('Minutes', { exact: true }).fill(minutes);
   await dialog.getByLabel('Increment (seconds)', { exact: true }).fill(increment);

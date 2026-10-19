@@ -280,7 +280,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
 
-`AnalysisPanel` renders an individual button per PV move and emits the selected prefix. `GameView.playAnalysisLine` chooses prefix playback for exploration or first-move submission for normal live play. `applyMoves` validates the entire requested sequence before committing its first move, applies subsequent moves at 350 ms intervals, and checks game, selection and playback generation before each commit. Route changes/unmount cancel the remaining playback. JRN-ANALYSIS-03–06/10 exercise this interaction; FRONTEND-DRIFT-04's pending label was documentation drift.
+`AnalysisPanel` renders an individual button per PV move and emits the selected prefix. `GameView.playAnalysisLine` chooses prefix playback for exploration or first-move submission for normal live play. `applyMoves` validates the entire requested sequence before committing its first move, applies subsequent moves at 350 ms intervals, and checks the owned abort signal, game and rendered path before each commit. `OperationOwner` cancels the actual pending delay and settles old cleanup before replacement playback starts. Route update/leave and unmount cancel the remaining playback. JRN-ANALYSIS-03–06/10 exercise this interaction; FRONTEND-DRIFT-04's pending label was documentation drift.
 
 #### Flow A - Free Analysis / Setup Suggestion
 | `AnalysisPanel.moveSelected` |

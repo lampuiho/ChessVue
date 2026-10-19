@@ -33,7 +33,7 @@ export const useEnginesStore = defineStore('enginesStore', () => {
   function getEngine(engineId: string): IEngineRecord | undefined {
     return listConfiguredEngines().find((engine) => engine.id === engineId);
   }
-  function validateAnalysisSelection(engineIds: string[]): void {
+  function validateAnalysisSelection(engineIds: string[]) {
     const uniqueIds = new Set(engineIds);
     if (uniqueIds.size !== engineIds.length) throw new Error('Analysis engine selection cannot contain duplicates.');
     if (engineIds.length > 4) throw new Error('Analysis engine selection cannot contain more than four engines.');

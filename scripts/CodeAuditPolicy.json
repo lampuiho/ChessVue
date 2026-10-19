@@ -1,0 +1,8 @@
+{
+  "observer": {
+    "src/App.vue:watch([appearanceProjection,()=>settings.value?.appearance,resolvedThemeMode])": "Component-scoped synchronous output bridge from accepted appearance and host theme to document CSS/meta tags; it does not mutate application state.",
+    "src/components/Chessboard.vue:watch([()=>props.position,()=>props.boardEdit])": "Component-scoped synchronous reset of selection, drag and promotion after external board/mode props change, including engine moves and history navigation."
+  },
+  "return": {},
+  "counter": {}
+}

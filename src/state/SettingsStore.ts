@@ -68,17 +68,17 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     if (!draftSettings.value) throw new Error('Settings must be loaded before the draft is changed.');
     return draftSettings.value;
   }
-  function _acceptSettings(acceptedSettings: ISettingsSnapshot): void {
+  function _acceptSettings(acceptedSettings: ISettingsSnapshot) {
     _settings.value = acceptedSettings;
     draftSettings.value = cloneSettings(acceptedSettings);
   }
-  function _subscribeToSystemTheme(): void {
+  function _subscribeToSystemTheme() {
     if (_disposeThemeSubscription) return;
     _disposeThemeSubscription = PlatformEventService.subscribeToSystemThemeChanged('SettingsStore', (theme) => {
       _systemTheme.value = theme;
     }, 'settings-theme-sync');
   }
-  async function loadSettings(): Promise<void> {
+  async function loadSettings() {
     if (_settings.value && draftSettings.value) return;
     if (_initialisePromise) return _initialisePromise;
     _initialisePromise = (async () => {
@@ -90,23 +90,23 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     })();
     return _initialisePromise;
   }
-  function updateSettings(patch: Partial<ISettingsSnapshot>): void {
+  function updateSettings(patch: Partial<ISettingsSnapshot>) {
     draftSettings.value = mergeSettings(_requireDraftSettings(), patch);
   }
-  async function _saveDraftSettings(): Promise<void> {
+  async function _saveDraftSettings() {
     await loadSettings();
     _acceptSettings(await UserSettingService.saveSettings(toRaw(_requireDraftSettings())));
   }
-  function discardPendingSettings(): void {
+  function discardPendingSettings() {
     draftSettings.value = cloneSettings(_requireSettings());
   }
-  async function applySettings(): Promise<void> {
+  async function applySettings() {
     await _saveDraftSettings();
   }
-  async function saveSettings(): Promise<void> {
+  async function saveSettings() {
     await _saveDraftSettings();
   }
-  async function resetSettings(): Promise<void> {
+  async function resetSettings() {
     await loadSettings();
     _acceptSettings(await UserSettingService.resetSettings());
   }

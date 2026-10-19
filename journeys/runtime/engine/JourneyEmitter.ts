@@ -7,7 +7,7 @@ export class JourneyEmitter {
     this._listeners.get(event)?.delete(listener);
     return this;
   }
-  emit(event: string, ...args: any[]): void {
+  emit(event: string, ...args: any[]) {
     const listeners = this._listeners.get(event);
     for (const [listener, once] of [...listeners ?? []]) {
       if (once) listeners?.delete(listener);

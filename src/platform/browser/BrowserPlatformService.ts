@@ -19,7 +19,7 @@ interface IBrowserPlatformOptions {
 }
 let _options: IBrowserPlatformOptions = {};
 /** Set only at bootstrap, before creating platform stores (used by isolated journeys). */
-export function setBrowserPlatformOptions(options: IBrowserPlatformOptions = {}): void {
+export function setBrowserPlatformOptions(options: IBrowserPlatformOptions = {}) {
   _options = options;
 }
 export const useBrowserPlatformService = defineStore('platformService', () => {
@@ -64,27 +64,27 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
   async function triggerAppCloseRequested(): Promise<IPlatformError[]> {
     return _dispatch(closeRegistrations, 'appCloseRequested');
   }
-  async function triggerAppFocusReturned(): Promise<void> {
+  async function triggerAppFocusReturned() {
     const failures = await _dispatch(focusRegistrations, 'appFocusReturned');
     for (const failure of failures) console.error('[browser] Focus callback failed.', failure);
   }
-  function triggerSystemThemeChanged(theme: ResolvedThemeMode): void {
+  function triggerSystemThemeChanged(theme: ResolvedThemeMode) {
     for (const entry of [...themeRegistrations]) entry.callback(theme);
   }
-  function _checkpoint(): void {
+  function _checkpoint() {
     void triggerAppCloseRequested().then((failures) => {
       for (const failure of failures) console.error('[browser] Checkpoint failed.', failure);
     });
   }
-  function _onFocus(): void { void triggerAppFocusReturned(); }
-  function _onVisibility(): void {
+  function _onFocus() { void triggerAppFocusReturned(); }
+  function _onVisibility() {
     if (document.visibilityState === 'hidden') _checkpoint();
     else _onFocus();
   }
-  function _onTheme(event: MediaQueryListEvent): void {
+  function _onTheme(event: MediaQueryListEvent) {
     triggerSystemThemeChanged(event.matches ? ResolvedThemeMode.Dark : ResolvedThemeMode.Light);
   }
-  function reset(): void {
+  function reset() {
     closeRegistrations.length = 0;
     focusRegistrations.length = 0;
     themeRegistrations.length = 0;

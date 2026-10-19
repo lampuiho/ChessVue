@@ -12,7 +12,7 @@ beforeEach(async () => {
   ({ EngineRuntimeService } = await import('@/domain'));
 });
 
-function appendLiveMove(game: IGame, move: IMove): void {
+function appendLiveMove(game: IGame, move: IMove) {
   let node = game.moveTree.root;
   for (const childIndex of game.livePath ?? []) node = node.children[childIndex]!;
   const nextNode = MoveHistoryService.addMainlineMove(node, move, game.clockSnapshot);

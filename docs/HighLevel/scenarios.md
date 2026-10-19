@@ -293,7 +293,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: User never lands in broken game view.
 - **Implementation Touchpoints**:
   - `GameView.validateSelectedGame`
-  - `GameView` route-parameter watcher
+  - `GameView` mount/route-update activation action
   - `GamesStore.getGame`
   - `GamesStore.listGames`
 

@@ -40,12 +40,12 @@ export class BrowserFileSystem {
     const files = Object.entries(snapshot.files).filter(([entry]) => _parentPath(entry) === target).map(([entry, file]) => ({ ...this._entry(entry, false), lastModifiedUtc: new SaveTimestamp(file.modifiedAt) }));
     return [...directories, ...files].sort((left, right) => left.name.localeCompare(right.name));
   }
-  ensureDirectory(path: string): void {
+  ensureDirectory(path: string) {
     const snapshot = this._read();
     this._ensureDirectory(snapshot, normaliseBrowserPath(path));
     this._write(snapshot);
   }
-  writeTextFile(path: string, raw: string, options: IWriteTextFileOptions = {}): void {
+  writeTextFile(path: string, raw: string, options: IWriteTextFileOptions = {}) {
     const target = normaliseBrowserPath(path);
     const snapshot = this._read();
     if (snapshot.directories.includes(target)) this._fail(PlatformErrorKind.InvalidOperation, 'writeTextFile', path);
@@ -57,7 +57,7 @@ export class BrowserFileSystem {
     snapshot.files[target] = { raw, modifiedAt };
     this._write(snapshot);
   }
-  deleteFile(path: string): void {
+  deleteFile(path: string) {
     const snapshot = this._read();
     const target = normaliseBrowserPath(path);
     if (!snapshot.files[target]) this._fail(PlatformErrorKind.NotFound, 'deleteFile', path);
@@ -67,7 +67,7 @@ export class BrowserFileSystem {
   private _entry(path: string, isDirectory: boolean): IFileSystemEntry {
     return { path, name: path.slice(path.lastIndexOf('/') + 1), isDirectory };
   }
-  private _ensureDirectory(snapshot: FileSystemSnapshot, path: string): void {
+  private _ensureDirectory(snapshot: FileSystemSnapshot, path: string) {
     const parts = path === '.' ? [] : path.split('/');
     for (let index = 1; index <= parts.length; index++) {
       const directory = parts.slice(0, index).join('/');
@@ -91,7 +91,7 @@ export class BrowserFileSystem {
       throw new PlatformError({ kind: PlatformErrorKind.InvalidDocument, operation: 'readStorage', message: 'Browser storage contains an invalid file index.', detail: String(error) });
     }
   }
-  private _write(snapshot: FileSystemSnapshot): void {
+  private _write(snapshot: FileSystemSnapshot) {
     try {
       this._storage.setItem(this._key, JSON.stringify(snapshot));
     } catch (error) {

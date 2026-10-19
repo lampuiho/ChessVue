@@ -11,7 +11,7 @@ export class BrowserUciTransport implements IUciTransport {
     _worker.addEventListener('error', this._onError);
     _worker.addEventListener('messageerror', this._onMessageError);
   }
-  write(command: string): void {
+  write(command: string) {
     if (this._closed) throw new PlatformError({ kind: PlatformErrorKind.InvalidProcessHandle, operation: 'engineClient', message: 'The engine worker has closed.' });
     try {
       this._worker.postMessage(command);
@@ -29,7 +29,7 @@ export class BrowserUciTransport implements IUciTransport {
     this._exitListeners.add(onExit);
     return () => { this._lineListeners.delete(onLine); this._exitListeners.delete(onExit); };
   }
-  terminate(detail = 'Engine worker terminated.'): void {
+  terminate(detail = 'Engine worker terminated.') {
     if (this._closed) return;
     this._closed = true;
     this._exitDetail = detail;
@@ -42,17 +42,17 @@ export class BrowserUciTransport implements IUciTransport {
     this._lineListeners.clear();
     this._exitListeners.clear();
   }
-  private readonly _onMessage = (event: MessageEvent<unknown>): void => {
+  private readonly _onMessage = (event: MessageEvent<unknown>) => {
     if (typeof event.data !== 'string' || this._closed) return;
     for (const line of event.data.split(/\r?\n/).map((value) => value.trim()).filter(Boolean)) {
       for (const listener of [...this._lineListeners]) listener(line);
     }
   };
-  private readonly _onError = (event: ErrorEvent): void => {
+  private readonly _onError = (event: ErrorEvent) => {
     event.preventDefault();
     this.terminate(event.message || 'The engine worker failed to load or crashed.');
   };
-  private readonly _onMessageError = (): void => {
+  private readonly _onMessageError = () => {
     this.terminate('The engine worker emitted an unreadable message.');
   };
 }

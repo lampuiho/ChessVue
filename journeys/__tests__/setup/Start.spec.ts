@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GameState, type IGame } from '@/contracts';
 import { boot, clickButton, setField } from '../support/UiHarness';
 
-async function submitStart(): Promise<void> {
+async function submitStart() {
   document.querySelector<HTMLFormElement>('#new-game-form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   await flushPromises();
 }

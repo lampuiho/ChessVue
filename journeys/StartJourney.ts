@@ -1,4 +1,4 @@
-import { createApp, watch } from 'vue';
+import { computed, createApp } from 'vue';
 import { createPinia, disposePinia } from 'pinia';
 import { prepareJourney } from './PrepareJourney';
 
@@ -17,12 +17,14 @@ export async function startJourney(run: { name: string; id: string }) {
   const settings = stores.useSettingsStore();
   const ui = stores.useUiStateStore();
   const games = stores.useGamesStore();
-  const stopReady = watch(() => {
+  const ready = computed(() => {
     void games.workspaceRevision;
     return !!settings.settings && !!ui.layoutState && !!ui.gameSession
       && ui.gameSession.openGameIds.every((id) => !!games.getGame(id))
       && router.currentRoute.value.path === ui.gameSession.activeRoute;
-  }, (ready) => { api.ready = ready; }, { immediate: true, flush: 'post' });
+  });
+  Object.defineProperty(api, 'ready', { get: () => ready.value, configurable: true });
+  const stopReady = () => { Object.defineProperty(api, 'ready', { value: false, writable: true, configurable: true }); };
   app.onUnmount(() => { stopReady(); disposePinia(pinia); });
   console.info(`[journey:${api.name}] ${api.title}`, { gameIds: api.gameIds, scenarios: api.scenarios, steps: api.steps });
   return { api, app, router, games, stopReady };

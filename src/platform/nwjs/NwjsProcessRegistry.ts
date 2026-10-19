@@ -12,10 +12,10 @@ export function createNwjsProcessRegistry(): INwjsProcessRegistry {
     get(processHandle: ProcessHandle): ISpawnedProcess | undefined {
       return processByHandle.get(processHandle);
     },
-    set(processHandle: ProcessHandle, process: ISpawnedProcess): void {
+    set(processHandle: ProcessHandle, process: ISpawnedProcess) {
       processByHandle.set(processHandle, process);
     },
-    delete(processHandle: ProcessHandle): void {
+    delete(processHandle: ProcessHandle) {
       processByHandle.delete(processHandle);
     },
   };

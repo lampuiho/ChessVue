@@ -11,7 +11,7 @@ export async function createTimedPlay(page: Page, allowTakeback = true): Promise
   if (!allowTakeback) await dialog.getByText('Allow takebacks', { exact: true }).click();
   return createWorkspace(page);
 }
-export async function choosePlayer(page: Page, colour: 'White' | 'Black', choice: string): Promise<void> {
+export async function choosePlayer(page: Page, colour: 'White' | 'Black', choice: string) {
   const panel = page.locator('.player-panel').filter({ has: page.locator('.player-meta span').getByText(colour, { exact: true }) });
   await panel.locator('.player-name').click();
   const dialog = page.getByRole('dialog', { name: 'Choose a player', exact: true });
@@ -22,7 +22,7 @@ export async function choosePlayer(page: Page, colour: 'White' | 'Black', choice
 export function autoSave(page: Page, id: string) {
   return readGame(page, `saves/${id}/auto.json`);
 }
-export async function expectStoppedClock(page: Page): Promise<void> {
+export async function expectStoppedClock(page: Page) {
   const clocks = await page.locator('.player-clock').allTextContents();
   await page.clock.setFixedTime(new Date(playTime.getTime() + 60000));
   await page.clock.runFor(1000);

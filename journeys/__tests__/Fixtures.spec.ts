@@ -7,7 +7,7 @@ import { applyMove, genLegalMoves, isMoveLegal } from '@/utility/chess';
 import { ClockTimestamp } from '@/utility/date';
 import { createJourney, journeyCatalogue } from '../index';
 
-function validateTree(node: IMoveNode, position: IBoardPosition): void {
+function validateTree(node: IMoveNode, position: IBoardPosition) {
   for (const child of node.children) {
     expect(child.plyIndex).toBe(node.plyIndex + 1);
     expect(child.move).toBeDefined();

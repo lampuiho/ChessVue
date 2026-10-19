@@ -25,7 +25,7 @@ export class JourneyStorageBarrier {
   private readonly _rules: IStorageRule[] = [];
   private readonly _calls: IStorageCall[] = [];
   private readonly _pending = new Map<number, { release(): void; cancel(): void }>();
-  failNext(operation: StorageOperation, path: string, count = 1, kind = PlatformErrorKind.PermissionDenied): void {
+  failNext(operation: StorageOperation, path: string, count = 1, kind = PlatformErrorKind.PermissionDenied) {
     if (!Number.isInteger(count) || count < 1) throw new Error('Choose a positive failure count.');
     this._rules.push({ id: ++this._nextId, operation, path: normaliseBrowserPath(path), count, kind, held: false });
   }
@@ -34,19 +34,19 @@ export class JourneyStorageBarrier {
     this._rules.push({ id, operation, path: normaliseBrowserPath(path), count: 1, held: true });
     return id;
   }
-  release(id: number): void {
+  release(id: number) {
     this._pending.get(id)?.release();
   }
   operations(): IStorageCall[] {
     return this._calls.map((call) => ({ ...call }));
   }
-  reset(): void {
+  reset() {
     this._rules.splice(0);
     for (const pending of this._pending.values()) pending.cancel();
     this._pending.clear();
     this._calls.splice(0);
   }
-  install(storage: IStorageAdapter): void {
+  install(storage: IStorageAdapter) {
     const read = storage.readTextFile.bind(storage);
     const list = storage.listDirectory.bind(storage);
     const write = storage.writeTextFile.bind(storage);
@@ -56,7 +56,7 @@ export class JourneyStorageBarrier {
     storage.writeTextFile = (path, raw, options) => this._run('writeTextFile', path, () => write(path, raw, options));
     storage.deleteFile = (path) => this._run('deleteFile', path, () => remove(path));
   }
-  private async _wait(id: number): Promise<void> {
+  private async _wait(id: number) {
     try {
       await new Promise<void>((release, reject) => this._pending.set(id, {
         release, cancel: () => reject(new PlatformError({ kind: PlatformErrorKind.Cancelled, operation: 'storageBarrier', message: 'Journey storage operation cancelled.' })),

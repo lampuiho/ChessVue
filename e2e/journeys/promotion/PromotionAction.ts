@@ -7,13 +7,13 @@ import { selectGame } from '../../support/GameNavigation';
 export function promotionChooser(page: Page): Locator {
   return page.getByRole('group', { name: 'Pawn promotion', exact: true });
 }
-export async function openPromotionGame(page: Page, scenario: IPromotionScenario): Promise<void> {
+export async function openPromotionGame(page: Page, scenario: IPromotionScenario) {
   await openJourney(page, 'promotion');
   if (scenario.colour === 'black') await selectGame(page, 'promotion-black', 'black to promote');
   await expect(page).toHaveURL(new RegExp('/game/promotion-' + scenario.colour + '$'));
   await expect(page.locator('.result-badge')).toHaveText(`${scenario.colour} to move`);
 }
-export async function attemptPromotion(page: Page, scenario: IPromotionScenario, capture: boolean, gesture = 'click'): Promise<void> {
+export async function attemptPromotion(page: Page, scenario: IPromotionScenario, capture: boolean, gesture = 'click') {
   const target = capture ? scenario.capture : scenario.quiet;
   if (gesture === 'drag') await square(page, scenario.from).locator('.chess-piece').dragTo(square(page, target));
   else await playMove(page, scenario.from, target);
@@ -26,7 +26,7 @@ export async function attemptPromotion(page: Page, scenario: IPromotionScenario,
   await expect(page.locator('.result-badge')).toHaveText(`${scenario.colour} to move`);
   await expect(page.getByLabel('Captured material')).toHaveCount(0);
 }
-export async function choosePromotion(page: Page, scenario: IPromotionScenario, kind: PieceKind): Promise<void> {
+export async function choosePromotion(page: Page, scenario: IPromotionScenario, kind: PieceKind) {
   await promotionChooser(page).getByRole('button', { name: `Promote to ${scenario.colour} ${kind}`, exact: true }).click();
   await expect(promotionChooser(page)).toHaveCount(0);
 }
@@ -36,7 +36,7 @@ export function promotionSan(scenario: IPromotionScenario, kind: PieceKind, capt
   const check = capture && (kind === PieceKind.Queen || kind === PieceKind.Rook);
   return `${capture ? scenario.from[0] + 'x' : ''}${target}=${letter}${check ? '+' : ''}`;
 }
-export async function expectPromotedBoard(page: Page, scenario: IPromotionScenario, kind: PieceKind, capture: boolean): Promise<void> {
+export async function expectPromotedBoard(page: Page, scenario: IPromotionScenario, kind: PieceKind, capture: boolean) {
   const target = capture ? scenario.capture : scenario.quiet;
   const drawn = capture && (kind === PieceKind.Bishop || kind === PieceKind.Knight);
   await expect(square(page, scenario.from)).toHaveAttribute('aria-label', scenario.from);
@@ -54,7 +54,7 @@ export async function expectPromotedBoard(page: Page, scenario: IPromotionScenar
     await expect(page.locator('.player-panel').filter({ has: material }).getByRole('button')).toHaveText(scenario.colour === 'white' ? 'White' : 'Black');
   }
 }
-export function expectPromotedGame(game: IGame, before: IGame, scenario: IPromotionScenario, kind: PieceKind, capture: boolean): void {
+export function expectPromotedGame(game: IGame, before: IGame, scenario: IPromotionScenario, kind: PieceKind, capture: boolean) {
   const drawn = capture && (kind === PieceKind.Bishop || kind === PieceKind.Knight);
   const check = capture && (kind === PieceKind.Queen || kind === PieceKind.Rook);
   expect(game.rootPosition).toEqual(before.rootPosition);
@@ -75,7 +75,7 @@ export function expectPromotedGame(game: IGame, before: IGame, scenario: IPromot
   expect(game.clockSnapshot.black.isRunning).toBe(false);
   expect(JSON.stringify(game)).not.toContain('"$"');
 }
-export async function useBlackOrientation(page: Page): Promise<void> {
+export async function useBlackOrientation(page: Page) {
   const route = page.url();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Appearance', exact: true }).click();

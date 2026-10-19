@@ -44,7 +44,7 @@ function _selectFile(): Promise<File> {
     }
   });
 }
-function _download(name: string, raw: string): void {
+function _download(name: string, raw: string) {
   const url = URL.createObjectURL(new Blob([raw], { type: 'application/json;charset=utf-8' }));
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -74,7 +74,7 @@ export function defineBrowserStorageAdapterStore(storage?: Storage, storageKey?:
       downloads.set(path, name);
       return path;
     }
-    async function writeTextFile(path: string, raw: string, options?: IWriteTextFileOptions): Promise<void> {
+    async function writeTextFile(path: string, raw: string, options?: IWriteTextFileOptions) {
       const name = downloads.get(path);
       if (name === undefined) return files.writeTextFile(path, raw, options);
       _download(name, raw);

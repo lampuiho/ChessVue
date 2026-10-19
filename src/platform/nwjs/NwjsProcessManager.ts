@@ -45,10 +45,10 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
         process.once('error', handleError);
       });
     }
-    function assertProcessHandleOpen(processHandle: ProcessHandle): void {
+    function assertProcessHandleOpen(processHandle: ProcessHandle) {
       _getSession(processHandle);
     }
-    async function stopProcess(processHandle: ProcessHandle): Promise<void> {
+    async function stopProcess(processHandle: ProcessHandle) {
       const session = _getSession(processHandle);
       await new Promise<void>((resolve) => {
         session.process.once('exit', () => resolve());

@@ -78,19 +78,19 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
       }
       return failures;
     }
-    async function triggerAppFocusReturned(): Promise<void> {
+    async function triggerAppFocusReturned() {
       for (const entry of [...appFocusRegistrations]) await entry.callback();
     }
-    function triggerSystemThemeChanged(theme: ResolvedThemeMode): void {
+    function triggerSystemThemeChanged(theme: ResolvedThemeMode) {
       for (const entry of [...themeRegistrations]) entry.callback(theme);
     }
-    function reset(): void {
+    function reset() {
       nextRegistrationId = 1;
       appCloseRegistrations.length = 0;
       appFocusRegistrations.length = 0;
       themeRegistrations.length = 0;
     }
-    function _attachWindowCloseListener(): void {
+    function _attachWindowCloseListener() {
       if (hasAttachedWindowClose) return;
       hasAttachedWindowClose = true;
       nw.Window.get(window).on('close', async () => {
@@ -98,14 +98,14 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
         nw.Window.get(window).close(true);
       });
     }
-    function _attachWindowFocusListener(): void {
+    function _attachWindowFocusListener() {
       if (hasAttachedWindowFocus) return;
       hasAttachedWindowFocus = true;
       nw.Window.get(window).on('focus', () => {
         void triggerAppFocusReturned();
       });
     }
-    function _attachThemeListener(): void {
+    function _attachThemeListener() {
       if (hasAttachedThemeListener) return;
       hasAttachedThemeListener = true;
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

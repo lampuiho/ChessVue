@@ -38,7 +38,7 @@ function _requireSchemaVersionOne(input: unknown, artefactName: string): Record<
   if (schemaVersion !== 1) throw new SerializationError(`${artefactName} schema version is unsupported.`, schemaVersion);
   return input as Record<string, unknown>;
 }
-function _validateMoveNode(node: IMoveNode): void {
+function _validateMoveNode(node: IMoveNode) {
   if (node.mainlineChildIndex != null && (node.mainlineChildIndex < 0 || node.mainlineChildIndex >= node.children.length)) {
     throw new SerializationError('Move tree mainline child index must reference an existing child.', node.mainlineChildIndex);
   }
@@ -53,15 +53,15 @@ function _getNodeAtPath(tree: IMoveTree, path: MovePath, selectorName: string): 
   }
   return currentNode;
 }
-function _validateMoveTree(tree: IMoveTree): void {
+function _validateMoveTree(tree: IMoveTree) {
   _validateMoveNode(tree.root);
 }
-function _validateGame(game: IGame): void {
+function _validateGame(game: IGame) {
   _validateMoveTree(game.moveTree);
   _getNodeAtPath(game.moveTree, game.renderedPath, 'Saved game renderedPath');
   if (game.livePath) _getNodeAtPath(game.moveTree, game.livePath, 'Saved game livePath');
 }
-function _validateGameSession(snapshot: IGameSessionSnapshot): void {
+function _validateGameSession(snapshot: IGameSessionSnapshot) {
   if (snapshot.activeGameId != null && !snapshot.openGameIds.includes(snapshot.activeGameId)) {
     throw new SerializationError('Active game id must be included in the open game id list.');
   }
@@ -89,7 +89,7 @@ function _parseGame(input: unknown): IGame {
 function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
 }
-async function _writeDocument(path: string, raw: string, options: IWriteTextFileOptions): Promise<void> {
+async function _writeDocument(path: string, raw: string, options: IWriteTextFileOptions) {
   await usePlatformService().getStorageAdapter().writeTextFile(path, raw, options);
 }
 
@@ -97,28 +97,28 @@ export const SerializationService = {
   async readSettingsDocument(path: string): Promise<ISettingsSnapshot> {
     return this.deserialiseSettings(await usePlatformService().getStorageAdapter().readTextFile(path));
   },
-  async writeSettingsDocument(path: string, snapshot: ISettingsSnapshot): Promise<void> {
+  async writeSettingsDocument(path: string, snapshot: ISettingsSnapshot) {
     await _writeDocument(path, this.serialiseSettings(snapshot), { overwrite: true });
   },
   async readGameSessionDocument(path: string): Promise<IGameSessionSnapshot> {
     return this.deserialiseGameSession(await usePlatformService().getStorageAdapter().readTextFile(path));
   },
-  async writeGameSessionDocument(path: string, snapshot: IGameSessionSnapshot): Promise<void> {
+  async writeGameSessionDocument(path: string, snapshot: IGameSessionSnapshot) {
     await _writeDocument(path, this.serialiseGameSession(snapshot), { overwrite: true });
   },
   async readUiLayoutDocument(path: string): Promise<IUiLayoutState> {
     return this.deserialiseUiLayoutState(await usePlatformService().getStorageAdapter().readTextFile(path));
   },
-  async writeUiLayoutDocument(path: string, state: IUiLayoutState): Promise<void> {
+  async writeUiLayoutDocument(path: string, state: IUiLayoutState) {
     await _writeDocument(path, this.serialiseUiLayoutState(state), { overwrite: true });
   },
   async readGameDocument(filePath: string): Promise<IGame> {
     return this.deserialiseGame(await usePlatformService().getStorageAdapter().readTextFile(filePath));
   },
-  async writeGameDocument(filePath: string, game: IGame, overwrite: boolean = false): Promise<void> {
+  async writeGameDocument(filePath: string, game: IGame, overwrite: boolean = false) {
     await _writeDocument(filePath, this.serialiseGame(game), { overwrite, ensureParentDirectory: true });
   },
-  async deleteDocument(filePath: string): Promise<void> {
+  async deleteDocument(filePath: string) {
     await usePlatformService().getStorageAdapter().deleteFile(filePath);
   },
   async listManagedSaveEntries(rootPath: string): Promise<ReadonlyMap<string, IFileSystemEntry[]>> {

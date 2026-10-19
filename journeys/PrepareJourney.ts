@@ -32,7 +32,7 @@ function createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
     storage.showSaveDialog = async (suggested) => resolve(exportPath === undefined ? `exports/${getMockNodePath().basename(suggested ?? 'game.json')}` : exportPath, 'showSaveDialog');
   };
 }
-function installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem, engines: JourneyEngineBarrier): void {
+function installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem, engines: JourneyEngineBarrier) {
   const nw = getMockNwjs();
   setNodeModuleOverrides({
     fs: fs as unknown as typeof import('node:fs'), path: getMockNodePath(),

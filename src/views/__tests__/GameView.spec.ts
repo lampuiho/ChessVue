@@ -26,14 +26,15 @@ interface ITestDependency {
     listGames: ReturnType<typeof vi.fn>;
     pauseGame: ReturnType<typeof vi.fn>;
     resumeGame: ReturnType<typeof vi.fn>;
+    onAutosaveFailed: ReturnType<typeof vi.fn>;
   };
   settingsStore: { settings: ISettingsSnapshot };
   uiStateStore: {
     gameSession: ReturnType<typeof createGameSessionSnapshot>;
     layoutState: ReturnType<typeof createUiLayoutState>;
     modalState?: IAppModalState;
-    showModal: (modal: IAppModalState) => void;
-    hideModal: () => void;
+    showModal: (modal: IAppModalState, onClosed?: () => Promise<void> | void) => void;
+    hideModal: () => Promise<void>;
   };
 }
 
@@ -41,6 +42,8 @@ const dependency = vi.hoisted(() => ({})) as ITestDependency;
 vi.mock('vue-router', () => ({
   useRoute: () => dependency.route,
   useRouter: () => dependency.router,
+  onBeforeRouteUpdate: (handler: (to: { params: { id: string } }) => unknown) => routeUpdates.push(handler),
+  onBeforeRouteLeave: vi.fn(),
 }));
 vi.mock('@/state', () => ({
   useGamesStore: () => dependency.gamesStore,
@@ -49,7 +52,14 @@ vi.mock('@/state', () => ({
 }));
 
 const wrappers: VueWrapper[] = [];
+const routeUpdates: Array<(to: { params: { id: string } }) => unknown> = [];
+let modalClosed: (() => Promise<void> | void) | undefined;
 let games: Map<string, IGame>;
+async function selectRoute(id: string) {
+  for (const update of routeUpdates) await update({ params: { id } });
+  dependency.route.params.id = id;
+  await flushPromises();
+}
 
 function createTimedGame(id: string = 'game-1', pauseReasons: PauseReason[] = []): IGame {
   const game = createGame({
@@ -74,10 +84,13 @@ describe('GameView menu interruptions', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     games = new Map();
+    routeUpdates.splice(0);
+    modalClosed = undefined;
     dependency.route = reactive({ params: { id: 'game-1' } });
     dependency.router = { push: vi.fn(async () => undefined), replace: vi.fn(async () => undefined) };
     dependency.gamesStore = reactive({
       workspaceRevision: 0,
+      onAutosaveFailed: vi.fn(() => () => {}),
       getGame: vi.fn((id: string) => games.get(id)),
       getVisibleAnalysis: vi.fn((game: IGame) => ({ engineSeats: [...game.analysis.seats] })),
       listGames: vi.fn(() => [...games.values()]),
@@ -95,8 +108,16 @@ describe('GameView menu interruptions', () => {
       gameSession: createGameSessionSnapshot(),
       layoutState: createUiLayoutState(),
       modalState: undefined,
-      showModal: vi.fn((modal: IAppModalState) => dependency.uiStateStore.modalState = modal),
-      hideModal: vi.fn(() => dependency.uiStateStore.modalState = undefined),
+      showModal: vi.fn((modal: IAppModalState, onClosed?: () => Promise<void> | void) => {
+        dependency.uiStateStore.modalState = modal;
+        modalClosed = onClosed;
+      }),
+      hideModal: vi.fn(async () => {
+        dependency.uiStateStore.modalState = undefined;
+        const closed = modalClosed;
+        modalClosed = undefined;
+        await closed?.();
+      }),
     });
   });
   afterEach(() => {
@@ -189,14 +210,12 @@ describe('GameView menu interruptions', () => {
 
     wrapper.getComponent({ name: 'MenuBar' }).vm.$emit('customNewGameRequested');
     await flushPromises();
-    dependency.route.params.id = newGame.metadata.id;
-    await flushPromises();
+    await selectRoute(newGame.metadata.id);
     dependency.uiStateStore.hideModal();
     await flushPromises();
     expect(dependency.gamesStore.resumeGame).not.toHaveBeenCalledWith(interruptedGame, PauseReason.Menu);
 
-    dependency.route.params.id = interruptedGame.metadata.id;
-    await flushPromises();
+    await selectRoute(interruptedGame.metadata.id);
     expect(dependency.gamesStore.resumeGame).toHaveBeenCalledWith(interruptedGame, PauseReason.Menu);
   });
 });
