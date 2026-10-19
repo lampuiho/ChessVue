@@ -42,6 +42,7 @@ Completed UI scenario fixes are covered by [application regressions](../journeys
 - Completed the remaining move-flow, cache, copy-ownership, and documentation reconciliation. The temporary change tracker was removed after its design rationale was transferred to the owning high-level and low-level documents.
 
 ## Still Pending
+- [Code cleanup plan](CodeCleanupPlan.md): remove remaining generation-based invalidation, replace watcher-driven orchestration with explicit owners, restrict retained watchers, and remove redundant `: void` / `: Promise<void>` implementation annotations. The plan records the source inventory, migration order, enforcement work and focused acceptance checks.
 - Define the board-interaction move-submission boundary so legal move selection uses `IMoveRaw`, promotion selection completes that raw move, and conversion to `IMove` happens only afterwards for move-tree and service interactions.
 
 ## Verification
