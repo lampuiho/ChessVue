@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-BROWSER-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-EXPORT-01",
+      "SCN-IMPORT-01",
+      "SCN-IMPORT-02"
+    ],
+    "branches": [],
+    "fixture": "browser",
+    "lane": "ordinary-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/browser/ScenarioReview.md#jrn-browser-02",
+    "data": [
+      "journeys/definitions/browser/data/BrowserScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/browser/Transfer.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-BROWSER-02 round-trips a real download through the file chooser with fresh import identity",
+          "JRN-BROWSER-02 rejects invalid JSON without mutation and permits a valid chooser retry",
+          "JRN-BROWSER-02 rejects invalid UTF-8 without mutation and permits a valid chooser retry"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-BROWSER-07",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [
+      "BR-SETTINGS-01-WRITE-FAIL"
+    ],
+    "fixture": "browser",
+    "lane": "ordinary-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/browser/ScenarioReview.md#jrn-browser-07",
+    "data": [
+      "journeys/definitions/browser/data/BrowserScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/browser/Appearance.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-BROWSER-07 follows system theme policy in system mode and restores the accepted preference",
+          "JRN-BROWSER-07 follows system theme policy in light mode and restores the accepted preference",
+          "JRN-BROWSER-07 follows system theme policy in dark mode and restores the accepted preference",
+          "JRN-BROWSER-07 keeps a rejected storage write non-durable through reload then persists an explicit retry"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

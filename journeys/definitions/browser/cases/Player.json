@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-BROWSER-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-TIME-01",
+      "SCN-SESSION-02"
+    ],
+    "branches": [],
+    "fixture": "browser",
+    "lane": "ordinary-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/browser/ScenarioReview.md#jrn-browser-04",
+    "data": [
+      "journeys/definitions/browser/data/BrowserScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/browser/Player.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-BROWSER-04 commits one legal timed Stockfish reply across reload after reply",
+          "JRN-BROWSER-04 commits one legal timed Stockfish reply across reload while reply is due"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

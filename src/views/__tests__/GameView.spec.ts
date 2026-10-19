@@ -14,6 +14,8 @@ import {
   type ISettingsSnapshot,
 } from '@/contracts';
 import { createAnalysisSeat, createClockSnapshot, createGame, createGameSessionSnapshot, createSettingsSnapshot, createUiLayoutState } from '@/state/__tests__/StateStoreTestUtility';
+import { createInitialBoardPosition } from '@/utility/chess';
+import { MoveApplicationService } from '@/domain';
 import GameView from '../GameView.vue';
 
 interface ITestDependency {
@@ -144,6 +146,34 @@ describe('GameView menu interruptions', () => {
     dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     expect(panel.props('startDisabled')).toBe(true);
+  });
+  it('preserves board input across analysis publications but replaces the position after a board edit', async () => {
+    const game = createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    const wrapper = mountView(game);
+    await flushPromises();
+    const board = wrapper.getComponent({ name: 'Chessboard' });
+    const original = board.props('position');
+    game.analysis.seats = [createAnalysisSeat()];
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    expect(board.props('position')).toBe(original);
+    MoveApplicationService.deletePiece(game.rootPosition, 12);
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    expect(board.props('position')).not.toBe(original);
+    expect(board.props('position').board[12]).toBeUndefined();
+  });
+  it('replaces board input when switching to another game with the same position', async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    const board = wrapper.getComponent({ name: 'Chessboard' });
+    const original = board.props('position');
+    const other = createTimedGame('game-2');
+    games.set(other.metadata.id, other);
+    await selectRoute(other.metadata.id);
+    expect(board.props('position')).toEqual(original);
+    expect(board.props('position')).not.toBe(original);
   });
 
   it.each([

@@ -33,7 +33,7 @@ describe('journey coverage execution evidence', () => {
     expect(aggregateCaseResults([entry], report('unexpected', [{ status: 'failed' }, { status: 'failed' }]), '/repo')[0]!.execution).toBe('failed');
   });
   it('accepts an explicit ordinary-browser reference only in its declared project', () => {
-    const browser = { ...entry, tests: entry.tests.map((test) => ({ ...test, project: 'browser' as const })) };
+    const browser: IJourneyCase = { ...entry, lane: 'ordinary-browser', fixture: 'browser', tests: entry.tests.map((test) => ({ ...test, project: 'browser' as const })) };
     expect(aggregateCaseResults([browser], report(), '/repo')[0]!.execution).toBe('unverified');
     expect(aggregateCaseResults([browser], report('expected', [{ status: 'passed' }], 'browser'), '/repo')[0]!.execution).toBe('passed');
   });

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "JRN-BROWSER-05",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02",
+      "SCN-ANALYSIS-03",
+      "SCN-ENGINE-01",
+      "SCN-MOVE-01"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-ENGINE-NOT-RUNNING",
+      "BR-ANALYSIS-02-PARTIAL-FAIL"
+    ],
+    "fixture": "browser",
+    "lane": "ordinary-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/browser/ScenarioReview.md#jrn-browser-05",
+    "data": [
+      "journeys/definitions/browser/data/BrowserScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/browser/EngineFailure.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-BROWSER-05 isolates invalid URL failure while local play and another real worker continue",
+          "JRN-BROWSER-05 isolates native executable failure while local play and another real worker continue",
+          "JRN-BROWSER-05 isolates cross-origin URL failure while local play and another real worker continue",
+          "JRN-BROWSER-05 isolates unavailable worker failure while local play and another real worker continue",
+          "JRN-BROWSER-05 isolates unavailable WASM failure while local play and another real worker continue"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

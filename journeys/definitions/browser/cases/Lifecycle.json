@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-BROWSER-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SAVE-01",
+      "SCN-SAVE-03",
+      "SCN-SESSION-02"
+    ],
+    "branches": [],
+    "fixture": "browser",
+    "lane": "ordinary-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/browser/ScenarioReview.md#jrn-browser-06",
+    "data": [
+      "journeys/definitions/browser/data/BrowserScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/browser/Lifecycle.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-BROWSER-06 persists completed pagehide checkpoints and explicit saves before closing the page",
+          "JRN-BROWSER-06 persists completed visibilitychange checkpoints and explicit saves before closing the page"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

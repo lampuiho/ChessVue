@@ -4,7 +4,7 @@ export interface IJourneyCase {
   scenarios: string[];
   branches: string[];
   fixture: string;
-  lane: 'seeded-browser';
+  lane: 'seeded-browser' | 'ordinary-browser';
   implementation: 'available' | 'partial' | 'backlog';
   scenarioReview: string;
   data: string[];

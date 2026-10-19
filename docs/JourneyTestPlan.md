@@ -26,7 +26,7 @@ Exclude ideas without a current user flow: premoves, bookmarks, evaluation expla
 
 ## Completion tracking
 
-Updated 19 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#storage-failure-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
+Updated 19 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#ordinary-browser-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
 
 | Area / case range | Total | Complete | Partial | Backlog | Evidence or next work |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -43,11 +43,11 @@ Updated 19 October 2026 from the [implementation record and verified runs](Journ
 | Rules — `JRN-RULE-01–06` | 6 | 6 | 0 | 0 | [50 browser variants](../e2e/journeys/rules/), [41 fixture checks](../journeys/__tests__/rules/), [owned metadata and scenario review](../journeys/definitions/rules/ScenarioReview.md) |
 | Engine races — `JRN-RACE-01–08` | 8 | 8 | 0 | 0 | [15 browser variants](../e2e/journeys/engine-races/), [three control/disposal checks](../journeys/__tests__/engine-races/), [owned metadata and scenario review](../journeys/definitions/engine-races/ScenarioReview.md) |
 | Storage failures — `JRN-IO-01–08` | 8 | 8 | 0 | 0 | [21 seeded variants](../e2e/journeys/storage-failures/), [one real browser storage rejection](../e2e/browser/Storage.spec.ts), [nine adapter/fixture checks](../journeys/__tests__/storage-failures/), [owned metadata and review](../journeys/definitions/storage-failures/ScenarioReview.md) |
-| Ordinary browser — `JRN-BROWSER-01–07` | 7 | 0 | 0 | 7 | Eight existing integration variants pass; extend and register the complete planned groups |
+| Ordinary browser — `JRN-BROWSER-01–07` | 7 | 7 | 0 | 0 | [18 ordinary-browser variants](../e2e/browser/), [owned case metadata and scenario review](../journeys/definitions/browser/ScenarioReview.md), real Stockfish/file transfer and lifecycle/storage acceptance |
 | NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 0 | 0 | 7 | Native runtime verification remains outstanding |
 | Complete sessions — `JRN-SESSION-01–04` | 4 | 0 | 0 | 4 | Compose the four sessions after their dependent cases pass |
 | Usability — `JRN-UX-01–04` | 4 | 0 | 0 | 4 | Perform keyboard/focus, layout and workload checks |
-| **Total** | **147** | **125** | **0** | **22** | **22 groups still need acceptance work** |
+| **Total** | **147** | **132** | **0** | **15** | **15 groups still need acceptance work** |
 
 Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all thirteen journeys, including Rules, Engine races and Storage failures. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Storage-failure verification](JourneyImplementation.md#storage-failure-verification) records clean acceptance for all eight IO groups and the separate broader run's teardown failures. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
 
@@ -544,7 +544,7 @@ Trace: session/save/load/export/import/settings/lifecycle branches already liste
 
 ### Ordinary browser
 
-Retain and strengthen the five existing browser tests. Use real `File` upload and download events, not journey picker hooks. Never assert a specific best move, centipawn score or exact search depth from real Stockfish.
+The five original browser checks have been strengthened into 18 focused variants under [e2e/browser](../e2e/browser/), with [owned metadata and review](../journeys/definitions/browser/ScenarioReview.md). They use real `File` upload and download events, not journey picker hooks. Never assert a specific best move, centipawn score or exact search depth from real Stockfish. The separate ordinary-browser lane registers these groups without inventing a seeded journey launcher.
 
 | Case | Priority | Actions and required result |
 | --- | --- | --- |

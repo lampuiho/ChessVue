@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-BROWSER-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-02",
+      "SCN-MOVE-01",
+      "SCN-SAVE-03",
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [],
+    "fixture": "browser",
+    "lane": "ordinary-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/browser/ScenarioReview.md#jrn-browser-01",
+    "data": [
+      "journeys/definitions/browser/data/BrowserScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/browser/Persistence.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-BROWSER-01 preserves canonical game session and appearance after reload and a new same-origin page"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -16,8 +16,9 @@ export function loadJourneyCases(root = repositoryRoot) {
   for (const entry of cases) {
     if (!/^JRN-[A-Z]+-\d+$/.test(entry.id) || identifiers.has(entry.id)) throw new Error(`Invalid or duplicate case ID: ${entry.id}.`);
     identifiers.add(entry.id);
-    if (!['P0', 'P1', 'P2'].includes(entry.priority) || entry.lane !== 'seeded-browser'
+    if (!['P0', 'P1', 'P2'].includes(entry.priority) || !['seeded-browser', 'ordinary-browser'].includes(entry.lane)
       || !['available', 'partial', 'backlog'].includes(entry.implementation)) throw new Error(`Invalid case metadata: ${entry.id}.`);
+    if (entry.lane === 'ordinary-browser' && entry.fixture !== 'browser') throw new Error(`Invalid ordinary-browser fixture: ${entry.id}.`);
     for (const field of ['scenarios', 'branches', 'data', 'tests', 'remaining']) {
       if (!Array.isArray(entry[field])) throw new Error(`Missing ${field}: ${entry.id}.`);
     }
@@ -27,6 +28,7 @@ export function loadJourneyCases(root = repositoryRoot) {
     }
     for (const test of entry.tests) {
       if (test.project !== undefined && !['journeys', 'browser'].includes(test.project)) throw new Error(`Invalid test project: ${entry.id}.`);
+      if (entry.lane === 'ordinary-browser' && test.project !== 'browser') throw new Error(`Ordinary-browser cases require the browser project: ${entry.id}.`);
       if (!Array.isArray(test.titles) || !test.titles.length || test.titles.some((title) => !title.startsWith(entry.id + ' '))) throw new Error(`Invalid test titles: ${entry.id}.`);
     }
   }

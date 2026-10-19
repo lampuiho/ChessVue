@@ -96,6 +96,8 @@ await expect(page).toHaveURL(/\/game\/promotion-white$/);
 
 `ready` means settings/layout, restored games and the current session route have settled. It does not mean analysis has finished or that the scenario passed. Wait for the expected rendered engine lines when testing analysis. Timed fixtures begin paused so tests control when their deadlines start. The repository includes Playwright as a development dependency. Run `npx playwright install chromium` once and `npm run test:e2e` to start both the ordinary browser app and journey servers and execute the browser suite. Use `npm run test:e2e -- --project=journeys` for just seeded journeys.
 
+[Ordinary browser](definitions/browser/ScenarioReview.md) owns JRN-BROWSER-01–07 with 18 variants. These tests use the normal app, same-origin localStorage, real file choosers/downloads and real Stockfish workers/WASM. Run `npm run test:e2e -- --project=browser --workers=1 --retries=0` for the complete browser project, including the separately registered Play/Settings/IO regressions. The `ordinary-browser` case lane requires explicit `browser` project references and does not add a launcher to the seeded catalogue. Hidden/pagehide checkpoint tests await completed writes while the page is alive; tab-close autosave remains best effort. See the [verification record](../docs/JourneyImplementation.md#ordinary-browser-verification).
+
 Native file dialogs are replaced with repeatable choices. Import defaults to `imports/valid.json`; choose another fixture before clicking Import:
 
 ```js

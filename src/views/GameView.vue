@@ -13,6 +13,7 @@ import {
   PlayerType,
   ResultReason,
   ResultState,
+  type IBoardPosition,
   type ICapturedPieceGroup,
   type ICreateGameRequest,
   type IEnginePlayer,
@@ -22,7 +23,7 @@ import {
 } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService, TimeControlService } from '@/domain';
 import { ClockTimestamp } from '@/utility/date';
-import { isMoveLegal, toDetailedMove } from '@/utility/chess';
+import { buildFen, isMoveLegal, toDetailedMove } from '@/utility/chess';
 import { OperationOwner } from '@/utility/async/OperationOwner';
 import { abortableDelay } from '@/utility/async/Abortable';
 import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
@@ -37,6 +38,7 @@ import GameControlPanel from '@/components/GameControlPanel.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
 
+interface IRenderedBoard { game: IGame; node: IMoveNode; position: IBoardPosition; }
 const route = useRoute();
 const router = useRouter();
 const gamesStore = useGamesStore();
@@ -60,11 +62,6 @@ const tabs = computed(() => {
 });
 const settings = computed(() => settingsStore.settings);
 const layout = computed(() => uiStateStore.layoutState);
-const position = computed(() => {
-  const currentGame = game.value;
-  if (!currentGame) return;
-  return MoveApplicationService.genPosition(currentGame.rootPosition, MoveHistoryService.getMoveSequence(currentGame.moveTree, currentGame.renderedPath));
-});
 const renderedNode = computed(() => {
   const currentGame = game.value;
   if (!currentGame) return;
@@ -72,6 +69,16 @@ const renderedNode = computed(() => {
   for (const childIndex of currentGame.renderedPath) node = node.children[childIndex]!;
   return node;
 });
+const renderedBoard = computed<IRenderedBoard | undefined>((previous) => {
+  const currentGame = game.value;
+  const node = renderedNode.value;
+  if (!currentGame || !node) return;
+  const next = MoveApplicationService.genPosition(currentGame.rootPosition, MoveHistoryService.getMoveSequence(currentGame.moveTree, currentGame.renderedPath));
+  // Keep input during analysis publications; game, node or board changes replace its owner.
+  if (previous?.game === currentGame && previous.node === node && buildFen(previous.position) === buildFen(next)) return previous;
+  return { game: currentGame, node, position: next };
+});
+const position = computed(() => renderedBoard.value?.position);
 const lastMove = computed(() => renderedNode.value?.move);
 const remainingTime = computed(() => {
   const currentGame = game.value;
