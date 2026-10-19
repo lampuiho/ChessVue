@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-RACE-07",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-PARSE-FAIL",
+      "BR-ANALYSIS-02-DESYNC"
+    ],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-07",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Streaming.spec.ts",
+        "titles": [
+          "JRN-RACE-07 skips malformed and illegal PVs while valid depths progress independently"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

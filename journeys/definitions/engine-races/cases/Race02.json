@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-RACE-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-CTRL-04",
+      "SCN-TIME-02"
+    ],
+    "branches": [
+      "BR-CTRL-04-LATEST-NODE-VARIATION"
+    ],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-02",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Pause.spec.ts",
+        "titles": [
+          "JRN-RACE-02 releases pending work at branch without moving the explored board",
+          "JRN-RACE-02 releases pending work at after-exit without moving the explored board"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

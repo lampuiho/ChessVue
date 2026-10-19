@@ -1,0 +1,27 @@
+[
+  {
+    "id": "JRN-RACE-08",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-03",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-08",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Cleanup.spec.ts",
+        "titles": [
+          "JRN-RACE-08 stops and removes pending work without accepting late output"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

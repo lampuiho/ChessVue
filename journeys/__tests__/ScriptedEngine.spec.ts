@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialBoardPosition, genLegalMoves, getUci } from '@/utility/chess';
-import { ScriptedEngine } from '../ScriptedEngine';
+import { ScriptedEngine } from '../runtime/engine/ScriptedEngine';
 
 describe('journey UCI process', () => {
   beforeEach(() => vi.useFakeTimers());

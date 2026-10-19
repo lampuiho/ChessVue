@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-RACE-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-ANALYSIS-02",
+      "SCN-ANALYSIS-03",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [
+      "BR-ANALYSIS-02-PARTIAL-FAIL",
+      "BR-ANALYSIS-03-RETRY-SUCCESS",
+      "BR-ANALYSIS-03-RETRY-FAIL"
+    ],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-06",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Recovery.spec.ts",
+        "titles": [
+          "JRN-RACE-06 recovers a crash isolates repeated retry failures and permits manual replacement"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

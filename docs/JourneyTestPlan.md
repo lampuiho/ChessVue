@@ -26,7 +26,7 @@ Exclude ideas without a current user flow: premoves, bookmarks, evaluation expla
 
 ## Completion tracking
 
-Updated 18 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#rules-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
+Updated 19 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#engine-race-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
 
 | Area / case range | Total | Complete | Partial | Backlog | Evidence or next work |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -41,15 +41,15 @@ Updated 18 October 2026 from the [implementation record and verified runs](Journ
 | Settings — `JRN-SETTINGS-01–11` | 11 | 11 | 0 | 0 | [24 seeded variants](../e2e/journeys/settings/), [one real Stockfish variant](../e2e/Browser.spec.ts), [four integration checks](../journeys/__tests__/settings/), [owned metadata and review](../journeys/definitions/settings/ScenarioReview.md) |
 | Recovery — `JRN-RECOVERY-01–08` | 8 | 8 | 0 | 0 | [32 browser variants](../e2e/journeys/recovery/), [eight integration/fixture checks](../journeys/__tests__/recovery/), [owned metadata and scenario review](../journeys/definitions/recovery/ScenarioReview.md) |
 | Rules — `JRN-RULE-01–06` | 6 | 6 | 0 | 0 | [50 browser variants](../e2e/journeys/rules/), [41 fixture checks](../journeys/__tests__/rules/), [owned metadata and scenario review](../journeys/definitions/rules/ScenarioReview.md) |
-| Engine races — `JRN-RACE-01–08` | 8 | 0 | 0 | 8 | Add barriers/fault controls and pending-work assertions |
+| Engine races — `JRN-RACE-01–08` | 8 | 8 | 0 | 0 | [15 browser variants](../e2e/journeys/engine-races/), [three control/disposal checks](../journeys/__tests__/engine-races/), [owned metadata and scenario review](../journeys/definitions/engine-races/ScenarioReview.md) |
 | Storage failures — `JRN-IO-01–08` | 8 | 0 | 0 | 8 | Add scoped storage faults and recovery assertions |
 | Ordinary browser — `JRN-BROWSER-01–07` | 7 | 0 | 0 | 7 | Eight existing integration variants pass; extend and register the complete planned groups |
 | NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 0 | 0 | 7 | Native runtime verification remains outstanding |
 | Complete sessions — `JRN-SESSION-01–04` | 4 | 0 | 0 | 4 | Compose the four sessions after their dependent cases pass |
 | Usability — `JRN-UX-01–04` | 4 | 0 | 0 | 4 | Perform keyboard/focus, layout and workload checks |
-| **Total** | **147** | **109** | **0** | **38** | **38 groups still need acceptance work** |
+| **Total** | **147** | **117** | **0** | **30** | **30 groups still need acceptance work** |
 
-Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all eleven journeys, including Rules. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Rules verification](JourneyImplementation.md#rules-verification) records a clean focused 50-variant browser run. The broader 260-test run passed every assertion but reported six worker shutdown errors, so it is not a clean whole-suite pass. Earlier tranches retain their dated passing evidence; the filtered Rules report does not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
+Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all twelve journeys, including Rules and Engine races. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Engine-race verification](JourneyImplementation.md#engine-race-verification) records passing race acceptance and shared engine regressions. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
 
 Update this table with each accepted work package, using owned case metadata and `npm run journey -- report` for execution evidence. Keep detailed results in the [implementation record](JourneyImplementation.md) and scenario reviews; a passing bootstrap or a filtered run must not mark unexecuted cases complete.
 
@@ -506,9 +506,9 @@ The owned [Rules fixture](../journeys/definitions/rules/) supplies compact posit
 
 Trace: extend the current `SCN-MOVE-01`/`SCN-MOVE-02` coverage with explicit case IDs; no new product feature is implied.
 
-### B. Pending engine work — proposed `engine-races`
+### B. Pending engine work — `engine-races`
 
-Current scripted analysis emits one depth-12 update and a player reply after roughly 150 ms; it has no public release barrier, crash or malformed-output control. Add deterministic controls to the journey-only transport seam for held/released replies, stale output, one-shot failures and progressive PVs. Expose lifecycle diagnostics only where an integration assertion needs them. Do not expose arbitrary app-state mutation or real process launching.
+Implemented in the [owned Engine-race journey](../journeys/definitions/engine-races/ScenarioReview.md). The focused `journeys/runtime/engine/` modules retain the default 150 ms depth-12/reply behaviour and add deterministic held searches/stop acknowledgements, raw UCI records, scoped spawn failures, scripted process exits and lifecycle diagnostics. Controls act only at the journey transport seam; they cannot mutate application games or launch real processes. The browser cases below are supplemented by an integration check for disposal while client stop acknowledgement blocks queued startup. Ponder ordering remains in protocol integration tests.
 
 | Case | Priority | Actions and required result |
 | --- | --- | --- |

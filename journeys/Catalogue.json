@@ -9,5 +9,6 @@
   "saves": "./definitions/saves/Description.json",
   "settings": "./definitions/settings/Description.json",
   "recovery": "./definitions/recovery/Description.json",
-  "rules": "./definitions/rules/Description.json"
+  "rules": "./definitions/rules/Description.json",
+  "engine-races": "./definitions/engine-races/Description.json"
 }

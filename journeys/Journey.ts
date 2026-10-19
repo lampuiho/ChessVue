@@ -1,4 +1,5 @@
 import type { IGameSessionSnapshot } from '@/contracts';
+import type { JourneyEngineBarrier } from './runtime/engine/JourneyEngineBarrier';
 
 export interface IJourneyFile {
   path: string;
@@ -19,6 +20,7 @@ export interface IJourneyApi extends IJourneyDescription {
   name: string;
   gameIds: string[];
   ready: boolean;
+  engines: JourneyEngineBarrier;
   listFiles(): string[];
   readFile(path: string): string | undefined;
   changeFile(path: string, raw: string | null): void;

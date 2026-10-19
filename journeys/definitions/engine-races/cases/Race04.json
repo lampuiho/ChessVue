@@ -1,0 +1,34 @@
+[
+  {
+    "id": "JRN-RACE-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-04",
+      "SCN-CTRL-02",
+      "SCN-CTRL-03"
+    ],
+    "branches": [
+      "BR-TIME-04-ANALYSIS-ONLY",
+      "BR-CTRL-02-ALREADY-ENDED",
+      "BR-CTRL-03-NON-LOCAL-NO-RESPONSE"
+    ],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-04",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Player.spec.ts",
+        "titles": [
+          "JRN-RACE-04 ignores a held reply after timeout",
+          "JRN-RACE-04 ignores a held reply after resignation",
+          "JRN-RACE-04 ignores a held reply after draw"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

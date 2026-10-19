@@ -9,7 +9,8 @@ import { defineNwjsProcessManagerStore } from '@/platform/nwjs/NwjsProcessManage
 import { defineNwjsUciEngineClientStore } from '@/platform/nwjs/NwjsUciEngineClient';
 import { JourneyFileSystem } from './JourneyFileSystem';
 import { changeManagedFile } from './JourneyStorageControl';
-import { ScriptedEngine } from './ScriptedEngine';
+import { ScriptedEngine } from './runtime/engine/ScriptedEngine';
+import { JourneyEngineBarrier } from './runtime/engine/JourneyEngineBarrier';
 import type { IJourneyApi } from './Journey';
 
 function createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
@@ -30,11 +31,11 @@ function createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
     storage.showSaveDialog = async (suggested) => resolve(exportPath === undefined ? `exports/${getMockNodePath().basename(suggested ?? 'game.json')}` : exportPath, 'showSaveDialog');
   };
 }
-function installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem): void {
+function installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem, engines: JourneyEngineBarrier): void {
   const nw = getMockNwjs();
   setNodeModuleOverrides({
     fs: fs as unknown as typeof import('node:fs'), path: getMockNodePath(),
-    childProcess: { spawn: ((path: string) => new ScriptedEngine(path)) as unknown as typeof import('node:child_process')['spawn'] },
+    childProcess: { spawn: ((path: string) => new ScriptedEngine(path, engines)) as unknown as typeof import('node:child_process')['spawn'] },
   });
   setBrowserPlatformOptions({
     storage, storageKey: key,
@@ -59,13 +60,14 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
   const key = `chessvue:journey:${run.id}:${name}${variant ? `:${variant}` : ''}`;
   if (query.get('reset') === '1') storage.removeItem(key);
   const fs = new JourneyFileSystem(storage, key, seed.files);
-  installBrowserPlatform(storage, key, fs);
+  const engines = new JourneyEngineBarrier();
+  installBrowserPlatform(storage, key, fs, engines);
   const browserFiles = new BrowserFileSystem(storage, key);
   const api: IJourneyApi = {
-    ...journeyCatalogue[name]!, name, gameIds: seed.gameIds, ready: false,
+    ...journeyCatalogue[name]!, name, gameIds: seed.gameIds, ready: false, engines,
     listFiles: () => browserFiles.listFiles(), readFile: (path) => browserFiles.readFile(path),
     changeFile: (path, raw) => changeManagedFile(browserFiles, path, raw),
-    chooseImport: () => {}, chooseExport: () => {}, reset: () => { fs.reset(); window.location.reload(); },
+    chooseImport: () => {}, chooseExport: () => {}, reset: () => { engines.reset(); fs.reset(); window.location.reload(); },
   };
   const installDialogs = createDialogs(api, browserFiles);
   window.chessVueJourney = api;

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-RACE-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-TIME-02",
+      "SCN-TIME-05"
+    ],
+    "branches": [
+      "BR-TIME-05-ENGINE-READY-WHILE-AWAY",
+      "BR-TIME-05-ALREADY-PAUSED"
+    ],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-01",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Pause.spec.ts",
+        "titles": [
+          "JRN-RACE-01 defers a held reply across manual pause and commits once",
+          "JRN-RACE-01 defers a held reply across menu pause and commits once",
+          "JRN-RACE-01 defers a held reply across layered pause and commits once"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

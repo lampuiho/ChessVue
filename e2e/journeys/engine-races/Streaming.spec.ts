@@ -1,0 +1,52 @@
+import { test, expect } from './RaceTest';
+import { openAnalysisRace, analysisSeat, release, emit, releaseReplacement, seedIndependentOutput } from './RaceAction';
+import { playMove } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { selectGame } from '../../support/GameNavigation';
+test('JRN-RACE-05 supersedes rapid positions while independent engines release out of order', async ({ page }) => {
+  const [oldA, oldB] = await openAnalysisRace(page);
+  await seedIndependentOutput(page);
+  await page.evaluate(() => window.chessVueJourney.engines.holdStops(true));
+  await playMove(page, 'g1', 'f3');
+  await playMove(page, 'b8', 'c6');
+  await expect(page.locator('.analysis-line')).toHaveCount(0);
+  await emit(page, oldA!.id, 'info depth 80 score cp 900 pv a2a3');
+  await expect(page.locator('.analysis-line')).toHaveCount(0);
+  await release(page, oldB!.id);
+  await releaseReplacement(page, oldB!, analysisSeat(page, 'Journey B'));
+  await expect(analysisSeat(page, 'Journey B').locator('.analysis-line')).toHaveCount(3);
+  await expect(analysisSeat(page).locator('.analysis-line')).toHaveCount(0);
+  await release(page, oldA!.id);
+  await releaseReplacement(page, oldA!, analysisSeat(page));
+  await expect(analysisSeat(page).locator('.analysis-line')).toHaveCount(3);
+  await page.evaluate(() => window.chessVueJourney.engines.holdStops(false));
+  const saved = await saveCurrentGame(page, 'current-searches');
+  expect(saved.renderedPath).toEqual([0, 0, 0, 0]);
+  for (const seat of saved.analysis.seats) {
+    expect(seat.lines.map((line) => line.depth)).toEqual([12, 12, 12]);
+    expect(seat.lines[0]!.pv[0]!.movingColour).toBe('white');
+  }
+  await selectGame(page, 'race-independent', 'Independent analysis game');
+  const independent = await saveCurrentGame(page, 'independent');
+  expect(independent.renderedPath).toEqual([0, 0]);
+  expect(independent.moveTree.root.children[0]!.move?.to).toBe(27);
+  expect(independent.analysis.seats.map((seat) => seat.lines[0]!.depth)).toEqual([41, 12]);
+  expect(independent.analysis.seats[0]!.lines[0]!.scoreCp).toBe(77);
+});
+test('JRN-RACE-07 skips malformed and illegal PVs while valid depths progress independently', async ({ page }) => {
+  const [a, b] = await openAnalysisRace(page);
+  await release(page, a!.id);
+  await release(page, b!.id);
+  const before = await saveCurrentGame(page, 'valid-output');
+  for (const line of ['info depth nonsense score cp 999 pv z9z8', 'info depth 99 score cp 999 pv e2e5', 'info depth 99 score cp 999 pv g1f3 e8e6', 'info depth 99 multipv 7 score cp 999 pv a1a8']) await emit(page, a!.id, line);
+  const invalid = await saveCurrentGame(page, 'invalid-output');
+  expect(invalid.analysis).toEqual(before.analysis);
+  await emit(page, b!.id, 'info depth 17 multipv 1 score cp 51 pv d2d4 d7d5');
+  await emit(page, a!.id, 'info depth 25 multipv 1 score cp 42 pv g1f3 b8c6');
+  await expect(analysisSeat(page).locator('.engine-section__score')).toHaveText('+0.42');
+  await expect(analysisSeat(page, 'Journey B').locator('.engine-section__score')).toHaveText('+0.51');
+  const progressed = await saveCurrentGame(page, 'valid-progress');
+  expect(progressed.analysis.seats.map((seat) => seat.lines[0]!.depth)).toEqual([25, 17]);
+  expect(progressed.analysis.seats[0]!.lines.slice(1)).toEqual(before.analysis.seats[0]!.lines.slice(1));
+  expect(progressed.moveTree).toEqual(before.moveTree);
+});

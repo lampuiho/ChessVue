@@ -3,7 +3,7 @@ import { createGame } from '../../../builders/GameFixtureBuilder';
 import { getPosition } from '../../../builders/HistoryFixtureBuilder';
 import { createEngineProfiles } from '../../../data/EngineProfile';
 import { fixtureTimestamp } from '../../../data/FixtureTimestamp';
-import { createVariations } from '../../../ScriptedEngine';
+import { createVariations } from '../../../runtime/engine/JourneyEngineSearch';
 export function createAnalysisGames() {
   const free = createGame('analysis-free', 'Free analysis with two engines', ['e2e4', 'e7e5'], { freeAnalysis: true });
   const scoreOnly = createGame('analysis-score-only', 'Live score-only analysis', ['e2e4', 'e7e5']);

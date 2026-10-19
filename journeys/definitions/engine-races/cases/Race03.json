@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-RACE-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ENGINE-03"
+    ],
+    "branches": [
+      "BR-ENGINE-03-TURN-IN-FLIGHT"
+    ],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-03",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Player.spec.ts",
+        "titles": [
+          "JRN-RACE-03 cancels the old reply when assigning Local player",
+          "JRN-RACE-03 cancels the old reply when assigning Journey B",
+          "JRN-RACE-03 cancels the old reply when assigning Unassigned"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

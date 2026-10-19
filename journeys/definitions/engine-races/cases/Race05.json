@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-RACE-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02"
+    ],
+    "branches": [
+      "BR-ANALYSIS-01-POSITION-CHANGED",
+      "BR-ANALYSIS-02-DESYNC"
+    ],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-05",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Streaming.spec.ts",
+        "titles": [
+          "JRN-RACE-05 supersedes rapid positions while independent engines release out of order"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]
