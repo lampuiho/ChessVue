@@ -26,7 +26,7 @@ Exclude ideas without a current user flow: premoves, bookmarks, evaluation expla
 
 ## Completion tracking
 
-Updated 18 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#recovery-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
+Updated 18 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#rules-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
 
 | Area / case range | Total | Complete | Partial | Backlog | Evidence or next work |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -40,16 +40,16 @@ Updated 18 October 2026 from the [implementation record and verified runs](Journ
 | Saves — `JRN-SAVE-01–16` | 16 | 16 | 0 | 0 | [51 browser variants](../e2e/journeys/saves/), [seven migrated application regressions and a storage-control check](../journeys/__tests__/saves/), [owned metadata](../journeys/definitions/saves/cases/) and [scenario review](../journeys/definitions/saves/ScenarioReview.md), including actual-move recorded-analysis round trips |
 | Settings — `JRN-SETTINGS-01–11` | 11 | 11 | 0 | 0 | [24 seeded variants](../e2e/journeys/settings/), [one real Stockfish variant](../e2e/Browser.spec.ts), [four integration checks](../journeys/__tests__/settings/), [owned metadata and review](../journeys/definitions/settings/ScenarioReview.md) |
 | Recovery — `JRN-RECOVERY-01–08` | 8 | 8 | 0 | 0 | [32 browser variants](../e2e/journeys/recovery/), [eight integration/fixture checks](../journeys/__tests__/recovery/), [owned metadata and scenario review](../journeys/definitions/recovery/ScenarioReview.md) |
-| Rules — `JRN-RULE-01–06` | 6 | 0 | 0 | 6 | Add the proposed fixture and special-move/result journeys |
+| Rules — `JRN-RULE-01–06` | 6 | 6 | 0 | 0 | [50 browser variants](../e2e/journeys/rules/), [41 fixture checks](../journeys/__tests__/rules/), [owned metadata and scenario review](../journeys/definitions/rules/ScenarioReview.md) |
 | Engine races — `JRN-RACE-01–08` | 8 | 0 | 0 | 8 | Add barriers/fault controls and pending-work assertions |
 | Storage failures — `JRN-IO-01–08` | 8 | 0 | 0 | 8 | Add scoped storage faults and recovery assertions |
 | Ordinary browser — `JRN-BROWSER-01–07` | 7 | 0 | 0 | 7 | Eight existing integration variants pass; extend and register the complete planned groups |
 | NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 0 | 0 | 7 | Native runtime verification remains outstanding |
 | Complete sessions — `JRN-SESSION-01–04` | 4 | 0 | 0 | 4 | Compose the four sessions after their dependent cases pass |
 | Usability — `JRN-UX-01–04` | 4 | 0 | 0 | 4 | Perform keyboard/focus, layout and workload checks |
-| **Total** | **147** | **103** | **0** | **44** | **44 groups still need acceptance work** |
+| **Total** | **147** | **109** | **0** | **38** | **38 groups still need acceptance work** |
 
-Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all ten existing journeys, including Recovery. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Recovery verification](JourneyImplementation.md#recovery-verification) records a clean focused 32-variant browser run. The broader 260-test run passed every assertion but reported six worker shutdown errors, so it is not a clean whole-suite pass. Earlier tranches retain their dated passing evidence; the filtered Recovery report does not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
+Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all eleven journeys, including Rules. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Rules verification](JourneyImplementation.md#rules-verification) records a clean focused 50-variant browser run. The broader 260-test run passed every assertion but reported six worker shutdown errors, so it is not a clean whole-suite pass. Earlier tranches retain their dated passing evidence; the filtered Rules report does not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
 
 Update this table with each accepted work package, using owned case metadata and `npm run journey -- report` for execution evidence. Keep detailed results in the [implementation record](JourneyImplementation.md) and scenario reviews; a passing bootstrap or a filtered run must not mark unexecuted cases complete.
 
@@ -100,8 +100,8 @@ Add a compact `scenarioReview` entry to the journey's owned case metadata: revie
 
 | Existing asset | What it establishes | Gap to address |
 | --- | --- | --- |
-| [Ten journey definitions](../journeys/definitions/) and [catalogue](../journeys/Catalogue.json) | Repeatable starting data with references to all 48 non-idea scenarios | A scenario reference and manual instruction do not prove its actions or branches pass |
-| [Journey Playwright suite](../e2e/journeys/) | Ten bootstrap checks and 299 named creation/play/history/setup/promotion/analysis/clock/save/settings/recovery tests; completion is tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
+| [Eleven journey definitions](../journeys/definitions/) and [catalogue](../journeys/Catalogue.json) | Repeatable starting data with references to all 48 non-idea scenarios | A scenario reference and manual instruction do not prove its actions or branches pass |
+| [Journey Playwright suite](../e2e/journeys/) | Eleven bootstrap checks and 349 named creation/play/history/setup/promotion/analysis/clock/save/settings/recovery/rules tests; completion is tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
 | [Ordinary browser suite](../e2e/Browser.spec.ts) | Eight tests covering save/reload, real upload/download, theme persistence, concurrent Stockfish, timed/untimed replies, profile-removal isolation and both smothered-mate continuations | Broader persistence, worker failure and navigation coverage |
 | [Application regressions](../journeys/__tests__/UiFollowUp.spec.ts) and [Play suites](../journeys/__tests__/play/) | Mounted-app and store regressions for UI-01 through UI-17, including pause, history, identity and route reuse | Many paths call stores directly and do not establish a complete browser journey |
 | Domain, store, component and platform tests under `src/**/__tests__` | Detailed rules, serialisation, runtime and adapter behaviour | Retain this coverage and add representative UI journeys instead of duplicating every unit permutation |
@@ -489,11 +489,11 @@ Trace: `SCN-SESSION-01`, `SCN-SESSION-02`, `SCN-SESSION-03`, `SCN-NAV-02`, `SCN-
 
 ## Additional fixtures and controls
 
-Extend existing seeds first. Add these three fixtures only for starting states that the current ten do not conveniently express. Names are proposals and are not currently runnable commands.
+Extend existing seeds first. Add these three fixtures only for starting states that the original ten do not conveniently express. `rules` is now a registered launch command; the other two names remain proposals.
 
-### A. Chess rules through the UI — proposed `rules`
+### A. Chess rules through the UI — `rules`
 
-Add legal, compact positions for both castling sides/colours, immediate and expired en passant, check evasion, stalemate and insufficient material. Validate roots and all moves through the existing rule/serialisation helpers. Distinguish pre-existing finished snapshots from a move that actually causes adjudication.
+The owned [Rules fixture](../journeys/definitions/rules/) supplies compact positions for both castling sides/colours, immediate and expired en passant, check evasion, stalemate and insufficient material. Fixture checks validate roots and all seeded moves through the existing rule/serialisation helpers. Timed draw positions start ongoing and require a UI move to cause adjudication.
 
 | Case | Priority | Actions and required result |
 | --- | --- | --- |

@@ -142,7 +142,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received.
 - Process note: once the selected piece is merged into the move, `GamesStore.makeMove` simply follows the same context-specific commit path as `SCN-MOVE-01`. There is no pending-promotion state on the game model.
 - Requirement verification: `Pass`. Promotion remains explicit without introducing a special pending-move game state.
-- Journey verification: JRN-PROMO-01–05 cover both colours, every quiet/capture choice, gestures/orientation and promoted save/reload/takeback; see [the owned review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../JourneyImplementation.md#promotion-verification).
+- Journey verification: JRN-PROMO-01–05 cover both colours, every quiet/capture choice, gestures/orientation and promoted save/reload/takeback; see [the owned review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../JourneyImplementation.md#promotion-verification). JRN-RULE-01–06 add castling, en passant, king-safety rejection, timed rule-resolved draws and special-move restoration; see the [Rules review](../../../journeys/definitions/rules/ScenarioReview.md).
 
 ## Engine-Controlled Turn
 

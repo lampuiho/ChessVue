@@ -1,0 +1,39 @@
+[
+  {
+    "id": "JRN-RULE-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-SESSION-02",
+      "SCN-SAVE-03"
+    ],
+    "branches": [
+      "BR-MOVE-01-GAME-OVER"
+    ],
+    "fixture": "rules",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/rules/ScenarioReview.md#jrn-rule-05",
+    "data": [
+      "journeys/definitions/rules/data/RuleWorkspace.ts",
+      "journeys/definitions/rules/data/RuleScenario.ts",
+      "journeys/definitions/rules/data/DrawGame.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/rules/Draw.spec.ts",
+        "titles": [
+          "JRN-RULE-05 records white stalemate once and stops live clocks through review and reload",
+          "JRN-RULE-05 records white bishop-material once and stops live clocks through review and reload",
+          "JRN-RULE-05 records white knight-material once and stops live clocks through review and reload",
+          "JRN-RULE-05 records white bare-kings once and stops live clocks through review and reload",
+          "JRN-RULE-05 records black stalemate once and stops live clocks through review and reload",
+          "JRN-RULE-05 records black bishop-material once and stops live clocks through review and reload",
+          "JRN-RULE-05 records black knight-material once and stops live clocks through review and reload",
+          "JRN-RULE-05 records black bare-kings once and stops live clocks through review and reload"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

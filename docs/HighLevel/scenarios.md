@@ -336,11 +336,11 @@ Each scenario in this document uses the same structure:
   6. Analysis is queued/refreshed for resulting position.
 - **Branch Paths**:
   - `BR-MOVE-01-STALE-POS`: If position changed before submission (race), reject move and refresh legal map.
-  - `BR-MOVE-01-GAME-OVER`: If move ends the game, retain checkmate as detailed-move and derived-position check state, transition to non-live analysis with the recorded result, and stop further live moves.
+  - `BR-MOVE-01-GAME-OVER`: If a move causes checkmate, stalemate or insufficient material, record the rule-resolved result, stop both live clocks and transition to non-live analysis. Retain checkmate as detailed-move and derived-position check state when applicable. History review preserves the recorded result; takeback follows its existing rewind contract.
 - **Postconditions**: Move is committed once, reflected across board/history/clock/analysis.
 - **Implementation Touchpoints**:
-  - `Chessboard.moveAttempt`
-  - `GameRuleUtility.generateLegalMoves`
+  - `Chessboard.moveAttempted`
+  - `GameRuleUtility.genLegalMovesForPiece`
   - `GameRuleUtility.isMoveLegal`
   - `GamesStore.makeMove`
   - `MoveHistoryService.addMainlineMove`

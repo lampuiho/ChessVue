@@ -1,0 +1,33 @@
+[
+  {
+    "id": "JRN-RULE-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-MOVE-02",
+      "SCN-CTRL-01"
+    ],
+    "branches": [],
+    "fixture": "rules",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/rules/ScenarioReview.md#jrn-rule-03",
+    "data": [
+      "journeys/definitions/rules/data/RuleWorkspace.ts",
+      "journeys/definitions/rules/data/RuleScenario.ts",
+      "journeys/definitions/rules/data/EnPassantGame.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/rules/EnPassant.spec.ts",
+        "titles": [
+          "JRN-RULE-03 captures en passant immediately as white and restores the opportunity on takeback",
+          "JRN-RULE-03 expires white en passant after an intervening move",
+          "JRN-RULE-03 captures en passant immediately as black and restores the opportunity on takeback",
+          "JRN-RULE-03 expires black en passant after an intervening move"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

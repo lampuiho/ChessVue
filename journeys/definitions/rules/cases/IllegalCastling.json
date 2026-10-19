@@ -1,0 +1,48 @@
+[
+  {
+    "id": "JRN-RULE-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-MOVE-02"
+    ],
+    "branches": [],
+    "fixture": "rules",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/rules/ScenarioReview.md#jrn-rule-02",
+    "data": [
+      "journeys/definitions/rules/data/RuleWorkspace.ts",
+      "journeys/definitions/rules/data/RuleScenario.ts",
+      "journeys/definitions/rules/data/CastlingGame.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/rules/IllegalCastling.spec.ts",
+        "titles": [
+          "JRN-RULE-02 rejects white king side castling with in-check without mutation",
+          "JRN-RULE-02 rejects white king side castling with through-attack without mutation",
+          "JRN-RULE-02 rejects white king side castling with occupied-path without mutation",
+          "JRN-RULE-02 rejects white king side castling with king-moved without mutation",
+          "JRN-RULE-02 rejects white king side castling with rook-moved without mutation",
+          "JRN-RULE-02 rejects white queen side castling with in-check without mutation",
+          "JRN-RULE-02 rejects white queen side castling with through-attack without mutation",
+          "JRN-RULE-02 rejects white queen side castling with occupied-path without mutation",
+          "JRN-RULE-02 rejects white queen side castling with king-moved without mutation",
+          "JRN-RULE-02 rejects white queen side castling with rook-moved without mutation",
+          "JRN-RULE-02 rejects black king side castling with in-check without mutation",
+          "JRN-RULE-02 rejects black king side castling with through-attack without mutation",
+          "JRN-RULE-02 rejects black king side castling with occupied-path without mutation",
+          "JRN-RULE-02 rejects black king side castling with king-moved without mutation",
+          "JRN-RULE-02 rejects black king side castling with rook-moved without mutation",
+          "JRN-RULE-02 rejects black queen side castling with in-check without mutation",
+          "JRN-RULE-02 rejects black queen side castling with through-attack without mutation",
+          "JRN-RULE-02 rejects black queen side castling with occupied-path without mutation",
+          "JRN-RULE-02 rejects black queen side castling with king-moved without mutation",
+          "JRN-RULE-02 rejects black queen side castling with rook-moved without mutation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

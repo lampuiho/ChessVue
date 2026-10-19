@@ -1,0 +1,37 @@
+[
+  {
+    "id": "JRN-RULE-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-MOVE-02"
+    ],
+    "branches": [],
+    "fixture": "rules",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/rules/ScenarioReview.md#jrn-rule-04",
+    "data": [
+      "journeys/definitions/rules/data/RuleWorkspace.ts",
+      "journeys/definitions/rules/data/RuleScenario.ts",
+      "journeys/definitions/rules/data/KingSafetyGame.ts",
+      "journeys/definitions/rules/data/EnPassantGame.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/rules/KingSafety.spec.ts",
+        "titles": [
+          "JRN-RULE-04 enforces white king safety for pin with exact legal targets",
+          "JRN-RULE-04 enforces white king safety for defended-capture with exact legal targets",
+          "JRN-RULE-04 enforces white king safety for double-check with exact legal targets",
+          "JRN-RULE-04 enforces white king safety for pinned-en-passant with exact legal targets",
+          "JRN-RULE-04 enforces black king safety for pin with exact legal targets",
+          "JRN-RULE-04 enforces black king safety for defended-capture with exact legal targets",
+          "JRN-RULE-04 enforces black king safety for double-check with exact legal targets",
+          "JRN-RULE-04 enforces black king safety for pinned-en-passant with exact legal targets"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

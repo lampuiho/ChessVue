@@ -1,0 +1,36 @@
+[
+  {
+    "id": "JRN-RULE-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-SESSION-02",
+      "SCN-SAVE-03"
+    ],
+    "branches": [],
+    "fixture": "rules",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/rules/ScenarioReview.md#jrn-rule-06",
+    "data": [
+      "journeys/definitions/rules/data/RuleWorkspace.ts",
+      "journeys/definitions/rules/data/RuleScenario.ts",
+      "journeys/definitions/rules/data/CastlingGame.ts",
+      "journeys/definitions/rules/data/EnPassantGame.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/rules/Persistence.spec.ts",
+        "titles": [
+          "JRN-RULE-06 restores white king before and after the special move with a legal continuation",
+          "JRN-RULE-06 restores white queen before and after the special move with a legal continuation",
+          "JRN-RULE-06 restores white en-passant before and after the special move with a legal continuation",
+          "JRN-RULE-06 restores black king before and after the special move with a legal continuation",
+          "JRN-RULE-06 restores black queen before and after the special move with a legal continuation",
+          "JRN-RULE-06 restores black en-passant before and after the special move with a legal continuation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

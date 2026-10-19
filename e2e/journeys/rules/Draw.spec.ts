@@ -1,0 +1,46 @@
+import { test, expect } from '../clocks/ClockTest';
+import { advanceClock, playerClock, resumeClock } from '../clocks/ClockAction';
+import { drawScenarios } from '../../../journeys/definitions/rules/data/DrawGame';
+import { ruleColours, ruleSquare } from '../../../journeys/definitions/rules/data/RuleScenario';
+import { getPosition } from '../../../journeys/builders/HistoryFixtureBuilder';
+import { getCheckState, genLegalMoves } from '../../../src/utility/chess';
+import { playMove } from '../../support/BoardInteraction';
+import { saveCurrentGame } from '../../support/GameSave';
+import { expectSameGame, openRules, reloadRules } from './RuleAction';
+for (const colour of ruleColours) for (const scenario of drawScenarios) {
+  test(`JRN-RULE-05 records ${colour} ${scenario.name} once and stops live clocks through review and reload`, async ({ page }) => {
+    await openRules(page, `${scenario.name}-${colour}`);
+    const sq = (coordinate: string) => ruleSquare(coordinate, colour);
+    await expect(page.locator('.result-badge')).toHaveText(`${colour} to move`);
+    await resumeClock(page);
+    await advanceClock(page, 3000);
+    await expect(playerClock(page, colour)).toHaveText('1:57');
+    await playMove(page, sq(scenario.from), sq(scenario.to));
+    await expect(page.locator('.result-badge')).toHaveText('drawn');
+    await expect(page.getByRole('heading', { name: 'Game review', exact: true })).toBeVisible();
+    await expect(page.locator('.history-row')).toHaveCount(1);
+    await expect(page.locator('.history-row--selected strong')).toHaveText(scenario.san.replace(scenario.to, sq(scenario.to)));
+    await expect(page.getByRole('button', { name: /^(Resign|Offer draw|Resume game)/ })).toHaveCount(0);
+    const saved = await saveCurrentGame(page, 'drawn');
+    expect(saved).toMatchObject({ resultState: 'drawn', resultReason: 'ruleResolved', livePath: [0], renderedPath: [0] });
+    expect(saved.clockSnapshot.white.isRunning).toBe(false);
+    expect(saved.clockSnapshot.black.isRunning).toBe(false);
+    expect(saved.clockSnapshot[colour].remainingMs).toBe(119000);
+    expect(saved.moveTree.root.children).toHaveLength(1);
+    expect(saved.moveTree.root.children[0]!.children).toHaveLength(0);
+    const position = getPosition(saved, saved.livePath!);
+    expect(getCheckState(position)).toBeUndefined();
+    if (scenario.name === 'stalemate') expect(genLegalMoves(position)).toHaveLength(0);
+    await advanceClock(page, 180000);
+    await expect(playerClock(page, colour)).toHaveText('1:59');
+    await page.getByRole('button', { name: 'Start position', exact: true }).click();
+    await expect(page.locator('.result-badge')).toHaveText('drawn');
+    await page.locator('.history-row').click();
+    expectSameGame(await saveCurrentGame(page, 'reviewed'), saved);
+    await reloadRules(page);
+    await expect(page.locator('.result-badge')).toHaveText('drawn');
+    await expect(page.locator('.history-row')).toHaveCount(1);
+    expectSameGame(await saveCurrentGame(page, 'restored'), saved);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+}

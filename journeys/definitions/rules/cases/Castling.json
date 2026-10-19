@@ -1,0 +1,34 @@
+[
+  {
+    "id": "JRN-RULE-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-CTRL-01"
+    ],
+    "branches": [
+      "BR-CTRL-01-NO-MOVES"
+    ],
+    "fixture": "rules",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/rules/ScenarioReview.md#jrn-rule-01",
+    "data": [
+      "journeys/definitions/rules/data/RuleWorkspace.ts",
+      "journeys/definitions/rules/data/RuleScenario.ts",
+      "journeys/definitions/rules/data/CastlingGame.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/rules/Castling.spec.ts",
+        "titles": [
+          "JRN-RULE-01 @smoke castles white king side and takes back both pieces and rights",
+          "JRN-RULE-01 @smoke castles white queen side and takes back both pieces and rights",
+          "JRN-RULE-01 @smoke castles black king side and takes back both pieces and rights",
+          "JRN-RULE-01 @smoke castles black queen side and takes back both pieces and rights"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

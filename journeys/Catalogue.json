@@ -8,5 +8,6 @@
   "clocks": "./definitions/clocks/Description.json",
   "saves": "./definitions/saves/Description.json",
   "settings": "./definitions/settings/Description.json",
-  "recovery": "./definitions/recovery/Description.json"
+  "recovery": "./definitions/recovery/Description.json",
+  "rules": "./definitions/rules/Description.json"
 }

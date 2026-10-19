@@ -1,0 +1,10 @@
+{
+  "title": "Castling, en passant, king safety and rule-resolved draws",
+  "scenarios": ["SCN-MOVE-01", "SCN-MOVE-02", "SCN-CTRL-01", "SCN-SAVE-03", "SCN-SESSION-02"],
+  "steps": [
+    "In rules-castle-white castle e1-g1 or e1-c1; inspect history, save, reload and take back. Repeat in rules-castle-black with e8-g8 or e8-c8.",
+    "In rules-en-passant-white play e5-d6 immediately; take back, play a1-b1 and h8-g8, then try the expired capture. Repeat the mirrored black position.",
+    "Open a variant such as ?journey=rules&variant=castle-white-king-through-attack&reset=1 to try forbidden castling; use pin-white, defended-capture-white or double-check-white for king safety.",
+    "Open stalemate-white, bishop-material-white, knight-material-white or bare-kings-white, resume the clock and play the final move. Verify the draw, stopped clocks and history review; black variants mirror the positions."
+  ]
+}
