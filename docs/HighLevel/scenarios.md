@@ -147,6 +147,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-SESSION-02-MISSING-GAME`: Persisted `activeGameId` cannot be restored -> route to an available game or Home and persist the repaired session.
   - `BR-SESSION-02-PARTIAL-STATE`: UI state exists but games do not -> keep UI preferences, reset active game.
+  - `BR-SESSION-02-CHECKPOINT-FAIL`: Startup or later route checkpoint cannot be written -> keep the usable in-memory workspace and show a recoverable notice; a later successful navigation checkpoint persists the current shell state.
 - **Postconditions**: Prior session context is restored where valid; invalid pieces are safely repaired.
 - **Implementation Touchpoints**:
   - `UiStateStore.loadLayoutState`
@@ -999,6 +1000,7 @@ Each scenario in this document uses the same structure:
   - `BR-LOAD-01-CANCEL`: User leaves either load route or presses `Cancel` -> no load occurs.
   - `BR-LOAD-01-DUPLICATE-ID`: Loaded managed-group ID collides with an already open game -> remap ID before insert.
   - `BR-LOAD-01-SCHEMA-VERSION`: Unsupported schema version detected -> reject the saved game without inserting a partial workspace.
+  - `BR-LOAD-01-IO-ERROR`: Enumeration or document read fails, including a removed selection -> settle loading, show the failure, preserve open workspaces and allow reselection or reopening the library to retry.
   - `BR-LOAD-01-NO-SELECTION`: User presses `Select` without a selected game on `/saved-games/load` -> keep the user on the grouped game list and block navigation.
   - `BR-LOAD-01-AUTO-PAUSE-DISABLED`: If auto-pause-on-menu is disabled, load proceeds without pausing the clock.
 - **Postconditions**: The selected internal save opens as an active game, whether reached through direct double-click latest-load or the nested `/saved-games/load/:name` save-list route, and live analysis resumes afterwards when engines are available.
@@ -1099,6 +1101,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-SETTINGS-01-INVALID-VALUE`: Value fails schema validation -> block save and show field errors.
   - `BR-SETTINGS-01-APPLY-FAIL`: Apply-on-save fails partially -> persist known-good subset.
+  - `BR-SETTINGS-01-WRITE-FAIL`: Persistence rejects the draft before acceptance -> retain the previous accepted preferences and editable draft, show an error and allow explicit retry.
 - **Postconditions**: Approved preferences are applied and persisted.
 - **Implementation Touchpoints**:
   - `SettingsView.onApply`
@@ -1217,6 +1220,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-LIFECYCLE-01-CANCEL`: User cancels deletion.
   - `BR-LIFECYCLE-01-NOT-FOUND`: Target missing at commit time -> no-op with refresh.
+  - `BR-LIFECYCLE-01-IO-ERROR`: Deletion fails -> close confirmation, refresh the selection, show the failure without claiming deletion and allow another explicit attempt.
 - **Postconditions**: Deleted save target is no longer listed/selectable.
 - **Implementation Touchpoints**:
   - `SavedGamesStore.deleteSave`

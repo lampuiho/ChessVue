@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-IO-07",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SAVE-02",
+      "SCN-SAVE-03",
+      "SCN-LOAD-01"
+    ],
+    "branches": [],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-07",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/storage-failures/StaleRead.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-07 rejects held details after changing selection and preserves the current save target",
+          "JRN-IO-07 rejects held details after changing group route and preserves the current save target",
+          "JRN-IO-07 rejects held details after changing save route and preserves the current save target",
+          "JRN-IO-07 rejects held details after changing board and preserves the current save target"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

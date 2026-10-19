@@ -1,0 +1,33 @@
+[
+  {
+    "id": "JRN-IO-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-LOAD-01"
+    ],
+    "branches": [
+      "BR-LOAD-01-IO-ERROR"
+    ],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-04",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/storage-failures/Load.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-04 recovers from listing failure at saves without loading a partial workspace",
+          "JRN-IO-04 recovers from listing failure at saves/io-game without loading a partial workspace",
+          "JRN-IO-04 rejects read selected snapshot at Load and allows another valid load",
+          "JRN-IO-04 rejects removed selected snapshot at Load and allows another valid load",
+          "JRN-IO-04 shows a details read failure then recovers by reselecting the snapshot"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

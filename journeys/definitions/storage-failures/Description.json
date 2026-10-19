@@ -1,0 +1,10 @@
+{
+  "title": "Storage failure and recovery",
+  "scenarios": ["SCN-SAVE-01", "SCN-SAVE-02", "SCN-SAVE-03", "SCN-LOAD-01", "SCN-EXPORT-01", "SCN-SETTINGS-01", "SCN-SESSION-02", "SCN-LIFECYCLE-01", "SCN-LIFECYCLE-02"],
+  "steps": [
+    "Use storage.failNext(operation, path) before a save, autosave, Settings Apply, Load, deletion or export, then retry through the same UI.",
+    "Use storage.holdNext('readTextFile', path), select another snapshot, then storage.release(id) to inspect stale-read isolation.",
+    "Open variant=startup-session to reject the first session checkpoint, then navigate and reload to verify later persistence.",
+    "Use storage.operations() to inspect exact paths and outcomes; storage.reset() clears faults and cancels pending operations. Journey reset restores the original files."
+  ]
+}

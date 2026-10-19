@@ -11,6 +11,7 @@ import { JourneyFileSystem } from './JourneyFileSystem';
 import { changeManagedFile } from './JourneyStorageControl';
 import { ScriptedEngine } from './runtime/engine/ScriptedEngine';
 import { JourneyEngineBarrier } from './runtime/engine/JourneyEngineBarrier';
+import { JourneyStorageBarrier } from './runtime/storage/JourneyStorageBarrier';
 import type { IJourneyApi } from './Journey';
 
 function createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
@@ -61,17 +62,19 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
   if (query.get('reset') === '1') storage.removeItem(key);
   const fs = new JourneyFileSystem(storage, key, seed.files);
   const engines = new JourneyEngineBarrier();
+  const storageBarrier = new JourneyStorageBarrier();
+  for (const fault of seed.storageFaults ?? []) storageBarrier.failNext(fault.operation, fault.path, fault.count);
   installBrowserPlatform(storage, key, fs, engines);
   const browserFiles = new BrowserFileSystem(storage, key);
   const api: IJourneyApi = {
-    ...journeyCatalogue[name]!, name, gameIds: seed.gameIds, ready: false, engines,
+    ...journeyCatalogue[name]!, name, gameIds: seed.gameIds, ready: false, engines, storage: storageBarrier,
     listFiles: () => browserFiles.listFiles(), readFile: (path) => browserFiles.readFile(path),
     changeFile: (path, raw) => changeManagedFile(browserFiles, path, raw),
-    chooseImport: () => {}, chooseExport: () => {}, reset: () => { engines.reset(); fs.reset(); window.location.reload(); },
+    chooseImport: () => {}, chooseExport: () => {}, reset: () => { engines.reset(); storageBarrier.reset(); fs.reset(); window.location.reload(); },
   };
   const installDialogs = createDialogs(api, browserFiles);
   window.chessVueJourney = api;
   // App restores its persisted route after loading games, just as on a normal launch.
   window.history.replaceState(null, '', '/home');
-  return { api, fs, installDialogs };
+  return { api, fs, installDialogs: (adapter: IStorageAdapter) => { installDialogs(adapter); storageBarrier.install(adapter); } };
 }

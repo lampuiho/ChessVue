@@ -1,0 +1,35 @@
+[
+  {
+    "id": "JRN-IO-05",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-LIFECYCLE-01",
+      "SCN-LIFECYCLE-02"
+    ],
+    "branches": [
+      "BR-LIFECYCLE-01-NOT-FOUND",
+      "BR-LIFECYCLE-01-IO-ERROR",
+      "BR-LIFECYCLE-02-HAS-FALLBACK",
+      "BR-LIFECYCLE-02-LAST-GAME"
+    ],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-05",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/storage-failures/Delete.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-05 refreshes selection after denied deletion and preserves neighbouring files",
+          "JRN-IO-05 refreshes selection after removed deletion and preserves neighbouring files",
+          "JRN-IO-05 returns to the grouped library when the final targets disappear before deletion"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -20,7 +20,6 @@ const selectedGameId = ref('');
 const selectedSaveName = ref('');
 const selectedDocument = shallowRef<IGame>();
 const detailError = ref('');
-let detailGeneration = 0;
 const saveName = ref('');
 const isLoading = ref(true);
 const isWorking = ref(false);
@@ -48,16 +47,17 @@ onMounted(refreshGroups);
 watch(selectedGroup, (group) => {
   if (!group?.saves.some((entry) => entry.saveName === selectedSaveName.value)) selectedSaveName.value = group ? SavedGameIndexService.getLatestSaveEntry(group.saves)?.saveName ?? '' : '';
 }, { immediate: true });
-watch(selectedEntry, async (entry) => {
-  const generation = ++detailGeneration;
+watch(selectedEntry, async (entry, _previousEntry, onCleanup) => {
+  let active = true;
+  onCleanup(() => { active = false; });
   selectedDocument.value = undefined;
   detailError.value = '';
   if (!entry) return;
   try {
     const game = await savedGamesStore.loadGame(entry.gameId, entry.saveName);
-    if (generation === detailGeneration) selectedDocument.value = game;
+    if (active) selectedDocument.value = game;
   } catch (error) {
-    if (generation === detailGeneration) detailError.value = error instanceof Error ? error.message : 'This snapshot could not be read.';
+    if (active) detailError.value = error instanceof Error ? error.message : 'This snapshot could not be read.';
   }
 });
 watch(() => route.fullPath, () => {
@@ -151,10 +151,13 @@ async function confirmDelete(): Promise<void> {
   const target = deleteTarget.value;
   if (!target) return;
   await run(async () => {
-    await savedGamesStore.deleteSave(target.gameId, target.saveName);
     deleteTarget.value = undefined;
-    await refreshGroups();
-    if (route.name === 'load-game' && !groups.value.some((group) => group.gameId === routeGameId.value)) await router.replace('/saved-games/load');
+    try {
+      await savedGamesStore.deleteSave(target.gameId, target.saveName);
+    } finally {
+      await refreshGroups();
+      if (route.name === 'load-game' && !groups.value.some((group) => group.gameId === routeGameId.value)) await router.replace('/saved-games/load');
+    }
   });
 }
 async function run(action: () => Promise<void>, importAction: boolean = false): Promise<void> {
@@ -217,7 +220,7 @@ function formatDate(entry: ISavedGameFileEntry): string {
       </section>
     </div>
     <ModalDialog v-if="deleteTarget" title="Delete this save?" :subtitle="`“${deleteTarget.saveName}” will be permanently removed from this game.`" @dismissed="deleteTarget = undefined"><p class="delete-warning">Other snapshots of this game will not be affected.</p><template #actions><button class="text-button text-button--ghost" @click="deleteTarget = undefined">Cancel</button><button class="text-button text-button--danger" @click="confirmDelete">Delete save</button></template></ModalDialog>
-    <ModalDialog v-if="overwriteTarget" title="Replace this save?" :subtitle="`“${overwriteTarget.saveName}” already exists for this game.`" :dismissible="!isWorking" @dismissed="overwriteTarget = undefined"><p class="delete-warning">Replacing it will overwrite the existing snapshot with the current game.</p><template #actions><button class="text-button text-button--ghost" :disabled="isWorking" @click="overwriteTarget = undefined">Cancel</button><button class="text-button text-button--danger" :disabled="isWorking" @click="confirmOverwrite">Replace save</button></template></ModalDialog>
+    <ModalDialog v-if="overwriteTarget" title="Replace this save?" :subtitle="`“${overwriteTarget.saveName}” already exists for this game.`" :dismissible="!isWorking" @dismissed="overwriteTarget = undefined"><p class="delete-warning">Replacing it will overwrite the existing snapshot with the current game.</p><p v-if="errorMessage" class="library-feedback--error" role="alert">{{ errorMessage }}</p><template #actions><button class="text-button text-button--ghost" :disabled="isWorking" @click="overwriteTarget = undefined">Cancel</button><button class="text-button text-button--danger" :disabled="isWorking" @click="confirmOverwrite">Replace save</button></template></ModalDialog>
   </main>
 </template>
 

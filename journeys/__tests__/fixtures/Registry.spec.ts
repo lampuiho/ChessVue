@@ -24,6 +24,7 @@ describe('modular journey discovery', () => {
       ...Array.from({ length: 12 }, (_, index) => `JRN-CLOCK-${String(index + 1).padStart(2, '0')}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-FRESH-0${index + 1}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-HIST-0${index + 1}`),
+      ...Array.from({ length: 8 }, (_, index) => `JRN-IO-0${index + 1}`),
       ...Array.from({ length: 12 }, (_, index) => `JRN-PLAY-${String(index + 1).padStart(2, '0')}`),
       ...Array.from({ length: 5 }, (_, index) => `JRN-PROMO-0${index + 1}`),
       ...Array.from({ length: 8 }, (_, index) => `JRN-RACE-0${index + 1}`),

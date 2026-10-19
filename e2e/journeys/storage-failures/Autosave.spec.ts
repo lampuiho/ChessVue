@@ -1,0 +1,23 @@
+import { test, expect } from './StorageTest';
+import { playMove } from '../../support/BoardInteraction';
+import { readFile, readGame } from '../../support/SaveInspection';
+import { waitForJourney } from '../../support/JourneyBootstrap';
+import { expectOperation, failNext, gamePath, managedSnapshot, openStorageGame } from './StorageAction';
+test('JRN-IO-02 keeps play usable after failed interval autosave and saves the current position at the next checkpoint', async ({ page }) => {
+  await openStorageGame(page);
+  const before = await managedSnapshot(page);
+  const path = gamePath + 'auto.json';
+  await failNext(page, 'writeTextFile', path);
+  for (const [from, to] of [['f1', 'b5'], ['a7', 'a6'], ['b5', 'a4']]) await playMove(page, from!, to!);
+  await expectOperation(page, 'writeTextFile', path, 'failed');
+  await expect(page.locator('.toast')).toContainText('Automatic save failed');
+  await expect(page.locator('.history-row')).toHaveCount(7);
+  expect(await managedSnapshot(page)).toEqual(before);
+  for (const [from, to] of [['g8', 'f6'], ['d2', 'd3'], ['f8', 'e7']]) await playMove(page, from!, to!);
+  await expectOperation(page, 'writeTextFile', path, 'succeeded');
+  expect((await readGame(page, path)).livePath).toHaveLength(10);
+  for (const [file, raw] of Object.entries(before)) if (file !== path) expect(await readFile(page, file)).toBe(raw);
+  await page.reload();
+  await waitForJourney(page);
+  await expect(page.locator('.history-row')).toHaveCount(10);
+});

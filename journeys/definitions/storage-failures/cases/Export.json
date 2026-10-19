@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-IO-06",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-EXPORT-01"
+    ],
+    "branches": [
+      "BR-EXPORT-01-IO-ERROR"
+    ],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-06",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/storage-failures/Export.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-06 rejects an export write without a file or success notice and exports successfully on retry"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

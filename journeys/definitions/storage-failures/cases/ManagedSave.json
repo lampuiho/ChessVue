@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-IO-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SAVE-02",
+      "SCN-SAVE-03"
+    ],
+    "branches": [
+      "BR-SAVE-03-IO-ERROR"
+    ],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-01",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/storage-failures/ManagedSave.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-01 preserves prior files after failed named save and retries the intended snapshot",
+          "JRN-IO-01 preserves prior files after failed overwrite and retries the intended snapshot"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -5,6 +5,8 @@ This document covers `SCN-SAVE-01` to `SCN-LIFECYCLE-02`.
 
 ## Persistence And File I/O
 
+Storage failures preserve usable in-memory work. `App.saveSession` handles startup/navigation session-write rejection with a recoverable notice; a later successful navigation clears it. Layout writes retain the current in-memory folds and use GameView's existing action feedback. Settings accepts/caches a draft only after its write succeeds. SavedGamesView shows overwrite failures inside the confirmation, and refreshes deletion selection/routes in a finally path even if the target vanished or deletion was denied. The selected-entry watcher's cleanup invalidates pending details delivery when its selection changes or the view unmounts, including when the same snapshot is selected again. The journey-only storage barrier verifies these boundaries without replacing the production browser file adapter.
+
 ### SCN-SAVE-01 - Autosave Internal Save Entry
 
 Case 1: autosave after `n` moves. `GamesStore` counts new committed live moves per hydrated workspace. A positive configured interval queues `SavedGamesStore.saveGame(...)` with `targetKind: SaveGameTargetKind.Autosave` at each threshold; zero disables this trigger. The store exposes recoverable write feedback through `autosaveError`.

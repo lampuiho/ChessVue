@@ -1,5 +1,6 @@
 import type { IGameSessionSnapshot } from '@/contracts';
 import type { JourneyEngineBarrier } from './runtime/engine/JourneyEngineBarrier';
+import type { IStorageFault, JourneyStorageBarrier } from './runtime/storage/JourneyStorageBarrier';
 
 export interface IJourneyFile {
   path: string;
@@ -10,6 +11,7 @@ export interface IJourneySeed {
   files: IJourneyFile[];
   gameIds: string[];
   activeRoute: IGameSessionSnapshot['activeRoute'];
+  storageFaults?: IStorageFault[];
 }
 export interface IJourneyDescription {
   title: string;
@@ -21,6 +23,7 @@ export interface IJourneyApi extends IJourneyDescription {
   gameIds: string[];
   ready: boolean;
   engines: JourneyEngineBarrier;
+  storage: JourneyStorageBarrier;
   listFiles(): string[];
   readFile(path: string): string | undefined;
   changeFile(path: string, raw: string | null): void;

@@ -28,6 +28,10 @@ async function requestSave(name: string): Promise<void> {
   await wrapper.get('.library-actions .text-button--primary').trigger('click');
   await flushPromises();
 }
+async function selectSnapshot(name: string): Promise<void> {
+  await wrapper.findAll('.save-row__content').find((row) => row.get('strong').text() === name)!.trigger('click');
+  await flushPromises();
+}
 describe('SavedGamesView named saves', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -41,6 +45,31 @@ describe('SavedGamesView named saves', () => {
     dependency.savedGamesStore.saveGame.mockResolvedValue('saves/game-a/New.json');
   });
   afterEach(() => wrapper?.unmount());
+  it.each(['success', 'failure'])('ignores obsolete read %s after reselecting the same snapshot', async (outcome) => {
+    dependency.savedGamesStore.listSavedGames.mockResolvedValue([createSavedGameGroup('game-a', [
+      createSavedGameEntry('game-a', 'Opening', '2026-04-17T11:00:00.000Z', false, 'saves/game-a/Opening.json'),
+      createSavedGameEntry('game-a', 'Current', '2026-04-17T12:00:00.000Z', false, 'saves/game-a/Current.json'),
+    ])]);
+    await mountView();
+    let resolveRead!: (game: IGame) => void;
+    let rejectRead!: (error: Error) => void;
+    const pending = new Promise<IGame>((resolve, reject) => { resolveRead = resolve; rejectRead = reject; });
+    dependency.savedGamesStore.loadGame.mockReturnValueOnce(pending);
+    await selectSnapshot('Opening');
+    await selectSnapshot('Current');
+    const fresh = createGame();
+    fresh.metadata.name = 'Fresh details';
+    dependency.savedGamesStore.loadGame.mockResolvedValueOnce(fresh);
+    await selectSnapshot('Opening');
+    expect(wrapper.get('.snapshot-details > strong').text()).toBe('Fresh details');
+    const obsolete = createGame();
+    obsolete.metadata.name = 'Obsolete details';
+    if (outcome === 'success') resolveRead(obsolete);
+    else rejectRead(new Error('Obsolete read failed.'));
+    await flushPromises();
+    expect(wrapper.get('.snapshot-details > strong').text()).toBe('Fresh details');
+    expect(wrapper.find('.snapshot-details .library-feedback--error').exists()).toBe(false);
+  });
   it('saves a unique trimmed name immediately without enabling overwrite', async () => {
     await mountView();
     await requestSave('  New  ');

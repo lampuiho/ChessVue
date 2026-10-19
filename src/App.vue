@@ -19,8 +19,9 @@ const { gameSession, layoutState } = storeToRefs(uiStateStore);
 const appViewportRemCount = 50;
 const startupComplete = ref(false);
 const warningDismissed = ref(false);
+const sessionSaveError = ref('');
 const isReady = computed(() => startupComplete.value && !!settings.value && !!gameSession.value && !!layoutState.value);
-const recoveryWarnings = computed(() => [settingsStore.recoveryWarning, ...uiStateStore.recoveryWarnings].filter(Boolean));
+const recoveryWarnings = computed(() => [settingsStore.recoveryWarning, ...uiStateStore.recoveryWarnings, sessionSaveError.value].filter(Boolean));
 const resolvedThemeMode = computed(() => {
   if (appearanceProjection.value?.resolvedThemeMode) return appearanceProjection.value.resolvedThemeMode;
   if (settings.value?.appearance.themeMode === ThemeMode.Dark) return ResolvedThemeMode.Dark;
@@ -81,6 +82,15 @@ async function restoreWorkspace(): Promise<void> {
 function isCommittedRoute(path: string): path is NonNullable<typeof gameSession.value>['activeRoute'] {
   return /^\/home$|^\/game\/.+$|^\/saved-games\/load(?:\/.+)?$|^\/saved-games\/save\/.+$|^\/settings\/(session|gameplay|appearance|engines)$/.test(path);
 }
+async function saveSession(): Promise<void> {
+  try {
+    await uiStateStore.saveGameSession();
+    sessionSaveError.value = '';
+  } catch {
+    sessionSaveError.value = 'Your session could not be saved. Your open games are still available; navigate again to retry.';
+    warningDismissed.value = false;
+  }
+}
 
 onMounted(async () => {
   await Promise.all([settingsStore.loadSettings(), uiStateStore.loadGameSession(), uiStateStore.loadLayoutState()]);
@@ -98,13 +108,13 @@ onMounted(async () => {
     else uiStateStore.setActiveRoute(route.path);
   }
   startupComplete.value = true;
-  await uiStateStore.saveGameSession();
+  await saveSession();
 });
 watch(() => route.path, (path) => {
   if (!isReady.value || !isCommittedRoute(path)) return;
   if (path.startsWith('/game/')) uiStateStore.setActiveGame(path.slice('/game/'.length));
   else uiStateStore.setActiveRoute(path);
-  void uiStateStore.saveGameSession();
+  void saveSession();
 });
 </script>
 

@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: [['list'], ['json', { outputFile: 'test-results/JourneyResults.json' }]],
   use: { ...devices['Desktop Chrome'], trace: 'retain-on-failure' },
   projects: [
-    { name: 'browser', testMatch: 'Browser.spec.ts', use: { baseURL: `http://127.0.0.1:${browserPort}` } },
+    { name: 'browser', testMatch: ['Browser.spec.ts', 'browser/**/*.spec.ts'], use: { baseURL: `http://127.0.0.1:${browserPort}` } },
     { name: 'journeys', testMatch: 'journeys/**/*.spec.ts', use: { baseURL: `http://127.0.0.1:${browserPort + 1}` } },
   ],
 });

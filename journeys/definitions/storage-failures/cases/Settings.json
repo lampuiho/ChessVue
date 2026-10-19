@@ -1,0 +1,36 @@
+[
+  {
+    "id": "JRN-IO-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [
+      "BR-SETTINGS-01-WRITE-FAIL"
+    ],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-03",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/browser/Storage.spec.ts",
+        "project": "browser",
+        "titles": [
+          "JRN-IO-03 rejects a real browser storage write without accepting preferences and persists the retry"
+        ]
+      },
+      {
+        "spec": "e2e/journeys/storage-failures/Settings.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-03 preserves accepted preferences and the editable draft after failed Apply then retries and reloads"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

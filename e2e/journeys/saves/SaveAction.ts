@@ -2,9 +2,8 @@ import { expect, type Page } from '@playwright/test';
 import type { IGame, MovePath } from '../../../src/contracts';
 import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
 import { readFile } from '../../support/SaveInspection';
-export function snapshotRow(page: Page, name: string) {
-  return page.locator('.save-row').filter({ has: page.locator('.save-row__content strong').getByText(name, { exact: true }) });
-}
+import { snapshotRow } from '../../support/SnapshotBrowser';
+export { snapshotRow };
 export async function openLibraryGame(page: Page): Promise<void> {
   await openJourney(page, 'saves');
   await page.getByRole('button', { name: 'Close', exact: true }).click();

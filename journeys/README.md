@@ -32,6 +32,7 @@ The command prints its URL and uses port 5173 by default. Each command run gets 
 | `recovery` | Corrupt settings/layout, missing and unsupported active saves, one valid game | Startup fallback, repaired session, warning |
 | `rules` | Both colours' castling and immediate en passant, plus isolated king-safety and timed draw variants | Special moves, illegal targets, takeback, adjudication and save/reload |
 | `engine-races` | Paused Black engine turn after e4 and two independent A/B analysis games | Held replies/stop acknowledgements, cancellation, stale output, crashes, retry and cleanup |
+| `storage-failures` | Two local games, Opening/Current/Other snapshots and a three-ply autosave interval | Scoped I/O failures, retry, stale details and session/layout checkpoints |
 
 [Catalogue.json](Catalogue.json) maps launch names to each journey's `Description.json`. The shared loader composes titles, scenario references and ordered manual steps for the CLI and app. Steps are also available in the browser console as `window.chessVueJourney.steps`. Stable game IDs follow the names in [definitions/](definitions/), such as `history-allowed`, `promotion-white` and `clocks-timeout-b`.
 
@@ -54,6 +55,30 @@ Recovery adds optional persisted variants without changing its default combined 
 Reproduce acceptance with `npm run test:e2e -- e2e/journeys/engine-races --project=journeys --workers=2 --timeout=90000 --retries=0`. See the [verification record](../docs/JourneyImplementation.md#engine-race-verification) and run `npm run journey -- report test-results/RaceRegressionResults.json` for generated execution evidence.
 
 ## Automation
+
+[Storage failures](definitions/storage-failures/ScenarioReview.md) owns JRN-IO-01–08 with 21 seeded browser variants, one ordinary-browser write-rejection variant and nine adapter/fixture checks. Launch with `npm run journey -- storage-failures`. The controller wraps the ordinary browser storage adapter and never changes application games directly:
+
+```js
+chessVueJourney.storage.failNext('writeTextFile', 'saves/io-game/Opening.json');
+chessVueJourney.storage.failNext('listDirectory', 'saves');
+chessVueJourney.storage.failNext('deleteFile', 'saves/io-game/Opening.json');
+const readId = chessVueJourney.storage.holdNext('readTextFile', 'saves/io-game/Opening.json');
+chessVueJourney.storage.release(readId); // Release after the read appears as held in operations().
+chessVueJourney.storage.operations(); // Exact paths, IDs and held/succeeded/failed/cancelled outcomes.
+chessVueJourney.storage.reset(); // Clear unused faults and cancel pending operations without late writes.
+```
+
+Faults match one normalised path and operation. An optional third argument to `failNext` selects the failure count; its optional fourth argument uses an existing platform error kind. Held reads capture their old result before delivery; held writes/deletes commit only after release. Direct file inspection bypasses faults. Controls clear on reload, journey reset and test teardown. `/?journey=storage-failures&variant=startup-session&reset=1` rejects the first session checkpoint before mounting; that named variant rearms on every bootstrap. Normal close autosave remains enabled independently of session/layout writes.
+
+Run both storage-failure lanes and generate their case report:
+
+```powershell
+$env:PLAYWRIGHT_JSON_OUTPUT_FILE = 'test-results/IoAcceptanceResults.json'
+npm run test:e2e -- e2e/journeys/storage-failures e2e/browser/Storage.spec.ts --grep JRN-IO- --workers=1 --timeout=180000 --retries=0
+npm run journey -- report test-results/IoAcceptanceResults.json
+```
+
+The [Storage failure verification record](../docs/JourneyImplementation.md#storage-failure-verification) records execution evidence and limits. The ordinary-browser case rejects a real `Storage.setItem` with `QuotaExceededError`; it uses no journey fault hook.
 
 Rules uses four default tabs and 40 named starting positions. Open `/?journey=rules&variant=castle-white-queen-rook-moved&reset=1` for a returned rook, or replace the variant with `castle-black-king-through-attack`, `pin-white`, `defended-capture-black`, `double-check-white`, `pinned-en-passant-black`, `stalemate-white`, `bishop-material-black`, `knight-material-white` or `bare-kings-black`. Castling obstacles are `in-check`, `through-attack`, `occupied-path`, `king-moved` and `rook-moved`, crossed with each colour and side. Draw variants start paused and ongoing; resume and play the final move described by the [owned scenario data](definitions/rules/data/DrawGame.ts). Variants retain their own namespace across reload. See the [Rules scenario review](definitions/rules/ScenarioReview.md) for acceptance boundaries.
 
@@ -104,9 +129,9 @@ npm run journey -- report test-results/SettingsAcceptanceResults.json
 
 [Analysis](definitions/analysis/ScenarioReview.md) owns JRN-ANALYSIS-01–12, with 22 browser variants for concurrent output, folds, suggestion permissions/playback, scoped failures, seat management, timed pause, restore policy and rapid history navigation. Three mounted-application checks exercise retained stale prefixes, obsolete callbacks and assignment invariants. The seed now lives in `definitions/analysis/data/AnalysisWorkspace.ts` with the original three IDs and permissions.
 
-All eleven journey definitions live in `definitions/<name>/index.ts`, with owned descriptions, `data/`, `cases/` and `ScenarioReview.md`. Shared builders under `builders/` construct games, legal histories, clocks, settings, saves and workspaces; reusable profile/timestamp data lives under `data/`. Add a description path to `Catalogue.json` and compose the definition in `index.ts`. Keep IDs and timestamps stable; only paused clock anchors use the seed time. Corrupt documents should be explicit overrides, as in `recovery` and `saves`.
+All thirteen journey definitions live in `definitions/<name>/index.ts`, with owned descriptions, `data/`, `cases/` and `ScenarioReview.md`. Shared builders under `builders/` construct games, legal histories, clocks, settings, saves and workspaces; reusable profile/timestamp data lives under `data/`. Add a description path to `Catalogue.json` and compose the definition in `index.ts`. Keep IDs and timestamps stable; only paused clock anchors use the seed time. Corrupt documents should be explicit overrides, as in `recovery` and `saves`.
 
-Implemented coverage includes JRN-FRESH-01–09, JRN-PLAY-01–12, JRN-HIST-01–09, JRN-SETUP-01–09, JRN-PROMO-01–05, JRN-CLOCK-01–12, JRN-ANALYSIS-01–12, JRN-SAVE-01–16, JRN-SETTINGS-01–11 and JRN-RECOVERY-01–08. History owns 16 browser variants for navigation, rewrite decisions, branch preferences, paused exploration, pruning, actual-move records and nested restoration, with nine focused integration checks for recording, pause ownership, edit guards and detached nodes. [Setup](definitions/setup/ScenarioReview.md) owns 24 browser variants for free exploration, first-edit history clearing, all palette kinds/colours, clear/reset, edit guards, delayed analysis assignment, start cancellation/recovery and workspace reloads, plus eight focused integration checks for edit invariants, exact engine starts and the migrated UI-10/UI-17 assertions. [Promotion](definitions/promotion/ScenarioReview.md) owns 36 browser variants covering both colours, all quiet/capture choices, cancellation, drag/orientation and promoted save/reload/takeback, including insufficient-material draws. Feature specs live under `e2e/journeys/`; the catalogue sweep checks bootstrap only. Owned case metadata names every executable variant and links its scenario review. [JourneyImplementation.md](../docs/JourneyImplementation.md) records the baseline, scope and remaining work.
+Implemented coverage includes JRN-FRESH-01–09, JRN-PLAY-01–12, JRN-HIST-01–09, JRN-SETUP-01–09, JRN-PROMO-01–05, JRN-CLOCK-01–12, JRN-ANALYSIS-01–12, JRN-SAVE-01–16, JRN-SETTINGS-01–11, JRN-RECOVERY-01–08, JRN-RULE-01–06, JRN-RACE-01–08 and JRN-IO-01–08. History owns 16 browser variants for navigation, rewrite decisions, branch preferences, paused exploration, pruning, actual-move records and nested restoration, with nine focused integration checks for recording, pause ownership, edit guards and detached nodes. [Setup](definitions/setup/ScenarioReview.md) owns 24 browser variants for free exploration, first-edit history clearing, all palette kinds/colours, clear/reset, edit guards, delayed analysis assignment, start cancellation/recovery and workspace reloads, plus eight focused integration checks for edit invariants, exact engine starts and the migrated UI-10/UI-17 assertions. [Promotion](definitions/promotion/ScenarioReview.md) owns 36 browser variants covering both colours, all quiet/capture choices, cancellation, drag/orientation and promoted save/reload/takeback, including insufficient-material draws. Feature specs live under `e2e/journeys/`; the catalogue sweep checks bootstrap only. Owned case metadata names every executable variant and links its scenario review. [JourneyImplementation.md](../docs/JourneyImplementation.md) records the baseline, scope and remaining work.
 
 ```sh
 npm run test:e2e -- --project=journeys

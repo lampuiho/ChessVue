@@ -26,7 +26,7 @@ Exclude ideas without a current user flow: premoves, bookmarks, evaluation expla
 
 ## Completion tracking
 
-Updated 19 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#engine-race-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
+Updated 19 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#storage-failure-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
 
 | Area / case range | Total | Complete | Partial | Backlog | Evidence or next work |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -42,14 +42,14 @@ Updated 19 October 2026 from the [implementation record and verified runs](Journ
 | Recovery — `JRN-RECOVERY-01–08` | 8 | 8 | 0 | 0 | [32 browser variants](../e2e/journeys/recovery/), [eight integration/fixture checks](../journeys/__tests__/recovery/), [owned metadata and scenario review](../journeys/definitions/recovery/ScenarioReview.md) |
 | Rules — `JRN-RULE-01–06` | 6 | 6 | 0 | 0 | [50 browser variants](../e2e/journeys/rules/), [41 fixture checks](../journeys/__tests__/rules/), [owned metadata and scenario review](../journeys/definitions/rules/ScenarioReview.md) |
 | Engine races — `JRN-RACE-01–08` | 8 | 8 | 0 | 0 | [15 browser variants](../e2e/journeys/engine-races/), [three control/disposal checks](../journeys/__tests__/engine-races/), [owned metadata and scenario review](../journeys/definitions/engine-races/ScenarioReview.md) |
-| Storage failures — `JRN-IO-01–08` | 8 | 0 | 0 | 8 | Add scoped storage faults and recovery assertions |
+| Storage failures — `JRN-IO-01–08` | 8 | 8 | 0 | 0 | [21 seeded variants](../e2e/journeys/storage-failures/), [one real browser storage rejection](../e2e/browser/Storage.spec.ts), [nine adapter/fixture checks](../journeys/__tests__/storage-failures/), [owned metadata and review](../journeys/definitions/storage-failures/ScenarioReview.md) |
 | Ordinary browser — `JRN-BROWSER-01–07` | 7 | 0 | 0 | 7 | Eight existing integration variants pass; extend and register the complete planned groups |
 | NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 0 | 0 | 7 | Native runtime verification remains outstanding |
 | Complete sessions — `JRN-SESSION-01–04` | 4 | 0 | 0 | 4 | Compose the four sessions after their dependent cases pass |
 | Usability — `JRN-UX-01–04` | 4 | 0 | 0 | 4 | Perform keyboard/focus, layout and workload checks |
-| **Total** | **147** | **117** | **0** | **30** | **30 groups still need acceptance work** |
+| **Total** | **147** | **125** | **0** | **22** | **22 groups still need acceptance work** |
 
-Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all twelve journeys, including Rules and Engine races. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Engine-race verification](JourneyImplementation.md#engine-race-verification) records passing race acceptance and shared engine regressions. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
+Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all thirteen journeys, including Rules, Engine races and Storage failures. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Storage-failure verification](JourneyImplementation.md#storage-failure-verification) records clean acceptance for all eight IO groups and the separate broader run's teardown failures. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
 
 Update this table with each accepted work package, using owned case metadata and `npm run journey -- report` for execution evidence. Keep detailed results in the [implementation record](JourneyImplementation.md) and scenario reviews; a passing bootstrap or a filtered run must not mark unexecuted cases complete.
 
@@ -100,8 +100,8 @@ Add a compact `scenarioReview` entry to the journey's owned case metadata: revie
 
 | Existing asset | What it establishes | Gap to address |
 | --- | --- | --- |
-| [Eleven journey definitions](../journeys/definitions/) and [catalogue](../journeys/Catalogue.json) | Repeatable starting data with references to all 48 non-idea scenarios | A scenario reference and manual instruction do not prove its actions or branches pass |
-| [Journey Playwright suite](../e2e/journeys/) | Eleven bootstrap checks and 349 named creation/play/history/setup/promotion/analysis/clock/save/settings/recovery/rules tests; completion is tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
+| [Thirteen journey definitions](../journeys/definitions/) and [catalogue](../journeys/Catalogue.json) | Repeatable starting data with references to all 48 non-idea scenarios | A scenario reference and manual instruction do not prove its actions or branches pass |
+| [Journey Playwright suite](../e2e/journeys/) | Thirteen bootstrap checks and focused feature suites; both browser projects discover 407 tests, with completion tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
 | [Ordinary browser suite](../e2e/Browser.spec.ts) | Eight tests covering save/reload, real upload/download, theme persistence, concurrent Stockfish, timed/untimed replies, profile-removal isolation and both smothered-mate continuations | Broader persistence, worker failure and navigation coverage |
 | [Application regressions](../journeys/__tests__/UiFollowUp.spec.ts) and [Play suites](../journeys/__tests__/play/) | Mounted-app and store regressions for UI-01 through UI-17, including pause, history, identity and route reuse | Many paths call stores directly and do not establish a complete browser journey |
 | Domain, store, component and platform tests under `src/**/__tests__` | Detailed rules, serialisation, runtime and adapter behaviour | Retain this coverage and add representative UI journeys instead of duplicating every unit permutation |

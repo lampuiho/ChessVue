@@ -1,0 +1,20 @@
+import { test, expect } from './StorageTest';
+import { readFile, readGame } from '../../support/SaveInspection';
+import { failNext, gamePath, managedSnapshot, openStorageGame } from './StorageAction';
+test('JRN-IO-06 rejects an export write without a file or success notice and exports successfully on retry', async ({ page }) => {
+  await openStorageGame(page);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const before = await managedSnapshot(page);
+  const path = 'exports/retry.json';
+  await page.evaluate((path) => window.chessVueJourney.chooseExport(path), path);
+  await failNext(page, 'writeTextFile', path);
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(page.locator('.library-actions .library-feedback--error')).toContainText('Try again');
+  await expect(page.locator('.library-actions')).not.toContainText('Game exported');
+  expect(await readFile(page, path)).toBeUndefined();
+  expect(await managedSnapshot(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(page.locator('.library-actions')).toContainText('Game exported');
+  expect(await readGame(page, path)).toEqual(await readGame(page, gamePath + 'auto.json'));
+  expect(await managedSnapshot(page)).toEqual(before);
+});

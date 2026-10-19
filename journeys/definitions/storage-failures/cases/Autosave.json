@@ -1,0 +1,29 @@
+[
+  {
+    "id": "JRN-IO-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SAVE-01"
+    ],
+    "branches": [
+      "BR-SAVE-01-WRITE-FAIL"
+    ],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-02",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/storage-failures/Autosave.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-02 keeps play usable after failed interval autosave and saves the current position at the next checkpoint"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

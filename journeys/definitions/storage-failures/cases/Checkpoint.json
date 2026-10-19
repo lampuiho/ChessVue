@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-IO-08",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SESSION-02"
+    ],
+    "branches": [
+      "BR-SESSION-02-CHECKPOINT-FAIL"
+    ],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/storage-failures/ScenarioReview.md#jrn-io-08",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/storage-failures/Checkpoint.spec.ts",
+        "project": "journeys",
+        "titles": [
+          "JRN-IO-08 keeps the workspace usable after startup session checkpoint failure and persists a later route",
+          "JRN-IO-08 keeps the workspace usable after navigation session checkpoint failure and persists a later route",
+          "JRN-IO-08 retains in-memory history fold after failed layout checkpoint and reloads a later successful fold",
+          "JRN-IO-08 retains in-memory analysis fold after failed layout checkpoint and reloads a later successful fold"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]
