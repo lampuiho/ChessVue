@@ -9,7 +9,11 @@ const drawerOpen = ref(false);
 
 <template>
   <header class="app-header navigation-frame" :class="{ 'navigation-frame--expanded': uiStateStore.navigationExpanded }">
-    <button class="icon-button navigation-toggle navigation-toggle--desktop" :aria-label="uiStateStore.navigationExpanded ? 'Collapse navigation' : 'Expand navigation'" :aria-expanded="uiStateStore.navigationExpanded" @click="uiStateStore.toggleNavigationExpanded()"><AppIcon :name="uiStateStore.navigationExpanded ? 'chevron-left' : 'chevron-right'" /></button>
+    <button class="icon-button navigation-toggle navigation-toggle--desktop"
+      :aria-label="uiStateStore.navigationExpanded ? 'Collapse navigation' : 'Expand navigation'"
+      :aria-expanded="uiStateStore.navigationExpanded" @click="uiStateStore.toggleNavigationExpanded()">
+        <AppIcon name="menu" />
+    </button>
     <button class="icon-button navigation-toggle navigation-toggle--mobile" aria-label="Open navigation menu" :aria-expanded="drawerOpen" @click="drawerOpen = true"><AppIcon name="menu" /></button>
     <div class="navigation-brand"><slot name="brand" /></div>
     <div class="navigation-actions"><slot /></div>
