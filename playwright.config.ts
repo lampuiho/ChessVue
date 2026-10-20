@@ -11,6 +11,6 @@ export default defineConfig({
   use: { ...devices['Desktop Chrome'], trace: 'retain-on-failure' },
   projects: [
     { name: 'browser', testMatch: ['Browser.spec.ts', 'browser/**/*.spec.ts'], use: { baseURL: `http://127.0.0.1:${browserPort}` } },
-    { name: 'journeys', testMatch: 'journeys/**/*.spec.ts', use: { baseURL: `http://127.0.0.1:${browserPort + 1}` } },
+    { name: 'journeys', testMatch: ['journeys/**/*.spec.ts', 'sessions/**/*.spec.ts'], use: { baseURL: `http://127.0.0.1:${browserPort + 1}` } },
   ],
 });

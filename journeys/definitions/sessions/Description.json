@@ -1,0 +1,12 @@
+{
+  "title": "Complete player, study, interrupted and library sessions",
+  "scenarios": ["SCN-GAME-02", "SCN-MOVE-01", "SCN-HIST-01", "SCN-HIST-04", "SCN-CTRL-02", "SCN-CTRL-04", "SCN-FREE-ANALYSIS-01", "SCN-FREE-ANALYSIS-02", "SCN-FREE-ANALYSIS-03", "SCN-ANALYSIS-02", "SCN-NAV-01", "SCN-NAV-03", "SCN-TIME-04", "SCN-TIME-05", "SCN-SAVE-03", "SCN-LOAD-01", "SCN-EXPORT-01", "SCN-IMPORT-01", "SCN-SETTINGS-01", "SCN-LIFECYCLE-01", "SCN-SESSION-02"],
+  "steps": [
+    "Start at Home with no games or saves; the three scripted profiles and normal session/autosave settings are installed.",
+    "First player: create a custom timed game with both analysis engines, play e4 d5 exd5, explore and return, continue with c6, save, reload/load the named snapshot, resume, resign and reopen the result.",
+    "Study: create free analysis, build nested alternatives, enter/leave editing without a change, relocate the visible a2 pawn to a3, start a timed game with a Black engine, export and import.",
+    "Interrupted: hold player output before e4, apply appearance in Settings, release the held reply while away, return once, let White time out, review and save/reload.",
+    "Library: create two games and named snapshots, compare latest and selected loads, export/import the same file twice, delete only Opening, reopen a recent game and retry a scoped named-write failure.",
+    "Use reset() or reopen with reset=1 to restore Home. Reload alone preserves files; engine/storage controls reset on bootstrap."
+  ]
+}

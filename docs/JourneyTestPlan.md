@@ -26,7 +26,7 @@ Exclude ideas without a current user flow: premoves, bookmarks, evaluation expla
 
 ## Completion tracking
 
-Updated 19 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#ordinary-browser-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
+Updated 19 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#complete-session-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
 
 | Area / case range | Total | Complete | Partial | Backlog | Evidence or next work |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -45,11 +45,11 @@ Updated 19 October 2026 from the [implementation record and verified runs](Journ
 | Storage failures — `JRN-IO-01–08` | 8 | 8 | 0 | 0 | [21 seeded variants](../e2e/journeys/storage-failures/), [one real browser storage rejection](../e2e/browser/Storage.spec.ts), [nine adapter/fixture checks](../journeys/__tests__/storage-failures/), [owned metadata and review](../journeys/definitions/storage-failures/ScenarioReview.md) |
 | Ordinary browser — `JRN-BROWSER-01–07` | 7 | 7 | 0 | 0 | [18 ordinary-browser variants](../e2e/browser/), [owned case metadata and scenario review](../journeys/definitions/browser/ScenarioReview.md), real Stockfish/file transfer and lifecycle/storage acceptance |
 | NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 0 | 0 | 7 | Native runtime verification remains outstanding |
-| Complete sessions — `JRN-SESSION-01–04` | 4 | 0 | 0 | 4 | Compose the four sessions after their dependent cases pass |
+| Complete sessions — `JRN-SESSION-01–04` | 4 | 4 | 0 | 0 | [Four complete browser sessions](../e2e/sessions/), [owned metadata](../journeys/coverage/sessions/) and [scenario review](../journeys/definitions/sessions/ScenarioReview.md) |
 | Usability — `JRN-UX-01–04` | 4 | 0 | 0 | 4 | Perform keyboard/focus, layout and workload checks |
-| **Total** | **147** | **132** | **0** | **15** | **15 groups still need acceptance work** |
+| **Total** | **147** | **136** | **0** | **11** | **11 groups still need acceptance work** |
 
-Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all thirteen journeys, including Rules, Engine races and Storage failures. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [Storage-failure verification](JourneyImplementation.md#storage-failure-verification) records clean acceptance for all eight IO groups and the separate broader run's teardown failures. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
+Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all fourteen journeys, including Rules, Engine races, Storage failures and Sessions. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [complete-session verification](JourneyImplementation.md#complete-session-verification) records the four continuous sessions and catalogue checks. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
 
 Update this table with each accepted work package, using owned case metadata and `npm run journey -- report` for execution evidence. Keep detailed results in the [implementation record](JourneyImplementation.md) and scenario reviews; a passing bootstrap or a filtered run must not mark unexecuted cases complete.
 
@@ -100,8 +100,8 @@ Add a compact `scenarioReview` entry to the journey's owned case metadata: revie
 
 | Existing asset | What it establishes | Gap to address |
 | --- | --- | --- |
-| [Thirteen journey definitions](../journeys/definitions/) and [catalogue](../journeys/Catalogue.json) | Repeatable starting data with references to all 48 non-idea scenarios | A scenario reference and manual instruction do not prove its actions or branches pass |
-| [Journey Playwright suite](../e2e/journeys/) | Thirteen bootstrap checks and focused feature suites; both browser projects discover 407 tests, with completion tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
+| [Fourteen journey definitions](../journeys/definitions/) and [catalogue](../journeys/Catalogue.json) | Repeatable starting data with references to all 48 non-idea scenarios | A scenario reference and manual instruction do not prove its actions or branches pass |
+| [Journey and complete-session Playwright suites](../e2e/) | Fourteen bootstrap checks and focused feature/session suites; both browser projects discover 425 tests, with completion tracked above | Remaining feature interactions, cancellations and negative paths need their own assertions |
 | [Ordinary browser suite](../e2e/Browser.spec.ts) | Eight tests covering save/reload, real upload/download, theme persistence, concurrent Stockfish, timed/untimed replies, profile-removal isolation and both smothered-mate continuations | Broader persistence, worker failure and navigation coverage |
 | [Application regressions](../journeys/__tests__/UiFollowUp.spec.ts) and [Play suites](../journeys/__tests__/play/) | Mounted-app and store regressions for UI-01 through UI-17, including pause, history, identity and route reuse | Many paths call stores directly and do not establish a complete browser journey |
 | Domain, store, component and platform tests under `src/**/__tests__` | Detailed rules, serialisation, runtime and adapter behaviour | Retain this coverage and add representative UI journeys instead of duplicating every unit permutation |

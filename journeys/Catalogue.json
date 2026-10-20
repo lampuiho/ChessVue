@@ -11,5 +11,6 @@
   "recovery": "./definitions/recovery/Description.json",
   "rules": "./definitions/rules/Description.json",
   "engine-races": "./definitions/engine-races/Description.json",
-  "storage-failures": "./definitions/storage-failures/Description.json"
+  "storage-failures": "./definitions/storage-failures/Description.json",
+  "sessions": "./definitions/sessions/Description.json"
 }

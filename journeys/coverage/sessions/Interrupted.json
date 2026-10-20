@@ -1,0 +1,15 @@
+[
+  {
+    "id": "JRN-SESSION-03",
+    "priority": "P0",
+    "scenarios": ["SCN-GAME-02", "SCN-NAV-01", "SCN-SETTINGS-01", "SCN-TIME-05", "SCN-TIME-04", "SCN-HIST-01", "SCN-SAVE-03", "SCN-SESSION-02"],
+    "branches": ["BR-TIME-05-ENGINE-READY-WHILE-AWAY", "BR-TIME-04-ANALYSIS-ONLY"],
+    "fixture": "sessions",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/sessions/ScenarioReview.md#jrn-session-03",
+    "data": ["journeys/definitions/sessions/data/SessionWorkspace.ts"],
+    "tests": [{ "spec": "e2e/sessions/Interrupted.spec.ts", "titles": ["JRN-SESSION-03 defers an interrupted reply through appearance changes and preserves timeout review"] }],
+    "remaining": []
+  }
+]

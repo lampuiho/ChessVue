@@ -1,0 +1,15 @@
+[
+  {
+    "id": "JRN-SESSION-02",
+    "priority": "P0",
+    "scenarios": ["SCN-GAME-02", "SCN-FREE-ANALYSIS-01", "SCN-FREE-ANALYSIS-02", "SCN-FREE-ANALYSIS-03", "SCN-EXPORT-01", "SCN-IMPORT-01", "SCN-SESSION-02"],
+    "branches": ["BR-GAME-02-FREE-ANALYSIS-START", "BR-FREE-ANALYSIS-02-FIRST-EDIT-CLEAR"],
+    "fixture": "sessions",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/sessions/ScenarioReview.md#jrn-session-02",
+    "data": ["journeys/definitions/sessions/data/SessionWorkspace.ts", "journeys/definitions/sessions/data/SessionScenario.ts"],
+    "tests": [{ "spec": "e2e/sessions/Study.spec.ts", "titles": ["JRN-SESSION-02 branches, edits the visible study, starts an engine game and transfers it"] }],
+    "remaining": []
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "JRN-SESSION-01",
+    "priority": "P0",
+    "scenarios": ["SCN-GAME-02", "SCN-MOVE-01", "SCN-ANALYSIS-02", "SCN-HIST-01", "SCN-HIST-04", "SCN-CTRL-04", "SCN-SAVE-03", "SCN-SESSION-02", "SCN-LOAD-01", "SCN-CTRL-02"],
+    "branches": ["BR-CTRL-04-LATEST-NODE-VARIATION", "BR-LOAD-01-DUPLICATE-ID"],
+    "fixture": "sessions",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/sessions/ScenarioReview.md#jrn-session-01",
+    "data": ["journeys/definitions/sessions/data/SessionWorkspace.ts", "journeys/definitions/sessions/data/SessionScenario.ts"],
+    "tests": [{ "spec": "e2e/sessions/FirstPlayer.spec.ts", "titles": ["JRN-SESSION-01 plays, records, explores, resumes a selected save and reopens resignation"] }],
+    "remaining": []
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "JRN-SESSION-04",
+    "priority": "P1",
+    "scenarios": ["SCN-GAME-02", "SCN-SAVE-03", "SCN-LOAD-01", "SCN-EXPORT-01", "SCN-IMPORT-01", "SCN-LIFECYCLE-01", "SCN-NAV-03", "SCN-SESSION-02"],
+    "branches": ["BR-LOAD-01-DUPLICATE-ID", "BR-SAVE-03-IO-ERROR"],
+    "fixture": "sessions",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/sessions/ScenarioReview.md#jrn-session-04",
+    "data": ["journeys/definitions/sessions/data/SessionWorkspace.ts", "journeys/definitions/sessions/data/SessionScenario.ts"],
+    "tests": [{ "spec": "e2e/sessions/Library.spec.ts", "titles": ["JRN-SESSION-04 keeps library identities and files independent through load, import, deletion and retry"] }],
+    "remaining": []
+  }
+]

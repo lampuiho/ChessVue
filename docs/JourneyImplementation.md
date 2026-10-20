@@ -379,8 +379,32 @@ npm run journey -- report test-results/BrowserFinalAcceptanceResults.json
 
 All local links in the changed Markdown documents and `git diff --check` pass. These checks establish the ordinary development-server browser lane and targeted regressions, not the complete seeded-browser catalogue, production-hosted worker execution or native NW.js acceptance. Actual tab-close autosave remains best effort as specified above.
 
+## Complete-session verification
+
+Verified on 19 October 2026. [JRN-SESSION-01–04](../e2e/sessions/) now have four separate continuous browser tests, [owned metadata](../journeys/coverage/sessions/) and a [scenario review](../journeys/definitions/sessions/ScenarioReview.md). The new `sessions` launcher starts at Home with no games or managed saves; settings, scripted profiles and ordinary autosave/session policies are installed. Each test creates its own work through the UI. Read-only file inspection and existing clock/engine/storage controls verify the resource boundaries without accessing application stores. Playwright's seeded project discovers the dedicated `e2e/sessions/` directory; the case loader aggregates its separate `journeys/coverage/sessions/` metadata.
+
+- First player: custom timed opening/capture with two-engine actual-move records, temporary exploration, pruning on continued play, named save, reload/selected load, record review, resume, resignation and reopened result.
+- Study: free analysis with nested alternatives, ineffective editing preserving history, first actual edit adopting the visible position, timed start and one engine reply, export/import with fresh identity and restored canonical content.
+- Interrupted player: a held reply finishes during Settings' Menu pause while appearance changes; return commits once without charging hidden time, then timeout, actual-move record review, review-only play and reload preserve the final result and clocks.
+- Library: two original games, latest versus selected loads, duplicate imports, chosen-snapshot deletion, recent reopen, scoped write rejection/retry and further play/reload preserve independent identities and files.
+
+The final browser run passes **18/18 tests**: all four sessions plus all fourteen catalogue bootstraps, with no errors, failures, skips, retries or flaky results, in `test-results/SessionAcceptanceResults.json`. It starts at `2026-10-19T20:04:00.212Z`, uses ports 5073/5074, one worker and a 180-second outer test timeout, and takes 114.11 seconds. Vite and worker teardown complete normally. `npm run journey -- report test-results/SessionAcceptanceResults.json` reports **all four JRN-SESSION groups passed and available**, with 136 registered groups overall; unexecuted groups remain unverified in this filtered report.
+
+The focused fixture/registry/reporting/selection run passes **29/29 tests across four files**, with no unhandled errors, in `test-results/SessionUnitResults.json`. It starts at 21:06:07 London time and takes 5.32 seconds, using one thread worker and a 90-second test timeout. It covers every launch's legal documents/trees, the new empty session seed, all scenario/branch/data/spec/review references, cross-feature metadata aggregation and reporting semantics, plus journey selection/reset isolation. `npm run build` passes the code audit, all TypeScript projects and production bundling. The complete runner discovers 425 tests in 105 files; discovery does not establish execution of the whole suite.
+
+Current analysis output is explicitly awaited after context changes and restoration before canonical comparisons; the actual-move records are checked independently. Reopened timeout games display a new transient result notice; after dismissal, later ticks cannot repeat it or restart play. Duplicate display names and Home's three-card recent strip are recorded as usability observations in the review. No new application behaviour, observer or async invalidation mechanism was needed. Manual usability, reference-site comparison and native NW.js acceptance remain separate work.
+
+Reproduce the browser evidence with PowerShell:
+
+```powershell
+$env:CHESSVUE_E2E_PORT = '5073'
+$env:PLAYWRIGHT_JSON_OUTPUT_FILE = 'test-results/SessionAcceptanceResults.json'
+npm run test:e2e -- e2e/sessions e2e/journeys/Bootstrap.spec.ts --project=journeys --workers=1 --timeout=180000 --retries=0 --output=test-results/session-acceptance
+npm run journey -- report test-results/SessionAcceptanceResults.json
+```
+
 ## Remaining work
 
-The Fresh, Play, History, Setup, Promotion, Analysis, Clocks, Saves, Settings, Recovery, Rules, Engine-race, Storage-failure and Ordinary-browser tranches complete **132 of the 147 planned groups**, leaving 15 in the backlog and none partial: seven native-desktop groups, four complete sessions and four usability groups. They do not complete Phase 1. The remaining scenario/branch register, feature suites, further application-regression splits, runtime/support migrations, composed sessions and usability work remain in the plan. Scenario membership alone does not establish executed coverage of remaining branches.
+The Fresh, Play, History, Setup, Promotion, Analysis, Clocks, Saves, Settings, Recovery, Rules, Engine-race, Storage-failure, Ordinary-browser and Complete-session tranches complete **136 of the 147 planned groups**, leaving 11 in the backlog and none partial: seven native-desktop groups and four usability groups. They do not complete Phase 1. The remaining scenario/branch register, further application-regression splits, runtime/support migrations, native verification and usability work remain in the plan. Scenario membership alone does not establish executed coverage of remaining branches.
 
-Actual-move recording acceptance remains separate from temporary exploration and current-position multi-engine output. History establishes the available-output capture baseline; Saves now verifies its managed-save and export/import restoration, while composed recording sessions remain pending. No exploratory Keep/Record flow was added. Existing design review prompts remain non-blocking for independent work. Native NW.js dialogs/files/processes and production-build worker execution remain unverified.
+Actual-move recording acceptance remains separate from temporary exploration and current-position multi-engine output. History establishes the available-output capture baseline; Saves verifies its managed-save and export/import restoration, and the complete sessions now verify recording through continued play, pruning, selected restore and timeout review. No exploratory Keep/Record flow was added. Existing design review prompts remain non-blocking for independent work. Native NW.js dialogs/files/processes and production-build worker execution remain unverified.

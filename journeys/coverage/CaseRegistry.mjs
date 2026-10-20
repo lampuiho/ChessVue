@@ -7,11 +7,14 @@ function findCaseFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
     if (entry.isDirectory()) return findCaseFiles(path);
-    return path.replaceAll('\\', '/').includes('/cases/') && entry.name.endsWith('.json') ? [path] : [];
+    return entry.name.endsWith('.json') ? [path] : [];
   });
 }
 export function loadJourneyCases(root = repositoryRoot) {
-  const cases = findCaseFiles(resolve(root, 'journeys/definitions')).flatMap((path) => JSON.parse(readFileSync(path, 'utf8')));
+  const paths = findCaseFiles(resolve(root, 'journeys/definitions')).filter((path) => path.replaceAll('\\', '/').includes('/cases/'));
+  const sessions = resolve(root, 'journeys/coverage/sessions');
+  if (existsSync(sessions)) paths.push(...findCaseFiles(sessions));
+  const cases = paths.flatMap((path) => JSON.parse(readFileSync(path, 'utf8')));
   const identifiers = new Set();
   for (const entry of cases) {
     if (!/^JRN-[A-Z]+-\d+$/.test(entry.id) || identifiers.has(entry.id)) throw new Error(`Invalid or duplicate case ID: ${entry.id}.`);
