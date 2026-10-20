@@ -19,3 +19,9 @@
 - A retained watcher needs a specific external reactive boundary that cannot be handled directly, narrowly declared inputs, a short reason beside the code, and an owner for cleanup/disposal. Async watcher work must be invalidated on rerun and disposal, with handled failures; watcher cleanup is not a reason to introduce a watcher.
 - Follow [the code cleanup plan](docs/CodeCleanupPlan.md) for ownership decisions, retained boundaries and verification. Existing watchers are not precedent for adding more.
 - Run `npm run check:code` after relevant changes. The build enforces the AST audit; only the documented App appearance and Chessboard external-prop boundaries are currently permitted observers.
+
+## Styling
+- Use global CSS consistently. `src/assets/main.css` is the only stylesheet entry; it imports the base and purpose-specific modules in `src/assets/styles` for both application entry points.
+- Do not add Vue `<style>` blocks or `:deep`, `::v-deep`, `:global`, `>>>` or `/deep/` selectors. The build audit enforces this boundary.
+- Shared primitives have one global owner. Select explicit class variants in templates; do not restyle shared buttons, fields or panel internals in route stylesheets.
+- Keep selectors anchored to their owning class, including headings and paragraphs. Runtime style bindings supply CSS custom-property values only; put layout and presentation declarations in the global CSS modules.

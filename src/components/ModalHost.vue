@@ -190,7 +190,7 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
       <label class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="local"><span class="choice-card__piece">♙</span><span><strong>Local player</strong><small>Moves are entered on this board.</small></span></label>
       <label v-for="engine in engines" :key="engine.id" class="choice-card"><input v-model="form.selectedPlayer" type="radio" :value="`engine:${engine.id}`"><span class="choice-card__piece">♞</span><span><strong>{{ engine.displayName }}</strong><small>Configured UCI engine.</small></span></label>
     </div>
-    <p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
+    <p v-if="form.errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="confirmPlayerSelection">Assign player</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.AnalysisEngineSelection" title="Add analysis engine" subtitle="Assign a configured engine to this board." @dismissed="uiStateStore.hideModal">
@@ -198,7 +198,7 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
       <label v-for="engine in availableAnalysisEngines" :key="engine.id" class="choice-card"><input v-model="form.selectedEngineId" type="radio" :value="engine.id"><span class="choice-card__piece">♝</span><span><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'Executable not selected' }}</small></span></label>
     </div>
     <p v-else class="inline-message">Add an engine profile in Settings before assigning analysis.</p>
-    <p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
+    <p v-if="form.errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" :disabled="!form.selectedEngineId" @click="confirmAnalysisEngine">Add engine</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Promotion" title="Choose promotion" subtitle="Select the piece your pawn should become." @dismissed="uiStateStore.hideModal">
@@ -206,50 +206,35 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Resign" title="Resign this game?" subtitle="This records the game as finished. You can still review the position afterwards." @dismissed="uiStateStore.hideModal">
-    <p>Confirm that {{ modal.payload.colour }} resigns.</p><p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
+    <p class="modal-copy">Confirm that {{ modal.payload.colour }} resigns.</p><p v-if="form.errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="confirmSimpleAction">Resign</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.DrawOffer" title="Offer a draw?" subtitle="The other side will be asked to accept or decline." @dismissed="uiStateStore.hideModal">
-    <p>Offer a draw from the {{ modal.payload.offeringColour }} side.</p>
+    <p class="modal-copy">Offer a draw from the {{ modal.payload.offeringColour }} side.</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Offer draw</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.DrawResolve" title="Draw offered" :subtitle="`${modal.payload.respondingColour} to respond.`" :dismissible="false">
-    <p>Accept the draw and finish the game?</p>
+    <p class="modal-copy">Accept the draw and finish the game?</p>
     <template #actions><button class="text-button" @click="declineDraw">Decline</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Accept</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.ResetSettings" title="Reset all settings?" subtitle="Preferences and engine profiles will return to their defaults." @dismissed="uiStateStore.hideModal">
-    <p>This cannot be undone after you save another change.</p>
+    <p class="modal-copy">This cannot be undone after you save another change.</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="confirmSimpleAction">Reset settings</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.SettingsDirtyLeave" title="Discard unsaved changes?" subtitle="You have settings changes that have not been applied." @dismissed="uiStateStore.hideModal">
     <template #actions><button class="text-button" @click="uiStateStore.hideModal">Keep editing</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Discard changes</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.BoardEditBlocked" title="Board editing is unavailable" subtitle="Finish in-game analysis before changing the position." @dismissed="uiStateStore.hideModal">
-    <p>Board editing is only available in a free analysis workspace.</p>
+    <p class="modal-copy">Board editing is only available in a free analysis workspace.</p>
     <template #actions><button class="text-button text-button--primary" @click="uiStateStore.hideModal">Understood</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.ImportError" title="Could not import game" subtitle="The selected document is unsupported or incomplete." @dismissed="uiStateStore.hideModal">
-    <p class="inline-message inline-message--error">{{ modal.payload.message }}</p>
+    <p class="inline-message inline-message--error inline-message--spaced">{{ modal.payload.message }}</p>
     <template #actions><button class="text-button text-button--primary" @click="uiStateStore.hideModal">Close</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Timeout" title="Time has expired" subtitle="The game is finished, but the position remains available for review." @dismissed="uiStateStore.hideModal">
-    <p>{{ modal.payload.resultState === 'whiteWon' ? 'White wins' : 'Black wins' }} on time.</p>
+    <p class="modal-copy">{{ modal.payload.resultState === 'whiteWon' ? 'White wins' : 'Black wins' }} on time.</p>
     <template #actions><button class="text-button text-button--primary" @click="uiStateStore.hideModal">Review game</button></template>
   </ModalDialog>
 </template>
 
-<style scoped>
-.choice-list { display: grid; gap: 0.55rem; }
-.choice-card { display: grid; grid-template-columns: auto 2rem 1fr; padding: 0.75rem; align-items: center; gap: 0.7rem; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-panel); cursor: pointer; }
-.choice-card:hover { border-color: var(--accent); background: var(--accent-soft); }
-.choice-card input { accent-color: var(--accent); }
-.choice-card__piece { font-family: var(--font-display); font-size: 1.65rem; text-align: center; }
-.choice-card strong, .choice-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.choice-card strong { font-size: 0.82rem; }
-.choice-card small { color: var(--text-muted); font-size: 0.7rem; }
-.inline-message { margin: 0.8rem 0 0; }
-.promotion-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.65rem; }
-.promotion-row button { aspect-ratio: 1; color: var(--text-primary); border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-panel); font-family: var(--font-display); font-size: 3rem; }
-.promotion-row button:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
-p { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
-</style>

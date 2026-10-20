@@ -2,13 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspectSource } from './audit/InspectSource.mjs';
+import { inspectStyles } from './audit/InspectStyles.mjs';
 
 export function auditRepository(root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')) {
   const policy = JSON.parse(fs.readFileSync(path.join(root, 'scripts/CodeAuditPolicy.json'), 'utf8'));
   const findings = [];
   const observed = new Map();
   function inspect(filename) {
-    for (const item of inspectSource(filename, fs.readFileSync(path.join(root, filename), 'utf8'))) {
+    const raw = fs.readFileSync(path.join(root, filename), 'utf8');
+    const sourceFindings = filename.endsWith('.css') ? [] : inspectSource(filename, raw);
+    for (const item of [...sourceFindings, ...inspectStyles(filename, raw)]) {
       const allowance = policy[item.kind]?.[item.key];
       const count = (observed.get(item.key) ?? 0) + 1;
       observed.set(item.key, count);
@@ -19,7 +22,7 @@ export function auditRepository(root = path.resolve(path.dirname(fileURLToPath(i
     for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
       const filename = directory ? directory + '/' + entry.name : entry.name;
       if (entry.isDirectory()) walk(filename);
-      else if (/\.(?:ts|vue|mjs)$/.test(entry.name)) inspect(filename);
+      else if (/\.(?:ts|vue|mjs|css)$/.test(entry.name)) inspect(filename);
     }
   }
   for (const directory of ['src', 'journeys', 'e2e', 'scripts']) walk(directory);
@@ -33,5 +36,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const findings = auditRepository();
   for (const finding of findings) console.error(`${finding.file}:${finding.line} ${finding.kind}: ${finding.message} [${finding.key}]`);
   if (findings.length) process.exitCode = 1;
-  else console.log('Code audit passed: observer exceptions are current; no invalidation counters or redundant return annotations found.');
+  else console.log('Code audit passed: observer exceptions are current; no invalidation counters, redundant return annotations or component style blocks found.');
 }

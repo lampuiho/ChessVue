@@ -83,3 +83,9 @@ The final complete unit and mounted application suite passed **527/527 tests acr
 - The full unit suite covers existing store/turn/runtime/UCI behaviour, all journey bootstraps and the audit's alias/counter/contract regressions.
 - Relevant browser acceptance covers IO, analysis, engine races, Menu pauses, saves, appearance/navigation and creation/promotion cancellation. Mounted application tests run separately from browsers, with one browser worker and no retries on this host.
 - The code audit, all TypeScript projects, production build, all 108 local links in 17 changed Markdown documents, and `git diff HEAD --check` pass. No whole-browser-catalogue or native NW.js runtime acceptance is claimed.
+
+## Global styling boundary
+
+The styling follow-up uses [one global entry](../src/assets/main.css) and [purpose-specific modules](../src/assets/styles/README.md). Shared navigation, controls and side-panel styles are declared once; explicit class variants distinguish compact actions, player/analysis errors and route presentation. Vue files have no style blocks or scope escapes. Their remaining style bindings provide history-depth and theme-preview custom-property values rather than CSS declarations. Gameplay, persistence and focus ownership remain at their existing action/lifecycle boundaries.
+
+[InspectStyles](../scripts/audit/InspectStyles.mjs) extends `npm run check:code` to reject Vue style blocks and CSS scope-escape selectors. It parses actual Vue style blocks, including external styles, and ignores normal template/script text. [Audit tests](../scripts/__tests__/StyleAudit.spec.ts) cover the forbidden forms and permitted global rules/runtime values. Visual and route regressions verify viewport fit, intrinsic menu sizing, dialogs and stable appearance across route changes.

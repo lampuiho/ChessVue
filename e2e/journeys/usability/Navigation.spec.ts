@@ -1,6 +1,13 @@
 import { test, expect } from './UsabilityTest';
+import type { Page } from '@playwright/test';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { expectReachable, expectViewport } from './LayoutAction';
+function readWorkspacePresentation(page: Page) {
+  return page.evaluate(() => ['.player-name', '.side-panel__title', '.history-row', '.panel-empty strong'].map((selector) => {
+    const style = getComputedStyle(document.querySelector(selector)!);
+    return { selector, font: style.font, colour: style.color, padding: style.padding, margin: style.margin };
+  }));
+}
 test('JRN-UX-03 fits the desktop workspace with collapsed and expanded left navigation', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await openJourney(page, 'usability');
@@ -10,18 +17,32 @@ test('JRN-UX-03 fits the desktop workspace with collapsed and expanded left navi
   await page.getByRole('button', { name: 'Expand navigation', exact: true }).click();
   const expanded = (await rail.boundingBox())!;
   expect(expanded.width).toBeGreaterThan(collapsed.width * 2);
+  const label = rail.getByRole('button', { name: 'Quick game', exact: true }).locator('span');
+  await label.evaluate((element) => { element.textContent = 'Quick game with a longer navigation label'; });
+  await expect.poll(async () => (await rail.boundingBox())!.width).toBeGreaterThan(expanded.width);
+  await expectReachable(page, label);
+  expect((await page.locator('.game-content').boundingBox())!.x).toBeGreaterThanOrEqual((await rail.boundingBox())!.width);
+  await label.evaluate((element) => { element.textContent = 'Quick game'; });
+  await expect.poll(async () => (await rail.boundingBox())!.width).toBeCloseTo(expanded.width, 0);
   expect((await page.locator('.game-content').boundingBox())!.x).toBeGreaterThanOrEqual(expanded.width);
   await expectReachable(page, page.locator('.player-panel').last());
   await expectReachable(page, page.locator('.control-panel').getByRole('button').last());
   await expectReachable(page, page.getByRole('button', { name: 'Collapse history', exact: true }));
   await expectReachable(page, page.getByRole('button', { name: 'Collapse analysis', exact: true }));
+  const presentation = await readWorkspacePresentation(page);
   await testInfo.attach('expanded-navigation', { body: await page.screenshot(), contentType: 'image/png' });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Collapse navigation', exact: true })).toBeVisible();
   await expectReachable(page, page.getByRole('button', { name: 'Apply changes', exact: true }));
   await page.getByRole('button', { name: 'Back to game', exact: true }).click();
+  expect(await readWorkspacePresentation(page)).toEqual(presentation);
   await page.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
-  await expect(rail).toHaveCSS('width', `${collapsed.width}px`);
+  await expect.poll(async () => (await rail.boundingBox())!.width).toBeCloseTo(collapsed.width, 2);
+  const icon = rail.getByRole('button', { name: 'Quick game', exact: true }).locator('.app-icon');
+  await icon.evaluate((element) => { (element as SVGElement).style.width = '3rem'; });
+  await expect.poll(async () => (await rail.boundingBox())!.width).toBeGreaterThan(collapsed.width);
+  await icon.evaluate((element) => { (element as SVGElement).style.removeProperty('width'); });
+  await expect.poll(async () => (await rail.boundingBox())!.width).toBeCloseTo(collapsed.width, 2);
   await expectViewport(page);
 });
 for (const height of [667, 812]) test(`JRN-UX-03 fits mobile at 375x${height} with an accessible overlay menu`, async ({ page }, testInfo) => {
@@ -37,6 +58,13 @@ for (const height of [667, 812]) test(`JRN-UX-03 fits mobile at 375x${height} wi
   await opener.click();
   const drawer = page.getByRole('dialog', { name: 'Navigation menu', exact: true });
   await expect(drawer).toBeVisible();
+  const drawerWidth = (await drawer.boundingBox())!.width;
+  const label = drawer.getByRole('button', { name: 'Quick game', exact: true }).locator('span');
+  await label.evaluate((element) => { element.textContent = 'Quick game with a longer navigation label'; });
+  await expect.poll(async () => (await drawer.boundingBox())!.width).toBeGreaterThan(drawerWidth);
+  expect((await drawer.boundingBox())!.width).toBeLessThanOrEqual(375 * 0.85 + 1);
+  await label.evaluate((element) => { element.textContent = 'Quick game'; });
+  await expect.poll(async () => (await drawer.boundingBox())!.width).toBeCloseTo(drawerWidth, 0);
   await expect(drawer.getByRole('button', { name: 'Close navigation menu', exact: true })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(drawer.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();

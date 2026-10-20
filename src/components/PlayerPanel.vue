@@ -48,35 +48,12 @@ function glyph(kind: keyof typeof pieceGlyphs.white): string {
         <span v-if="player?.type === PlayerType.Engine" class="engine-state"><i :class="`engine-state--${engineStatus}`"></i>{{ engineStatus }}</span>
         <span v-else>{{ player ? 'Local player' : 'Analysis seat' }}</span>
       </div>
-      <p v-if="engineError" class="engine-error" role="alert" :title="engineError">{{ engineError }}</p>
+      <p v-if="engineError" class="engine-error engine-error--player" role="alert" :title="engineError">{{ engineError }}</p>
     </div>
     <div v-if="capturedPieces?.length" class="captured-pieces" aria-label="Captured material">
-      <template v-for="group in capturedPieces" :key="group.pieceKind"><span v-for="count in group.count" :key="count" :style="{ marginLeft: count === 1 ? '0' : '-0.42em' }">{{ glyph(group.pieceKind) }}</span></template>
+      <template v-for="group in capturedPieces" :key="group.pieceKind"><span v-for="count in group.count" :key="count" :class="{ 'captured-piece--overlapped': count > 1 }">{{ glyph(group.pieceKind) }}</span></template>
     </div>
     <div class="player-clock" :class="{ 'player-clock--running': active && remainingMs !== undefined, 'player-clock--untimed': remainingMs === undefined }"><AppIcon v-if="remainingMs === undefined" name="clock" /><span>{{ clockText }}</span></div>
   </section>
 </template>
 
-<style scoped>
-.player-panel { display: flex; height: 2.5rem; min-width: 0; padding: 0; align-items: center; gap: 0.5rem; background: transparent; }
-.player-avatar { position: relative; display: grid; width: 2.25rem; height: 2.25rem; flex: 0 0 auto; place-items: center; border-radius: 0.2rem; background: var(--surface-raised); font-family: "Segoe UI Symbol", serif; font-size: 1.65rem; }
-.player-avatar--white { color: #d8c79e; text-shadow: 0 0.0625rem 0.0625rem #4a3c2d; }
-.player-avatar--black { color: #312b26; }
-.player-avatar i { position: absolute; right: 0; bottom: 0; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--accent-strong); }
-.player-identity { min-width: 0; flex: 1; }
-.player-name { display: flex; max-width: 100%; padding: 0; align-items: center; gap: 0.25rem; overflow: hidden; background: transparent; font-size: 0.8rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.player-name:hover { color: var(--accent); }
-.player-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.player-name .app-icon { font-size: 0.65rem; }
-.player-meta { display: flex; align-items: center; gap: 0.4rem; color: var(--text-muted); font-size: 0.6rem; text-transform: capitalize; }
-.player-meta > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.player-meta > span:first-child { flex-shrink: 0; }
-.engine-state i { display: inline-block; width: 0.35rem; height: 0.35rem; margin-right: 0.25rem; border-radius: 50%; background: var(--text-muted); }
-.engine-state i.engine-state--running { background: var(--success); }
-.engine-state i.engine-state--failed, .engine-state i.engine-state--unavailable { background: var(--danger); }
-.engine-error { margin: 0; overflow: hidden; color: var(--danger); font-size: 0.6rem; text-overflow: ellipsis; white-space: nowrap; }
-.captured-pieces { display: flex; min-width: 0; align-items: center; overflow: hidden; color: var(--text-muted); font-family: "Segoe UI Symbol", serif; font-size: 1.1rem; white-space: nowrap; }
-.player-clock { display: flex; min-width: 3rem; padding: 0.2rem 0.45rem; flex-shrink: 0; align-items: center; justify-content: flex-end; gap: 0.3rem; color: var(--text-muted); border-radius: 0.2rem; font-size: 1.1rem; font-variant-numeric: tabular-nums; font-weight: 750; }
-.player-clock--running { color: var(--text-on-accent); background: var(--accent-strong); }
-@media (max-width: 760px) { .captured-pieces { display: none; } }
-</style>

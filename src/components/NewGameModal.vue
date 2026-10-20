@@ -160,15 +160,3 @@ function submit() {
   </ModalDialog>
 </template>
 
-<style scoped>
-.segmented-control { display: grid; grid-template-columns: 1fr 1fr; padding: 0.2rem; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-app); }
-.segmented-control button { min-height: 2.25rem; padding: 0.4rem 0.65rem; color: var(--text-muted); border-radius: 0.32rem; background: transparent; font-size: 0.78rem; font-weight: 700; }
-.segmented-control button.active { color: var(--text-primary); background: var(--surface-dialog); box-shadow: var(--shadow-sm); }
-.time-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
-.toggle-row strong, .toggle-row small { display: block; }
-.toggle-row strong { font-size: 0.82rem; }
-.toggle-row small { color: var(--text-muted); font-size: 0.72rem; }
-.engine-selection { display: grid; padding: 0.85rem; gap: 0.45rem; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); }
-.check-row { display: flex; align-items: center; gap: 0.55rem; color: var(--text-muted); font-size: 0.8rem; }
-.check-row input { accent-color: var(--accent); }
-</style>

@@ -47,32 +47,3 @@ const title = computed(() => ({ live: 'Game controls', paused: 'Game paused', in
   </section>
 </template>
 
-<style scoped>
-.control-panel { padding: 0.35rem 0 0; }
-.control-panel__heading { display: flex; margin-bottom: 0.35rem; align-items: center; justify-content: space-between; }
-.control-panel__eyebrow { display: none; color: var(--accent); font-size: 0.54rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
-.control-panel h2 { margin: 0.06rem 0 0; font-family: var(--font-display); font-size: 0.92rem; font-weight: 700; }
-.turn-indicator { display: flex; padding: 0.2rem 0.48rem; align-items: center; gap: 0.3rem; color: var(--success-strong); border-radius: 999rem; background: var(--success-soft); font-size: 0.58rem; font-weight: 800; text-transform: uppercase; }
-.turn-indicator i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--success); }
-.turn-indicator--paused { color: var(--text-muted); background: var(--surface-sunken); }
-.turn-indicator--paused i { background: var(--text-muted); }
-.control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-.control-button { display: flex; min-height: 2.5rem; min-width: 0; padding: 0.35rem 0.45rem; align-items: center; gap: 0.55rem; color: var(--text-primary); border: 0; border-radius: 0.25rem; background: var(--surface-raised); text-align: left; transition: 120ms ease; }
-.control-button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-0.0625rem); }
-.control-button > .app-icon { color: var(--accent); font-size: 1.05rem; }
-.control-button span { min-width: 0; }
-.control-button strong, .control-button small { display: block; }
-.control-button strong { font-size: 0.68rem; }
-.control-button small { color: var(--text-muted); font-size: 0.56rem; }
-.control-button--primary { color: var(--text-on-accent); border-color: var(--accent-strong); background: var(--accent-strong); }
-.control-button--primary > .app-icon, .control-button--primary small { color: var(--text-on-accent-muted); }
-.control-button--primary:hover:not(:disabled) { background: var(--accent); }
-.control-button--wide { grid-column: 1 / -1; }
-.control-panel__secondary { display: flex; margin-top: 0.25rem; justify-content: flex-end; gap: 0.25rem;  }
-.quiet-action { display: flex; min-height: 1.9rem; padding: 0.3rem 0.5rem; align-items: center; gap: 0.35rem; color: var(--text-muted); border-radius: var(--radius-sm); background: transparent; font-size: 0.6rem; font-weight: 700; }
-.quiet-action:hover { color: var(--text-primary); background: var(--accent-soft); }
-.quiet-action--danger:hover { color: var(--danger); background: var(--danger-soft); }
-.quiet-action > i { width: 0.38rem; height: 0.38rem; border-radius: 50%; background: transparent; box-shadow: 0 0 0 0.0625rem var(--text-muted); }
-.quiet-action > i.active { background: var(--accent); box-shadow: 0 0 0 0.18rem var(--accent-soft); }
-.control-note { margin: 0; padding: 0.55rem; color: var(--text-muted); border: 0; border-radius: 0.25rem; background: var(--surface-panel); font-size: 0.62rem; }
-</style>

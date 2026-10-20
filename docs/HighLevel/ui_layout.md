@@ -7,6 +7,10 @@ It clarifies where the committed gameplay surfaces sit on screen and which level
 
 This is a high-level layout contract only. It defines the desktop and mobile navigation structure and viewport fit; final spacing tokens and component-local CSS remain implementation details.
 
+## Styling ownership
+
+The app uses global CSS consistently. [main.css](../../src/assets/main.css) imports the base rules and [purpose-specific stylesheet modules](../../src/assets/styles/README.md) once for both ordinary and journey entry points. Vue components and views contain no style blocks, and there are no scope-escape selectors. Shared navigation, controls and panel classes have one owner; templates select explicit variants instead of route styles overriding shared primitives. Runtime CSS custom properties carry presentation data such as history depth and theme-preview colours. The required build audit enforces the global stylesheet boundary.
+
 ## Baseline
 - `desktop-first`
 - one game workspace layout for `GameView`
@@ -84,7 +88,7 @@ Home layout rules:
 
 The existing `div#app` is the application root; `App.vue` renders its active route and transient surfaces directly inside it.
 
-Desktop uses a flex row: a left `NavigationFrame` rail and the remaining route content. The rail can shrink to icons or expand to labels. Its width participates in flex layout, so no fixed positioning, JavaScript measurements or content offsets are needed. The expanded preference is transient shared UI state and survives route changes during the current launch.
+Desktop uses a flex row: a left `NavigationFrame` rail and the remaining route content. The rail can shrink to icons or expand to labels. Both states size to their content, with no preset rail widths; longer labels or larger icons naturally resize the rail. Its width participates in flex layout, so no fixed positioning, JavaScript measurements or content offsets are needed. The mobile drawer also sizes to its content, capped at 85% of the viewport width. The expanded preference is transient shared UI state and survives route changes during the current launch.
 
 The game content uses a tab row above the board/sidebar flex row. The board column contains borderless top and bottom player strips with avatars aligned to the board's left edge. A CSS size container fits the square board to both available width and height after reserving room for player strips and the optional editing palette. The sidebar keeps history above analysis and gameplay controls visible at the bottom. Panels use flat surfaces without decorative frames or surrounding border padding.
 
@@ -418,7 +422,6 @@ This document does not define:
 
 - final padding or gap values
 - exact colour tokens, palette values, or final visual polish
-- detailed CSS scoping per component
 - internal markup structure for shared render components
 
 Those details belong to the later low-level design and implementation work.
