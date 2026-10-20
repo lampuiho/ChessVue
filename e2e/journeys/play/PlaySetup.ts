@@ -12,7 +12,7 @@ export async function createTimedPlay(page: Page, allowTakeback = true): Promise
   return createWorkspace(page);
 }
 export async function choosePlayer(page: Page, colour: 'White' | 'Black', choice: string) {
-  const panel = page.locator('.player-panel').filter({ has: page.locator('.player-meta span').getByText(colour, { exact: true }) });
+  const panel = page.locator('.player-panel').filter({ has: page.locator(`.player-avatar--${colour.toLowerCase()}`) });
   await panel.locator('.player-name').click();
   const dialog = page.getByRole('dialog', { name: 'Choose a player', exact: true });
   await dialog.getByRole('radio', { name: choice, exact: false }).check();
