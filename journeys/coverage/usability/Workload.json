@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-UX-04",
+    "priority": "P2",
+    "scenarios": [
+      "SCN-HIST-01",
+      "SCN-LOAD-01",
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-03",
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [],
+    "fixture": "usability",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/usability/ScenarioReview.md#jrn-ux-04",
+    "data": [
+      "journeys/definitions/usability/data/UsabilityScenario.ts",
+      "journeys/definitions/usability/data/UsabilityWorkload.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/usability/Workload.spec.ts",
+        "titles": [
+          "JRN-UX-04 establishes a sustained workload baseline without accumulating sessions or listeners"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

@@ -347,7 +347,7 @@ async function run(action: () => Promise<void> | void) {
 </script>
 
 <template>
-  <main v-if="game && position" class="game-page">
+  <main v-if="game && position" class="game-page app-page">
     <MenuBar
       can-save
       can-close
@@ -358,66 +358,68 @@ async function run(action: () => Promise<void> | void) {
       @load-game-requested="run(() => handleMenuInterruptionRequested(() => router.push('/saved-games/load')))"
       @save-game-requested="run(() => handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))"
       @settings-requested="run(() => handleMenuInterruptionRequested(() => router.push('/settings/session')))" />
-    <GameTabs v-if="tabs.length > 1" :tabs="tabs" :active-id="game.metadata.id" @tab-selected="selectTab" @tab-closed="closeTab" />
-    <div class="game-stage">
-      <section class="board-column">
-        <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="position.sideToMove === topColour && controlMode === 'live'" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="requestPlayerSelection" />
-        <Chessboard
-          :position="position"
-          :orientation="settings?.appearance.boardOrientation"
-          :show-coordinates="settings?.appearance.showCoordinates"
-          :highlight-last-move="settings?.appearance.highlightLastMove"
-          :last-move="lastMove"
-          :input-disabled="isBoardInputDisabled"
-          :board-edit="controlMode === 'boardEdit'"
-          @move-attempted="makeMove"
-          @chess-piece-toggled="(boardId, piece) => gamesStore.toggleChessPiece(game!, boardId, piece)"
-          @chess-piece-deleted="(boardId) => gamesStore.deleteChessPiece(game!, boardId)"
-          @chess-piece-moved="(from, to) => gamesStore.moveChessPiece(game!, from, to)"
-          @board-cleared="gamesStore.clearBoard(game!)"
-          @board-reset="gamesStore.resetBoardToStartPosition(game!)"
-        />
-        <PlayerPanel :colour="bottomColour" :player="bottomPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="position.sideToMove === bottomColour && controlMode === 'live'" :captured-pieces="capturedByColour[bottomColour]" @player-selection-requested="requestPlayerSelection" />
-      </section>
-      <aside class="game-sidebar surface">
-        <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1>{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? position.sideToMove + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
-        <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine" @collapse-toggled="toggleSection('history')" @node-selected="navigateToNode" @return-to-live-requested="returnToLivePosition" />
-        <AnalysisPanel
-          v-if="layout?.showAnalysisPanel"
-          :seats="analysisSeats"
-          :collapsed="layout.analysisCollapsed"
-          :expanded-by-index="layout.analysisEngineExpandedByIndex"
-          :show-moves="showAnalysisMoves"
-          :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine"
-          :start-disabled="controlMode === 'boardEdit'"
-          :can-add="canAddEngine"
-          @collapse-toggled="toggleSection('analysis')"
-          @engine-expanded-toggled="toggleAnalysisEngine"
-          @refresh-requested="run(() => gamesStore.refreshAnalysis(game!))"
-          @retry-requested="(index) => run(() => gamesStore.retryAnalysis(game!, index))"
-          @stop-requested="(index) => run(() => gamesStore.stopAnalysis(game!, index))"
-          @engine-add-requested="requestAnalysisEngine"
-          @engine-remove-requested="(index) => run(() => removeAnalysisEngine(index))"
-          @move-selected="playAnalysisLine"
-        />
-        <RecordedAnalysisPanel v-if="renderedNode?.recordedAnalysis" :record="renderedNode.recordedAnalysis" />
-        <GameControlPanel
-          class="game-sidebar__controls"
-          :mode="controlMode"
-          :can-take-back="canTakeBack"
-          :can-pause="canPause"
-          :draw-pending="!!game.drawOfferState"
-          @take-back-requested="run(() => gamesStore.takeBack(game!))"
-          @pause-requested="run(() => gamesStore.pauseGame(game!, PauseReason.Manual))"
-          @resume-requested="run(() => gamesStore.resumeGame(game!, PauseReason.Manual))"
-          @analysis-requested="run(() => gamesStore.enterInGameAnalysis(game!))"
-          @exit-analysis-requested="gamesStore.exitInGameAnalysis(game!)"
-          @board-edit-requested="toggleBoardEdit"
-          @start-game-requested="uiStateStore.showModal({ kind: AppModalKind.StartGameFromSetup, payload: { gameId: game.metadata.id } })"
-          @resign-requested="uiStateStore.showModal({ kind: AppModalKind.Resign, payload: { gameId: game.metadata.id, colour: position.sideToMove } })"
-          @draw-requested="handleDraw"
-        />
-      </aside>
+    <div class="game-content">
+      <GameTabs v-if="tabs.length > 1" :tabs="tabs" :active-id="game.metadata.id" @tab-selected="selectTab" @tab-closed="closeTab" />
+      <div class="game-stage">
+        <section class="board-column" :class="{ 'board-column--editing': controlMode === 'boardEdit' }">
+          <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="position.sideToMove === topColour && controlMode === 'live'" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="requestPlayerSelection" />
+          <Chessboard
+            :position="position"
+            :orientation="settings?.appearance.boardOrientation"
+            :show-coordinates="settings?.appearance.showCoordinates"
+            :highlight-last-move="settings?.appearance.highlightLastMove"
+            :last-move="lastMove"
+            :input-disabled="isBoardInputDisabled"
+            :board-edit="controlMode === 'boardEdit'"
+            @move-attempted="makeMove"
+            @chess-piece-toggled="(boardId, piece) => gamesStore.toggleChessPiece(game!, boardId, piece)"
+            @chess-piece-deleted="(boardId) => gamesStore.deleteChessPiece(game!, boardId)"
+            @chess-piece-moved="(from, to) => gamesStore.moveChessPiece(game!, from, to)"
+            @board-cleared="gamesStore.clearBoard(game!)"
+            @board-reset="gamesStore.resetBoardToStartPosition(game!)"
+          />
+          <PlayerPanel :colour="bottomColour" :player="bottomPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="position.sideToMove === bottomColour && controlMode === 'live'" :captured-pieces="capturedByColour[bottomColour]" @player-selection-requested="requestPlayerSelection" />
+        </section>
+        <aside class="game-sidebar surface">
+          <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? position.sideToMove + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
+          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine" @collapse-toggled="toggleSection('history')" @node-selected="navigateToNode" @return-to-live-requested="returnToLivePosition" />
+          <AnalysisPanel
+            v-if="layout?.showAnalysisPanel"
+            :seats="analysisSeats"
+            :collapsed="layout.analysisCollapsed"
+            :expanded-by-index="layout.analysisEngineExpandedByIndex"
+            :show-moves="showAnalysisMoves"
+            :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine"
+            :start-disabled="controlMode === 'boardEdit'"
+            :can-add="canAddEngine"
+            @collapse-toggled="toggleSection('analysis')"
+            @engine-expanded-toggled="toggleAnalysisEngine"
+            @refresh-requested="run(() => gamesStore.refreshAnalysis(game!))"
+            @retry-requested="(index) => run(() => gamesStore.retryAnalysis(game!, index))"
+            @stop-requested="(index) => run(() => gamesStore.stopAnalysis(game!, index))"
+            @engine-add-requested="requestAnalysisEngine"
+            @engine-remove-requested="(index) => run(() => removeAnalysisEngine(index))"
+            @move-selected="playAnalysisLine"
+          />
+          <RecordedAnalysisPanel v-if="renderedNode?.recordedAnalysis" :record="renderedNode.recordedAnalysis" />
+          <GameControlPanel
+            class="game-sidebar__controls"
+            :mode="controlMode"
+            :can-take-back="canTakeBack"
+            :can-pause="canPause"
+            :draw-pending="!!game.drawOfferState"
+            @take-back-requested="run(() => gamesStore.takeBack(game!))"
+            @pause-requested="run(() => gamesStore.pauseGame(game!, PauseReason.Manual))"
+            @resume-requested="run(() => gamesStore.resumeGame(game!, PauseReason.Manual))"
+            @analysis-requested="run(() => gamesStore.enterInGameAnalysis(game!))"
+            @exit-analysis-requested="gamesStore.exitInGameAnalysis(game!)"
+            @board-edit-requested="toggleBoardEdit"
+            @start-game-requested="uiStateStore.showModal({ kind: AppModalKind.StartGameFromSetup, payload: { gameId: game.metadata.id } })"
+            @resign-requested="uiStateStore.showModal({ kind: AppModalKind.Resign, payload: { gameId: game.metadata.id, colour: position.sideToMove } })"
+            @draw-requested="handleDraw"
+          />
+        </aside>
+      </div>
     </div>
     <div v-if="notice" class="toast"><AppIcon name="info" />{{ notice }}</div>
     <ModalDialog v-if="pendingContinuation" title="Continue from this position?" subtitle="This changes the played line. The previous continuation will remain as a variation." @dismissed="pendingContinuation = undefined">
@@ -427,17 +429,29 @@ async function run(action: () => Promise<void> | void) {
 </template>
 
 <style scoped>
-.game-page { display: flex; min-height: 100vh; flex-direction: column; background: radial-gradient(circle at 8% 10%, var(--accent-ambient), transparent 28rem), var(--surface-app); }
-.game-stage { display: grid; min-height: 0; padding: 0.8rem; flex: 1; grid-template-columns: minmax(30rem, 1fr) minmax(19rem, 24rem); gap: 0.8rem; overflow: hidden; }
-.board-column { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.55rem; justify-items: center; }
-.board-column > :deep(.player-panel), .board-column > :deep(.board-area) { width: min(100%, calc(100vh - 18rem), 49rem); }
-.board-column > :deep(.board-area) { min-height: 0; }
-.game-sidebar { display: flex; min-height: 0; flex-direction: column; overflow: hidden; }
-.game-sidebar__title { display: flex; min-height: 4.3rem; padding: 0.75rem 0.9rem; align-items: center; justify-content: space-between; gap: 0.6rem; border-bottom: 0.0625rem solid var(--border-subtle); background: var(--surface-panel); }
-.game-sidebar__title p { margin: 0; color: var(--accent); font-size: 0.52rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-.game-sidebar__title h1 { max-width: 13rem; margin: 0.08rem 0 0; overflow: hidden; font-family: var(--font-display); font-size: 1.08rem; font-weight: 700; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; }
-.result-badge { flex: 0 0 auto; padding: 0.25rem 0.48rem; color: var(--text-muted); border: 0.0625rem solid var(--border-subtle); border-radius: 999rem; background: var(--surface-app); font-size: 0.56rem; font-weight: 700; text-transform: capitalize; }
-.result-badge--finished { color: var(--accent-strong); border-color: var(--accent); background: var(--accent-soft); }
-.game-sidebar__controls { margin-top: auto; border-top: 0.0625rem solid var(--border-subtle); }
-@media (max-width: 57.5rem) { .game-stage { grid-template-columns: minmax(0, 1fr); overflow: visible; } .game-sidebar { min-height: 36rem; } .board-column > :deep(.player-panel), .board-column > :deep(.board-area) { width: min(100%, 42rem); } }
+.game-page { background: var(--surface-app); }
+.game-content { display: flex; min-width: 0; min-height: 0; padding: 0.75rem; flex: 1; flex-direction: column; gap: 0.5rem; }
+.game-stage { display: flex; min-width: 0; min-height: 0; flex: 1; gap: 1rem; }
+.board-column { --board-room: 5.5rem; --board-size: min(100cqw, calc(100cqh - var(--board-room)), 56rem); display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; container-type: size; }
+.board-column--editing { --board-room: 9.5rem; }
+.board-column > :deep(.player-panel), .board-column > :deep(.board-area) { width: var(--board-size); flex: 0 0 auto; }
+.game-sidebar { display: flex; min-width: 0; min-height: 0; flex: 0 0 clamp(15rem, 27vw, 21rem); flex-direction: column; gap: 0.25rem; }
+.game-sidebar__title { display: flex; min-height: 2.75rem; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.game-sidebar__title p { margin: 0; color: var(--text-muted); font-size: 0.52rem; text-transform: uppercase; }
+.game-sidebar__title > div { min-width: 0; }
+.game-sidebar__title h1 { margin: 0; overflow: hidden; font-family: var(--font-display); font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+.result-badge { flex-shrink: 0; color: var(--text-muted); font-size: 0.6rem; text-transform: capitalize; }
+.result-badge--finished { color: var(--accent-strong); }
+.game-sidebar__controls { margin-top: auto; flex-shrink: 0; }
+@media (max-width: 760px) {
+  .game-content { padding: 0.5rem; gap: 0.25rem; }
+  .game-stage { flex-direction: column; gap: 0.5rem; }
+  .board-column { flex: 0 1 60%; }
+  .game-sidebar { flex: 1; }
+  .game-sidebar__title { min-height: 1.75rem; }
+  .game-sidebar__title p { display: none; }
+  .game-sidebar :deep(.control-panel__heading) { display: none; }
+  .game-sidebar :deep(.control-button small) { display: none; }
+  .game-sidebar :deep(.control-grid) { grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr)); }
+}
 </style>

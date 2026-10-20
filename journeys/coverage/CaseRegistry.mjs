@@ -12,8 +12,10 @@ function findCaseFiles(directory) {
 }
 export function loadJourneyCases(root = repositoryRoot) {
   const paths = findCaseFiles(resolve(root, 'journeys/definitions')).filter((path) => path.replaceAll('\\', '/').includes('/cases/'));
-  const sessions = resolve(root, 'journeys/coverage/sessions');
-  if (existsSync(sessions)) paths.push(...findCaseFiles(sessions));
+  for (const area of ['sessions', 'usability']) {
+    const directory = resolve(root, 'journeys/coverage', area);
+    if (existsSync(directory)) paths.push(...findCaseFiles(directory));
+  }
   const cases = paths.flatMap((path) => JSON.parse(readFileSync(path, 'utf8')));
   const identifiers = new Set();
   for (const entry of cases) {

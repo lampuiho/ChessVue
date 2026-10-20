@@ -6,6 +6,7 @@ import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind } from '@/contracts/state';
 import { SavedGameIndexService } from '@/domain';
 import { useGamesStore, useSavedGamesStore, useUiStateStore } from '@/state';
+import NavigationFrame from '@/components/NavigationFrame.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
 import { OperationOwner } from '@/utility/async/OperationOwner';
@@ -135,7 +136,6 @@ async function saveGame() {
 }
 async function writeSave(game: IGame, name: string, overwrite: boolean) {
   await savedGamesStore.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: name, overwrite });
-  overwriteTarget.value = undefined;
   message.value = `Saved “${name}”.`;
   await refreshGroups();
   selectedSaveName.value = name;
@@ -145,6 +145,7 @@ async function confirmOverwrite() {
   const target = overwriteTarget.value;
   if (!target || isWorking.value) return;
   await run(() => writeSave(target.game, target.saveName, true));
+  if (!errorMessage.value) overwriteTarget.value = undefined;
 }
 async function importGame() {
   await run(async () => {
@@ -194,12 +195,17 @@ function formatDate(entry: ISavedGameFileEntry): string {
 </script>
 
 <template>
-  <main class="saved-page page-shell">
-    <header class="app-header">
-      <button class="app-brand" @click="router.push(returnRoute)"><span class="app-brand__mark">♞</span><span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Game library</span></span></button>
-      <nav class="library-tabs"><button :class="{ active: !isSaveMode }" @click="router.push('/saved-games/load')">Load</button><button :class="{ active: isSaveMode }" :disabled="!uiStateStore.gameSession?.activeGameId" @click="uiStateStore.gameSession?.activeGameId && router.push(`/saved-games/save/${uiStateStore.gameSession.activeGameId}`)">Save</button></nav>
-      <div class="header-actions header-actions--end"><button class="menu-button" @click="importGame"><AppIcon name="upload" /><span>Import file</span></button><button v-if="isSaveMode" class="menu-button" :disabled="!activeGame" @click="exportCurrent"><AppIcon name="download" /><span>Export</span></button><button class="menu-button" @click="router.push(returnRoute)"><AppIcon name="x" /><span>Close</span></button></div>
-    </header>
+  <main class="saved-page page-shell app-page">
+    <NavigationFrame>
+      <template #brand><button class="app-brand" aria-label="ChessVue home" title="ChessVue home" @click="router.push(returnRoute)"><span class="app-brand__mark">♞</span><span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Game library</span></span></button></template>
+      <nav class="library-tabs" aria-label="Library mode">
+        <button class="menu-button" :class="{ active: !isSaveMode }" aria-label="Load" title="Load" @click="router.push('/saved-games/load')"><AppIcon name="folder" /><span>Load</span></button>
+        <button class="menu-button" :class="{ active: isSaveMode }" :disabled="!uiStateStore.gameSession?.activeGameId" aria-label="Save" title="Save" @click="uiStateStore.gameSession?.activeGameId && router.push(`/saved-games/save/${uiStateStore.gameSession.activeGameId}`)"><AppIcon name="save" /><span>Save</span></button>
+      </nav>
+      <button class="menu-button" aria-label="Import file" title="Import file" @click="importGame"><AppIcon name="upload" /><span>Import file</span></button>
+      <button v-if="isSaveMode" class="menu-button" :disabled="!activeGame" aria-label="Export" title="Export" @click="exportCurrent"><AppIcon name="download" /><span>Export</span></button>
+      <template #footer><button class="menu-button" aria-label="Close" title="Close" @click="router.push(returnRoute)"><AppIcon name="x" /><span>Close</span></button></template>
+    </NavigationFrame>
     <div class="library-shell">
       <section class="library-heading"><p class="page-kicker">Local library</p><h1 class="page-heading">{{ isSaveMode ? 'Save your game' : isDetailMode ? gameNames.get(routeGameId) ?? 'Saved game' : 'Saved games' }}</h1><p class="page-description">{{ isSaveMode ? 'Create a named snapshot of the current board.' : isDetailMode ? 'Choose a snapshot to return to.' : 'Every game and analysis study saved on this desktop.' }}</p></section>
       <section class="library-surface surface">
@@ -217,7 +223,6 @@ function formatDate(entry: ISavedGameFileEntry): string {
           <div v-if="activeGame" class="save-layout">
             <div class="save-game-card"><span>♞</span><div><small>Current workspace</small><strong>{{ activeGame.metadata.name }}</strong><p>{{ activeGame.renderedPath.length }} moves · Updated {{ activeGame.metadata.updatedAt.toLocaleString() }}</p></div></div>
             <section class="form-section"><h2 class="form-section__heading">Named save</h2><p class="form-section__description">Use a short, recognisable name for this point in the game.</p><div class="field-row"><label class="field-label" for="save-name">Save name<span class="field-help">Stored as a JSON game document</span></label><div><input id="save-name" v-model="saveName" class="field-control" autofocus @keydown.enter="saveGame"><p v-if="saveNameError" class="field-error">{{ saveNameError }}</p></div></div></section>
-            <div v-if="selectedGroup?.saves.length" class="existing-saves"><h3>Existing snapshots</h3><div><span v-for="entry in selectedGroup.saves" :key="entry.filePath">{{ entry.saveName }}</span></div></div>
           </div>
           <div v-else class="empty-state"><AppIcon name="info" /><strong>No active game</strong><span>Open a game before creating a save.</span></div>
         </template>
@@ -239,25 +244,63 @@ function formatDate(entry: ISavedGameFileEntry): string {
 </template>
 
 <style scoped>
-.snapshot-browser { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(15rem, 1fr); border-bottom: 0.0625rem solid var(--border-subtle); }
-.snapshot-browser .save-list { min-height: 14rem; }
-.snapshot-details { padding: 1rem; border-left: 0.0625rem solid var(--border-subtle); background: var(--surface-app); font-size: 0.75rem; }
+.library-shell { display: flex; min-width: 0; min-height: 0; padding: 1rem; flex: 1; flex-direction: column; gap: 0.75rem; }
+.library-heading { min-width: 0; flex-shrink: 0; }
+.library-heading .page-kicker { margin-bottom: 0.25rem; }
+.library-heading .page-heading { font-size: clamp(1.3rem, 2.5vw, 2rem); overflow-wrap: anywhere; }
+.library-heading .page-description { margin-top: 0.35rem; font-size: 0.78rem; }
+.library-surface { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; }
+.library-surface > .empty-state { min-height: 0; flex: 1; }
+.library-spinner { color: var(--accent); font-size: 3rem; }
+.snapshot-browser { display: flex; min-height: 0; flex: 1; gap: 1rem; }
+.snapshot-browser .save-list { flex: 1.5; }
+.snapshot-details { min-width: 0; min-height: 0; padding: 0.5rem; flex: 1; overflow: auto; font-size: 0.75rem; overflow-wrap: anywhere; }
 .snapshot-details h2 { margin: 0 0 0.5rem; font-size: 1rem; }
-.snapshot-details dl { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 0.8rem; }
+.snapshot-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem 0.8rem; }
 .snapshot-details dt { color: var(--text-muted); }
 .snapshot-details dd { margin: 0; overflow-wrap: anywhere; }
-.save-separator { padding: 0.5rem 1rem; border-bottom: 0.0625rem solid var(--border-subtle); color: var(--text-muted); background: var(--surface-app); font-size: 0.65rem; }
-.save-row.selected { background: var(--accent-soft); box-shadow: inset 0.2rem 0 0 var(--accent); }
-@media (max-width: 43.75rem) { .snapshot-browser { grid-template-columns: 1fr; }.snapshot-details { border-top: 0.0625rem solid var(--border-subtle); border-left: 0; } }
-.saved-page { min-height: 100vh; }
-.app-brand { padding: 0; border: 0; background: transparent; text-align: left; }.app-brand__text { display: grid; }
-.library-tabs { display: flex; height: 100%; margin-left: 1rem; align-self: stretch; gap: 0.25rem; }.library-tabs button { position: relative; min-width: 5rem; padding: 0 0.8rem; color: var(--text-muted); background: transparent; font-size: 0.75rem; font-weight: 700; }.library-tabs button.active { color: var(--text-primary); }.library-tabs button.active::after { position: absolute; right: 0.65rem; bottom: -0.0625rem; left: 0.65rem; height: 0.125rem; border-radius: 0.125rem; background: var(--accent); content: ''; }
-.library-shell { width: min(66rem, calc(100% - 3rem)); margin: 0 auto; padding: 2.4rem 0 3rem; }.library-heading { margin-bottom: 1.6rem; }.library-heading .page-heading { font-size: clamp(2rem, 4vw, 3rem); }
-.library-surface { overflow: hidden; }.library-surface > .empty-state { min-height: 25rem; }.library-spinner { color: var(--accent); font-family: var(--font-display); font-size: 3rem; animation: breathe 1.5s ease infinite; }
-.game-list, .save-list { display: grid; min-height: 22rem; align-content: start; }.game-row { display: grid; min-height: 5rem; padding: 0.75rem 1rem; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 0.85rem; color: var(--text-primary); border-bottom: 0.0625rem solid var(--border-subtle); background: var(--surface-panel); text-align: left; }.game-row:hover, .game-row.selected { background: var(--accent-soft); }.game-row.selected { box-shadow: inset 0.2rem 0 0 var(--accent); }.game-row__piece { display: grid; width: 2.8rem; height: 2.8rem; place-items: center; color: var(--surface-panel); border-radius: 50%; background: var(--text-primary); font-family: var(--font-display); font-size: 1.7rem; }.game-row__copy { min-width: 0; }.game-row__copy strong, .game-row__copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.game-row__copy strong { font-family: var(--font-display); font-size: 0.96rem; }.game-row__copy small { margin-top: 0.18rem; color: var(--text-muted); font-size: 0.66rem; }.game-row__latest { padding: 0.23rem 0.45rem; color: var(--text-muted); border-radius: 999rem; background: var(--surface-app); font-size: 0.56rem; font-weight: 700; text-transform: uppercase; }
-.save-row { display: grid; min-height: 4.6rem; padding: 0.65rem 0.85rem; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 0.65rem; border-bottom: 0.0625rem solid var(--border-subtle); }.save-row__icon { display: grid; width: 2.3rem; height: 2.3rem; place-items: center; color: var(--accent); border-radius: var(--radius-sm); background: var(--accent-soft); }.save-row__content { display: grid; min-width: 0; padding: 0; background: transparent; text-align: left; }.save-row__content strong { font-size: 0.78rem; }.save-row__content small { color: var(--text-muted); font-size: 0.62rem; }.auto-badge { padding: 0.2rem 0.4rem; color: var(--accent-strong); border-radius: 999rem; background: var(--accent-soft); font-size: 0.54rem; font-weight: 800; text-transform: uppercase; }
-.library-actions { display: flex; min-height: 4.7rem; padding: 0.85rem 1rem; align-items: center; justify-content: flex-end; gap: 0.55rem; border-top: 0.0625rem solid var(--border-subtle); background: var(--surface-app); }.library-count, .library-feedback { margin-right: auto; color: var(--text-muted); font-size: 0.66rem; }.library-feedback { color: var(--success-strong); }.library-feedback--error { color: var(--danger); }
-.save-layout { display: grid; min-height: 22rem; padding: 1.5rem; align-content: start; gap: 1.5rem; }.save-game-card { display: flex; padding: 1rem; align-items: center; gap: 1rem; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-app); }.save-game-card > span { display: grid; width: 3.6rem; height: 3.6rem; place-items: center; color: var(--text-on-accent); border-radius: 50%; background: var(--accent-strong); font-family: var(--font-display); font-size: 2.1rem; }.save-game-card div { display: grid; }.save-game-card small { color: var(--accent); font-size: 0.56rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }.save-game-card strong { font-family: var(--font-display); font-size: 1.15rem; }.save-game-card p { margin: 0.18rem 0 0; color: var(--text-muted); font-size: 0.64rem; }.field-error { margin: 0.3rem 0 0; color: var(--danger); font-size: 0.62rem; }.existing-saves h3 { margin: 0 0 0.45rem; color: var(--text-muted); font-size: 0.64rem; text-transform: uppercase; }.existing-saves div { display: flex; flex-wrap: wrap; gap: 0.35rem; }.existing-saves span { padding: 0.25rem 0.45rem; border: 0.0625rem solid var(--border-subtle); border-radius: 999rem; background: var(--surface-panel); font-size: 0.6rem; }
-.library-empty .text-button { margin-top: 0.5rem; }.delete-warning { margin: 0; color: var(--text-muted); font-size: 0.8rem; }
-@media (max-width: 43.75rem) { .library-shell { width: calc(100% - 1.5rem); padding-top: 1.4rem; }.game-row__latest { display: none; }.save-row { grid-template-columns: auto 1fr auto; }.save-row .auto-badge, .save-row > .icon-button { display: none; }.library-count { display: none; }.library-tabs { margin-left: 0; } }
+.game-list, .save-list { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; overflow: auto; }
+.save-separator { padding: 0.5rem; color: var(--text-muted); font-size: 0.65rem; }
+.game-row { display: flex; min-width: 0; min-height: 4rem; padding: 0.5rem; flex-shrink: 0; align-items: center; gap: 0.75rem; background: transparent; text-align: left; }
+.game-row:hover, .game-row.selected, .save-row.selected { background: var(--accent-soft); }
+.game-row__piece { display: grid; width: 2.5rem; height: 2.5rem; flex-shrink: 0; place-items: center; color: var(--accent-strong); font-size: 1.7rem; }
+.game-row__copy { min-width: 0; flex: 1; }
+.game-row__copy strong, .game-row__copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-row__copy strong { font-size: 0.9rem; }
+.game-row__copy small { color: var(--text-muted); font-size: 0.65rem; }
+.game-row__latest { color: var(--text-muted); font-size: 0.6rem; }
+.save-row { display: flex; min-height: 3.5rem; padding: 0.4rem; flex-shrink: 0; align-items: center; gap: 0.5rem; }
+.save-row__icon { color: var(--accent); }
+.save-row__content { display: grid; min-width: 0; padding: 0; flex: 1; background: transparent; text-align: left; overflow-wrap: anywhere; }
+.save-row__content strong { font-size: 0.75rem; }
+.save-row__content small { color: var(--text-muted); font-size: 0.6rem; }
+.auto-badge { color: var(--accent-strong); font-size: 0.55rem; }
+.library-actions { display: flex; padding: 0.5rem 0 0; flex-shrink: 0; align-items: center; justify-content: flex-end; gap: 0.5rem; }
+.library-count, .library-feedback { min-width: 0; margin-right: auto; color: var(--text-muted); font-size: 0.66rem; overflow-wrap: anywhere; }
+.library-feedback { color: var(--success-strong); }
+.library-feedback--error { color: var(--danger); }
+.save-layout { display: grid; padding: 0.75rem 0; flex-shrink: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; gap: 1rem; }
+.save-game-card { display: flex; min-width: 0; align-items: center; gap: 0.5rem; }
+.save-game-card > span { color: var(--accent-strong); font-size: 2rem; }
+.save-game-card div { display: grid; min-width: 0; }
+.save-game-card small { color: var(--accent); font-size: 0.6rem; }
+.save-game-card strong { overflow: hidden; font-size: 0.9rem; text-overflow: ellipsis; white-space: nowrap; }
+.save-game-card p { margin: 0; color: var(--text-muted); font-size: 0.6rem; }
+.save-layout .form-section { gap: 0.5rem; }
+.save-layout .form-section__heading { font-size: 1rem; }
+.save-layout .form-section__description { margin: 0; font-size: 0.7rem; }
+.save-layout .field-row { gap: 0.5rem; }
+.field-error { margin: 0.25rem 0 0; color: var(--danger); font-size: 0.65rem; }
+.delete-warning { margin: 0; color: var(--text-muted); font-size: 0.8rem; }
+@media (max-width: 760px) {
+  .library-shell { padding: 0.75rem; gap: 0.5rem; }
+  .snapshot-browser { flex-direction: column; gap: 0.25rem; }
+  .snapshot-details { flex: 0 1 35%; padding: 0.25rem; }
+  .save-row__icon, .auto-badge, .game-row__latest, .library-count { display: none; }
+  .save-row { gap: 0.25rem; }
+  .save-row .text-button { min-height: 2rem; padding: 0.3rem 0.5rem; font-size: 0.7rem; }
+  .save-layout { grid-template-columns: 1fr; }
+  .save-game-card { display: none; }
+  .save-layout .form-section__description { display: none; }
+}
 </style>

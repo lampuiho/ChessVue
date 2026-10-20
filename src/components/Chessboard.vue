@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { BoardOrientation, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IChessPiece, type IMove, type IMoveRaw } from '@/contracts';
 import { genLegalMovesForPiece, toDetailedMove } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
+import { vFocusScope } from './common/FocusScope';
 
 const props = withDefaults(defineProps<{
   position: IBoardPosition;
@@ -135,6 +136,7 @@ function showFile(index: number): boolean {
           :key="boardId"
           class="board-square"
           :disabled="inputDisabled"
+          :aria-pressed="selectedBoardId === boardId"
           :class="{
             'board-square--light': (Math.floor(boardId / 8) + boardId % 8) % 2 === 1,
             'board-square--dark': (Math.floor(boardId / 8) + boardId % 8) % 2 === 0,
@@ -154,7 +156,7 @@ function showFile(index: number): boolean {
           <span v-if="position.board[boardId]" class="chess-piece" :class="`chess-piece--${position.board[boardId]?.colour}`" :draggable="!inputDisabled" @dragstart.stop="onDragStart(boardId, $event)">{{ pieceGlyph(position.board[boardId]!) }}</span>
           <span v-if="isLegalTarget(boardId) && !position.board[boardId]" class="move-dot"></span>
         </button>
-        <div v-if="pendingPromotionMoves.length" class="promotion-popover" role="group" aria-label="Pawn promotion">
+        <div v-if="pendingPromotionMoves.length" v-focus-scope class="promotion-popover" role="group" aria-label="Pawn promotion" tabindex="-1" @keydown.esc.stop.prevent="clearSelection">
           <span>Promote to</span>
           <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${position.sideToMove} ${kind}`" @click="choosePromotion(kind)">{{ pieceGlyph({ kind, colour: position.sideToMove }) }}</button></div>
           <button class="promotion-popover__cancel" @click="clearSelection">Cancel</button>
@@ -174,18 +176,19 @@ function showFile(index: number): boolean {
 </template>
 
 <style scoped>
-.board-area { display: grid; gap: 0.65rem; justify-items: center; }
-.board-frame { width: 100%; padding: 0.45rem; border-radius: 0.48rem; background: #39291f; box-shadow: 0 1.125rem 2.5rem rgb(24 17 12 / 24%), 0 0.1875rem 0.5rem rgb(24 17 12 / 25%); }
-.board-grid { position: relative; display: grid; width: 100%; aspect-ratio: 1; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); overflow: hidden; }
+.board-area { display: grid; align-content: start; gap: 0.25rem; justify-items: center; }
+.board-frame { width: 100%; padding: 0; }
+.board-grid { position: relative; display: grid; width: 100%; aspect-ratio: 1; container-type: inline-size; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); overflow: hidden; }
 .board-grid--disabled { cursor: not-allowed; }
 .board-square { position: relative; display: grid; min-width: 0; min-height: 0; padding: 0; place-items: center; border-radius: 0; overflow: hidden; }
 .board-square--light { color: #7a4d2c; background: #e8d8b9; }
 .board-square--dark { color: #e8d8b9; background: #9b6744; }
+.board-square:focus-visible { z-index: 5; outline-offset: -0.2rem; }
 .board-square--last::before { position: absolute; inset: 0; background: rgb(224 174 55 / 42%); content: ''; }
 .board-square--selected::before { position: absolute; z-index: 1; inset: 0; box-shadow: inset 0 0 0 0.27rem rgb(225 163 45 / 88%); content: ''; }
 .board-square--capture::after { position: absolute; z-index: 2; inset: 7%; border: clamp(0.16rem, 0.55vw, 0.34rem) solid rgb(103 46 30 / 56%); border-radius: 50%; content: ''; }
 .move-dot { position: absolute; z-index: 2; width: 24%; aspect-ratio: 1; border-radius: 50%; background: rgb(69 47 34 / 45%); pointer-events: none; }
-.chess-piece { position: relative; z-index: 3; display: grid; width: 100%; height: 100%; place-items: center; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", serif; font-size: clamp(2rem, 6.1vw, 5.5rem); line-height: 1; user-select: none; transition: transform 100ms ease; }
+.chess-piece { position: relative; z-index: 3; display: grid; width: 100%; height: 100%; place-items: center; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", serif; font-size: 11cqw; line-height: 1; user-select: none; transition: transform 100ms ease; }
 .board-square:hover .chess-piece { transform: translateY(-1.5%); }
 .chess-piece--white { color: #fff9e8; text-shadow: 0 0.0625rem 0 #5f4937, 0 0.125rem 0.125rem rgb(39 28 18 / 56%); }
 .chess-piece--black { color: #2d2824; text-shadow: 0 0.0625rem 0 rgb(255 255 255 / 26%), 0 0.125rem 0.125rem rgb(35 24 17 / 36%); }
@@ -198,18 +201,15 @@ function showFile(index: number): boolean {
 .promotion-popover > div button { aspect-ratio: 1; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-panel); font-size: clamp(1.7rem, 4vw, 2.8rem); }
 .promotion-popover > div button:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .promotion-popover__cancel { color: var(--text-muted); background: transparent; font-size: 0.7rem; }
-.piece-palette { display: flex; width: 100%; padding: 0.55rem 0.65rem; align-items: center; gap: 0.7rem; }
-.piece-palette__label { display: grid; min-width: 8rem; }
-.piece-palette__label strong { font-size: 0.74rem; }
-.piece-palette__label span { color: var(--text-muted); font-size: 0.61rem; }
-.piece-palette__pieces { display: flex; align-items: center; gap: 0.12rem; }
-.piece-palette__pieces button { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: var(--radius-sm); background: transparent; font-family: "Segoe UI Symbol", serif; font-size: 1.4rem; }
+.piece-palette { display: grid; width: 100%; min-width: 0; padding: 0; gap: 0.15rem; }
+.piece-palette__label { display: none; }
+.piece-palette__pieces { display: flex; min-width: 0; align-items: center; gap: 0.1rem; }
+.piece-palette__pieces button { display: grid; min-width: 0; height: 1.7rem; padding: 0; flex: 1; place-items: center; border-radius: 0.2rem; background: transparent; font-family: "Segoe UI Symbol", serif; font-size: 1.3rem; }
 .piece-palette__pieces button:hover, .piece-palette__pieces button.active { color: var(--accent); background: var(--accent-soft); }
-.piece-palette__pieces .palette-colour { font-size: 1rem; }
+.piece-palette__pieces .palette-colour { font-size: 0.9rem; }
 .palette-colour--white { color: #c9b690; text-shadow: 0 0 0.0625rem #31291f; }
 .palette-colour--black { color: #302a24; }
-.palette-divider { width: 0.0625rem; height: 1.45rem; margin: 0 0.2rem; background: var(--border-subtle); }
-.piece-palette__actions { display: flex; margin-left: auto; gap: 0.25rem; }
-.piece-palette__actions .text-button { min-height: 2.1rem; padding: 0.35rem 0.55rem; font-size: 0.68rem; }
-@media (max-width: 43.75rem) { .piece-palette { align-items: flex-start; flex-wrap: wrap; } .piece-palette__actions { width: 100%; margin-left: 0; justify-content: flex-end; } }
+.palette-divider { width: 0.0625rem; height: 1.2rem; background: var(--border-subtle); }
+.piece-palette__actions { display: flex; justify-content: flex-end; gap: 0.25rem; }
+.piece-palette__actions .text-button { min-height: 1.7rem; padding: 0.2rem 0.5rem; font-size: 0.65rem; }
 </style>

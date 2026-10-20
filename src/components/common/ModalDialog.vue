@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import AppIcon from './AppIcon.vue';
+import { vFocusScope } from './FocusScope';
 
 withDefaults(defineProps<{ title: string; subtitle?: string; wide?: boolean; dismissible?: boolean }>(), { dismissible: true });
 const emit = defineEmits<{ dismissed: [] }>();
 </script>
 
 <template>
-  <div class="modal-backdrop" role="presentation" @mousedown.self="dismissible && emit('dismissed')">
-    <section class="modal-card" :class="{ 'modal-card--wide': wide }" role="dialog" aria-modal="true" :aria-label="title" @keydown.esc="dismissible && emit('dismissed')">
+  <div class="modal-backdrop" role="presentation" @mousedown.self.prevent="dismissible && emit('dismissed')">
+    <section v-focus-scope class="modal-card" :class="{ 'modal-card--wide': wide }" role="dialog" aria-modal="true" :aria-label="title" tabindex="-1" @keydown.esc.stop.prevent="dismissible && emit('dismissed')">
       <header class="modal-card__header">
         <div>
           <h2 class="modal-card__title">{{ title }}</h2>

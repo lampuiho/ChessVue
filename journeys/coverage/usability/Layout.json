@@ -1,0 +1,65 @@
+[
+  {
+    "id": "JRN-UX-03",
+    "priority": "P2",
+    "scenarios": [
+      "SCN-HIST-01",
+      "SCN-LOAD-01",
+      "SCN-GAME-02",
+      "SCN-SETTINGS-01"
+    ],
+    "branches": [],
+    "fixture": "usability",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/usability/ScenarioReview.md#jrn-ux-03",
+    "data": [
+      "journeys/definitions/usability/data/UsabilityScenario.ts",
+      "journeys/definitions/usability/data/UsabilityWorkload.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/usability/Layout.spec.ts",
+        "titles": [
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 75% white light",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 75% white dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 75% black light",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 75% black dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 100% white light",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 100% white dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 100% black light",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 100% black dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 150% white light",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 150% white dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 150% black light",
+          "JRN-UX-03 keeps controls and long content reachable at 1440x900 150% black dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 75% white light",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 75% white dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 75% black light",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 75% black dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 100% white light",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 100% white dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 100% black light",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 100% black dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 150% white light",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 150% white dark",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 150% black light",
+          "JRN-UX-03 keeps controls and long content reachable at 1024x768 150% black dark"
+        ]
+      },
+      {
+        "spec": "e2e/journeys/usability/Navigation.spec.ts",
+        "titles": [
+          "JRN-UX-03 fits the desktop workspace with collapsed and expanded left navigation",
+          "JRN-UX-03 fits mobile at 375x667 with an accessible overlay menu",
+          "JRN-UX-03 fits mobile at 375x812 with an accessible overlay menu",
+          "JRN-UX-03 keeps the position editor and palette within 1024x768",
+          "JRN-UX-03 fits Home and its start actions within 1024x768",
+          "JRN-UX-03 keeps the position editor and palette within 375x667",
+          "JRN-UX-03 fits Home and its start actions within 375x667"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

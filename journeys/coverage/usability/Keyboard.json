@@ -1,0 +1,33 @@
+[
+  {
+    "id": "JRN-UX-01",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-GAME-02",
+      "SCN-MOVE-01",
+      "SCN-MOVE-03",
+      "SCN-SAVE-03",
+      "SCN-SETTINGS-01"
+    ],
+    "branches": ["BR-MOVE-03-CANCEL"],
+    "fixture": "sessions",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/usability/ScenarioReview.md#jrn-ux-01",
+    "data": [
+      "journeys/definitions/sessions/data/SessionWorkspace.ts",
+      "journeys/definitions/promotion/data/PromotionScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/usability/Keyboard.spec.ts",
+        "titles": [
+          "JRN-UX-01 completes Home creation, a board move, Save and Settings using only the keyboard",
+          "JRN-UX-01 names and completes white promotion choices with keyboard cancellation",
+          "JRN-UX-01 names and completes black promotion choices with keyboard cancellation"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

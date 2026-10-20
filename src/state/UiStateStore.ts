@@ -81,6 +81,10 @@ function coerceGameSessionSnapshot(snapshot: IGameSessionSnapshot, availableGame
 }
 
 export const useUiStateStore = defineStore('uiStateStore', () => {
+  const navigationExpanded = ref(false);
+  function toggleNavigationExpanded() {
+    navigationExpanded.value = !navigationExpanded.value;
+  }
   const gameSession = ref<IGameSessionSnapshot>();
   const layoutState = ref<IUiLayoutState>();
   const modalState = shallowRef<IAppModalState>();
@@ -214,6 +218,8 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
   }
 
   return {
+    navigationExpanded,
+    toggleNavigationExpanded,
     gameSession,
     layoutState,
     modalState,

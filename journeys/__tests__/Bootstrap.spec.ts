@@ -35,9 +35,10 @@ describe('journey application bootstrap', () => {
     const { api, games, router } = await boot(name);
     const expected = name === 'saves' ? ['save-library'] : api.gameIds;
     expect(games.listGames().map((game) => game.metadata.id)).toEqual(expected);
-    expect(document.querySelector('.app-root')).not.toBeNull();
+    expect(document.querySelector('#app > main')).not.toBeNull();
     expect(document.querySelector('.app-loading')).toBeNull();
-    if (name !== 'recovery' && name !== 'fresh') expect(router.currentRoute.value.path).not.toBe('/home');
+    if (!expected.length) expect(router.currentRoute.value.path).toBe('/home');
+    else if (name !== 'recovery') expect(router.currentRoute.value.path).not.toBe('/home');
     if (name === 'analysis') {
       await vi.waitFor(() => {
         const game = games.getGame('analysis-free')!;

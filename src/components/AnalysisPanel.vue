@@ -67,8 +67,10 @@ function summary(seat: ReadonlyAnalysisSeat): string {
 </template>
 
 <style scoped>
-.side-panel { min-height: 0; border-bottom: 0.0625rem solid var(--border-subtle); background: var(--surface-panel); }
-.side-panel__header { display: flex; min-height: 2.85rem; padding: 0.45rem 0.6rem; align-items: center; gap: 0.35rem; }
+.side-panel { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.side-panel:has(.side-panel__body) { flex-basis: 0; }
+.side-panel:not(:has(.side-panel__body)) { flex: 0 0 auto; }
+.side-panel__header { display: flex; min-height: 2.2rem; padding: 0.2rem 0; flex-shrink: 0; align-items: center; gap: 0.35rem; }
 .side-panel__header > div:not(.panel-actions) { display: flex; align-items: baseline; gap: 0.5rem; }
 .side-panel__header h2 { margin: 0; font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; }
 .side-panel__header span { color: var(--text-muted); font-size: 0.62rem; }
@@ -76,13 +78,13 @@ function summary(seat: ReadonlyAnalysisSeat): string {
 .side-panel__collapse:hover { color: var(--accent); background: var(--accent-soft); }
 .panel-actions { display: flex; margin-left: auto; }
 .panel-actions .icon-button { width: 1.75rem; height: 1.75rem; }
-.side-panel__body { min-height: 0; border-top: 0.0625rem solid var(--border-subtle); }
-.analysis-list { max-height: min(30vh, 18rem); overflow: auto; }
-.panel-empty { display: grid; min-height: 8rem; padding: 1rem; place-items: center; align-content: center; gap: 0.35rem; color: var(--text-muted); font-size: 0.68rem; text-align: center; }
+.side-panel__body { min-height: 0; flex: 1; }
+.analysis-list { max-height: none; overflow: auto; }
+.panel-empty { display: grid; min-height: 0; padding: 0.5rem; place-items: center; align-content: center; gap: 0.35rem; color: var(--text-muted); font-size: 0.68rem; text-align: center; }
 .panel-empty > .app-icon { font-size: 1.3rem; opacity: 0.6; }
 .panel-empty strong { color: var(--text-primary); font-family: var(--font-display); font-size: 0.86rem; }
 .panel-empty .text-button { min-height: 2rem; margin-top: 0.25rem; padding: 0.35rem 0.6rem; font-size: 0.66rem; }
-.engine-section + .engine-section { border-top: 0.0625rem solid var(--border-subtle); }
+.engine-section + .engine-section { margin-top: 0.25rem; }
 .engine-section__header { display: grid; min-height: 2.5rem; padding: 0.35rem 0.45rem 0.35rem 0.6rem; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 0.25rem; }
 .engine-section__fold { display: flex; min-width: 0; padding: 0; align-items: center; gap: 0.35rem; background: transparent; }
 .engine-section__fold .app-icon { color: var(--text-muted); font-size: 0.78rem; }
@@ -103,4 +105,8 @@ function summary(seat: ReadonlyAnalysisSeat): string {
 .engine-summary { display: flex; padding: 0 0.75rem 0.65rem 1.85rem; justify-content: space-between; color: var(--text-muted); font-size: 0.64rem; }
 .engine-summary small { font-size: 0.58rem; }
 .engine-error { margin: 0; padding: 0 0.75rem 0.65rem 1.85rem; color: var(--danger); font-size: 0.62rem; }
+@media (max-width: 760px) {
+  .panel-empty { padding: 0.25rem 0; justify-items: start; text-align: left; }
+  .panel-empty > .app-icon, .panel-empty > span, .panel-empty .text-button { display: none; }
+}
 </style>

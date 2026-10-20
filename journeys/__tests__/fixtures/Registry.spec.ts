@@ -35,6 +35,7 @@ describe('modular journey discovery', () => {
       ...Array.from({ length: 4 }, (_, index) => `JRN-SESSION-0${index + 1}`),
       ...Array.from({ length: 11 }, (_, index) => `JRN-SETTINGS-${String(index + 1).padStart(2, '0')}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-SETUP-0${index + 1}`),
+      ...Array.from({ length: 4 }, (_, index) => `JRN-UX-0${index + 1}`),
     ]);
     for (const entry of cases) {
       if (entry.lane === 'ordinary-browser') {

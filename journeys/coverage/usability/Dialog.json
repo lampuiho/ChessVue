@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-UX-02",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SAVE-03",
+      "SCN-IMPORT-02",
+      "SCN-SETTINGS-01",
+      "SCN-CTRL-03"
+    ],
+    "branches": ["BR-SAVE-03-COLLISION-CANCEL", "BR-SAVE-03-IO-ERROR", "BR-CTRL-03-DECLINED"],
+    "fixture": "storage-failures",
+    "lane": "seeded-browser",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/usability/ScenarioReview.md#jrn-ux-02",
+    "data": [
+      "journeys/definitions/storage-failures/data/StorageWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/usability/Dialog.spec.ts",
+        "titles": [
+          "JRN-UX-02 contains overwrite errors, restores focus and commits repeated confirmation once",
+          "JRN-UX-02 contains import errors and returns focus after Escape and backdrop dismissal",
+          "JRN-UX-02 keeps dirty-settings cancellation in its owner and restores the return action",
+          "JRN-UX-02 transfers focus into draw resolution and requires an explicit response"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

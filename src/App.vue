@@ -122,14 +122,12 @@ onScopeDispose(removeRouteCheckpoint);
 </script>
 
 <template>
-  <div class="app-root">
-    <div v-if="!isReady" class="app-loading">
-      <div class="loading-mark"><span class="loading-mark__piece">♞</span><span>Preparing your board…</span></div>
-    </div>
-    <RouterView v-else />
-    <aside v-if="isReady && recoveryWarnings.length && !warningDismissed" class="recovery-notice" role="alert"><p v-for="warning in recoveryWarnings" :key="warning">{{ warning }}</p><div><button class="text-button" @click="router.push('/saved-games/load')">Saved games</button><button class="text-button" @click="router.push('/settings/session')">Settings</button><button class="text-button" @click="warningDismissed = true">Dismiss</button></div></aside>
-    <ModalHost v-if="isReady" />
+  <div v-if="!isReady" class="app-loading">
+    <div class="loading-mark"><span class="loading-mark__piece">♞</span><span>Preparing your board…</span></div>
   </div>
+  <RouterView v-else />
+  <aside v-if="isReady && recoveryWarnings.length && !warningDismissed" class="recovery-notice" role="alert"><p v-for="warning in recoveryWarnings" :key="warning">{{ warning }}</p><div><button class="text-button" @click="router.push('/saved-games/load')">Saved games</button><button class="text-button" @click="router.push('/settings/session')">Settings</button><button class="text-button" @click="warningDismissed = true">Dismiss</button></div></aside>
+  <ModalHost v-if="isReady" />
 </template>
 <style scoped>
 .recovery-notice { position: fixed; z-index: 40; right: 1rem; bottom: 1rem; width: min(32rem, calc(100vw - 2rem)); padding: 1rem; border: 0.0625rem solid var(--warning); border-radius: var(--radius-md); background: var(--surface-dialog); box-shadow: var(--shadow-sm); }

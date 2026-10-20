@@ -5,13 +5,14 @@ This document defines the baseline desktop workspace layout for ChessVue.
 
 It clarifies where the committed gameplay surfaces sit on screen and which level of the UI owns positioning decisions.
 
-This is a high-level layout contract only. It does not define final styling, spacing tokens, responsive compact behaviour, or component-local CSS structure.
+This is a high-level layout contract only. It defines the desktop and mobile navigation structure and viewport fit; final spacing tokens and component-local CSS remain implementation details.
 
 ## Baseline
 - `desktop-first`
 - one game workspace layout for `GameView`
 - one left board column and one right sidebar
-- no compact or mobile panel-switching behaviour in the baseline
+- a collapsible left navigation rail on desktop and an icon-only top bar on mobile
+- the application fits the viewport without document scrolling or visible scrollbars
 
 The baseline layout must accommodate:
 
@@ -72,50 +73,36 @@ Home layout rules:
 - first-use and no-active-game fallback use the same centred layout
 - primary landing actions stay grouped together instead of being scattered across the page
 - the primary action group is horizontally centred
-- the primary action group uses one single row of large square buttons with prominent icons
-- button targets should be easy to click so the same design direction remains workable when responsive behaviour is added later
+- the primary action group uses a row of flat buttons with prominent icons, wrapping into two columns on mobile
+- button targets remain easy to click at the supported interface scales
 - the recent games list sits below the primary action row
 - the recent games list is hidden when there are no recent games to show
 - when the recent games list is hidden, the primary action row shifts so the overall home composition remains as centred as possible
 - `Custom New Game` opens the shared dialog family rather than navigating away from `HomeView`
 
 ## Workspace Regions
-The baseline game workspace is arranged in four vertical layers:
 
-1. top menu row for `MenuBar`
-2. tab row directly below for `GameTabs`
-3. main content row split into a left board column and right sidebar
-4. sidebar-bottom action region for `GameControlPanel`
+The existing `div#app` is the application root; `App.vue` renders its active route and transient surfaces directly inside it.
 
-Within the main content row:
+Desktop uses a flex row: a left `NavigationFrame` rail and the remaining route content. The rail can shrink to icons or expand to labels. Its width participates in flex layout, so no fixed positioning, JavaScript measurements or content offsets are needed. The expanded preference is transient shared UI state and survives route changes during the current launch.
 
-- the left board column contains the top player strip, square board, and bottom player strip
-- the right sidebar contains history above analysis by default
-- the right sidebar keeps the control panel at the bottom as the primary action area
+The game content uses a tab row above the board/sidebar flex row. The board column contains borderless top and bottom player strips with avatars aligned to the board's left edge. A CSS size container fits the square board to both available width and height after reserving room for player strips and the optional editing palette. The sidebar keeps history above analysis and gameplay controls visible at the bottom. Panels use flat surfaces without decorative frames or surrounding border padding.
 
-## Baseline ASCII Sketch
 ```text
-+--------------------------------------------------------------------------------------------------+
-| MenuBar                                                                                          |
-+--------------------------------------------------------------------------------------------------+
-| GameTabs                                                     |                                   |
-+--------------------------------------------------------------+                                   |
-| Top Player Strip                                             |                                   |
-+--------------------------------------------------------------+                                   |
-|                                                              |                                   |
-|                                                              |                                   |
-|                                                              |                                   |
-|                                                              |                                   |
-|                                                              |          Right Sidebar            |
-|                          Chessboard                          |                                   |
-|                                                              |                                   |
-|                                                              |                                   |
-|                                                              |                                   |
-|                                                              |                                   |
-+--------------------------------------------------------------+                                   |
-| Bottom Player Strip                                          |                                   |
-+--------------------------------------------------------------+-----------------------------------+
++------------+---------------------------------------------------------------+
+| Navigation | GameTabs                                                      |
+|            |-------------------------------------+-------------------------|
+| Collapse / | Top player                         | Workspace title         |
+| Expand     |                                     | History                 |
+|            |            Chessboard               | Analysis                |
+| Actions    |                                     |                         |
+|            | Bottom player                       | Game controls           |
++------------+-------------------------------------+-------------------------+
 ```
+
+At widths up to 760 CSS pixels, navigation becomes a narrow icon-only top bar. Its top-left menu action opens a fixed side drawer with a black overlay over the content. The drawer owns focus until selection, Escape, its close action or backdrop dismissal; it restores a surviving launcher. Route actions retain their normal owners, including timed-game menu interruption. The board and sidebar stack within the remaining viewport height.
+
+There is no document scrolling. Long histories, engine output, libraries and settings fields scroll inside their allocated flex regions, with scrollbar chrome hidden. Panel headers and route/game action areas stay visible. This preserves access to all content while keeping the board and player strips within the viewport.
 
 ## Sidebar Panel Design
 The sidebar is arranged in this order:
@@ -208,6 +195,8 @@ Example collapsed analysis state:
 +---------------------------------+
 ```
 
+Player strips have no surrounding border or padding. Their avatars align with the board edge, and clocks sit at the opposite end.
+
 Pieces taken are rendered as icons. Grouped together by type to reduce space taken. Grouping is done by reduced spacing of the pieces so they overlap 70% of the icon.
 
 The displayed player label is clickable and opens the player-selection dialog for explicitly changing that side for the current game. The baseline choices are `none`, `local`, or one configured engine profile.
@@ -261,7 +250,7 @@ Panel and button legend:
 ```
 
 ## Settings View Layout
-The settings surface uses a tab-style category switcher similar in spirit to `GameTabs`, but for settings categories rather than open games.
+The settings surface places its category switcher in the shared navigation rail/top bar. The selected category occupies the remaining flex region, with an internally scrolling body and a persistent bottom action row.
 
 The baseline settings categories are:
 
@@ -273,30 +262,26 @@ The baseline settings categories are:
 Settings layout sketch:
 
 ```text
-+------------------------------------------------------------------------------+
-| Settings Title                                                               |
-+------------------------------------------------------------------------------+
-| [Session] [Gameplay] [Appearance] [Engines]                                  |
-+------------------------------------------------------------------------------+
-|                                                                              |
-| Selected settings category content                                           |
-|                                                                              |
-|                                                                              |
-+------------------------------------------------------------------------------+
-| [Reset To Defaults]                                 [Cancel] [Save] [Apply]  |
-+------------------------------------------------------------------------------+
++------------------+---------------------------------------------------------+
+| Back             | Selected category title                                 |
+| Session          |                                                         |
+| Gameplay         | Category fields (internal scrolling)                    |
+| Appearance       |                                                         |
+| Engines          |                                                         |
+| Reset            |                                  [Cancel] [Save] [Apply]|
++------------------+---------------------------------------------------------+
 ```
 
 Settings layout rules:
 
-- category switching uses a shared tab-like control rather than a long single scrolling page
+- category switching uses the shared responsive navigation frame
 - the settings routes are `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`
 - `/settings` redirects to `/settings/session`
 - only one settings category is active in the main settings content area at a time
 - `Cancel`, `Save`, and `Apply` stay in the bottom-right action area
 - `Reset` stays in a separate secondary settings action area rather than in the primary bottom-right row
 - `Reset` always requires confirmation through the shared dialog family before defaults are restored
-- the bottom action area remains in a fixed bottom corner position relative to the settings surface
+- the bottom action area participates in flex layout and remains visible below the scrolling fields
 - category content owns its internal fields, but not the outer action-row placement
 - `Appearance` contains both visual theme settings and layout-related presentation preferences such as UI scale, board orientation, coordinate visibility, and last-move highlighting
 
@@ -341,6 +326,8 @@ Saved-games view rules:
 - the save list still shows autosave first, then a separator when autosave exists, then the remaining saves
 - `/saved-games/save/:name` keeps the save-name text box focused on open
 - the details panel shows the currently selected game or save entry metadata
+- save/load modes and import/export/close actions use the shared navigation frame
+- lists and details scroll internally; the name field and bottom actions remain visible without document scrolling
 - route-level saved-games views replace the old save/load dialog concept; shared dialogs remain for transient confirmation and interruption flows only
 
 Engine profile list direction inside the `Engines` category:
@@ -386,6 +373,9 @@ Dialog family rules:
 - the content area changes by flow, but the shell and action-row placement stay consistent
 - confirmation and error flows may use fewer actions, but they still use the same shell
 - forms inside dialogs use the same shallow section and field structure as other baseline forms
+- activation focuses the form's autofocus control or the first available action; Tab/Shift+Tab stays in the active surface, and completion restores its surviving launcher or parent surface
+- Escape and backdrop dismissal follow the flow's dismissal policy; local draw resolution requires an explicit Accept or Decline
+- promotion choices have accessible piece names and support keyboard activation and cancellation; hidden checkbox/radio inputs show focus on their visible controls
 
 Named baseline uses:
 
@@ -428,14 +418,7 @@ This document does not define:
 
 - final padding or gap values
 - exact colour tokens, palette values, or final visual polish
-- compact or mobile layout behaviour
 - detailed CSS scoping per component
 - internal markup structure for shared render components
 
 Those details belong to the later low-level design and implementation work.
-
-
-
-
-
-

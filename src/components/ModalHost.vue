@@ -183,7 +183,7 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
 <template>
   <NewGameModal v-if="modal?.kind === AppModalKind.NewGame && settingsStore.draftSettings" :settings="settingsStore.draftSettings" :engines="engines" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="createGame" @cancel-requested="uiStateStore.hideModal" />
   <NewGameModal v-else-if="modal?.kind === AppModalKind.StartGameFromSetup && settingsStore.draftSettings && setupGame" :settings="settingsStore.draftSettings" :engines="engines" :setup-game="setupGame" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="confirmSetupStart" @cancel-requested="uiStateStore.hideModal" />
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.PlayerSelection" title="Choose a player" :subtitle="`Assign the ${modal.payload.colour} seat for this game.`" @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.PlayerSelection" title="Choose a player" :subtitle="`Assign the ${modal.payload.colour} seat for this game.`" @dismissed="uiStateStore.hideModal">
     <div class="choice-list">
       <label v-if="modal.payload.currentPlayerType === PlayerType.Engine" class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="unchanged"><span class="choice-card__piece">♞</span><span><strong>Keep {{ modal.payload.currentAssignedEngine?.displayName }}</strong><small>Keep the engine and options assigned to this game.</small></span></label>
       <label class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="none"><span class="choice-card__piece">○</span><span><strong>Unassigned</strong><small>Turn this game into a free analysis workspace.</small></span></label>
@@ -193,7 +193,7 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
     <p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="confirmPlayerSelection">Assign player</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.AnalysisEngineSelection" title="Add analysis engine" subtitle="Assign a configured engine to this board." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.AnalysisEngineSelection" title="Add analysis engine" subtitle="Assign a configured engine to this board." @dismissed="uiStateStore.hideModal">
     <div v-if="engines.length" class="choice-list">
       <label v-for="engine in availableAnalysisEngines" :key="engine.id" class="choice-card"><input v-model="form.selectedEngineId" type="radio" :value="engine.id"><span class="choice-card__piece">♝</span><span><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'Executable not selected' }}</small></span></label>
     </div>
@@ -201,38 +201,38 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
     <p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" :disabled="!form.selectedEngineId" @click="confirmAnalysisEngine">Add engine</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.Promotion" title="Choose promotion" subtitle="Select the piece your pawn should become." @dismissed="uiStateStore.hideModal">
-    <div class="promotion-row"><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" @click="choosePromotion(kind)">{{ ({ queen: '♕', rook: '♖', bishop: '♗', knight: '♘' } as Record<string, string>)[kind] }}</button></div>
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Promotion" title="Choose promotion" subtitle="Select the piece your pawn should become." @dismissed="uiStateStore.hideModal">
+    <div class="promotion-row"><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${kind}`" @click="choosePromotion(kind)">{{ ({ queen: '♕', rook: '♖', bishop: '♗', knight: '♘' } as Record<string, string>)[kind] }}</button></div>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.Resign" title="Resign this game?" subtitle="This records the game as finished. You can still review the position afterwards." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Resign" title="Resign this game?" subtitle="This records the game as finished. You can still review the position afterwards." @dismissed="uiStateStore.hideModal">
     <p>Confirm that {{ modal.payload.colour }} resigns.</p><p v-if="form.errorMessage" class="inline-message inline-message--error">{{ form.errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="confirmSimpleAction">Resign</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.DrawOffer" title="Offer a draw?" subtitle="The other side will be asked to accept or decline." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.DrawOffer" title="Offer a draw?" subtitle="The other side will be asked to accept or decline." @dismissed="uiStateStore.hideModal">
     <p>Offer a draw from the {{ modal.payload.offeringColour }} side.</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Offer draw</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.DrawResolve" title="Draw offered" :subtitle="`${modal.payload.respondingColour} to respond.`" :dismissible="false">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.DrawResolve" title="Draw offered" :subtitle="`${modal.payload.respondingColour} to respond.`" :dismissible="false">
     <p>Accept the draw and finish the game?</p>
     <template #actions><button class="text-button" @click="declineDraw">Decline</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Accept</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.ResetSettings" title="Reset all settings?" subtitle="Preferences and engine profiles will return to their defaults." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.ResetSettings" title="Reset all settings?" subtitle="Preferences and engine profiles will return to their defaults." @dismissed="uiStateStore.hideModal">
     <p>This cannot be undone after you save another change.</p>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="confirmSimpleAction">Reset settings</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.SettingsDirtyLeave" title="Discard unsaved changes?" subtitle="You have settings changes that have not been applied." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.SettingsDirtyLeave" title="Discard unsaved changes?" subtitle="You have settings changes that have not been applied." @dismissed="uiStateStore.hideModal">
     <template #actions><button class="text-button" @click="uiStateStore.hideModal">Keep editing</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Discard changes</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.BoardEditBlocked" title="Board editing is unavailable" subtitle="Finish in-game analysis before changing the position." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.BoardEditBlocked" title="Board editing is unavailable" subtitle="Finish in-game analysis before changing the position." @dismissed="uiStateStore.hideModal">
     <p>Board editing is only available in a free analysis workspace.</p>
     <template #actions><button class="text-button text-button--primary" @click="uiStateStore.hideModal">Understood</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.ImportError" title="Could not import game" subtitle="The selected document is unsupported or incomplete." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.ImportError" title="Could not import game" subtitle="The selected document is unsupported or incomplete." @dismissed="uiStateStore.hideModal">
     <p class="inline-message inline-message--error">{{ modal.payload.message }}</p>
     <template #actions><button class="text-button text-button--primary" @click="uiStateStore.hideModal">Close</button></template>
   </ModalDialog>
-  <ModalDialog v-else-if="modal?.kind === AppModalKind.Timeout" title="Time has expired" subtitle="The game is finished, but the position remains available for review." @dismissed="uiStateStore.hideModal">
+  <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Timeout" title="Time has expired" subtitle="The game is finished, but the position remains available for review." @dismissed="uiStateStore.hideModal">
     <p>{{ modal.payload.resultState === 'whiteWon' ? 'White wins' : 'Black wins' }} on time.</p>
     <template #actions><button class="text-button text-button--primary" @click="uiStateStore.hideModal">Review game</button></template>
   </ModalDialog>

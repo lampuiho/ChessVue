@@ -13,7 +13,7 @@ defineProps<{ record: IRecordedAnalysis }>();
   </section>
 </template>
 <style scoped>
-.recorded-analysis { max-height: 10rem; overflow: auto; padding: 0.65rem; border-bottom: 0.0625rem solid var(--border-subtle); }
+.recorded-analysis { min-height: 0; max-height: 25%; overflow: auto; padding: 0.25rem 0; flex-shrink: 1; }
 h2 { margin: 0; font-family: var(--font-display); font-size: 0.9rem; }
 strong { font-size: 0.7rem; }
 p { margin: 0.25rem 0; color: var(--text-muted); font-size: 0.65rem; }

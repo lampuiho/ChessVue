@@ -1,0 +1,10 @@
+{
+  "title": "Keyboard, dialog focus, desktop layout and sustained workload",
+  "scenarios": ["SCN-GAME-02", "SCN-MOVE-01", "SCN-MOVE-03", "SCN-HIST-01", "SCN-ANALYSIS-01", "SCN-ANALYSIS-03", "SCN-SAVE-03", "SCN-LOAD-01", "SCN-SETTINGS-01"],
+  "steps": [
+    "Use Tab, Shift+Tab and Enter to create a custom game from Home, select squares, save and visit Settings.",
+    "Open confirmations and failures; check focus containment, dismissal, return focus and repeated submissions. Resolve a draw explicitly.",
+    "Inspect the long game and snapshot names, nested history and save details at 1440×900 and 1024×768, 75/100/150%, both board orientations and light/dark themes.",
+    "Repeat history navigation, library/settings routes, dialog dismissal and engine add/stop/remove for 12 cycles with 160 legal plies and 32 named snapshots; record timings and resource counts."
+  ]
+}

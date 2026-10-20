@@ -16,6 +16,7 @@ import {
 } from '@/contracts';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
 import { useSettingsStore, useUiStateStore } from '@/state';
+import NavigationFrame from '@/components/NavigationFrame.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
 
@@ -128,29 +129,26 @@ function addOption() {
 </script>
 
 <template>
-  <main class="settings-page page-shell">
-    <header class="app-header">
-      <button class="app-brand" @click="requestReturn"><span class="app-brand__mark">♞</span><span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Preferences</span></span></button>
-      <button class="menu-button header-back" @click="requestReturn"><AppIcon name="chevron-left" /><span>Back to {{ uiStateStore.gameSession?.activeGameId ? 'game' : 'home' }}</span></button>
-    </header>
+  <main class="settings-page page-shell app-page">
+    <NavigationFrame>
+      <template #brand><button class="app-brand" aria-label="ChessVue home" title="ChessVue home" @click="requestReturn"><span class="app-brand__mark">♞</span><span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Preferences</span></span></button></template>
+      <button class="menu-button" :aria-label="`Back to ${uiStateStore.gameSession?.activeGameId ? 'game' : 'home'}`" @click="requestReturn"><AppIcon name="chevron-left" /><span>Back to {{ uiStateStore.gameSession?.activeGameId ? 'game' : 'home' }}</span></button>
+      <nav class="category-list" aria-label="Settings categories"><button v-for="item in categories" :key="item.id" class="menu-button" :class="{ active: category === item.id }" :aria-label="item.label" @click="changeCategory(item.id)"><AppIcon :name="item.icon" /><span>{{ item.label }}</span></button></nav>
+      <template #footer><button class="menu-button menu-button--danger" aria-label="Reset to defaults" title="Reset to defaults" @click="uiStateStore.showModal({ kind: AppModalKind.ResetSettings })"><AppIcon name="rotate" /><span>Reset to defaults</span></button></template>
+    </NavigationFrame>
     <div class="settings-layout">
-      <aside class="settings-nav">
-        <div class="settings-nav__intro"><p class="page-kicker">Preferences</p><h1>Settings</h1><span>Shape the workspace around the way you play and study.</span></div>
-        <nav aria-label="Settings categories"><button v-for="item in categories" :key="item.id" :class="{ active: category === item.id }" @click="changeCategory(item.id)"><AppIcon :name="item.icon" /><span>{{ item.label }}</span><AppIcon name="chevron-right" /></button></nav>
-        <button class="reset-button" @click="uiStateStore.showModal({ kind: AppModalKind.ResetSettings })"><AppIcon name="rotate" />Reset to defaults</button>
-      </aside>
       <section v-if="draft" class="settings-content surface">
         <header class="settings-content__header"><div><p class="page-kicker">{{ category }}</p><h2>{{ categories.find((item) => item.id === category)?.label }}</h2></div><span v-if="settingsStore.hasPendingChanges" class="unsaved-badge"><i></i>Unsaved changes</span></header>
         <div class="settings-content__body">
           <template v-if="category === SettingsCategory.Session">
             <section class="form-section"><h3 class="form-section__heading">Startup</h3><p class="form-section__description">Choose what ChessVue restores when the application opens.</p>
-              <div class="field-row"><span class="field-label">Previous session<span class="field-help">Reopen active game tabs after launch</span></span><label class="toggle-row"><input v-model="draft.gameSession.restorePreviousSession" type="checkbox"><span class="toggle-track"></span><span>{{ draft.gameSession.restorePreviousSession ? 'Restore my workspace' : 'Always open home' }}</span></label></div>
-              <div class="field-row"><span class="field-label">Auto-pause on menu<span class="field-help">Stops timed games while using app screens</span></span><label class="toggle-row"><input v-model="draft.gameSession.autoPauseOnMenu" type="checkbox"><span class="toggle-track"></span><span>{{ draft.gameSession.autoPauseOnMenu ? 'Enabled' : 'Disabled' }}</span></label></div>
+              <div class="field-row"><span class="field-label">Previous session<span class="field-help">Reopen active game tabs after launch</span></span><label class="toggle-row"><input v-model="draft.gameSession.restorePreviousSession" aria-label="Restore previous session" type="checkbox"><span class="toggle-track"></span><span>{{ draft.gameSession.restorePreviousSession ? 'Restore my workspace' : 'Always open home' }}</span></label></div>
+              <div class="field-row"><span class="field-label">Auto-pause on menu<span class="field-help">Stops timed games while using app screens</span></span><label class="toggle-row"><input v-model="draft.gameSession.autoPauseOnMenu" aria-label="Pause on menus" type="checkbox"><span class="toggle-track"></span><span>{{ draft.gameSession.autoPauseOnMenu ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
             <section class="form-section"><h3 class="form-section__heading">Saving</h3><p class="form-section__description">Games remain local to this desktop.</p>
               <div class="field-row"><label class="field-label" for="save-root">Save folder<span class="field-help">Relative or absolute local path</span></label><input id="save-root" v-model="draft.gameSession.saveRootPath" class="field-control"></div>
               <div class="field-row"><label class="field-label" for="autosave-count">Autosave interval<span class="field-help">Moves between automatic snapshots; 0 disables</span></label><input id="autosave-count" v-model.number="draft.gameSession.autosaveAfterMoveCount" class="field-control" type="number" min="0"></div>
-              <div class="field-row"><span class="field-label">Save on close</span><label class="toggle-row"><input v-model="draft.gameSession.autosaveOnClose" type="checkbox" :disabled="draft.gameSession.restorePreviousSession"><span class="toggle-track"></span><span>{{ draft.gameSession.autosaveOnClose ? 'Enabled' : 'Disabled' }}</span></label></div>
+              <div class="field-row"><span class="field-label">Save on close</span><label class="toggle-row"><input v-model="draft.gameSession.autosaveOnClose" aria-label="Save on close" type="checkbox" :disabled="draft.gameSession.restorePreviousSession"><span class="toggle-track"></span><span>{{ draft.gameSession.autosaveOnClose ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
           </template>
           <template v-else-if="category === SettingsCategory.Gameplay">
@@ -172,16 +170,16 @@ function addOption() {
             </section>
             <section class="form-section"><h3 class="form-section__heading">Board</h3>
               <div class="field-row"><label class="field-label" for="orientation">Orientation</label><select id="orientation" v-model="draft.appearance.boardOrientation" class="field-control"><option :value="BoardOrientation.White">White at bottom</option><option :value="BoardOrientation.Black">Black at bottom</option></select></div>
-              <div class="field-row"><span class="field-label">Coordinates</span><label class="toggle-row"><input v-model="draft.appearance.showCoordinates" type="checkbox"><span class="toggle-track"></span><span>{{ draft.appearance.showCoordinates ? 'Shown' : 'Hidden' }}</span></label></div>
-              <div class="field-row"><span class="field-label">Last move highlight</span><label class="toggle-row"><input v-model="draft.appearance.highlightLastMove" type="checkbox"><span class="toggle-track"></span><span>{{ draft.appearance.highlightLastMove ? 'Shown' : 'Hidden' }}</span></label></div>
+              <div class="field-row"><span class="field-label">Coordinates</span><label class="toggle-row"><input v-model="draft.appearance.showCoordinates" aria-label="Coordinates" type="checkbox"><span class="toggle-track"></span><span>{{ draft.appearance.showCoordinates ? 'Shown' : 'Hidden' }}</span></label></div>
+              <div class="field-row"><span class="field-label">Last move highlight</span><label class="toggle-row"><input v-model="draft.appearance.highlightLastMove" aria-label="Last move highlight" type="checkbox"><span class="toggle-track"></span><span>{{ draft.appearance.highlightLastMove ? 'Shown' : 'Hidden' }}</span></label></div>
             </section>
             <section class="form-section"><h3 class="form-section__heading">Interface scale</h3>
-              <div class="scale-control"><input v-model.number="draft.appearance.uiScalePercent" type="range" min="75" max="150" step="5"><strong>{{ draft.appearance.uiScalePercent }}%</strong></div>
+              <div class="scale-control"><input v-model.number="draft.appearance.uiScalePercent" aria-label="Interface scale" type="range" min="75" max="150" step="5"><strong>{{ draft.appearance.uiScalePercent }}%</strong></div>
             </section>
           </template>
           <template v-else>
             <section class="form-section"><h3 class="form-section__heading">Analysis behaviour</h3>
-              <div class="field-row"><span class="field-label">Resume after restore<span class="field-help">Restart assigned analysis engines with the session</span></span><label class="toggle-row"><input v-model="draft.analysis.resumeLiveAnalysisAfterRestore" type="checkbox"><span class="toggle-track"></span><span>{{ draft.analysis.resumeLiveAnalysisAfterRestore ? 'Enabled' : 'Disabled' }}</span></label></div>
+              <div class="field-row"><span class="field-label">Resume after restore<span class="field-help">Restart assigned analysis engines with the session</span></span><label class="toggle-row"><input v-model="draft.analysis.resumeLiveAnalysisAfterRestore" aria-label="Resume after restore" type="checkbox"><span class="toggle-track"></span><span>{{ draft.analysis.resumeLiveAnalysisAfterRestore ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
             <section class="form-section"><div class="engine-heading"><div><h3 class="form-section__heading">Engine profiles</h3><p class="form-section__description">Reusable UCI engine configurations.</p></div><button class="text-button text-button--primary" @click="openEngineEditor()"><AppIcon name="plus" />Add engine</button></div>
               <div v-if="draft.analysis.engineInventory.length" class="engine-list">
@@ -204,53 +202,47 @@ function addOption() {
 </template>
 
 <style scoped>
-.settings-page { min-height: 100vh; }
-.app-brand { padding: 0; border: 0; background: transparent; text-align: left; }
-.app-brand__text { display: grid; }
-.header-back { margin-left: auto; }
-.settings-layout { display: grid; width: min(76rem, calc(100% - 3rem)); min-height: calc(100vh - 7rem); margin: 1.5rem auto; grid-template-columns: 16rem minmax(0, 1fr); gap: 1rem; }
-.settings-nav { display: flex; min-height: 0; padding: 1rem 0; flex-direction: column; }
-.settings-nav__intro { padding: 0.65rem 0.7rem 1.5rem; }
-.settings-nav__intro h1 { margin: 0; font-family: var(--font-display); font-size: 2rem; letter-spacing: -0.04em; }
-.settings-nav__intro > span { display: block; margin-top: 0.5rem; color: var(--text-muted); font-size: 0.74rem; }
-.settings-nav nav { display: grid; gap: 0.25rem; }
-.settings-nav nav button { display: grid; min-height: 2.9rem; padding: 0.6rem 0.7rem; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.65rem; color: var(--text-muted); border-radius: var(--radius-sm); background: transparent; text-align: left; font-size: 0.78rem; font-weight: 700; }
-.settings-nav nav button:hover { color: var(--text-primary); background: var(--accent-soft); }
-.settings-nav nav button.active { color: var(--accent-strong); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
-.settings-nav nav button .app-icon:last-child { font-size: 0.7rem; opacity: 0.5; }
-.reset-button { display: flex; margin-top: auto; padding: 0.7rem; align-items: center; gap: 0.55rem; color: var(--text-muted); border-radius: var(--radius-sm); background: transparent; font-size: 0.68rem; }
-.reset-button:hover { color: var(--danger); background: var(--danger-soft); }
-.settings-content { display: flex; min-height: 0; flex-direction: column; overflow: hidden; }
-.settings-content__header { display: flex; min-height: 6rem; padding: 1.1rem 1.4rem; align-items: center; justify-content: space-between; border-bottom: 0.0625rem solid var(--border-subtle); }
+.settings-layout { display: flex; min-width: 0; min-height: 0; padding: 1rem; flex: 1; }
+.settings-content { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; }
+.settings-content__header { display: flex; min-height: 3.5rem; padding: 0 0 0.75rem; flex-shrink: 0; align-items: center; justify-content: space-between;  }
 .settings-content__header .page-kicker { margin-bottom: 0; }
 .settings-content__header h2 { margin: 0.08rem 0 0; font-family: var(--font-display); font-size: 1.7rem; text-transform: capitalize; }
 .unsaved-badge { display: flex; padding: 0.3rem 0.55rem; align-items: center; gap: 0.35rem; color: var(--accent-strong); border-radius: 999rem; background: var(--accent-soft); font-size: 0.62rem; font-weight: 700; }
 .unsaved-badge i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--accent); }
-.settings-content__body { padding: 1.5rem 1.6rem 2rem; flex: 1; overflow: auto; }
+.settings-content__body { min-height: 0; padding: 0.75rem 0.25rem; flex: 1; overflow: auto; }
 .settings-content__body > .form-section { max-width: 49rem; }
 .toggle-row > span:last-child { color: var(--text-muted); font-size: 0.76rem; }
-.settings-actions { display: flex; min-height: 4.7rem; padding: 0.8rem 1.2rem; align-items: center; justify-content: flex-end; gap: 0.5rem; border-top: 0.0625rem solid var(--border-subtle); background: var(--surface-app); }
+.settings-actions { display: flex; padding: 0.75rem 0 0; flex-shrink: 0; align-items: center; justify-content: flex-end; gap: 0.5rem;  background: var(--surface-app); }
 .settings-feedback { margin-right: auto; color: var(--success-strong); font-size: 0.72rem; }
 .settings-feedback--error { color: var(--danger); }
 .theme-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
-.theme-picker label { display: grid; padding: 0.45rem; gap: 0.4rem; color: var(--text-muted); border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); cursor: pointer; text-transform: capitalize; }
-.theme-picker label.active { color: var(--accent-strong); border-color: var(--accent); box-shadow: 0 0 0 0.125rem var(--accent-soft); }
+.theme-picker label { display: grid; padding: 0.45rem; gap: 0.4rem; color: var(--text-muted); border: 0; border-radius: var(--radius-sm); cursor: pointer; text-transform: capitalize; }
+.theme-picker label.active { color: var(--accent-strong); border-color: var(--accent); background: var(--accent-soft); }
+.theme-picker label:has(input:focus-visible) { outline: 0.125rem solid var(--focus-ring); outline-offset: 0.125rem; }
 .theme-picker input { position: absolute; opacity: 0; }
 .theme-picker strong { padding: 0.1rem 0.25rem; font-size: 0.7rem; }
-.theme-preview { display: grid; height: 4.2rem; padding: 0.45rem; grid-template-columns: 1fr 2fr; grid-template-rows: 0.55rem 1fr; gap: 0.28rem; border-radius: 0.3rem; background: var(--preview-app); }
+.theme-preview { display: grid; height: 3rem; padding: 0.45rem; grid-template-columns: 1fr 2fr; grid-template-rows: 0.55rem 1fr; gap: 0.28rem; border-radius: 0.3rem; background: var(--preview-app); }
 .theme-preview i { grid-column: 1 / -1; border-radius: 0.15rem; background: var(--preview-accent); }
 .theme-preview b { grid-row: 2; border-radius: 0.15rem; background: var(--preview-border); }
 .theme-preview em { grid-row: 2; border-radius: 0.15rem; background: var(--preview-dialog); }
 .scale-control { display: flex; align-items: center; gap: 1rem; }.scale-control input { width: min(28rem, 100%); accent-color: var(--accent); }.scale-control strong { min-width: 3.5rem; font-variant-numeric: tabular-nums; }
 .engine-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }.engine-heading .form-section__description { margin: 0.15rem 0 0; }
-.engine-list { display: grid; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); overflow: hidden; }
+.engine-list { display: grid; border: 0; border-radius: var(--radius-sm); overflow: hidden; }
 .engine-list article { display: grid; min-height: 3.8rem; padding: 0.55rem 0.65rem; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; align-items: center; gap: 0.5rem; background: var(--surface-dialog); }
-.engine-list article + article { border-top: 0.0625rem solid var(--border-subtle); }
+.engine-list article + article {  }
 .engine-list__mark { display: grid; width: 2.35rem; height: 2.35rem; place-items: center; color: var(--surface-panel); border-radius: 50%; background: var(--text-primary); font-family: var(--font-display); font-size: 1.4rem; }
 .engine-list article div { min-width: 0; }.engine-list article strong, .engine-list article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.engine-list article strong { font-size: 0.76rem; }.engine-list article small { color: var(--text-muted); font-size: 0.62rem; }
 .engine-list__protocol { padding: 0.2rem 0.4rem; color: var(--text-muted); border-radius: 0.25rem; background: var(--surface-app); font-size: 0.55rem; font-weight: 800; }
 .engine-empty { box-shadow: none; }.engine-empty > span { font-size: 0.72rem; }
 .read-only-value { padding: 0.55rem 0; color: var(--text-muted); font-size: 0.78rem; }
 .option-list { display: grid; gap: 0.4rem; }.option-list > div { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 0.4rem; }.editor-error { margin-top: 1rem; }
-@media (max-width: 50rem) { .settings-layout { width: calc(100% - 1.5rem); grid-template-columns: 1fr; }.settings-nav { padding-bottom: 0; }.settings-nav__intro { display: none; }.settings-nav nav { display: flex; overflow-x: auto; }.settings-nav nav button { min-width: 8rem; }.reset-button { display: none; }.theme-picker { grid-template-columns: 1fr; }.theme-preview { display: none; } }
+@media (max-width: 760px) {
+  .settings-layout { padding: 0.75rem; }
+  .theme-preview { display: none; }
+  .settings-actions { gap: 0.25rem; }
+  .settings-actions .text-button { padding: 0.5rem; font-size: 0.7rem; }
+  .settings-feedback { font-size: 0.6rem; }
+  .engine-list article { grid-template-columns: minmax(0, 1fr) auto auto auto; padding: 0.35rem 0; gap: 0.25rem; }
+  .engine-list__mark, .engine-list__protocol { display: none; }
+}
 </style>
