@@ -27,7 +27,11 @@ These replace the earlier open recommendations. Resolved design does not mean th
 
 The sequence remains game-owned through analysis, but it can be consumed or cancelled by background actual play. Reapplying on exit means recomputing the **remaining** valid queue over the latest live board; it never means rewinding actual play or restoring already-executed entries.
 
+Coverage-audit clarifications on 21 October: the user confirmed that pruning applies only when the branch comes from their own current move. Once background actual progression leaves that anchor behind, the branch remains history; do not introduce Exit/navigation cleanup. The user also confirmed preserving the existing history-move rewrite confirmation when Takeback is allowed, and requiring explicit Analyse for exploratory input when Takeback is disabled. These choices do not approve implementation of the written analysis plan.
+
 For navigation, preservation and existing clock pauses remain separate: changing the selected board/view is not itself a queue pause; an actually applied Manual/Menu pause still blocks all actual commits.
+
+Later clarification: [Q-PLAY-003](Q-PLAY-003-PausedAnalysisEntry.md) allows explicit Analyse entry while actually paused, preserving real pause ownership. It records the reason for requesting that policy choice; the scope of paused exploratory input is a separate follow-up.
 
 ## Current implementation differs from that decision
 
@@ -69,7 +73,7 @@ On 21 October 2026, a focused run of [GamesStore.spec.ts](../../../src/state/__t
 | C10: historical rewrite | Confirmed actual continuation clears the queue/old turn before replacing live ownership. Cancelled/no-op actions do not. Analysis-only input does not implicitly rewrite actual play |
 | C11: engine suggestions while opponent is due | Eligible own-colour gameplay suggestions append like gestures; explicit analysis explores. Opponent-colour output cannot be submitted as the human's actual move or force replacement |
 | C12: evaluation and recorded analysis | Evaluations describe canonical rendered position. Background actual commits cannot copy unrelated exploratory output as actual-parent recorded analysis. Queue display/edit alone causes no engine search restart |
-| C13: active branch pruned by actual play | Pin the active analysis selection while appending actual mainline children. Defer targeted cleanup of those temporary nodes until their owner releases them; preserve actual mainline/unrelated branches |
+| C13: active branch pruned by actual play | Preserve the active selection while appending actual mainline children. If its anchor becomes historical, keep that branch as history through Exit/navigation. Prune only the existing own-current-move case; no deferred cleanup registry or boundary |
 | C14: view remount or tab switch | Queue belongs to game, not Chessboard/GameView lifetime. Dispose unfinished gestures/playback, preserve and execute queued input according to genuine pause policy |
 | C15: invalid sequence after rebase | Reproject whole remaining sequence after actual changes. If it cannot project or the due move is illegal, clear the complete queue and all red shading, with no partial speculative history |
 | C16: late drag/promotion/PV | Bind unfinished input to actual context and cancel on mode/base/queue changes. A late callback cannot become a fresh queue entry or mutate replacement ownership |
@@ -78,7 +82,7 @@ On 21 October 2026, a focused run of [GamesStore.spec.ts](../../../src/state/__t
 | C19: background start at equal paths | Detach board caches as well as path arrays. A reply before any exploratory move must not mutate selected snapshot or cause the view to follow live merely because paths initially match |
 | C20: projection/highlight layers | Pieces sit at projected destinations; every pending source/destination is red at one opacity. Actual-last-move/selection/focus remain distinct; actual check is not inferred from projected king placement |
 
-Protecting the active temporary analysis branch changes its cleanup timing only as required to keep background exploration usable. It does not make premoves history or introduce durable exploratory recording; the accepted [temporary branch scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) still governs cleanup when no active session owns those nodes.
+Protecting active analysis does not add a new cleanup boundary. Existing current-move pruning remains, while branches left at historical anchors stay available as history per the user's audit clarification. The [actual-move recording scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) remains unchanged: exploratory nodes are not actual-move analysis records, and premoves are not history.
 
 Full legality applies to the next due move, while the whole queue must remain projectable under the documented speculative rules. Do not reject every future off-turn intention using today's full chess legality, but do not retain a known unprojectable suffix either.
 
@@ -103,7 +107,7 @@ These are required planned checks, not passing acceptance. Where implementation 
 | PRE-S13: historical rewrite | Request explicit actual continuation; cancel, then confirm | Cancel preserves queue. Confirm clears whole queue and drains old actual owner before rewrite; selected analysis cannot retain removed paths |
 | PRE-S14: Takeback is live | Analyse several plies away from actual live; use Takeback | Actual game rewinds under existing allowTakeback policy, queue clears and invalid selected path/playback relocates safely. Merely selecting a previous analysis node never takes back actual play |
 | PRE-S15: suggestion routing | Select eligible own-colour suggestion on own turn/opponent turn/in Analyse; try opponent-colour output | Actual commit / append / exploration respectively. Never implicit replacement on opponent turn or human acceptance of engine-owned colour. Respect suggestion-playability preference |
-| PRE-S16: active branch cleanup | Explore from current live parent, then let actual replies/premoves advance from it | Active selected branch remains valid and unchanged through actual commits. Exit releases temporary nodes for targeted cleanup without deleting played mainline/unrelated history |
+| PRE-S16: active branch/history retention | Explore from current live parent, then let actual replies/premoves advance from it | Selected branch remains valid through actual commits and stays as history once its anchor is historical, including after Exit/navigation/save. Retain only existing own-current-move pruning; no delayed cleanup |
 | PRE-S17: hotseat exclusion | Local-local White moves; deliver stale White-owned click/drag/drop/analysis request after handoff | No queue or old-side input. Fresh input and the Analyse button now belong to Black on its current move; no person authentication is implied. Repeat both colours/orientations and enforce the boundary beyond visual controls |
 | PRE-S18: unfinished input | Promotion/drag active, then actual reply, queue clear or analysis/route change; delayed analysis PV on Exit | Unfinished input/playback settles without late append/actual mutation. Completed queue entries remain game-owned unless consumed/invalidated |
 | PRE-S19: navigation retention | Queue exists; visit Settings, switch games, return, then close tab | Retain per game. Continue unless real Menu/Manual policy pauses; returning does not replay consumed entries. Explicit close cancels; other game's queue unaffected |

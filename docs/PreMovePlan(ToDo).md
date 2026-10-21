@@ -185,7 +185,7 @@ Use real chess-rule utilities for legality/projection integration; mocked store 
 | PRE-A10: clocks/effects | Queue/display changes create no clock transition, increment, recorded analysis or autosave count; actual commits do so once, with timeout reconciliation during analysis |
 | PRE-A11: drawing/input | Final displaced pieces/red union, chaining, partial consumption, Undo/Clear, both orientations, accessible labels and context-cancelled promotion/drag agree |
 | PRE-A12: isolation/persistence | Canonical rendered/live boards, engine FEN, other games and saves never receive speculative pieces; restore has no queue and honours saved pause |
-| PRE-A13: active branch lifetime | Background actual commits cannot remove/reindex the selected analysis branch or re-alias its board; exit cleanup preserves actual mainline and unrelated history |
+| PRE-A13: active branch lifetime | Background actual commits cannot remove/reindex the selected analysis branch or re-alias its board. A branch left at a historical anchor stays history through Exit/navigation; pruning remains limited to the existing own-current-move case |
 
 The historical four-test paused-analysis baseline is recorded in [BackgroundAnalysisPlan](BackgroundAnalysisPlan.md); it is not queue evidence. Record this plan's own failing unit run before premove development and its passing run afterwards. No new premove acceptance is claimed by this planning document.
 

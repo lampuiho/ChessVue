@@ -16,7 +16,11 @@ Each question records intent, observation, uncertainty, alternatives, a provisio
 
 ## Open questions
 
-No unresolved questions have yet been raised from implementing or running the planned journeys.
+One follow-up clarification is open from design/source review of the analysis plan; it is not a finding from a new test run.
+
+| ID | Status | Concrete question and reason |
+| --- | --- | --- |
+| [Q-PLAY-003](play/Q-PLAY-003-PausedAnalysisEntry.md) | Paused entry resolved; exploratory-input scope pending | Entry is now allowed by explicit user instruction. Existing rules separately lock analysis moves/history while paused; clarify that scope while keeping actual pause ownership intact. The topic records why a decision was needed. |
 
 ## Review prompts for future journey work
 
@@ -25,7 +29,6 @@ These planning hypotheses are not confirmed findings, active questions or blocke
 | ID | Priority | Topic | Relevant work |
 | --- | --- | --- | --- |
 | [Q-ANALYSIS-001](analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) | P0 | Recorded content and capture timing for actual game moves | Actual-move recording/save journeys |
-| [Q-PLAY-001](play/Q-PLAY-001-LiveProgressDuringAnalysis.md) | P0 | Clock and opponent progression during interactive analysis | History, clocks and pending turns |
 | [Q-ANALYSIS-003](analysis/Q-ANALYSIS-003-SuggestionInteraction.md) | P0 | Exploring an engine line versus submitting a live move | Analysis interaction journeys |
 | [Q-ENGINE-001](engine/Q-ENGINE-001-ComparisonAndPersistence.md) | P1 | Engine comparison records attached to actual game moves | Multi-engine and recording journeys |
 | [Q-UX-001](usability/Q-UX-001-UsabilityReference.md) | P1 | Concrete usability reference flows and review evidence | Composed sessions and usability review |
@@ -35,6 +38,8 @@ These planning hypotheses are not confirmed findings, active questions or blocke
 | ID | Resolved | Decision |
 | --- | --- | --- |
 | [Q-ANALYSIS-002](analysis/Q-ANALYSIS-002-VariationRetention.md) | 15 October 2026 | Record analysis only for actual game moves; exploratory moves remain temporary and the existing pruning policy is accepted |
+| [Q-PLAY-001](play/Q-PLAY-001-LiveProgressDuringAnalysis.md) | 21 October 2026 | Analyse does not itself pause actual clocks/play; selected analysis and actual progression remain independent |
+| [Q-PLAY-002](play/Q-PLAY-002-PremoveAnalysisConflicts.md) | 21 October 2026 | Premove/analysis conflicts resolved, including current-move pruning, historical retention and actual rewrite confirmation; implementation remains planned |
 
 Initial implementation observations are from source inspection of the working tree based on commit `2d693f7` on 15 October 2026. They are not fresh browser test results. Provisional recommendations remain proposals; resolved decisions identify their source in the topic file. Recording these decisions has not changed runtime behaviour or the persistence schema.
 
