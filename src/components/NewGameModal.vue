@@ -20,8 +20,8 @@ const emit = defineEmits<{ createRequested: [request: ICreateGameRequest]; cance
 const form = reactive({
   name: props.setupGame?.metadata.name ?? props.settings.gameDefaults.quickNewGameName,
   mode: 'live' as 'live' | 'analysis',
-  white: defaultPlayer(props.settings.gameDefaults.defaultWhitePlayerType),
-  black: defaultPlayer(props.settings.gameDefaults.defaultBlackPlayerType),
+  white: _defaultPlayer(props.settings.gameDefaults.defaultWhitePlayerType),
+  black: _defaultPlayer(props.settings.gameDefaults.defaultBlackPlayerType),
   timePreset: (props.settings.gameDefaults.defaultTimeControl.preset ?? TimeControlPreset.Untimed) as TimeControlPreset | 'custom',
   minutes: Math.max(1, Math.round((props.settings.gameDefaults.defaultTimeControl.initialMs ?? 600000) / 60000)),
   incrementSeconds: Math.round(props.settings.gameDefaults.defaultTimeControl.incrementMs / 1000),
@@ -45,12 +45,12 @@ const validationMessage = computed(() => {
   return '';
 });
 const canCreate = computed(() => !props.busy && !validationMessage.value);
-function defaultPlayer(type: PlayerType): string {
+function _defaultPlayer(type: PlayerType): string {
   if (props.setupGame || type === PlayerType.Local) return 'local';
   return `engine:${props.engines[0]?.id ?? ''}`;
 }
 
-function createPlayer(selection: string, colour: PlayerColour): IPlayer | undefined {
+function _createPlayer(selection: string, colour: PlayerColour): IPlayer | undefined {
   if (selection === 'none') return;
   if (selection === 'local') return { colour, type: PlayerType.Local, displayName: colour === PlayerColour.White ? 'White' : 'Black' };
   const engine = props.engines.find((candidate) => candidate.id === selection.slice('engine:'.length));
@@ -69,7 +69,7 @@ function createPlayer(selection: string, colour: PlayerColour): IPlayer | undefi
   };
   return enginePlayer;
 }
-function submit() {
+function _submit() {
   if (!canCreate.value) return;
   const preset = form.timePreset === 'custom' ? undefined : form.timePreset;
   const timeControl = preset === TimeControlPreset.Untimed
@@ -78,8 +78,8 @@ function submit() {
   const selectedEngines = props.engines.filter((engine) => form.analysisEngineIds.includes(engine.id));
   emit('createRequested', {
     name: form.name.trim(),
-    whitePlayer: form.mode === 'live' ? createPlayer(form.white, PlayerColour.White) : undefined,
-    blackPlayer: form.mode === 'live' ? createPlayer(form.black, PlayerColour.Black) : undefined,
+    whitePlayer: form.mode === 'live' ? _createPlayer(form.white, PlayerColour.White) : undefined,
+    blackPlayer: form.mode === 'live' ? _createPlayer(form.black, PlayerColour.Black) : undefined,
     analysisEngineProfiles: selectedEngines.map((engine) => ({ ...engine, options: { ...engine.options } })),
     showLiveAnalysisMoves: form.mode === 'live' && form.white !== 'none' && form.black !== 'none' ? form.showLiveAnalysisMoves : true,
     allowTakeback: form.allowTakeback,
@@ -90,7 +90,7 @@ function submit() {
 
 <template>
   <ModalDialog :title="setupGame ? 'Start from this position' : 'Set up a new board'" :subtitle="setupGame ? 'Choose players, clocks and analysis for the board you prepared.' : 'Choose a quick match or open a free analysis study.'" :dismissible="!busy" wide @dismissed="emit('cancelRequested')">
-    <form id="new-game-form" @submit.prevent="submit">
+    <form id="new-game-form" @submit.prevent="_submit">
       <section class="form-section">
         <h3 class="form-section__heading">Game</h3>
         <div class="field-row">

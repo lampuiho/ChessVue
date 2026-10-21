@@ -12,7 +12,7 @@ export function createWorkspaceSnapshots() {
   const nested = createGame('snapshot-nested', 'Nested history', ['e2e4', 'e7e5', 'g1f3', 'b8c6']);
   const branch = appendMoves(nested, [0, 0], ['f1c4', 'g8f6', 'd2d3']);
   nested.renderedPath = appendMoves(nested, branch.slice(0, -1), ['b1c3']);
-  const promotion = createPromotionSnapshot();
+  const promotion = _createPromotionSnapshot();
   const timed = createGame('snapshot-timed', 'Paused timed game', ['e2e4', 'e7e5'], {
     timeControl: { preset: TimeControlPreset.Blitz, initialMs: 120000, incrementMs: 2000 },
   });
@@ -22,7 +22,7 @@ export function createWorkspaceSnapshots() {
   finished.resultReason = ResultReason.RuleResolved;
   return [free, edit, nested, promotion, timed, finished];
 }
-function createPromotionSnapshot() {
+function _createPromotionSnapshot() {
   return createGame('snapshot-promotion', 'Promoted rook', ['a7a8r'], {
     rootPosition: createSparseBoard([
       { boardId: 4, piece: { kind: PieceKind.King, colour: PlayerColour.White } },

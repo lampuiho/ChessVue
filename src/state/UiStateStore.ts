@@ -6,14 +6,14 @@ import { BuildConfig } from '@/config/BuildConfig';
 import { SerializationService } from '@/domain';
 import { logHandledError } from '@/utility/errors';
 
-function createDefaultGameSession(): IGameSessionSnapshot {
+function _createDefaultGameSession(): IGameSessionSnapshot {
   return {
     schemaVersion: 1,
     openGameIds: [],
     activeRoute: '/home',
   };
 }
-function createDefaultLayoutState(): IUiLayoutState {
+function _createDefaultLayoutState(): IUiLayoutState {
   return {
     schemaVersion: 1,
     showHistoryPanel: true,
@@ -23,7 +23,7 @@ function createDefaultLayoutState(): IUiLayoutState {
     analysisEngineExpandedByIndex: [],
   };
 }
-function createModalForm(modal?: IAppModalState) {
+function _createModalForm(modal?: IAppModalState) {
   const playerType = modal?.kind === AppModalKind.PlayerSelection ? modal.payload.currentPlayerType : PlayerType.Local;
   return { errorMessage: '', isWorking: false, selectedEngineId: '', selectedPlayer: playerType === PlayerType.Engine ? 'unchanged' : playerType === PlayerType.Local ? 'local' : 'none' };
 }
@@ -32,13 +32,13 @@ const gameRoutePattern = /^\/game\/(.+)$/;
 const saveRoutePattern = /^\/saved-games\/save\/(.+)$/;
 const loadSelectionRoutePattern = /^\/saved-games\/load\/(.+)$/;
 
-function isGameRoute(route: string): route is `/game/${string}` {
+function _isGameRoute(route: string): route is `/game/${string}` {
   return gameRoutePattern.test(route);
 }
-function getGameRouteId(route: `/game/${string}`): string {
+function _getGameRouteId(route: `/game/${string}`): string {
   return route.slice('/game/'.length);
 }
-function isValidCommittedRoute(route: string): route is IGameSessionSnapshot['activeRoute'] {
+function _isValidCommittedRoute(route: string): route is IGameSessionSnapshot['activeRoute'] {
   return route === '/home'
     || route === '/saved-games/load'
     || settingsRoutePattern.test(route)
@@ -46,37 +46,37 @@ function isValidCommittedRoute(route: string): route is IGameSessionSnapshot['ac
     || loadSelectionRoutePattern.test(route)
     || gameRoutePattern.test(route);
 }
-function coerceOpenGameIds(openGameIds: readonly string[], availableGameIds?: ReadonlySet<string>): string[] {
+function _coerceOpenGameIds(openGameIds: readonly string[], availableGameIds?: ReadonlySet<string>): string[] {
   const uniqueIds = [...new Set(openGameIds.filter((gameId) => gameId.length > 0))];
   if (!availableGameIds) return uniqueIds;
   return uniqueIds.filter((gameId) => availableGameIds.has(gameId));
 }
-function coerceActiveGameId(openGameIds: readonly string[], activeGameId?: string): string | undefined {
+function _coerceActiveGameId(openGameIds: readonly string[], activeGameId?: string): string | undefined {
   if (activeGameId && openGameIds.includes(activeGameId)) return activeGameId;
   return openGameIds[0];
 }
-function selectFallbackRoute(openGameIds: readonly string[], activeGameId?: string): IGameSessionSnapshot['activeRoute'] {
+function _selectFallbackRoute(openGameIds: readonly string[], activeGameId?: string): IGameSessionSnapshot['activeRoute'] {
   if (activeGameId && openGameIds.includes(activeGameId)) return `/game/${activeGameId}`;
   return '/home';
 }
-function validateGameRoute(route: IGameSessionSnapshot['activeRoute'], openGameIds: readonly string[]): IGameSessionSnapshot['activeRoute'] | undefined {
-  if (!isGameRoute(route)) return route;
-  const gameId = getGameRouteId(route);
+function _validateGameRoute(route: IGameSessionSnapshot['activeRoute'], openGameIds: readonly string[]): IGameSessionSnapshot['activeRoute'] | undefined {
+  if (!_isGameRoute(route)) return route;
+  const gameId = _getGameRouteId(route);
   return openGameIds.includes(gameId) ? route : undefined;
 }
-function coerceActiveRoute(route: string, openGameIds: readonly string[], activeGameId?: string): IGameSessionSnapshot['activeRoute'] {
-  if (!isValidCommittedRoute(route)) return selectFallbackRoute(openGameIds, activeGameId);
-  if (isGameRoute(route)) return validateGameRoute(route, openGameIds) ?? selectFallbackRoute(openGameIds, activeGameId);
+function _coerceActiveRoute(route: string, openGameIds: readonly string[], activeGameId?: string): IGameSessionSnapshot['activeRoute'] {
+  if (!_isValidCommittedRoute(route)) return _selectFallbackRoute(openGameIds, activeGameId);
+  if (_isGameRoute(route)) return _validateGameRoute(route, openGameIds) ?? _selectFallbackRoute(openGameIds, activeGameId);
   return route;
 }
-function coerceGameSessionSnapshot(snapshot: IGameSessionSnapshot, availableGameIds?: ReadonlySet<string>): IGameSessionSnapshot {
-  const openGameIds = coerceOpenGameIds(snapshot.openGameIds, availableGameIds);
-  const activeGameId = coerceActiveGameId(openGameIds, snapshot.activeGameId);
+function _coerceGameSessionSnapshot(snapshot: IGameSessionSnapshot, availableGameIds?: ReadonlySet<string>): IGameSessionSnapshot {
+  const openGameIds = _coerceOpenGameIds(snapshot.openGameIds, availableGameIds);
+  const activeGameId = _coerceActiveGameId(openGameIds, snapshot.activeGameId);
   return {
     schemaVersion: snapshot.schemaVersion,
     openGameIds,
     activeGameId,
-    activeRoute: coerceActiveRoute(snapshot.activeRoute, openGameIds, activeGameId),
+    activeRoute: _coerceActiveRoute(snapshot.activeRoute, openGameIds, activeGameId),
   };
 }
 
@@ -88,7 +88,7 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
   const gameSession = ref<IGameSessionSnapshot>();
   const layoutState = ref<IUiLayoutState>();
   const modalState = shallowRef<IAppModalState>();
-  const modalForm = ref(createModalForm());
+  const modalForm = ref(_createModalForm());
   let _modalClosed: (() => Promise<void> | void) | undefined;
   let _modalController: AbortController | undefined;
   onScopeDispose(() => {
@@ -115,13 +115,13 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     if (_gameSessionPromise) return _gameSessionPromise;
     _gameSessionPromise = (async () => {
       try {
-        gameSession.value = coerceGameSessionSnapshot(await SerializationService.readGameSessionDocument(BuildConfig.persistence.gameSessionPath));
+        gameSession.value = _coerceGameSessionSnapshot(await SerializationService.readGameSessionDocument(BuildConfig.persistence.gameSessionPath));
       } catch (error) {
         if (!(typeof error === 'object' && error !== null && 'kind' in error && (error as { kind?: unknown }).kind === PlatformErrorKind.NotFound)) {
           logHandledError('UiStateStore', 'readGameSessionDocument', error);
           addRecoveryWarning('The previous session could not be read. Open saved games to recover a saved board.');
         }
-        gameSession.value = createDefaultGameSession();
+        gameSession.value = _createDefaultGameSession();
       }
     })();
     return _gameSessionPromise;
@@ -141,7 +141,7 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
           logHandledError('UiStateStore', 'readUiLayoutDocument', error);
           addRecoveryWarning('The saved layout could not be read. The default layout is in use.');
         }
-        layoutState.value = createDefaultLayoutState();
+        layoutState.value = _createDefaultLayoutState();
       }
     })();
     return _layoutStatePromise;
@@ -160,11 +160,11 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
       currentSnapshot.activeRoute = `/game/${currentSnapshot.activeGameId}`;
       return;
     }
-    currentSnapshot.activeRoute = coerceActiveRoute(currentSnapshot.activeRoute, currentSnapshot.openGameIds, currentSnapshot.activeGameId);
+    currentSnapshot.activeRoute = _coerceActiveRoute(currentSnapshot.activeRoute, currentSnapshot.openGameIds, currentSnapshot.activeGameId);
   }
   function openTab(gameId: string) {
     const currentSnapshot = _requireGameSession();
-    currentSnapshot.openGameIds = coerceOpenGameIds([...currentSnapshot.openGameIds, gameId]);
+    currentSnapshot.openGameIds = _coerceOpenGameIds([...currentSnapshot.openGameIds, gameId]);
     currentSnapshot.activeGameId = gameId;
     currentSnapshot.activeRoute = `/game/${gameId}`;
   }
@@ -172,8 +172,8 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     const currentSnapshot = _requireGameSession();
     currentSnapshot.openGameIds = currentSnapshot.openGameIds.filter((candidate) => candidate !== gameId);
     if (currentSnapshot.activeGameId === gameId) currentSnapshot.activeGameId = undefined;
-    currentSnapshot.activeGameId = coerceActiveGameId(currentSnapshot.openGameIds, currentSnapshot.activeGameId);
-    currentSnapshot.activeRoute = coerceActiveRoute(currentSnapshot.activeRoute, currentSnapshot.openGameIds, currentSnapshot.activeGameId);
+    currentSnapshot.activeGameId = _coerceActiveGameId(currentSnapshot.openGameIds, currentSnapshot.activeGameId);
+    currentSnapshot.activeRoute = _coerceActiveRoute(currentSnapshot.activeRoute, currentSnapshot.openGameIds, currentSnapshot.activeGameId);
   }
   function setLayoutState(layout: IUiLayoutState) {
     layoutState.value = layout;
@@ -190,7 +190,7 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
   }
   function showModal(modal: IAppModalState, onClosed?: () => Promise<void> | void) {
     void hideModal();
-    modalForm.value = createModalForm(modal);
+    modalForm.value = _createModalForm(modal);
     _modalController = new AbortController();
     modalState.value = modal;
     _modalClosed = onClosed;

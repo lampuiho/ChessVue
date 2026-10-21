@@ -66,10 +66,10 @@ const standardInitialBoard: IBoardPosition['board'] = Array.from({ length: 64 },
 function _getPiece(position: IBoardPosition, boardId: BoardId) {
   return position.board[boardId];
 }
-function isOccupied(position: IBoardPosition, boardId: BoardId): boolean {
+function _isOccupied(position: IBoardPosition, boardId: BoardId): boolean {
   return _getPiece(position, boardId) != null;
 }
-function getOccupancyKind(position: IBoardPosition, boardId: BoardId, colour: PlayerColour): OccupancyKind {
+function _getOccupancyKind(position: IBoardPosition, boardId: BoardId, colour: PlayerColour): OccupancyKind {
   const piece = _getPiece(position, boardId);
   if (!piece) return OccupancyKind.Empty;
   return piece.colour === colour ? OccupancyKind.Self : OccupancyKind.Opponent;
@@ -85,7 +85,7 @@ function _genDirectionalMoves(position: IBoardPosition, from: BoardId, colour: P
       const target = tryCoordsToBoardId(file, rank);
       if (target == null) break;
       moves.push({ from, to: target });
-      through = !isOccupied(position, target)
+      through = !_isOccupied(position, target)
       file += direction.file;
       rank += direction.rank;
     }
@@ -99,23 +99,23 @@ function _genPawnMoves(position: IBoardPosition, from: BoardId, colour: PlayerCo
   const direction = getForwardDirection(colour);
   const rank = origin.rank + direction;
   const isPromotion = rank === getPromotionRank(colour);
-  function pushMove(move: IMoveRaw) {
+  function _pushMove(move: IMoveRaw) {
     if (isPromotion) moves.push(...promotionPieces.map(promotionPiece => ({ ...move, promotionPiece })));
     else moves.push(move);
   }
   const oneForward = tryCoordsToBoardId(origin.file, rank);
-  if (oneForward != null && !isOccupied(position, oneForward)) {
-    pushMove({ from, to: oneForward });
+  if (oneForward != null && !_isOccupied(position, oneForward)) {
+    _pushMove({ from, to: oneForward });
     if (origin.rank === getPawnHomeRank(colour)) {
       const twoForward = tryCoordsToBoardId(origin.file, origin.rank + (direction * 2));
-      if (twoForward != null && !isOccupied(position, twoForward))
+      if (twoForward != null && !_isOccupied(position, twoForward))
         moves.push({ from, to: twoForward });
     }
   }
   for (const move of _genPawnAttackMoves(from, colour)) {
     const target = move.to;
-    const isOccupiedByOpponent = getOccupancyKind(position, target, colour) === OccupancyKind.Opponent;
-    if (isOccupiedByOpponent) pushMove(move);
+    const isOccupiedByOpponent = _getOccupancyKind(position, target, colour) === OccupancyKind.Opponent;
+    if (isOccupiedByOpponent) _pushMove(move);
     else if (position.enPassantTarget === target) {
       const capturedPawn = _getPiece(position, coordsToBoardId(boardIdToCoords(target).file, origin.rank));
       if (capturedPawn?.colour !== colour && capturedPawn?.kind === PieceKind.Pawn) moves.push(move);
@@ -170,7 +170,7 @@ function _genPseudoLegalNonKingMoves(position: IBoardPosition, colour: PlayerCol
   }
   return moves;
 }
-function genPieceAttacks(position: IBoardPosition, colour: PlayerColour): IMoveRaw[] {
+function _genPieceAttacks(position: IBoardPosition, colour: PlayerColour): IMoveRaw[] {
   const attacks: IMoveRaw[] = [];
   for (let boardId = 0; boardId < position.board.length; boardId += 1) {
     const piece = position.board[boardId];
@@ -179,10 +179,10 @@ function genPieceAttacks(position: IBoardPosition, colour: PlayerColour): IMoveR
   }
   return attacks;
 }
-function genSquareAttackMask(position: IBoardPosition, attackerColour: PlayerColour, kingBoardId: BoardId): IKingAttackState {
+function _genSquareAttackMask(position: IBoardPosition, attackerColour: PlayerColour, kingBoardId: BoardId): IKingAttackState {
   const attackMask = Array<number>(64).fill(0);
   const kingAttacks: IMoveRaw[] = [];
-  for (const attack of genPieceAttacks(position, attackerColour)) {
+  for (const attack of _genPieceAttacks(position, attackerColour)) {
     attackMask[attack.to] = (attackMask[attack.to] ?? 0) + 1;
     if (attack.to === kingBoardId) kingAttacks.push(attack);
   }
@@ -207,7 +207,7 @@ function _isAttackedByDirection(position: IBoardPosition, target: BoardId, byCol
   }
   return false;
 }
-function hasInsufficientMaterial(position: IBoardPosition): boolean {
+function _hasInsufficientMaterial(position: IBoardPosition): boolean {
   let minorCount = 0;
   let bishopSquareColour: number | undefined;
   let onlySameColourBishops = true;
@@ -233,7 +233,7 @@ export function cloneBoardPosition(position: IBoardPosition): IBoardPosition {
     castlingAvailability: { ...position.castlingAvailability },
   };
 }
-function getMoveCastlingType(move: IMoveRaw): CastlingType {
+function _getMoveCastlingType(move: IMoveRaw): CastlingType {
   const fromCoords = boardIdToCoords(move.from);
   const toCoords = boardIdToCoords(move.to);
   const diff = toCoords.file - fromCoords.file;
@@ -241,7 +241,7 @@ function getMoveCastlingType(move: IMoveRaw): CastlingType {
   else if (diff < -1) return CastlingType.CastlingQueenSide;
   return CastlingType.NotCastling;
 }
-function getCastlingRookBoardId(position: IBoardPosition, colour: PlayerColour, type: CastlingType): BoardId | undefined {
+function _getCastlingRookBoardId(position: IBoardPosition, colour: PlayerColour, type: CastlingType): BoardId | undefined {
   if (type === CastlingType.NotCastling) return;
   if (colour === PlayerColour.White) {
     if (type === CastlingType.CastlingKingSide) return position.castlingRook?.whiteKingSide ?? coordsToBoardId(7, 0);
@@ -250,12 +250,12 @@ function getCastlingRookBoardId(position: IBoardPosition, colour: PlayerColour, 
   if (type === CastlingType.CastlingKingSide) return position.castlingRook?.blackKingSide ?? coordsToBoardId(7, 7);
   return position.castlingRook?.blackQueenSide ?? coordsToBoardId(0, 7);
 }
-function getCastlingSideForRook(position: IBoardPosition, boardId: BoardId, colour: PlayerColour): CastlingType {
-  if (boardId === getCastlingRookBoardId(position, colour, CastlingType.CastlingKingSide)) return CastlingType.CastlingKingSide;
-  if (boardId === getCastlingRookBoardId(position, colour, CastlingType.CastlingQueenSide)) return CastlingType.CastlingQueenSide;
+function _getCastlingSideForRook(position: IBoardPosition, boardId: BoardId, colour: PlayerColour): CastlingType {
+  if (boardId === _getCastlingRookBoardId(position, colour, CastlingType.CastlingKingSide)) return CastlingType.CastlingKingSide;
+  if (boardId === _getCastlingRookBoardId(position, colour, CastlingType.CastlingQueenSide)) return CastlingType.CastlingQueenSide;
   return CastlingType.NotCastling;
 }
-function clearCastlingAvailability(position: IBoardPosition, colour: PlayerColour, type: CastlingType) {
+function _clearCastlingAvailability(position: IBoardPosition, colour: PlayerColour, type: CastlingType) {
   if (colour === PlayerColour.White) {
     if (type !== CastlingType.CastlingQueenSide) position.castlingAvailability.whiteKingSide = false;
     if (type !== CastlingType.CastlingKingSide) position.castlingAvailability.whiteQueenSide = false;
@@ -266,21 +266,21 @@ function clearCastlingAvailability(position: IBoardPosition, colour: PlayerColou
 }
 function _updateCastlingAvailability_(position: IBoardPosition, move: IMove, nextPosition: IBoardPosition) {
   const movingPiece = _getPiece(position, move.from)!;
-  if (movingPiece.kind === PieceKind.King) clearCastlingAvailability(nextPosition, movingPiece.colour, CastlingType.NotCastling);
+  if (movingPiece.kind === PieceKind.King) _clearCastlingAvailability(nextPosition, movingPiece.colour, CastlingType.NotCastling);
   else if (movingPiece.kind === PieceKind.Rook) {
-    const castlingType = getCastlingSideForRook(position, move.from, movingPiece.colour);
-    if (castlingType !== CastlingType.NotCastling) clearCastlingAvailability(nextPosition, movingPiece.colour, castlingType);
+    const castlingType = _getCastlingSideForRook(position, move.from, movingPiece.colour);
+    if (castlingType !== CastlingType.NotCastling) _clearCastlingAvailability(nextPosition, movingPiece.colour, castlingType);
   }
   if (move.kind === MoveKind.EnPassant) return;
   const capturedPiece = _getPiece(position, move.to);
   if (capturedPiece?.kind === PieceKind.Rook) {
-    const castlingType = getCastlingSideForRook(position, move.to, capturedPiece.colour);
-    if (castlingType !== CastlingType.NotCastling) clearCastlingAvailability(nextPosition, capturedPiece.colour, castlingType);
+    const castlingType = _getCastlingSideForRook(position, move.to, capturedPiece.colour);
+    if (castlingType !== CastlingType.NotCastling) _clearCastlingAvailability(nextPosition, capturedPiece.colour, castlingType);
   }
 }
 function _findCastleRook(position: IBoardPosition, from: BoardId, colour: PlayerColour, direction: number): BoardId | undefined {
   const castlingType = direction > 0 ? CastlingType.CastlingKingSide : CastlingType.CastlingQueenSide;
-  const rookBoardId = getCastlingRookBoardId(position, colour, castlingType);
+  const rookBoardId = _getCastlingRookBoardId(position, colour, castlingType);
   if (rookBoardId == null) return;
   const kingPos = boardIdToCoords(from);
   const rookPos = boardIdToCoords(rookBoardId);
@@ -292,7 +292,7 @@ function _isCastlePathClear(position: IBoardPosition, from: BoardId, rookBoardId
   const kingPos = boardIdToCoords(from);
   const rookFile = boardIdToCoords(rookBoardId).file;
   for (let file = kingPos.file + direction; file !== rookFile; file += direction) {
-    if (isOccupied(position, coordsToBoardId(file, kingPos.rank))) return false;
+    if (_isOccupied(position, coordsToBoardId(file, kingPos.rank))) return false;
   }
   return true;
 }
@@ -300,7 +300,7 @@ function _isCastleKingPathSafe(position: IBoardPosition, from: BoardId, rookBoar
   const kingPos = boardIdToCoords(from);
   for (let step = 1; step <= 2; step += 1) {
     const to = tryCoordsToBoardId(kingPos.file + (direction * step), kingPos.rank);
-    if (to === undefined || to !== rookBoardId && isOccupied(position, to)) return false;
+    if (to === undefined || to !== rookBoardId && _isOccupied(position, to)) return false;
     if (attackMask[to]) return false;
   }
   return true;
@@ -335,7 +335,7 @@ function _genKingMoves(position: IBoardPosition, from: BoardId, colour: PlayerCo
 function _genKingMoveAttackState(position: IBoardPosition, kingBoardId: BoardId, attackerColour: PlayerColour): IKingAttackState {
   const king = _getPiece(position, kingBoardId);
   position.board[kingBoardId] = undefined;
-  const attackState = genSquareAttackMask(position, attackerColour, kingBoardId);
+  const attackState = _genSquareAttackMask(position, attackerColour, kingBoardId);
   position.board[kingBoardId] = king;
   return attackState;
 }
@@ -443,7 +443,7 @@ function _isMoveEnpassantTarget(move: IMove)
   return move.movingPiece === PieceKind.Pawn
     && Math.abs(toCoords.rank - fromCoords.rank) === 2;
 }
-function moveMatches(candidate: IMoveRaw, move: IMoveRaw): boolean {
+function _moveMatches(candidate: IMoveRaw, move: IMoveRaw): boolean {
   return candidate.from === move.from && candidate.to === move.to;
 }
 function _updatePositionAfterMove(position: IBoardPosition, move: IMove, movingPiece: IChessPiece, isCapture: boolean): IBoardPosition {
@@ -458,8 +458,8 @@ function _updatePositionAfterMove(position: IBoardPosition, move: IMove, movingP
   return position;
 }
 function _applyCastleMove(position: IBoardPosition, move: IMove, king: IChessPiece): IBoardPosition {
-  const castlingType = getMoveCastlingType(move);
-  const rookFrom = getCastlingRookBoardId(position, king.colour, castlingType) ?? throwReferenceError('No castling rook square found.');
+  const castlingType = _getMoveCastlingType(move);
+  const rookFrom = _getCastlingRookBoardId(position, king.colour, castlingType) ?? throwReferenceError('No castling rook square found.');
   const rook = _getPiece(position, rookFrom);
   if (rook?.kind !== PieceKind.Rook || rook.colour !== king.colour) throwReferenceError('No eligible rook found for castling move.');
   const homeRank = king.colour === PlayerColour.White ? 0 : 7;
@@ -498,7 +498,7 @@ export function genLegalMoves(position: IBoardPosition) {
   return legalMoves.map(x => toDetailedMove(position, x, legalMoves));
 }
 export function isMoveLegal(position: IBoardPosition, move: IMoveRaw): boolean {
-  const candidate = _genLegalRawMoves(position).find((item) => moveMatches(item, move));
+  const candidate = _genLegalRawMoves(position).find((item) => _moveMatches(item, move));
   if (candidate === undefined) return false;
   if (_getMoveKind(position, candidate) === MoveKind.Promotion) return move.promotionPiece != null && promotionPieces.includes(move.promotionPiece);
   return move.promotionPiece === undefined;
@@ -561,7 +561,7 @@ export function genDetailedMoves(position: IBoardPosition, rawMoves: readonly IM
   return moves;
 }
 export function resolveGameResult(position: IBoardPosition): { resultState: ResultState; resultReason: ResultReason | undefined } {
-  if (hasInsufficientMaterial(position)) return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
+  if (_hasInsufficientMaterial(position)) return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
   const kingBoardId = findKingBoardId(position, position.sideToMove);
   if (kingBoardId === undefined) return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
   const attackState = _genKingMoveAttackState(position, kingBoardId, getOpponentColour(position.sideToMove));

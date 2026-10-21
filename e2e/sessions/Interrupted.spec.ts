@@ -11,7 +11,7 @@ import { latestSearch, playerSearchCount, release } from '../journeys/engine-rac
 import { historyRow } from '../journeys/setup/SetupAction';
 import { applySettings } from '../journeys/settings/SettingsAction';
 import { createSessionGame, openSession, reloadSession } from './SessionAction';
-async function interruptEngineTurn(page: Page) {
+async function _interruptEngineTurn(page: Page) {
   await page.evaluate(() => window.chessVueJourney.engines.hold('player'));
   const id = await createSessionGame(page, 'Interrupted session', '1', ['Journey A'], 'Journey B');
   await advanceClock(page, 1000);
@@ -35,7 +35,7 @@ async function interruptEngineTurn(page: Page) {
   expect(await playerSearchCount(page)).toBe(1);
   return id;
 }
-async function returnThenTimeout(page: Page) {
+async function _returnThenTimeout(page: Page) {
   await page.getByRole('button', { name: 'Back to game', exact: true }).click();
   await expect(page.locator('.history-row')).toHaveCount(2);
   await expect(playerClock(page, 'black')).toHaveText('1:00');
@@ -56,7 +56,7 @@ async function returnThenTimeout(page: Page) {
   expect(ended.livePath).toEqual(replied.livePath);
   return ended;
 }
-async function reviewTimeout(page: Page, ended: IGame) {
+async function _reviewTimeout(page: Page, ended: IGame) {
   await historyRow(page, 'e4').click();
   await expect(page.getByLabel('Recorded analysis', { exact: true })).toHaveCount(0);
   await expectOutput(page, ['Journey A']);
@@ -73,7 +73,7 @@ async function reviewTimeout(page: Page, ended: IGame) {
   for (const path of [[0], [0, 0]]) expect(nodeAt(reviewed, path).recordedAnalysis).toEqual(nodeAt(ended, path).recordedAnalysis);
   return reviewed;
 }
-async function restoreTimeoutReview(page: Page, id: string, reviewed: IGame) {
+async function _restoreTimeoutReview(page: Page, id: string, reviewed: IGame) {
   await reloadSession(page);
   await expect(page).toHaveURL(new RegExp('/game/' + id + '$'));
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -90,8 +90,8 @@ async function restoreTimeoutReview(page: Page, id: string, reviewed: IGame) {
 }
 test('JRN-SESSION-03 defers an interrupted reply through appearance changes and preserves timeout review', async ({ page }) => {
   await openSession(page);
-  const id = await test.step('Hold an engine turn and finish its reply while Settings owns the pause', () => interruptEngineTurn(page));
-  const ended = await test.step('Return for one reply, then expire the human clock', () => returnThenTimeout(page));
-  const reviewed = await test.step('Review actual-move records without reversing the result', () => reviewTimeout(page, ended));
-  await test.step('Reload, dismiss the reopened result notice and retain the reviewed workspace', () => restoreTimeoutReview(page, id, reviewed));
+  const id = await test.step('Hold an engine turn and finish its reply while Settings owns the pause', () => _interruptEngineTurn(page));
+  const ended = await test.step('Return for one reply, then expire the human clock', () => _returnThenTimeout(page));
+  const reviewed = await test.step('Review actual-move records without reversing the result', () => _reviewTimeout(page, ended));
+  await test.step('Reload, dismiss the reopened result notice and retain the reviewed workspace', () => _restoreTimeoutReview(page, id, reviewed));
 });

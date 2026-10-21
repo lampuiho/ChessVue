@@ -21,7 +21,7 @@ if (name === 'report') {
   process.exitCode = 1;
 } else {
   try {
-    const options = parseOptions(args);
+    const options = _parseOptions(args);
     const server = await createServer({
       root: fileURLToPath(new URL('../', import.meta.url)),
       define: { __CHESSVUE_PLATFORM__: JSON.stringify('browser'), __CHESSVUE_JOURNEY_RUN__: JSON.stringify({ name, id: randomUUID() }) },
@@ -41,7 +41,7 @@ if (name === 'report') {
     process.exitCode = 1;
   }
 }
-function parseOptions(args) {
+function _parseOptions(args) {
   const options = {};
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];

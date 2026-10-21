@@ -136,34 +136,34 @@ const capturedByColour = computed(() => {
 });
 
 onMounted(() => {
-  void run(async () => {
-    const fallback = await activateGame(gameId.value);
+  void _run(async () => {
+    const fallback = await _activateGame(gameId.value);
     if (fallback) await router.replace(fallback);
   });
   clockTimer = setInterval(() => {
     now.value = Date.now();
-    void reconcileTimeout();
+    void _reconcileTimeout();
   }, 250);
 });
-onBeforeRouteUpdate((to) => activateGame(String(to.params.id)));
+onBeforeRouteUpdate((to) => _activateGame(String(to.params.id)));
 onBeforeRouteLeave(() => playback.cancel());
-const disposeAutosaveNotice = gamesStore.onAutosaveFailed((message) => showNotice(`Automatic save failed: ${message}`));
+const disposeAutosaveNotice = gamesStore.onAutosaveFailed((message) => _showNotice(`Automatic save failed: ${message}`));
 onBeforeUnmount(() => {
   void playback.dispose();
   disposeAutosaveNotice();
   if (clockTimer) clearInterval(clockTimer);
   if (noticeTimer) clearTimeout(noticeTimer);
 });
-async function activateGame(id: string) {
+async function _activateGame(id: string) {
   await playback.cancel();
   pendingContinuation.value = undefined;
   now.value = Date.now();
   const selected = gamesStore.getGame(id) as IGame | undefined;
-  if (selected) return handleMenuInterruptionCompleted(selected);
+  if (selected) return _handleMenuInterruptionCompleted(selected);
   const fallbackId = uiStateStore.gameSession?.openGameIds.find((id) => gamesStore.getGame(id));
   return fallbackId ? `/game/${fallbackId}` : '/home';
 }
-async function reconcileTimeout() {
+async function _reconcileTimeout() {
   const currentGame = game.value;
   const runtime = currentGame?.$;
   if (!currentGame || !runtime) return;
@@ -176,7 +176,7 @@ async function reconcileTimeout() {
   runtime.timeoutNotificationShown = true;
   uiStateStore.showModal({ kind: AppModalKind.Timeout, payload: { gameId: currentGame.metadata.id, resultState: currentGame.resultState as Exclude<ResultState, ResultState.Ongoing>, resultReason: ResultReason.Timeout } });
 }
-async function quickNewGame() {
+async function _quickNewGame() {
   const defaults = settings.value?.gameDefaults;
   if (!defaults) return;
   const request: ICreateGameRequest = {
@@ -188,58 +188,58 @@ async function quickNewGame() {
     showLiveAnalysisMoves: false,
     timeControl: { ...defaults.defaultTimeControl },
   };
-  await run(async () => {
+  await _run(async () => {
     const createdGame = await gamesStore.createGame(request);
     uiStateStore.openTab(createdGame.metadata.id);
     await router.push(`/game/${createdGame.metadata.id}`);
   });
 }
-async function handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown) {
+async function _handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown) {
   const currentGame = game.value;
   if (!currentGame) return;
   if (settings.value?.gameSession.autoPauseOnMenu) await gamesStore.pauseGame(currentGame, PauseReason.Menu);
   await action();
 }
-async function handleMenuInterruptionCompleted(currentGame = game.value) {
+async function _handleMenuInterruptionCompleted(currentGame = game.value) {
   if (!currentGame?.$?.pauseReasons?.includes(PauseReason.Menu)) return;
   await gamesStore.resumeGame(currentGame, PauseReason.Menu);
 }
-function openCustomGame() {
+function _openCustomGame() {
   const interrupted = game.value;
-  return handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame }, () => {
-    if (game.value === interrupted) return handleMenuInterruptionCompleted(interrupted);
+  return _handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame }, () => {
+    if (game.value === interrupted) return _handleMenuInterruptionCompleted(interrupted);
   }));
 }
-async function selectTab(id: string) {
+async function _selectTab(id: string) {
   uiStateStore.setActiveGame(id);
   await router.push(`/game/${id}`);
 }
-async function closeTab(id: string) {
+async function _closeTab(id: string) {
   uiStateStore.closeTab(id);
   const activeId = uiStateStore.gameSession?.activeGameId;
   await router.push(activeId ? `/game/${activeId}` : '/home');
 }
-async function makeMove(move: IMove) {
-  await requestMoves([move]);
+async function _makeMove(move: IMove) {
+  await _requestMoves([move]);
 }
-async function navigateToNode(node: IMoveNode) {
+async function _navigateToNode(node: IMoveNode) {
   if (!game.value) return;
-  await run(async () => gamesStore.navigateToNode(game.value!, node));
+  await _run(async () => gamesStore.navigateToNode(game.value!, node));
 }
-async function returnToLivePosition() {
+async function _returnToLivePosition() {
   const currentGame = game.value;
   if (!currentGame?.livePath) return;
   let node = currentGame.moveTree.root;
   for (const index of currentGame.livePath) node = node.children[index]!;
-  await navigateToNode(node);
+  await _navigateToNode(node);
 }
-async function playAnalysisLine(moves: readonly IMove[]) {
+async function _playAnalysisLine(moves: readonly IMove[]) {
   const currentGame = game.value;
   if (!currentGame || isPlayingLine.value) return;
   const explore = !currentGame.livePath || currentGame.resultState !== ResultState.Ongoing || currentGame.$?.pauseReasons?.includes(PauseReason.Analysis);
-  await requestMoves(explore ? moves : moves.slice(0, 1));
+  await _requestMoves(explore ? moves : moves.slice(0, 1));
 }
-async function requestMoves(moves: readonly IMove[]) {
+async function _requestMoves(moves: readonly IMove[]) {
   const currentGame = game.value;
   if (!currentGame || !moves.length || isPlayingLine.value) return;
   const livePath = currentGame.livePath;
@@ -248,15 +248,15 @@ async function requestMoves(moves: readonly IMove[]) {
     pendingContinuation.value = { game: currentGame, node: renderedNode.value!, moves };
     return;
   }
-  await run(() => applyMoves(currentGame, moves));
+  await _run(() => _applyMoves(currentGame, moves));
 }
-async function confirmContinuation() {
+async function _confirmContinuation() {
   const pending = pendingContinuation.value;
   pendingContinuation.value = undefined;
   if (!pending || game.value !== pending.game || renderedNode.value !== pending.node) return;
-  await run(() => applyMoves(pending.game, pending.moves));
+  await _run(() => _applyMoves(pending.game, pending.moves));
 }
-async function applyMoves(currentGame: IGame, moves: readonly IMove[]) {
+async function _applyMoves(currentGame: IGame, moves: readonly IMove[]) {
   const validated: IMove[] = [];
   const preview = MoveApplicationService.genPosition(position.value!, []);
   for (const move of moves) {
@@ -281,44 +281,44 @@ async function applyMoves(currentGame: IGame, moves: readonly IMove[]) {
     }
   });
 }
-async function toggleBoardEdit() {
+async function _toggleBoardEdit() {
   const currentGame = game.value;
   if (!currentGame) return;
   if (controlMode.value === 'inGameAnalysis') {
     uiStateStore.showModal({ kind: AppModalKind.BoardEditBlocked, payload: { gameId: currentGame.metadata.id, reason: BoardEditBlockedReason.InGameAnalysis } });
     return;
   }
-  await run(async () => gamesStore.enterBoardEdit(currentGame));
+  await _run(async () => gamesStore.enterBoardEdit(currentGame));
 }
-async function handleDraw() {
+async function _handleDraw() {
   const currentGame = game.value;
   if (!currentGame || !position.value) return;
-  if (currentGame.drawOfferState?.direction === DrawOfferDirection.Incoming) return run(() => gamesStore.acceptDrawOffer(currentGame));
-  if (currentGame.drawOfferState?.direction === DrawOfferDirection.Outgoing) return run(() => gamesStore.withdrawDrawOffer(currentGame));
+  if (currentGame.drawOfferState?.direction === DrawOfferDirection.Incoming) return _run(() => gamesStore.acceptDrawOffer(currentGame));
+  if (currentGame.drawOfferState?.direction === DrawOfferDirection.Outgoing) return _run(() => gamesStore.withdrawDrawOffer(currentGame));
   const isLocalGame = currentGame.whitePlayer?.type === PlayerType.Local && currentGame.blackPlayer?.type === PlayerType.Local;
   if (isLocalGame) uiStateStore.showModal({ kind: AppModalKind.DrawOffer, payload: { gameId: currentGame.metadata.id, offeringColour: position.value.sideToMove } });
-  else await run(() => gamesStore.offerDraw(currentGame));
+  else await _run(() => gamesStore.offerDraw(currentGame));
 }
-function requestPlayerSelection(colour: PlayerColour) {
+function _requestPlayerSelection(colour: PlayerColour) {
   const currentGame = game.value;
   if (!currentGame || controlMode.value === 'boardEdit') return;
   const player = colour === PlayerColour.White ? currentGame.whitePlayer : currentGame.blackPlayer;
   uiStateStore.showModal({ kind: AppModalKind.PlayerSelection, payload: { gameId: currentGame.metadata.id, colour, currentPlayerType: player?.type, currentAssignedEngine: player?.type === PlayerType.Engine ? (player as IEnginePlayer).assignedEngine : undefined } });
 }
-function requestAnalysisEngine() {
+function _requestAnalysisEngine() {
   const currentGame = game.value;
   if (!currentGame) return;
   uiStateStore.showModal({ kind: AppModalKind.AnalysisEngineSelection, payload: { gameId: currentGame.metadata.id, currentAnalysisEngines: currentGame.analysis.seats.map((seat) => seat.assignedEngine) } });
 }
-function toggleSection(section: 'history' | 'analysis') {
+function _toggleSection(section: 'history' | 'analysis') {
   uiStateStore.setSectionCollapsed(section);
-  void run(() => uiStateStore.saveLayoutState());
+  void _run(() => uiStateStore.saveLayoutState());
 }
-function toggleAnalysisEngine(index: number) {
+function _toggleAnalysisEngine(index: number) {
   uiStateStore.setAnalysisEngineExpanded(index);
-  void run(() => uiStateStore.saveLayoutState());
+  void _run(() => uiStateStore.saveLayoutState());
 }
-async function removeAnalysisEngine(index: number) {
+async function _removeAnalysisEngine(index: number) {
   const currentGame = game.value;
   if (!currentGame?.analysis.seats[index]) return;
   const cleanup = gamesStore.removeAnalysisEngine(currentGame, index);
@@ -331,16 +331,16 @@ async function removeAnalysisEngine(index: number) {
   }
   await Promise.all([cleanup, saving]);
 }
-function showNotice(message: string) {
+function _showNotice(message: string) {
   notice.value = message;
   if (noticeTimer) clearTimeout(noticeTimer);
   noticeTimer = setTimeout(() => notice.value = '', 3600);
 }
-async function run(action: () => Promise<void> | void) {
+async function _run(action: () => Promise<void> | void) {
   try {
     await action();
   } catch (error) {
-    showNotice(error instanceof Error ? error.message : 'The action could not be completed.');
+    _showNotice(error instanceof Error ? error.message : 'The action could not be completed.');
   }
 }
 </script>
@@ -350,18 +350,18 @@ async function run(action: () => Promise<void> | void) {
     <MenuBar
       can-save
       can-close
-      @close-game-requested="run(() => closeTab(game!.metadata.id))"
-      @home-requested="run(() => handleMenuInterruptionRequested(() => router.push('/home')))"
-      @quick-new-game-requested="quickNewGame"
-      @custom-new-game-requested="run(openCustomGame)"
-      @load-game-requested="run(() => handleMenuInterruptionRequested(() => router.push('/saved-games/load')))"
-      @save-game-requested="run(() => handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))"
-      @settings-requested="run(() => handleMenuInterruptionRequested(() => router.push('/settings/session')))" />
+      @close-game-requested="_run(() => _closeTab(game!.metadata.id))"
+      @home-requested="_run(() => _handleMenuInterruptionRequested(() => router.push('/home')))"
+      @quick-new-game-requested="_quickNewGame"
+      @custom-new-game-requested="_run(_openCustomGame)"
+      @load-game-requested="_run(() => _handleMenuInterruptionRequested(() => router.push('/saved-games/load')))"
+      @save-game-requested="_run(() => _handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))"
+      @settings-requested="_run(() => _handleMenuInterruptionRequested(() => router.push('/settings/session')))" />
     <div class="game-content">
-      <GameTabs v-if="tabs.length > 1" :tabs="tabs" :active-id="game.metadata.id" @tab-selected="selectTab" @tab-closed="closeTab" />
+      <GameTabs v-if="tabs.length > 1" :tabs="tabs" :active-id="game.metadata.id" @tab-selected="_selectTab" @tab-closed="_closeTab" />
       <div class="game-stage">
         <section class="board-column" :class="{ 'board-column--editing': controlMode === 'boardEdit' }">
-          <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="position.sideToMove === topColour && controlMode === 'live'" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="requestPlayerSelection" />
+          <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="position.sideToMove === topColour && controlMode === 'live'" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="_requestPlayerSelection" />
           <Chessboard
             :position="position"
             :orientation="settings?.appearance.boardOrientation"
@@ -370,18 +370,18 @@ async function run(action: () => Promise<void> | void) {
             :last-move="lastMove"
             :input-disabled="isBoardInputDisabled"
             :board-edit="controlMode === 'boardEdit'"
-            @move-attempted="makeMove"
+            @move-attempted="_makeMove"
             @chess-piece-toggled="(boardId, piece) => gamesStore.toggleChessPiece(game!, boardId, piece)"
             @chess-piece-deleted="(boardId) => gamesStore.deleteChessPiece(game!, boardId)"
             @chess-piece-moved="(from, to) => gamesStore.moveChessPiece(game!, from, to)"
             @board-cleared="gamesStore.clearBoard(game!)"
             @board-reset="gamesStore.resetBoardToStartPosition(game!)"
           />
-          <PlayerPanel :colour="bottomColour" :player="bottomPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="position.sideToMove === bottomColour && controlMode === 'live'" :captured-pieces="capturedByColour[bottomColour]" @player-selection-requested="requestPlayerSelection" />
+          <PlayerPanel :colour="bottomColour" :player="bottomPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="position.sideToMove === bottomColour && controlMode === 'live'" :captured-pieces="capturedByColour[bottomColour]" @player-selection-requested="_requestPlayerSelection" />
         </section>
         <aside class="game-sidebar surface">
           <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? position.sideToMove + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
-          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine" @collapse-toggled="toggleSection('history')" @node-selected="navigateToNode" @return-to-live-requested="returnToLivePosition" />
+          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine" @collapse-toggled="_toggleSection('history')" @node-selected="_navigateToNode" @return-to-live-requested="_returnToLivePosition" />
           <AnalysisPanel
             v-if="layout?.showAnalysisPanel"
             :seats="analysisSeats"
@@ -391,14 +391,14 @@ async function run(action: () => Promise<void> | void) {
             :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine"
             :start-disabled="controlMode === 'boardEdit'"
             :can-add="canAddEngine"
-            @collapse-toggled="toggleSection('analysis')"
-            @engine-expanded-toggled="toggleAnalysisEngine"
-            @refresh-requested="run(() => gamesStore.refreshAnalysis(game!))"
-            @retry-requested="(index) => run(() => gamesStore.retryAnalysis(game!, index))"
-            @stop-requested="(index) => run(() => gamesStore.stopAnalysis(game!, index))"
-            @engine-add-requested="requestAnalysisEngine"
-            @engine-remove-requested="(index) => run(() => removeAnalysisEngine(index))"
-            @move-selected="playAnalysisLine"
+            @collapse-toggled="_toggleSection('analysis')"
+            @engine-expanded-toggled="_toggleAnalysisEngine"
+            @refresh-requested="_run(() => gamesStore.refreshAnalysis(game!))"
+            @retry-requested="(index) => _run(() => gamesStore.retryAnalysis(game!, index))"
+            @stop-requested="(index) => _run(() => gamesStore.stopAnalysis(game!, index))"
+            @engine-add-requested="_requestAnalysisEngine"
+            @engine-remove-requested="(index) => _run(() => _removeAnalysisEngine(index))"
+            @move-selected="_playAnalysisLine"
           />
           <GameControlPanel
             class="game-sidebar__controls"
@@ -406,22 +406,22 @@ async function run(action: () => Promise<void> | void) {
             :can-take-back="canTakeBack"
             :can-pause="canPause"
             :draw-pending="!!game.drawOfferState"
-            @take-back-requested="run(() => gamesStore.takeBack(game!))"
-            @pause-requested="run(() => gamesStore.pauseGame(game!, PauseReason.Manual))"
-            @resume-requested="run(() => gamesStore.resumeGame(game!, PauseReason.Manual))"
-            @analysis-requested="run(() => gamesStore.enterInGameAnalysis(game!))"
+            @take-back-requested="_run(() => gamesStore.takeBack(game!))"
+            @pause-requested="_run(() => gamesStore.pauseGame(game!, PauseReason.Manual))"
+            @resume-requested="_run(() => gamesStore.resumeGame(game!, PauseReason.Manual))"
+            @analysis-requested="_run(() => gamesStore.enterInGameAnalysis(game!))"
             @exit-analysis-requested="gamesStore.exitInGameAnalysis(game!)"
-            @board-edit-requested="toggleBoardEdit"
+            @board-edit-requested="_toggleBoardEdit"
             @start-game-requested="uiStateStore.showModal({ kind: AppModalKind.StartGameFromSetup, payload: { gameId: game.metadata.id } })"
             @resign-requested="uiStateStore.showModal({ kind: AppModalKind.Resign, payload: { gameId: game.metadata.id, colour: position.sideToMove } })"
-            @draw-requested="handleDraw"
+            @draw-requested="_handleDraw"
           />
         </aside>
       </div>
     </div>
     <div v-if="notice" class="toast"><AppIcon name="info" />{{ notice }}</div>
     <ModalDialog v-if="pendingContinuation" title="Continue from this position?" subtitle="This changes the played line. The previous continuation will remain as a variation." @dismissed="pendingContinuation = undefined">
-      <template #actions><button class="text-button" @click="pendingContinuation = undefined">Cancel</button><button class="text-button text-button--primary" @click="confirmContinuation">Continue game</button></template>
+      <template #actions><button class="text-button" @click="pendingContinuation = undefined">Cancel</button><button class="text-button text-button--primary" @click="_confirmContinuation">Continue game</button></template>
     </ModalDialog>
   </main>
 </template>

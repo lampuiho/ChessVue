@@ -29,14 +29,14 @@ export function useGameClock(dependency: IGameClockDependency) {
   function isTimedGame(game: IGame): boolean {
     return game.timeControl.initialMs != null && game.timeControl.preset !== 'untimed';
   }
-  function hasRunningClock(snapshot: IClockSnapshot): boolean {
+  function _hasRunningClock(snapshot: IClockSnapshot): boolean {
     return !!snapshot.activeColour
       && !!snapshot.startedAtUtc
       && (snapshot.white.isRunning || snapshot.black.isRunning);
   }
-  function canPauseForReason(game: IGame, reason: PauseReason): boolean {
+  function _canPauseForReason(game: IGame, reason: PauseReason): boolean {
     if (reason === PauseReason.Analysis || status.isPausedState(game.gameState)) return true;
-    return isTimedGame(game) && hasRunningClock(game.clockSnapshot);
+    return isTimedGame(game) && _hasRunningClock(game.clockSnapshot);
   }
   function initialiseClockSnapshot(timeControl: ITimeControl): IClockSnapshot {
     return TimeControlService.initialiseClockSnapshot(timeControl);
@@ -55,17 +55,17 @@ export function useGameClock(dependency: IGameClockDependency) {
     runtime.focusReturnUnsubscribe?.();
     runtime.focusReturnUnsubscribe = undefined;
     const hasLiveClock = status.isLiveState(game.gameState) || status.isLiveAnalysisState(game.gameState);
-    if (!hasLiveClock || game.resultState !== ResultState.Ongoing || !isTimedGame(game) || !hasRunningClock(game.clockSnapshot)) return;
+    if (!hasLiveClock || game.resultState !== ResultState.Ongoing || !isTimedGame(game) || !_hasRunningClock(game.clockSnapshot)) return;
     runtime.focusReturnUnsubscribe = PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => syncClock(game, new ClockTimestamp()), `sync-clock-${game.metadata.id}`);
   }
-  function getExpiredColour(game: IGame, nowUtc: ClockTimestamp): PlayerColour | undefined {
+  function _getExpiredColour(game: IGame, nowUtc: ClockTimestamp): PlayerColour | undefined {
     if (game.resultState !== ResultState.Ongoing) return;
     if (!status.isLiveState(game.gameState) && !status.isPausedLiveState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) return;
     if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return;
     const remainingTime = TimeControlService.getRemainingTime(game.clockSnapshot, nowUtc);
     return (remainingTime.white ?? 1) <= 0 ? PlayerColour.White : PlayerColour.Black;
   }
-  function finaliseTimeout(game: IGame, nowUtc: ClockTimestamp, expiredColour: PlayerColour) {
+  function _finaliseTimeout(game: IGame, nowUtc: ClockTimestamp, expiredColour: PlayerColour) {
     position.requireGameRuntime(game).timeoutNotificationShown = false;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, nowUtc);
     game.resultState = expiredColour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
@@ -75,16 +75,16 @@ export function useGameClock(dependency: IGameClockDependency) {
     refreshRuntimeRegistrations(game);
   }
   function reconcileTimeout(game: IGame, nowUtc: ClockTimestamp): boolean {
-    const expiredColour = getExpiredColour(game, nowUtc);
+    const expiredColour = _getExpiredColour(game, nowUtc);
     if (!expiredColour) return false;
-    finaliseTimeout(game, nowUtc, expiredColour);
+    _finaliseTimeout(game, nowUtc, expiredColour);
     return true;
   }
-  async function settleTimeout(game: IGame, nowUtc: ClockTimestamp, expiredColour: PlayerColour) {
+  async function _settleTimeout(game: IGame, nowUtc: ClockTimestamp, expiredColour: PlayerColour) {
     const snapshot = game.clockSnapshot;
     try {
       await clearPlayerTurnRuntime(game);
-      if (game.clockSnapshot === snapshot && game.resultState === ResultState.Ongoing) finaliseTimeout(game, nowUtc, expiredColour);
+      if (game.clockSnapshot === snapshot && game.resultState === ResultState.Ongoing) _finaliseTimeout(game, nowUtc, expiredColour);
     } finally {
       pendingTimeouts.delete(game);
     }
@@ -92,17 +92,17 @@ export function useGameClock(dependency: IGameClockDependency) {
   function syncClock(game: IGame, nowUtc: ClockTimestamp) {
     const pending = pendingTimeouts.get(game);
     if (pending) return pending;
-    const expiredColour = getExpiredColour(game, nowUtc);
+    const expiredColour = _getExpiredColour(game, nowUtc);
     if (!expiredColour) return Promise.resolve();
-    const settlement = settleTimeout(game, nowUtc, expiredColour);
+    const settlement = _settleTimeout(game, nowUtc, expiredColour);
     pendingTimeouts.set(game, settlement);
     return settlement;
   }
   async function pauseGame(game: IGame, reason: PauseReason) {
     const nowUtc = new ClockTimestamp();
-    if (getExpiredColour(game, nowUtc)) return syncClock(game, nowUtc);
+    if (_getExpiredColour(game, nowUtc)) return syncClock(game, nowUtc);
     const runtime = position.requireGameRuntime(game);
-    if (!canPauseForReason(game, reason)) return;
+    if (!_canPauseForReason(game, reason)) return;
     if (status.isPausedState(game.gameState)) {
       runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
       touchGame(game);
@@ -119,7 +119,7 @@ export function useGameClock(dependency: IGameClockDependency) {
   async function resumeGame(game: IGame, reason: PauseReason) {
     if (!status.isPausedState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
     const nowUtc = new ClockTimestamp();
-    if (getExpiredColour(game, nowUtc)) return syncClock(game, nowUtc);
+    if (_getExpiredColour(game, nowUtc)) return syncClock(game, nowUtc);
     const runtime = position.requireGameRuntime(game);
     runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== reason);
     if ((runtime.pauseReasons ?? []).length > 0) {

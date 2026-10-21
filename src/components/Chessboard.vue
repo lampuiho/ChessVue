@@ -40,16 +40,16 @@ const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 // External board/mode props also change after engine replies and history navigation.
 // This synchronous input boundary only clears transient input; Vue disposes it with the board.
-watch([() => props.position, () => props.boardEdit], clearSelection, { flush: 'sync' });
-function isLegalTarget(boardId: BoardId): boolean {
+watch([() => props.position, () => props.boardEdit], _clearSelection, { flush: 'sync' });
+function _isLegalTarget(boardId: BoardId): boolean {
   return legalMoves.value.some((move) => move.to === boardId);
 }
-function clearSelection() {
+function _clearSelection() {
   selectedBoardId.value = undefined;
   draggedBoardId.value = undefined;
   pendingPromotionMoves.value = [];
 }
-function selectSquare(boardId: BoardId) {
+function _selectSquare(boardId: BoardId) {
   if (props.inputDisabled) return;
   if (props.boardEdit) {
     emit('chessPieceToggled', boardId, { ...editPiece.value });
@@ -57,7 +57,7 @@ function selectSquare(boardId: BoardId) {
   }
   const piece = props.position.board[boardId];
   if (selectedBoardId.value === boardId) {
-    clearSelection();
+    _clearSelection();
     return;
   }
   if (selectedBoardId.value === undefined) {
@@ -68,29 +68,29 @@ function selectSquare(boardId: BoardId) {
     selectedBoardId.value = boardId;
     return;
   }
-  commitTarget(boardId);
+  _commitTarget(boardId);
 }
-function commitTarget(boardId: BoardId) {
+function _commitTarget(boardId: BoardId) {
   const matchingMoves = legalMoves.value.filter((move) => move.to === boardId);
   if (matchingMoves.length === 0) {
-    clearSelection();
+    _clearSelection();
     return;
   }
   if (matchingMoves.length > 1 && matchingMoves.some((move) => move.promotionPiece)) {
     pendingPromotionMoves.value = matchingMoves;
     return;
   }
-  emitMove(matchingMoves[0]!);
+  _emitMove(matchingMoves[0]!);
 }
-function emitMove(rawMove: IMoveRaw) {
+function _emitMove(rawMove: IMoveRaw) {
   emit('moveAttempted', toDetailedMove(props.position, rawMove));
-  clearSelection();
+  _clearSelection();
 }
-function choosePromotion(kind: PieceKind) {
+function _choosePromotion(kind: PieceKind) {
   const move = pendingPromotionMoves.value.find((candidate) => candidate.promotionPiece === kind);
-  if (move) emitMove(move);
+  if (move) _emitMove(move);
 }
-function onDragStart(boardId: BoardId, event: DragEvent) {
+function _onDragStart(boardId: BoardId, event: DragEvent) {
   if (props.inputDisabled || !props.position.board[boardId]) {
     event.preventDefault();
     return;
@@ -100,23 +100,23 @@ function onDragStart(boardId: BoardId, event: DragEvent) {
   event.dataTransfer?.setData('text/plain', String(boardId));
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
 }
-function onDrop(boardId: BoardId) {
+function _onDrop(boardId: BoardId) {
   const from = draggedBoardId.value;
   draggedBoardId.value = undefined;
   if (from === undefined) return;
   if (props.boardEdit) emit('chessPieceMoved', from, boardId);
-  else commitTarget(boardId);
+  else _commitTarget(boardId);
 }
-function onContextMenu(boardId: BoardId) {
+function _onContextMenu(boardId: BoardId) {
   if (props.boardEdit) emit('chessPieceDeleted', boardId);
 }
-function isLastMoveSquare(boardId: BoardId): boolean {
+function _isLastMoveSquare(boardId: BoardId): boolean {
   return !!props.highlightLastMove && (props.lastMove?.from === boardId || props.lastMove?.to === boardId);
 }
-function showRank(index: number): boolean {
+function _showRank(index: number): boolean {
   return props.showCoordinates && index % 8 === 0;
 }
-function showFile(index: number): boolean {
+function _showFile(index: number): boolean {
   return props.showCoordinates && index >= 56;
 }
 </script>
@@ -135,25 +135,25 @@ function showFile(index: number): boolean {
             'board-square--light': (Math.floor(boardId / 8) + boardId % 8) % 2 === 1,
             'board-square--dark': (Math.floor(boardId / 8) + boardId % 8) % 2 === 0,
             'board-square--selected': selectedBoardId === boardId,
-            'board-square--target': isLegalTarget(boardId),
-            'board-square--capture': isLegalTarget(boardId) && !!position.board[boardId],
-            'board-square--last': isLastMoveSquare(boardId),
+            'board-square--target': _isLegalTarget(boardId),
+            'board-square--capture': _isLegalTarget(boardId) && !!position.board[boardId],
+            'board-square--last': _isLastMoveSquare(boardId),
           }"
           :aria-label="`${fileNames[boardId % 8]}${Math.floor(boardId / 8) + 1}${position.board[boardId] ? ` ${position.board[boardId]?.colour} ${position.board[boardId]?.kind}` : ''}`"
-          @click="selectSquare(boardId)"
-          @contextmenu.prevent="onContextMenu(boardId)"
+          @click="_selectSquare(boardId)"
+          @contextmenu.prevent="_onContextMenu(boardId)"
           @dragover.prevent
-          @drop.prevent="onDrop(boardId)"
+          @drop.prevent="_onDrop(boardId)"
         >
-          <span v-if="showRank(index)" class="coordinate coordinate--rank">{{ Math.floor(boardId / 8) + 1 }}</span>
-          <span v-if="showFile(index)" class="coordinate coordinate--file">{{ fileNames[boardId % 8] }}</span>
-          <span v-if="position.board[boardId]" class="chess-piece" :draggable="!inputDisabled" @dragstart.stop="onDragStart(boardId, $event)"><ChessPiece v-bind="position.board[boardId]!" /></span>
-          <span v-if="isLegalTarget(boardId) && !position.board[boardId]" class="move-dot"></span>
+          <span v-if="_showRank(index)" class="coordinate coordinate--rank">{{ Math.floor(boardId / 8) + 1 }}</span>
+          <span v-if="_showFile(index)" class="coordinate coordinate--file">{{ fileNames[boardId % 8] }}</span>
+          <span v-if="position.board[boardId]" class="chess-piece" :draggable="!inputDisabled" @dragstart.stop="_onDragStart(boardId, $event)"><ChessPiece v-bind="position.board[boardId]!" /></span>
+          <span v-if="_isLegalTarget(boardId) && !position.board[boardId]" class="move-dot"></span>
         </button>
-        <div v-if="pendingPromotionMoves.length" v-focus-scope class="promotion-popover" role="group" aria-label="Pawn promotion" tabindex="-1" @keydown.esc.stop.prevent="clearSelection">
+        <div v-if="pendingPromotionMoves.length" v-focus-scope class="promotion-popover" role="group" aria-label="Pawn promotion" tabindex="-1" @keydown.esc.stop.prevent="_clearSelection">
           <span>Promote to</span>
-          <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${position.sideToMove} ${kind}`" @click="choosePromotion(kind)"><ChessPiece :kind="kind" :colour="position.sideToMove" /></button></div>
-          <button class="promotion-popover__cancel" @click="clearSelection">Cancel</button>
+          <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${position.sideToMove} ${kind}`" @click="_choosePromotion(kind)"><ChessPiece :kind="kind" :colour="position.sideToMove" /></button></div>
+          <button class="promotion-popover__cancel" @click="_clearSelection">Cancel</button>
         </div>
       </div>
     </div>

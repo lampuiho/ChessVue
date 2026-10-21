@@ -8,7 +8,7 @@ const workerFailureBoundary = `self.addEventListener('unhandledrejection', (even
   event.preventDefault();
   setTimeout(() => { throw event.reason instanceof Error ? event.reason : new Error(String(event.reason)); }, 0);
 });\n`;
-async function readAsset(name: string, url: URL) {
+async function _readAsset(name: string, url: URL) {
   const raw = await readFile(url);
   return name === StockfishConfig.workerFile ? Buffer.concat([Buffer.from(workerFailureBoundary), raw]) : raw;
 }
@@ -28,7 +28,7 @@ export function stockfishAssets(): Plugin {
         const source = files.get(path.slice(prefix.length));
         if (!source) return next();
         try {
-          const raw = await readAsset(path.slice(prefix.length), source.url);
+          const raw = await _readAsset(path.slice(prefix.length), source.url);
           response.setHeader('Content-Type', source.type);
           response.end(raw);
         } catch (error) {
@@ -37,7 +37,7 @@ export function stockfishAssets(): Plugin {
       });
     },
     async generateBundle() {
-      for (const [name, file] of files) this.emitFile({ type: 'asset', fileName: StockfishConfig.directory + '/' + name, source: await readAsset(name, file.url) });
+      for (const [name, file] of files) this.emitFile({ type: 'asset', fileName: StockfishConfig.directory + '/' + name, source: await _readAsset(name, file.url) });
     },
   };
 }

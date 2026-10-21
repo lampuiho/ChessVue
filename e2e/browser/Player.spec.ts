@@ -6,14 +6,14 @@ import type { IGame, IMove } from '../../src/contracts';
 import { StockfishConfig } from '../../src/config/StockfishConfig';
 import { browserReplyReloads } from '../../journeys/definitions/browser/data/BrowserScenario';
 
-async function createTimedGame(page: import('@playwright/test').Page) {
+async function _createTimedGame(page: import('@playwright/test').Page) {
   await configureStockfish(page);
   await page.locator('#black-player').selectOption({ label: 'Browser Stockfish' });
   await page.getByLabel('Clock', { exact: true }).selectOption('blitz');
   await page.getByLabel('Minutes', { exact: true }).fill('1');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
 }
-function expectReply(game: IGame) {
+function _expectReply(game: IGame) {
   expect(game.timeControl).toMatchObject({ preset: 'blitz', initialMs: 60000 });
   expect(game.livePath).toEqual([0, 0]);
   expect(game.renderedPath).toEqual(game.livePath);
@@ -36,7 +36,7 @@ for (const reload of browserReplyReloads) {
     const requested = Promise.withResolvers<void>();
     const pattern = `**/${StockfishConfig.wasmFile}`;
     try {
-      await createTimedGame(page);
+      await _createTimedGame(page);
       if (reload === 'while reply is due') await page.route(pattern, async (route) => {
         requested.resolve();
         await gate.promise;
@@ -57,14 +57,14 @@ for (const reload of browserReplyReloads) {
       await expect(page.locator('.player-clock--running')).toHaveCount(1);
       await expect.poll(async () => (await browserGame(page, id))?.livePath).toEqual([0, 0]);
       const game = await exportGame(page);
-      expectReply(game);
+      _expectReply(game);
       await expect(page.locator('.engine-error')).toHaveCount(0);
       await page.getByRole('button', { name: 'Close', exact: true }).click();
       await expect(page).toHaveURL(/\/game\/.+/);
       await page.reload();
       await expect(page.locator('.history-row')).toHaveCount(2);
       const restored = await exportGame(page);
-      expectReply(restored);
+      _expectReply(restored);
       expect(restored.moveTree).toEqual(game.moveTree);
     } finally {
       gate.resolve();

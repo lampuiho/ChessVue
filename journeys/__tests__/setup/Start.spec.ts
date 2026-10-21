@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GameState, type IGame } from '@/contracts';
 import { boot, clickButton, setField } from '../support/UiHarness';
 
-async function submitStart() {
+async function _submitStart() {
   document.querySelector<HTMLFormElement>('#new-game-form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   await flushPromises();
 }
@@ -28,7 +28,7 @@ describe('JRN-SETUP-07/08 start transition', () => {
     setField('.toggle-row input', false);
     setField('.toggle-row:nth-of-type(2) input', true);
     await nextTick();
-    await submitStart();
+    await _submitStart();
     expect(JSON.stringify(game.rootPosition.board)).toBe(board);
     expect(game.timeControl).toEqual({ initialMs: 540000, incrementMs: 2000 });
     expect(game.gameplayOptions).toEqual({ allowTakeback: false, showLiveAnalysisMoves: true });
@@ -48,13 +48,13 @@ describe('JRN-SETUP-07/08 start transition', () => {
     setField('.time-fields label:nth-child(2) input', '2');
     setField('#black-player', 'engine:journey-unavailable');
     await nextTick();
-    await submitStart();
+    await _submitStart();
     await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toContain('unavailable'));
     expect(JSON.parse(domain.SerializationService.serialiseGame(game))).toEqual(before);
     expect(turn).not.toHaveBeenCalled();
     setField('#black-player', 'engine:journey-a');
     await nextTick();
-    await submitStart();
+    await _submitStart();
     await vi.waitFor(() => expect(game.livePath).toHaveLength(4));
     await flushPromises();
     expect(turn).toHaveBeenCalledTimes(1);

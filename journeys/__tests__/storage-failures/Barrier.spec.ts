@@ -24,12 +24,12 @@ afterEach(() => barrier.reset());
 describe('journey storage faults and barriers', () => {
   it.each(['readTextFile', 'listDirectory', 'writeTextFile', 'deleteFile'] as const)('fails only the next exact %s path and retries without modifying prior bytes', async (operation) => {
     const path = operation === 'listDirectory' ? 'saves/a' : 'saves/a/Opening.json';
-    const act = () => operation === 'writeTextFile' ? adapter.writeTextFile(path, 'replacement', { overwrite: true }) : adapter[operation](path);
+    const _act = () => operation === 'writeTextFile' ? adapter.writeTextFile(path, 'replacement', { overwrite: true }) : adapter[operation](path);
     barrier.failNext(operation, path);
     expect(await adapter.readTextFile('saves/a/./Opening.json').catch((error: unknown) => error)).toEqual(operation === 'readTextFile' ? expect.objectContaining({ kind: PlatformErrorKind.PermissionDenied }) : 'original');
-    if (operation !== 'readTextFile') await expect(act()).rejects.toMatchObject({ kind: PlatformErrorKind.PermissionDenied, operation });
+    if (operation !== 'readTextFile') await expect(_act()).rejects.toMatchObject({ kind: PlatformErrorKind.PermissionDenied, operation });
     expect(files.readFile('saves/a/Opening.json')).toBe('original');
-    await act();
+    await _act();
     expect(barrier.operations().at(-1)?.state).toBe('succeeded');
   });
   it('keeps other paths and operations usable and consumes only the requested failure count', async () => {

@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { playMove } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 import { nodeAt, openLibraryGame, setAutosaveInterval } from './SaveAction';
-async function addEngine(page: Page, name: string) {
+async function _addEngine(page: Page, name: string) {
   await page.getByRole('button', { name: 'Add engine', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Add analysis engine', exact: true });
   await dialog.getByRole('radio', { name: new RegExp(name + ' ') }).check();
@@ -15,7 +15,7 @@ export async function expectRecordedOutput(page: Page) {
     await expect(seat.locator('.engine-section__score')).toHaveText(name === 'Journey A' ? '+0.24' : '+0.36');
   }
 }
-async function stopOutput(page: Page) {
+async function _stopOutput(page: Page) {
   while (await page.getByRole('button', { name: 'Stop engine', exact: true }).count()) {
     await page.locator('.engine-section').filter({ has: page.getByRole('button', { name: 'Stop engine', exact: true }) }).first().hover();
     await page.getByRole('button', { name: 'Stop engine', exact: true }).first().click();
@@ -24,10 +24,10 @@ async function stopOutput(page: Page) {
 export async function createRecordedWorkspace(page: Page) {
   await openLibraryGame(page);
   await setAutosaveInterval(page, 0);
-  await addEngine(page, 'Journey A');
-  await addEngine(page, 'Journey B');
+  await _addEngine(page, 'Journey A');
+  await _addEngine(page, 'Journey B');
   await expectRecordedOutput(page);
-  await stopOutput(page);
+  await _stopOutput(page);
   const parent = await saveCurrentGame(page, 'Evaluated parent');
   await playMove(page, 'f1', 'b5');
   await expectRecordedOutput(page);
@@ -38,15 +38,15 @@ export async function createRecordedWorkspace(page: Page) {
   expect(record.seats).toHaveLength(2);
   expect(record.seats).toEqual(parent.analysis.seats);
   expect(nodeAt(recorded, recorded.livePath!).recordedAnalysis?.seats).toHaveLength(2);
-  await exploreAndPrune(page, recorded);
-  await stopOutput(page);
+  await _exploreAndPrune(page, recorded);
+  await _stopOutput(page);
   const saved = await saveCurrentGame(page, 'Recorded workspace');
   expect(nodeAt(saved, [0, 0, 0, 0, 0]).recordedAnalysis).toEqual(record);
   expect(nodeAt(saved, [0, 0, 0, 0, 0, 0]).children).toHaveLength(1);
   expect(nodeAt(saved, saved.livePath!).kind).toBe('live');
   return saved;
 }
-async function exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof saveCurrentGame>>) {
+async function _exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof saveCurrentGame>>) {
   await page.getByRole('button', { name: /^Analyse Explore/ }).click();
   await playMove(page, 'b5', 'a4');
   await playMove(page, 'g8', 'f6');

@@ -6,7 +6,7 @@ import { selectGame } from '../../support/GameNavigation';
 import { saveCurrentGame } from '../../support/GameSave';
 import { createTimedPlay, expectStoppedClock } from './PlaySetup';
 
-async function prepareMate(page: Page, mode: string) {
+async function _prepareMate(page: Page, mode: string) {
   await openJourney(page, 'play');
   if (mode === 'seeded') await selectGame(page, 'play-mate', 'One move to checkmate');
   else {
@@ -18,7 +18,7 @@ async function prepareMate(page: Page, mode: string) {
 }
 for (const mode of ['seeded', 'timed']) {
   test(`JRN-PLAY-03 @smoke records ${mode} checkmate and preserves it through review and reload`, async ({ page }) => {
-    await prepareMate(page, mode);
+    await _prepareMate(page, mode);
     await playMove(page, 'd8', 'h4');
     await expect(page.locator('.result-badge')).toHaveText('black won');
     await expect(page.locator('.history-row--selected')).toContainText('Qh4#');

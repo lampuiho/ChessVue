@@ -9,18 +9,18 @@ for (const action of ['Return', 'Cancel', 'browser Back']) {
     const route = page.url();
     const before = await acceptedSettings(page);
     await page.getByLabel('Save folder').fill('pending-saves');
-    const leave = async () => {
+    const _leave = async () => {
       if (action === 'browser Back') await page.goBack();
       else await page.getByRole('button', { name: action === 'Return' ? 'Back to game' : 'Cancel', exact: true }).click();
     };
-    await leave();
+    await _leave();
     const guard = page.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true });
     await expect(guard).toBeVisible();
     await guard.getByRole('button', { name: 'Keep editing', exact: true }).click();
     await expect(page).toHaveURL(route);
     await expect(page.getByLabel('Save folder')).toHaveValue('pending-saves');
     expect(await acceptedSettings(page)).toEqual(before);
-    await leave();
+    await _leave();
     await guard.getByRole('button', { name: 'Discard changes', exact: true }).click();
     await expect(page).toHaveURL(/\/game\/settings-game$/);
     expect(await acceptedSettings(page)).toEqual(before);

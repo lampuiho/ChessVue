@@ -8,7 +8,7 @@ import { saveCurrentGame } from '../../support/GameSave';
 import { managedFiles, readSession } from '../../support/SaveInspection';
 import { finishEditing, openSetupStart, selectSetupBoard } from './SetupAction';
 
-async function configureStart(dialog: Locator, source: string) {
+async function _configureStart(dialog: Locator, source: string) {
   await setCustomClock(dialog, '9', '2');
   await dialog.getByLabel('Name', { exact: false }).fill('Started study');
   await dialog.getByLabel(source === 'edited' ? 'Black' : 'White', { exact: true }).selectOption({ label: 'Journey B' });
@@ -19,7 +19,7 @@ async function configureStart(dialog: Locator, source: string) {
   await expect(dialog.getByRole('checkbox', { name: /Allow takebacks/ })).toBeChecked({ checked: source === 'history' });
   await expect(dialog.getByRole('checkbox', { name: /Show live analysis moves/ })).toBeChecked({ checked: source === 'edited' });
 }
-function expectStartedPosition(started: IGame, before: IGame, source: string) {
+function _expectStartedPosition(started: IGame, before: IGame, source: string) {
   expect(started.rootPosition).toEqual(before.rootPosition);
   expect(started.moveTree).toEqual(before.moveTree);
   expect(started.livePath).toEqual(before.renderedPath);
@@ -32,7 +32,7 @@ function expectStartedPosition(started: IGame, before: IGame, source: string) {
   expect(started.clockSnapshot.white.remainingMs).toBe(540000);
   expect(started.clockSnapshot.black.remainingMs).toBe(540000);
 }
-async function cancelChangedStart(page: Page, before: IGame) {
+async function _cancelChangedStart(page: Page, before: IGame) {
   const files = await managedFiles(page);
   const dialog = await openSetupStart(page);
   await setCustomClock(dialog, '9', '2');
@@ -51,15 +51,15 @@ for (const source of ['edited', 'history']) {
       await finishEditing(page);
     }
     const before = await saveCurrentGame(page, 'prepared');
-    await cancelChangedStart(page, before);
+    await _cancelChangedStart(page, before);
     const dialog = await openSetupStart(page);
-    await configureStart(dialog, source);
+    await _configureStart(dialog, source);
     await dialog.getByRole('button', { name: 'Start game', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.locator('.turn-indicator')).toHaveText('Live');
     await expect(page.locator('.player-clock--running')).toContainText('9:00');
     const started = await saveCurrentGame(page, 'started');
-    expectStartedPosition(started, before, source);
+    _expectStartedPosition(started, before, source);
     await expect(page.getByRole('button', { name: /Edit board|Finish editing/ })).toHaveCount(0);
     await playMove(page, source === 'edited' ? 'd6' : 'e7', source === 'edited' ? 'd7' : 'e6');
     await expect(page.locator('.history-row')).toHaveCount(source === 'edited' ? 2 : 5);

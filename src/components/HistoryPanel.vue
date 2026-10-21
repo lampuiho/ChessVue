@@ -10,22 +10,22 @@ interface IHistoryRow { node: IMoveNode; path: MovePath; depth: number; isVariat
 const rows = computed<IHistoryRow[]>(() => {
   void props.revision;
   const result: IHistoryRow[] = [];
-  function walk(node: IMoveNode, path: MovePath, depth: number, isVariation: boolean) {
+  function _walk(node: IMoveNode, path: MovePath, depth: number, isVariation: boolean) {
     if (node.move) result.push({ node, path, depth, isVariation });
     const mainlineIndex = node.mainlineChildIndex;
-    if (mainlineIndex !== undefined && node.children[mainlineIndex]) walk(node.children[mainlineIndex]!, [...path, mainlineIndex], depth, false);
+    if (mainlineIndex !== undefined && node.children[mainlineIndex]) _walk(node.children[mainlineIndex]!, [...path, mainlineIndex], depth, false);
     node.children.forEach((child, index) => {
-      if (index !== mainlineIndex) walk(child, [...path, index], depth + 1, true);
+      if (index !== mainlineIndex) _walk(child, [...path, index], depth + 1, true);
     });
   }
-  walk(props.root, [], 0, false);
+  _walk(props.root, [], 0, false);
   return result;
 });
-const isAtLive = computed(() => pathsEqual(props.renderedPath, props.livePath));
-function pathsEqual(left?: MovePath, right?: MovePath): boolean {
+const isAtLive = computed(() => _pathsEqual(props.renderedPath, props.livePath));
+function _pathsEqual(left?: MovePath, right?: MovePath): boolean {
   return !!left && !!right && left.length === right.length && left.every((part, index) => part === right[index]);
 }
-function movePrefix(node: IMoveNode): string {
+function _movePrefix(node: IMoveNode): string {
   const moveNumber = Math.ceil(node.plyIndex / 2);
   return node.plyIndex % 2 === 1 ? `${moveNumber}.` : `${moveNumber}…`;
 }
@@ -46,12 +46,12 @@ function movePrefix(node: IMoveNode): string {
         v-else
         :key="row.path.join('-')"
         class="history-row"
-        :class="{ 'history-row--selected': pathsEqual(row.path, renderedPath), 'history-row--variation': row.node.kind === MoveNodeKind.Analysis || row.isVariation }"
+        :class="{ 'history-row--selected': _pathsEqual(row.path, renderedPath), 'history-row--variation': row.node.kind === MoveNodeKind.Analysis || row.isVariation }"
         :style="{ '--history-depth': Math.min(row.depth, 4) }"
         :disabled="disabled"
         @click="emit('nodeSelected', row.node)"
       >
-        <span class="history-row__number">{{ movePrefix(row.node) }}</span><strong>{{ row.node.move ? getSan(row.node.move) : 'Start' }}</strong><span v-if="row.node.kind === MoveNodeKind.Analysis" class="history-row__tag">analysis</span><span v-if="pathsEqual(row.path, livePath)" class="history-row__live"></span>
+        <span class="history-row__number">{{ _movePrefix(row.node) }}</span><strong>{{ row.node.move ? getSan(row.node.move) : 'Start' }}</strong><span v-if="row.node.kind === MoveNodeKind.Analysis" class="history-row__tag">analysis</span><span v-if="_pathsEqual(row.path, livePath)" class="history-row__live"></span>
       </button>
     </div>
   </section>

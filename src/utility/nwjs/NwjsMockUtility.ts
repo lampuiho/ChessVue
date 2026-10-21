@@ -15,11 +15,11 @@ class MockEmitter {
     return this;
   }
   once(eventName: string, listener: TListener): this {
-    const wrappedListener: TListener = (...args) => {
-      this.removeListener(eventName, wrappedListener);
+    const _wrappedListener: TListener = (...args) => {
+      this.removeListener(eventName, _wrappedListener);
       listener(...args);
     };
-    return this.on(eventName, wrappedListener);
+    return this.on(eventName, _wrappedListener);
   }
   removeListener(eventName: string, listener: TListener): this {
     this._listenerByEvent.get(eventName)?.delete(listener);
@@ -78,66 +78,66 @@ class MockDirent {
 }
 class MockPathModule {
   join(...parts: string[]): string {
-    return this.normalise(parts.filter((part) => part.length > 0).join('/'));
+    return this._normalise(parts.filter((part) => part.length > 0).join('/'));
   }
   dirname(targetPath: string): string {
-    const normalisedPath = this.normalise(targetPath);
+    const normalisedPath = this._normalise(targetPath);
     const index = normalisedPath.lastIndexOf('/');
     return index <= 0 ? '.' : normalisedPath.slice(0, index);
   }
   basename(targetPath: string): string {
-    const normalisedPath = this.normalise(targetPath);
+    const normalisedPath = this._normalise(targetPath);
     const index = normalisedPath.lastIndexOf('/');
     return index < 0 ? normalisedPath : normalisedPath.slice(index + 1);
   }
-  private normalise(targetPath: string): string {
+  private _normalise(targetPath: string): string {
     return targetPath.replace(/\\/g, '/').replace(/\/+/g, '/');
   }
 }
 class MockFsModule {
   readonly promises = {
-    access: this.access.bind(this),
-    mkdir: this.mkdir.bind(this),
-    readdir: this.readdir.bind(this),
-    readFile: this.readFile.bind(this),
-    stat: this.stat.bind(this),
-    unlink: this.unlink.bind(this),
-    writeFile: this.writeFile.bind(this),
+    access: this._access.bind(this),
+    mkdir: this._mkdir.bind(this),
+    readdir: this._readdir.bind(this),
+    readFile: this._readFile.bind(this),
+    stat: this._stat.bind(this),
+    unlink: this._unlink.bind(this),
+    writeFile: this._writeFile.bind(this),
   };
   private readonly _path = new MockPathModule();
   private readonly _directories = new Set<string>(['.']);
   private readonly _files = new Map<string, { raw: string; mtime: Date }>();
   private _tick = 1;
 
-  private normalise(targetPath: string): string {
+  private _normalise(targetPath: string): string {
     return targetPath.replace(/\\/g, '/').replace(/\/+/g, '/');
   }
-  private createNodeError(code: string): NodeJS.ErrnoException {
+  private _createNodeError(code: string): NodeJS.ErrnoException {
     const error = new Error(code) as NodeJS.ErrnoException;
     error.code = code;
     return error;
   }
-  private ensureDirectoryTree(targetPath: string) {
-    const normalisedPath = this.normalise(targetPath);
+  private _ensureDirectoryTree(targetPath: string) {
+    const normalisedPath = this._normalise(targetPath);
     const segments = normalisedPath.split('/');
     for (let index = 1; index <= segments.length; index += 1) {
       const segmentPath = segments.slice(0, index).join('/');
       if (segmentPath.length > 0) this._directories.add(segmentPath);
     }
   }
-  private hasEntry(targetPath: string): boolean {
-    const normalisedPath = this.normalise(targetPath);
+  private _hasEntry(targetPath: string): boolean {
+    const normalisedPath = this._normalise(targetPath);
     return this._directories.has(normalisedPath) || this._files.has(normalisedPath);
   }
-  private async access(targetPath: string) {
-    if (!this.hasEntry(targetPath)) throw this.createNodeError('ENOENT');
+  private async _access(targetPath: string) {
+    if (!this._hasEntry(targetPath)) throw this._createNodeError('ENOENT');
   }
-  private async mkdir(targetPath: string, _options?: { recursive?: boolean }) {
-    this.ensureDirectoryTree(targetPath);
+  private async _mkdir(targetPath: string, _options?: { recursive?: boolean }) {
+    this._ensureDirectoryTree(targetPath);
   }
-  private async readdir(targetPath: string, _options?: { withFileTypes?: boolean }): Promise<MockDirent[]> {
-    const normalisedPath = this.normalise(targetPath);
-    if (!this._directories.has(normalisedPath)) throw this.createNodeError('ENOENT');
+  private async _readdir(targetPath: string, _options?: { withFileTypes?: boolean }): Promise<MockDirent[]> {
+    const normalisedPath = this._normalise(targetPath);
+    if (!this._directories.has(normalisedPath)) throw this._createNodeError('ENOENT');
     const childEntries = new Map<string, boolean>();
     for (const directoryPath of this._directories) {
       if (directoryPath === normalisedPath) continue;
@@ -148,25 +148,25 @@ class MockFsModule {
     }
     return [...childEntries.entries()].map(([name, isDirectory]) => new MockDirent(name, isDirectory));
   }
-  private async writeFile(targetPath: string, raw: string) {
-    const normalisedPath = this.normalise(targetPath);
+  private async _writeFile(targetPath: string, raw: string) {
+    const normalisedPath = this._normalise(targetPath);
     const parentPath = this._path.dirname(normalisedPath);
-    if (!this._directories.has(parentPath)) throw this.createNodeError('ENOENT');
+    if (!this._directories.has(parentPath)) throw this._createNodeError('ENOENT');
     this._files.set(normalisedPath, { raw, mtime: new Date(this._tick++ * 1000) });
   }
-  private async readFile(targetPath: string): Promise<Buffer> {
-    const file = this._files.get(this.normalise(targetPath));
-    if (file === undefined) throw this.createNodeError('ENOENT');
+  private async _readFile(targetPath: string): Promise<Buffer> {
+    const file = this._files.get(this._normalise(targetPath));
+    if (file === undefined) throw this._createNodeError('ENOENT');
     return Buffer.from(file.raw, 'utf8');
   }
-  private async stat(targetPath: string): Promise<{ mtime: Date }> {
-    const file = this._files.get(this.normalise(targetPath));
-    if (file === undefined) throw this.createNodeError('ENOENT');
+  private async _stat(targetPath: string): Promise<{ mtime: Date }> {
+    const file = this._files.get(this._normalise(targetPath));
+    if (file === undefined) throw this._createNodeError('ENOENT');
     return { mtime: file.mtime };
   }
-  private async unlink(targetPath: string) {
-    const normalisedPath = this.normalise(targetPath);
-    if (!this._files.delete(normalisedPath)) throw this.createNodeError('ENOENT');
+  private async _unlink(targetPath: string) {
+    const normalisedPath = this._normalise(targetPath);
+    if (!this._files.delete(normalisedPath)) throw this._createNodeError('ENOENT');
   }
 }
 

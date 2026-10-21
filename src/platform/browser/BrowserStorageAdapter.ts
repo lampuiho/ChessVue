@@ -23,23 +23,23 @@ function _selectFile(): Promise<File> {
     input.type = 'file';
     input.accept = '.json,application/json';
     input.hidden = true;
-    const cleanup = () => { input.remove(); input.onchange = null; input.oncancel = null; };
-    const cancel = () => {
-      cleanup();
+    const _cleanup = () => { input.remove(); input.onchange = null; input.oncancel = null; };
+    const _cancel = () => {
+      _cleanup();
       reject(new PlatformError({ kind: PlatformErrorKind.Cancelled, operation: 'showOpenDialog', message: 'The file picker was cancelled.' }));
     };
-    input.oncancel = cancel;
+    input.oncancel = _cancel;
     input.onchange = () => {
       const file = input.files?.[0];
-      if (!file) return cancel();
-      cleanup();
+      if (!file) return _cancel();
+      _cleanup();
       resolve(file);
     };
     document.body.appendChild(input);
     try {
       input.click();
     } catch (error) {
-      cleanup();
+      _cleanup();
       reject(new PlatformError({ kind: PlatformErrorKind.PermissionDenied, operation: 'showOpenDialog', message: 'The file picker could not be opened.', detail: String(error) }));
     }
   });

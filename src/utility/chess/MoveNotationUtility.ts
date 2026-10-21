@@ -3,14 +3,14 @@ import { boardIdToCoords } from './SquareUtility';
 
 const _fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 
-function boardIdToNotation_(boardId: BoardId): string {
+function _boardIdToNotation(boardId: BoardId): string {
   const { file, rank } = boardIdToCoords(boardId);
   return `${_fileNames[file]}${rank + 1}`;
 }
-function pieceSymbol(kind: PieceKind): string {
+function _pieceSymbol(kind: PieceKind): string {
   return kind === PieceKind.Pawn ? '' : getPieceLetter(kind);
 }
-function buildFenBoard(position: IBoardPosition): string {
+function _buildFenBoard(position: IBoardPosition): string {
   const ranks: string[] = [];
   for (let rank = 7; rank >= 0; rank -= 1) {
     let emptyCount = 0;
@@ -32,36 +32,36 @@ function buildFenBoard(position: IBoardPosition): string {
   }
   return ranks.join('/');
 }
-function buildFenValue(position: IBoardPosition): string {
+function _buildFenValue(position: IBoardPosition): string {
   const castling = [
     position.castlingAvailability.whiteKingSide ? 'K' : '',
     position.castlingAvailability.whiteQueenSide ? 'Q' : '',
     position.castlingAvailability.blackKingSide ? 'k' : '',
     position.castlingAvailability.blackQueenSide ? 'q' : '',
   ].join('') || '-';
-  const enPassant = position.enPassantTarget === undefined ? '-' : boardIdToNotation_(position.enPassantTarget);
+  const enPassant = position.enPassantTarget === undefined ? '-' : _boardIdToNotation(position.enPassantTarget);
   const sideToMove = position.sideToMove === PlayerColour.White ? 'w' : 'b';
-  return `${buildFenBoard(position)} ${sideToMove} ${castling} ${enPassant} ${position.halfMoveClock} ${position.fullMoveNumber}`;
+  return `${_buildFenBoard(position)} ${sideToMove} ${castling} ${enPassant} ${position.halfMoveClock} ${position.fullMoveNumber}`;
 }
-function getDisambiguation(move: IMove): string {
+function _getDisambiguation(move: IMove): string {
   switch (move.ambiguityKind) {
     case AmbiguityKind.SameRankOnly:
-      return boardIdToNotation_(move.from)[0]!;
+      return _boardIdToNotation(move.from)[0]!;
     case AmbiguityKind.SameFileOnly:
-      return boardIdToNotation_(move.from)[1]!;
+      return _boardIdToNotation(move.from)[1]!;
     case AmbiguityKind.Both:
-      return boardIdToNotation_(move.from);
+      return _boardIdToNotation(move.from);
     default:
       return '';
   }
 }
-function buildSan(move: IMove): string {
+function _buildSan(move: IMove): string {
   const checkSuffix = move.checkState === CheckState.Checkmate ? '#' : move.checkState === CheckState.Check ? '+' : '';
   if (move.kind === MoveKind.Castle) return `${boardIdToCoords(move.to).file === 6 ? 'O-O' : 'O-O-O'}${checkSuffix}`;
   const capture = move.capturePiece;
-  const pawnCapturePrefix = move.movingPiece === PieceKind.Pawn && capture ? boardIdToNotation_(move.from)[0]! : '';
-  const promotion = move.promotionPiece === undefined ? '' : `=${pieceSymbol(move.promotionPiece)}`;
-  return `${pieceSymbol(move.movingPiece)}${pawnCapturePrefix}${getDisambiguation(move)}${capture ? 'x' : ''}${boardIdToNotation_(move.to)}${promotion}${checkSuffix}`;
+  const pawnCapturePrefix = move.movingPiece === PieceKind.Pawn && capture ? _boardIdToNotation(move.from)[0]! : '';
+  const promotion = move.promotionPiece === undefined ? '' : `=${_pieceSymbol(move.promotionPiece)}`;
+  return `${_pieceSymbol(move.movingPiece)}${pawnCapturePrefix}${_getDisambiguation(move)}${capture ? 'x' : ''}${_boardIdToNotation(move.to)}${promotion}${checkSuffix}`;
 }
 /** the uppercase FEN/SAN letter for a piece kind; lowercase it for a black piece in FEN */
 export function getPieceLetter(kind: PieceKind): string {
@@ -75,14 +75,14 @@ export function getPieceLetter(kind: PieceKind): string {
 /** Returns FEN through a read-through `position.$` cache so protocol consumers do not rebuild it repeatedly. */
 export function buildFen(position: IBoardPosition): string {
   if (position.$?.fen) return position.$.fen;
-  const fen = buildFenValue(position);
+  const fen = _buildFenValue(position);
   (position.$ ??= {}).fen = fen;
   return fen;
 }
 /** Returns SAN through a read-through `move.$` cache shared by notation consumers. */
 export function getSan(move: IMove): string {
   if (move.$?.san) return move.$.san;
-  const san = buildSan(move);
+  const san = _buildSan(move);
   (move.$ ??= {}).san = san;
   return san;
 }
@@ -90,7 +90,7 @@ export function getSan(move: IMove): string {
 export function getUci(move: IMoveRaw): string {
   if (move.$?.uci) return move.$.uci;
   const promotion = move.promotionPiece === PieceKind.Queen ? 'q' : move.promotionPiece === PieceKind.Rook ? 'r' : move.promotionPiece === PieceKind.Bishop ? 'b' : move.promotionPiece === PieceKind.Knight ? 'n' : '';
-  const uci = `${boardIdToNotation_(move.from)}${boardIdToNotation_(move.to)}${promotion}`;
+  const uci = `${_boardIdToNotation(move.from)}${_boardIdToNotation(move.to)}${promotion}`;
   (move.$ ??= {}).uci = uci;
   return uci;
 }

@@ -5,7 +5,7 @@ import { playMove } from '../support/BoardInteraction';
 import { StockfishConfig } from '../../src/config/StockfishConfig';
 import { browserEngineFailures } from '../../journeys/definitions/browser/data/BrowserScenario';
 
-async function expectLocalPlay(page: import('@playwright/test').Page) {
+async function _expectLocalPlay(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL(/\/game\/.+/);
   await page.getByRole('button', { name: 'Quick game', exact: true }).click();
@@ -39,6 +39,6 @@ for (const failure of browserEngineFailures) {
     await expect(page.locator('.engine-section')).toHaveCount(1);
     await expect(page.locator('.engine-error')).toHaveCount(0);
     expectCurrentAnalysis(await exportGame(page));
-    await expectLocalPlay(page);
+    await _expectLocalPlay(page);
   });
 }

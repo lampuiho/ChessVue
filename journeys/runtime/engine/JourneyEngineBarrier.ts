@@ -42,13 +42,13 @@ export class JourneyEngineBarrier extends JourneyEngineFault {
   searches(): IJourneySearch[] { return this._searches.map((search) => ({ ...search })); }
   processes() { return [...this._processes].map(([id, entry]) => ({ id, path: entry.path, ...entry.process.diagnostics() })); }
   release(id: number) {
-    const search = this.requireSearch(id);
+    const search = this._requireSearch(id);
     // A settled search cannot release into a newer search on the same process.
     if (search.pending) this._processes.get(search.processId)!.process.release();
   }
   emit(id: number, line: string) {
     if (/[\r\n]/.test(line)) throw new Error('Emit one UCI record at a time.');
-    this._processes.get(this.requireSearch(id).processId)!.process.emitLine(line);
+    this._processes.get(this._requireSearch(id).processId)!.process.emitLine(line);
   }
   crash(processId: number) {
     const entry = this._processes.get(processId);
@@ -61,7 +61,7 @@ export class JourneyEngineBarrier extends JourneyEngineFault {
     this.stopHeld = false;
     for (const entry of this._processes.values()) entry.process.crash();
   }
-  private requireSearch(id: number): IJourneySearch {
+  private _requireSearch(id: number): IJourneySearch {
     const search = this._searches.find((entry) => entry.id === id);
     if (!search) throw new Error('Unknown journey search.');
     return search;

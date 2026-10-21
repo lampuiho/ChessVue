@@ -3,10 +3,10 @@ import { test as base, expect } from '@playwright/test';
 export const test = base.extend<{ journeyEvidence: void }>({
   journeyEvidence: [async ({ page }, use, testInfo) => {
     const errors: string[] = [];
-    const captureError = (error: Error) => errors.push(error.message);
-    page.on('pageerror', captureError);
+    const _captureError = (error: Error) => errors.push(error.message);
+    page.on('pageerror', _captureError);
     await use();
-    page.off('pageerror', captureError);
+    page.off('pageerror', _captureError);
     if (testInfo.status !== testInfo.expectedStatus || errors.length) {
       const files = await page.evaluate(() => {
         const api = window.chessVueJourney;

@@ -6,7 +6,7 @@ import NewGameModal from '../NewGameModal.vue';
 
 let wrapper: VueWrapper;
 afterEach(() => wrapper?.unmount());
-function submitButton(): HTMLButtonElement {
+function _submitButton(): HTMLButtonElement {
   return wrapper.get<HTMLButtonElement>('[form="new-game-form"]').element;
 }
 describe('custom game validation', () => {
@@ -15,7 +15,7 @@ describe('custom game validation', () => {
     await wrapper.get('#time-preset').setValue('custom');
     await wrapper.get('input[type="number"]').setValue(minutes);
     await wrapper.get('form').trigger('submit');
-    expect(submitButton().disabled).toBe(true);
+    expect(_submitButton().disabled).toBe(true);
     expect(wrapper.get('[role="alert"]').text()).toContain('minutes');
     expect(wrapper.emitted('createRequested')).toBeUndefined();
   });
@@ -36,12 +36,12 @@ describe('custom game validation', () => {
     const settings = createSettingsSnapshot();
     settings.gameDefaults.defaultWhitePlayerType = PlayerType.Engine;
     wrapper = mount(NewGameModal, { props: { settings, engines: [] } });
-    expect(submitButton().disabled).toBe(true);
+    expect(_submitButton().disabled).toBe(true);
     expect(wrapper.get<HTMLSelectElement>('#white-player').element.value).toBe('engine:');
     const engine = createEngineRecord();
     await wrapper.setProps({ engines: [engine] });
     await wrapper.get('#white-player').setValue(`engine:${engine.id}`);
-    expect(submitButton().disabled).toBe(false);
+    expect(_submitButton().disabled).toBe(false);
     await wrapper.get('form').trigger('submit');
     const request = wrapper.emitted('createRequested')![0]![0] as ICreateGameRequest;
     expect(request.whitePlayer?.type).toBe(PlayerType.Engine);
@@ -55,7 +55,7 @@ describe('custom game validation', () => {
     expect(wrapper.get<HTMLSelectElement>('#black-player').element.value).toBe(`engine:${engine.id}`);
     await wrapper.setProps({ engines: [{ ...engine, executablePath: '' }] });
     await wrapper.get('form').trigger('submit');
-    expect(submitButton().disabled).toBe(true);
+    expect(_submitButton().disabled).toBe(true);
     expect(wrapper.emitted('createRequested')).toBeUndefined();
   });
 });

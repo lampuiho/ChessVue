@@ -73,19 +73,19 @@ const scholarMateMoves = {
 };
 const scholarMateSequence = [...scholarMateMoves.white.slice(0, 1), scholarMateMoves.black[0]!, scholarMateMoves.white[1]!, scholarMateMoves.black[1]!, scholarMateMoves.white[2]!, scholarMateMoves.black[2]!, scholarMateMoves.white[3]!];
 
-function createResolvedAfterDelay<T>(value: T, waitMs: number = 8): Promise<T> {
+function _createResolvedAfterDelay<T>(value: T, waitMs: number = 8): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(structuredClone(value)), waitMs));
 }
-function getMoveKey(move: IMove): string {
+function _getMoveKey(move: IMove): string {
   return `${move.movingColour}:${move.from}-${move.to}:${move.kind}:${move.promotionPiece ?? 'none'}`;
 }
-function isSameMove(left: IMove, right: IMove): boolean {
-  return getMoveKey(left) === getMoveKey(right);
+function _isSameMove(left: IMove, right: IMove): boolean {
+  return _getMoveKey(left) === _getMoveKey(right);
 }
-function queueEngineMoves(displayName: string, moves: readonly IMove[]) {
+function _queueEngineMoves(displayName: string, moves: readonly IMove[]) {
   queuedEngineMovesByName.set(displayName, moves.map((move) => structuredClone(move)));
 }
-function dequeueEngineMove(engine: IAssignedEngine): IMove {
+function _dequeueEngineMove(engine: IAssignedEngine): IMove {
   const queuedMoves = queuedEngineMovesByName.get(engine.displayName);
   if (queuedMoves?.length) {
     const nextMove = queuedMoves.shift()!;
@@ -94,20 +94,20 @@ function dequeueEngineMove(engine: IAssignedEngine): IMove {
   }
   return structuredClone(nextPlayerMove);
 }
-function applyDefaultMove(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
+function _applyDefaultMove(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
   const incrementsFullMove = position.sideToMove === PlayerColour.Black;
   position.sideToMove = move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
   position.halfMoveClock += 1;
   if (incrementsFullMove) position.fullMoveNumber += 1;
   return position;
 }
-function createOngoingResult(): IResolvedResult {
+function _createOngoingResult(): IResolvedResult {
   return { resultState: ResultState.Ongoing, resultReason: undefined };
 }
-function isLegalMove(_position: IGame['rootPosition'], _move: IMove): boolean {
+function _isLegalMove(_position: IGame['rootPosition'], _move: IMove): boolean {
   return true;
 }
-function createScholarMatePosition(): ITestBoardPosition {
+function _createScholarMatePosition(): ITestBoardPosition {
   const position = createBoardPosition(PlayerColour.White) as ITestBoardPosition;
   position.board[3] = { kind: PieceKind.Queen, colour: PlayerColour.White };
   position.board[4] = { kind: PieceKind.King, colour: PlayerColour.White };
@@ -121,10 +121,10 @@ function createScholarMatePosition(): ITestBoardPosition {
   position._testMoveHistory = [];
   return position;
 }
-function getTestMoveHistory(position: IGame['rootPosition']): string[] {
+function _getTestMoveHistory(position: IGame['rootPosition']): string[] {
   return [...((position as ITestBoardPosition)._testMoveHistory ?? [])];
 }
-function applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
+function _applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGame['rootPosition'] {
   const testPosition = position as ITestBoardPosition;
   const incrementsFullMove = position.sideToMove === PlayerColour.Black;
   testPosition.board[move.to] = testPosition.board[move.from];
@@ -132,46 +132,46 @@ function applyScholarMateMove(position: IGame['rootPosition'], move: IMove): IGa
   testPosition.sideToMove = move.movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
   testPosition.halfMoveClock += 1;
   if (incrementsFullMove) testPosition.fullMoveNumber += 1;
-  testPosition._testMoveHistory = [...getTestMoveHistory(position), getMoveKey(move)];
-  if (isSameMove(move, scholarMateMoves.white[3]!)) (testPosition.$ ??= {}).checkState = CheckState.Checkmate;
+  testPosition._testMoveHistory = [..._getTestMoveHistory(position), _getMoveKey(move)];
+  if (_isSameMove(move, scholarMateMoves.white[3]!)) (testPosition.$ ??= {}).checkState = CheckState.Checkmate;
   return testPosition;
 }
-function installScholarMateRules() {
-  utility.createInitialBoardPosition.mockImplementation(() => createScholarMatePosition());
+function _installScholarMateRules() {
+  utility.createInitialBoardPosition.mockImplementation(() => _createScholarMatePosition());
   utility.genLegalMoves.mockImplementation((position: IGame['rootPosition']) => {
-    const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
+    const expectedMove = scholarMateSequence[_getTestMoveHistory(position).length];
     return expectedMove ? [structuredClone(expectedMove)] : [];
   });
   utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => {
-    const expectedMove = scholarMateSequence[getTestMoveHistory(position).length];
-    return !!expectedMove && isSameMove(expectedMove, move);
+    const expectedMove = scholarMateSequence[_getTestMoveHistory(position).length];
+    return !!expectedMove && _isSameMove(expectedMove, move);
   });
-  domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => applyScholarMateMove(position, move));
+  domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => _applyScholarMateMove(position, move));
   utility.resolveGameResult.mockImplementation((position: IGame['rootPosition']): IResolvedResult => {
     if (position.$?.checkState === CheckState.Checkmate) return { resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved };
-    return createOngoingResult();
+    return _createOngoingResult();
   });
 }
-async function awaitPendingPlayerTurn(game: IGame) {
+async function _awaitPendingPlayerTurn(game: IGame) {
   const pendingPlayerTurn = game.$?.pendingPlayerTurnHandlePromise;
   if (pendingPlayerTurn) await pendingPlayerTurn;
 }
-async function createEngineTakebackGame(localColour: PlayerColour) {
+async function _createEngineTakebackGame(localColour: PlayerColour) {
   const store = useGamesStore();
   const engineColour = localColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
   nextPlayerMove = createMove(engineColour);
   const game = await store.createGame({
     name: 'Player takeback',
-    whitePlayer: localColour === PlayerColour.White ? createLocalPlayer(PlayerColour.White, 'White') : createEnginePlayer(PlayerColour.White, 'Engine White'),
-    blackPlayer: localColour === PlayerColour.Black ? createLocalPlayer(PlayerColour.Black, 'Black') : createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+    whitePlayer: localColour === PlayerColour.White ? _createLocalPlayer(PlayerColour.White, 'White') : _createEnginePlayer(PlayerColour.White, 'Engine White'),
+    blackPlayer: localColour === PlayerColour.Black ? _createLocalPlayer(PlayerColour.Black, 'Black') : _createEnginePlayer(PlayerColour.Black, 'Engine Black'),
     analysisEngineProfiles: [],
     allowTakeback: true,
     timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
   });
-  if (localColour === PlayerColour.Black) await awaitPendingPlayerTurn(game);
+  if (localColour === PlayerColour.Black) await _awaitPendingPlayerTurn(game);
   return { store, game };
 }
-async function createAnalysisWorkspace(engineCount: number = 2) {
+async function _createAnalysisWorkspace(engineCount: number = 2) {
   const store = useGamesStore();
   const game = await store.createGame({
     name: 'Analysis lifecycle',
@@ -181,7 +181,7 @@ async function createAnalysisWorkspace(engineCount: number = 2) {
   });
   return { store, game };
 }
-function emitSeatLines(game: IGame, index: number, count: number = 1): IEngineAnalysisUpdate {
+function _emitSeatLines(game: IGame, index: number, count: number = 1): IEngineAnalysisUpdate {
   const update: IEngineAnalysisUpdate = {
     position: game.$!.renderedPosition!,
     lines: Array.from({ length: count }, (_, rank) => ({ depth: 12, scoreCp: 30 - rank, pv: [createMove(PlayerColour.White)], $: { reference: rank + 1 } })),
@@ -190,10 +190,10 @@ function emitSeatLines(game: IGame, index: number, count: number = 1): IEngineAn
   emitAnalysisUpdate(analysisSubscriptions, game.analysis.seats[index]!.assignedEngine, update);
   return update;
 }
-async function playEngineOnlyGame(game: IGame, maxTurns: number = scholarMateSequence.length) {
-  for (let turnIndex = 0; turnIndex < maxTurns && game.resultState === ResultState.Ongoing; turnIndex += 1) await awaitPendingPlayerTurn(game);
+async function _playEngineOnlyGame(game: IGame, maxTurns: number = scholarMateSequence.length) {
+  for (let turnIndex = 0; turnIndex < maxTurns && game.resultState === ResultState.Ongoing; turnIndex += 1) await _awaitPendingPlayerTurn(game);
 }
-function expectScholarMateFinished(game: IGame) {
+function _expectScholarMateFinished(game: IGame) {
   expect(game.resultState).toBe(ResultState.WhiteWon);
   expect(game.resultReason).toBe(ResultReason.RuleResolved);
   expect(game.gameState).toBe(GameState.AnalysisBlackMove);
@@ -244,7 +244,7 @@ const domain = {
     }),
     awaitPlayerTurnMove: vi.fn(async (engine: IAssignedEngine, _searchedPosition: IGame['rootPosition']) => {
       if (engine.$) engine.$.availability = EngineAvailability.Ready;
-      return createResolvedAfterDelay(dequeueEngineMove(engine));
+      return _createResolvedAfterDelay(_dequeueEngineMove(engine));
     }),
     stopEngine: vi.fn(async (engine: IAssignedEngine) => {
       if (engine.$) engine.$.availability = EngineAvailability.Unavailable;
@@ -252,7 +252,7 @@ const domain = {
     }),
   },
   MoveApplicationService: {
-    applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => applyDefaultMove(position, move)),
+    applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => _applyDefaultMove(position, move)),
     genPosition: vi.fn((rootPosition: IGame['rootPosition'], moves: readonly IMove[]) =>
       moves.reduce((position, move) => domain.MoveApplicationService.applyMove(position, move), structuredClone(rootPosition))),
     clearBoard: vi.fn((position: IGame['rootPosition']) => {
@@ -430,13 +430,13 @@ const utility = {
   createInitialBoardPosition: vi.fn(() => createBoardPosition()),
   genLegalMoves: vi.fn((position: IGame['rootPosition']) => [createMove(position.sideToMove)]),
   toDetailedMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => structuredClone(move)),
-  isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move)),
-  resolveGameResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult()),
+  isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => _isLegalMove(position, move)),
+  resolveGameResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => _createOngoingResult()),
   getSan: vi.fn((move: IMove) => ((move.$ ??= {}).san ??= `${move.from}-${move.to}`)),
   getUci: vi.fn((move: IMove) => ((move.$ ??= {}).uci ??= `${move.from}-${move.to}`)),
 };
 
-function createLocalPlayer(colour: PlayerColour, displayName: string) {
+function _createLocalPlayer(colour: PlayerColour, displayName: string) {
   return {
     colour,
     type: PlayerType.Local,
@@ -444,7 +444,7 @@ function createLocalPlayer(colour: PlayerColour, displayName: string) {
     $: { activityState: PlayerActivityState.Active },
   };
 }
-function createEnginePlayer(colour: PlayerColour, displayName: string, engine: IEngineRecord = createEngineRecord(`${colour}-engine`, displayName)): IEnginePlayer {
+function _createEnginePlayer(colour: PlayerColour, displayName: string, engine: IEngineRecord = createEngineRecord(`${colour}-engine`, displayName)): IEnginePlayer {
   return {
     colour,
     type: PlayerType.Engine,
@@ -483,9 +483,9 @@ describe('useGamesStore', () => {
     utility.createInitialBoardPosition.mockImplementation(() => createBoardPosition());
     utility.genLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
     utility.toDetailedMove.mockImplementation((_position: IGame['rootPosition'], move: IMove) => structuredClone(move));
-    utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => isLegalMove(position, move));
-    domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => applyDefaultMove(position, move));
-    utility.resolveGameResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => createOngoingResult());
+    utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => _isLegalMove(position, move));
+    domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => _applyDefaultMove(position, move));
+    utility.resolveGameResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => _createOngoingResult());
     vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => createdGameIds.shift() ?? 'game-fallback-0000-0000-000000000000');
     vi.doMock('@/domain', () => domain);
     vi.doMock('@/utility/chess', () => utility);
@@ -499,8 +499,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Workspace Game',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       allowTakeback: true,
@@ -548,7 +548,7 @@ describe('useGamesStore', () => {
   it('retains time-control ownership and snapshots players only when assigning them to a game', async () => {
     const store = useGamesStore();
     const timeControl = { preset: TimeControlPreset.Untimed, incrementMs: 0 };
-    const whitePlayer = createLocalPlayer(PlayerColour.White, 'White');
+    const whitePlayer = _createLocalPlayer(PlayerColour.White, 'White');
     const game = await store.createGame({
       name: 'Owned Inputs',
       whitePlayer,
@@ -562,7 +562,7 @@ describe('useGamesStore', () => {
     expect(game.whitePlayer).not.toBe(whitePlayer);
     expect(game.whitePlayer).toMatchObject({ colour: PlayerColour.White, displayName: 'White' });
     const setupTimeControl = { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 };
-    const blackPlayer = createLocalPlayer(PlayerColour.Black, 'Black');
+    const blackPlayer = _createLocalPlayer(PlayerColour.Black, 'Black');
     await store.startGameFromSetup(game, {
       blackPlayer,
       analysisEngineProfiles: [],
@@ -576,8 +576,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Aliased Live Position',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -603,8 +603,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Late Move',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 1000, incrementMs: 2000 },
@@ -640,8 +640,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Move Before Resignation',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -664,8 +664,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Resignation Before Move',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -695,8 +695,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Concurrent Draw',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -723,8 +723,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Concurrent Timeout',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 1000, incrementMs: 2000 },
@@ -761,8 +761,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Detached Live Analysis',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: true,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -793,8 +793,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Divergent Live Position',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -816,7 +816,7 @@ describe('useGamesStore', () => {
       expect(position).toBe(selectedPosition);
       expect(game.$!.livePosition).toBe(position);
       expect(game.$!.renderedPosition).toBe(position);
-      return applyDefaultMove(position, move);
+      return _applyDefaultMove(position, move);
     });
 
     await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
@@ -857,8 +857,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Paused Analysis',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: true,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -881,8 +881,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Analysis Path Ownership',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: true,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -904,8 +904,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const liveGame = await store.createGame({
       name: 'History Live',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -940,8 +940,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Safe Takeback',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       allowTakeback: false,
@@ -973,7 +973,7 @@ describe('useGamesStore', () => {
     expect(domain.TimeControlService.startClock).toHaveBeenCalledWith(game.moveTree.root.clockSnapshot, PlayerColour.White, expect.any(Date));
   });
   it.each([PlayerColour.White, PlayerColour.Black])('takes back the %s player\'s own move and the engine reply from live history', async (localColour) => {
-    const { store, game } = await createEngineTakebackGame(localColour);
+    const { store, game } = await _createEngineTakebackGame(localColour);
     const retainedPath = [...game.livePath!];
     const retainedNode = retainedPath.length ? game.moveTree.root.children[0]! : game.moveTree.root;
     const pendingTurn = game.$!.pendingPlayerTurnPromise;
@@ -982,7 +982,7 @@ describe('useGamesStore', () => {
     expect(game.livePath).toEqual(retainedPath);
     expect(game.$!.pendingPlayerTurnPromise).toBe(pendingTurn);
     await store.makeMove(game, createMove(localColour));
-    await awaitPendingPlayerTurn(game);
+    await _awaitPendingPlayerTurn(game);
     expect(game.livePath).toHaveLength(retainedPath.length + 2);
     store.navigateToNode(game, game.moveTree.root);
     expect(store.getTakeBackMoveCount(game)).toBe(2);
@@ -1002,7 +1002,7 @@ describe('useGamesStore', () => {
     domain.EngineRuntimeService.startPlayerTurn.mockImplementationOnce(async (_engine, _game, attemptPlayerMove) => {
       deliverEngineMove = attemptPlayerMove;
     });
-    const { store, game } = await createEngineTakebackGame(PlayerColour.White);
+    const { store, game } = await _createEngineTakebackGame(PlayerColour.White);
     await store.makeMove(game, createMove(PlayerColour.White));
     await vi.waitFor(() => expect(deliverEngineMove).toBeDefined());
     const engineTurn = game.$!.pendingPlayerTurnAbortController!;
@@ -1017,7 +1017,7 @@ describe('useGamesStore', () => {
     expect(game.moveTree.root.children).toHaveLength(0);
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);
     await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
-    await awaitPendingPlayerTurn(game);
+    await _awaitPendingPlayerTurn(game);
     expect(game.livePath).toEqual([0, 0]);
     expect(game.moveTree.root.children[0]!.move?.from).toBe(11);
   });
@@ -1026,8 +1026,8 @@ describe('useGamesStore', () => {
     nextPlayerMove = createMove(PlayerColour.Black, 52, 36);
     const game = await store.createGame({
       name: 'History Engine Deferral',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createEnginePlayer(PlayerColour.Black, 'Engine Black'),
       analysisEngineProfiles: [createEngineRecord('analysis', 'Analysis engine')],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1039,7 +1039,7 @@ describe('useGamesStore', () => {
     const engineTurn = game.$!.pendingPlayerTurnHandlePromise;
     store.navigateToNode(game, game.moveTree.root);
     const renderedPath = game.renderedPath;
-    emitSeatLines(game, 0);
+    _emitSeatLines(game, 0);
     const renderedLines = game.analysis.seats[0]!.lines;
     const analysisStarts = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
     await engineTurn;
@@ -1059,8 +1059,8 @@ describe('useGamesStore', () => {
   });
 
   it('selects three rendered lines without altering the engine update or hiding empty seats', async () => {
-    const { store, game } = await createAnalysisWorkspace();
-    const update = emitSeatLines(game, 0, 5);
+    const { store, game } = await _createAnalysisWorkspace();
+    const update = _emitSeatLines(game, 0, 5);
     const rendered = game.analysis.seats[0]!.lines;
     expect(rendered).toHaveLength(3);
     expect(update.lines).toHaveLength(5);
@@ -1074,26 +1074,26 @@ describe('useGamesStore', () => {
     expect(game.analysis.seats[0]!.isComplete).toBe(false);
   });
   it('clears all seats synchronously and lets a second engine stream during delayed first startup', async () => {
-    const { store, game } = await createAnalysisWorkspace();
-    emitSeatLines(game, 0);
-    emitSeatLines(game, 1);
+    const { store, game } = await _createAnalysisWorkspace();
+    _emitSeatLines(game, 0);
+    _emitSeatLines(game, 1);
     const delayed = new Deferred<void>();
     domain.EngineRuntimeService.startAnalysis.mockClear();
     domain.EngineRuntimeService.startAnalysis.mockImplementationOnce(() => delayed);
     const refreshing = store.refreshAnalysis(game);
     expect(game.analysis.seats.every((seat) => seat.lines.length === 0)).toBe(true);
     expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(2);
-    emitSeatLines(game, 1);
+    _emitSeatLines(game, 1);
     expect(game.analysis.seats[1]!.lines).toHaveLength(1);
     expect(game.analysis.seats[0]!.lines).toEqual([]);
     delayed.resolve();
     await refreshing;
   });
   it('invalidates navigation immediately and rejects callbacks from the original A after A to B to A', async () => {
-    const { store, game } = await createAnalysisWorkspace(1);
+    const { store, game } = await _createAnalysisWorkspace(1);
     const seat = game.analysis.seats[0]!;
     const oldCallback = analysisSubscriptions.get(seat.assignedEngine)!;
-    const update = emitSeatLines(game, 0);
+    const update = _emitSeatLines(game, 0);
     const child = appendChild(game.moveTree.root, createMove(PlayerColour.White), MoveNodeKind.Analysis);
     const revision = store.workspaceRevision;
     store.navigateToNode(game, child);
@@ -1102,7 +1102,7 @@ describe('useGamesStore', () => {
     store.navigateToNode(game, game.moveTree.root);
     oldCallback(update);
     expect(seat.lines).toEqual([]);
-    emitSeatLines(game, 0);
+    _emitSeatLines(game, 0);
     const rendered = seat.lines;
     const calls = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
     store.navigateToNode(game, game.moveTree.root);
@@ -1111,12 +1111,12 @@ describe('useGamesStore', () => {
     await store.stopAnalysis(game);
   });
   it('does not let obsolete startup failure clear or publish over replacement results', async () => {
-    const { store, game } = await createAnalysisWorkspace(1);
+    const { store, game } = await _createAnalysisWorkspace(1);
     const delayed = new Deferred<void>();
     domain.EngineRuntimeService.startAnalysis.mockImplementationOnce(() => delayed);
     const previous = store.refreshAnalysis(game);
     await store.refreshAnalysis(game);
-    emitSeatLines(game, 0);
+    _emitSeatLines(game, 0);
     const rendered = game.analysis.seats[0]!.lines;
     const revision = store.workspaceRevision;
     delayed.reject(new Error('old startup'));
@@ -1125,10 +1125,10 @@ describe('useGamesStore', () => {
     expect(store.workspaceRevision).toBe(revision);
   });
   it('preserves Stop results, ignores late output, and clears them on the next position', async () => {
-    const { store, game } = await createAnalysisWorkspace(1);
+    const { store, game } = await _createAnalysisWorkspace(1);
     const seat = game.analysis.seats[0]!;
     const callback = analysisSubscriptions.get(seat.assignedEngine)!;
-    const update = emitSeatLines(game, 0);
+    const update = _emitSeatLines(game, 0);
     const rendered = seat.lines;
     await store.stopAnalysis(game);
     callback({ ...update, lines: [], isFinal: true });
@@ -1139,10 +1139,10 @@ describe('useGamesStore', () => {
     await store.stopAnalysis(game);
   });
   it('removes captured seats before delayed cleanup and ignores their callbacks', async () => {
-    const { store, game } = await createAnalysisWorkspace();
+    const { store, game } = await _createAnalysisWorkspace();
     const removed = [...game.analysis.seats];
     const callback = analysisSubscriptions.get(removed[0]!.assignedEngine)!;
-    const update = emitSeatLines(game, 0);
+    const update = _emitSeatLines(game, 0);
     const cleanup = new Deferred<void>();
     domain.EngineRuntimeService.stopEngine.mockImplementationOnce(() => cleanup);
     const removingFirst = store.removeAnalysisEngine(game, 0);
@@ -1156,9 +1156,9 @@ describe('useGamesStore', () => {
     expect(domain.EngineRuntimeService.stopEngine).toHaveBeenCalledWith(removed[1]!.assignedEngine);
   });
   it('retains lines on edit entry and no-op edits, then clears on the first effective edit', async () => {
-    const { store, game } = await createAnalysisWorkspace(1);
+    const { store, game } = await _createAnalysisWorkspace(1);
     game.rootPosition.board[4] = { kind: PieceKind.King, colour: PlayerColour.White };
-    emitSeatLines(game, 0);
+    _emitSeatLines(game, 0);
     const seat = game.analysis.seats[0]!;
     const rendered = seat.lines;
     store.enterBoardEdit(game);
@@ -1173,10 +1173,10 @@ describe('useGamesStore', () => {
     await store.stopAnalysis(game);
   });
   it('disposes replaced setup assignments before starting new seats', async () => {
-    const { store, game } = await createAnalysisWorkspace(1);
+    const { store, game } = await _createAnalysisWorkspace(1);
     const oldSeat = game.analysis.seats[0]!;
     const callback = analysisSubscriptions.get(oldSeat.assignedEngine)!;
-    const update = emitSeatLines(game, 0);
+    const update = _emitSeatLines(game, 0);
     await store.startGameFromSetup(game, {
       analysisEngineProfiles: [createEngineRecord('replacement', oldSeat.assignedEngine.displayName)],
       timeControl: game.timeControl,
@@ -1257,15 +1257,15 @@ describe('useGamesStore', () => {
     store.enterBoardEdit(game);
     await store.addAnalysisEngine(game, createEngineRecord('engine-board-edit', 'Stockfish'));
     const assignedEngine = game.analysis.seats[0]!.assignedEngine;
-    const getAssignedEngineReadyCount = () => domain.EngineRuntimeService.ensureReady.mock.calls.filter(([engine]) => engine === assignedEngine).length;
-    const getAssignedEngineStartCount = () => domain.EngineRuntimeService.startAnalysis.mock.calls.filter(([engine]) => engine === assignedEngine).length;
+    const _getAssignedEngineReadyCount = () => domain.EngineRuntimeService.ensureReady.mock.calls.filter(([engine]) => engine === assignedEngine).length;
+    const _getAssignedEngineStartCount = () => domain.EngineRuntimeService.startAnalysis.mock.calls.filter(([engine]) => engine === assignedEngine).length;
     expect(game.analysis.seats).toHaveLength(1);
-    expect(getAssignedEngineReadyCount()).toBe(0);
-    expect(getAssignedEngineStartCount()).toBe(0);
+    expect(_getAssignedEngineReadyCount()).toBe(0);
+    expect(_getAssignedEngineStartCount()).toBe(0);
     expect(analysisSubscriptions.has(assignedEngine)).toBe(false);
 
     store.enterBoardEdit(game);
-    await vi.waitFor(() => expect(getAssignedEngineStartCount()).toBe(1));
+    await vi.waitFor(() => expect(_getAssignedEngineStartCount()).toBe(1));
     expect(game.gameState).toBe(GameState.AnalysisWhiteMove);
     expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledWith(assignedEngine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
   });
@@ -1332,8 +1332,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Paused Exceptions',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1341,7 +1341,7 @@ describe('useGamesStore', () => {
 
     await store.pauseGame(game, PauseReason.Manual);
     void game.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
-    await expect(store.reassignPlayer(game, PlayerColour.Black, createEnginePlayer(PlayerColour.Black, 'Engine Black'))).resolves.toBeUndefined();
+    await expect(store.reassignPlayer(game, PlayerColour.Black, _createEnginePlayer(PlayerColour.Black, 'Engine Black'))).resolves.toBeUndefined();
     await expect(store.addAnalysisEngine(game, createEngineRecord('engine-e', 'Dragon'))).resolves.toBeUndefined();
     await expect(store.refreshAnalysis(game)).resolves.toBeUndefined();
     await expect(store.removeAnalysisEngine(game, 0)).resolves.toBeUndefined();
@@ -1354,8 +1354,8 @@ describe('useGamesStore', () => {
     nextPlayerMove.$!.ponderMove = ponderMove;
     const engineGame = await store.createGame({
       name: 'Engine Turn',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1380,8 +1380,8 @@ describe('useGamesStore', () => {
 
     const localGame = await store.createGame({
       name: 'Editable Game',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1402,8 +1402,8 @@ describe('useGamesStore', () => {
       const store = useGamesStore();
       const game = await store.createGame({
         name: 'Failed Engine Turn',
-        whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-        blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+        whitePlayer: _createEnginePlayer(PlayerColour.White, 'Engine White'),
+        blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
         analysisEngineProfiles: [],
         showLiveAnalysisMoves: false,
         timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1425,19 +1425,19 @@ describe('useGamesStore', () => {
     }
   });
   it('plays scholar mate through local player turns only', async () => {
-    installScholarMateRules();
+    _installScholarMateRules();
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Scholar Mate PvP',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
 
     for (const move of scholarMateSequence) await store.makeMove(game, move);
-    expectScholarMateFinished(game);
+    _expectScholarMateFinished(game);
     expect(domain.MoveApplicationService.applyMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
@@ -1445,7 +1445,7 @@ describe('useGamesStore', () => {
   });
   it('preserves resignation, agreed-draw, and checkmate results during later analysis', async () => {
     const store = useGamesStore();
-    async function expectResultPreserved(game: IGame) {
+    async function _expectResultPreserved(game: IGame) {
       const resultState = game.resultState;
       const resultReason = game.resultReason;
 
@@ -1458,8 +1458,8 @@ describe('useGamesStore', () => {
     }
     const resignationGame = await store.createGame({
       name: 'Resignation Review',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1467,12 +1467,12 @@ describe('useGamesStore', () => {
     await store.makeMove(resignationGame, createMove(PlayerColour.White));
     void resignationGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     await store.resignGame(resignationGame, PlayerColour.Black);
-    await expectResultPreserved(resignationGame);
+    await _expectResultPreserved(resignationGame);
 
     const drawnGame = await store.createGame({
       name: 'Draw Review',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1481,28 +1481,28 @@ describe('useGamesStore', () => {
     await store.offerDraw(drawnGame);
     void drawnGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     await store.acceptDrawOffer(drawnGame);
-    await expectResultPreserved(drawnGame);
+    await _expectResultPreserved(drawnGame);
 
-    installScholarMateRules();
+    _installScholarMateRules();
     const checkmateGame = await store.createGame({
       name: 'Checkmate Review',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
     for (const move of scholarMateSequence) await store.makeMove(checkmateGame, move);
-    await expectResultPreserved(checkmateGame);
+    await _expectResultPreserved(checkmateGame);
   });
   it('plays scholar mate with a delayed engine reply for black', async () => {
-    installScholarMateRules();
-    queueEngineMoves('Engine Black', scholarMateMoves.black);
+    _installScholarMateRules();
+    _queueEngineMoves('Engine Black', scholarMateMoves.black);
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Scholar Mate PvE',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createEnginePlayer(PlayerColour.Black, 'Engine Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1510,31 +1510,31 @@ describe('useGamesStore', () => {
 
     for (const move of scholarMateMoves.white) {
       await store.makeMove(game, move);
-      if (game.resultState === ResultState.Ongoing) await awaitPendingPlayerTurn(game);
+      if (game.resultState === ResultState.Ongoing) await _awaitPendingPlayerTurn(game);
     }
 
-    expectScholarMateFinished(game);
+    _expectScholarMateFinished(game);
     expect(domain.MoveApplicationService.applyMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(3);
     expect(domain.EngineRuntimeService.awaitPlayerTurnMove).toHaveBeenCalledTimes(3);
   });
   it('plays scholar mate with delayed engines on both sides', async () => {
-    installScholarMateRules();
-    queueEngineMoves('Engine White', scholarMateMoves.white);
-    queueEngineMoves('Engine Black', scholarMateMoves.black);
+    _installScholarMateRules();
+    _queueEngineMoves('Engine White', scholarMateMoves.white);
+    _queueEngineMoves('Engine Black', scholarMateMoves.black);
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Scholar Mate EvE',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+      whitePlayer: _createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: _createEnginePlayer(PlayerColour.Black, 'Engine Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
 
-    await playEngineOnlyGame(game);
-    expectScholarMateFinished(game);
+    await _playEngineOnlyGame(game);
+    _expectScholarMateFinished(game);
     expect(domain.MoveApplicationService.applyMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.MoveHistoryService.addMainlineMove).toHaveBeenCalledTimes(scholarMateSequence.length);
     expect(domain.EngineRuntimeService.startPlayerTurn).toHaveBeenCalledTimes(7);
@@ -1546,8 +1546,8 @@ describe('useGamesStore', () => {
     nextPlayerMove.$!.ponderMove = createMove(PlayerColour.Black, 52, 36);
     const game = await store.createGame({
       name: 'Deferred Engine Move',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1570,8 +1570,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'History Policy',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1595,8 +1595,8 @@ describe('useGamesStore', () => {
 
     const branchGame = await store.createGame({
       name: 'History Analysis Only',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1625,8 +1625,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Prune After Analysis',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: true,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1678,14 +1678,14 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Restore Engine Turn',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
     const payload = stripRuntimeMetadata(game);
-    payload.whitePlayer = createEnginePlayer(PlayerColour.White, 'Engine White');
+    payload.whitePlayer = _createEnginePlayer(PlayerColour.White, 'Engine White');
     domain.EngineRuntimeService.startPlayerTurn.mockClear();
 
     const restoredGame = await store.insertGame(payload);
@@ -1702,28 +1702,28 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const pausedGame = await store.createGame({
       name: 'Paused Reassign',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: true,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
     });
     await store.enterInGameAnalysis(pausedGame);
     void pausedGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
-    await store.reassignPlayer(pausedGame, PlayerColour.White, createEnginePlayer(PlayerColour.White, 'Engine White'));
+    await store.reassignPlayer(pausedGame, PlayerColour.White, _createEnginePlayer(PlayerColour.White, 'Engine White'));
     expect(pausedGame.gameState).toBe(GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove);
 
     const staleGame = await store.createGame({
       name: 'Stale Seat Request',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
     });
     const pendingMove = staleGame.$?.pendingPlayerTurnHandlePromise;
     void pendingMove?.catch(() => undefined);
-    await store.reassignPlayer(staleGame, PlayerColour.White, createLocalPlayer(PlayerColour.White, 'Replacement White'));
+    await store.reassignPlayer(staleGame, PlayerColour.White, _createLocalPlayer(PlayerColour.White, 'Replacement White'));
     await randomDelay();
     await randomDelay();
     await randomDelay();
@@ -1731,15 +1731,15 @@ describe('useGamesStore', () => {
 
     const dueGame = await store.createGame({
       name: 'Due Engine Reassign',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
     });
     void dueGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     domain.EngineRuntimeService.startPlayerTurn.mockClear();
-    await store.reassignPlayer(dueGame, PlayerColour.White, createEnginePlayer(PlayerColour.White, 'Engine White'));
+    await store.reassignPlayer(dueGame, PlayerColour.White, _createEnginePlayer(PlayerColour.White, 'Engine White'));
     const duePendingMove = dueGame.$?.pendingPlayerTurnHandlePromise;
     await randomDelay();
     await randomDelay();
@@ -1751,8 +1751,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Engine To Analysis',
-      whitePlayer: createEnginePlayer(PlayerColour.White, 'Engine White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createEnginePlayer(PlayerColour.White, 'Engine White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1800,8 +1800,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Timeout Analysis',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [createEngineRecord('engine-g', 'Storm')],
       showLiveAnalysisMoves: true,
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
@@ -1852,8 +1852,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Blocked Move',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1881,8 +1881,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Playable Move',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
@@ -1902,8 +1902,8 @@ describe('useGamesStore', () => {
     const store = useGamesStore();
     const game = await store.createGame({
       name: 'Untimed Live',
-      whitePlayer: createLocalPlayer(PlayerColour.White, 'White'),
-      blackPlayer: createLocalPlayer(PlayerColour.Black, 'Black'),
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
       analysisEngineProfiles: [],
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },

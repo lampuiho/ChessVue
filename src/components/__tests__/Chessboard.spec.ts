@@ -7,13 +7,13 @@ import Chessboard from '../Chessboard.vue';
 let wrapper: VueWrapper | undefined;
 afterEach(() => wrapper?.unmount());
 // Match GameView's raw derived board; rule queries update its non-reactive runtime caches.
-const initialPosition = () => markRaw(createInitialBoardPosition());
+const _initialPosition = () => markRaw(createInitialBoardPosition());
 it.each(['position', 'mode'] as const)('discards an in-progress drag when the external %s changes', async (boundary) => {
-  wrapper = mount(Chessboard, { props: { position: initialPosition(), boardEdit: boundary === 'position' } });
+  wrapper = mount(Chessboard, { props: { position: _initialPosition(), boardEdit: boundary === 'position' } });
   const source = wrapper.get('[aria-label="e2 white pawn"] .chess-piece');
   const target = wrapper.get('[aria-label="e4"]');
   await source.trigger('dragstart');
-  await wrapper.setProps(boundary === 'position' ? { position: initialPosition() } : { boardEdit: true });
+  await wrapper.setProps(boundary === 'position' ? { position: _initialPosition() } : { boardEdit: true });
   await target.trigger('drop');
   expect(wrapper.emitted('chessPieceMoved')).toBeUndefined();
   expect(wrapper.emitted('moveAttempted')).toBeUndefined();
@@ -31,7 +31,7 @@ it('discards a pending promotion when an external position replaces its board', 
   await wrapper.get('[aria-label="a7 white pawn"]').trigger('click');
   await wrapper.get('[aria-label="a8"]').trigger('click');
   expect(wrapper.find('[aria-label="Pawn promotion"]').exists()).toBe(true);
-  await wrapper.setProps({ position: initialPosition() });
+  await wrapper.setProps({ position: _initialPosition() });
   expect(wrapper.find('[aria-label="Pawn promotion"]').exists()).toBe(false);
   expect(wrapper.emitted('moveAttempted')).toBeUndefined();
 });

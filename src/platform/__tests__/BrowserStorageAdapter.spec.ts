@@ -14,12 +14,12 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-function createStorage() {
+function _createStorage() {
   return defineBrowserStorageAdapterStore(localStorage, 'browser-test')();
 }
 describe('browser persistence', () => {
   it('retains canonical paths and dates across adapter instances without stale writes', async () => {
-    const storage = createStorage();
+    const storage = _createStorage();
     await storage.writeTextFile('saves\\game/auto.json', 'first', { ensureParentDirectory: true });
     const firstDate = (await storage.listDirectory('saves/game'))[0]!.lastModifiedUtc!;
     const other = new BrowserFileSystem(localStorage, 'browser-test');
@@ -31,7 +31,7 @@ describe('browser persistence', () => {
     expect((await storage.listDirectory('saves/game'))[0]!.lastModifiedUtc!.getTime()).toBeGreaterThan(firstDate.getTime());
   });
   it('enforces parents, overwrite, directories and deletion', async () => {
-    const storage = createStorage();
+    const storage = _createStorage();
     await expect(storage.writeTextFile('missing/file.json', '')).rejects.toMatchObject({ kind: 'notFound' });
     await storage.ensureDirectory('saves/game');
     await storage.writeTextFile('saves/game/test.json', '{}');
@@ -43,7 +43,7 @@ describe('browser persistence', () => {
     await expect(storage.deleteFile('saves/game/test.json')).rejects.toMatchObject({ kind: 'notFound' });
   });
   it('maps corruption and storage failure without claiming the write succeeded', async () => {
-    const storage = createStorage();
+    const storage = _createStorage();
     localStorage.setItem('browser-test', '{ invalid');
     await expect(storage.readTextFile('settings.json')).rejects.toMatchObject({ kind: 'invalidDocument' });
     localStorage.removeItem('browser-test');
@@ -52,7 +52,7 @@ describe('browser persistence', () => {
     expect(await storage.listDirectory('.')).toEqual([]);
   });
   it('imports a real browser File without adding it to managed storage', async () => {
-    const storage = createStorage();
+    const storage = _createStorage();
     const pending = storage.showOpenDialog();
     const input = document.querySelector<HTMLInputElement>('input[type=file]')!;
     Object.defineProperty(input, 'files', { value: [new File(['{"schemaVersion":1}'], 'game.json', { type: 'application/json' })] });
@@ -63,7 +63,7 @@ describe('browser persistence', () => {
     expect(document.querySelector('input[type=file]')).toBeNull();
   });
   it('rejects cancelled and invalid UTF-8 imports and removes the picker', async () => {
-    const storage = createStorage();
+    const storage = _createStorage();
     const cancelled = storage.showOpenDialog();
     document.querySelector('input')!.dispatchEvent(new Event('cancel'));
     await expect(cancelled).rejects.toMatchObject({ kind: 'cancelled' });
@@ -75,7 +75,7 @@ describe('browser persistence', () => {
     expect(document.querySelector('input')).toBeNull();
   });
   it('downloads external exports without treating them as managed saves', async () => {
-    const storage = createStorage();
+    const storage = _createStorage();
     const createUrl = vi.fn(() => 'blob:test');
     vi.stubGlobal('URL', class extends URL {
       static createObjectURL = createUrl;

@@ -11,7 +11,7 @@ import { createInitialBoardPosition, toDetailedMove } from '@/utility/chess';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 import { ClockTimestamp, RecordTimestamp } from '@/utility/date';
 
-const boardId = (file: number, rank: number) => file + (rank * 8);
+const _boardId = (file: number, rank: number) => file + (rank * 8);
 
 class FakeMediaQueryList {
   matches = false;
@@ -104,81 +104,81 @@ class FakeFileSystemModule {
   private _tick = 1;
 
   constructor(readonly rootPath: string) {
-    this._directories.add(this.normalise(rootPath));
+    this._directories.add(this._normalise(rootPath));
   }
 
   get module(): typeof import('node:fs') {
     return {
       promises: {
-        access: this.access.bind(this),
-        mkdir: this.mkdir.bind(this),
-        readdir: this.readdir.bind(this),
-        readFile: this.readFile.bind(this),
-        stat: this.stat.bind(this),
-        unlink: this.unlink.bind(this),
-        writeFile: this.writeFile.bind(this),
+        access: this._access.bind(this),
+        mkdir: this._mkdir.bind(this),
+        readdir: this._readdir.bind(this),
+        readFile: this._readFile.bind(this),
+        stat: this._stat.bind(this),
+        unlink: this._unlink.bind(this),
+        writeFile: this._writeFile.bind(this),
       },
     } as unknown as typeof import('node:fs');
   }
-  private normalise(targetPath: string): string {
+  private _normalise(targetPath: string): string {
     return targetPath.replace(/\\/g, '/');
   }
-  private createNodeError(code: string): NodeJS.ErrnoException {
+  private _createNodeError(code: string): NodeJS.ErrnoException {
     const error = new Error(code) as NodeJS.ErrnoException;
     error.code = code;
     return error;
   }
-  private ensureDirectoryTree(targetPath: string) {
-    const segments = this.normalise(targetPath).split('/');
+  private _ensureDirectoryTree(targetPath: string) {
+    const segments = this._normalise(targetPath).split('/');
     for (let index = 1; index <= segments.length; index += 1) {
       const segmentPath = segments.slice(0, index).join('/');
       if (segmentPath.length > 0) this._directories.add(segmentPath);
     }
   }
-  private hasEntry(targetPath: string): boolean {
-    const normalisedPath = this.normalise(targetPath);
+  private _hasEntry(targetPath: string): boolean {
+    const normalisedPath = this._normalise(targetPath);
     return this._directories.has(normalisedPath) || this._files.has(normalisedPath);
   }
-  private async access(targetPath: string) {
-    if (!this.hasEntry(targetPath)) throw this.createNodeError('ENOENT');
+  private async _access(targetPath: string) {
+    if (!this._hasEntry(targetPath)) throw this._createNodeError('ENOENT');
   }
-  private async mkdir(targetPath: string, options?: { recursive?: boolean }) {
-    const normalisedPath = this.normalise(targetPath);
-    const parentPath = this.normalise(path.dirname(targetPath));
-    if (!options?.recursive && !this._directories.has(parentPath)) throw this.createNodeError('ENOENT');
-    this.ensureDirectoryTree(normalisedPath);
+  private async _mkdir(targetPath: string, options?: { recursive?: boolean }) {
+    const normalisedPath = this._normalise(targetPath);
+    const parentPath = this._normalise(path.dirname(targetPath));
+    if (!options?.recursive && !this._directories.has(parentPath)) throw this._createNodeError('ENOENT');
+    this._ensureDirectoryTree(normalisedPath);
   }
-  private async readdir(targetPath: string, _options?: { withFileTypes?: boolean }): Promise<FakeDirent[]> {
-    const normalisedPath = this.normalise(targetPath);
-    if (!this._directories.has(normalisedPath)) throw this.createNodeError('ENOENT');
+  private async _readdir(targetPath: string, _options?: { withFileTypes?: boolean }): Promise<FakeDirent[]> {
+    const normalisedPath = this._normalise(targetPath);
+    if (!this._directories.has(normalisedPath)) throw this._createNodeError('ENOENT');
     const childEntries = new Map<string, boolean>();
     for (const directoryPath of this._directories) {
       if (directoryPath === normalisedPath) continue;
-      if (this.normalise(path.dirname(directoryPath)) === normalisedPath) childEntries.set(path.basename(directoryPath), true);
+      if (this._normalise(path.dirname(directoryPath)) === normalisedPath) childEntries.set(path.basename(directoryPath), true);
     }
     for (const filePath of this._files.keys()) {
-      if (this.normalise(path.dirname(filePath)) === normalisedPath) childEntries.set(path.basename(filePath), false);
+      if (this._normalise(path.dirname(filePath)) === normalisedPath) childEntries.set(path.basename(filePath), false);
     }
     return [...childEntries.entries()].sort((left, right) => left[0].localeCompare(right[0])).map(([name, isDirectory]) => new FakeDirent(name, isDirectory));
   }
-  private async writeFile(targetPath: string, raw: string) {
-    const normalisedPath = this.normalise(targetPath);
-    const parentPath = this.normalise(path.dirname(targetPath));
-    if (!this._directories.has(parentPath)) throw this.createNodeError('ENOENT');
+  private async _writeFile(targetPath: string, raw: string) {
+    const normalisedPath = this._normalise(targetPath);
+    const parentPath = this._normalise(path.dirname(targetPath));
+    if (!this._directories.has(parentPath)) throw this._createNodeError('ENOENT');
     this._files.set(normalisedPath, { raw, mtime: new Date(this._tick++ * 1000) });
   }
-  private async readFile(targetPath: string): Promise<Buffer> {
-    const file = this._files.get(this.normalise(targetPath));
-    if (file === undefined) throw this.createNodeError('ENOENT');
+  private async _readFile(targetPath: string): Promise<Buffer> {
+    const file = this._files.get(this._normalise(targetPath));
+    if (file === undefined) throw this._createNodeError('ENOENT');
     return Buffer.from(file.raw, 'utf8');
   }
-  private async stat(targetPath: string): Promise<{ mtime: Date }> {
-    const file = this._files.get(this.normalise(targetPath));
-    if (file === undefined) throw this.createNodeError('ENOENT');
+  private async _stat(targetPath: string): Promise<{ mtime: Date }> {
+    const file = this._files.get(this._normalise(targetPath));
+    if (file === undefined) throw this._createNodeError('ENOENT');
     return { mtime: file.mtime };
   }
-  private async unlink(targetPath: string) {
-    if (!this._files.delete(this.normalise(targetPath))) throw this.createNodeError('ENOENT');
+  private async _unlink(targetPath: string) {
+    if (!this._files.delete(this._normalise(targetPath))) throw this._createNodeError('ENOENT');
   }
 }
 export class FakeNwjsEnvironment {
@@ -228,7 +228,7 @@ export function createEngineGame(): IGame {
   const game = createPersistedGame();
   game.timeControl = { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 1000 };
   game.clockSnapshot = TimeControlService.startClock(TimeControlService.initialiseClockSnapshot(game.timeControl), PlayerColour.Black, new ClockTimestamp('2026-01-01T12:00:01.000Z'));
-  const move = toDetailedMove(game.rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
+  const move = toDetailedMove(game.rootPosition, { from: _boardId(4, 1), to: _boardId(4, 3) });
   const liveNode = MoveHistoryService.addMainlineMove(game.moveTree.root, move, game.clockSnapshot);
   game.gameState = GameState.LiveBlackTurn;
   const path = [0];
@@ -277,7 +277,7 @@ export function normaliseTestPath(targetPath: string): string {
   return targetPath.replace(/\\/g, '/');
 }
 export function getBoardId(file: number, rank: number): number {
-  return boardId(file, rank);
+  return _boardId(file, rank);
 }
 export function registerNwjsPlatformTestEnvironment() {
   let environment: FakeNwjsEnvironment;

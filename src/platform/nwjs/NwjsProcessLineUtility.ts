@@ -7,7 +7,7 @@ function _createPlatformError(kind: PlatformErrorKind, operation: string, messag
 }
 export function attachProcessLineListeners(process: ISpawnedProcess, onLine: (line: string) => void, onExit: (code: number | null, signal: NodeJS.Signals | null) => void): () => void {
   let lineBuffer = '';
-  const onData = (chunk: string | Buffer) => {
+  const _onData = (chunk: string | Buffer) => {
     lineBuffer += chunk.toString();
     const lines = lineBuffer.split(/\r?\n/);
     lineBuffer = lines.pop() ?? '';
@@ -16,12 +16,12 @@ export function attachProcessLineListeners(process: ISpawnedProcess, onLine: (li
       if (trimmedLine.length > 0) onLine(trimmedLine);
     }
   };
-  process.stdout?.on('data', onData);
-  process.stderr?.on('data', onData);
+  process.stdout?.on('data', _onData);
+  process.stderr?.on('data', _onData);
   process.once('exit', onExit);
   return () => {
-    process.stdout?.removeListener('data', onData);
-    process.stderr?.removeListener('data', onData);
+    process.stdout?.removeListener('data', _onData);
+    process.stderr?.removeListener('data', _onData);
     process.removeListener('exit', onExit);
   };
 }

@@ -14,25 +14,25 @@ import { JourneyEngineBarrier } from './runtime/engine/JourneyEngineBarrier';
 import { JourneyStorageBarrier } from './runtime/storage/JourneyStorageBarrier';
 import type { IJourneyApi } from './Journey';
 
-function createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
+function _createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
   let importPath: string | null = 'imports/valid.json';
   let exportPath: string | null | undefined;
   api.chooseImport = (path) => { importPath = path; };
   api.chooseExport = (path) => { exportPath = path; };
-  function resolve(path: string | null, operation: string): string {
+  function _resolve(path: string | null, operation: string): string {
     if (path === null) throw { kind: PlatformErrorKind.Cancelled, operation, message: 'Journey file dialog cancelled.' };
     return path;
   }
   return (storage: IStorageAdapter) => {
     storage.showOpenDialog = async () => {
-      const path = resolve(importPath, 'showOpenDialog');
+      const path = _resolve(importPath, 'showOpenDialog');
       if (fs.readFile(path) === undefined) throw { kind: PlatformErrorKind.NotFound, operation: 'showOpenDialog', message: `Journey file not found: ${path}.` };
       return path;
     };
-    storage.showSaveDialog = async (suggested) => resolve(exportPath === undefined ? `exports/${getMockNodePath().basename(suggested ?? 'game.json')}` : exportPath, 'showSaveDialog');
+    storage.showSaveDialog = async (suggested) => _resolve(exportPath === undefined ? `exports/${getMockNodePath().basename(suggested ?? 'game.json')}` : exportPath, 'showSaveDialog');
   };
 }
-function installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem, engines: JourneyEngineBarrier) {
+function _installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem, engines: JourneyEngineBarrier) {
   const nw = getMockNwjs();
   setNodeModuleOverrides({
     fs: fs as unknown as typeof import('node:fs'), path: getMockNodePath(),
@@ -64,7 +64,7 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
   const engines = new JourneyEngineBarrier();
   const storageBarrier = new JourneyStorageBarrier();
   for (const fault of seed.storageFaults ?? []) storageBarrier.failNext(fault.operation, fault.path, fault.count);
-  installBrowserPlatform(storage, key, fs, engines);
+  _installBrowserPlatform(storage, key, fs, engines);
   const browserFiles = new BrowserFileSystem(storage, key);
   const api: IJourneyApi = {
     ...journeyCatalogue[name]!, name, gameIds: seed.gameIds, ready: false, engines, storage: storageBarrier,
@@ -72,7 +72,7 @@ export async function prepareJourney(run: { name: string; id: string }, storage 
     changeFile: (path, raw) => changeManagedFile(browserFiles, path, raw),
     chooseImport: () => {}, chooseExport: () => {}, reset: () => { engines.reset(); storageBarrier.reset(); fs.reset(); window.location.reload(); },
   };
-  const installDialogs = createDialogs(api, browserFiles);
+  const installDialogs = _createDialogs(api, browserFiles);
   window.chessVueJourney = api;
   // App restores its persisted route after loading games, just as on a normal launch.
   window.history.replaceState(null, '', '/home');

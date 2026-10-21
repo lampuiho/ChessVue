@@ -3,18 +3,18 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-function findCaseFiles(directory) {
+function _findCaseFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
-    if (entry.isDirectory()) return findCaseFiles(path);
+    if (entry.isDirectory()) return _findCaseFiles(path);
     return entry.name.endsWith('.json') ? [path] : [];
   });
 }
 export function loadJourneyCases(root = repositoryRoot) {
-  const paths = findCaseFiles(resolve(root, 'journeys/definitions')).filter((path) => path.replaceAll('\\', '/').includes('/cases/'));
+  const paths = _findCaseFiles(resolve(root, 'journeys/definitions')).filter((path) => path.replaceAll('\\', '/').includes('/cases/'));
   for (const area of ['sessions', 'usability']) {
     const directory = resolve(root, 'journeys/coverage', area);
-    if (existsSync(directory)) paths.push(...findCaseFiles(directory));
+    if (existsSync(directory)) paths.push(..._findCaseFiles(directory));
   }
   const cases = paths.flatMap((path) => JSON.parse(readFileSync(path, 'utf8')));
   const identifiers = new Set();

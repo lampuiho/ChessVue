@@ -11,7 +11,7 @@ import { expectOutput } from '../journeys/analysis/AnalysisAction';
 import { expectFreeWorkspace, finishEditing, historyRow, openSetupStart } from '../journeys/setup/SetupAction';
 import { latestSearch, release } from '../journeys/engine-races/RaceAction';
 import { exportSession, importSession, openSession, playSessionMoves, reloadSession } from './SessionAction';
-async function createNestedStudy(page: Page) {
+async function _createNestedStudy(page: Page) {
   const dialog = await openCustomGame(page);
   await dialog.getByLabel('Name', { exact: false }).fill('Nested session study');
   await dialog.getByRole('button', { name: 'Free analysis', exact: true }).click();
@@ -32,7 +32,7 @@ async function createNestedStudy(page: Page) {
   expect(JSON.stringify(study.moveTree)).not.toContain('recordedAnalysis');
   return study;
 }
-async function editVisibleStudy(page: Page, study: IGame) {
+async function _editVisibleStudy(page: Page, study: IGame) {
   await page.getByRole('button', { name: /Edit board/ }).click();
   await square(page, 'a3').click({ button: 'right' });
   await finishEditing(page);
@@ -57,7 +57,7 @@ async function editVisibleStudy(page: Page, study: IGame) {
   expect(edited.rootPosition.board[8]).toBeNull();
   return edited;
 }
-async function startPreparedGame(page: Page, edited: IGame) {
+async function _startPreparedGame(page: Page, edited: IGame) {
   await page.evaluate(() => window.chessVueJourney.engines.hold('player'));
   const dialog = await openSetupStart(page);
   await setCustomClock(dialog, '3', '2');
@@ -79,7 +79,7 @@ async function startPreparedGame(page: Page, edited: IGame) {
   expect(started.clockSnapshot.black.remainingMs).toBe(182000);
   return started;
 }
-async function transferStudy(page: Page, started: IGame) {
+async function _transferStudy(page: Page, started: IGame) {
   const exported = await exportSession(page, studyExportPath);
   expectCanonical(exported, started);
   const sourcePath = `saves/${started.metadata.id}/Engine replied.json`;
@@ -98,8 +98,8 @@ async function transferStudy(page: Page, started: IGame) {
 }
 test('JRN-SESSION-02 branches, edits the visible study, starts an engine game and transfers it', async ({ page }) => {
   await openSession(page);
-  const study = await test.step('Create free analysis and nested alternatives', () => createNestedStudy(page));
-  const edited = await test.step('Preserve history until the first effective edit of the selected position', () => editVisibleStudy(page, study));
-  const started = await test.step('Start a timed game on the prepared board and receive one engine reply', () => startPreparedGame(page, edited));
-  await test.step('Export, import with fresh identity and reload', () => transferStudy(page, started));
+  const study = await test.step('Create free analysis and nested alternatives', () => _createNestedStudy(page));
+  const edited = await test.step('Preserve history until the first effective edit of the selected position', () => _editVisibleStudy(page, study));
+  const started = await test.step('Start a timed game on the prepared board and receive one engine reply', () => _startPreparedGame(page, edited));
+  await test.step('Export, import with fresh identity and reload', () => _transferStudy(page, started));
 });

@@ -2,12 +2,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadJourneyCases, repositoryRoot } from './CaseRegistry.mjs';
 
-function executedTests(report) {
+function _executedTests(report) {
   if (!report) return [];
-  function flatten(suites) {
-    return suites.flatMap((suite) => [...(suite.specs ?? []), ...flatten(suite.suites ?? [])]);
+  function _flatten(suites) {
+    return suites.flatMap((suite) => [...(suite.specs ?? []), ..._flatten(suite.suites ?? [])]);
   }
-  return flatten(report.suites).flatMap((spec) => spec.tests.map((test) => ({
+  return _flatten(report.suites).flatMap((spec) => spec.tests.map((test) => ({
     spec: resolve(report.config.rootDir, spec.file), title: spec.title, project: test.projectName,
     passed: test.expectedStatus === 'passed' && test.status === 'expected' && test.results.length === 1 && test.results[0].status === 'passed',
     flaky: test.status === 'flaky' || test.results.length > 1,
@@ -15,7 +15,7 @@ function executedTests(report) {
   })));
 }
 export function aggregateCaseResults(cases, report, root = repositoryRoot) {
-  const executions = executedTests(report);
+  const executions = _executedTests(report);
   return cases.map((entry) => {
     const expected = entry.tests.flatMap((test) => test.titles.map((title) => ({ spec: resolve(root, test.spec), title, project: test.project ?? 'journeys' })));
     const matches = expected.map((test) => executions.filter((execution) => execution.spec === test.spec && execution.title === test.title && execution.project === test.project));

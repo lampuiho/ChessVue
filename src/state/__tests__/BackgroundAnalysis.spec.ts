@@ -29,29 +29,29 @@ vi.mock('@/domain', async (importOriginal) => {
 });
 const position = useGamePosition();
 let store: ReturnType<typeof useGamesStore>;
-function local(colour: PlayerColour): IPlayer {
+function _local(colour: PlayerColour): IPlayer {
   return { colour, type: PlayerType.Local, displayName: colour };
 }
-function engine(colour: PlayerColour): IPlayer {
-  return { ...local(colour), type: PlayerType.Engine, assignedEngine: createAssignedEngine() } as IPlayer;
+function _engine(colour: PlayerColour): IPlayer {
+  return { ..._local(colour), type: PlayerType.Engine, assignedEngine: createAssignedEngine() } as IPlayer;
 }
-async function start(white: IPlayer = local(PlayerColour.White), black: IPlayer = engine(PlayerColour.Black)) {
+async function _start(white: IPlayer = _local(PlayerColour.White), black: IPlayer = _engine(PlayerColour.Black)) {
   const game = await store.createGame({ name: 'Background analysis', whitePlayer: white, blackPlayer: black, analysisEngineProfiles: [], allowTakeback: true,
     timeControl: { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: 2000 } });
   await flushPromises();
   return game;
 }
-function detailed(game: IGame, from: number, to: number, live: boolean = false) {
+function _detailed(game: IGame, from: number, to: number, live: boolean = false) {
   return toDetailedMove(live ? position.getLivePosition(game) : position.getRenderedPosition(game), { from, to });
 }
-async function release(game: IGame, from: number, to: number) {
+async function _release(game: IGame, from: number, to: number) {
   const turn = [...external.turns].reverse().find((candidate) => candidate.game === game && !candidate.delivered && !candidate.signal?.aborted);
   if (!turn) throw new Error('Expected an armed actual engine turn.');
   turn.delivered = true;
-  await turn.deliver(detailed(game, from, to, true));
+  await turn.deliver(_detailed(game, from, to, true));
   await flushPromises();
 }
-async function explore(game: IGame) {
+async function _explore(game: IGame) {
   await store.enterInGameAnalysis(game);
   // Old analysis pauses are explicitly removed here to test isolation/progression independently.
   await store.resumeGame(game, PauseReason.Analysis);
@@ -70,7 +70,7 @@ describe('background analysis through game data and existing actions', () => {
     vi.restoreAllMocks();
   });
   it('leaves running clock data unchanged on explicit analysis entry and exit', async () => {
-    const game = await start();
+    const game = await _start();
     const clock = game.clockSnapshot;
     await store.enterInGameAnalysis(game);
     expect(game.clockSnapshot).toBe(clock);
@@ -81,11 +81,11 @@ describe('background analysis through game data and existing actions', () => {
     expect(game.renderedPath).toBe(game.livePath);
   });
   it('keeps an equal-path selected board fixed before the first exploratory move', async () => {
-    const game = await start(engine(PlayerColour.White));
-    await explore(game);
+    const game = await _start(_engine(PlayerColour.White));
+    await _explore(game);
     const selected = position.getRenderedPosition(game);
     const selectedPath = game.renderedPath;
-    await release(game, 12, 28);
+    await _release(game, 12, 28);
     expect(game.livePath).toHaveLength(1);
     expect(game.renderedPath).toBe(selectedPath);
     expect(game.renderedPath).toEqual([]);
@@ -95,20 +95,20 @@ describe('background analysis through game data and existing actions', () => {
     expect(position.getLivePosition(game).board[28]).toEqual({ colour: PlayerColour.White, kind: 'pawn' });
   });
   it('starts successive actual engine turns while analysis remains selected', async () => {
-    const game = await start(engine(PlayerColour.White), engine(PlayerColour.Black));
-    await explore(game);
-    await release(game, 12, 28);
+    const game = await _start(_engine(PlayerColour.White), _engine(PlayerColour.Black));
+    await _explore(game);
+    await _release(game, 12, 28);
     expect(external.turns).toHaveLength(2);
-    await release(game, 52, 36);
+    await _release(game, 52, 36);
     expect(external.turns).toHaveLength(3);
-    await release(game, 6, 21);
+    await _release(game, 6, 21);
     expect(game.livePath).toHaveLength(3);
     expect(game.renderedPath).toEqual([]);
     expect(external.turns).toHaveLength(4);
   });
   it('keeps history review distinct and explicitly analyses the selected historical move', async () => {
-    const game = await start();
-    await store.makeMove(game, detailed(game, 12, 28));
+    const game = await _start();
+    await store.makeMove(game, _detailed(game, 12, 28));
     store.navigateToNode(game, game.moveTree.root);
     expect(game.gameState).toBe(GameState.LiveBlackTurn);
     await store.enterInGameAnalysis(game);
@@ -118,23 +118,23 @@ describe('background analysis through game data and existing actions', () => {
     expect(game.clockSnapshot.black.isRunning).toBe(true);
   });
   it('continues successive actual turns behind ordinary history review', async () => {
-    const game = await start(engine(PlayerColour.White), engine(PlayerColour.Black));
-    await release(game, 12, 28);
+    const game = await _start(_engine(PlayerColour.White), _engine(PlayerColour.Black));
+    await _release(game, 12, 28);
     store.navigateToNode(game, game.moveTree.root);
-    await release(game, 52, 36);
+    await _release(game, 52, 36);
     expect(external.turns).toHaveLength(3);
     expect(game.renderedPath).toEqual([]);
     expect(position.getRenderedPosition(game).board[12]).toBeDefined();
     expect(position.getLivePosition(game).board[36]).toBeDefined();
   });
   it('protects the active exploratory branch while actual mainline children are appended', async () => {
-    const game = await start(engine(PlayerColour.White));
-    await explore(game);
-    await store.makeMove(game, detailed(game, 12, 28));
-    await store.makeMove(game, detailed(game, 52, 36));
+    const game = await _start(_engine(PlayerColour.White));
+    await _explore(game);
+    await store.makeMove(game, _detailed(game, 12, 28));
+    await store.makeMove(game, _detailed(game, 52, 36));
     const selectedNode = position.getRenderedNode(game);
     const selected = position.getRenderedPosition(game);
-    await release(game, 11, 27);
+    await _release(game, 11, 27);
     expect(position.isNodeInTree(game.moveTree, selectedNode)).toBe(true);
     expect(position.getRenderedPosition(game)).toBe(selected);
     expect(position.getRenderedNode(game)).toBe(selectedNode);
@@ -146,11 +146,11 @@ describe('background analysis through game data and existing actions', () => {
     expect(position.isNodeInTree(game.moveTree, selectedNode)).toBe(false);
   });
   it('resumes real layered pauses without requiring analysis exit', async () => {
-    const game = await start(engine(PlayerColour.White), engine(PlayerColour.Black));
-    await explore(game);
+    const game = await _start(_engine(PlayerColour.White), _engine(PlayerColour.Black));
+    await _explore(game);
     await store.pauseGame(game, PauseReason.Manual);
     await store.pauseGame(game, PauseReason.Menu);
-    await release(game, 12, 28);
+    await _release(game, 12, 28);
     await store.resumeGame(game, PauseReason.Menu);
     expect(game.livePath).toEqual([]);
     await store.resumeGame(game, PauseReason.Manual);
@@ -161,10 +161,10 @@ describe('background analysis through game data and existing actions', () => {
     expect(game.clockSnapshot.white.remainingMs).toBeLessThanOrEqual(62000);
   });
   it('adjudicates an actual clock timeout while its player explores', async () => {
-    const game = await start();
+    const game = await _start();
     const deadline = new ClockTimestamp(game.clockSnapshot.startedAtUtc!.getTime() + 61000);
     await store.enterInGameAnalysis(game);
-    await store.makeMove(game, detailed(game, 12, 28));
+    await store.makeMove(game, _detailed(game, 12, 28));
     await store.syncClock(game, deadline);
     expect(game.resultState).toBe(ResultState.BlackWon);
     expect(game.clockSnapshot.white.isRunning).toBe(false);
@@ -175,11 +175,11 @@ describe('background analysis through game data and existing actions', () => {
     expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
   });
   it('takes back actual play without creating an analysis-owned pause', async () => {
-    const game = await start();
-    await store.makeMove(game, detailed(game, 12, 28));
-    await release(game, 52, 36);
-    await explore(game);
-    await store.makeMove(game, detailed(game, 6, 21));
+    const game = await _start();
+    await store.makeMove(game, _detailed(game, 12, 28));
+    await _release(game, 52, 36);
+    await _explore(game);
+    await store.makeMove(game, _detailed(game, 6, 21));
     await store.takeBack(game);
     expect(game.livePath).toEqual([]);
     expect(game.renderedPath).toBe(game.livePath);
@@ -188,9 +188,9 @@ describe('background analysis through game data and existing actions', () => {
     expect(game.clockSnapshot.white.isRunning).toBe(true);
   });
   it('returns to current actual play without replaying output or restarting its search', async () => {
-    const game = await start(engine(PlayerColour.White), engine(PlayerColour.Black));
-    await explore(game);
-    await release(game, 12, 28);
+    const game = await _start(_engine(PlayerColour.White), _engine(PlayerColour.Black));
+    await _explore(game);
+    await _release(game, 12, 28);
     const clock = game.clockSnapshot;
     const searches = external.turns.length;
     store.exitInGameAnalysis(game);

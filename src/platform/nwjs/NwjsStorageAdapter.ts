@@ -24,7 +24,7 @@ function _mapNodeError(error: unknown, operation: string, fallbackMessage: strin
 }
 async function _resolveFileDialog(input: IFileDialogInput, operation: 'showSaveDialog' | 'showOpenDialog'): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    const cleanup = () => {
+    const _cleanup = () => {
       input.remove();
       input.onchange = null;
       input.oncancel = null;
@@ -32,12 +32,12 @@ async function _resolveFileDialog(input: IFileDialogInput, operation: 'showSaveD
     input.onchange = () => {
       const selectedFile = input.files?.[0] as File & { path?: string } | undefined;
       const selectedPath = selectedFile?.path ?? input.value;
-      cleanup();
+      _cleanup();
       if (selectedPath.length === 0) return reject(_createPlatformError(PlatformErrorKind.Cancelled, operation, 'The file dialog was dismissed without selecting a path.'));
       resolve(_normalisePath(selectedPath));
     };
     input.oncancel = () => {
-      cleanup();
+      _cleanup();
       reject(_createPlatformError(PlatformErrorKind.Cancelled, operation, 'The file dialog was dismissed without selecting a path.'));
     };
     document.body.appendChild(input);

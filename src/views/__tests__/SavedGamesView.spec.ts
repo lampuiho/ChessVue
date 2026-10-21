@@ -19,16 +19,16 @@ vi.mock('@/state', () => ({
 }));
 let wrapper: VueWrapper;
 let game: IGame;
-async function mountView() {
+async function _mountView() {
   wrapper = mount(SavedGamesView);
   await flushPromises();
 }
-async function requestSave(name: string) {
+async function _requestSave(name: string) {
   await wrapper.get('#save-name').setValue(name);
   await wrapper.get('.library-actions .text-button--primary').trigger('click');
   await flushPromises();
 }
-async function selectSnapshot(name: string) {
+async function _selectSnapshot(name: string) {
   await wrapper.findAll('.save-row__content').find((row) => row.get('strong').text() === name)!.trigger('click');
   await flushPromises();
 }
@@ -50,17 +50,17 @@ describe('SavedGamesView named saves', () => {
       createSavedGameEntry('game-a', 'Opening', '2026-04-17T11:00:00.000Z', false, 'saves/game-a/Opening.json'),
       createSavedGameEntry('game-a', 'Current', '2026-04-17T12:00:00.000Z', false, 'saves/game-a/Current.json'),
     ])]);
-    await mountView();
+    await _mountView();
     let resolveRead!: (game: IGame) => void;
     let rejectRead!: (error: Error) => void;
     const pending = new Promise<IGame>((resolve, reject) => { resolveRead = resolve; rejectRead = reject; });
     dependency.savedGamesStore.loadGame.mockReturnValueOnce(pending);
-    await selectSnapshot('Opening');
-    await selectSnapshot('Current');
+    await _selectSnapshot('Opening');
+    await _selectSnapshot('Current');
     const fresh = createGame();
     fresh.metadata.name = 'Fresh details';
     dependency.savedGamesStore.loadGame.mockResolvedValueOnce(fresh);
-    await selectSnapshot('Opening');
+    await _selectSnapshot('Opening');
     expect(wrapper.get('.snapshot-details > strong').text()).toBe('Fresh details');
     const obsolete = createGame();
     obsolete.metadata.name = 'Obsolete details';
@@ -71,8 +71,8 @@ describe('SavedGamesView named saves', () => {
     expect(wrapper.find('.snapshot-details .library-feedback--error').exists()).toBe(false);
   });
   it('saves a unique trimmed name immediately without enabling overwrite', async () => {
-    await mountView();
-    await requestSave('  New  ');
+    await _mountView();
+    await _requestSave('  New  ');
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledExactlyOnceWith(game, {
       targetKind: SaveGameTargetKind.ManagedSave, saveName: 'New', overwrite: false,
     });
@@ -80,8 +80,8 @@ describe('SavedGamesView named saves', () => {
     expect(wrapper.text()).toContain('Saved “New”.');
   });
   it.each(['cancel', 'close', 'escape', 'backdrop'])('leaves the save view open without writing on %s', async (action) => {
-    await mountView();
-    await requestSave('  Opening  ');
+    await _mountView();
+    await _requestSave('  Opening  ');
     expect(wrapper.get('[role="dialog"]').text()).toContain('“Opening” already exists');
     expect(dependency.savedGamesStore.saveGame).not.toHaveBeenCalled();
     if (action === 'cancel') await wrapper.get('.modal-card__actions .text-button--ghost').trigger('click');
@@ -94,8 +94,8 @@ describe('SavedGamesView named saves', () => {
     expect((wrapper.get('#save-name').element as HTMLInputElement).value).toBe('  Opening  ');
   });
   it('replaces only the confirmed name and ignores repeated Enter submissions', async () => {
-    await mountView();
-    await requestSave('Opening');
+    await _mountView();
+    await _requestSave('Opening');
     await wrapper.get('#save-name').setValue('Different');
     await wrapper.get('#save-name').trigger('keydown', { key: 'Enter' });
     expect(dependency.savedGamesStore.saveGame).not.toHaveBeenCalled();
@@ -109,8 +109,8 @@ describe('SavedGamesView named saves', () => {
   });
   it('asks for confirmation when storage reports a collision absent from the displayed list', async () => {
     dependency.savedGamesStore.saveGame.mockRejectedValueOnce({ kind: PlatformErrorKind.AlreadyExists });
-    await mountView();
-    await requestSave('opening');
+    await _mountView();
+    await _requestSave('opening');
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledWith(game, {
       targetKind: SaveGameTargetKind.ManagedSave, saveName: 'opening', overwrite: false,
     });
@@ -119,7 +119,7 @@ describe('SavedGamesView named saves', () => {
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledTimes(1);
   });
   it.each(['', ' ', 'auto', 'AUTO', '.', '..', '../Opening', '..\\Opening', 'CON', 'LPT1.json', 'Ending.', 'Bad\u0001'])('does not write or prompt for invalid name %s', async (name) => {
-    await mountView();
+    await _mountView();
     await wrapper.get('#save-name').setValue(name);
     await wrapper.get('#save-name').trigger('keydown', { key: 'Enter' });
     await flushPromises();
@@ -128,8 +128,8 @@ describe('SavedGamesView named saves', () => {
   });
   it('reports write failures without claiming success', async () => {
     dependency.savedGamesStore.saveGame.mockRejectedValueOnce(new Error('Save failed.'));
-    await mountView();
-    await requestSave('New');
+    await _mountView();
+    await _requestSave('New');
     expect(wrapper.get('.library-feedback--error').text()).toBe('Save failed.');
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Saved “New”.');

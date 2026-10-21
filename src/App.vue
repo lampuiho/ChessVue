@@ -28,7 +28,7 @@ const resolvedThemeMode = computed(() => {
   if (settings.value?.appearance.themeMode === ThemeMode.Light) return ResolvedThemeMode.Light;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? ResolvedThemeMode.Dark : ResolvedThemeMode.Light;
 });
-function applyThemeProfile(root: HTMLElement, profile: IThemeProfileSnapshot) {
+function _applyThemeProfile(root: HTMLElement, profile: IThemeProfileSnapshot) {
   for (const [name, value] of Object.entries(profile.cssVariables)) {
     root.style.setProperty(`--theme-${profile.colourScheme}-${name.slice(2)}`, value);
   }
@@ -41,8 +41,8 @@ watch([appearanceProjection, () => settings.value?.appearance, resolvedThemeMode
   const darkProfile = appearanceProjection.value?.darkThemeProfile ?? defaultDarkThemeProfile;
   const themeMode = appearanceProjection.value?.themeMode ?? settings.value?.appearance.themeMode ?? ThemeMode.System;
   const scale = settings.value?.appearance.uiScalePercent ?? 100;
-  applyThemeProfile(root, lightProfile);
-  applyThemeProfile(root, darkProfile);
+  _applyThemeProfile(root, lightProfile);
+  _applyThemeProfile(root, darkProfile);
   root.style.setProperty('--root-font-size-browser', `${scale}%`);
   root.style.setProperty('--root-font-size-landscape', `${scale / appViewportRemCount}vh`);
   root.style.setProperty('--root-font-size-portrait', `${scale / appViewportRemCount}vw`);
@@ -55,7 +55,7 @@ watch([appearanceProjection, () => settings.value?.appearance, resolvedThemeMode
   if (themeColourMeta) themeColourMeta.content = (mode === ResolvedThemeMode.Light ? lightProfile : darkProfile).cssVariables['--surface-app'];
 }, { immediate: true });
 
-async function restoreWorkspace() {
+async function _restoreWorkspace() {
   if (!gameSession.value) return;
   const requestedIds = [...gameSession.value.openGameIds];
   if (!settings.value?.gameSession.restorePreviousSession) {
@@ -80,10 +80,10 @@ async function restoreWorkspace() {
     }
   }
 }
-function isCommittedRoute(path: string): path is NonNullable<typeof gameSession.value>['activeRoute'] {
+function _isCommittedRoute(path: string): path is NonNullable<typeof gameSession.value>['activeRoute'] {
   return /^\/home$|^\/game\/.+$|^\/saved-games\/load(?:\/.+)?$|^\/saved-games\/save\/.+$|^\/settings\/(session|gameplay|appearance|engines)$/.test(path);
 }
-async function saveSession() {
+async function _saveSession() {
   try {
     await uiStateStore.saveGameSession();
     sessionSaveError.value = '';
@@ -95,28 +95,28 @@ async function saveSession() {
 
 onMounted(async () => {
   await Promise.all([settingsStore.loadSettings(), uiStateStore.loadGameSession(), uiStateStore.loadLayoutState()]);
-  await restoreWorkspace();
+  await _restoreWorkspace();
   const restoredRoute = gameSession.value?.activeRoute;
   await savedGamesStore.registerAutosaveOnClose(() => gamesStore.listGames() as never);
   const directRoute = window.location.pathname;
-  if ((directRoute === '/' || directRoute === '/home') && restoredRoute && restoredRoute !== '/home' && isCommittedRoute(restoredRoute)) await router.replace(restoredRoute);
+  if ((directRoute === '/' || directRoute === '/home') && restoredRoute && restoredRoute !== '/home' && _isCommittedRoute(restoredRoute)) await router.replace(restoredRoute);
   if (route.name === 'game' && !gamesStore.getGame(String(route.params.id))) {
     const fallbackId = gameSession.value?.openGameIds.find((id) => gamesStore.getGame(id));
     await router.replace(fallbackId ? `/game/${fallbackId}` : '/home');
   }
-  if (isCommittedRoute(route.path)) {
+  if (_isCommittedRoute(route.path)) {
     if (route.name === 'game') uiStateStore.setActiveGame(String(route.params.id));
     else uiStateStore.setActiveRoute(route.path);
   }
   startupComplete.value = true;
-  await saveSession();
+  await _saveSession();
 });
 const removeRouteCheckpoint = router.afterEach((to, from, failure) => {
   const path = to.path;
-  if (failure || to.path === from.path || !isReady.value || !isCommittedRoute(path)) return;
+  if (failure || to.path === from.path || !isReady.value || !_isCommittedRoute(path)) return;
   if (path.startsWith('/game/')) uiStateStore.setActiveGame(path.slice('/game/'.length));
   else uiStateStore.setActiveRoute(path);
-  void saveSession();
+  void _saveSession();
 });
 onScopeDispose(removeRouteCheckpoint);
 </script>

@@ -7,7 +7,7 @@ import { readFile } from '../../support/SaveInspection';
 import { selectGame } from '../../support/GameNavigation';
 import type { Page } from '@playwright/test';
 
-async function changeDefaults(page: Page) {
+async function _changeDefaults(page: Page) {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Gameplay', exact: true }).click();
   await page.getByLabel('Game name', { exact: true }).fill('Default match');
@@ -25,7 +25,7 @@ test('JRN-FRESH-09 applies defaults to future games and preserves an existing ga
   const existing = await saveCurrentGame(page, 'Original');
   const existingPath = `saves/${existing.metadata.id}/Original.json`;
   const before = await readFile(page, existingPath);
-  await changeDefaults(page);
+  await _changeDefaults(page);
   await page.getByRole('button', { name: 'Quick game', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Default match', exact: true })).toBeVisible();
   const quick = await saveCurrentGame(page, 'Quick defaults');

@@ -18,7 +18,7 @@ const readTextFile = vi.fn<IStorageAdapter['readTextFile']>();
 const writeTextFile = vi.fn<IStorageAdapter['writeTextFile']>();
 const getSystemTheme = vi.fn(() => ResolvedThemeMode.Light);
 
-function createSettingsSnapshot(): ISettingsSnapshot {
+function _createSettingsSnapshot(): ISettingsSnapshot {
   return {
     schemaVersion: 1,
     gameSession: {
@@ -92,7 +92,7 @@ describe('UserSettingService', () => {
   });
 
   it('serialises accepted settings through the mocked platform storage adapter', async () => {
-    const settings = createSettingsSnapshot();
+    const settings = _createSettingsSnapshot();
     settings.gameSession.restorePreviousSession = true;
     settings.gameSession.autosaveOnClose = false;
     (settings as ISettingsSnapshot & { $?: { dirty: boolean } }).$ = { dirty: true };

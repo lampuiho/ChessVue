@@ -25,7 +25,7 @@ test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile
   expect((game.blackPlayer as IEnginePlayer).assignedEngine.executablePath).toBe('stockfish.js');
   expect(errors).toEqual([]);
 });
-async function importStockfishPuzzle(page: Page) {
+async function _importStockfishPuzzle(page: Page) {
   await configureStockfish(page);
   await page.getByLabel('Clock', { exact: true }).selectOption('custom');
   await page.getByLabel('Minutes', { exact: true }).fill('1');
@@ -45,7 +45,7 @@ async function importStockfishPuzzle(page: Page) {
   await expect(page.getByRole('heading', { name: game.metadata.name, exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Resume game/ }).click();
 }
-async function expectStockfishMate(page: Page, engineColour: 'White' | 'Black') {
+async function _expectStockfishMate(page: Page, engineColour: 'White' | 'Black') {
   await expect(page.locator('.result-badge')).toHaveText('white won');
   await expect(page.locator('.history-row').last()).toContainText('Nf7#');
   await expect(page.locator('.engine-error')).toHaveCount(0);
@@ -68,7 +68,7 @@ for (const engineColour of ['Black', 'White'] as const) {
     test.setTimeout(90000);
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await importStockfishPuzzle(page);
+    await _importStockfishPuzzle(page);
     const workerUrls: string[] = [];
     const wasmUrls: string[] = [];
     page.on('worker', (worker) => workerUrls.push(worker.url()));
@@ -88,7 +88,7 @@ for (const engineColour of ['Black', 'White'] as const) {
     }
     expect(workerUrls).toEqual(expect.arrayContaining([expect.stringContaining('/stockfish-19-lite-single.js')]));
     expect(wasmUrls.length).toBeGreaterThan(0);
-    await expectStockfishMate(page, engineColour);
+    await _expectStockfishMate(page, engineColour);
     expect(errors).toEqual([]);
   });
 }

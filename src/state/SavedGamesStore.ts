@@ -5,16 +5,16 @@ import type { GameRestoreOutcome, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind, type ISaveGameOptions } from '@/contracts/state';
 import { PlatformEventService, SavedGameIndexService, SerializationService, UserSettingService } from '@/domain';
 
-async function getSaveRootPath(): Promise<string> {
+async function _getSaveRootPath(): Promise<string> {
   return (await UserSettingService.getSettingsOrDefault()).gameSession.saveRootPath;
 }
-function isCancelled(error: unknown): boolean {
+function _isCancelled(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'kind' in error && error.kind === PlatformErrorKind.Cancelled;
 }
 async function _listManagedSaveGroups(rootPath: string): Promise<ISavedGameGroup[]> {
   return SavedGameIndexService.projectSaveGroups(rootPath, await SerializationService.listManagedSaveEntries(rootPath));
 }
-function getTargetEntry(groups: ISavedGameGroup[], gameId: string, saveName?: string) {
+function _getTargetEntry(groups: ISavedGameGroup[], gameId: string, saveName?: string) {
   const group = groups.find((candidate) => candidate.gameId === gameId);
   if (!group) throw new Error(`Saved game group not found for ${gameId}.`);
   const targetEntry = saveName
@@ -23,14 +23,14 @@ function getTargetEntry(groups: ISavedGameGroup[], gameId: string, saveName?: st
   if (!targetEntry) throw new Error(`Saved game entry not found for ${gameId}${saveName ? `/${saveName}` : ''}.`);
   return targetEntry;
 }
-function getTargetPath(rootPath: string, game: IGame, options: ISaveGameOptions): string {
+function _getTargetPath(rootPath: string, game: IGame, options: ISaveGameOptions): string {
   switch (options.targetKind) {
     case SaveGameTargetKind.Autosave: return SavedGameIndexService.getAutosaveFilePath(rootPath, game.metadata.id);
     case SaveGameTargetKind.ManagedSave: return SavedGameIndexService.getNamedSaveFilePath(rootPath, game.metadata.id, options.saveName!);
     case SaveGameTargetKind.ExternalFile: return options.filePath!;
   }
 }
-async function restoreGame(groups: ISavedGameGroup[], gameId: string): Promise<GameRestoreOutcome> {
+async function _restoreGame(groups: ISavedGameGroup[], gameId: string): Promise<GameRestoreOutcome> {
   try {
     const targetEntry = SavedGameIndexService.getLatestSaveEntryForGame(groups, gameId);
     if (!targetEntry) throw new Error(`Saved game entry not found for ${gameId}.`);
@@ -39,7 +39,7 @@ async function restoreGame(groups: ISavedGameGroup[], gameId: string): Promise<G
     return { gameId, status: 'failed', error };
   }
 }
-async function readManagedGame(filePath: string, gameId: string): Promise<IGame> {
+async function _readManagedGame(filePath: string, gameId: string): Promise<IGame> {
   const game = await SerializationService.readGameDocument(filePath);
   game.metadata.id = gameId;
   return game;
@@ -49,24 +49,24 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   let _appCloseUnsubscribe: (() => void) | undefined;
 
   async function listSavedGames(): Promise<ISavedGameGroup[]> {
-    return _listManagedSaveGroups(await getSaveRootPath());
+    return _listManagedSaveGroups(await _getSaveRootPath());
   }
   async function restoreGames(gameIds: string[]): Promise<GameRestoreOutcome[]> {
     if (gameIds.length === 0) return [];
     const groups = await listSavedGames();
-    return Promise.all(gameIds.map((gameId) => restoreGame(groups, gameId)));
+    return Promise.all(gameIds.map((gameId) => _restoreGame(groups, gameId)));
   }
   async function loadGame(gameId: string, saveName?: string): Promise<IGame> {
-    return readManagedGame(getTargetEntry(await listSavedGames(), gameId, saveName).filePath, gameId);
+    return _readManagedGame(_getTargetEntry(await listSavedGames(), gameId, saveName).filePath, gameId);
   }
   async function loadRecentGame(gameId: string): Promise<IGame> {
     const targetEntry = SavedGameIndexService.getLatestSaveEntryForGame(await listSavedGames(), gameId);
     if (!targetEntry) throw new Error(`Saved game entry not found for ${gameId}.`);
-    return readManagedGame(targetEntry.filePath, gameId);
+    return _readManagedGame(targetEntry.filePath, gameId);
   }
   async function saveGame(game: IGame, options: ISaveGameOptions): Promise<string> {
-    const rootPath = await getSaveRootPath();
-    const targetPath = getTargetPath(rootPath, game, options);
+    const rootPath = await _getSaveRootPath();
+    const targetPath = _getTargetPath(rootPath, game, options);
     await SerializationService.writeGameDocument(targetPath, game, options.overwrite ?? true);
     return targetPath;
   }
@@ -83,14 +83,14 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
     _appCloseUnsubscribe = undefined;
   }
   async function deleteSave(gameId: string, saveName?: string) {
-    await SerializationService.deleteDocument(getTargetEntry(await listSavedGames(), gameId, saveName).filePath);
+    await SerializationService.deleteDocument(_getTargetEntry(await listSavedGames(), gameId, saveName).filePath);
   }
   async function exportGame(game: IGame): Promise<string | undefined> {
     let filePath: string;
     try {
       filePath = await SerializationService.selectExportFile(`${game.metadata.id}.json`);
     } catch (error) {
-      if (isCancelled(error)) return;
+      if (_isCancelled(error)) return;
       throw error;
     }
     await saveGame(game, { targetKind: SaveGameTargetKind.ExternalFile, filePath, overwrite: true });
@@ -99,9 +99,9 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   async function importGame(): Promise<IGame | undefined> {
     let filePath: string;
     try {
-      filePath = await SerializationService.selectImportFile(await getSaveRootPath());
+      filePath = await SerializationService.selectImportFile(await _getSaveRootPath());
     } catch (error) {
-      if (isCancelled(error)) return;
+      if (_isCancelled(error)) return;
       throw error;
     }
     const game = await SerializationService.readGameDocument(filePath);

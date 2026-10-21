@@ -2,17 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { MoveKind, MoveNodeKind, PieceKind, PlayerColour, TimeControlPreset, type IMove, type IMoveNode, type IMoveTree, type MovePath } from '@/contracts';
 import { MoveHistoryService, TimeControlService } from '..'
 
-const boardId = (file: number, rank: number) => file + (rank * 8);
+const _boardId = (file: number, rank: number) => file + (rank * 8);
 
 const sampleMove: IMove = {
-  from: boardId(4, 1),
-  to: boardId(4, 3),
+  from: _boardId(4, 1),
+  to: _boardId(4, 3),
   kind: MoveKind.Normal,
   movingColour: PlayerColour.White,
   movingPiece: PieceKind.Pawn,
 }
 
-function getNode(tree: IMoveTree, path: MovePath): IMoveNode {
+function _getNode(tree: IMoveTree, path: MovePath): IMoveNode {
   let currentNode = tree.root;
   for (const childIndex of path) currentNode = currentNode.children[childIndex]!;
   return currentNode;
@@ -53,7 +53,7 @@ describe('MoveHistoryService', () => {
   it('adds a mainline move and keeps existing continuations as live nodes', () => {
     const tree = MoveHistoryService.createMoveTree()
     MoveHistoryService.addMainlineMove(tree.root, sampleMove)
-    const secondMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
+    const secondMove: IMove = { ...sampleMove, from: _boardId(3, 1), to: _boardId(3, 3) }
     MoveHistoryService.addMainlineMove(tree.root, secondMove)
 
     expect(tree.root.children).toHaveLength(2)
@@ -70,7 +70,7 @@ describe('MoveHistoryService', () => {
     })
     const tree = MoveHistoryService.createMoveTree(clockSnapshot)
     MoveHistoryService.addAnalysisMove(tree.root, sampleMove)
-    const analysisNode = getNode(tree, [0])
+    const analysisNode = _getNode(tree, [0])
 
     expect(tree.root.mainlineChildIndex).toBeUndefined()
     expect(analysisNode.kind).toBe(MoveNodeKind.Analysis)
@@ -80,7 +80,7 @@ describe('MoveHistoryService', () => {
   it('rewrites the selected child to the mainline', () => {
     const tree = MoveHistoryService.createMoveTree()
     MoveHistoryService.addAnalysisMove(tree.root, sampleMove)
-    const secondMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
+    const secondMove: IMove = { ...sampleMove, from: _boardId(3, 1), to: _boardId(3, 3) }
     MoveHistoryService.addAnalysisMove(tree.root, secondMove)
     MoveHistoryService.rewriteMainline(tree.root, tree.root.children[1]!)
 
@@ -96,7 +96,7 @@ describe('MoveHistoryService', () => {
     })
     const tree = MoveHistoryService.createMoveTree(clockSnapshot)
     MoveHistoryService.addMainlineMove(tree.root, sampleMove, clockSnapshot)
-    const secondMove: IMove = { ...sampleMove, from: boardId(4, 6), to: boardId(4, 4), movingColour: PlayerColour.Black }
+    const secondMove: IMove = { ...sampleMove, from: _boardId(4, 6), to: _boardId(4, 4), movingColour: PlayerColour.Black }
     MoveHistoryService.addMainlineMove(tree.root.children[0]!, secondMove, clockSnapshot)
     const retainedNode = MoveHistoryService.takeBack(tree.root.children[0]!.children[0]!, 1)
 
@@ -109,9 +109,9 @@ describe('MoveHistoryService', () => {
     const tree = MoveHistoryService.createMoveTree()
     const firstNode = MoveHistoryService.addMainlineMove(tree.root, sampleMove)
     const retainedChildren = firstNode.children
-    const secondMove: IMove = { ...sampleMove, from: boardId(4, 6), to: boardId(4, 4), movingColour: PlayerColour.Black }
+    const secondMove: IMove = { ...sampleMove, from: _boardId(4, 6), to: _boardId(4, 4), movingColour: PlayerColour.Black }
     const secondNode = MoveHistoryService.addMainlineMove(firstNode, secondMove)
-    const thirdMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
+    const thirdMove: IMove = { ...sampleMove, from: _boardId(3, 1), to: _boardId(3, 3) }
     const thirdNode = MoveHistoryService.addMainlineMove(secondNode, thirdMove)
 
     const retainedNode = MoveHistoryService.takeBack(thirdNode, 2)
@@ -124,10 +124,10 @@ describe('MoveHistoryService', () => {
   })
 
   describe('getMoveSequence', () => {
-    const secondMove: IMove = { ...sampleMove, from: boardId(4, 6), to: boardId(4, 4), movingColour: PlayerColour.Black }
-    const thirdMove: IMove = { ...sampleMove, from: boardId(3, 1), to: boardId(3, 3) }
+    const secondMove: IMove = { ...sampleMove, from: _boardId(4, 6), to: _boardId(4, 4), movingColour: PlayerColour.Black }
+    const thirdMove: IMove = { ...sampleMove, from: _boardId(3, 1), to: _boardId(3, 3) }
 
-    function createThreePlyTree(): IMoveTree {
+    function _createThreePlyTree(): IMoveTree {
       const tree = MoveHistoryService.createMoveTree()
       const firstNode = MoveHistoryService.addMainlineMove(tree.root, sampleMove)
       const secondNode = MoveHistoryService.addMainlineMove(firstNode, secondMove)
@@ -136,27 +136,27 @@ describe('MoveHistoryService', () => {
     }
 
     it('returns no moves for the root path', () => {
-      expect(MoveHistoryService.getMoveSequence(createThreePlyTree(), [])).toEqual([])
+      expect(MoveHistoryService.getMoveSequence(_createThreePlyTree(), [])).toEqual([])
     })
 
     it('returns a single move for a one-ply path', () => {
-      expect(MoveHistoryService.getMoveSequence(createThreePlyTree(), [0])).toEqual([sampleMove])
+      expect(MoveHistoryService.getMoveSequence(_createThreePlyTree(), [0])).toEqual([sampleMove])
     })
 
     it('returns every move along a multi-ply path in order', () => {
-      expect(MoveHistoryService.getMoveSequence(createThreePlyTree(), [0, 0, 0])).toEqual([sampleMove, secondMove, thirdMove])
+      expect(MoveHistoryService.getMoveSequence(_createThreePlyTree(), [0, 0, 0])).toEqual([sampleMove, secondMove, thirdMove])
     })
 
     it('returns only the moves after the reference node when fromPath is supplied', () => {
-      expect(MoveHistoryService.getMoveSequence(createThreePlyTree(), [0, 0, 0], [0])).toEqual([secondMove, thirdMove])
+      expect(MoveHistoryService.getMoveSequence(_createThreePlyTree(), [0, 0, 0], [0])).toEqual([secondMove, thirdMove])
     })
 
     it('throws when fromPath is not a prefix of the target path', () => {
-      expect(() => MoveHistoryService.getMoveSequence(createThreePlyTree(), [0], [0, 0])).toThrow(/prefix/)
+      expect(() => MoveHistoryService.getMoveSequence(_createThreePlyTree(), [0], [0, 0])).toThrow(/prefix/)
     })
 
     it('throws when the target path does not exist', () => {
-      expect(() => MoveHistoryService.getMoveSequence(createThreePlyTree(), [0, 1])).toThrow(/does not exist/)
+      expect(() => MoveHistoryService.getMoveSequence(_createThreePlyTree(), [0, 1])).toThrow(/does not exist/)
     })
   })
 })

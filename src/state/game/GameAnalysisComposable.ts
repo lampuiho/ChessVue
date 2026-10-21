@@ -12,7 +12,7 @@ interface IGameAnalysisDependency {
 export function useGameAnalysis(dependency: IGameAnalysisDependency) {
   const { position, touchGame } = dependency;
   const analysisDisposers = new WeakMap<IAssignedEngine, () => void>();
-  function createAssignedEngine(engineProfile: IEngineRecord): IAssignedEngine {
+  function _createAssignedEngine(engineProfile: IEngineRecord): IAssignedEngine {
     return {
       displayName: engineProfile.displayName,
       executablePath: engineProfile.executablePath,
@@ -22,29 +22,29 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     };
   }
   function createAnalysisSeat(engineProfile: IEngineRecord, updatedAt: Date): IAnalysisSeat {
-    return { assignedEngine: createAssignedEngine(engineProfile), updatedAt: new AnalysisTimestamp(updatedAt), lines: [], isComplete: false };
+    return { assignedEngine: _createAssignedEngine(engineProfile), updatedAt: new AnalysisTimestamp(updatedAt), lines: [], isComplete: false };
   }
-  async function stopAssignedEngine(engine: IAssignedEngine) {
+  async function _stopAssignedEngine(engine: IAssignedEngine) {
     try {
       await EngineRuntimeService.stopEngine(engine);
     } catch (error) {
       if (!(error instanceof Aborted)) logHandledError('GamesStore', 'stopEngine', error);
     }
   }
-  function disposeAnalysisSubscription(engine: IAssignedEngine) {
+  function _disposeAnalysisSubscription(engine: IAssignedEngine) {
     analysisDisposers.get(engine)?.();
     analysisDisposers.delete(engine);
   }
-  function resolveAnalysisSeat(game: IGame, engine: IAssignedEngine): IAnalysisSeat | undefined {
+  function _resolveAnalysisSeat(game: IGame, engine: IAssignedEngine): IAnalysisSeat | undefined {
     return game.analysis.seats.find((seat) => seat.assignedEngine === engine);
   }
-  function subscribeToAnalysis(game: IGame, seat: IAnalysisSeat): () => boolean {
+  function _subscribeToAnalysis(game: IGame, seat: IAnalysisSeat): () => boolean {
     const engine = seat.assignedEngine;
-    disposeAnalysisSubscription(engine);
+    _disposeAnalysisSubscription(engine);
     let active = true;
-    const isCurrent = () => active && resolveAnalysisSeat(game, engine) === seat;
+    const _isCurrent = () => active && _resolveAnalysisSeat(game, engine) === seat;
     const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, (update) => {
-      if (!isCurrent() || game.gameState === GameState.BoardEdit) return;
+      if (!_isCurrent() || game.gameState === GameState.BoardEdit) return;
       seat.updatedAt = new AnalysisTimestamp();
       seat.bestMove = update.bestMove;
       seat.lines = update.lines.slice(0, 3);
@@ -52,15 +52,15 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       touchGame(game);
     });
     analysisDisposers.set(engine, () => { active = false; unsubscribe(); });
-    return isCurrent;
+    return _isCurrent;
   }
-  function clearAnalysisSeatLines(seat: IAnalysisSeat) {
+  function _clearAnalysisSeatLines(seat: IAnalysisSeat) {
     seat.bestMove = undefined;
     seat.lines = [];
     seat.isComplete = false;
   }
-  async function startAnalysisSeat(game: IGame, seat: IAnalysisSeat) {
-    const isCurrent = subscribeToAnalysis(game, seat);
+  async function _startAnalysisSeat(game: IGame, seat: IAnalysisSeat) {
+    const isCurrent = _subscribeToAnalysis(game, seat);
     seat.updatedAt = new AnalysisTimestamp();
     try {
       await EngineRuntimeService.startAnalysis(seat.assignedEngine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
@@ -70,19 +70,19 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       if (isCurrent()) touchGame(game);
     }
   }
-  function getTargetSeats(game: IGame, engineIndex?: number): IAnalysisSeat[] {
+  function _getTargetSeats(game: IGame, engineIndex?: number): IAnalysisSeat[] {
     if (engineIndex === undefined) return [...game.analysis.seats];
     const seat = game.analysis.seats[engineIndex];
     return seat ? [seat] : [];
   }
   function refreshAnalysisForGame(game: IGame, engineIndex?: number) {
-    const seats = getTargetSeats(game, engineIndex);
+    const seats = _getTargetSeats(game, engineIndex);
     for (const seat of seats) {
-      disposeAnalysisSubscription(seat.assignedEngine);
-      clearAnalysisSeatLines(seat);
+      _disposeAnalysisSubscription(seat.assignedEngine);
+      _clearAnalysisSeatLines(seat);
     }
     position.getRenderedPosition(game);
-    const work = game.gameState === GameState.BoardEdit ? stopAnalysis(game, engineIndex) : Promise.all(seats.map((seat) => startAnalysisSeat(game, seat)));
+    const work = game.gameState === GameState.BoardEdit ? stopAnalysis(game, engineIndex) : Promise.all(seats.map((seat) => _startAnalysisSeat(game, seat)));
     touchGame(game);
     return work.then(() => undefined);
   }
@@ -104,16 +104,16 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
   async function removeAnalysisEngine(game: IGame, engineIndex: number) {
     const seat = game.analysis.seats[engineIndex];
     if (!seat) return;
-    disposeAnalysisSubscription(seat.assignedEngine);
-    const cleanup = stopAssignedEngine(seat.assignedEngine);
+    _disposeAnalysisSubscription(seat.assignedEngine);
+    const cleanup = _stopAssignedEngine(seat.assignedEngine);
     game.analysis.seats.splice(game.analysis.seats.indexOf(seat), 1);
     touchGame(game);
     await cleanup;
   }
   async function disposeAnalysisForGame(game: IGame) {
     await Promise.all(game.analysis.seats.map((seat) => {
-      disposeAnalysisSubscription(seat.assignedEngine);
-      return stopAssignedEngine(seat.assignedEngine);
+      _disposeAnalysisSubscription(seat.assignedEngine);
+      return _stopAssignedEngine(seat.assignedEngine);
     }));
   }
   async function refreshAnalysis(game: IGame) {
@@ -125,8 +125,8 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     await refreshAnalysisForGame(game, engineIndex);
   }
   async function stopAnalysis(game: IGame, engineIndex?: number) {
-    await Promise.all(getTargetSeats(game, engineIndex).map(async (seat) => {
-      disposeAnalysisSubscription(seat.assignedEngine);
+    await Promise.all(_getTargetSeats(game, engineIndex).map(async (seat) => {
+      _disposeAnalysisSubscription(seat.assignedEngine);
       try {
         await EngineRuntimeService.stopAnalysis(seat.assignedEngine);
       } catch (error) {

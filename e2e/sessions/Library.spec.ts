@@ -9,7 +9,7 @@ import { deleteSnapshot, expectCanonical } from '../journeys/saves/SaveAction';
 import { advanceClock } from '../journeys/clocks/ClockAction';
 import { expectOperation, failNext, managedSnapshot } from '../journeys/storage-failures/StorageAction';
 import { createSessionGame, exportSession, importSession, loadSessionSnapshot, openSession, openSessionSnapshots, playSessionMoves, reloadSession } from './SessionAction';
-async function createLibrary(page: Page) {
+async function _createLibrary(page: Page) {
   const firstId = await createSessionGame(page, 'First library session');
   await playSessionMoves(page, libraryOpening);
   const opening = await saveCurrentGame(page, 'Opening');
@@ -23,12 +23,12 @@ async function createLibrary(page: Page) {
   expect((await readSession(page)).openGameIds).toEqual([firstId, otherId]);
   return { firstId, otherId, opening, latest, other };
 }
-async function selectOriginalGame(page: Page, id: string) {
+async function _selectOriginalGame(page: Page, id: string) {
   // The original game keeps the first tab even when loaded copies share its name.
   await page.locator('.tab-button').first().click();
   await expect(page).toHaveURL(new RegExp('/game/' + id + '$'));
 }
-async function compareLoads(page: Page, library: Awaited<ReturnType<typeof createLibrary>>) {
+async function _compareLoads(page: Page, library: Awaited<ReturnType<typeof _createLibrary>>) {
   const before = await managedSnapshot(page);
   await page.getByRole('button', { name: 'Load', exact: true }).click();
   await page.locator('.game-row').filter({ hasText: 'First library session' }).dblclick();
@@ -38,7 +38,7 @@ async function compareLoads(page: Page, library: Awaited<ReturnType<typeof creat
   expect(await managedSnapshot(page)).toEqual(before);
   expectCanonical(await saveCurrentGame(page, 'Loaded latest'), library.latest);
   await expect(page.locator('.history-row')).toHaveCount(4);
-  await selectOriginalGame(page, library.firstId);
+  await _selectOriginalGame(page, library.firstId);
   await openSessionSnapshots(page, library.firstId);
   const selectedId = await loadSessionSnapshot(page, 'Opening');
   expect(new Set([library.firstId, library.otherId, latestId, selectedId]).size).toBe(4);
@@ -46,7 +46,7 @@ async function compareLoads(page: Page, library: Awaited<ReturnType<typeof creat
   await expect(page.locator('.history-row')).toHaveCount(2);
   await expect(square(page, 'g1')).toHaveAttribute('aria-label', 'g1 white knight');
 }
-async function importDuplicateCopies(page: Page) {
+async function _importDuplicateCopies(page: Page) {
   const exported = await exportSession(page, libraryExportPath);
   const originalFiles = await managedSnapshot(page);
   const firstId = await importSession(page, libraryExportPath);
@@ -65,8 +65,8 @@ async function importDuplicateCopies(page: Page) {
   expect((await readSession(page)).openGameIds).toHaveLength(6);
   return second;
 }
-async function deleteChosenSnapshot(page: Page, id: string) {
-  await selectOriginalGame(page, id);
+async function _deleteChosenSnapshot(page: Page, id: string) {
+  await _selectOriginalGame(page, id);
   await openSessionSnapshots(page, id);
   const before = await managedSnapshot(page);
   await deleteSnapshot(page, 'Opening');
@@ -78,7 +78,7 @@ async function deleteChosenSnapshot(page: Page, id: string) {
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL(new RegExp('/game/' + id + '$'));
 }
-async function retryNamedSave(page: Page, game: IGame) {
+async function _retryNamedSave(page: Page, game: IGame) {
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   const before = await managedSnapshot(page);
   const path = `saves/${game.metadata.id}/Retry snapshot.json`;
@@ -99,14 +99,14 @@ async function retryNamedSave(page: Page, game: IGame) {
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   return path;
 }
-async function reopenAndRetry(page: Page, recent: IGame) {
+async function _reopenAndRetry(page: Page, recent: IGame) {
   const session = await readSession(page);
   await page.getByRole('button', { name: 'ChessVue home', exact: true }).click();
   await page.locator('.recent-card').first().click();
   await expect(page).toHaveURL(new RegExp('/game/' + recent.metadata.id + '$'));
   expect((await readSession(page)).openGameIds).toEqual(session.openGameIds);
   await expect(page.locator('.history-row')).toHaveCount(2);
-  const path = await retryNamedSave(page, recent);
+  const path = await _retryNamedSave(page, recent);
   await advanceClock(page, 1000);
   await playMove(page, 'c2', 'c4');
   await reloadSession(page);
@@ -117,9 +117,9 @@ async function reopenAndRetry(page: Page, recent: IGame) {
 }
 test('JRN-SESSION-04 keeps library identities and files independent through load, import, deletion and retry', async ({ page }) => {
   await openSession(page);
-  const library = await test.step('Create two independent games with earlier and latest named saves', () => createLibrary(page));
-  await test.step('Compare latest load with an explicitly selected earlier snapshot', () => compareLoads(page, library));
-  const recent = await test.step('Import the same exported payload twice with independent identities', () => importDuplicateCopies(page));
-  await test.step('Delete only the chosen original snapshot', () => deleteChosenSnapshot(page, library.firstId));
-  await test.step('Reopen the latest recent copy, recover a failed write and reload playable work', () => reopenAndRetry(page, recent));
+  const library = await test.step('Create two independent games with earlier and latest named saves', () => _createLibrary(page));
+  await test.step('Compare latest load with an explicitly selected earlier snapshot', () => _compareLoads(page, library));
+  const recent = await test.step('Import the same exported payload twice with independent identities', () => _importDuplicateCopies(page));
+  await test.step('Delete only the chosen original snapshot', () => _deleteChosenSnapshot(page, library.firstId));
+  await test.step('Reopen the latest recent copy, recover a failed write and reload playable work', () => _reopenAndRetry(page, recent));
 });

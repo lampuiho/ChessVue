@@ -4,7 +4,7 @@ import { openJourney } from '../../support/JourneyBootstrap';
 import { square, playMove } from '../../support/BoardInteraction';
 import { openCustomGame } from '../../support/GameCreation';
 import { applySettings, returnToGame } from './SettingsAction';
-async function expectReachable(page: Page, control: Locator) {
+async function _expectReachable(page: Page, control: Locator) {
   await control.scrollIntoViewIfNeeded();
   await expect(control).toBeVisible();
   const box = (await control.boundingBox())!;
@@ -23,18 +23,18 @@ for (const scale of [75, 150]) {
     await slider.fill(String(scale));
     await applySettings(page);
     await expect(page.locator('html')).toHaveCSS('font-size', `${16 * scale / 100}px`);
-    await expectReachable(page, page.getByRole('button', { name: 'Back to game', exact: true }));
+    await _expectReachable(page, page.getByRole('button', { name: 'Back to game', exact: true }));
     await returnToGame(page);
-    await expectReachable(page, square(page, 'h1'));
-    await expectReachable(page, square(page, 'a8'));
+    await _expectReachable(page, square(page, 'h1'));
+    await _expectReachable(page, square(page, 'a8'));
     await playMove(page, 'g1', 'f3');
     await expect(page.locator('.history-row')).toHaveCount(3);
     const dialog = await openCustomGame(page);
-    await expectReachable(page, dialog.getByLabel('Name', { exact: false }));
-    await expectReachable(page, dialog.getByRole('button', { name: 'Create workspace', exact: true }));
+    await _expectReachable(page, dialog.getByLabel('Name', { exact: false }));
+    await _expectReachable(page, dialog.getByRole('button', { name: 'Create workspace', exact: true }));
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await page.getByRole('button', { name: 'Load', exact: true }).click();
-    await expectReachable(page, page.getByRole('button', { name: 'Close', exact: true }));
+    await _expectReachable(page, page.getByRole('button', { name: 'Close', exact: true }));
     await expect(page.getByText('Return from settings', { exact: true }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(square(page, 'f3').locator('.chess-piece')).toHaveCount(1);

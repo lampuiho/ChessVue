@@ -44,23 +44,23 @@ export async function rejectMove(page: Page, from: string, to: string) {
   expectSameGame(await saveCurrentGame(page, 'after-illegal'), before);
 }
 export async function expectCastledBoard(page: Page, colour: PlayerColour, side: 'king' | 'queen') {
-  const sq = (coordinate: string) => ruleSquare(coordinate, colour);
-  await expectPiece(page, sq('e1'));
-  await expectPiece(page, sq(side === 'king' ? 'h1' : 'a1'));
-  await expectPiece(page, sq(side === 'king' ? 'g1' : 'c1'), `${colour} king`);
-  await expectPiece(page, sq(side === 'king' ? 'f1' : 'd1'), `${colour} rook`);
+  const _sq = (coordinate: string) => ruleSquare(coordinate, colour);
+  await expectPiece(page, _sq('e1'));
+  await expectPiece(page, _sq(side === 'king' ? 'h1' : 'a1'));
+  await expectPiece(page, _sq(side === 'king' ? 'g1' : 'c1'), `${colour} king`);
+  await expectPiece(page, _sq(side === 'king' ? 'f1' : 'd1'), `${colour} rook`);
   await expect(page.locator('.history-row--selected strong')).toHaveText(side === 'king' ? 'O-O' : 'O-O-O');
   await expect(page.locator('.history-row')).toHaveCount(1);
   await expect(page.getByLabel('Captured material')).toHaveCount(0);
 }
 export async function expectEnPassantBoard(page: Page, colour: PlayerColour) {
-  const sq = (coordinate: string) => ruleSquare(coordinate, colour);
-  await expectPiece(page, sq('e5'));
-  await expectPiece(page, sq('d5'));
-  await expectPiece(page, sq('d6'), `${colour} pawn`);
+  const _sq = (coordinate: string) => ruleSquare(coordinate, colour);
+  await expectPiece(page, _sq('e5'));
+  await expectPiece(page, _sq('d5'));
+  await expectPiece(page, _sq('d6'), `${colour} pawn`);
   await expect(page.locator('.board-square .chess-piece')).toHaveCount(3);
   await expect(page.locator('.history-row')).toHaveCount(2);
-  await expect(page.locator('.history-row--selected strong')).toHaveText('exd' + sq('d6')[1]);
+  await expect(page.locator('.history-row--selected strong')).toHaveText('exd' + _sq('d6')[1]);
   await expect(page.getByLabel('Captured material').locator('span')).toHaveCount(1);
   await expect(page.getByLabel('Captured material')).toHaveText(colour === 'white' ? '\u265f' : '\u2659');
 }

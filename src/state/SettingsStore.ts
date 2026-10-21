@@ -5,7 +5,7 @@ import { ResolvedThemeMode, ThemeMode, type DeepReadonly, type IAppearanceProjec
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
 import { PlatformEventService, UserSettingService } from '@/domain';
 
-function mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISettingsSnapshot>): ISettingsSnapshot {
+function _mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISettingsSnapshot>): ISettingsSnapshot {
   return {
     ...currentSettings,
     ...patch,
@@ -16,7 +16,7 @@ function mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISetti
     appearance: patch.appearance ? { ...currentSettings.appearance, ...patch.appearance } : currentSettings.appearance,
   };
 }
-function cloneSettings(settings: ISettingsSnapshot): ISettingsSnapshot {
+function _cloneSettings(settings: ISettingsSnapshot): ISettingsSnapshot {
   return {
     ...settings,
     gameSession: { ...settings.gameSession },
@@ -26,14 +26,14 @@ function cloneSettings(settings: ISettingsSnapshot): ISettingsSnapshot {
     appearance: { ...settings.appearance },
   };
 }
-function resolveThemeMode(settings: ISettingsSnapshot, systemTheme: ResolvedThemeMode): ResolvedThemeMode {
+function _resolveThemeMode(settings: ISettingsSnapshot, systemTheme: ResolvedThemeMode): ResolvedThemeMode {
   switch (settings.appearance.themeMode) {
     case ThemeMode.Light: return ResolvedThemeMode.Light;
     case ThemeMode.Dark: return ResolvedThemeMode.Dark;
     default: return systemTheme;
   }
 }
-function buildAppearanceProjection(settings: ISettingsSnapshot, resolvedThemeMode: ResolvedThemeMode): IAppearanceProjection {
+function _buildAppearanceProjection(settings: ISettingsSnapshot, resolvedThemeMode: ResolvedThemeMode): IAppearanceProjection {
   return {
     themeMode: settings.appearance.themeMode,
     resolvedThemeMode,
@@ -53,7 +53,7 @@ export const useSettingsStore = defineStore('settingsStore', () => {
   const settings = computed<DeepReadonly<ISettingsSnapshot> | undefined>(() => _settings.value ? readonly(_settings.value) : undefined);
   const appearanceProjection = computed<IAppearanceProjection | undefined>(() => {
     if (!_settings.value || !_systemTheme.value) return;
-    return buildAppearanceProjection(_settings.value, resolveThemeMode(_settings.value, _systemTheme.value));
+    return _buildAppearanceProjection(_settings.value, _resolveThemeMode(_settings.value, _systemTheme.value));
   });
   const hasPendingChanges = computed(() => {
     if (!_settings.value || !draftSettings.value) return false;
@@ -70,7 +70,7 @@ export const useSettingsStore = defineStore('settingsStore', () => {
   }
   function _acceptSettings(acceptedSettings: ISettingsSnapshot) {
     _settings.value = acceptedSettings;
-    draftSettings.value = cloneSettings(acceptedSettings);
+    draftSettings.value = _cloneSettings(acceptedSettings);
   }
   function _subscribeToSystemTheme() {
     if (_disposeThemeSubscription) return;
@@ -91,14 +91,14 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     return _initialisePromise;
   }
   function updateSettings(patch: Partial<ISettingsSnapshot>) {
-    draftSettings.value = mergeSettings(_requireDraftSettings(), patch);
+    draftSettings.value = _mergeSettings(_requireDraftSettings(), patch);
   }
   async function _saveDraftSettings() {
     await loadSettings();
     _acceptSettings(await UserSettingService.saveSettings(toRaw(_requireDraftSettings())));
   }
   function discardPendingSettings() {
-    draftSettings.value = cloneSettings(_requireSettings());
+    draftSettings.value = _cloneSettings(_requireSettings());
   }
   async function applySettings() {
     await _saveDraftSettings();

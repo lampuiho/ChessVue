@@ -12,9 +12,9 @@ export async function heldPlayer(page: Page): Promise<IJourneySearch> {
   return latestSearch(page, 'player');
 }
 export async function latestSearch(page: Page, kind: SearchKind, path = 'journey://a', after = 0, processId?: number): Promise<IJourneySearch> {
-  const read = () => page.evaluate(({ kind, path, after, processId }) => window.chessVueJourney.engines.searches().filter((s) => s.kind === kind && s.path === path && s.id > after && (processId === undefined || s.processId === processId)).at(-1), { kind, path, after, processId });
-  await expect.poll(read).toBeTruthy();
-  return (await read())!;
+  const _read = () => page.evaluate(({ kind, path, after, processId }) => window.chessVueJourney.engines.searches().filter((s) => s.kind === kind && s.path === path && s.id > after && (processId === undefined || s.processId === processId)).at(-1), { kind, path, after, processId });
+  await expect.poll(_read).toBeTruthy();
+  return (await _read())!;
 }
 export async function release(page: Page, id: number) {
   await page.evaluate((id) => window.chessVueJourney.engines.release(id), id);

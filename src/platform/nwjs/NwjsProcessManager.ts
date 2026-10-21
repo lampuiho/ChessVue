@@ -23,8 +23,8 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
       const process = childProcess.spawn(executablePath, args, { stdio: 'pipe' }) as unknown as ISpawnedProcess;
       const handle = `process-${nextHandleId++}`;
       return new Promise<ProcessHandle>((resolve, reject) => {
-        const handleSpawn = () => {
-          cleanup();
+        const _handleSpawn = () => {
+          _cleanup();
           sessionByHandle.set(handle, { process });
           processRegistry.set(handle, process);
           process.once('exit', (_code: number | null, _signal: NodeJS.Signals | null) => {
@@ -33,16 +33,16 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
           });
           resolve(handle);
         };
-        const handleError = (error: Error & { code?: string }) => {
-          cleanup();
+        const _handleError = (error: Error & { code?: string }) => {
+          _cleanup();
           reject(_createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', `Process failed to start: ${executablePath}.`, error.message));
         };
-        const cleanup = () => {
-          process.removeListener('spawn', handleSpawn);
-          process.removeListener('error', handleError);
+        const _cleanup = () => {
+          process.removeListener('spawn', _handleSpawn);
+          process.removeListener('error', _handleError);
         };
-        process.once('spawn', handleSpawn);
-        process.once('error', handleError);
+        process.once('spawn', _handleSpawn);
+        process.once('error', _handleError);
       });
     }
     function assertProcessHandleOpen(processHandle: ProcessHandle) {

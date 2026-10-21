@@ -3,24 +3,24 @@ import { describe, expect, it } from 'vitest';
 import { AmbiguityKind, CheckState, MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '@/contracts';
 import { applyMove, createInitialBoardPosition, createSparseBoard, genDetailedMoves, genLegalMoves, genLegalMovesForPiece, genNextPosition, getCheckState, isMoveLegal, isStandardInitialPosition, requiresPromotionSelection, resolveGameResult, toDetailedMove } from '@/utility/chess';
 
-const boardId = (file: number, rank: number): BoardId => file + (rank * 8);
+const _boardId = (file: number, rank: number): BoardId => file + (rank * 8);
 
-function withPosition(position: IBoardPosition, overrides: Partial<IBoardPosition>): IBoardPosition {
+function _withPosition(position: IBoardPosition, overrides: Partial<IBoardPosition>): IBoardPosition {
   return { ...position, $: undefined, ...overrides };
 }
-function findMove(position: IBoardPosition, from: BoardId, to: BoardId): IMove | undefined {
+function _findMove(position: IBoardPosition, from: BoardId, to: BoardId): IMove | undefined {
   return genLegalMoves(position).find(move => move.from === from && move.to === to);
 }
-function enableWhiteCastling(position: IBoardPosition, kingSide = true, queenSide = true): IBoardPosition {
-  return withPosition(position, {
+function _enableWhiteCastling(position: IBoardPosition, kingSide = true, queenSide = true): IBoardPosition {
+  return _withPosition(position, {
     castlingAvailability: { whiteKingSide: kingSide, whiteQueenSide: queenSide, blackKingSide: false, blackQueenSide: false },
   });
 }
-function createKnightAmbiguityPosition(knights: BoardId[]): IBoardPosition {
+function _createKnightAmbiguityPosition(knights: BoardId[]): IBoardPosition {
   return createSparseBoard([
     ...knights.map(from => ({ boardId: from, piece: { kind: PieceKind.Knight, colour: PlayerColour.White } })),
-    { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-    { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+    { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+    { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
   ]);
 }
 
@@ -32,22 +32,22 @@ describe('GameRuleUtility', () => {
 
       expect(first.$?.isStandardInitialPosition).toBe(true);
       expect(first.board).not.toBe(second.board);
-      expect(first.board[boardId(0, 0)]).toBe(second.board[boardId(0, 0)]);
+      expect(first.board[_boardId(0, 0)]).toBe(second.board[_boardId(0, 0)]);
       expect(isStandardInitialPosition(first)).toBe(true);
-      first.board[boardId(0, 0)] = undefined;
+      first.board[_boardId(0, 0)] = undefined;
       first.$ = undefined;
-      expect(second.board[boardId(0, 0)]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
+      expect(second.board[_boardId(0, 0)]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
       expect(isStandardInitialPosition(first)).toBe(false);
     });
 
     it('requires standard state and standard castling-rook positions', () => {
-      const changedTurn = withPosition(createInitialBoardPosition(), { sideToMove: PlayerColour.Black });
-      const customRooks = withPosition(createInitialBoardPosition(), {
+      const changedTurn = _withPosition(createInitialBoardPosition(), { sideToMove: PlayerColour.Black });
+      const customRooks = _withPosition(createInitialBoardPosition(), {
         castlingRook: {
-          whiteKingSide: boardId(6, 0),
-          whiteQueenSide: boardId(1, 0),
-          blackKingSide: boardId(6, 7),
-          blackQueenSide: boardId(1, 7),
+          whiteKingSide: _boardId(6, 0),
+          whiteQueenSide: _boardId(1, 0),
+          blackKingSide: _boardId(6, 7),
+          blackQueenSide: _boardId(1, 7),
         },
       });
 
@@ -68,11 +68,11 @@ describe('GameRuleUtility', () => {
     it('enriches a raw move without mutating its position', () => {
       const position = createInitialBoardPosition();
       const original = structuredClone(position);
-      const move = toDetailedMove(position, { from: boardId(4, 1), to: boardId(4, 3), $: { uci: 'e2e4' } });
+      const move = toDetailedMove(position, { from: _boardId(4, 1), to: _boardId(4, 3), $: { uci: 'e2e4' } });
 
       expect(move).toMatchObject({
-        from: boardId(4, 1),
-        to: boardId(4, 3),
+        from: _boardId(4, 1),
+        to: _boardId(4, 3),
         kind: MoveKind.Normal,
         movingColour: PlayerColour.White,
         movingPiece: PieceKind.Pawn,
@@ -82,34 +82,34 @@ describe('GameRuleUtility', () => {
     });
 
     it('describes the captured pawn for en passant', () => {
-      const position = withPosition(createSparseBoard([
-        { boardId: boardId(4, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
-        { boardId: boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
-      ]), { enPassantTarget: boardId(3, 5) });
+      const position = _withPosition(createSparseBoard([
+        { boardId: _boardId(4, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
+        { boardId: _boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]), { enPassantTarget: _boardId(3, 5) });
 
-      expect(toDetailedMove(position, { from: boardId(4, 4), to: boardId(3, 5) })).toMatchObject({
+      expect(toDetailedMove(position, { from: _boardId(4, 4), to: _boardId(3, 5) })).toMatchObject({
         kind: MoveKind.EnPassant,
         capturePiece: PieceKind.Pawn,
       });
     });
 
     it.each([
-      ['rank', [boardId(1, 0), boardId(5, 0)], AmbiguityKind.SameRankOnly],
-      ['file', [boardId(1, 0), boardId(1, 2)], AmbiguityKind.SameFileOnly],
-      ['rank and file', [boardId(1, 0), boardId(5, 0), boardId(1, 2)], AmbiguityKind.Both],
+      ['rank', [_boardId(1, 0), _boardId(5, 0)], AmbiguityKind.SameRankOnly],
+      ['file', [_boardId(1, 0), _boardId(1, 2)], AmbiguityKind.SameFileOnly],
+      ['rank and file', [_boardId(1, 0), _boardId(5, 0), _boardId(1, 2)], AmbiguityKind.Both],
     ] as const)('reports $0 ambiguity between identical pieces', (_name, knights, expected) => {
-      const position = createKnightAmbiguityPosition([...knights]);
+      const position = _createKnightAmbiguityPosition([...knights]);
 
-      expect(toDetailedMove(position, { from: boardId(1, 0), to: boardId(3, 1) }).ambiguityKind).toBe(expected);
+      expect(toDetailedMove(position, { from: _boardId(1, 0), to: _boardId(3, 1) }).ambiguityKind).toBe(expected);
     });
 
     it('details a sequence against each resulting position', () => {
       const moves = genDetailedMoves(createInitialBoardPosition(), [
-        { from: boardId(4, 1), to: boardId(4, 3) },
-        { from: boardId(3, 6), to: boardId(3, 4) },
-        { from: boardId(4, 3), to: boardId(3, 4) },
+        { from: _boardId(4, 1), to: _boardId(4, 3) },
+        { from: _boardId(3, 6), to: _boardId(3, 4) },
+        { from: _boardId(4, 3), to: _boardId(3, 4) },
       ]);
 
       expect(moves.map(move => move.movingColour)).toEqual([PlayerColour.White, PlayerColour.Black, PlayerColour.White]);
@@ -119,13 +119,13 @@ describe('GameRuleUtility', () => {
 
     it('invalidates cached position facts after applying a move', () => {
       const position = createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(1, 4), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(1, 4), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
       expect(getCheckState(position)).toBe(CheckState.Check);
-      const move = toDetailedMove(position, { from: boardId(1, 4), to: boardId(4, 1) });
+      const move = toDetailedMove(position, { from: _boardId(1, 4), to: _boardId(4, 1) });
 
       expect(move.checkState).toBeUndefined();
       expect(genNextPosition(position, move).$).toBeUndefined();
@@ -133,11 +133,11 @@ describe('GameRuleUtility', () => {
 
     it('applies a detailed move to the supplied position', () => {
       const position = createInitialBoardPosition();
-      const move = toDetailedMove(position, { from: boardId(4, 1), to: boardId(4, 3) });
+      const move = toDetailedMove(position, { from: _boardId(4, 1), to: _boardId(4, 3) });
 
       expect(applyMove(position, move)).toBe(position);
-      expect(position.board[boardId(4, 1)]).toBeUndefined();
-      expect(position.board[boardId(4, 3)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.White });
+      expect(position.board[_boardId(4, 1)]).toBeUndefined();
+      expect(position.board[_boardId(4, 3)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.White });
       expect(position.sideToMove).toBe(PlayerColour.Black);
     });
   });
@@ -145,126 +145,126 @@ describe('GameRuleUtility', () => {
   describe('legal moves for a piece', () => {
     it('returns raw moves only for the selected piece', () => {
       const position = createInitialBoardPosition();
-      const from = boardId(4, 1);
+      const from = _boardId(4, 1);
       const moves = genLegalMovesForPiece(position, from);
 
       expect(moves).toEqual([
-        { from, to: boardId(4, 2) },
-        { from, to: boardId(4, 3) },
+        { from, to: _boardId(4, 2) },
+        { from, to: _boardId(4, 3) },
       ]);
-      expect(genLegalMovesForPiece(position, boardId(4, 6))).toEqual([]);
+      expect(genLegalMovesForPiece(position, _boardId(4, 6))).toEqual([]);
     });
 
     it('skips the attack state after a known non-check while still rejecting pinned moves', () => {
-      const from = boardId(4, 1);
+      const from = _boardId(4, 1);
       const position = createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
         { boardId: from, piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(0, 5), piece: { kind: PieceKind.Knight, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 5), piece: { kind: PieceKind.Knight, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
-      const lastMove: IMove = { from: boardId(1, 7), to: boardId(0, 5), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Knight };
+      const lastMove: IMove = { from: _boardId(1, 7), to: _boardId(0, 5), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Knight };
       const moves = genLegalMovesForPiece(position, from, lastMove);
 
       expect(moves.length).toBeGreaterThan(0);
       expect(moves.every(move => move.to % 8 === 4)).toBe(true);
-      expect(moves).not.toContainEqual({ from, to: boardId(5, 1) });
+      expect(moves).not.toContainEqual({ from, to: _boardId(5, 1) });
     });
 
     it('calculates checking attacks for non-king responses', () => {
-      const from = boardId(1, 4);
+      const from = _boardId(1, 4);
       const position = createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
         { boardId: from, piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
-      const lastMove: IMove = { from: boardId(4, 6), to: boardId(4, 7), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Rook, checkState: CheckState.Check };
+      const lastMove: IMove = { from: _boardId(4, 6), to: _boardId(4, 7), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Rook, checkState: CheckState.Check };
 
       expect(genLegalMovesForPiece(position, from, lastMove)).toEqual([
-        { from, to: boardId(4, 1) },
-        { from, to: boardId(4, 7) },
+        { from, to: _boardId(4, 1) },
+        { from, to: _boardId(4, 7) },
       ]);
     });
 
     it('always calculates the attack mask for king moves', () => {
-      const from = boardId(4, 2);
+      const from = _boardId(4, 2);
       const position = createSparseBoard([
         { boardId: from, piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
-      const lastMove: IMove = { from: boardId(3, 5), to: boardId(3, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
+      const lastMove: IMove = { from: _boardId(3, 5), to: _boardId(3, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
 
-      expect(genLegalMovesForPiece(position, from, lastMove)).not.toContainEqual({ from, to: boardId(4, 3) });
+      expect(genLegalMovesForPiece(position, from, lastMove)).not.toContainEqual({ from, to: _boardId(4, 3) });
     });
   });
 
   describe('checks and king safety', () => {
     it('rejects a pinned piece move that exposes its king', () => {
       const position = createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(4, 1), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 1), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
-      expect(isMoveLegal(position, { from: boardId(4, 1), to: boardId(5, 1) })).toBe(false);
-      expect(isMoveLegal(position, { from: boardId(4, 1), to: boardId(4, 2) })).toBe(true);
+      expect(isMoveLegal(position, { from: _boardId(4, 1), to: _boardId(5, 1) })).toBe(false);
+      expect(isMoveLegal(position, { from: _boardId(4, 1), to: _boardId(4, 2) })).toBe(true);
     });
 
     it('treats empty pawn diagonals as attacked king destinations', () => {
       const position = createSparseBoard([
-        { boardId: boardId(4, 2), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 2), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
-      expect(isMoveLegal(position, { from: boardId(4, 2), to: boardId(4, 3) })).toBe(false);
+      expect(isMoveLegal(position, { from: _boardId(4, 2), to: _boardId(4, 3) })).toBe(false);
     });
 
     it('does not let the king capture a defended piece', () => {
       const position = createSparseBoard([
-        { boardId: boardId(4, 3), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(5, 4), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 5), piece: { kind: PieceKind.Knight, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 3), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(5, 4), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 5), piece: { kind: PieceKind.Knight, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
-      expect(isMoveLegal(position, { from: boardId(4, 3), to: boardId(5, 4) })).toBe(false);
+      expect(isMoveLegal(position, { from: _boardId(4, 3), to: _boardId(5, 4) })).toBe(false);
     });
 
     it('x-rays sliding attacks through the king', () => {
       const position = createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
-      expect(isMoveLegal(position, { from: boardId(4, 0), to: boardId(5, 0) })).toBe(false);
+      expect(isMoveLegal(position, { from: _boardId(4, 0), to: _boardId(5, 0) })).toBe(false);
     });
 
     it('allows blocking a single sliding check', () => {
       const position = createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(1, 4), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(1, 4), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
       expect(getCheckState(position)).toBe(CheckState.Check);
-      expect(isMoveLegal(position, { from: boardId(1, 4), to: boardId(4, 1) })).toBe(true);
+      expect(isMoveLegal(position, { from: _boardId(1, 4), to: _boardId(4, 1) })).toBe(true);
     });
 
     it('allows only king moves during double check', () => {
-      const king = boardId(4, 0);
+      const king = _boardId(4, 0);
       const position = createSparseBoard([
         { boardId: king, piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(0, 1), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(1, 3), piece: { kind: PieceKind.Bishop, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 1), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(1, 3), piece: { kind: PieceKind.Bishop, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
       const moves = genLegalMoves(position);
 
@@ -275,106 +275,106 @@ describe('GameRuleUtility', () => {
 
     it('never generates a move that captures the opposing king', () => {
       const position = createSparseBoard([
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
-      expect(findMove(position, boardId(7, 0), boardId(7, 7))).toBeUndefined();
+      expect(_findMove(position, _boardId(7, 0), _boardId(7, 7))).toBeUndefined();
     });
   });
 
   describe('castling', () => {
     it('generates both standard castling moves when clear and safe', () => {
-      const position = enableWhiteCastling(createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      const position = _enableWhiteCastling(createSparseBoard([
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]));
 
-      expect(findMove(position, boardId(4, 0), boardId(2, 0))?.kind).toBe(MoveKind.Castle);
-      expect(findMove(position, boardId(4, 0), boardId(6, 0))?.kind).toBe(MoveKind.Castle);
+      expect(_findMove(position, _boardId(4, 0), _boardId(2, 0))?.kind).toBe(MoveKind.Castle);
+      expect(_findMove(position, _boardId(4, 0), _boardId(6, 0))?.kind).toBe(MoveKind.Castle);
     });
 
     it('rejects castling while checked', () => {
-      const position = enableWhiteCastling(createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      const position = _enableWhiteCastling(createSparseBoard([
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]), true, false);
 
-      expect(isMoveLegal(position, { from: boardId(4, 0), to: boardId(6, 0) })).toBe(false);
+      expect(isMoveLegal(position, { from: _boardId(4, 0), to: _boardId(6, 0) })).toBe(false);
     });
 
     it('rejects castling through attack or an occupied path', () => {
-      const attacked = enableWhiteCastling(createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(5, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      const attacked = _enableWhiteCastling(createSparseBoard([
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(5, 7), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]), true, false);
-      const blocked = enableWhiteCastling(createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(5, 0), piece: { kind: PieceKind.Knight, colour: PlayerColour.White } },
-        { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      const blocked = _enableWhiteCastling(createSparseBoard([
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(5, 0), piece: { kind: PieceKind.Knight, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(0, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]), true, false);
 
-      expect(isMoveLegal(attacked, { from: boardId(4, 0), to: boardId(6, 0) })).toBe(false);
-      expect(isMoveLegal(blocked, { from: boardId(4, 0), to: boardId(6, 0) })).toBe(false);
+      expect(isMoveLegal(attacked, { from: _boardId(4, 0), to: _boardId(6, 0) })).toBe(false);
+      expect(isMoveLegal(blocked, { from: _boardId(4, 0), to: _boardId(6, 0) })).toBe(false);
     });
 
     it('uses configured freestyle rooks with two-square king gestures', () => {
-      const position = enableWhiteCastling(withPosition(createSparseBoard([
-        { boardId: boardId(3, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(1, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(6, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      const position = _enableWhiteCastling(_withPosition(createSparseBoard([
+        { boardId: _boardId(3, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(1, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(6, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]), {
         castlingRook: {
-          whiteKingSide: boardId(6, 0),
-          whiteQueenSide: boardId(1, 0),
-          blackKingSide: boardId(7, 7),
-          blackQueenSide: boardId(0, 7),
+          whiteKingSide: _boardId(6, 0),
+          whiteQueenSide: _boardId(1, 0),
+          blackKingSide: _boardId(7, 7),
+          blackQueenSide: _boardId(0, 7),
         },
       }));
 
-      expect(findMove(position, boardId(3, 0), boardId(1, 0))?.kind).toBe(MoveKind.Castle);
-      expect(findMove(position, boardId(3, 0), boardId(5, 0))?.kind).toBe(MoveKind.Castle);
+      expect(_findMove(position, _boardId(3, 0), _boardId(1, 0))?.kind).toBe(MoveKind.Castle);
+      expect(_findMove(position, _boardId(3, 0), _boardId(5, 0))?.kind).toBe(MoveKind.Castle);
     });
 
     it('places freestyle pieces on fixed final squares', () => {
-      const position = enableWhiteCastling(withPosition(createSparseBoard([
-        { boardId: boardId(3, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(6, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      const position = _enableWhiteCastling(_withPosition(createSparseBoard([
+        { boardId: _boardId(3, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(6, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]), {
         castlingRook: {
-          whiteKingSide: boardId(6, 0),
-          whiteQueenSide: boardId(0, 0),
-          blackKingSide: boardId(7, 7),
-          blackQueenSide: boardId(0, 7),
+          whiteKingSide: _boardId(6, 0),
+          whiteQueenSide: _boardId(0, 0),
+          blackKingSide: _boardId(7, 7),
+          blackQueenSide: _boardId(0, 7),
         },
       }), true, false);
-      const move = findMove(position, boardId(3, 0), boardId(5, 0))!;
+      const move = _findMove(position, _boardId(3, 0), _boardId(5, 0))!;
       const nextPosition = genNextPosition(position, move);
 
-      expect(nextPosition.board[boardId(6, 0)]).toEqual({ kind: PieceKind.King, colour: PlayerColour.White });
-      expect(nextPosition.board[boardId(5, 0)]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
-      expect(position.board[boardId(3, 0)]).toEqual({ kind: PieceKind.King, colour: PlayerColour.White });
+      expect(nextPosition.board[_boardId(6, 0)]).toEqual({ kind: PieceKind.King, colour: PlayerColour.White });
+      expect(nextPosition.board[_boardId(5, 0)]).toEqual({ kind: PieceKind.Rook, colour: PlayerColour.White });
+      expect(position.board[_boardId(3, 0)]).toEqual({ kind: PieceKind.King, colour: PlayerColour.White });
     });
 
     it('tracks only the configured rook for castling availability', () => {
-      const position = enableWhiteCastling(createSparseBoard([
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(5, 1), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      const position = _enableWhiteCastling(createSparseBoard([
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 0), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(5, 1), piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]), true, false);
-      const unrelatedMove = toDetailedMove(position, { from: boardId(5, 1), to: boardId(5, 2) });
-      const eligibleMove = toDetailedMove(position, { from: boardId(7, 0), to: boardId(7, 1) });
+      const unrelatedMove = toDetailedMove(position, { from: _boardId(5, 1), to: _boardId(5, 2) });
+      const eligibleMove = toDetailedMove(position, { from: _boardId(7, 0), to: _boardId(7, 1) });
 
       expect(genNextPosition(position, unrelatedMove).castlingAvailability.whiteKingSide).toBe(true);
       expect(genNextPosition(position, eligibleMove).castlingAvailability.whiteKingSide).toBe(false);
@@ -383,89 +383,89 @@ describe('GameRuleUtility', () => {
 
   describe('en passant', () => {
     it('generates and applies the capture without mutating the source', () => {
-      const position = withPosition(createSparseBoard([
-        { boardId: boardId(4, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
-        { boardId: boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
-        { boardId: boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
-      ]), { enPassantTarget: boardId(3, 5) });
-      const move = findMove(position, boardId(4, 4), boardId(3, 5))!;
+      const position = _withPosition(createSparseBoard([
+        { boardId: _boardId(4, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
+        { boardId: _boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]), { enPassantTarget: _boardId(3, 5) });
+      const move = _findMove(position, _boardId(4, 4), _boardId(3, 5))!;
       const nextPosition = genNextPosition(position, move);
 
       expect(move.kind).toBe(MoveKind.EnPassant);
-      expect(nextPosition.board[boardId(3, 4)]).toBeUndefined();
-      expect(nextPosition.board[boardId(3, 5)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.White });
-      expect(position.board[boardId(3, 4)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.Black });
+      expect(nextPosition.board[_boardId(3, 4)]).toBeUndefined();
+      expect(nextPosition.board[_boardId(3, 5)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.White });
+      expect(position.board[_boardId(3, 4)]).toEqual({ kind: PieceKind.Pawn, colour: PlayerColour.Black });
     });
 
     it('rejects the capture when removing both pawns exposes the king', () => {
-      const position = withPosition(createSparseBoard([
-        { boardId: boardId(0, 4), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(1, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
-        { boardId: boardId(2, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 4), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
-      ]), { enPassantTarget: boardId(2, 5) });
+      const position = _withPosition(createSparseBoard([
+        { boardId: _boardId(0, 4), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(1, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
+        { boardId: _boardId(2, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 4), piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]), { enPassantTarget: _boardId(2, 5) });
 
-      expect(isMoveLegal(position, { from: boardId(1, 4), to: boardId(2, 5) })).toBe(false);
+      expect(isMoveLegal(position, { from: _boardId(1, 4), to: _boardId(2, 5) })).toBe(false);
     });
 
     it('allows en passant to capture the checking pawn', () => {
-      const position = withPosition(createSparseBoard([
-        { boardId: boardId(4, 3), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(4, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
-        { boardId: boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
-      ]), { enPassantTarget: boardId(3, 5) });
+      const position = _withPosition(createSparseBoard([
+        { boardId: _boardId(4, 3), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(4, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
+        { boardId: _boardId(3, 4), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+      ]), { enPassantTarget: _boardId(3, 5) });
 
       expect(getCheckState(position)).toBe(CheckState.Check);
-      expect(isMoveLegal(position, { from: boardId(4, 4), to: boardId(3, 5) })).toBe(true);
+      expect(isMoveLegal(position, { from: _boardId(4, 4), to: _boardId(3, 5) })).toBe(true);
     });
 
     it('sets the passed square after a two-square pawn move', () => {
       const position = createInitialBoardPosition();
-      const move = toDetailedMove(position, { from: boardId(4, 1), to: boardId(4, 3) });
+      const move = toDetailedMove(position, { from: _boardId(4, 1), to: _boardId(4, 3) });
 
-      expect(genNextPosition(position, move).enPassantTarget).toBe(boardId(4, 2));
+      expect(genNextPosition(position, move).enPassantTarget).toBe(_boardId(4, 2));
 
       const blackPosition = createSparseBoard([
-        { boardId: boardId(4, 6), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 6), piece: { kind: PieceKind.Pawn, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ], PlayerColour.Black);
-      const blackMove = toDetailedMove(blackPosition, { from: boardId(4, 6), to: boardId(4, 4) });
-      expect(genNextPosition(blackPosition, blackMove).enPassantTarget).toBe(boardId(4, 5));
+      const blackMove = toDetailedMove(blackPosition, { from: _boardId(4, 6), to: _boardId(4, 4) });
+      expect(genNextPosition(blackPosition, blackMove).enPassantTarget).toBe(_boardId(4, 5));
     });
   });
 
   describe('promotion', () => {
     it('detects whether a raw pawn move needs a promotion selection', () => {
-      const pawnFrom = boardId(4, 6);
-      const rookFrom = boardId(1, 6);
-      const promotionTo = boardId(4, 7);
+      const pawnFrom = _boardId(4, 6);
+      const rookFrom = _boardId(1, 6);
+      const promotionTo = _boardId(4, 7);
       const position = createSparseBoard([
         { boardId: pawnFrom, piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
         { boardId: rookFrom, piece: { kind: PieceKind.Rook, colour: PlayerColour.White } },
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
       expect(requiresPromotionSelection(position, { from: pawnFrom, to: promotionTo })).toBe(true);
       expect(requiresPromotionSelection(position, { from: pawnFrom, to: promotionTo, promotionPiece: PieceKind.Queen })).toBe(false);
-      expect(requiresPromotionSelection(position, { from: pawnFrom, to: boardId(4, 5) })).toBe(false);
-      expect(requiresPromotionSelection(position, { from: rookFrom, to: boardId(1, 7) })).toBe(false);
-      expect(() => requiresPromotionSelection(position, { from: boardId(2, 6), to: boardId(2, 7) })).toThrow(/expecting a piece/);
+      expect(requiresPromotionSelection(position, { from: pawnFrom, to: _boardId(4, 5) })).toBe(false);
+      expect(requiresPromotionSelection(position, { from: rookFrom, to: _boardId(1, 7) })).toBe(false);
+      expect(() => requiresPromotionSelection(position, { from: _boardId(2, 6), to: _boardId(2, 7) })).toThrow(/expecting a piece/);
     });
 
     it('generates each promotion piece for forward moves and captures', () => {
-      const from = boardId(4, 6);
-      const forwardTo = boardId(4, 7);
-      const captureTo = boardId(3, 7);
+      const from = _boardId(4, 6);
+      const forwardTo = _boardId(4, 7);
+      const captureTo = _boardId(3, 7);
       const position = createSparseBoard([
         { boardId: from, piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
         { boardId: captureTo, piece: { kind: PieceKind.Rook, colour: PlayerColour.Black } },
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
       const moves = genLegalMoves(position).filter(move => move.from === from);
       const forwardMoves = moves.filter(move => move.to === forwardTo);
@@ -482,41 +482,41 @@ describe('GameRuleUtility', () => {
 
     it('applies the selected piece and calculates check', () => {
       const position = createSparseBoard([
-        { boardId: boardId(4, 6), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(4, 6), piece: { kind: PieceKind.Pawn, colour: PlayerColour.White } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
-      const move = toDetailedMove(position, { from: boardId(4, 6), to: boardId(4, 7), promotionPiece: PieceKind.Queen });
+      const move = toDetailedMove(position, { from: _boardId(4, 6), to: _boardId(4, 7), promotionPiece: PieceKind.Queen });
       const nextPosition = genNextPosition(position, move);
 
       expect(move.checkState).toBe(CheckState.Check);
-      expect(nextPosition.board[boardId(4, 7)]).toEqual({ kind: PieceKind.Queen, colour: PlayerColour.White });
+      expect(nextPosition.board[_boardId(4, 7)]).toEqual({ kind: PieceKind.Queen, colour: PlayerColour.White });
     });
   });
 
   describe('game result', () => {
     it('resolves checkmate and marks a mating move', () => {
       const checkmate = createSparseBoard([
-        { boardId: boardId(5, 5), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(6, 6), piece: { kind: PieceKind.Queen, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(5, 5), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(6, 6), piece: { kind: PieceKind.Queen, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ], PlayerColour.Black);
       const beforeMate = createSparseBoard([
-        { boardId: boardId(5, 5), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(6, 5), piece: { kind: PieceKind.Queen, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(5, 5), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(6, 5), piece: { kind: PieceKind.Queen, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
       expect(resolveGameResult(checkmate)).toEqual({ resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved });
       expect(getCheckState(checkmate)).toBe(CheckState.Checkmate);
-      expect(toDetailedMove(beforeMate, { from: boardId(6, 5), to: boardId(6, 6) }).checkState).toBe(CheckState.Checkmate);
+      expect(toDetailedMove(beforeMate, { from: _boardId(6, 5), to: _boardId(6, 6) }).checkState).toBe(CheckState.Checkmate);
     });
 
     it('resolves stalemate', () => {
       const position = createSparseBoard([
-        { boardId: boardId(5, 6), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(6, 5), piece: { kind: PieceKind.Queen, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(5, 6), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(6, 5), piece: { kind: PieceKind.Queen, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ], PlayerColour.Black);
 
       expect(resolveGameResult(position)).toEqual({ resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved });
@@ -527,9 +527,9 @@ describe('GameRuleUtility', () => {
     it('draws for bare kings and a lone minor piece', () => {
       for (const kind of [undefined, PieceKind.Bishop, PieceKind.Knight]) {
         const position = createSparseBoard([
-          { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-          ...(kind === undefined ? [] : [{ boardId: boardId(2, 0), piece: { kind, colour: PlayerColour.White } }]),
-          { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+          { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+          ...(kind === undefined ? [] : [{ boardId: _boardId(2, 0), piece: { kind, colour: PlayerColour.White } }]),
+          { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
         ]);
         expect(resolveGameResult(position).resultState).toBe(ResultState.Drawn);
       }
@@ -537,10 +537,10 @@ describe('GameRuleUtility', () => {
 
     it('keeps playing when bishop and knight can mate', () => {
       const position = createSparseBoard([
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(2, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
-        { boardId: boardId(1, 0), piece: { kind: PieceKind.Knight, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(2, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
+        { boardId: _boardId(1, 0), piece: { kind: PieceKind.Knight, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
       expect(resolveGameResult(position)).toEqual({ resultState: ResultState.Ongoing, resultReason: undefined });
@@ -548,16 +548,16 @@ describe('GameRuleUtility', () => {
 
     it('distinguishes same-colour bishops from a mating bishop pair', () => {
       const sameColourBishops = createSparseBoard([
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(2, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
-        { boardId: boardId(5, 3), piece: { kind: PieceKind.Bishop, colour: PlayerColour.Black } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(2, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
+        { boardId: _boardId(5, 3), piece: { kind: PieceKind.Bishop, colour: PlayerColour.Black } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
       const bishopPair = createSparseBoard([
-        { boardId: boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
-        { boardId: boardId(2, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
-        { boardId: boardId(5, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
-        { boardId: boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
+        { boardId: _boardId(0, 0), piece: { kind: PieceKind.King, colour: PlayerColour.White } },
+        { boardId: _boardId(2, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
+        { boardId: _boardId(5, 0), piece: { kind: PieceKind.Bishop, colour: PlayerColour.White } },
+        { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
       expect(resolveGameResult(sameColourBishops).resultState).toBe(ResultState.Drawn);

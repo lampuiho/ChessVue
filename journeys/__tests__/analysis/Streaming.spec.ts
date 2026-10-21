@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { IEngineAnalysisUpdate, IGame } from '@/contracts';
 import { boot } from '../support/UiHarness';
-function expectIndependentUpdates(game: IGame, callbacks: ((update: IEngineAnalysisUpdate) => void)[], update: IEngineAnalysisUpdate) {
+function _expectIndependentUpdates(game: IGame, callbacks: ((update: IEngineAnalysisUpdate) => void)[], update: IEngineAnalysisUpdate) {
   const neighbour = JSON.stringify(game.analysis.seats[1]!.lines);
   callbacks[0]!({ ...update, lines: update.lines.map((line) => ({ ...line, depth: 19 })) });
   expect(game.analysis.seats[0]!.lines[0]!.depth).toBe(19);
@@ -27,7 +27,7 @@ describe('JRN-ANALYSIS-01/12 obsolete subscriptions', () => {
     const seat = game.analysis.seats[0]!;
     const update: IEngineAnalysisUpdate = { position: fixtures.getPosition(game, game.renderedPath), lines: seat.lines, bestMove: seat.bestMove, isFinal: false };
     const oldCallback = callbacks[0]!;
-    expectIndependentUpdates(game, callbacks, update);
+    _expectIndependentUpdates(game, callbacks, update);
     await games.navigateToNode(game, game.moveTree.root.children[0]!);
     const selected = JSON.stringify(game.analysis);
     oldCallback(update);

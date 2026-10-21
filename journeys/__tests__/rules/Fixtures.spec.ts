@@ -4,12 +4,12 @@ import { SerializationService } from '@/domain/SerializationService';
 import { applyMove, genLegalMoves, getCheckState, getOpponentColour, isMoveLegal, resolveGameResult } from '@/utility/chess';
 import { createJourney } from '../../index';
 import { createRuleVariants } from '../../definitions/rules/data/RuleWorkspace';
-function validateTree(position: IBoardPosition, node: IMoveNode) {
+function _validateTree(position: IBoardPosition, node: IMoveNode) {
   for (const child of node.children) {
     expect(isMoveLegal(position, child.move!)).toBe(true);
     const next = structuredClone(position);
     applyMove(next, child.move!);
-    validateTree(next, child);
+    _validateTree(next, child);
   }
 }
 describe('Rules fixture contracts', () => {
@@ -18,7 +18,7 @@ describe('Rules fixture contracts', () => {
     expect(getCheckState({ ...structuredClone(game.rootPosition), sideToMove: getOpponentColour(game.rootPosition.sideToMove) })).toBeUndefined();
     expect(resolveGameResult(game.rootPosition).resultState).toBe(ResultState.Ongoing);
     expect(genLegalMoves(game.rootPosition).length).toBeGreaterThan(0);
-    validateTree(game.rootPosition, game.moveTree.root);
+    _validateTree(game.rootPosition, game.moveTree.root);
     const raw = SerializationService.serialiseGame(game);
     expect(raw).not.toContain('"$"');
     expect(SerializationService.serialiseGame(SerializationService.deserialiseGame(raw))).toBe(raw);

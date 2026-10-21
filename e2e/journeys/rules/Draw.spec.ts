@@ -10,16 +10,16 @@ import { expectSameGame, openRules, reloadRules } from './RuleAction';
 for (const colour of ruleColours) for (const scenario of drawScenarios) {
   test(`JRN-RULE-05 records ${colour} ${scenario.name} once and stops live clocks through review and reload`, async ({ page }) => {
     await openRules(page, `${scenario.name}-${colour}`);
-    const sq = (coordinate: string) => ruleSquare(coordinate, colour);
+    const _sq = (coordinate: string) => ruleSquare(coordinate, colour);
     await expect(page.locator('.result-badge')).toHaveText(`${colour} to move`);
     await resumeClock(page);
     await advanceClock(page, 3000);
     await expect(playerClock(page, colour)).toHaveText('1:57');
-    await playMove(page, sq(scenario.from), sq(scenario.to));
+    await playMove(page, _sq(scenario.from), _sq(scenario.to));
     await expect(page.locator('.result-badge')).toHaveText('drawn');
     await expect(page.getByRole('heading', { name: 'Game review', exact: true })).toBeVisible();
     await expect(page.locator('.history-row')).toHaveCount(1);
-    await expect(page.locator('.history-row--selected strong')).toHaveText(scenario.san.replace(scenario.to, sq(scenario.to)));
+    await expect(page.locator('.history-row--selected strong')).toHaveText(scenario.san.replace(scenario.to, _sq(scenario.to)));
     await expect(page.getByRole('button', { name: /^(Resign|Offer draw|Resume game)/ })).toHaveCount(0);
     const saved = await saveCurrentGame(page, 'drawn');
     expect(saved).toMatchObject({ resultState: 'drawn', resultReason: 'ruleResolved', livePath: [0], renderedPath: [0] });

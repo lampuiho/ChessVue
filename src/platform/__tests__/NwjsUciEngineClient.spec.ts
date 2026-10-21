@@ -12,7 +12,7 @@ beforeEach(async () => {
   ({ EngineRuntimeService } = await import('@/domain'));
 });
 
-function appendLiveMove(game: IGame, move: IMove) {
+function _appendLiveMove(game: IGame, move: IMove) {
   let node = game.moveTree.root;
   for (const childIndex of game.livePath ?? []) node = node.children[childIndex]!;
   const nextNode = MoveHistoryService.addMainlineMove(node, move, game.clockSnapshot);
@@ -39,7 +39,7 @@ describe('NwjsUciEngineClient', () => {
     const process = getEnvironment().latestProcess();
     const handle = engine.$!.processHandle;
     const nextGame = createEngineGame();
-    appendLiveMove(nextGame, { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
+    _appendLiveMove(nextGame, { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
     // B waits for A's Stop response; disposal D is then superseded by C returning to A's position.
     const replacing = EngineRuntimeService.startAnalysis(engine, nextGame, request).catch((error) => error);
     await flushPromises();
@@ -128,7 +128,7 @@ describe('NwjsUciEngineClient', () => {
     const starting = client.startAnalysis(engine, game, { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }, (update) => { updates.push(update); });
     await flushPromises();
     expect(process.getCommandLog().slice(-1)).toEqual(['isready']);
-    appendLiveMove(game, { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
+    _appendLiveMove(game, { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
     MoveApplicationService.deletePiece(game.rootPosition, getBoardId(0, 0));
     process.stdout.write('readyok\n');
     await starting;
@@ -210,8 +210,8 @@ describe('NwjsUciEngineClient', () => {
     const firstPonderPath = [...game.livePath!];
     await client.startPondering(engine, game, firstMove, firstMove.$!.ponderMove!);
     expect(game.livePath).toEqual(firstPonderPath);
-    appendLiveMove(game, firstMove);
-    appendLiveMove(game, firstMove.$!.ponderMove!);
+    _appendLiveMove(game, firstMove);
+    _appendLiveMove(game, firstMove.$!.ponderMove!);
     process.queueResponse('ponderhit', ['bestmove b8c6 ponder f1c4']);
     await client.startPlayerTurn(engine, game);
     const ponderHitMove = await client.awaitPlayerTurnMove(engine);
@@ -219,9 +219,9 @@ describe('NwjsUciEngineClient', () => {
     const secondPonderPath = [...game.livePath!];
     await client.startPondering(engine, game, ponderHitMove, ponderHitMove.$!.ponderMove!);
     expect(game.livePath).toEqual(secondPonderPath);
-    appendLiveMove(game, ponderHitMove);
+    _appendLiveMove(game, ponderHitMove);
     const unexpectedMove: IMove = { from: getBoardId(3, 1), to: getBoardId(3, 3), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn };
-    appendLiveMove(game, unexpectedMove);
+    _appendLiveMove(game, unexpectedMove);
     process.queueResponse('stop', ['bestmove a7a6']);
     process.queueResponse(timedGo, ['bestmove g8f6']);
     await client.startPlayerTurn(engine, game);
@@ -290,14 +290,14 @@ describe('NwjsUciEngineClient', () => {
     await client.startPlayerTurn(engine, game);
     const engineMove = await client.awaitPlayerTurnMove(engine);
     await client.startPondering(engine, game, engineMove, engineMove.$!.ponderMove!);
-    appendLiveMove(game, engineMove);
-    appendLiveMove(game, { from: getBoardId(3, 1), to: getBoardId(3, 3), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn });
+    _appendLiveMove(game, engineMove);
+    _appendLiveMove(game, { from: getBoardId(3, 1), to: getBoardId(3, 3), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Pawn });
     process.queueResponse('stop', []);
 
     const startPromise = client.startPlayerTurn(engine, game);
     const commandLogWhileStopping = process.getCommandLog();
     expect(commandLogWhileStopping[commandLogWhileStopping.length - 1]).toBe('stop');
-    appendLiveMove(game, { from: getBoardId(0, 6), to: getBoardId(0, 5), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
+    _appendLiveMove(game, { from: getBoardId(0, 6), to: getBoardId(0, 5), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
     MoveApplicationService.deletePiece(game.rootPosition, getBoardId(0, 0));
     process.queueResponse(timedGo, ['bestmove g1f3']);
     process.stdout.write('bestmove h7h6\n');

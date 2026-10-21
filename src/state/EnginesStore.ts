@@ -11,7 +11,7 @@ interface IEngineOptionMetaCacheEntry {
   protocol: EngineProtocol;
 }
 
-function getInventory(): IEngineRecord[] {
+function _getInventory(): IEngineRecord[] {
   return UserSettingService.getSettings().analysis.engineInventory;
 }
 
@@ -28,7 +28,7 @@ export const useEnginesStore = defineStore('enginesStore', () => {
     return typeof engine === 'string' ? getEngine(engine) : engine;
   }
   function listConfiguredEngines(): IEngineRecord[] {
-    return getInventory();
+    return _getInventory();
   }
   function getEngine(engineId: string): IEngineRecord | undefined {
     return listConfiguredEngines().find((engine) => engine.id === engineId);

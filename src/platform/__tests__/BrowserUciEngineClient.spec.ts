@@ -45,7 +45,7 @@ afterEach(() => {
   manager.dispose();
   disposePinia(pinia);
 });
-async function createEngine(): Promise<IAssignedEngine> {
+async function _createEngine(): Promise<IAssignedEngine> {
   const engine = createAssignedEngine();
   engine.executablePath = 'stockfish.js';
   engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
@@ -53,7 +53,7 @@ async function createEngine(): Promise<IAssignedEngine> {
 }
 describe('browser UCI transport', () => {
   it('uses the bundled worker for handshake, option discovery, analysis and stop', async () => {
-    const engine = await createEngine();
+    const engine = await _createEngine();
     await client.initialiseEngine(engine);
     expect(workers[0]!.url.pathname).toBe('/engines/stockfish/stockfish-19-lite-single.js');
     expect(client.getOptions(engine)).toContainEqual({ name: 'Hash', type: EngineOptionType.Integer, defaultValue: 16, minimum: 1, maximum: 1024 });
@@ -66,13 +66,13 @@ describe('browser UCI transport', () => {
     expect((await client.awaitPlayerTurnMove(engine)).$?.uci).toBe('e7e5');
   });
   it('returns legal UCI player moves from worker messages', async () => {
-    const engine = await createEngine();
+    const engine = await _createEngine();
     await client.initialiseEngine(engine);
     await client.startPlayerTurn(engine, createEngineGame());
     expect((await client.awaitPlayerTurnMove(engine)).$?.uci).toBe('e7e5');
   });
   it('rejects pending initialisation and invalidates the handle on worker failure', async () => {
-    const engine = await createEngine();
+    const engine = await _createEngine();
     workers[0]!.respondToUci = false;
     const starting = client.initialiseEngine(engine);
     const rejected = expect(starting).rejects.toMatchObject({ kind: 'unexpectedExit', detail: 'WASM load failed' });
@@ -100,7 +100,7 @@ describe('browser UCI transport', () => {
     expect(workers).toHaveLength(0);
   });
   it('ignores worker output after its session has stopped', async () => {
-    const engine = await createEngine();
+    const engine = await _createEngine();
     await client.initialiseEngine(engine);
     const onUpdate = vi.fn();
     await client.startAnalysis(engine, createEngineGame(), { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }, onUpdate);

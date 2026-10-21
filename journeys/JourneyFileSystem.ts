@@ -8,7 +8,7 @@ interface IFileSystemSnapshot {
   directories: string[];
   files: Record<string, IStoredFile>;
 }
-function normalise(path: string): string {
+function _normalise(path: string): string {
   const parts: string[] = [];
   for (const part of path.replace(/\\/g, '/').split('/')) {
     if (part === '..') parts.pop();
@@ -16,10 +16,10 @@ function normalise(path: string): string {
   }
   return parts.join('/') || '.';
 }
-function parentPath(path: string): string {
+function _parentPath(path: string): string {
   return path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '.';
 }
-function nodeError(code: string): NodeJS.ErrnoException {
+function _nodeError(code: string): NodeJS.ErrnoException {
   return Object.assign(new Error(code), { code });
 }
 export class JourneyFileSystem {
@@ -28,31 +28,31 @@ export class JourneyFileSystem {
   private _lastModified = Date.now();
   readonly promises = {
     access: async (path: string) => {
-      if (!this._files.has(normalise(path)) && !this._directories.has(normalise(path))) throw nodeError('ENOENT');
+      if (!this._files.has(_normalise(path)) && !this._directories.has(_normalise(path))) throw _nodeError('ENOENT');
     },
-    mkdir: async (path: string) => { this.ensureDirectory(path); this.persist(); },
+    mkdir: async (path: string) => { this._ensureDirectory(path); this._persist(); },
     readFile: async (path: string) => {
-      const file = this._files.get(normalise(path));
-      if (!file) throw nodeError('ENOENT');
+      const file = this._files.get(_normalise(path));
+      if (!file) throw _nodeError('ENOENT');
       return new TextEncoder().encode(file.raw);
     },
     writeFile: async (path: string, raw: string) => {
-      const normalised = normalise(path);
-      if (!this._directories.has(parentPath(normalised))) throw nodeError('ENOENT');
+      const normalised = _normalise(path);
+      if (!this._directories.has(_parentPath(normalised))) throw _nodeError('ENOENT');
       this._lastModified = Math.max(Date.now(), this._lastModified + 1);
       this._files.set(normalised, { raw, modifiedAt: this._lastModified });
-      this.persist();
+      this._persist();
     },
     stat: async (path: string) => {
-      const file = this._files.get(normalise(path));
-      if (!file) throw nodeError('ENOENT');
+      const file = this._files.get(_normalise(path));
+      if (!file) throw _nodeError('ENOENT');
       return { mtime: new Date(file.modifiedAt) };
     },
     unlink: async (path: string) => {
-      if (!this._files.delete(normalise(path))) throw nodeError('ENOENT');
-      this.persist();
+      if (!this._files.delete(_normalise(path))) throw _nodeError('ENOENT');
+      this._persist();
     },
-    readdir: async (path: string) => this.readDirectory(path),
+    readdir: async (path: string) => this._readDirectory(path),
   };
   constructor(private readonly _storage: Storage, private readonly _key: string, seed: IJourneyFile[]) {
     const saved = _storage.getItem(_key);
@@ -62,39 +62,39 @@ export class JourneyFileSystem {
     for (const file of this._files.values()) this._lastModified = Math.max(this._lastModified, file.modifiedAt);
     if (!saved) {
       for (const file of seed) {
-        const path = normalise(file.path);
-        this.ensureDirectory(parentPath(path));
+        const path = _normalise(file.path);
+        this._ensureDirectory(_parentPath(path));
         this._files.set(path, { raw: file.raw, modifiedAt: file.modifiedAt ?? Date.parse('2026-10-01T12:00:00.000Z') });
       }
-      this.persist();
+      this._persist();
     }
   }
   listFiles(): string[] {
     return [...this._files.keys()].sort();
   }
   readFile(path: string): string | undefined {
-    return this._files.get(normalise(path))?.raw;
+    return this._files.get(_normalise(path))?.raw;
   }
   reset() {
     this._storage.removeItem(this._key);
   }
-  private ensureDirectory(path: string) {
-    const parts = normalise(path).split('/');
+  private _ensureDirectory(path: string) {
+    const parts = _normalise(path).split('/');
     for (let index = 1; index <= parts.length; index += 1) this._directories.add(parts.slice(0, index).join('/'));
   }
-  private readDirectory(path: string) {
-    const normalised = normalise(path);
-    if (!this._directories.has(normalised)) throw nodeError('ENOENT');
+  private _readDirectory(path: string) {
+    const normalised = _normalise(path);
+    if (!this._directories.has(normalised)) throw _nodeError('ENOENT');
     const children = new Map<string, boolean>();
     for (const directory of this._directories) {
-      if (directory !== normalised && parentPath(directory) === normalised) children.set(directory, true);
+      if (directory !== normalised && _parentPath(directory) === normalised) children.set(directory, true);
     }
     for (const file of this._files.keys()) {
-      if (parentPath(file) === normalised) children.set(file, false);
+      if (_parentPath(file) === normalised) children.set(file, false);
     }
     return [...children].map(([child, directory]) => ({ name: child.slice(child.lastIndexOf('/') + 1), isDirectory: () => directory }));
   }
-  private persist() {
+  private _persist() {
     const snapshot: IFileSystemSnapshot = { directories: [...this._directories], files: Object.fromEntries(this._files) };
     this._storage.setItem(this._key, JSON.stringify(snapshot));
   }

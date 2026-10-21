@@ -16,8 +16,8 @@ const isLoadingRecent = ref(true);
 const pendingGameId = ref<string>();
 const errorMessage = ref('');
 
-onMounted(refreshRecentGames);
-async function refreshRecentGames() {
+onMounted(_refreshRecentGames);
+async function _refreshRecentGames() {
   try {
     recentGames.value = await recentGameStore.getRecentGames();
   } catch {
@@ -26,7 +26,7 @@ async function refreshRecentGames() {
     isLoadingRecent.value = false;
   }
 }
-async function quickNewGame() {
+async function _quickNewGame() {
   const defaults = settingsStore.settings?.gameDefaults;
   if (!defaults) return;
   const request: ICreateGameRequest = {
@@ -38,13 +38,13 @@ async function quickNewGame() {
     allowTakeback: true,
     timeControl: { ...defaults.defaultTimeControl },
   };
-  await run(async () => {
+  await _run(async () => {
     const game = await gamesStore.createGame(request);
     uiStateStore.openTab(game.metadata.id);
     await router.push(`/game/${game.metadata.id}`);
   });
 }
-async function openRecent(entry: IRecentGameEntry) {
+async function _openRecent(entry: IRecentGameEntry) {
   pendingGameId.value = entry.gameId;
   try {
     errorMessage.value = '';
@@ -54,12 +54,12 @@ async function openRecent(entry: IRecentGameEntry) {
     await router.push(`/game/${game.metadata.id}`);
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'The game could not be opened.';
-    await refreshRecentGames();
+    await _refreshRecentGames();
   } finally {
     pendingGameId.value = undefined;
   }
 }
-async function run(action: () => Promise<void>) {
+async function _run(action: () => Promise<void>) {
   errorMessage.value = '';
   try {
     await action();
@@ -85,7 +85,7 @@ async function run(action: () => Promise<void>) {
         <p class="page-description page-description--home">Open a fresh board, continue a saved game, or settle in for analysis.</p>
       </div>
       <div class="home-actions" aria-label="Start actions">
-        <button class="home-action home-action--primary" @click="quickNewGame"><span class="home-action__icon"><AppIcon name="sparkles" /></span><strong>Quick game</strong><small>Start with your defaults</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
+        <button class="home-action home-action--primary" @click="_quickNewGame"><span class="home-action__icon"><AppIcon name="sparkles" /></span><strong>Quick game</strong><small>Start with your defaults</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="uiStateStore.showModal({ kind: AppModalKind.NewGame })"><span class="home-action__icon"><AppIcon name="sliders" /></span><strong>Custom game</strong><small>Players, clock & engines</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="router.push('/saved-games/load')"><span class="home-action__icon"><AppIcon name="folder" /></span><strong>Load game</strong><small>Return to a saved board</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="router.push('/settings/session')"><span class="home-action__icon"><AppIcon name="settings" /></span><strong>Settings</strong><small>Make the board yours</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
@@ -94,7 +94,7 @@ async function run(action: () => Promise<void>) {
       <section v-if="recentGames.length" class="recent-section">
         <div class="recent-section__heading"><div><p class="page-kicker page-kicker--flush">Continue</p><h2>Recent games</h2></div><button class="text-button text-button--ghost" @click="router.push('/saved-games/load')">View all <AppIcon name="arrow-right" /></button></div>
         <div class="recent-grid">
-          <button v-for="entry in recentGames.slice(0, 3)" :key="entry.gameId" class="recent-card" :disabled="pendingGameId === entry.gameId" @click="openRecent(entry)">
+          <button v-for="entry in recentGames.slice(0, 3)" :key="entry.gameId" class="recent-card" :disabled="pendingGameId === entry.gameId" @click="_openRecent(entry)">
             <span class="recent-card__piece">♟</span>
             <span class="recent-card__copy"><strong>{{ entry.displayName }}</strong><small>{{ entry.sourceKind === 'autosave' ? 'Autosaved' : 'Saved' }} · {{ entry.lastSavedAtUtc.toLocaleDateString() }}</small></span>
             <AppIcon name="arrow-right" />

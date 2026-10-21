@@ -30,7 +30,7 @@ interface IGameWorkspaceDependency {
 export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
   const { position, status, clock, analysis, playerTurn, touchGame } = dependency;
   const games = ref<IGame[]>([]);
-  function createGameMetadata(name: string, nowUtc: Date) {
+  function _createGameMetadata(name: string, nowUtc: Date) {
     return {
       id: crypto.randomUUID(),
       name,
@@ -39,25 +39,25 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     };
   }
   /** Insertion transfers ownership; duplicate repair mutates that supplied game before it enters the store. */
-  function repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>) {
+  function _repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>) {
     if (!existingGameIds.has(game.metadata.id)) return;
     game.metadata.id = crypto.randomUUID();
     game.metadata.updatedAt = new RecordTimestamp();
   }
-  function getGameIndex(gameId: string): number {
+  function _getGameIndex(gameId: string): number {
     return games.value.findIndex((game) => game.metadata.id === gameId);
   }
-  function getExistingGameIds(excludedGameId?: string): Set<string> {
+  function _getExistingGameIds(excludedGameId?: string): Set<string> {
     return new Set(games.value.filter((game) => game.metadata.id !== excludedGameId).map((game) => game.metadata.id));
   }
-  function replaceGame(game: IGame) {
+  function _replaceGame(game: IGame) {
     markRaw(game);
-    const gameIndex = getGameIndex(game.metadata.id);
+    const gameIndex = _getGameIndex(game.metadata.id);
     if (gameIndex >= 0) games.value.splice(gameIndex, 1, game);
     else games.value.push(game);
   }
-  async function hydrateAndInsertGame(game: IGame): Promise<IGame> {
-    repairDuplicateGameId(game, getExistingGameIds());
+  async function _hydrateAndInsertGame(game: IGame): Promise<IGame> {
+    _repairDuplicateGameId(game, _getExistingGameIds());
     const hydratedGame = position.hydrateGame(game);
     if (status.isPausedState(hydratedGame.gameState)) {
       // Saved states omit runtime owners; require an explicit resume after restore.
@@ -65,7 +65,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
         ? [PauseReason.Analysis, PauseReason.Manual] : [PauseReason.Manual];
     }
     playerTurn.normalisePlayers(hydratedGame);
-    replaceGame(hydratedGame);
+    _replaceGame(hydratedGame);
     clock.refreshRuntimeRegistrations(hydratedGame);
     return hydratedGame;
   }
@@ -77,7 +77,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const livePath: MovePath | undefined = isLiveGame ? [] : undefined;
     const game: IGame = {
       schemaVersion: 1,
-      metadata: createGameMetadata(request.name, nowUtc),
+      metadata: _createGameMetadata(request.name, nowUtc),
       gameState: isLiveGame ? status.getLiveState(rootPosition.sideToMove) : status.getAnalysisState(rootPosition.sideToMove),
       resultState: ResultState.Ongoing,
       whitePlayer: playerTurn.createPlayerSnapshot(request.whitePlayer),
@@ -93,7 +93,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       },
       gameplayOptions: { allowTakeback: request.allowTakeback, showLiveAnalysisMoves: request.showLiveAnalysisMoves },
     };
-    const insertedGame = await hydrateAndInsertGame(game);
+    const insertedGame = await _hydrateAndInsertGame(game);
     playerTurn.requestPlayerMoveIfNeeded(insertedGame);
     if (insertedGame.analysis.seats.length > 0) await analysis.refreshAnalysisForGame(insertedGame);
     return insertedGame;
@@ -110,7 +110,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const renderedPosition = position.getRenderedPosition(game);
     game.analysis.seats = request.analysisEngineProfiles.map((engineProfile) => analysis.createAnalysisSeat(engineProfile, new Date()));
     game.clockSnapshot = clock.initialiseClockSnapshot(game.timeControl);
-    if (game.whitePlayer && game.blackPlayer) startLiveGame(game, renderedPosition);
+    if (game.whitePlayer && game.blackPlayer) _startLiveGame(game, renderedPosition);
     else {
       position.setLivePath(game, undefined);
       game.gameState = status.getAnalysisState(renderedPosition.sideToMove);
@@ -120,7 +120,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     playerTurn.requestPlayerMoveIfNeeded(game);
     await analysis.refreshAnalysisForGame(game);
   }
-  function startLiveGame(game: IGame, renderedPosition: ReturnType<GamePositionComposable['getRenderedPosition']>) {
+  function _startLiveGame(game: IGame, renderedPosition: ReturnType<GamePositionComposable['getRenderedPosition']>) {
     position.setLivePath(game, game.renderedPath, { node: position.getRenderedNode(game), position: renderedPosition });
     game.clockSnapshot = clock.startClock(game.clockSnapshot, renderedPosition.sideToMove, new ClockTimestamp());
     game.resultState = ResultState.Ongoing;
@@ -129,7 +129,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
   }
   /** Takes ownership of `game`, hydrates it in place, and inserts that same object into the workspace. */
   async function insertGame(game: IGame): Promise<IGame> {
-    const insertedGame = await hydrateAndInsertGame(game);
+    const insertedGame = await _hydrateAndInsertGame(game);
     playerTurn.requestPlayerMoveIfNeeded(insertedGame);
     const settings = await UserSettingService.getSettingsOrDefault();
     if (settings.analysis.resumeLiveAnalysisAfterRestore && insertedGame.gameState !== GameState.BoardEdit && insertedGame.analysis.seats.length > 0) await analysis.refreshAnalysisForGame(insertedGame);

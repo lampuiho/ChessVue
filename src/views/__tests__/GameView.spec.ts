@@ -58,13 +58,13 @@ const wrappers: VueWrapper[] = [];
 const routeUpdates: Array<(to: { params: { id: string } }) => unknown> = [];
 let modalClosed: (() => Promise<void> | void) | undefined;
 let games: Map<string, IGame>;
-async function selectRoute(id: string) {
+async function _selectRoute(id: string) {
   for (const update of routeUpdates) await update({ params: { id } });
   dependency.route.params.id = id;
   await flushPromises();
 }
 
-function createTimedGame(id: string = 'game-1', pauseReasons: PauseReason[] = []): IGame {
+function _createTimedGame(id: string = 'game-1', pauseReasons: PauseReason[] = []): IGame {
   const game = createGame({
     timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 0 },
     clockSnapshot: createClockSnapshot(PlayerColour.White, true),
@@ -74,7 +74,7 @@ function createTimedGame(id: string = 'game-1', pauseReasons: PauseReason[] = []
   game.metadata.name = id;
   return game;
 }
-function mountView(game: IGame = createTimedGame()): VueWrapper {
+function _mountView(game: IGame = _createTimedGame()): VueWrapper {
   games.set(game.metadata.id, game);
   dependency.route.params.id = game.metadata.id;
   dependency.uiStateStore.gameSession = createGameSessionSnapshot({ openGameIds: [...games.keys()], activeGameId: game.metadata.id, activeRoute: `/game/${game.metadata.id}` });
@@ -129,22 +129,22 @@ describe('GameView menu interruptions', () => {
     vi.useRealTimers();
   });
   it('renders history review as read-only until explicit analysis entry', async () => {
-    const game = createTimedGame();
+    const game = _createTimedGame();
     game.rootPosition = createInitialBoardPosition();
     MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
     game.livePath = [0];
     game.renderedPath = [];
     game.gameState = GameState.LiveBlackTurn;
-    const wrapper = mountView(game);
+    const wrapper = _mountView(game);
     await flushPromises();
     expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('historyReview');
     expect(wrapper.getComponent({ name: 'Chessboard' }).props('inputDisabled')).toBe(true);
     expect(wrapper.getComponent({ name: 'AnalysisPanel' }).props('disabled')).toBe(true);
   });
   it('replaces the board input owner when entering analysis at the same canonical node', async () => {
-    const game = createTimedGame();
+    const game = _createTimedGame();
     game.rootPosition = createInitialBoardPosition();
-    const wrapper = mountView(game);
+    const wrapper = _mountView(game);
     await flushPromises();
     const board = wrapper.getComponent({ name: 'Chessboard' });
     const original = board.props('position');
@@ -155,11 +155,11 @@ describe('GameView menu interruptions', () => {
     expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('inGameAnalysis');
   });
   it('publishes raw seat changes through workspaceRevision and allows paused runtime controls', async () => {
-    const game = createTimedGame();
+    const game = _createTimedGame();
     game.gameState = GameState.PausedWhiteTurn;
     const seat = createAnalysisSeat();
     game.analysis.seats = [seat];
-    const wrapper = mountView(game);
+    const wrapper = _mountView(game);
     await flushPromises();
     const panel = wrapper.getComponent({ name: 'AnalysisPanel' });
     const previousSeats = panel.props('seats');
@@ -176,9 +176,9 @@ describe('GameView menu interruptions', () => {
     expect(panel.props('startDisabled')).toBe(true);
   });
   it('preserves board input across analysis publications but replaces the position after a board edit', async () => {
-    const game = createTimedGame();
+    const game = _createTimedGame();
     game.rootPosition = createInitialBoardPosition();
-    const wrapper = mountView(game);
+    const wrapper = _mountView(game);
     await flushPromises();
     const board = wrapper.getComponent({ name: 'Chessboard' });
     const original = board.props('position');
@@ -193,13 +193,13 @@ describe('GameView menu interruptions', () => {
     expect(board.props('position').board[12]).toBeUndefined();
   });
   it('replaces board input when switching to another game with the same position', async () => {
-    const wrapper = mountView();
+    const wrapper = _mountView();
     await flushPromises();
     const board = wrapper.getComponent({ name: 'Chessboard' });
     const original = board.props('position');
-    const other = createTimedGame('game-2');
+    const other = _createTimedGame('game-2');
     games.set(other.metadata.id, other);
-    await selectRoute(other.metadata.id);
+    await _selectRoute(other.metadata.id);
     expect(board.props('position')).toEqual(original);
     expect(board.props('position')).not.toBe(original);
   });
@@ -210,8 +210,8 @@ describe('GameView menu interruptions', () => {
     ['saveGameRequested', '/saved-games/save/game-1'],
     ['settingsRequested', '/settings/session'],
   ])('pauses before handling the %s route action', async (eventName, targetRoute) => {
-    const game = createTimedGame();
-    const wrapper = mountView(game);
+    const game = _createTimedGame();
+    const wrapper = _mountView(game);
     await flushPromises();
 
     wrapper.getComponent({ name: 'MenuBar' }).vm.$emit(eventName);
@@ -223,7 +223,7 @@ describe('GameView menu interruptions', () => {
   });
   it('does not pause route actions when auto-pause is disabled', async () => {
     dependency.settingsStore.settings.gameSession.autoPauseOnMenu = false;
-    const wrapper = mountView();
+    const wrapper = _mountView();
     await flushPromises();
 
     wrapper.getComponent({ name: 'MenuBar' }).vm.$emit('settingsRequested');
@@ -233,21 +233,21 @@ describe('GameView menu interruptions', () => {
     expect(dependency.router.push).toHaveBeenCalledWith('/settings/session');
   });
   it('resumes a returning menu-owned pause but preserves manual and analysis pause owners', async () => {
-    const menuPausedGame = createTimedGame('menu-paused', [PauseReason.Menu]);
-    mountView(menuPausedGame);
+    const menuPausedGame = _createTimedGame('menu-paused', [PauseReason.Menu]);
+    _mountView(menuPausedGame);
     await flushPromises();
     expect(dependency.gamesStore.resumeGame).toHaveBeenCalledWith(menuPausedGame, PauseReason.Menu);
 
     for (const reason of [PauseReason.Manual, PauseReason.Analysis]) {
       dependency.gamesStore.resumeGame.mockClear();
-      mountView(createTimedGame(`${reason}-paused`, [reason]));
+      _mountView(_createTimedGame(`${reason}-paused`, [reason]));
       await flushPromises();
       expect(dependency.gamesStore.resumeGame).not.toHaveBeenCalled();
     }
   });
   it('resumes when custom-new is cancelled', async () => {
-    const game = createTimedGame();
-    const wrapper = mountView(game);
+    const game = _createTimedGame();
+    const wrapper = _mountView(game);
     await flushPromises();
 
     wrapper.getComponent({ name: 'MenuBar' }).vm.$emit('customNewGameRequested');
@@ -260,20 +260,20 @@ describe('GameView menu interruptions', () => {
     expect(dependency.gamesStore.resumeGame).toHaveBeenCalledWith(game, PauseReason.Menu);
   });
   it('keeps the interrupted game paused after custom-new creates another workspace', async () => {
-    const interruptedGame = createTimedGame('game-1');
-    const newGame = createTimedGame('game-2');
+    const interruptedGame = _createTimedGame('game-1');
+    const newGame = _createTimedGame('game-2');
     games.set(newGame.metadata.id, newGame);
-    const wrapper = mountView(interruptedGame);
+    const wrapper = _mountView(interruptedGame);
     await flushPromises();
 
     wrapper.getComponent({ name: 'MenuBar' }).vm.$emit('customNewGameRequested');
     await flushPromises();
-    await selectRoute(newGame.metadata.id);
+    await _selectRoute(newGame.metadata.id);
     dependency.uiStateStore.hideModal();
     await flushPromises();
     expect(dependency.gamesStore.resumeGame).not.toHaveBeenCalledWith(interruptedGame, PauseReason.Menu);
 
-    await selectRoute(interruptedGame.metadata.id);
+    await _selectRoute(interruptedGame.metadata.id);
     expect(dependency.gamesStore.resumeGame).toHaveBeenCalledWith(interruptedGame, PauseReason.Menu);
   });
 });

@@ -32,11 +32,11 @@ const engines = computed(() => {
   void settingsStore.settings;
   return enginesStore.listConfiguredEngines();
 });
-const setupGame = computed(() => modal.value?.kind === AppModalKind.StartGameFromSetup ? mutableGame(modal.value.payload.gameId) : undefined);
+const setupGame = computed(() => modal.value?.kind === AppModalKind.StartGameFromSetup ? _mutableGame(modal.value.payload.gameId) : undefined);
 const promotionPosition = computed(() => {
   const current = modal.value;
   if (current?.kind !== AppModalKind.Promotion) return;
-  const game = mutableGame(current.payload.gameId);
+  const game = _mutableGame(current.payload.gameId);
   if (game) return MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, game.renderedPath));
 });
 const availableAnalysisEngines = computed(() => {
@@ -45,10 +45,10 @@ const availableAnalysisEngines = computed(() => {
   return engines.value.filter((candidate) => !current.payload.currentAnalysisEngines.some((assigned) => assigned.displayName === candidate.displayName));
 });
 
-function mutableGame(gameId: string): IGame | undefined {
+function _mutableGame(gameId: string): IGame | undefined {
   return gamesStore.getGame(gameId) as unknown as IGame | undefined;
 }
-function assignedPlayer(selection: string, colour: PlayerColour): IPlayer | undefined {
+function _assignedPlayer(selection: string, colour: PlayerColour): IPlayer | undefined {
   if (selection === 'none') return;
   if (selection === 'local') return { colour, type: PlayerType.Local, displayName: colour === PlayerColour.White ? 'White' : 'Black' };
   const engine = engines.value.find((candidate) => candidate.id === selection.slice('engine:'.length));
@@ -61,18 +61,18 @@ function assignedPlayer(selection: string, colour: PlayerColour): IPlayer | unde
   };
   return enginePlayer;
 }
-async function createGame(request: ICreateGameRequest) {
-  await run(async (signal) => {
-    await validateRequiredEngines(request);
+async function _createGame(request: ICreateGameRequest) {
+  await _run(async (signal) => {
+    await _validateRequiredEngines(request);
     signal.throwIfAborted();
     const game = await gamesStore.createGame(request);
     signal.throwIfAborted();
     uiStateStore.openTab(game.metadata.id);
     await router.push(`/game/${game.metadata.id}`);
-    await closeModal(signal);
+    await _closeModal(signal);
   });
 }
-async function validateRequiredEngines(request: ICreateGameRequest) {
+async function _validateRequiredEngines(request: ICreateGameRequest) {
   if (!request.whitePlayer || !request.blackPlayer) return;
   for (const player of [request.whitePlayer, request.blackPlayer]) {
     if (player.type !== PlayerType.Engine) continue;
@@ -84,52 +84,52 @@ async function validateRequiredEngines(request: ICreateGameRequest) {
     }
   }
 }
-async function confirmPlayerSelection() {
+async function _confirmPlayerSelection() {
   const current = modal.value;
   if (current?.kind !== AppModalKind.PlayerSelection) return;
-  const game = mutableGame(current.payload.gameId);
+  const game = _mutableGame(current.payload.gameId);
   if (!game) return;
-  await run(async (signal) => {
-    if (form.value.selectedPlayer !== 'unchanged') await gamesStore.reassignPlayer(game, current.payload.colour, assignedPlayer(form.value.selectedPlayer, current.payload.colour));
-    await closeModal(signal);
+  await _run(async (signal) => {
+    if (form.value.selectedPlayer !== 'unchanged') await gamesStore.reassignPlayer(game, current.payload.colour, _assignedPlayer(form.value.selectedPlayer, current.payload.colour));
+    await _closeModal(signal);
   });
 }
-async function confirmAnalysisEngine() {
+async function _confirmAnalysisEngine() {
   const current = modal.value;
   if (current?.kind !== AppModalKind.AnalysisEngineSelection) return;
-  const game = mutableGame(current.payload.gameId);
+  const game = _mutableGame(current.payload.gameId);
   const engine = engines.value.find((candidate) => candidate.id === form.value.selectedEngineId);
   if (!game || !engine) return;
-  await run(async (signal) => {
+  await _run(async (signal) => {
     const adding = gamesStore.addAnalysisEngine(game, engine);
     const seat = game.analysis.seats.find((candidate) => candidate.assignedEngine.displayName === engine.displayName);
     await adding;
     const index = seat ? game.analysis.seats.indexOf(seat) : -1;
     if (game.gameState !== 'boardEdit' && index >= 0) await gamesStore.retryAnalysis(game, index);
-    await closeModal(signal);
+    await _closeModal(signal);
   });
 }
-async function confirmSetupStart(request: ICreateGameRequest) {
+async function _confirmSetupStart(request: ICreateGameRequest) {
   const current = modal.value;
   if (current?.kind !== AppModalKind.StartGameFromSetup) return;
-  const game = mutableGame(current.payload.gameId);
+  const game = _mutableGame(current.payload.gameId);
   if (!game) return;
-  await run(async (signal) => {
-    await validateRequiredEngines(request);
+  await _run(async (signal) => {
+    await _validateRequiredEngines(request);
     signal.throwIfAborted();
     await gamesStore.startGameFromSetup(game, request);
-    await closeModal(signal);
+    await _closeModal(signal);
   });
 }
-async function confirmSimpleAction() {
+async function _confirmSimpleAction() {
   const current = modal.value;
   if (!current) return;
-  await run(async (signal) => {
+  await _run(async (signal) => {
     if (current.kind === AppModalKind.Resign) {
-      const game = mutableGame(current.payload.gameId);
+      const game = _mutableGame(current.payload.gameId);
       if (game) await gamesStore.resignGame(game, current.payload.colour);
     } else if (current.kind === AppModalKind.DrawOffer) {
-      const game = mutableGame(current.payload.gameId);
+      const game = _mutableGame(current.payload.gameId);
       if (game) {
         await gamesStore.offerDraw(game);
         signal.throwIfAborted();
@@ -137,41 +137,41 @@ async function confirmSimpleAction() {
         return;
       }
     } else if (current.kind === AppModalKind.DrawResolve) {
-      const game = mutableGame(current.payload.gameId);
+      const game = _mutableGame(current.payload.gameId);
       if (game) await gamesStore.acceptDrawOffer(game);
     } else if (current.kind === AppModalKind.ResetSettings) await settingsStore.resetSettings();
     else if (current.kind === AppModalKind.SettingsDirtyLeave) {
       settingsStore.discardPendingSettings();
       await router.push(current.payload.targetRoute);
     } else if (current.kind === AppModalKind.DeleteGame) await savedGamesStore.deleteSave(current.payload.gameId);
-    await closeModal(signal);
+    await _closeModal(signal);
   });
 }
-async function declineDraw() {
+async function _declineDraw() {
   const current = modal.value;
   if (current?.kind !== AppModalKind.DrawResolve) return;
-  const game = mutableGame(current.payload.gameId);
-  await run(async (signal) => {
+  const game = _mutableGame(current.payload.gameId);
+  await _run(async (signal) => {
     if (game) await gamesStore.declineDrawOffer(game);
-    await closeModal(signal);
+    await _closeModal(signal);
   });
 }
-async function choosePromotion(pieceKind: PieceKind) {
+async function _choosePromotion(pieceKind: PieceKind) {
   const current = modal.value;
   if (current?.kind !== AppModalKind.Promotion) return;
-  const game = mutableGame(current.payload.gameId);
+  const game = _mutableGame(current.payload.gameId);
   if (!game) return;
   const position = MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, game.renderedPath));
   const move = toDetailedMove(position, { from: current.payload.move.from, to: current.payload.move.to, promotionPiece: pieceKind });
-  await run(async (signal) => {
+  await _run(async (signal) => {
     await gamesStore.makeMove(game, move);
-    await closeModal(signal);
+    await _closeModal(signal);
   });
 }
-function closeModal(signal: AbortSignal) {
+function _closeModal(signal: AbortSignal) {
   if (!signal.aborted) return uiStateStore.hideModal();
 }
-async function run(action: (signal: AbortSignal) => Promise<void>) {
+async function _run(action: (signal: AbortSignal) => Promise<void>) {
   const currentForm = form.value;
   const signal = uiStateStore.getModalSignal();
   if (currentForm.isWorking) return;
@@ -188,8 +188,8 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
 </script>
 
 <template>
-  <NewGameModal v-if="modal?.kind === AppModalKind.NewGame && settingsStore.draftSettings" :settings="settingsStore.draftSettings" :engines="engines" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="createGame" @cancel-requested="uiStateStore.hideModal" />
-  <NewGameModal v-else-if="modal?.kind === AppModalKind.StartGameFromSetup && settingsStore.draftSettings && setupGame" :settings="settingsStore.draftSettings" :engines="engines" :setup-game="setupGame" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="confirmSetupStart" @cancel-requested="uiStateStore.hideModal" />
+  <NewGameModal v-if="modal?.kind === AppModalKind.NewGame && settingsStore.draftSettings" :settings="settingsStore.draftSettings" :engines="engines" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="_createGame" @cancel-requested="uiStateStore.hideModal" />
+  <NewGameModal v-else-if="modal?.kind === AppModalKind.StartGameFromSetup && settingsStore.draftSettings && setupGame" :settings="settingsStore.draftSettings" :engines="engines" :setup-game="setupGame" :error-message="form.errorMessage" :busy="form.isWorking" @create-requested="_confirmSetupStart" @cancel-requested="uiStateStore.hideModal" />
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.PlayerSelection" title="Choose a player" :subtitle="`Assign the ${modal.payload.colour} seat for this game.`" @dismissed="uiStateStore.hideModal">
     <div class="choice-list">
       <label v-if="modal.payload.currentPlayerType === PlayerType.Engine" class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="unchanged"><span class="choice-card__piece">♞</span><span><strong>Keep {{ modal.payload.currentAssignedEngine?.displayName }}</strong><small>Keep the engine and options assigned to this game.</small></span></label>
@@ -198,7 +198,7 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
       <label v-for="engine in engines" :key="engine.id" class="choice-card"><input v-model="form.selectedPlayer" type="radio" :value="`engine:${engine.id}`"><span class="choice-card__piece">♞</span><span><strong>{{ engine.displayName }}</strong><small>Configured UCI engine.</small></span></label>
     </div>
     <p v-if="form.errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ form.errorMessage }}</p>
-    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="confirmPlayerSelection">Assign player</button></template>
+    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="_confirmPlayerSelection">Assign player</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.AnalysisEngineSelection" title="Add analysis engine" subtitle="Assign a configured engine to this board." @dismissed="uiStateStore.hideModal">
     <div v-if="engines.length" class="choice-list">
@@ -206,30 +206,30 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
     </div>
     <p v-else class="inline-message">Add an engine profile in Settings before assigning analysis.</p>
     <p v-if="form.errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ form.errorMessage }}</p>
-    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" :disabled="!form.selectedEngineId" @click="confirmAnalysisEngine">Add engine</button></template>
+    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" :disabled="!form.selectedEngineId" @click="_confirmAnalysisEngine">Add engine</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Promotion" title="Choose promotion" subtitle="Select the piece your pawn should become." @dismissed="uiStateStore.hideModal">
-    <div class="promotion-row"><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${kind}`" @click="choosePromotion(kind)"><ChessPiece :kind="kind" :colour="promotionPosition?.sideToMove ?? PlayerColour.White" /></button></div>
+    <div class="promotion-row"><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${kind}`" @click="_choosePromotion(kind)"><ChessPiece :kind="kind" :colour="promotionPosition?.sideToMove ?? PlayerColour.White" /></button></div>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Resign" title="Resign this game?" subtitle="This records the game as finished. You can still review the position afterwards." @dismissed="uiStateStore.hideModal">
     <p class="modal-copy">Confirm that {{ modal.payload.colour }} resigns.</p><p v-if="form.errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ form.errorMessage }}</p>
-    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="confirmSimpleAction">Resign</button></template>
+    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="_confirmSimpleAction">Resign</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.DrawOffer" title="Offer a draw?" subtitle="The other side will be asked to accept or decline." @dismissed="uiStateStore.hideModal">
     <p class="modal-copy">Offer a draw from the {{ modal.payload.offeringColour }} side.</p>
-    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Offer draw</button></template>
+    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" @click="_confirmSimpleAction">Offer draw</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.DrawResolve" title="Draw offered" :subtitle="`${modal.payload.respondingColour} to respond.`" :dismissible="false">
     <p class="modal-copy">Accept the draw and finish the game?</p>
-    <template #actions><button class="text-button" @click="declineDraw">Decline</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Accept</button></template>
+    <template #actions><button class="text-button" @click="_declineDraw">Decline</button><button class="text-button text-button--primary" @click="_confirmSimpleAction">Accept</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.ResetSettings" title="Reset all settings?" subtitle="Preferences and engine profiles will return to their defaults." @dismissed="uiStateStore.hideModal">
     <p class="modal-copy">This cannot be undone after you save another change.</p>
-    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="confirmSimpleAction">Reset settings</button></template>
+    <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--danger" @click="_confirmSimpleAction">Reset settings</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.SettingsDirtyLeave" title="Discard unsaved changes?" subtitle="You have settings changes that have not been applied." @dismissed="uiStateStore.hideModal">
-    <template #actions><button class="text-button" @click="uiStateStore.hideModal">Keep editing</button><button class="text-button text-button--primary" @click="confirmSimpleAction">Discard changes</button></template>
+    <template #actions><button class="text-button" @click="uiStateStore.hideModal">Keep editing</button><button class="text-button text-button--primary" @click="_confirmSimpleAction">Discard changes</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.BoardEditBlocked" title="Board editing is unavailable" subtitle="Finish in-game analysis before changing the position." @dismissed="uiStateStore.hideModal">
     <p class="modal-copy">Board editing is only available in a free analysis workspace.</p>

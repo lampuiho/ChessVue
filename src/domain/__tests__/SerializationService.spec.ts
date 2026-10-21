@@ -30,14 +30,14 @@ import { createInitialBoardPosition, getSan, getUci, toDetailedMove } from '@/ut
 import { AnalysisTimestamp, ClockTimestamp, RecordTimestamp } from '@/utility/date';
 import { createAnalysisSeat } from '@/state/__tests__/StateStoreTestUtility';
 
-const boardId = (file: number, rank: number) => file + (rank * 8);
+const _boardId = (file: number, rank: number) => file + (rank * 8);
 
-function getNode(tree: IMoveTree, path: MovePath): IMoveNode {
+function _getNode(tree: IMoveTree, path: MovePath): IMoveNode {
   let currentNode = tree.root;
   for (const childIndex of path) currentNode = currentNode.children[childIndex]!;
   return currentNode;
 }
-function createSettingsSnapshot(): ISettingsSnapshot {
+function _createSettingsSnapshot(): ISettingsSnapshot {
   return {
     schemaVersion: 1,
     gameSession: {
@@ -79,12 +79,12 @@ function createSettingsSnapshot(): ISettingsSnapshot {
     },
   };
 }
-function createGame(): IGame {
+function _createGame(): IGame {
   const timeControl = { preset: TimeControlPreset.Rapid, initialMs: 600000, incrementMs: 0 };
   const rootPosition = createInitialBoardPosition();
   const rootClock = TimeControlService.initialiseClockSnapshot(timeControl);
   const moveTree = MoveHistoryService.createMoveTree(rootClock);
-  const move = toDetailedMove(rootPosition, { from: boardId(4, 1), to: boardId(4, 3) });
+  const move = toDetailedMove(rootPosition, { from: _boardId(4, 1), to: _boardId(4, 3) });
   const started = TimeControlService.startClock(rootClock, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:00.000Z'));
   const nextClock = TimeControlService.applyMove(started, PlayerColour.White, new ClockTimestamp('2026-01-01T12:00:05.000Z'), timeControl);
   getSan(move);
@@ -129,7 +129,7 @@ function createGame(): IGame {
 
 describe('SerializationService', () => {
   it('round-trips empty and populated analysis seats without runtime data or position keys', () => {
-    const game = createGame();
+    const game = _createGame();
     const seat = createAnalysisSeat();
     seat.updatedAt = new AnalysisTimestamp();
     seat.lines = [{ depth: 10, scoreCp: 25, pv: [], $: { reference: 1 } }];
@@ -147,7 +147,7 @@ describe('SerializationService', () => {
     expect(restored.renderedPath).toEqual(game.renderedPath);
   });
   it('rejects saved seats with more than three rendered lines', () => {
-    const game = createGame();
+    const game = _createGame();
     const document = JSON.parse(SerializationService.serialiseGame(game));
     const seat = createAnalysisSeat();
     seat.lines = Array.from({ length: 4 }, () => ({ depth: 1, pv: [] }));
@@ -157,7 +157,7 @@ describe('SerializationService', () => {
     expect(() => SerializationService.deserialiseGame(JSON.stringify(document))).toThrow(SerializationError);
   });
   it('round-trips settings snapshots', () => {
-    const snapshot = createSettingsSnapshot();
+    const snapshot = _createSettingsSnapshot();
     const restored = SerializationService.deserialiseSettings(SerializationService.serialiseSettings(snapshot));
 
     expect(restored).toEqual(snapshot);
@@ -187,11 +187,11 @@ describe('SerializationService', () => {
   });
 
   it('round-trips saved games without persisting runtime metadata', () => {
-    const game = createGame();
+    const game = _createGame();
     (game as unknown as { $?: { isHydrated: boolean } }).$ = { isHydrated: true };
     ((game.whitePlayer as unknown) as { $?: unknown }).$ = { isSelected: true };
-    getNode(game.moveTree, game.livePath!).move = {
-      ...getNode(game.moveTree, game.livePath!).move!,
+    _getNode(game.moveTree, game.livePath!).move = {
+      ..._getNode(game.moveTree, game.livePath!).move!,
       $: {
         san: 'e4',
         uci: 'e2e4',
@@ -205,12 +205,12 @@ describe('SerializationService', () => {
     expect(serialised).not.toContain('"fen"');
     expect((restored as IGame & { $?: unknown }).$).toBeUndefined();
     expect((restored.whitePlayer as typeof restored.whitePlayer & { $?: unknown }).$).toBeUndefined();
-    expect(getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
+    expect(_getNode(restored.moveTree, restored.livePath!).move?.$).toBeUndefined();
     expect(PositionIdentityService.buildPositionKey(restored.rootPosition)).toBe(PositionIdentityService.buildPositionKey(game.rootPosition));
   });
 
   it('rejects an undeclared highlighted move selector alias', () => {
-    const invalidGame = JSON.parse(SerializationService.serialiseGame(createGame())) as Record<string, unknown>;
+    const invalidGame = JSON.parse(SerializationService.serialiseGame(_createGame())) as Record<string, unknown>;
     invalidGame.highlightPath = invalidGame.renderedPath;
     delete invalidGame.renderedPath;
 
@@ -218,7 +218,7 @@ describe('SerializationService', () => {
   });
 
   it('rejects broken move-tree payloads', () => {
-    const game = createGame();
+    const game = _createGame();
     game.moveTree.root.mainlineChildIndex = 1;
 
     expect(() => SerializationService.serialiseGame(game)).toThrow(SerializationError);

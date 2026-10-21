@@ -7,7 +7,7 @@ import { attachProcessLineListeners, writeProcessLine } from './NwjsProcessLineU
 
 export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
   const transports = new WeakMap<ISpawnedProcess, IUciTransport>();
-  function resolveTransport(handle: ProcessHandle): IUciTransport | undefined {
+  function _resolveTransport(handle: ProcessHandle): IUciTransport | undefined {
     const process = processRegistry.get(handle);
     if (!process) return;
     let transport = transports.get(process);
@@ -20,5 +20,5 @@ export function defineNwjsUciEngineClientStore(_nw: INwjsGlobal, processRegistry
     }
     return transport;
   }
-  return defineUciEngineClientStore('nwjsUciEngineClient', resolveTransport);
+  return defineUciEngineClientStore('nwjsUciEngineClient', _resolveTransport);
 }

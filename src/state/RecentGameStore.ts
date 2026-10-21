@@ -5,7 +5,7 @@ import { RecentGameSourceKind, type IRecentGameEntry } from '@/contracts';
 import { SavedGameIndexService, SerializationService, UserSettingService } from '@/domain';
 import { SaveTimestamp } from '@/utility/date';
 
-function compareRecentEntries(left: IRecentGameEntry, right: IRecentGameEntry): number {
+function _compareRecentEntries(left: IRecentGameEntry, right: IRecentGameEntry): number {
   return right.lastSavedAtUtc.getTime() - left.lastSavedAtUtc.getTime();
 }
 async function _listManagedSaveGroups(rootPath: string): Promise<ISavedGameGroup[]> {
@@ -29,12 +29,12 @@ export const useRecentGameStore = defineStore('recentGameStore', () => {
           lastSavedAtUtc: latestEntry.savedAtUtc ?? new SaveTimestamp(game.metadata.updatedAt),
         };
         const existingEntry = recentEntriesById.get(projectedEntry.gameId);
-        if (!existingEntry || compareRecentEntries(projectedEntry, existingEntry) < 0) recentEntriesById.set(projectedEntry.gameId, projectedEntry);
+        if (!existingEntry || _compareRecentEntries(projectedEntry, existingEntry) < 0) recentEntriesById.set(projectedEntry.gameId, projectedEntry);
       } catch (error) {
         console.error(`[RecentGameStore] Failed to project recent entry from ${latestEntry.filePath}.`, error);
       }
     }
-    return [...recentEntriesById.values()].sort(compareRecentEntries);
+    return [...recentEntriesById.values()].sort(_compareRecentEntries);
   }
 
   return { getRecentGames };

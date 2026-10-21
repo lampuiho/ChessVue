@@ -2,7 +2,7 @@ import { test, expect } from './UsabilityTest';
 import type { Page } from '@playwright/test';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { expectReachable, expectViewport } from './LayoutAction';
-function readWorkspacePresentation(page: Page) {
+function _readWorkspacePresentation(page: Page) {
   return page.evaluate(() => ['.player-name', '.side-panel__title', '.history-row', '.panel-empty strong'].map((selector) => {
     const style = getComputedStyle(document.querySelector(selector)!);
     return { selector, font: style.font, colour: style.color, padding: style.padding, margin: style.margin };
@@ -29,13 +29,13 @@ test('JRN-UX-03 fits the desktop workspace with collapsed and expanded left navi
   await expectReachable(page, page.locator('.control-panel').getByRole('button').last());
   await expectReachable(page, page.getByRole('button', { name: 'Collapse history', exact: true }));
   await expectReachable(page, page.getByRole('button', { name: 'Collapse analysis', exact: true }));
-  const presentation = await readWorkspacePresentation(page);
+  const presentation = await _readWorkspacePresentation(page);
   await testInfo.attach('expanded-navigation', { body: await page.screenshot(), contentType: 'image/png' });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Collapse navigation', exact: true })).toBeVisible();
   await expectReachable(page, page.getByRole('button', { name: 'Apply changes', exact: true }));
   await page.getByRole('button', { name: 'Back to game', exact: true }).click();
-  expect(await readWorkspacePresentation(page)).toEqual(presentation);
+  expect(await _readWorkspacePresentation(page)).toEqual(presentation);
   await page.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
   await expect.poll(async () => (await rail.boundingBox())!.width).toBeCloseTo(collapsed.width, 2);
   const icon = rail.getByRole('button', { name: 'Quick game', exact: true }).locator('.app-icon');

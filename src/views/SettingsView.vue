@@ -44,31 +44,31 @@ onBeforeRouteLeave((to) => {
   return false;
 });
 
-function themePreviewStyle(theme: ThemeMode): Record<string, string> {
+function _themePreviewStyle(theme: ThemeMode): Record<string, string> {
   const light = defaultLightThemeProfile.cssVariables;
   const dark = defaultDarkThemeProfile.cssVariables;
-  const value = (name: keyof typeof light): string => theme === ThemeMode.System
+  const _value = (name: keyof typeof light): string => theme === ThemeMode.System
     ? `linear-gradient(120deg, ${light[name]} 49%, ${dark[name]} 51%)`
     : (theme === ThemeMode.Light ? light : dark)[name];
   return {
-    '--preview-app': value('--surface-app'),
-    '--preview-accent': value('--accent'),
-    '--preview-border': value('--border-subtle'),
-    '--preview-dialog': value('--surface-dialog'),
+    '--preview-app': _value('--surface-app'),
+    '--preview-accent': _value('--accent'),
+    '--preview-border': _value('--border-subtle'),
+    '--preview-dialog': _value('--surface-dialog'),
   };
 }
 
-function changeCategory(nextCategory: SettingsCategory) {
+function _changeCategory(nextCategory: SettingsCategory) {
   void router.push(`/settings/${nextCategory}`);
 }
-function requestReturn() {
+function _requestReturn() {
   if (settingsStore.hasPendingChanges) {
     uiStateStore.showModal({ kind: AppModalKind.SettingsDirtyLeave, payload: { targetRoute: returnRoute.value } });
     return;
   }
   void router.push(returnRoute.value);
 }
-async function applySettings(leave: boolean) {
+async function _applySettings(leave: boolean) {
   errorMessage.value = '';
   successMessage.value = '';
   try {
@@ -80,7 +80,7 @@ async function applySettings(leave: boolean) {
     errorMessage.value = error instanceof Error ? error.message : 'Settings could not be saved.';
   }
 }
-function openEngineEditor(engine?: IEngineRecord, index?: number) {
+function _openEngineEditor(engine?: IEngineRecord, index?: number) {
   editingEngineIndex.value = index;
   engineForm.id = engine?.id ?? crypto.randomUUID();
   engineForm.displayName = engine?.displayName ?? '';
@@ -88,14 +88,14 @@ function openEngineEditor(engine?: IEngineRecord, index?: number) {
   engineForm.options = Object.entries(engine?.options ?? {}).map(([name, value]) => ({ name, value: String(value) }));
   engineEditorOpen.value = true;
 }
-function copyEngine(engine: IEngineRecord) {
+function _copyEngine(engine: IEngineRecord) {
   const names = new Set(draft.value?.analysis.engineInventory.map((candidate) => candidate.displayName));
   let displayName = `${engine.displayName} copy`;
   let suffix = 2;
   while (names.has(displayName)) displayName = `${engine.displayName} copy ${suffix++}`;
-  openEngineEditor({ ...engine, id: crypto.randomUUID(), displayName, options: { ...engine.options } });
+  _openEngineEditor({ ...engine, id: crypto.randomUUID(), displayName, options: { ...engine.options } });
 }
-function saveEngine() {
+function _saveEngine() {
   const currentDraft = draft.value;
   if (!currentDraft) return;
   const name = engineForm.displayName.trim();
@@ -120,10 +120,10 @@ function saveEngine() {
   engineEditorOpen.value = false;
   errorMessage.value = '';
 }
-function removeEngine(index: number) {
+function _removeEngine(index: number) {
   draft.value?.analysis.engineInventory.splice(index, 1);
 }
-function addOption() {
+function _addOption() {
   engineForm.options.push({ name: '', value: '' });
 }
 </script>
@@ -131,9 +131,9 @@ function addOption() {
 <template>
   <main class="settings-page page-shell app-page">
     <NavigationFrame>
-      <template #brand><button class="app-brand" aria-label="ChessVue home" title="ChessVue home" @click="requestReturn"><span class="app-brand__mark">♞</span><span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Preferences</span></span></button></template>
-      <button class="menu-button" :aria-label="`Back to ${uiStateStore.gameSession?.activeGameId ? 'game' : 'home'}`" @click="requestReturn"><AppIcon name="chevron-left" /><span>Back to {{ uiStateStore.gameSession?.activeGameId ? 'game' : 'home' }}</span></button>
-      <nav class="navigation-group" aria-label="Settings categories"><button v-for="item in categories" :key="item.id" class="menu-button" :class="{ active: category === item.id }" :aria-label="item.label" @click="changeCategory(item.id)"><AppIcon :name="item.icon" /><span>{{ item.label }}</span></button></nav>
+      <template #brand><button class="app-brand" aria-label="ChessVue home" title="ChessVue home" @click="_requestReturn"><span class="app-brand__mark">♞</span><span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Preferences</span></span></button></template>
+      <button class="menu-button" :aria-label="`Back to ${uiStateStore.gameSession?.activeGameId ? 'game' : 'home'}`" @click="_requestReturn"><AppIcon name="chevron-left" /><span>Back to {{ uiStateStore.gameSession?.activeGameId ? 'game' : 'home' }}</span></button>
+      <nav class="navigation-group" aria-label="Settings categories"><button v-for="item in categories" :key="item.id" class="menu-button" :class="{ active: category === item.id }" :aria-label="item.label" @click="_changeCategory(item.id)"><AppIcon :name="item.icon" /><span>{{ item.label }}</span></button></nav>
       <template #footer><button class="menu-button menu-button--danger" aria-label="Reset to defaults" title="Reset to defaults" @click="uiStateStore.showModal({ kind: AppModalKind.ResetSettings })"><AppIcon name="rotate" /><span>Reset to defaults</span></button></template>
     </NavigationFrame>
     <div class="settings-layout">
@@ -166,7 +166,7 @@ function addOption() {
           </template>
           <template v-else-if="category === SettingsCategory.Appearance">
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Theme</h3><p class="form-section__description">Choose how the app chrome responds to your desktop.</p>
-              <div class="theme-picker"><label v-for="theme in [ThemeMode.System, ThemeMode.Light, ThemeMode.Dark]" :key="theme" :class="{ active: draft.appearance.themeMode === theme }"><input v-model="draft.appearance.themeMode" type="radio" :value="theme"><span class="theme-preview" :style="themePreviewStyle(theme)"><i></i><b></b><em></em></span><strong>{{ theme }}</strong></label></div>
+              <div class="theme-picker"><label v-for="theme in [ThemeMode.System, ThemeMode.Light, ThemeMode.Dark]" :key="theme" :class="{ active: draft.appearance.themeMode === theme }"><input v-model="draft.appearance.themeMode" type="radio" :value="theme"><span class="theme-preview" :style="_themePreviewStyle(theme)"><i></i><b></b><em></em></span><strong>{{ theme }}</strong></label></div>
             </section>
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Board</h3>
               <div class="field-row"><label class="field-label" for="orientation">Orientation</label><select id="orientation" v-model="draft.appearance.boardOrientation" class="field-control"><option :value="BoardOrientation.White">White at bottom</option><option :value="BoardOrientation.Black">Black at bottom</option></select></div>
@@ -181,22 +181,22 @@ function addOption() {
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Analysis behaviour</h3>
               <div class="field-row"><span class="field-label">Resume after restore<span class="field-help">Restart assigned analysis engines with the session</span></span><label class="toggle-row"><input v-model="draft.analysis.resumeLiveAnalysisAfterRestore" aria-label="Resume after restore" type="checkbox"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.analysis.resumeLiveAnalysisAfterRestore ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
-            <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Engine profiles</h3><p class="form-section__description form-section__description--inline">Reusable UCI engine configurations.</p></div><button class="text-button text-button--primary" @click="openEngineEditor()"><AppIcon name="plus" />Add engine</button></div>
+            <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Engine profiles</h3><p class="form-section__description form-section__description--inline">Reusable UCI engine configurations.</p></div><button class="text-button text-button--primary" @click="_openEngineEditor()"><AppIcon name="plus" />Add engine</button></div>
               <div v-if="draft.analysis.engineInventory.length" class="engine-list">
-                <article v-for="(engine, index) in draft.analysis.engineInventory" :key="engine.id"><span class="engine-list__mark">♞</span><div><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'No engine location selected' }}</small></div><span class="engine-list__protocol">UCI</span><button class="icon-button" title="Copy" @click="copyEngine(engine)"><AppIcon name="copy" /></button><button class="icon-button" title="Edit" @click="openEngineEditor(engine, index)"><AppIcon name="edit" /></button><button class="icon-button icon-button--danger" title="Delete" @click="removeEngine(index)"><AppIcon name="trash" /></button></article>
+                <article v-for="(engine, index) in draft.analysis.engineInventory" :key="engine.id"><span class="engine-list__mark">♞</span><div><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'No engine location selected' }}</small></div><span class="engine-list__protocol">UCI</span><button class="icon-button" title="Copy" @click="_copyEngine(engine)"><AppIcon name="copy" /></button><button class="icon-button" title="Edit" @click="_openEngineEditor(engine, index)"><AppIcon name="edit" /></button><button class="icon-button icon-button--danger" title="Delete" @click="_removeEngine(index)"><AppIcon name="trash" /></button></article>
               </div>
               <div v-else class="empty-state empty-state--engine engine-empty"><AppIcon name="activity" /><strong>No engines configured</strong><span>Add a UCI engine to use computer opponents and live analysis.</span></div>
             </section>
           </template>
         </div>
-        <footer class="settings-actions"><span v-if="errorMessage" class="settings-feedback settings-feedback--error">{{ errorMessage }}</span><span v-else-if="successMessage" class="settings-feedback">{{ successMessage }}</span><button class="text-button text-button--ghost text-button--settings-mobile" @click="requestReturn">Cancel</button><button class="text-button text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="applySettings(true)">Save</button><button class="text-button text-button--primary text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="applySettings(false)">Apply changes</button></footer>
+        <footer class="settings-actions"><span v-if="errorMessage" class="settings-feedback settings-feedback--error">{{ errorMessage }}</span><span v-else-if="successMessage" class="settings-feedback">{{ successMessage }}</span><button class="text-button text-button--ghost text-button--settings-mobile" @click="_requestReturn">Cancel</button><button class="text-button text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(true)">Save</button><button class="text-button text-button--primary text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(false)">Apply changes</button></footer>
       </section>
     </div>
     <ModalDialog v-if="engineEditorOpen" :title="editingEngineIndex === undefined ? 'Add engine profile' : 'Edit engine profile'" subtitle="Configure a UCI engine and its launch options." wide @dismissed="engineEditorOpen = false">
       <section class="form-section form-section--settings"><h3 class="form-section__heading">General</h3><div class="field-row"><label class="field-label" for="engine-name">Display name</label><input id="engine-name" v-model="engineForm.displayName" class="field-control" autofocus></div><div class="field-row"><label class="field-label" for="engine-path">Engine location<span class="field-help">Desktop executable path or browser worker URL. Use stockfish.js for the bundled browser engine.</span></label><input id="engine-path" v-model="engineForm.executablePath" class="field-control" placeholder="stockfish.js or C:\Engines\stockfish.exe"></div><div class="field-row"><span class="field-label">Protocol</span><span class="read-only-value">Universal Chess Interface (UCI)</span></div></section>
-      <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Options</h3><p class="form-section__description form-section__description--inline">Name/value pairs sent when the engine starts.</p></div><button class="text-button" @click="addOption"><AppIcon name="plus" />Add option</button></div><div v-if="engineForm.options.length" class="option-list"><div v-for="(option, index) in engineForm.options" :key="index"><input v-model="option.name" class="field-control" placeholder="Option name"><input v-model="option.value" class="field-control" placeholder="Value"><button class="icon-button icon-button--danger" @click="engineForm.options.splice(index, 1)"><AppIcon name="trash" /></button></div></div><p v-else class="inline-message">No custom options. The engine will use its own defaults.</p></section>
+      <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Options</h3><p class="form-section__description form-section__description--inline">Name/value pairs sent when the engine starts.</p></div><button class="text-button" @click="_addOption"><AppIcon name="plus" />Add option</button></div><div v-if="engineForm.options.length" class="option-list"><div v-for="(option, index) in engineForm.options" :key="index"><input v-model="option.name" class="field-control" placeholder="Option name"><input v-model="option.value" class="field-control" placeholder="Value"><button class="icon-button icon-button--danger" @click="engineForm.options.splice(index, 1)"><AppIcon name="trash" /></button></div></div><p v-else class="inline-message">No custom options. The engine will use its own defaults.</p></section>
       <p v-if="errorMessage" class="inline-message inline-message--error editor-error">{{ errorMessage }}</p>
-      <template #actions><button class="text-button text-button--ghost" @click="engineEditorOpen = false">Cancel</button><button class="text-button text-button--primary" @click="saveEngine">Save profile</button></template>
+      <template #actions><button class="text-button text-button--ghost" @click="engineEditorOpen = false">Cancel</button><button class="text-button text-button--primary" @click="_saveEngine">Save profile</button></template>
     </ModalDialog>
   </main>
 </template>

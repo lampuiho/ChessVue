@@ -25,7 +25,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   const _moveCounts = new WeakMap<IGame, number>();
   let _autosaveQueue = Promise.resolve();
-  function moveCommitted(game: IGame) {
+  function _moveCommitted(game: IGame) {
     const interval = UserSettingService.getSettings().gameSession.autosaveAfterMoveCount;
     const count = (_moveCounts.get(game) ?? 0) + 1;
     _moveCounts.set(game, interval > 0 ? count % interval : 0);
@@ -38,7 +38,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
       for (const listener of _autosaveFailureListeners) listener(autosaveError.value);
     });
   }
-  function touchGame(game: IGame) {
+  function _touchGame(game: IGame) {
     game.metadata.updatedAt = new RecordTimestamp();
     workspaceRevision.value += 1;
   }
@@ -49,15 +49,15 @@ export const useGamesStore = defineStore('gamesStore', () => {
   let move: GameMoveComposable;
   const status = useGameStatus({
     position,
-    touchGame,
+    touchGame: _touchGame,
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     refreshRuntimeRegistrations: (game: IGame) => clock.refreshRuntimeRegistrations(game),
   });
-  analysis = useGameAnalysis({ position, touchGame });
+  analysis = useGameAnalysis({ position, touchGame: _touchGame });
   playerTurn = useGamePlayerTurn({
     position,
     status,
-    touchGame,
+    touchGame: _touchGame,
     commitLiveMove: (game: IGame, playerMove: IMove) => move.commitLiveMove(game, playerMove),
     replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => move.replaceWithAnalysisRoot(game, rootPosition, nextState),
     refreshRuntimeRegistrations: (game: IGame) => clock.refreshRuntimeRegistrations(game),
@@ -65,14 +65,14 @@ export const useGamesStore = defineStore('gamesStore', () => {
   clock = useGameClock({
     position,
     status,
-    touchGame,
+    touchGame: _touchGame,
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     flushDeferredPlayerMove: (game: IGame) => playerTurn.flushDeferredPlayerMove(game),
     requestPlayerMoveIfNeeded: (game: IGame) => playerTurn.requestPlayerMoveIfNeeded(game),
   });
-  move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame, moveCommitted });
-  const boardEdit = useGameBoardEdit({ position, status, analysis, move, touchGame });
-  const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, touchGame });
+  move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame: _touchGame, moveCommitted: _moveCommitted });
+  const boardEdit = useGameBoardEdit({ position, status, analysis, move, touchGame: _touchGame });
+  const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, touchGame: _touchGame });
   return {
     workspaceRevision,
     autosaveError,

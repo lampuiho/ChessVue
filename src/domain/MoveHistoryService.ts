@@ -1,18 +1,18 @@
 import { MoveNodeKind, type IClockSnapshot, type IMove, type IMoveNode, type IMoveTree, type MovePath } from '@/contracts';
 
-function markPathKind(node: IMoveNode, kind: MoveNodeKind) {
+function _markPathKind(node: IMoveNode, kind: MoveNodeKind) {
   let currentNode: IMoveNode | undefined = node;
   while (currentNode) {
     currentNode.kind = kind;
     currentNode = currentNode.mainlineChildIndex === undefined ? undefined : currentNode.children[currentNode.mainlineChildIndex];
   }
 }
-function pruneDescendants(node: IMoveNode) {
+function _pruneDescendants(node: IMoveNode) {
   node.children.forEach((child) => child.$ = undefined);
   node.children.length = 0;
   node.mainlineChildIndex = undefined;
 }
-function getAncestorNode(node: IMoveNode, distance: number): IMoveNode {
+function _getAncestorNode(node: IMoveNode, distance: number): IMoveNode {
   let currentNode = node;
   let remainingDistance = distance;
   while (remainingDistance > 0 && currentNode.$?.parent) {
@@ -21,7 +21,7 @@ function getAncestorNode(node: IMoveNode, distance: number): IMoveNode {
   }
   return currentNode;
 }
-function createChildNode(parentNode: IMoveNode, kind: MoveNodeKind, move: IMove, clockSnapshot?: IClockSnapshot): IMoveNode {
+function _createChildNode(parentNode: IMoveNode, kind: MoveNodeKind, move: IMove, clockSnapshot?: IClockSnapshot): IMoveNode {
   return {
     kind,
     move,
@@ -48,14 +48,14 @@ export const MoveHistoryService = {
   },
   /** Attaches and returns a new live child without replacing any existing tree object. */
   addMainlineMove(parentNode: IMoveNode, move: IMove, clockSnapshot?: IClockSnapshot): IMoveNode {
-    const node = createChildNode(parentNode, MoveNodeKind.Live, move, clockSnapshot);
+    const node = _createChildNode(parentNode, MoveNodeKind.Live, move, clockSnapshot);
     parentNode.mainlineChildIndex = parentNode.children.length;
     parentNode.children.push(node);
     return node;
   },
   /** Attaches and returns a new analysis child without replacing any existing tree object. */
   addAnalysisMove(parentNode: IMoveNode, move: IMove): IMoveNode {
-    const node = createChildNode(parentNode, MoveNodeKind.Analysis, move, parentNode.clockSnapshot);
+    const node = _createChildNode(parentNode, MoveNodeKind.Analysis, move, parentNode.clockSnapshot);
     parentNode.children.push(node);
     return node;
   },
@@ -83,8 +83,8 @@ export const MoveHistoryService = {
   /** Mutates the existing tree and returns the retained node already owned by that tree. */
   takeBack(fromNode: IMoveNode, moveCount: number): IMoveNode {
     if (moveCount <= 0) return fromNode;
-    const retainedNode = getAncestorNode(fromNode, moveCount);
-    pruneDescendants(retainedNode);
+    const retainedNode = _getAncestorNode(fromNode, moveCount);
+    _pruneDescendants(retainedNode);
     return retainedNode;
   },
   /** Mutates mainline selection and kinds along the supplied child continuation. */
@@ -92,10 +92,10 @@ export const MoveHistoryService = {
     const childIndex = parentNode.children.indexOf(childNode);
     if (childIndex < 0) throw new Error('Child node does not belong to the supplied parent node.');
     parentNode.mainlineChildIndex = childIndex;
-    markPathKind(childNode, MoveNodeKind.Live);
+    _markPathKind(childNode, MoveNodeKind.Live);
   },
   /** Removes descendants from the supplied node while preserving the tree and children-array identities. */
   pruneFutureMoves(node: IMoveNode) {
-    pruneDescendants(node);
+    _pruneDescendants(node);
   },
 };

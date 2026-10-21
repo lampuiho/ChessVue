@@ -10,7 +10,7 @@ import { expectOutput } from '../journeys/analysis/AnalysisAction';
 import { advanceClock, playerClock, resumeClock } from '../journeys/clocks/ClockAction';
 import { historyRow } from '../journeys/setup/SetupAction';
 import { createSessionGame, loadSessionSnapshot, openSession, openSessionSnapshots, playSessionMoves, reloadSession } from './SessionAction';
-async function playRecordedOpening(page: Page) {
+async function _playRecordedOpening(page: Page) {
   await createSessionGame(page, 'First player session', '5', ['Journey A', 'Journey B']);
   await advanceClock(page, 1000);
   await playSessionMoves(page, firstPlayerOpening, ['Journey A', 'Journey B']);
@@ -25,7 +25,7 @@ async function playRecordedOpening(page: Page) {
   expect(saved.clockSnapshot.white.remainingMs).toBe(299000);
   return saved;
 }
-async function exploreAndContinue(page: Page, opening: IGame) {
+async function _exploreAndContinue(page: Page, opening: IGame) {
   await page.getByRole('button', { name: /^Analyse Explore/ }).click();
   await playSessionMoves(page, [['g8', 'f6'], ['g1', 'f3']], ['Journey A', 'Journey B']);
   await advanceClock(page, 30000);
@@ -50,7 +50,7 @@ async function exploreAndContinue(page: Page, opening: IGame) {
   expect(saved.clockSnapshot.black.remainingMs).toBe(298000);
   return saved;
 }
-async function restoreSelectedGame(page: Page, saved: IGame) {
+async function _restoreSelectedGame(page: Page, saved: IGame) {
   const path = `saves/${saved.metadata.id}/Continue later.json`;
   const bytes = await readFile(page, path);
   await reloadSession(page);
@@ -71,7 +71,7 @@ async function restoreSelectedGame(page: Page, saved: IGame) {
   expect(await readFile(page, path)).toBe(bytes);
   return id;
 }
-async function resignAndReopen(page: Page, id: string) {
+async function _resignAndReopen(page: Page, id: string) {
   await page.getByRole('button', { name: 'Resign', exact: true }).click();
   await page.getByRole('dialog', { name: 'Resign this game?', exact: true }).getByRole('button', { name: 'Resign', exact: true }).click();
   await expect(page.locator('.result-badge')).toHaveText('black won');
@@ -88,8 +88,8 @@ async function resignAndReopen(page: Page, id: string) {
 }
 test('JRN-SESSION-01 plays, records, explores, resumes a selected save and reopens resignation', async ({ page }) => {
   await openSession(page);
-  const opening = await test.step('Create a timed game and record opening moves and capture', () => playRecordedOpening(page));
-  const saved = await test.step('Explore both sides, return and continue actual play', () => exploreAndContinue(page, opening));
-  const id = await test.step('Reload, explicitly load the named snapshot, review its record and resume', () => restoreSelectedGame(page, saved));
-  await test.step('Resign and reopen the persisted result', () => resignAndReopen(page, id));
+  const opening = await test.step('Create a timed game and record opening moves and capture', () => _playRecordedOpening(page));
+  const saved = await test.step('Explore both sides, return and continue actual play', () => _exploreAndContinue(page, opening));
+  const id = await test.step('Reload, explicitly load the named snapshot, review its record and resume', () => _restoreSelectedGame(page, saved));
+  await test.step('Resign and reopen the persisted result', () => _resignAndReopen(page, id));
 });

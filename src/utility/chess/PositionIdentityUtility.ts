@@ -1,6 +1,6 @@
 import type { IBoardPosition } from '@/contracts';
 
-function buildCastlingField(position: IBoardPosition): string {
+function _buildCastlingField(position: IBoardPosition): string {
   return [
     position.castlingAvailability.whiteKingSide ? 'K' : '',
     position.castlingAvailability.whiteQueenSide ? 'Q' : '',
@@ -15,7 +15,7 @@ export function buildPositionKey(position: IBoardPosition): string {
   return [
     pieceTokens.join('|'),
     position.sideToMove,
-    buildCastlingField(position),
+    _buildCastlingField(position),
     position.enPassantTarget === undefined ? '-' : position.enPassantTarget.toString(),
   ].join(' ');
 }

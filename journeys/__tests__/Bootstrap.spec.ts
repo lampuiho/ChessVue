@@ -22,7 +22,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-async function boot(name: string) {
+async function _boot(name: string) {
   window.history.replaceState({}, '', '/home');
   const { startJourney } = await import('../StartJourney');
   running = await startJourney({ name, id: 'bootstrap-test' });
@@ -32,7 +32,7 @@ async function boot(name: string) {
 describe('journey application bootstrap', () => {
   it.each(Object.keys(catalogue))('restores %s through the real application stores', async (name) => {
     if (name === 'recovery') vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { api, games, router } = await boot(name);
+    const { api, games, router } = await _boot(name);
     const expected = name === 'saves' ? ['save-library'] : api.gameIds;
     expect(games.listGames().map((game) => game.metadata.id)).toEqual(expected);
     expect(document.querySelector('#app > main')).not.toBeNull();
@@ -48,7 +48,7 @@ describe('journey application bootstrap', () => {
     }
   });
   it('controls import/export/cancel through the actual storage adapter', async () => {
-    const { api } = await boot('saves');
+    const { api } = await _boot('saves');
     const { usePlatformService } = await import('@/platform');
     const storage = usePlatformService().getStorageAdapter();
     expect(await storage.showOpenDialog()).toBe('imports/valid.json');

@@ -7,7 +7,7 @@ import { waitForJourney } from '../../support/JourneyBootstrap';
 import { saveCurrentGame } from '../../support/GameSave';
 import { readFile } from '../../support/SaveInspection';
 import { attemptPromotion, choosePromotion, expectPromotedBoard, expectPromotedGame, openPromotionGame } from './PromotionAction';
-async function takeBackPromotion(page: Page, scenario: IPromotionScenario, before: IGame) {
+async function _takeBackPromotion(page: Page, scenario: IPromotionScenario, before: IGame) {
   await page.getByRole('button', { name: /Takeback/ }).click();
   await expect(square(page, scenario.from)).toHaveAttribute('aria-label', `${scenario.from} ${scenario.colour} pawn`);
   await expect(square(page, scenario.quiet)).toHaveAttribute('aria-label', scenario.quiet);
@@ -37,7 +37,7 @@ for (const scenario of promotionScenarios) for (const capture of [false, true]) 
     await expectPromotedBoard(page, scenario, kind, capture);
     const restored = await saveCurrentGame(page, 'restored');
     expect({ ...restored, metadata: saved.metadata }).toEqual(saved);
-    await takeBackPromotion(page, scenario, before);
+    await _takeBackPromotion(page, scenario, before);
     expect(await readFile(page, path)).toBe(bytes);
     await attemptPromotion(page, scenario, capture);
     await choosePromotion(page, scenario, PieceKind.Bishop);

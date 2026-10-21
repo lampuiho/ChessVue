@@ -6,7 +6,7 @@ import { useGamePosition } from '../GamePositionComposable';
 import { useGameStatus } from '../GameStatusComposable';
 
 describe('useGameStatus', () => {
-  function createSubject() {
+  function _createSubject() {
     const position = useGamePosition();
     const touchGame = vi.fn();
     const clearPlayerTurnRuntime = vi.fn(async () => {});
@@ -15,7 +15,7 @@ describe('useGameStatus', () => {
     return { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations };
   }
   it('preserves the live state family while the side to move changes', () => {
-    const { status } = createSubject();
+    const { status } = _createSubject();
     const game = createGame({ gameState: GameState.PausedWhiteTurn });
 
     status.updateGameStateAfterPosition(game, PlayerColour.Black);
@@ -23,7 +23,7 @@ describe('useGameStatus', () => {
     expect(game.gameState).toBe(GameState.PausedBlackTurn);
   });
   it('finalises an accepted draw and invokes session teardown hooks', async () => {
-    const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = createSubject();
+    const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = _createSubject();
     const game = position.hydrateGame(createGame({ drawOfferState: createOutgoingDrawOffer(PlayerColour.White) }));
     let completeTurnCancellation!: () => void;
     clearPlayerTurnRuntime.mockImplementationOnce(() => new Promise<void>((resolve) => completeTurnCancellation = resolve));
@@ -43,7 +43,7 @@ describe('useGameStatus', () => {
     expect(touchGame).toHaveBeenCalledWith(game);
   });
   it('rejects every result command after the game has ended', async () => {
-    const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = createSubject();
+    const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = _createSubject();
     const game = position.hydrateGame(createGame({
       resultState: ResultState.WhiteWon,
       resultReason: ResultReason.RuleResolved,
@@ -68,7 +68,7 @@ describe('useGameStatus', () => {
     expect(touchGame).not.toHaveBeenCalled();
   });
   it('rejects result commands outside the rendered live position', async () => {
-    const { position, status } = createSubject();
+    const { position, status } = _createSubject();
     const game = position.hydrateGame(createGame());
     game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
 

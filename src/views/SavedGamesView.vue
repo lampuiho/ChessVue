@@ -47,15 +47,15 @@ const saveNameError = computed(() => {
 });
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` : '/home');
 
-onMounted(refreshGroups);
+onMounted(_refreshGroups);
 const removeRouteActivation = router.afterEach((to, _from, failure) => {
   if (failure || !['save-game', 'load-game', 'load-games'].includes(String(to.name))) return;
   overwriteTarget.value = undefined;
-  initialiseRoute();
-  refreshSelection();
+  _initialiseRoute();
+  _refreshSelection();
 });
 onBeforeUnmount(() => { removeRouteActivation(); void details.dispose(); });
-function loadDetails(entry?: ISavedGameFileEntry) {
+function _loadDetails(entry?: ISavedGameFileEntry) {
   selectedDocument.value = undefined;
   detailError.value = '';
   return details.run(async (signal) => {
@@ -69,14 +69,14 @@ function loadDetails(entry?: ISavedGameFileEntry) {
     }
   });
 }
-function refreshSelection() {
+function _refreshSelection() {
   const group = selectedGroup.value;
   const entry = group?.saves.find((candidate) => candidate.saveName === selectedSaveName.value)
     ?? (group ? SavedGameIndexService.getLatestSaveEntry(group.saves) : undefined);
   selectedSaveName.value = entry?.saveName ?? '';
-  void loadDetails(entry);
+  void _loadDetails(entry);
 }
-async function refreshGroups() {
+async function _refreshGroups() {
   isLoading.value = true;
   errorMessage.value = '';
   try {
@@ -95,60 +95,60 @@ async function refreshGroups() {
     if (!String(error).includes('not found')) errorMessage.value = error instanceof Error ? error.message : 'Saved games could not be listed.';
   } finally {
     isLoading.value = false;
-    initialiseRoute();
-    refreshSelection();
+    _initialiseRoute();
+    _refreshSelection();
   }
 }
-function initialiseRoute() {
+function _initialiseRoute() {
   if (isSaveMode.value && activeGame.value && !saveName.value) saveName.value = activeGame.value.metadata.name.replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Game';
   if (route.name === 'load-game') selectedGameId.value = routeGameId.value;
   else if (!isSaveMode.value && !groups.value.some((group) => group.gameId === selectedGameId.value)) selectedGameId.value = groups.value.find((group) => group.gameId === uiStateStore.gameSession?.activeGameId)?.gameId ?? groups.value[0]?.gameId ?? '';
 }
-function selectSave(entry: ISavedGameFileEntry) {
+function _selectSave(entry: ISavedGameFileEntry) {
   selectedSaveName.value = entry.saveName;
   if (isSaveMode.value && !entry.isAutosave) saveName.value = entry.saveName;
-  return loadDetails(entry);
+  return _loadDetails(entry);
 }
-async function loadGame(gameId: string, entryName?: string) {
-  await run(async () => {
+async function _loadGame(gameId: string, entryName?: string) {
+  await _run(async () => {
     const game = await savedGamesStore.loadGame(gameId, entryName);
     const insertedGame = await gamesStore.insertGame(game);
     uiStateStore.openTab(insertedGame.metadata.id);
     await router.push(`/game/${insertedGame.metadata.id}`);
   });
 }
-async function saveGame() {
+async function _saveGame() {
   const currentGame = activeGame.value;
   if (!currentGame || saveNameError.value || isLoading.value || isWorking.value || overwriteTarget.value) return;
   const target = { game: currentGame, saveName: saveName.value.trim() };
-  await run(async () => {
+  await _run(async () => {
     if (selectedGroup.value?.saves.some((entry) => entry.saveName === target.saveName)) {
       overwriteTarget.value = target;
       return;
     }
     try {
-      await writeSave(target.game, target.saveName, false);
+      await _writeSave(target.game, target.saveName, false);
     } catch (error) {
       if (typeof error !== 'object' || error === null || !('kind' in error) || error.kind !== PlatformErrorKind.AlreadyExists) throw error;
       overwriteTarget.value = target;
     }
   });
 }
-async function writeSave(game: IGame, name: string, overwrite: boolean) {
+async function _writeSave(game: IGame, name: string, overwrite: boolean) {
   await savedGamesStore.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: name, overwrite });
   message.value = `Saved “${name}”.`;
-  await refreshGroups();
+  await _refreshGroups();
   selectedSaveName.value = name;
-  refreshSelection();
+  _refreshSelection();
 }
-async function confirmOverwrite() {
+async function _confirmOverwrite() {
   const target = overwriteTarget.value;
   if (!target || isWorking.value) return;
-  await run(() => writeSave(target.game, target.saveName, true));
+  await _run(() => _writeSave(target.game, target.saveName, true));
   if (!errorMessage.value) overwriteTarget.value = undefined;
 }
-async function importGame() {
-  await run(async () => {
+async function _importGame() {
+  await _run(async () => {
     const game = await savedGamesStore.importGame();
     if (!game) return;
     const insertedGame = await gamesStore.insertGame(game);
@@ -156,26 +156,26 @@ async function importGame() {
     await router.push(`/game/${insertedGame.metadata.id}`);
   }, true);
 }
-async function exportCurrent() {
+async function _exportCurrent() {
   if (!activeGame.value) return;
-  await run(async () => {
+  await _run(async () => {
     if (await savedGamesStore.exportGame(activeGame.value!)) message.value = 'Game exported.';
   });
 }
-async function confirmDelete() {
+async function _confirmDelete() {
   const target = deleteTarget.value;
   if (!target) return;
-  await run(async () => {
+  await _run(async () => {
     deleteTarget.value = undefined;
     try {
       await savedGamesStore.deleteSave(target.gameId, target.saveName);
     } finally {
-      await refreshGroups();
+      await _refreshGroups();
       if (route.name === 'load-game' && !groups.value.some((group) => group.gameId === routeGameId.value)) await router.replace('/saved-games/load');
     }
   });
 }
-async function run(action: () => Promise<void>, importAction: boolean = false) {
+async function _run(action: () => Promise<void>, importAction: boolean = false) {
   isWorking.value = true;
   errorMessage.value = '';
   message.value = '';
@@ -189,7 +189,7 @@ async function run(action: () => Promise<void>, importAction: boolean = false) {
     isWorking.value = false;
   }
 }
-function formatDate(entry: ISavedGameFileEntry): string {
+function _formatDate(entry: ISavedGameFileEntry): string {
   return entry.savedAtUtc?.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) ?? 'Date unavailable';
 }
 </script>
@@ -202,8 +202,8 @@ function formatDate(entry: ISavedGameFileEntry): string {
         <button class="menu-button" :class="{ active: !isSaveMode }" aria-label="Load" title="Load" @click="router.push('/saved-games/load')"><AppIcon name="folder" /><span>Load</span></button>
         <button class="menu-button" :class="{ active: isSaveMode }" :disabled="!uiStateStore.gameSession?.activeGameId" aria-label="Save" title="Save" @click="uiStateStore.gameSession?.activeGameId && router.push(`/saved-games/save/${uiStateStore.gameSession.activeGameId}`)"><AppIcon name="save" /><span>Save</span></button>
       </nav>
-      <button class="menu-button" aria-label="Import file" title="Import file" @click="importGame"><AppIcon name="upload" /><span>Import file</span></button>
-      <button v-if="isSaveMode" class="menu-button" :disabled="!activeGame" aria-label="Export" title="Export" @click="exportCurrent"><AppIcon name="download" /><span>Export</span></button>
+      <button class="menu-button" aria-label="Import file" title="Import file" @click="_importGame"><AppIcon name="upload" /><span>Import file</span></button>
+      <button v-if="isSaveMode" class="menu-button" :disabled="!activeGame" aria-label="Export" title="Export" @click="_exportCurrent"><AppIcon name="download" /><span>Export</span></button>
       <template #footer><button class="menu-button" aria-label="Close" title="Close" @click="router.push(returnRoute)"><AppIcon name="x" /><span>Close</span></button></template>
     </NavigationFrame>
     <div class="library-shell">
@@ -213,16 +213,16 @@ function formatDate(entry: ISavedGameFileEntry): string {
           <div class="save-list" aria-label="Saved snapshots">
             <template v-for="(entry, index) in orderedSaves" :key="entry.filePath">
               <div v-if="index > 0 && orderedSaves[index - 1]?.isAutosave && !entry.isAutosave" class="save-separator" role="separator">Named saves</div>
-              <article class="save-row" :class="{ selected: entry.saveName === selectedSaveName }"><span class="save-row__icon"><AppIcon :name="entry.isAutosave ? 'clock' : 'save'" /></span><button class="save-row__content" :aria-pressed="entry.saveName === selectedSaveName" @click="selectSave(entry)" @dblclick="!isSaveMode && loadGame(entry.gameId, entry.saveName)"><strong>{{ entry.isAutosave ? 'Automatic save' : entry.saveName }}</strong><small>{{ formatDate(entry) }}</small></button><span v-if="entry.isAutosave" class="auto-badge">Auto</span><button class="icon-button icon-button--danger" title="Delete save" :disabled="isWorking" @click="deleteTarget = entry"><AppIcon name="trash" /></button><button v-if="!isSaveMode" class="text-button text-button--compact-mobile" :disabled="isWorking" @click="loadGame(entry.gameId, entry.saveName)">Load</button></article>
+              <article class="save-row" :class="{ selected: entry.saveName === selectedSaveName }"><span class="save-row__icon"><AppIcon :name="entry.isAutosave ? 'clock' : 'save'" /></span><button class="save-row__content" :aria-pressed="entry.saveName === selectedSaveName" @click="_selectSave(entry)" @dblclick="!isSaveMode && _loadGame(entry.gameId, entry.saveName)"><strong>{{ entry.isAutosave ? 'Automatic save' : entry.saveName }}</strong><small>{{ _formatDate(entry) }}</small></button><span v-if="entry.isAutosave" class="auto-badge">Auto</span><button class="icon-button icon-button--danger" title="Delete save" :disabled="isWorking" @click="deleteTarget = entry"><AppIcon name="trash" /></button><button v-if="!isSaveMode" class="text-button text-button--compact-mobile" :disabled="isWorking" @click="_loadGame(entry.gameId, entry.saveName)">Load</button></article>
             </template>
           </div>
-          <aside class="snapshot-details" aria-label="Selected save details"><h2>{{ selectedEntry?.isAutosave ? 'Automatic save' : selectedEntry?.saveName }}</h2><p v-if="detailError" class="library-feedback--error">{{ detailError }}</p><template v-else-if="selectedDocument"><strong>{{ selectedDocument.metadata.name }}</strong><dl><dt>Saved</dt><dd>{{ selectedEntry && formatDate(selectedEntry) }}</dd><dt>Position</dt><dd>{{ selectedDocument.renderedPath.length }} plies</dd><dt>White</dt><dd>{{ selectedDocument.whitePlayer?.displayName ?? 'Unassigned' }}</dd><dt>Black</dt><dd>{{ selectedDocument.blackPlayer?.displayName ?? 'Unassigned' }}</dd><dt>Clock</dt><dd>{{ selectedDocument.timeControl.initialMs === undefined ? 'Untimed' : `${selectedDocument.timeControl.initialMs / 60000} minutes + ${selectedDocument.timeControl.incrementMs / 1000} seconds` }}</dd><dt>Result</dt><dd>{{ selectedDocument.resultState }}{{ selectedDocument.resultReason ? ` (${selectedDocument.resultReason})` : '' }}</dd></dl></template><p v-else>Reading snapshot…</p></aside>
+          <aside class="snapshot-details" aria-label="Selected save details"><h2>{{ selectedEntry?.isAutosave ? 'Automatic save' : selectedEntry?.saveName }}</h2><p v-if="detailError" class="library-feedback--error">{{ detailError }}</p><template v-else-if="selectedDocument"><strong>{{ selectedDocument.metadata.name }}</strong><dl><dt>Saved</dt><dd>{{ selectedEntry && _formatDate(selectedEntry) }}</dd><dt>Position</dt><dd>{{ selectedDocument.renderedPath.length }} plies</dd><dt>White</dt><dd>{{ selectedDocument.whitePlayer?.displayName ?? 'Unassigned' }}</dd><dt>Black</dt><dd>{{ selectedDocument.blackPlayer?.displayName ?? 'Unassigned' }}</dd><dt>Clock</dt><dd>{{ selectedDocument.timeControl.initialMs === undefined ? 'Untimed' : `${selectedDocument.timeControl.initialMs / 60000} minutes + ${selectedDocument.timeControl.incrementMs / 1000} seconds` }}</dd><dt>Result</dt><dd>{{ selectedDocument.resultState }}{{ selectedDocument.resultReason ? ` (${selectedDocument.resultReason})` : '' }}</dd></dl></template><p v-else>Reading snapshot…</p></aside>
         </div>
         <div v-if="isLoading" class="empty-state empty-state--fill"><span class="library-spinner">♞</span><strong>Opening your library…</strong></div>
         <template v-else-if="isSaveMode">
           <div v-if="activeGame" class="save-layout">
             <div class="save-game-card"><span>♞</span><div><small>Current workspace</small><strong>{{ activeGame.metadata.name }}</strong><p>{{ activeGame.renderedPath.length }} moves · Updated {{ activeGame.metadata.updatedAt.toLocaleString() }}</p></div></div>
-            <section class="form-section form-section--compact"><h2 class="form-section__heading">Named save</h2><p class="form-section__description form-section__description--desktop">Use a short, recognisable name for this point in the game.</p><div class="field-row"><label class="field-label" for="save-name">Save name<span class="field-help">Stored as a JSON game document</span></label><div><input id="save-name" v-model="saveName" class="field-control" autofocus @keydown.enter="saveGame"><p v-if="saveNameError" class="field-error">{{ saveNameError }}</p></div></div></section>
+            <section class="form-section form-section--compact"><h2 class="form-section__heading">Named save</h2><p class="form-section__description form-section__description--desktop">Use a short, recognisable name for this point in the game.</p><div class="field-row"><label class="field-label" for="save-name">Save name<span class="field-help">Stored as a JSON game document</span></label><div><input id="save-name" v-model="saveName" class="field-control" autofocus @keydown.enter="_saveGame"><p v-if="saveNameError" class="field-error">{{ saveNameError }}</p></div></div></section>
           </div>
           <div v-else class="empty-state empty-state--fill"><AppIcon name="info" /><strong>No active game</strong><span>Open a game before creating a save.</span></div>
         </template>
@@ -231,15 +231,15 @@ function formatDate(entry: ISavedGameFileEntry): string {
         </template>
         <template v-else>
           <div v-if="groups.length" class="game-list">
-            <button v-for="group in groups" :key="group.gameId" class="game-row" :class="{ selected: selectedGameId === group.gameId }" @click="selectedGameId = group.gameId" @dblclick="loadGame(group.gameId)"><span class="game-row__piece">♟</span><span class="game-row__copy"><strong>{{ gameNames.get(group.gameId) ?? `Game ${group.gameId.slice(0, 8)}` }}</strong><small>{{ group.saves.length }} {{ group.saves.length === 1 ? 'snapshot' : 'snapshots' }} · {{ formatDate(group.saves[0]!) }}</small></span><span class="game-row__latest">{{ group.saves[0]?.isAutosave ? 'Autosaved' : 'Saved' }}</span><AppIcon name="chevron-right" /></button>
+            <button v-for="group in groups" :key="group.gameId" class="game-row" :class="{ selected: selectedGameId === group.gameId }" @click="selectedGameId = group.gameId" @dblclick="_loadGame(group.gameId)"><span class="game-row__piece">♟</span><span class="game-row__copy"><strong>{{ gameNames.get(group.gameId) ?? `Game ${group.gameId.slice(0, 8)}` }}</strong><small>{{ group.saves.length }} {{ group.saves.length === 1 ? 'snapshot' : 'snapshots' }} · {{ _formatDate(group.saves[0]!) }}</small></span><span class="game-row__latest">{{ group.saves[0]?.isAutosave ? 'Autosaved' : 'Saved' }}</span><AppIcon name="chevron-right" /></button>
           </div>
           <div v-else class="empty-state empty-state--fill library-empty"><AppIcon name="folder" /><strong>No saved games yet</strong><span>Your named saves and automatic snapshots will appear here.</span><button class="text-button text-button--primary" @click="router.push(returnRoute)">Return to your board</button></div>
         </template>
-        <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedEntry || isWorking" @click="selectedEntry && loadGame(selectedEntry.gameId, selectedEntry.saveName)">Load selected</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && router.push(`/saved-games/load/${selectedGameId}`)">Select game<AppIcon name="arrow-right" /></button></footer>
+        <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="_saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedEntry || isWorking" @click="selectedEntry && _loadGame(selectedEntry.gameId, selectedEntry.saveName)">Load selected</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && router.push(`/saved-games/load/${selectedGameId}`)">Select game<AppIcon name="arrow-right" /></button></footer>
       </section>
     </div>
-    <ModalDialog v-if="deleteTarget" title="Delete this save?" :subtitle="`“${deleteTarget.saveName}” will be permanently removed from this game.`" @dismissed="deleteTarget = undefined"><p class="delete-warning">Other snapshots of this game will not be affected.</p><template #actions><button class="text-button text-button--ghost" @click="deleteTarget = undefined">Cancel</button><button class="text-button text-button--danger" @click="confirmDelete">Delete save</button></template></ModalDialog>
-    <ModalDialog v-if="overwriteTarget" title="Replace this save?" :subtitle="`“${overwriteTarget.saveName}” already exists for this game.`" :dismissible="!isWorking" @dismissed="overwriteTarget = undefined"><p class="delete-warning">Replacing it will overwrite the existing snapshot with the current game.</p><p v-if="errorMessage" class="library-feedback--error" role="alert">{{ errorMessage }}</p><template #actions><button class="text-button text-button--ghost" :disabled="isWorking" @click="overwriteTarget = undefined">Cancel</button><button class="text-button text-button--danger" :disabled="isWorking" @click="confirmOverwrite">Replace save</button></template></ModalDialog>
+    <ModalDialog v-if="deleteTarget" title="Delete this save?" :subtitle="`“${deleteTarget.saveName}” will be permanently removed from this game.`" @dismissed="deleteTarget = undefined"><p class="delete-warning">Other snapshots of this game will not be affected.</p><template #actions><button class="text-button text-button--ghost" @click="deleteTarget = undefined">Cancel</button><button class="text-button text-button--danger" @click="_confirmDelete">Delete save</button></template></ModalDialog>
+    <ModalDialog v-if="overwriteTarget" title="Replace this save?" :subtitle="`“${overwriteTarget.saveName}” already exists for this game.`" :dismissible="!isWorking" @dismissed="overwriteTarget = undefined"><p class="delete-warning">Replacing it will overwrite the existing snapshot with the current game.</p><p v-if="errorMessage" class="library-feedback--error" role="alert">{{ errorMessage }}</p><template #actions><button class="text-button text-button--ghost" :disabled="isWorking" @click="overwriteTarget = undefined">Cancel</button><button class="text-button text-button--danger" :disabled="isWorking" @click="_confirmOverwrite">Replace save</button></template></ModalDialog>
   </main>
 </template>
 

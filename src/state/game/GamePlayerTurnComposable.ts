@@ -37,14 +37,14 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   function createPlayerSnapshot(player?: IPlayer): IPlayer | undefined {
     if (!player) return;
     const playerSnapshot: IPlayer = playerSchema.parse(player);
-    initialisePlayerRuntime(playerSnapshot);
+    _initialisePlayerRuntime(playerSnapshot);
     return playerSnapshot;
   }
   function normalisePlayers(game: IGame) {
-    if (game.whitePlayer) initialisePlayerRuntime(game.whitePlayer);
-    if (game.blackPlayer) initialisePlayerRuntime(game.blackPlayer);
+    if (game.whitePlayer) _initialisePlayerRuntime(game.whitePlayer);
+    if (game.blackPlayer) _initialisePlayerRuntime(game.blackPlayer);
   }
-  function initialisePlayerRuntime(player: IPlayer) {
+  function _initialisePlayerRuntime(player: IPlayer) {
     player.$ = { activityState: PlayerActivityState.Active };
     if (isEnginePlayer(player)) player.assignedEngine.$ = shallowReactive(EngineRuntimeService.ensureRuntime(player.assignedEngine));
   }
@@ -54,10 +54,10 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   function isEnginePlayer(player?: IPlayer): player is IEnginePlayer {
     return player?.type === PlayerType.Engine;
   }
-  function clearDeferredPlayerMove(runtime: IGameRuntime) {
+  function _clearDeferredPlayerMove(runtime: IGameRuntime) {
     runtime.deferredPlayerMove = undefined;
   }
-  async function clearPendingPlayerTurn(runtime: IGameRuntime) {
+  async function _clearPendingPlayerTurn(runtime: IGameRuntime) {
     const pendingPlayerTurn = runtime.pendingPlayerTurnPromise;
     const pendingPlayerTurnHandle = runtime.pendingPlayerTurnHandlePromise;
     const abortController = runtime.pendingPlayerTurnAbortController;
@@ -68,8 +68,8 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
   }
   async function clearPlayerTurnRuntime(game: IGame) {
     const runtime = position.requireGameRuntime(game);
-    clearDeferredPlayerMove(runtime);
-    await clearPendingPlayerTurn(runtime);
+    _clearDeferredPlayerMove(runtime);
+    await _clearPendingPlayerTurn(runtime);
   }
   async function flushDeferredPlayerMove(game: IGame) {
     const runtime = position.requireGameRuntime(game);
@@ -87,15 +87,15 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     pendingPlayerMove.resolve(move);
     await pendingPlayerTurnHandle;
   }
-  function requestPlayerMove(game: IGame) {
-    async function requestEngineMove(engine: IAssignedEngine) {
+  function _requestPlayerMove(game: IGame) {
+    async function _requestEngineMove(engine: IAssignedEngine) {
       await EngineRuntimeService.ensureReady(engine, abortController.signal);
       await EngineRuntimeService.startPlayerTurn(engine, game, async (move) => {
         if (abortController.signal.aborted) return;
         await attemptPlayerMove(game, move);
       }, abortController.signal);
     }
-    async function playerMoveHandler(pendingPlayerMove: Promise<IMove>) {
+    async function _playerMoveHandler(pendingPlayerMove: Promise<IMove>) {
       const runtime = position.requireGameRuntime(game);
       let move: IMove;
       try {
@@ -119,16 +119,16 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     if (runtime.pendingPlayerTurnPromise) throw new Error('The current player turn must settle before another starts.');
     const abortController = new AbortController();
     const pendingPlayerMove = new Deferred<IMove>();
-    const pendingPlayerTurnHandle = playerMoveHandler(pendingPlayerMove);
+    const pendingPlayerTurnHandle = _playerMoveHandler(pendingPlayerMove);
     runtime.pendingPlayerTurnPromise = pendingPlayerMove;
     runtime.pendingPlayerTurnHandlePromise = pendingPlayerTurnHandle;
     runtime.pendingPlayerTurnAbortController = abortController;
-    if (isEnginePlayer(player)) void requestEngineMove(player.assignedEngine).catch((error) => pendingPlayerMove.reject(error));
+    if (isEnginePlayer(player)) void _requestEngineMove(player.assignedEngine).catch((error) => pendingPlayerMove.reject(error));
   }
   function requestPlayerMoveIfNeeded(game: IGame) {
     if (!status.isOngoingLiveGame(game) || !status.isLiveState(game.gameState) || !position.pathsEqual(game.renderedPath, game.livePath)) return;
     if (position.requireGameRuntime(game).pendingPlayerTurnPromise) return;
-    requestPlayerMove(game);
+    _requestPlayerMove(game);
   }
   async function reassignPlayer(game: IGame, colour: PlayerColour, player?: IPlayer) {
     if (game.gameState === GameState.BoardEdit) throw new Error('Player reassignment is not allowed while editing the board.');
