@@ -58,7 +58,8 @@ async function returnThenTimeout(page: Page) {
 }
 async function reviewTimeout(page: Page, ended: IGame) {
   await historyRow(page, 'e4').click();
-  await expect(page.getByLabel('Recorded analysis', { exact: true })).toContainText('Journey A');
+  await expect(page.getByLabel('Recorded analysis', { exact: true })).toHaveCount(0);
+  await expectOutput(page, ['Journey A']);
   await page.getByRole('button', { name: 'Live position', exact: true }).click();
   await playMove(page, 'g1', 'f3');
   await expect(square(page, 'f3')).toHaveAttribute('aria-label', 'f3 white knight');

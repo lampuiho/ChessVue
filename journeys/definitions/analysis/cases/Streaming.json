@@ -22,6 +22,7 @@
       {
         "spec": "e2e/journeys/analysis/Streaming.spec.ts",
         "titles": [
+          "JRN-ANALYSIS-01 updates each mock engine independently with three ranked lines",
           "JRN-ANALYSIS-01 supersedes two pending searches with three current PVs per engine"
         ]
       }

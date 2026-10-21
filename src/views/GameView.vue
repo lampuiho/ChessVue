@@ -33,7 +33,6 @@ import Chessboard from '@/components/Chessboard.vue';
 import PlayerPanel from '@/components/PlayerPanel.vue';
 import HistoryPanel from '@/components/HistoryPanel.vue';
 import AnalysisPanel from '@/components/AnalysisPanel.vue';
-import RecordedAnalysisPanel from '@/components/RecordedAnalysisPanel.vue';
 import GameControlPanel from '@/components/GameControlPanel.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
@@ -401,7 +400,6 @@ async function run(action: () => Promise<void> | void) {
             @engine-remove-requested="(index) => run(() => removeAnalysisEngine(index))"
             @move-selected="playAnalysisLine"
           />
-          <RecordedAnalysisPanel v-if="renderedNode?.recordedAnalysis" :record="renderedNode.recordedAnalysis" />
           <GameControlPanel
             class="game-sidebar__controls"
             :mode="controlMode"

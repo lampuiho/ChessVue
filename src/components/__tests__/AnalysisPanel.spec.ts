@@ -57,7 +57,7 @@ describe('AnalysisPanel seats', () => {
     const seat = createAnalysisSeat();
     seat.assignedEngine.$ = { availability: EngineAvailability.Starting, analysisLines: new Map() };
     const wrapper = mount(AnalysisPanel, { props: { seats: [seat], disabled: true } });
-    expect(wrapper.text()).toContain('Waiting for engine');
+    expect(wrapper.get('.engine-section__name').attributes('title')).toBe('Waiting for engine');
     await wrapper.get('[title="Stop engine"]').trigger('click');
     expect(wrapper.emitted('stopRequested')).toEqual([[0]]);
     wrapper.unmount();
@@ -72,8 +72,35 @@ describe('AnalysisPanel seats', () => {
     seat.assignedEngine.$.availability = EngineAvailability.Ready;
     seat.assignedEngine.$.lastError = undefined;
     await wrapper.setProps({ seats: [seat], showMoves: false });
-    expect(wrapper.text()).toContain('Analysis stopped');
+    expect(wrapper.get('.engine-section__name').attributes('title')).toBe('Analysis stopped');
     expect(wrapper.text()).not.toContain('Analysis complete');
+    wrapper.unmount();
+  });
+  it('shows compact evaluations without folds, status text or move lists despite saved collapse state', async () => {
+    const seats = [createAnalysisSeat(), createAnalysisSeat(createEngineRecord('second', 'Second engine'))];
+    seats[0]!.lines = [{ depth: 32, scoreCp: 24, pv: [createMove(PlayerColour.White)] }];
+    seats[1]!.lines = [{ depth: 12, scoreMate: -3, pv: [createMove(PlayerColour.Black)] }];
+    const wrapper = mount(AnalysisPanel, { props: { seats, showMoves: false, collapsed: true, expandedByIndex: [false, false] } });
+    expect(wrapper.get('h2').text()).toBe('Evaluations');
+    expect(wrapper.findAll('.engine-section__name').map((name) => name.text())).toEqual(seats.map((seat) => seat.assignedEngine.displayName));
+    expect(wrapper.findAll('.engine-section__score').map((score) => score.text())).toEqual(['+0.24', '−M3']);
+    expect(wrapper.findAll('.side-panel__collapse, .engine-section__fold, .engine-summary, .analysis-lines')).toHaveLength(0);
+    await wrapper.setProps({ showMoves: true, collapsed: false, expandedByIndex: [true, true] });
+    expect(wrapper.get('h2').text()).toBe('Analysis');
+    expect(wrapper.findAll('.engine-section__fold')).toHaveLength(2);
+    expect(wrapper.findAll('.analysis-line')).toHaveLength(2);
+    wrapper.unmount();
+  });
+  it('shows each of three analysis continuations with its own score and depth', () => {
+    const seat = createAnalysisSeat();
+    seat.lines = [
+      { depth: 32, scoreCp: 24, pv: [createMove(PlayerColour.White)] },
+      { depth: 30, scoreCp: -18, pv: [createMove(PlayerColour.Black)] },
+      { depth: 29, scoreMate: 3, pv: [createMove(PlayerColour.White)] },
+    ];
+    const wrapper = mount(AnalysisPanel, { props: { seats: [seat], showMoves: true } });
+    expect(wrapper.findAll('.analysis-line__score').map((score) => score.text())).toEqual(['+0.24', '−0.18', 'M3']);
+    expect(wrapper.findAll('.analysis-line small').map((depth) => depth.text())).toEqual(['d32', 'd30', 'd29']);
     wrapper.unmount();
   });
 });

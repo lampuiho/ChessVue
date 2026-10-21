@@ -22,7 +22,8 @@ test('JRN-SETTINGS-10 preserves typed and empty options through reload and engin
   await page.getByRole('button', { name: 'Add engine', exact: true }).first().click();
   await page.getByRole('radio', { name: /Journey A/ }).check();
   await page.getByRole('dialog').getByRole('button', { name: 'Add engine', exact: true }).click();
-  await expect(page.locator('.engine-summary')).toContainText('Depth 12');
+  await expect(page.locator('.engine-section__name')).toHaveAttribute('title', 'Evaluating position');
+  await expect(page.locator('.engine-section__score')).toHaveText('+0.24');
   const seat = (await saveCurrentGame(page, 'Typed option output')).analysis.seats[0]!;
   expect(seat.assignedEngine.options).toEqual(options);
   expect(seat.lines).toHaveLength(3);

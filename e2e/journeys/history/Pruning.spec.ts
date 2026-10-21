@@ -36,7 +36,7 @@ test('JRN-HIST-06 preserves actual-move engine records through exploration, prun
   await createTimedHistory(page);
   await addAnalysisEngine(page);
   await playMove(page, 'g1', 'f3');
-  await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toContainText('Journey A');
+  await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toHaveCount(0);
   const played = await saveCurrentGame(page, 'recorded');
   const record = nodeAt(played, [0, 0, 0]).recordedAnalysis;
   expect(record?.seats[0]?.lines).toHaveLength(3);
@@ -56,7 +56,7 @@ test('JRN-HIST-06 preserves actual-move engine records through exploration, prun
   await page.reload();
   await waitForJourney(page);
   await historyRow(page, 'Nf3').click();
-  await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toContainText('Before this move');
+  await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toHaveCount(0);
   const restored = await saveCurrentGame(page, 'record-restored');
   expect(nodeAt(restored, [0, 0, 0]).recordedAnalysis).toEqual(record);
 });

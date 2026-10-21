@@ -20,7 +20,7 @@ This remains a planned component boundary under FRONTEND-DRIFT-12. The current `
 ## Notes
 - The proposed extraction would let `AnalysisPanel` compose one `AnalysisEngineSection` per engine; today these rows are inline.
 - This keeps per-engine line rendering and controls self-contained.
-- Score and engine-state summary content remain visible even when move targets are hidden.
+- Without move targets, the panel is titled Evaluations and shows compact engine-name/score rows without folds or status/depth summaries. Row management is available on hover or keyboard focus. With move targets, Analysis retains folds and three ranked lines with individual scores/depths.
 - Non-live analysis states expose individual move targets so the user can inspect any move along the line.
 - Live and live-analysis states expose individual move targets only when that game's `gameplayOptions.showLiveAnalysisMoves = true`.
 - Paused live play may still show score and status updates, but it does not expose clickable move targets.

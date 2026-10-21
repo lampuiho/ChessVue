@@ -23,9 +23,15 @@
       {
         "spec": "e2e/journeys/analysis/Suggestion.spec.ts",
         "titles": [
-          "JRN-ANALYSIS-03 keeps score-only output non-playable in live",
-          "JRN-ANALYSIS-03 keeps score-only output non-playable in in-game analysis",
-          "JRN-ANALYSIS-03 keeps score-only output non-playable in history"
+          "JRN-ANALYSIS-03 shows compact evaluations without folds in live",
+          "JRN-ANALYSIS-03 shows compact evaluations without folds in in-game analysis",
+          "JRN-ANALYSIS-03 shows compact evaluations without folds in history"
+        ]
+      },
+      {
+        "spec": "e2e/journeys/analysis/Streaming.spec.ts",
+        "titles": [
+          "JRN-ANALYSIS-03 streams independent mock-engine scores in Evaluations without folds"
         ]
       }
     ],

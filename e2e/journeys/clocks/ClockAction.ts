@@ -3,7 +3,7 @@ import { openJourney } from '../../support/JourneyBootstrap';
 import { openCustomGame, createWorkspace } from '../../support/GameCreation';
 import type { ClockMenu } from '../../../journeys/definitions/clocks/data/ClockScenario';
 export function playerClock(page: Page, colour: 'white' | 'black') {
-  return page.locator('.player-panel').filter({ has: page.locator(`.player-avatar--${colour}`) }).locator('.player-clock');
+  return page.locator('.player-panel').filter({ has: page.locator(`.player-avatar .piece-artwork--${colour}`) }).locator('.player-clock');
 }
 export async function advanceClock(page: Page, milliseconds: number) {
   const now = await page.evaluate(() => Date.now());

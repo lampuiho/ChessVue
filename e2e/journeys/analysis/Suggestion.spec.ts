@@ -4,20 +4,25 @@ import { selectGame } from '../../support/GameNavigation';
 import { saveCurrentGame } from '../../support/GameSave';
 import { analysisSeat, createTimedAnalysis, expectMoveBoard, expectOutput, expectPrefix, selectAnalysisGame } from './AnalysisAction';
 for (const context of ['live', 'in-game analysis', 'history']) {
-  test(`JRN-ANALYSIS-03 keeps score-only output non-playable in ${context}`, async ({ page }) => {
+  test(`JRN-ANALYSIS-03 shows compact evaluations without folds in ${context}`, async ({ page }) => {
     await openJourney(page, 'analysis');
     await selectAnalysisGame(page, false);
     if (context === 'in-game analysis') await page.getByRole('button', { name: /Analyse/ }).click();
     if (context === 'history') await page.getByRole('button', { name: 'Start position', exact: true }).click();
     for (const [index, name] of ['Journey A', 'Journey B'].entries()) {
       await expect(analysisSeat(page, name).locator('.engine-section__score')).toHaveText(index ? '+0.36' : '+0.24');
-      await expect(analysisSeat(page, name).locator('.engine-summary')).toContainText('Evaluating position');
+      await expect(analysisSeat(page, name).locator('.engine-section__name')).toHaveText(name);
+      await expect(analysisSeat(page, name).locator('.engine-section__fold, .engine-summary, .analysis-line')).toHaveCount(0);
       await expect(analysisSeat(page, name).getByRole('button', { name: /^Play through/ })).toHaveCount(0);
     }
+    await expect(page.locator('.analysis-panel h2')).toHaveText('Evaluations');
+    await expect(page.locator('.analysis-panel .side-panel__collapse')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toHaveCount(0);
     await selectAnalysisGame(page);
     if (context === 'in-game analysis') await page.getByRole('button', { name: /Analyse/ }).click();
     if (context === 'history') await page.getByRole('button', { name: 'Start position', exact: true }).click();
     await expectOutput(page);
+    await expect(page.locator('.analysis-panel h2')).toHaveText('Analysis');
     await expect(analysisSeat(page).getByRole('button', { name: /^Play through/ }).first()).toBeEnabled();
   });
 }

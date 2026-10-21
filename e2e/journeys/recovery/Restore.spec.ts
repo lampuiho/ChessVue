@@ -20,12 +20,12 @@ for (const { name, route } of restoredRoutes) for (const resume of [true, false]
     await expect(page.locator('.tab-button--active')).toContainText('Recoverable valid game');
     await expect(page.locator('.engine-section')).toHaveCount(2);
     if (resume) {
-      await expect(page.locator('.engine-section__status--running')).toHaveCount(2);
-      await expect(page.locator('.engine-summary')).toContainText('Depth 12');
+      await expect(page.locator('.engine-section__name[title="Evaluating position"]')).toHaveCount(2);
+      await expect(page.locator('.engine-section__score')).toHaveText(['+0.24', '+0.36']);
     } else {
       await page.clock.runFor(1000);
       await expect(page.locator('.engine-section__status--running')).toHaveCount(0);
-      await expect(page.locator('.engine-summary')).toContainText('No principal variation yet');
+      await expect(page.locator('.engine-section__score')).toHaveText(['—', '—']);
     }
     await expect(page.getByRole('button', { name: 'Expand history', exact: true })).toBeVisible();
     expect(await sourceFiles(page)).toEqual(before);

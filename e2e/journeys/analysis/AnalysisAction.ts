@@ -4,7 +4,7 @@ import { playMove, square } from '../../support/BoardInteraction';
 import { selectGame } from '../../support/GameNavigation';
 import { openCustomGame, setCustomClock, createWorkspace } from '../../support/GameCreation';
 export function analysisSeat(page: Page, name = 'Journey A') {
-  return page.locator('.analysis-panel .engine-section').filter({ has: page.getByRole('button', { name, exact: true }) });
+  return page.locator('.analysis-panel .engine-section').filter({ has: page.getByText(name, { exact: true }) });
 }
 export async function expectOutput(page: Page, names = ['Journey A', 'Journey B']) {
   for (const name of names) {
@@ -13,6 +13,7 @@ export async function expectOutput(page: Page, names = ['Journey A', 'Journey B'
     await expect(seat.locator('.analysis-line')).toHaveCount(3);
     await expect(seat.locator('.analysis-line').first().getByRole('button')).toHaveCount(4);
     await expect(seat.locator('.engine-section__score')).toHaveText(name === 'Journey B' ? '+0.36' : '+0.24');
+    await expect(seat.locator('.analysis-line__score')).toHaveText(name === 'Journey B' ? ['+0.36', '+0.18', '+0.00'] : ['+0.24', '+0.06', '−0.12']);
   }
 }
 export async function selectAnalysisGame(page: Page, moves = true) {

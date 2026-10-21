@@ -19,12 +19,12 @@ test('JRN-RECOVERY-08 restores an unavailable player with scoped feedback and al
 test('JRN-RECOVERY-08 isolates an unavailable analysis seat while another engine and the board remain usable', async ({ page }) => {
   await openRecovery(page, 'unavailable-analysis');
   await expect(page.locator('.analysis-panel .engine-error')).toContainText('unavailable');
-  await expect(page.locator('.engine-section__status--running')).toHaveCount(1);
-  await expect(page.locator('.engine-summary')).toContainText(['Depth 12', 'No principal variation yet']);
+  await expect(page.locator('.engine-section__name[title="Evaluating position"]')).toHaveCount(1);
+  await expect(page.locator('.engine-section__score')).toHaveText(['+0.24', '—']);
   await expect(page.locator('.recovery-notice')).toHaveCount(0);
   await playMove(page, 'e7', 'e5');
   await expect(page.locator('.history-row')).toHaveCount(2);
-  await expect(page.locator('.engine-summary').first()).toContainText('Depth 12');
+  await expect(page.locator('.engine-section__score').first()).toHaveText('+0.24');
   const saved = await saveCurrentGame(page, 'Analysis failure');
   expect(saved.analysis.seats[0]!.lines).toHaveLength(3);
   expect(saved.analysis.seats[1]!.assignedEngine.displayName).toBe('Journey unavailable');

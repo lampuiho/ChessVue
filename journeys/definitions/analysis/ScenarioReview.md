@@ -20,7 +20,7 @@ SCN-ANALYSIS-01/02: ENGINE-FOLDED and FOLD-ONE. Classification: aligned. Folding
 
 ## JRN-ANALYSIS-03
 
-SCN-ANALYSIS-01/02/04: LIVE-SCORE-ONLY. Classification: aligned. Independently reset live, in-game analysis and history contexts retain both evaluations/statuses with no PV buttons when assistance is score-only. The equivalent move-enabled context renders usable PV targets. This directly exercises the preference/context matrix requested by Q-ANALYSIS-003. It does not infer a new preference that overrides intentional analysis entry.
+SCN-ANALYSIS-01/02/04: LIVE-SCORE-ONLY. Classification: presentation corrected on 21 October. Independently reset live, in-game analysis and history contexts show compact Evaluations rows with both engine names/scores and no folds, status/depth summaries or PV buttons. Searches still run for scores. The equivalent move-enabled context renders usable PV targets. This directly exercises the preference/context matrix requested by Q-ANALYSIS-003. It does not infer a new preference that overrides intentional analysis entry.
 
 ## JRN-ANALYSIS-04
 
@@ -56,6 +56,6 @@ SCN-ANALYSIS-01/05 plus restore/settings contract and BOARD-EDIT. Classification
 
 ## JRN-ANALYSIS-12
 
-SCN-ANALYSIS-01/02: POSITION-CHANGED and independent updates. Classification: aligned. Selecting an unevaluated root clears both old PVs/scores and shows no-principal-variation feedback while searches wait. Rapid e4/live/e4 navigation supersedes pending work; the selected e4 node receives only black-to-move PVs while the live path stays at e5 and no historical record is invented. Integration verifies that a delivered old callback cannot overwrite the new node's current seats, contribute after removal, or publish during board edit. Current computation and the separate Recorded analysis panel remain distinct.
+SCN-ANALYSIS-01/02: POSITION-CHANGED and independent updates. Classification: aligned. Selecting an unevaluated root clears both old PVs/scores and shows no-principal-variation feedback while searches wait. Rapid e4/live/e4 navigation supersedes pending work; the selected e4 node receives only black-to-move PVs while the live path stays at e5 and no historical record is invented. Integration verifies that a delivered old callback cannot overwrite the new node's current seats, contribute after removal, or publish during board edit. Current computation remains separate from persisted actual-move records; the unrequested Recorded analysis sidebar panel is removed.
 
 The five owning flows and every branch were reviewed. Current labels now reflect the implemented UI. BR-ANALYSIS-01-PARSE-FAIL remains the UCI protocol suite's responsibility; these twelve groups introduce no malformed-output control. The history-only continuation branch remains in the History tranche. Progressive depth, unexpected process death, exact teardown counts and real workers keep their separate runtime/race/platform scope; these cases do not claim those unexecuted lanes.

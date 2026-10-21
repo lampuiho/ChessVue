@@ -8,15 +8,16 @@ async function addEngine(page: Page, name: string) {
   await dialog.getByRole('radio', { name: new RegExp(name + ' ') }).check();
   await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
 }
-async function expectOutput(page: Page) {
+export async function expectRecordedOutput(page: Page) {
   for (const name of ['Journey A', 'Journey B']) {
-    const seat = page.locator('.analysis-panel .engine-section').filter({ has: page.getByRole('button', { name, exact: true }) });
-    await expect(seat.locator('.engine-section__status--running')).toHaveCount(1);
+    const seat = page.locator('.analysis-panel .engine-section').filter({ has: page.getByText(name, { exact: true }) });
+    await expect(seat.locator('.engine-section__name')).toHaveAttribute('title', 'Evaluating position');
     await expect(seat.locator('.engine-section__score')).toHaveText(name === 'Journey A' ? '+0.24' : '+0.36');
   }
 }
 async function stopOutput(page: Page) {
   while (await page.getByRole('button', { name: 'Stop engine', exact: true }).count()) {
+    await page.locator('.engine-section').filter({ has: page.getByRole('button', { name: 'Stop engine', exact: true }) }).first().hover();
     await page.getByRole('button', { name: 'Stop engine', exact: true }).first().click();
   }
 }
@@ -25,13 +26,13 @@ export async function createRecordedWorkspace(page: Page) {
   await setAutosaveInterval(page, 0);
   await addEngine(page, 'Journey A');
   await addEngine(page, 'Journey B');
-  await expectOutput(page);
+  await expectRecordedOutput(page);
   await stopOutput(page);
   const parent = await saveCurrentGame(page, 'Evaluated parent');
   await playMove(page, 'f1', 'b5');
-  await expectOutput(page);
+  await expectRecordedOutput(page);
   await playMove(page, 'a7', 'a6');
-  await expectOutput(page);
+  await expectRecordedOutput(page);
   const recorded = await saveCurrentGame(page, 'Recorded moves');
   const record = nodeAt(recorded, [0, 0, 0, 0, 0]).recordedAnalysis!;
   expect(record.seats).toHaveLength(2);
@@ -54,16 +55,15 @@ async function exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof s
   for (const length of [7, 8]) expect(nodeAt(explored, explored.renderedPath.slice(0, length)).recordedAnalysis).toBeUndefined();
   expect(nodeAt(explored, [0, 0, 0, 0, 0]).recordedAnalysis).toEqual(nodeAt(recorded, [0, 0, 0, 0, 0]).recordedAnalysis);
   await page.getByRole('button', { name: /^Exit analysis/ }).click();
-  await expectOutput(page);
+  await expectRecordedOutput(page);
   await playMove(page, 'd2', 'd3');
-  await expectOutput(page);
+  await expectRecordedOutput(page);
 }
 export async function reviewRecordedMove(page: Page) {
   await page.locator('.history-row').filter({ has: page.locator('strong').getByText('Bb5', { exact: true }) }).click();
-  const panel = page.getByLabel('Recorded analysis', { exact: true });
-  await expect(panel).toContainText('Before this move');
-  await expect(panel).toContainText('Journey A');
-  await expect(panel).toContainText('Journey B');
-  await expect(panel.locator('article')).toHaveCount(2);
-  await expect(panel.locator('article p')).toHaveCount(6);
+  await expect(page.getByLabel('Recorded analysis', { exact: true })).toHaveCount(0);
+  const selected = await saveCurrentGame(page, 'Reviewed recorded move');
+  const record = nodeAt(selected, selected.renderedPath).recordedAnalysis!;
+  expect(record.seats.map((seat) => seat.assignedEngine.displayName)).toEqual(['Journey A', 'Journey B']);
+  for (const seat of record.seats) expect(seat.lines).toHaveLength(3);
 }

@@ -110,6 +110,8 @@ The UI must enforce this matrix through control visibility and enablement so pla
 | Paused Live Analysis | Yes | Read-only only when already supported by the current UI | No move commit |
 | Analysis | Yes | Yes | Apply analysis moves |
 
+Score-only rendering is titled Evaluations, with engine names on the left and scores on the right. It has no panel or engine folds and no status/depth summary. Engines keep evaluating independently. Move-enabled Analysis retains folding and three lines per engine.
+
 ## Transition Rules
 ### History Navigation
 - Navigating to an earlier node gives `renderedPath` an independent selector from `livePath`.

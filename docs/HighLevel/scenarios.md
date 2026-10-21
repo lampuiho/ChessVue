@@ -396,7 +396,7 @@ Each scenario in this document uses the same structure:
   1. User clicks node in history tree.
   2. App navigates board state to selected node.
   3. Analysis panel switches to selected FEN context while live play and its clock continue independently.
-  4. The selected actual move's recorded pre-move analysis, when present, remains visible separately from the refreshed current-position analysis. Start position selects the root; Live position returns to the actual live node even after restoring a reviewed branch.
+  4. The sidebar shows current-position evaluation or analysis without a separate recorded-analysis list. Actual-move records remain in saved game data. Start position selects the root; Live position returns to the actual live node even after restoring a reviewed branch.
 - **Branch Paths**:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
@@ -559,7 +559,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-01-ENGINE-NOT-RUNNING`: Engine start fails -> show actionable error and keep UI responsive.
   - `BR-ANALYSIS-01-PARSE-FAIL`: Output parse fails -> skip bad line and continue listening.
   - `BR-ANALYSIS-01-AUTO-ON-MOVE`: If engines were configured at creation, refresh analysis automatically after each committed move in either free analysis / setup or in-game analysis mode.
-  - `BR-ANALYSIS-01-LIVE-SCORE-ONLY`: In any `liveGame` context, the current game's live-analysis preference may keep the panel score-only instead of rendering PV moves.
+  - `BR-ANALYSIS-01-LIVE-SCORE-ONLY`: In any `liveGame` context, the current game's live-analysis preference may select compact Evaluations rows with engine names and scores, without folds or PV moves. Engine searches continue.
   - `BR-ANALYSIS-01-POSITION-CHANGED`: If the board position changes while the engine is still searching, stop or supersede the old search and begin streaming updates for the new position.
   - `BR-ANALYSIS-01-ENGINE-FOLDED`: If the user folds that engine group, new results continue updating in the background and become visible again when expanded.
   - `BR-ANALYSIS-01-PAUSED`: If live play is paused after analysis search has already started, the current search may finish and update the seat's rendered results. Paused state still blocks move commits and move-target clicks, but non-gameplay analysis controls such as refresh, retry, stop, and engine-roster management remain allowed.
@@ -586,7 +586,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.
   - `BR-ANALYSIS-02-TOO-MANY`: Four analysis engines are assigned -> disable Add and reject any additional assignment; existing engines continue independently.
   - `BR-ANALYSIS-02-DESYNC`: Engines report at different rates/depths -> panel keeps latest result from each engine without waiting for synchronized updates.
-  - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, engine rows still update independently without rendering move lists.
+  - `BR-ANALYSIS-02-LIVE-SCORE-ONLY`: In live-game contexts where `showLiveAnalysisMoves = false`, compact Evaluations rows still update independently without rendering move lists, folds or status/depth summaries.
   - `BR-ANALYSIS-02-FOLD-ONE`: Folding one engine group hides only that engine's visible lines and does not affect the other engine groups.
   - `BR-ANALYSIS-02-PAUSED`: If live play is paused after multi-engine search has already started, each current search may finish independently and update its seat's rendered results, while move-target clicks remain blocked until resume.
 - **Postconditions**: Partial availability does not block full analysis feature, and each engine can improve its displayed line independently over time.

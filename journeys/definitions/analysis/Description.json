@@ -9,7 +9,7 @@
   ],
   "steps": [
     "Expand both engines in analysis-free; inspect three PVs, collapse/reopen and click a suggestion.",
-    "Compare analysis-score-only with analysis-live-moves: live-game move suggestions should follow each preference.",
+    "Compare analysis-score-only with analysis-live-moves: Evaluations shows engine names and scores without folds; Analysis has foldable groups with three scored lines each.",
     "Add/remove engines; assign Journey unavailable to exercise engine failure while retaining the other seat.",
     "Use Settings to add distinct working profiles up to four seats, and verify duplicate/fifth assignments are blocked.",
     "Pause a timed game and manage engines; reload with Resume after restore enabled/disabled and compare board edit.",

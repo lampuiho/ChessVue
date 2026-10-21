@@ -29,22 +29,26 @@
 .panel-empty--analysis > .app-icon { font-size: 1.3rem; }
 .panel-empty--analysis strong { color: var(--text-primary); font-family: var(--font-display); font-size: 0.86rem; }
 .engine-section + .engine-section { margin-top: 0.25rem; }
-.engine-section__header { display: grid; min-height: 2.5rem; padding: 0.35rem 0.45rem 0.35rem 0.6rem; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 0.25rem; }
+.engine-section__header { display: grid; min-height: 2.5rem; padding: 0.35rem 0.45rem 0.35rem 0.6rem; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 0.25rem; }
+.engine-section__name { overflow: hidden; font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
+.engine-section__actions { display: flex; }
+.engine-section__header--evaluation .engine-section__actions { opacity: 0; pointer-events: none; }
+.engine-section__header--evaluation:hover .engine-section__actions, .engine-section__header--evaluation:focus-within .engine-section__actions { opacity: 1; pointer-events: auto; }
+.analysis-panel--evaluations:has(.side-panel__body) { flex: 0 1 auto; }
 .engine-section__fold { display: flex; min-width: 0; padding: 0; align-items: center; gap: 0.35rem; background: transparent; }
 .engine-section__fold .app-icon { color: var(--text-muted); font-size: 0.78rem; }
-.engine-section__fold strong { overflow: hidden; font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
 .engine-section__status { width: 0.4rem; height: 0.4rem; flex: 0 0 auto; border-radius: 50%; background: var(--text-muted); }
 .engine-section__status--running { background: var(--success); box-shadow: 0 0 0 0.2rem var(--success-soft); }
 .engine-section__status--starting { background: var(--warning); }
 .engine-section__status--failed, .engine-section__status--unavailable { background: var(--danger); }
 .engine-section__score { min-width: 3.25rem; padding: 0.2rem 0.35rem; border-radius: 0.3rem; background: var(--surface-app); font-size: 0.72rem; font-variant-numeric: tabular-nums; font-weight: 800; text-align: right; }
 .analysis-lines { display: grid; padding: 0 0.5rem 0.5rem; gap: 0.18rem; }
-.analysis-line { display: grid; min-height: 1.9rem; padding: 0.2rem 0.45rem; grid-template-columns: 1rem minmax(0, 1fr) auto; align-items: baseline; gap: 0.35rem; border-radius: 0.3rem; background: var(--surface-app); }
+.analysis-line { display: grid; min-height: 1.9rem; padding: 0.2rem 0.45rem; grid-template-columns: 0.75rem 2.75rem minmax(0, 1fr) auto; align-items: baseline; gap: 0.35rem; border-radius: 0.3rem; background: var(--surface-app); }
 .analysis-line__moves { display: flex; flex-wrap: wrap; gap: 0.1rem; }
-.analysis-lines button { min-height: 1.7rem; padding: 0.2rem; color: var(--text-primary); border-radius: 0.2rem; background: transparent; font-size: 0.65rem; font-weight: 650; }
-.analysis-lines button:hover:not(:disabled) { background: var(--accent-soft); }
-.analysis-lines span, .analysis-lines small { color: var(--text-muted); font-size: 0.58rem; }
-.analysis-lines strong { overflow: hidden; font-size: 0.65rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.analysis-line__move { min-height: 1.7rem; padding: 0.2rem; color: var(--text-primary); border-radius: 0.2rem; background: transparent; font-size: 0.65rem; font-weight: 650; }
+.analysis-line__move:hover:not(:disabled) { background: var(--accent-soft); }
+.analysis-line > span, .analysis-line small { color: var(--text-muted); font-size: 0.58rem; }
+.analysis-line__score { font-size: 0.65rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .engine-summary { display: flex; padding: 0 0.75rem 0.65rem 1.85rem; justify-content: space-between; color: var(--text-muted); font-size: 0.64rem; }
 .engine-summary small { font-size: 0.58rem; }
 .engine-error--analysis { padding: 0 0.75rem 0.65rem 1.85rem; font-size: 0.62rem; }
@@ -52,7 +56,3 @@
   .panel-empty--analysis { padding: 0.25rem 0; justify-items: start; text-align: left; }
   .panel-empty--analysis > .app-icon, .panel-empty--analysis > span, .panel-empty--analysis .text-button { display: none; }
 }
-.recorded-analysis { min-height: 0; max-height: 25%; overflow: auto; padding: 0.25rem 0; flex-shrink: 1; }
-.recorded-analysis h2 { margin: 0; font-family: var(--font-display); font-size: 0.9rem; }
-.recorded-analysis strong { font-size: 0.7rem; }
-.recorded-analysis p { margin: 0.25rem 0; color: var(--text-muted); font-size: 0.65rem; }

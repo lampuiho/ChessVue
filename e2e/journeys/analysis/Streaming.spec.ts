@@ -2,7 +2,29 @@ import { test, expect, analysisTime } from './AnalysisTest';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
+import { emit, latestSearch } from '../engine-races/RaceAction';
 import { analysisSeat, expectMoveBoard, expectOutput, nodeAt, selectAnalysisGame } from './AnalysisAction';
+test('JRN-ANALYSIS-01 updates each mock engine independently with three ranked lines', async ({ page }) => {
+  await openJourney(page, 'analysis');
+  await expectOutput(page);
+  await page.evaluate(() => window.chessVueJourney.engines.hold('analysis'));
+  const after = await page.evaluate(() => window.chessVueJourney.engines.searches().at(-1)?.id ?? 0);
+  await page.getByRole('button', { name: 'Refresh analysis', exact: true }).click();
+  const a = await latestSearch(page, 'analysis', 'journey://a', after);
+  const b = await latestSearch(page, 'analysis', 'journey://b', after);
+  for (const rank of [3, 1, 2]) await emit(page, a.id, `info depth 32 multipv ${rank} score cp ${60 - rank * 10} pv g1f3 g8f6`);
+  await expect(analysisSeat(page).locator('.analysis-line__score')).toHaveText(['+0.50', '+0.40', '+0.30']);
+  await expect(analysisSeat(page).locator('.analysis-line small')).toHaveText(['d32', 'd32', 'd32']);
+  await expect(analysisSeat(page, 'Journey B').locator('.analysis-line')).toHaveCount(0);
+  for (const rank of [2, 3, 1]) await emit(page, b.id, `info depth 8 multipv ${rank} score cp ${-rank * 15} pv d2d4 d7d5`);
+  await expect(analysisSeat(page, 'Journey B').locator('.analysis-line__score')).toHaveText(['−0.15', '−0.30', '−0.45']);
+  await expect(analysisSeat(page, 'Journey B').locator('.analysis-line small')).toHaveText(['d8', 'd8', 'd8']);
+  await emit(page, a.id, 'info depth 33 multipv 1 score cp 75 pv g1f3 g8f6');
+  await expect(analysisSeat(page).locator('.analysis-line__score')).toHaveText(['+0.75', '+0.40', '+0.30']);
+  await expect(analysisSeat(page).locator('.analysis-line small')).toHaveText(['d33', 'd32', 'd32']);
+  await expect(analysisSeat(page, 'Journey B').locator('.analysis-line__score')).toHaveText(['−0.15', '−0.30', '−0.45']);
+  await expect(page.getByRole('region', { name: 'Recorded analysis', exact: true })).toHaveCount(0);
+});
 test('JRN-ANALYSIS-01 supersedes two pending searches with three current PVs per engine', async ({ page }) => {
   await openJourney(page, 'analysis');
   await expectOutput(page);
@@ -24,6 +46,26 @@ test('JRN-ANALYSIS-01 supersedes two pending searches with three current PVs per
   await expectMoveBoard(page, suggestion);
   await expect(page.locator('.history-row')).toHaveCount(4);
   expect(nodeAt(await saveCurrentGame(page, 'played-current'), [0, 0, 0, 0]).move).toEqual(suggestion);
+});
+test('JRN-ANALYSIS-03 streams independent mock-engine scores in Evaluations without folds', async ({ page }, testInfo) => {
+  await openJourney(page, 'analysis');
+  await expectOutput(page);
+  await page.getByRole('button', { name: 'Collapse analysis', exact: true }).click();
+  await selectAnalysisGame(page, false);
+  await expect(page.locator('.analysis-panel h2')).toHaveText('Evaluations');
+  await expect(page.locator('.engine-section__score')).toHaveText(['+0.24', '+0.36']);
+  await page.evaluate(() => window.chessVueJourney.engines.hold('analysis'));
+  const after = await page.evaluate(() => window.chessVueJourney.engines.searches().at(-1)?.id ?? 0);
+  await page.getByRole('button', { name: 'Refresh analysis', exact: true }).click();
+  const a = await latestSearch(page, 'analysis', 'journey://a', after);
+  const b = await latestSearch(page, 'analysis', 'journey://b', after);
+  await emit(page, a.id, 'info depth 32 multipv 1 score cp 75 pv g1f3 g8f6');
+  await expect(analysisSeat(page).locator('.engine-section__score')).toHaveText('+0.75');
+  await expect(analysisSeat(page, 'Journey B').locator('.engine-section__score')).toHaveText('—');
+  await emit(page, b.id, 'info depth 8 multipv 1 score cp -30 pv d2d4 d7d5');
+  await expect(page.locator('.engine-section__score')).toHaveText(['+0.75', '−0.30']);
+  await expect(page.locator('.analysis-panel .side-panel__collapse, .engine-section__fold, .engine-summary, .analysis-line')).toHaveCount(0);
+  await testInfo.attach('Evaluations', { body: await page.screenshot(), contentType: 'image/png' });
 });
 test('JRN-ANALYSIS-02 folds one engine and the panel while refreshed output continues', async ({ page }) => {
   await openJourney(page, 'analysis');

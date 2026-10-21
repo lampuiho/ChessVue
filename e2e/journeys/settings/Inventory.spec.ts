@@ -23,7 +23,7 @@ test('JRN-SETTINGS-07 stages a profile then applies it to all future assignment 
   await expect(custom.getByLabel('White', { exact: true }).getByRole('option', { name: 'New analyst', exact: true })).toHaveCount(1);
   await expect(custom.getByLabel('Black', { exact: true }).getByRole('option', { name: 'New analyst', exact: true })).toHaveCount(1);
   await custom.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await page.locator('.player-panel').filter({ has: page.locator('.player-avatar--white') }).locator('.player-name').click();
+  await page.locator('.player-panel').filter({ has: page.locator('.player-avatar .piece-artwork--white') }).locator('.player-name').click();
   await expect(page.getByRole('radio', { name: /New analyst/ })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: /^Analyse Explore/ }).click();
@@ -32,7 +32,7 @@ test('JRN-SETTINGS-07 stages a profile then applies it to all future assignment 
   await assignment.getByRole('radio', { name: /New analyst/ }).check();
   await assignment.getByRole('button', { name: 'Add engine', exact: true }).click();
   const seat = page.locator('.engine-section').filter({ hasText: 'New analyst' });
-  await expect(seat.locator('.engine-summary')).toContainText('Depth 12');
+  await expect(seat.locator('.engine-section__name')).toHaveAttribute('title', 'Evaluating position');
   await expect(seat.locator('.engine-section__score')).toHaveText('+0.24');
   const saved = await saveCurrentGame(page, 'New profile seat');
   expect(saved.analysis.seats[0]!.assignedEngine.options).toEqual({ Hash: 32 });

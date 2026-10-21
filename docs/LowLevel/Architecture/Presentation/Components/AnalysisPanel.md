@@ -15,12 +15,13 @@ Props are `seats: readonly ReadonlyAnalysisSeat[]`, `collapsed`, `expandedByInde
 
 ## Rendering and permissions
 
-- Render `seat.lines` directly. The subscription has already selected at most three entries in engine rank order; there is no template slice or frontend ranking.
+- With move suggestions enabled, render `seat.lines` directly with a score and depth on each line. The subscription has already selected at most three entries in engine rank order; there is no template slice or frontend ranking.
 - Show assignment metadata, score, and runtime availability even when no line exists. Only an empty seat list means no engine is assigned.
 - Missing runtime is unavailable, not Starting. Ready with an incomplete result is stopped; `isComplete` describes natural completion rather than runtime availability.
 - Keep accepted lines visible alongside failure feedback. Explicit Stop preserves the current result. Restored lines can display without a process.
-- Paused states disable move selection while Refresh/Retry/Stop, assignment controls, and folding remain available. BoardEdit disables startup. `showLiveAnalysisMoves` continues to select score-only versus move rendering.
+- Paused states disable move selection while Refresh/Retry/Stop, assignment controls, and folding remain available. BoardEdit disables startup. `showLiveAnalysisMoves` continues to select score-only versus move rendering. Score-only mode is titled Evaluations: engine names sit left, scores sit right, and there are no panel/engine folds or status/depth summaries. Saved analysis collapse flags do not hide evaluations; management actions appear on row hover or keyboard focus. Analysis retains its panel/engine folds and three move lines.
 - Games are raw: `GameView` depends on `workspaceRevision` and receives a fresh outer seat array so status/line mutations reach the child without clock ticks.
+- The separate Recorded analysis sidebar panel is removed. Actual-move records remain in saved game data.
 - Fold indexes follow assignment order, including empty seats. Removal reconciles the existing UI fold array.
 
 ## Remaining presentation work

@@ -211,7 +211,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | GamesStore.getVisibleAnalysis |
 | --- |
 
-- UI surface coverage: one engine group always shows score and engine state. It may also show up to `3` visible lines in non-live analysis states, and in live or live-analysis states only when that game's `gameplayOptions.showLiveAnalysisMoves = true`.
+- UI surface coverage: score-only contexts show compact Evaluations rows with engine names and scores, without folds or status/depth summaries. Analysis shows foldable groups with up to `3` scored lines in non-live analysis states, and in live or live-analysis states only when that game's `gameplayOptions.showLiveAnalysisMoves = true`. Engine evaluation continues in both views.
 - State gate: `GamesStore.refreshAnalysis` accepts live states, paused live states, live-analysis states, and non-live analysis states. It is blocked while `gameState = GameState.BoardEdit`. Paused live play keeps move-target selection blocked, but analysis refresh remains allowed because it is not treated as gameplay input.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit lower-layer state transitions behind analysis subscription registration, purpose-level analysis start, streamed updates, and malformed output handling.
 - Requirement verification: `Pass`. Engine startup, streaming updates, ready callbacks, and position supersession are owned by the engine runtime boundary rather than the view.

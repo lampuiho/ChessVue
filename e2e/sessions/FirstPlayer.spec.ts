@@ -62,9 +62,8 @@ async function restoreSelectedGame(page: Page, saved: IGame) {
   expectCanonical(await saveCurrentGame(page, 'Selected restored'), saved);
   await resumeClock(page);
   await historyRow(page, 'exd5').click();
-  const recorded = page.getByLabel('Recorded analysis', { exact: true });
-  await expect(recorded).toContainText('Before this move');
-  for (const name of ['Journey A', 'Journey B']) await expect(recorded).toContainText(name);
+  await expect(page.getByLabel('Recorded analysis', { exact: true })).toHaveCount(0);
+  await expectOutput(page);
   await page.getByRole('button', { name: 'Live position', exact: true }).click();
   await expect(square(page, 'c6')).toHaveAttribute('aria-label', 'c6 black pawn');
   await advanceClock(page, 1000);
