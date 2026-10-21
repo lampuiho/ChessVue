@@ -34,6 +34,8 @@ Intent: BR-CTRL-03-NON-LOCAL-NO-RESPONSE records an outgoing offer without a loc
 
 Intent: SCN-CTRL-01 restores the prior board, selected history, live path and clock snapshot; the root and a disabled takeback policy expose disabled controls without mutation. Classification: aligned. A timed 5+2 example verifies the removed move's clock increment is also removed and the next root rewind restores both initial balances. Paused takeback ownership remains covered by existing application tests and the Clock backlog.
 
+Player-versus-engine correction: takeback now removes the local player's own last move and the engine's reply, restoring that player's turn and the preceding clock snapshot. Both colours have browser coverage, including Black retaining the engine's opening move and a disabled control before the local player has moved. A held-search case covers cancellation during engine thinking and a subsequent replacement move/reply. Local/local and standalone analysis retain their single-ply rewind.
+
 ## JRN-PLAY-08
 
 Intent: SCN-GAME-03 preserves each of four boards/results, falls back after active closure, preserves selection after inactive closure, hides a single tab strip, and closes the last workspace without deleting managed saves. Classification: product gap corrected. Hiding the strip previously removed the only close control; the game menu now exposes Close game independently of tab visibility. The test verifies empty-session reload and unchanged managed-file inventory.

@@ -521,6 +521,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GameStatusComposable.assertNotPausedForAction` |
 | enforce `game.gameplayOptions.allowTakeback` for live games |
+| `GameMoveComposable.getTakeBackMoveCount`: in local-versus-engine games, include the local player's last move and any engine reply; disable until the local player has moved |
 | `GameMoveComposable.takeBack` |
 | `GamePositionComposable.getLiveNode` |
 | `GamePositionComposable.setRenderedPath` |
@@ -535,6 +536,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 - Requirement verification: `Pass`. Live-game takeback is policy-gated, rewinds from the authoritative live node to a live ancestor even while an analysis branch is rendered, and restarts that node's clock snapshot from the current timestamp.
 - State gate: manual/menu pauses block takeback. An analysis-only pause permits it when the game allows takeback and retains the analysis pause on the rewound clock.
+- Move ownership: local-versus-engine takeback removes the local player's last move together with any subsequent engine reply. During engine thinking it cancels the pending turn and removes only the local move. An engine's opening move alone cannot be taken back. Local/local play and standalone analysis rewind one ply; an explicit move count still selects that many plies.
 
 ### SCN-CTRL-02 - Resign Game
 

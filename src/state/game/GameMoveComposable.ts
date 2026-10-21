@@ -2,6 +2,7 @@ import {
   AnalysisBranchExitBehaviour,
   GameState,
   PauseReason,
+  PlayerType,
   ResultReason,
   ResultState,
   type IBoardPosition,
@@ -9,7 +10,7 @@ import {
   type IMove,
   type IMoveNode,
 } from '@/contracts';
-import { MoveApplicationService, MoveHistoryService, UserSettingService } from '@/domain';
+import { EngineRuntimeService, MoveApplicationService, MoveHistoryService, UserSettingService } from '@/domain';
 import { getOpponentColour } from '@/utility/chess/BoardUtility';
 import { ClockTimestamp } from '@/utility/date';
 import type { GameAnalysisComposable } from './GameAnalysisComposable';
@@ -150,13 +151,31 @@ export function useGameMove(dependency: IGameMoveDependency) {
     if (status.isOngoingLiveGame(game)) commitLiveAnalysisMove(game, parentNode, parentPosition, move);
     else commitStandaloneAnalysisMove(game, parentNode, parentPosition, move);
   }
-  async function takeBack(game: IGame, moveCount: number = 1) {
+  function getTakeBackMoveCount(game: IGame) {
+    let node = game.livePath ? position.getLiveNode(game) : position.getRenderedNode(game);
+    if (!node.move) return 0;
+    if (!game.livePath) return 1;
+    const localPlayer = game.whitePlayer?.type === PlayerType.Local && game.blackPlayer?.type === PlayerType.Engine ? game.whitePlayer
+      : game.blackPlayer?.type === PlayerType.Local && game.whitePlayer?.type === PlayerType.Engine ? game.blackPlayer : undefined;
+    if (!localPlayer) return 1;
+    let moveCount = 0;
+    while (node.move) {
+      moveCount += 1;
+      if (node.move.movingColour === localPlayer.colour) return moveCount;
+      if (!node.$?.parent) break;
+      node = node.$.parent;
+    }
+    return 0;
+  }
+  async function takeBack(game: IGame, moveCount: number = getTakeBackMoveCount(game)) {
     status.assertExplorationAllowed(game, 'Takeback');
     const analysisPaused = status.canExploreAnalysis(game);
     const hasLivePath = !!game.livePath;
     if (hasLivePath && !game.gameplayOptions.allowTakeback) throw new Error('Takeback is not allowed for this game.');
+    if (moveCount <= 0) return;
     const targetNode = hasLivePath ? position.getLiveNode(game) : position.getRenderedNode(game);
     await playerTurn.clearPlayerTurnRuntime(game);
+    await Promise.all([game.whitePlayer, game.blackPlayer].filter(playerTurn.isEnginePlayer).map((player) => EngineRuntimeService.stopEngine(player.assignedEngine)));
     const fallbackNode = MoveHistoryService.takeBack(targetNode, moveCount);
     const fallbackPath = position.getPathToNode(fallbackNode);
     const changed = !position.pathsEqual(game.renderedPath, fallbackPath);
@@ -249,6 +268,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
     commitLiveMove,
     replaceWithAnalysisRoot,
     makeMove,
+    getTakeBackMoveCount,
     takeBack,
     navigateToNode,
     enterInGameAnalysis,

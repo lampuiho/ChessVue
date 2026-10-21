@@ -107,7 +107,7 @@ const isBoardInputDisabled = computed(() => {
 const canTakeBack = computed(() => {
   const currentGame = game.value;
   if (!currentGame || controlMode.value === 'boardEdit' || controlMode.value === 'paused' || isPlayingLine.value) return false;
-  const hasMove = (currentGame.livePath ?? currentGame.renderedPath).length > 0;
+  const hasMove = gamesStore.getTakeBackMoveCount(currentGame) > 0;
   return hasMove && (!currentGame.livePath || !!currentGame.gameplayOptions.allowTakeback);
 });
 const canPause = computed(() => game.value?.timeControl.initialMs !== undefined && game.value.timeControl.preset !== 'untimed');

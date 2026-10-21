@@ -83,6 +83,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     getGame: workspace.getGame,
     listGames: workspace.listGames,
     makeMove: move.makeMove,
+    getTakeBackMoveCount: move.getTakeBackMoveCount,
     takeBack: move.takeBack,
     navigateToNode: move.navigateToNode,
     getVisibleAnalysis: analysis.getVisibleAnalysis,

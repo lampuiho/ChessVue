@@ -2,7 +2,8 @@ import { test, expect } from './PlayTest';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove, square } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
-import { autoSave, createTimedPlay, playTime } from './PlaySetup';
+import { autoSave, choosePlayer, createTimedPlay, playTime } from './PlaySetup';
+import { latestSearch, release } from '../engine-races/RaceAction';
 
 test('JRN-PLAY-07 restores the prior position and clock then blocks takeback at root', async ({ page }) => {
   await openJourney(page, 'play');
@@ -40,4 +41,52 @@ test('JRN-PLAY-07 preserves a game with takebacks disabled', async ({ page }) =>
   expect(saved.livePath).toEqual([0]);
   expect(saved.clockSnapshot.white.remainingMs).toBe(302000);
   expect(saved.gameplayOptions.allowTakeback).toBe(false);
+});
+for (const colour of ['White', 'Black'] as const) {
+  test(`JRN-PLAY-07 takes back ${colour}'s own move and the engine reply`, async ({ page }) => {
+    await openJourney(page, 'play');
+    await createTimedPlay(page);
+    await choosePlayer(page, colour === 'White' ? 'Black' : 'White', 'Journey A');
+    const openingCount = colour === 'White' ? 0 : 1;
+    await expect(page.locator('.history-row')).toHaveCount(openingCount);
+    await expect(page.getByRole('button', { name: /Takeback/ })).toBeDisabled();
+    const before = await saveCurrentGame(page, 'before-player-move');
+    const source = colour === 'White' ? 'e2' : 'e7';
+    await playMove(page, source, colour === 'White' ? 'e4' : 'e5');
+    await expect(page.locator('.history-row')).toHaveCount(openingCount + 2);
+    await page.getByRole('button', { name: /Takeback/ }).click();
+    await expect(page.locator('.history-row')).toHaveCount(openingCount);
+    await expect(square(page, source)).toHaveAttribute('aria-label', `${source} ${colour.toLowerCase()} pawn`);
+    await expect(page.locator('.result-badge')).toHaveText(`${colour.toLowerCase()} to move`);
+    await expect(page.getByRole('button', { name: /Takeback/ })).toBeDisabled();
+    const rewound = await saveCurrentGame(page, 'player-rewound');
+    expect(rewound.livePath).toEqual(before.livePath);
+    expect(rewound.renderedPath).toEqual(before.renderedPath);
+    expect(rewound.moveTree).toEqual(before.moveTree);
+    expect(rewound.clockSnapshot.white.remainingMs).toBe(before.clockSnapshot.white.remainingMs);
+    expect(rewound.clockSnapshot.black.remainingMs).toBe(before.clockSnapshot.black.remainingMs);
+    await playMove(page, source, colour === 'White' ? 'e3' : 'e6');
+    await expect(page.locator('.history-row')).toHaveCount(openingCount + 2);
+  });
+}
+test('JRN-PLAY-07 takes back a player move while the engine is thinking', async ({ page }) => {
+  await openJourney(page, 'play');
+  await page.evaluate(() => window.chessVueJourney.engines.hold('player'));
+  await createTimedPlay(page);
+  await choosePlayer(page, 'Black', 'Journey A');
+  await playMove(page, 'e2', 'e4');
+  const pending = await latestSearch(page, 'player');
+  await page.getByRole('button', { name: /Takeback/ }).click();
+  await expect(page.locator('.history-row')).toHaveCount(0);
+  await expect(square(page, 'e2')).toHaveAttribute('aria-label', 'e2 white pawn');
+  await expect(page.locator('.result-badge')).toHaveText('white to move');
+  await expect(page.locator('.engine-error')).toHaveCount(0);
+  await expect.poll(() => page.evaluate((id) => window.chessVueJourney.engines.searches().find((search) => search.id === id)?.pending, pending.id)).toBe(false);
+  const rewound = await saveCurrentGame(page, 'thinking-rewound');
+  expect(rewound.livePath).toEqual([]);
+  expect(rewound.clockSnapshot.white.remainingMs).toBe(300000);
+  expect(rewound.clockSnapshot.black.remainingMs).toBe(300000);
+  await playMove(page, 'd2', 'd4');
+  await release(page, (await latestSearch(page, 'player', 'journey://a', pending.id)).id);
+  await expect(page.locator('.history-row')).toHaveCount(2);
 });

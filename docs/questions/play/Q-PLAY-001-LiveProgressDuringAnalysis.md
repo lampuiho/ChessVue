@@ -1,47 +1,41 @@
-# Q-PLAY-001 — Does live play continue during interactive analysis?
+# Q-PLAY-001 — Live play continues during interactive analysis
 
 | Field | Value |
 | --- | --- |
-| Status | Review prompt |
+| Status | Resolved product policy; implementation changes planned |
 | Priority | P0 |
-| Classification | Open timing/turn policy and possible scenario gap |
 | Raised | 15 October 2026 |
-| Reviewed revision | Source inspection based on `2d693f7`; no new browser run |
-| Related questions | [Q-ANALYSIS-003](../analysis/Q-ANALYSIS-003-SuggestionInteraction.md) |
+| Resolved | 21 October 2026 |
+| Decision source | User's numbered premove/analysis clarifications, especially answers 2–4 |
+| Related decisions | [Premove conflicts and scenarios](Q-PLAY-002-PremoveAnalysisConflicts.md), [suggestion interaction](../analysis/Q-ANALYSIS-003-SuggestionInteraction.md), [temporary-branch scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) |
 
-This is a planning review prompt, not a question currently awaiting an answer or blocking journey work. Investigate it when implementing/testing the relevant journeys; raise a concrete question only if that work reveals a real unresolved issue.
+## Decision
 
-## User intent
+Explicit Analyse does not stop the actual clock or live progression. Engine replies, valid queued human moves and subsequent engine turns continue while the user explores or reviews another canonical position. Ordinary history review also does not suspend premoves.
 
-The user wants to analyse interactively while playing a game. That establishes an integrated workflow, but does not yet specify whether clocks and opponent turns continue during exploration.
+Enter analysis through an explicit button on the currently selected canonical move. That rendered position excludes premoves and remains the analysis engine's input. Displayed premoved pieces are derived separately. Exploration changes only its selected analysis board; actual play changes only the live game.
 
-## Observation and evidence
+Exiting/returning selects the latest live position and reapplies only the remaining valid queue for display. It is not a clock resume, queue replay or reason to start a duplicate engine search. Real Manual/Menu pause ownership still prevents actual commits until explicitly resolved under its existing policy.
 
-- [SCN-HIST-01](../../HighLevel/scenarios.md) describes history review while live play and its clock continue independently. SCN-CTRL-04 describes exploration without progressing the live game; pause branches introduce another permission boundary.
-- In [GameMoveComposable.ts](../../../src/state/game/GameMoveComposable.ts), `enterInGameAnalysis(...)` adds an analysis pause and `exitInGameAnalysis(...)` removes that ownership while returning to the live node.
-- [GameClockComposable.ts](../../../src/state/game/GameClockComposable.ts) handles layered pause reasons and deferred output. [GamePlayerTurnComposable.ts](../../../src/state/game/GamePlayerTurnComposable.ts) only arms a new turn when the eligible live position is rendered.
-- The [engine runtime contract](../../HighLevel/engine_runtime.md) allows in-flight work to finish during pause while deferring a player move. These are meaningful different states, not one uniform analysis workflow.
+Local-local play has no premoves or previous-side off-turn entitlement: each actual move hands input to the other side. Takeback always changes the actual live game. Invalid premoves clear the whole queue and are never history.
 
-## Decision to clarify
+## Implementation gap and evidence
 
-Should interactive analysis always pause the actual game, allow live clocks/opponent progress in the background, or expose both as clearly distinguishable flows? If the live position advances during review, what should the user see and what anchors the temporary exploratory branch? Recording remains restricted to actual game moves under the [resolved scope decision](../analysis/Q-ANALYSIS-002-VariationRetention.md).
+This decision changes the current implementation rather than describing existing behaviour:
 
-Clock correctness and avoiding a surprise live move are settled safety concerns. The default progression policy and return-to-live experience are still open.
+- [GameMoveComposable](../../../src/state/game/GameMoveComposable.ts) currently adds Analysis pause on entry and removes it on exit.
+- [GamePlayerTurnComposable](../../../src/state/game/GamePlayerTurnComposable.ts) currently requires the selected live board to arm a successor actual turn.
+- Equal rendered/live path values currently alias board caches; active selected analysis needs independent position ownership even before its first exploratory move.
+- Background actual commits currently prune descendants that can contain the active exploratory branch. Protect its selection lifetime and perform targeted temporary-node cleanup without discarding actual played history.
 
-## Alternatives and provisional direction
+On 21 October 2026 four focused existing [store tests](../../../src/state/__tests__/GamesStore.spec.ts) passed, confirming current paused-analysis/path behaviour. Existing browser JRN-RACE-02 was inspected and asserts that frozen policy too; it was not rerun. Passing those tests does not demonstrate the newly requested background behaviour.
 
-- Pause the game for explicit Analyse mode, while keeping ordinary history review distinct.
-- Continue live progression while exploring an anchored analysis branch, with visible live-turn/change feedback and a return action.
-- Support both through explicit, understandable controls rather than inferring timing policy from the selected history node.
+The [premove plan](../../PreMovePlan%28ToDo%29.md) records the exact baseline command and implementation/verification sequence. Its [conflict record](Q-PLAY-002-PremoveAnalysisConflicts.md) defines the required background, hotseat, clock, cache, pruning and queue-clear scenarios.
 
-Proposed starting point: preserve existing clock/turn safety while making the modes and pause ownership visible. Decide the default before changing turn scheduling or promising uninterrupted opponent progression.
+## Acceptance and compatibility
 
-## Journey impact
+Replace obsolete Analysis-freeze expectations with controlled tests for multiple interleaved actual engine/local turns, running actual clocks and timeout behind an unchanged selected analysis board. Preserve genuine Manual/Menu pause, cancellation, provider/ponder ordering and independent analysis-seat regressions.
 
-Affected cases: JRN-HIST-01/05/07, JRN-CLOCK-02/03/04/09/11, JRN-RACE-01/02/05 and JRN-SESSION-03.
+Test entry at equal selected/live paths before any exploratory move, an active branch surviving actual commits, queue consumption/cancellation before exit and actual Takeback removing a selected branch. Existing paused saves must remain paused until explicit Resume without retaining an obsolete Analysis-owned resume requirement.
 
-Keep precise pause/deferred-turn regressions and exercise the existing documented matrix for manual/menu/analysis pause, running history review, pending opponent reply and return to live. Raise a question only if that implementation/testing exposes a specific conflict or ambiguity; no new matrix approval is required upfront.
-
-## Resolution
-
-Review the documented progression policy while implementing/testing history, clock and turn journeys. Ask only if a concrete finding cannot be resolved from established intent/contracts; this prompt does not require an upfront policy decision.
+The accepted temporary-variation/actual-move recording decision remains in force. Protecting an actively analysed branch during actual play changes its cleanup timing; it does not add durable exploratory recording or put premoves in history.

@@ -24,6 +24,7 @@ interface ITestDependency {
   gamesStore: {
     workspaceRevision: number;
     getGame: ReturnType<typeof vi.fn>;
+    getTakeBackMoveCount: ReturnType<typeof vi.fn>;
     getVisibleAnalysis: ReturnType<typeof vi.fn>;
     listGames: ReturnType<typeof vi.fn>;
     pauseGame: ReturnType<typeof vi.fn>;
@@ -94,6 +95,7 @@ describe('GameView menu interruptions', () => {
       workspaceRevision: 0,
       onAutosaveFailed: vi.fn(() => () => {}),
       getGame: vi.fn((id: string) => games.get(id)),
+      getTakeBackMoveCount: vi.fn(() => 0),
       getVisibleAnalysis: vi.fn((game: IGame) => ({ engineSeats: [...game.analysis.seats] })),
       listGames: vi.fn(() => [...games.values()]),
       pauseGame: vi.fn(async (game: IGame, reason: PauseReason) => {

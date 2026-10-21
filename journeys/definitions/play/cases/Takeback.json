@@ -21,7 +21,10 @@
         "spec": "e2e/journeys/play/Takeback.spec.ts",
         "titles": [
           "JRN-PLAY-07 restores the prior position and clock then blocks takeback at root",
-          "JRN-PLAY-07 preserves a game with takebacks disabled"
+          "JRN-PLAY-07 preserves a game with takebacks disabled",
+          "JRN-PLAY-07 takes back White's own move and the engine reply",
+          "JRN-PLAY-07 takes back Black's own move and the engine reply",
+          "JRN-PLAY-07 takes back a player move while the engine is thinking"
         ]
       }
     ],

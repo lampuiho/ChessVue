@@ -156,6 +156,21 @@ async function awaitPendingPlayerTurn(game: IGame) {
   const pendingPlayerTurn = game.$?.pendingPlayerTurnHandlePromise;
   if (pendingPlayerTurn) await pendingPlayerTurn;
 }
+async function createEngineTakebackGame(localColour: PlayerColour) {
+  const store = useGamesStore();
+  const engineColour = localColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
+  nextPlayerMove = createMove(engineColour);
+  const game = await store.createGame({
+    name: 'Player takeback',
+    whitePlayer: localColour === PlayerColour.White ? createLocalPlayer(PlayerColour.White, 'White') : createEnginePlayer(PlayerColour.White, 'Engine White'),
+    blackPlayer: localColour === PlayerColour.Black ? createLocalPlayer(PlayerColour.Black, 'Black') : createEnginePlayer(PlayerColour.Black, 'Engine Black'),
+    analysisEngineProfiles: [],
+    allowTakeback: true,
+    timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
+  });
+  if (localColour === PlayerColour.Black) await awaitPendingPlayerTurn(game);
+  return { store, game };
+}
 async function createAnalysisWorkspace(engineCount: number = 2) {
   const store = useGamesStore();
   const game = await store.createGame({
@@ -956,6 +971,55 @@ describe('useGamesStore', () => {
     expect(game.moveTree.root.children).toHaveLength(0);
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);
     expect(domain.TimeControlService.startClock).toHaveBeenCalledWith(game.moveTree.root.clockSnapshot, PlayerColour.White, expect.any(Date));
+  });
+  it.each([PlayerColour.White, PlayerColour.Black])('takes back the %s player\'s own move and the engine reply from live history', async (localColour) => {
+    const { store, game } = await createEngineTakebackGame(localColour);
+    const retainedPath = [...game.livePath!];
+    const retainedNode = retainedPath.length ? game.moveTree.root.children[0]! : game.moveTree.root;
+    const pendingTurn = game.$!.pendingPlayerTurnPromise;
+    expect(store.getTakeBackMoveCount(game)).toBe(0);
+    await store.takeBack(game);
+    expect(game.livePath).toEqual(retainedPath);
+    expect(game.$!.pendingPlayerTurnPromise).toBe(pendingTurn);
+    await store.makeMove(game, createMove(localColour));
+    await awaitPendingPlayerTurn(game);
+    expect(game.livePath).toHaveLength(retainedPath.length + 2);
+    store.navigateToNode(game, game.moveTree.root);
+    expect(store.getTakeBackMoveCount(game)).toBe(2);
+    domain.MoveHistoryService.takeBack.mockClear();
+    domain.EngineRuntimeService.startPlayerTurn.mockClear();
+    await store.takeBack(game);
+    expect(domain.MoveHistoryService.takeBack).toHaveBeenCalledWith(expect.anything(), 2);
+    expect(game.livePath).toEqual(retainedPath);
+    expect(game.renderedPath).toEqual(retainedPath);
+    expect(retainedNode.children).toHaveLength(0);
+    expect(game.gameState).toBe(localColour === PlayerColour.White ? GameState.LiveWhiteTurn : GameState.LiveBlackTurn);
+    expect(domain.TimeControlService.startClock).toHaveBeenLastCalledWith(retainedNode.clockSnapshot, localColour, expect.any(Date));
+    expect(domain.EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
+  });
+  it('takes back the player move during an engine turn and discards its late reply', async () => {
+    let deliverEngineMove: ((move: IMove) => Promise<void>) | undefined;
+    domain.EngineRuntimeService.startPlayerTurn.mockImplementationOnce(async (_engine, _game, attemptPlayerMove) => {
+      deliverEngineMove = attemptPlayerMove;
+    });
+    const { store, game } = await createEngineTakebackGame(PlayerColour.White);
+    await store.makeMove(game, createMove(PlayerColour.White));
+    await vi.waitFor(() => expect(deliverEngineMove).toBeDefined());
+    const engineTurn = game.$!.pendingPlayerTurnAbortController!;
+    expect(store.getTakeBackMoveCount(game)).toBe(1);
+    await store.takeBack(game);
+    const playerTurn = game.$!.pendingPlayerTurnPromise;
+    await deliverEngineMove!(createMove(PlayerColour.Black));
+    expect(engineTurn.signal.aborted).toBe(true);
+    expect(domain.EngineRuntimeService.stopEngine).toHaveBeenCalledWith((game.blackPlayer as IEnginePlayer).assignedEngine);
+    expect(game.$!.pendingPlayerTurnPromise).toBe(playerTurn);
+    expect(game.livePath).toEqual([]);
+    expect(game.moveTree.root.children).toHaveLength(0);
+    expect(game.gameState).toBe(GameState.LiveWhiteTurn);
+    await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
+    await awaitPendingPlayerTurn(game);
+    expect(game.livePath).toEqual([0, 0]);
+    expect(game.moveTree.root.children[0]!.move?.from).toBe(11);
   });
   it('commits a player-engine result while browsing without moving the rendered history selection', async () => {
     const store = useGamesStore();

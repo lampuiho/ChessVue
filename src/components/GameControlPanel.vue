@@ -31,7 +31,7 @@ const title = computed(() => ({ live: 'Game controls', paused: 'Game paused', in
         <button class="control-button control-button--primary control-button--wide" @click="emit('boardEditRequested')"><AppIcon name="check" /><span><strong>Finish editing</strong><small>Return to analysis</small></span></button>
       </template>
       <template v-else>
-        <button class="control-button" :disabled="!canTakeBack" @click="emit('takeBackRequested')"><AppIcon name="undo" /><span><strong>Takeback</strong><small>Rewind one move</small></span></button>
+        <button class="control-button" :disabled="!canTakeBack" @click="emit('takeBackRequested')"><AppIcon name="undo" /><span><strong>Takeback</strong><small>Undo your last move</small></span></button>
         <button v-if="(mode === 'live' || mode === 'inGameAnalysis') && canPause" class="control-button" @click="emit('pauseRequested')"><AppIcon name="pause" /><span><strong>Pause</strong><small>Stop the clock</small></span></button>
         <button v-if="mode === 'live'" class="control-button" @click="emit('analysisRequested')"><AppIcon name="activity" /><span><strong>Analyse</strong><small>Explore from here</small></span></button>
         <button v-if="mode === 'inGameAnalysis'" class="control-button control-button--primary" @click="emit('exitAnalysisRequested')"><AppIcon name="play" /><span><strong>Exit analysis</strong><small>Return to live play</small></span></button>
