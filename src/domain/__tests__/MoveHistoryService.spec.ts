@@ -19,6 +19,25 @@ function getNode(tree: IMoveTree, path: MovePath): IMoveNode {
 }
 
 describe('MoveHistoryService', () => {
+  it('removes released analysis children while preserving actual mainline and array ownership', () => {
+    const tree = MoveHistoryService.createMoveTree();
+    const analysis = MoveHistoryService.addAnalysisMove(tree.root, sampleMove);
+    const actual = MoveHistoryService.addMainlineMove(tree.root, sampleMove);
+    const children = tree.root.children;
+    expect(MoveHistoryService.pruneAnalysisMoves(tree.root)).toBe(true);
+    expect(tree.root.children).toBe(children);
+    expect(children).toEqual([actual]);
+    expect(tree.root.mainlineChildIndex).toBe(0);
+    expect(actual.$?.parent).toBe(tree.root);
+    expect(analysis.$).toBeUndefined();
+  });
+  it('does not change an actual continuation when there are no released analysis children', () => {
+    const tree = MoveHistoryService.createMoveTree();
+    const actual = MoveHistoryService.addMainlineMove(tree.root, sampleMove);
+    expect(MoveHistoryService.pruneAnalysisMoves(tree.root)).toBe(false);
+    expect(tree.root.children).toEqual([actual]);
+    expect(tree.root.mainlineChildIndex).toBe(0);
+  });
   it('creates a root-only tree with the supplied clock snapshot', () => {
     const clockSnapshot = TimeControlService.initialiseClockSnapshot({
       preset: TimeControlPreset.Rapid,

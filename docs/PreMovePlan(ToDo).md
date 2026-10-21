@@ -1,215 +1,198 @@
 # Premove and player-turn flow plan
 
-Expanded on 21 October 2026 against the current source. **Status: proposed; implementation has not started.** Behaviour choices below are proposed defaults, not previously agreed product requirements. This work follows the ownership rules in [AGENTS.md](../AGENTS.md) and the [code cleanup plan](CodeCleanupPlan.md).
+Updated on 21 October 2026 after the user's nine conflict decisions and request to split analysis into a prerequisite. **Status: waiting for the separate [background analysis plan](BackgroundAnalysisPlan.md); premove implementation has not started.** Complete that plan first, including its unit-tests-first gate. The [decision/scenario record](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md) retains the resolved product choices. Follow [AGENTS.md](../AGENTS.md) and the [code cleanup plan](CodeCleanupPlan.md).
 
-## Outcome
+## Prerequisite and tests-first order
 
-Allow a local player to prepare an ordered list of moves before their turns. Each move executes only when that player's next turn becomes playable and the move is legal in the actual position. Ordinary local moves, engine replies and moves retained during a pause use one player-turn flow, with one owner for the current live turn.
+The [background analysis plan](BackgroundAnalysisPlan.md) owns changing analysis clocks, selected-position isolation, actual background-turn scheduling, active-branch pruning, analysis controls and old paused-state compatibility. Implement and verify it independently before starting this plan. This plan consumes those existing data-driven APIs; it does not develop that prerequisite alongside the queue.
 
-For example, while Black's engine is thinking after `e4`, White queues `g1-f3`, then `f1-c4`. After Black replies, White's first intention is validated and committed. Black receives its next turn; White's second intention waits for the following White turn. If Black's reply makes `g1-f3` illegal, neither White intention is played.
+After the prerequisite passes, write premove unit tests against game data and existing store actions **before changing production code**. Observe meaningful failures for opponent-turn append, due-turn validation, whole-queue clearing, hotseat exclusion and derived board/red-square projection. Only then implement the queue and presentation, rerun focused unit tests and add browser acceptance. Do not use the prerequisite's passing analysis tests as premove acceptance.
 
-This is a gameplay change and an ownership refactor. Complete the ownership refactor with existing behaviour preserved before enabling the new board input.
+## Outcome and settled behaviour
 
-## Current source and gaps
+A human playing an engine can prepare an ordered sequence during the engine's turn. The board shows that human's pieces after applying the sequence, with every pending source/destination shaded red. Each actual local turn validates and executes one queued move. Analysis and history review do not stop the actual clock, premoves or successive engine turns.
 
-| Area | Current behaviour | Required change |
-| --- | --- | --- |
-| [Game runtime](../src/contracts/Game.ts) | Three separate pending-turn fields and one `deferredPlayerMove?: IMove` slot | One current-turn record and a runtime-only ordered intention queue |
-| [Player turn](../src/state/game/GamePlayerTurnComposable.ts) | Local input and engine output resolve the same `Deferred<IMove>`; the handler either commits or fills the paused slot | Keep shared delivery, but make ownership, input acceptance, queued work and completion explicit |
-| Turn creation | Duplicate private creation throws; public arming returns if a turn already exists | Preserve this invariant through commit, cancellation and provider cleanup |
-| Pause/resume | An existing engine search can finish while paused; resume flushes the separate slot directly to `commitLiveMove` | Suspend execution and resume through the same turn driver used after any accepted input |
-| [Move actions](../src/state/game/GameMoveComposable.ts) | Live input expects an armed current turn; history and analysis have separate commit paths | Route deliberate future input to the queue without treating analysis/history moves as premoves |
-| [Board](../src/components/Chessboard.vue) | Click selection and legal targets use `position.sideToMove`; promotion produces a detailed move immediately | Add an explicit speculative input mode and emit raw intentions for future moves |
-| [Game view](../src/views/GameView.vue) | Board input is disabled during an engine turn; `applyMoves` validates suggestions against the rendered position | Derive local-seat input capabilities and give premoves their own explicit submission action |
-| [Engine runtime](../src/domain/EngineRuntimeService.ts) | Validates actual and ponder moves against their searched positions | Preserve protocol/legality ownership and bind delivery to the actual turn that requested it |
+For `g1-f3`, then `f3-g5`, display the knight on `g5`, leave `g1`/`f3` empty and shade all three squares red. The canonical rendered position stays unchanged. Queued moves are not history; only actual commits create move nodes, clock transitions and recorded analysis.
 
-The original note's `pendingPlayerTurnPromise !== pendingPlayerMove` guard was already removed by the cleanup. Do not reintroduce it. The remaining issues are the separate paused slot, lack of future-input semantics and turn/provider lifetime handling. `flushDeferredPlayerMove` currently commits without a fresh legality check; premove validation must be introduced at its acceptance boundary.
-
-The current handler clears its pending fields before committing, and its unexpected-error retry uses an unowned timeout. Both need explicit treatment when replacing the turn flow; removing the old identity guard alone does not define a queue.
-
-## Proposed user behaviour
-
-| Situation | Behaviour |
+| Decision | Required behaviour |
 | --- | --- |
-| Local player, current playable live turn | A normal move commits through the current turn owner |
-| Local player, opponent's turn | Selecting that local player's piece enters premove input; completing a target appends an intention |
-| More than one queued move | Append in that player's order; consume at most one intention per turn |
-| Local versus local | Either colour can prepare future moves; the selected piece's colour identifies the queue. Current-side normal input still takes precedence |
-| Engine versus engine | No manual move or premove input; engines retain their assigned seats |
-| Manual/Menu pause | Retain existing intentions and accepted engine output. Disable new board submissions and execute nothing until the final applicable pause reason is removed |
-| Explicit in-game analysis | Clear local premove intentions on entry; retain the suspended live turn and any accepted engine reply. Analysis moves belong only to the rendered branch |
-| History review | Clear local intentions when leaving the live node; preserve the existing policy for an already-running engine reply and background live progress |
-| Free analysis, completed game or board edit | Existing move/edit behaviour; no premove creation |
+| Canonical rendering | Keep `renderedPosition` as the selected board without premoves. Derive displayed pieces by applying the queue to a copy; analysis still uses the canonical rendered position |
+| Analysis timing | Actual clocks and live play continue in the background. Entering Analyse does not add a pause or freeze the queue |
+| Analysis entry | Use an explicit Analyse button on the currently selected canonical move. Merely selecting history or entering another board move does not implicitly start analysis |
+| History review | Keep executing valid queued moves and engine turns while the user reviews another node. Do not suspend execution waiting for return or queue editing |
+| Hotseat/local versus local | No premoves. Once one side moves, input belongs to the other side, as on a physical chessboard. A previous side has no off-turn premove/analysis entitlement |
+| Takeback | Always applies to the actual live game, including while analysis is shown. History navigation remains selection, not Takeback |
+| Opponent-turn input | Every eligible human move during the engine opponent's turn appends to the queue, unless explicitly in analysis. No Play now/replace/append choice for the same action |
+| Navigation | Keep the queue for an in-memory game across temporary menu/game-tab navigation. Existing real Manual/Menu pauses still apply; close/disposal cancels the queue |
+| Invalid queue | If a queued sequence is no longer valid, clear the whole queue. No retained invalid suffix, skipped entry, history entry or automatic revival |
 
-Premoving is available for assigned local seats at the live board without a new persisted setting in the first release. Start with a maximum of eight pending intentions per colour; reject further appends with visible feedback. Do not silently replace the oldest move. Treat the limit as a product default that can change without changing the ownership model.
+Analysis preserves queue ownership, not a frozen snapshot of its entries. Actual play may consume or cancel entries while analysis is open. On exit, display only the remaining valid queue over the latest live board; never replay the entry-time sequence.
 
-Queues are transient: saving, exporting and restoring a game never serialises intentions, turn promises, controllers or preview state. This plan does not add conditional reply trees, opponent-move prediction, background premove editing or a new chess variant.
+## Current implementation and test gaps
 
-## Ownership and data model
+| Source boundary | Current behaviour | Planned change |
+| --- | --- | --- |
+| [Game runtime](../src/contracts/Game.ts) | Three pending-turn fields and one `deferredPlayerMove` slot | One current-turn owner and a runtime queue; no speculative future-turn promises |
+| [Player turn](../src/state/game/GamePlayerTurnComposable.ts) | Existing shared local/engine current-turn delivery; prerequisite removes selected-board arming gate | Add ordered future local input while preserving one actual-turn owner and the verified background API |
+| [Game view](../src/views/GameView.vue) | Prerequisite distinguishes explicit analysis/review; no premove drawing/input exists | Enable own-piece off-turn queue gestures and derive displaced pieces/red squares |
+| [Engine runtime](../src/domain/EngineRuntimeService.ts) | Validates actual/ponder moves at the searched position | Preserve legality/protocol ownership and bind result delivery to the captured actual turn |
+| Pause/recovery | Prerequisite owns real pause/old saved-analysis compatibility | Retain the new queue across genuine pauses without another pause policy |
 
-Names below describe proposed responsibilities; final interfaces should follow repository naming and remain small.
+The old note's pending-promise equality guard was already removed by the cleanup. Do not reintroduce it. Duplicate-turn prevention, owned cancellation/draining and the queue replace that concern.
 
-| Owner/record | Responsibility and lifetime |
+The current analysis mismatch and four-test baseline belong to the prerequisite's evidence, not this plan's implementation. No premove flow exists yet to verify hotseat exclusion or queue progression while reviewing. Add queue/capability/gesture tests rather than assuming the model's player types already enforce those permissions.
+
+## Position, queue and input ownership
+
+Keep the existing concepts small:
+
+- `livePosition`/`livePath`: the actual game and its current turn.
+- `renderedPosition`/`renderedPath`: the canonical selected live/history/analysis board, without premoves.
+- Displayed pieces/red squares: a pure derived result of the rendered board plus the queue when showing the live gameplay board. A small helper returning copied squares and highlight IDs is sufficient; no third persisted game position or separate engine position is needed.
+- Runtime queue: one FIFO for the human seat in a human-versus-engine game, bound to the actual continuation and seat. Local-local and engine-engine games have no human premove queue.
+- Current turn: captures actual parent node, colour/player, abort controller, completion and provider work before asynchronous startup begins.
+- Input/analysis session: owns the selected node, unfinished drag/promotion or playback and the explicit mode. Queue entries outlive component remounts; unfinished gestures do not.
+
+Queue entries contain raw `from`, `to`, optional promotion, expected own piece/colour and dependencies on preceding intentions. Do not store future capture/check/notation metadata as an accepted `IMove`. The eventual opponent replies are unknown; an intention's target is its next actual local turn on the same continuation, not a predicted exact FEN.
+
+Replace `pendingPlayerTurnPromise`, `pendingPlayerTurnHandlePromise`, `pendingPlayerTurnAbortController` and `deferredPlayerMove` together. A single internal `Deferred` may still represent current-turn completion. Accepted paused engine output belongs to that actual turn; it is not an editable local premove or a competing resolver.
+
+Publish runtime queue changes through the existing raw-game rendering boundary without changing persisted `metadata.updatedAt` or the move/autosave count just for preview edits. A computed projection must preserve identity across unrelated evaluation publications so new scores do not cancel an unfinished gesture.
+
+## Input permissions and routing
+
+| Context | Board/gameplay input |
 | --- | --- |
-| `IGameRuntime.turnFlow` | Per-game runtime owner of the current turn, queued intentions and serialised driver/transition work; created during hydration and disposed with the workspace game/store |
-| `IPlayerTurn` | Captures the game, actual live parent node, moving colour and assigned player; owns its abort controller, one completion and any provider startup/delivery work |
-| `IDeferredMoveIntent` | Raw `from`, `to`, optional promotion choice, expected colour/piece, and provenance. Distinguishes a local future intention from an accepted current-turn result |
-| Accepted current-turn result | Belongs to its captured `IPlayerTurn`; retains the accepted move while execution is paused. At most one exists for that turn |
-| Local future intention | Belongs to the game's current live continuation and a local seat, with dependencies on earlier intentions for that seat. It does not create a future turn or promise |
-| Board input session | Owns selection, drag and unfinished promotion against the displayed game/node and input mode. It may submit once and is cleared when that context changes |
+| Human versus engine, human turn | Human's normal move enters the current actual turn owner; due queued input is consumed through that same owner |
+| Human versus engine, engine turn | Human's own-piece gestures append premoves in order. Click, drag and keyboard use the same rule. Never let human input resolve the engine's current turn |
+| Explicit Analyse | Ordinary legal moves/PV prefixes explore the selected canonical position with both colours. They neither append to nor replace the background queue |
+| History review without explicit Analyse | Show the selected node for review. Do not infer analysis permission from a `LiveAnalysisFrom*` enum or accidentally submit moves from historical coordinates; offer Analyse on that selected move |
+| Local-local/hotseat | Only the actual side due owns live input and can initiate analysis on its current move. No off-turn queue, colour selector or previous-side input after handoff |
+| Engine-engine | No manual gameplay/premove input; retain the existing observation/analysis capability |
+| Manual/Menu pause | No gameplay commits or new move submission until real pause ownership permits it; existing engine output may finish and be retained |
+| Free/post-result analysis or edit | Existing non-live analysis/edit behaviour; no premoves |
 
-Replace `pendingPlayerTurnPromise`, `pendingPlayerTurnHandlePromise`, `pendingPlayerTurnAbortController` and `deferredPlayerMove` together. A `Deferred` may remain an internal one-shot completion primitive; it must not become a list of speculative turn promises. Expose read-only queue/capability projections and store actions rather than controllers or mutable arrays to presentation.
+An enabled local-colour engine suggestion follows the same gameplay routing as board input: own turn commits, opponent turn appends, explicit analysis explores. An opponent-colour suggestion cannot steal the engine seat; inspect it through Analyse. Keep the existing suggestion-playability preference independent of queue routing.
 
-Use one ordered deferred list with explicit entry kinds. Ordering is FIFO **within each colour**: the driver selects that colour's earliest eligible entry. An intention for White cannot block Black's actual engine reply. Never skip an illegal head to try a later intention for the same colour. A current-turn result is already claimed by its turn; later input cannot replace it by appending another result.
+Bind each gesture to its actual game, input mode, source projection and owner. If a real move or mode change occurs before completion, cancel the unfinished gesture; do not reinterpret its late drop/promotion as a fresh premove. Repeated provider/gesture delivery cannot settle the next actual turn.
 
-An intended position is the position at the next owned turn on the same live continuation, after that seat's preceding intentions have executed. It is not an exact predicted FEN: opponent replies are unknown. Store actual node/seat ownership and expected source-piece information. Rewrites and seat changes explicitly cancel this ownership; matching coordinates, FENs or a return to an old node do not revive it.
+## Shared actual-turn driver
 
-Keep runtime queue publication separate from move commits. Publish queue changes through the existing raw-game rendering boundary, extracting a runtime-only publication helper from `touchGame` if needed so preview edits do not change persisted `metadata.updatedAt`. Only committed moves invoke the move-count/autosave hook.
+One guarded driver per game handles activation, accepted input, real commit completion, genuine resume and recovery. Repeated requests join owned work; serialise wake requests so input arriving as a drain exits is not lost. Use iterative draining rather than recursively committing a queue.
 
-### Invariants
+1. Reject disposed, transitioning or ended work and reconcile actual clock expiry.
+2. Attach one actual turn owner from the actual live parent/seat before readiness/provider work starts. Neither analysis selection nor another displayed game blocks ownership.
+3. If a real Manual/Menu pause prevents execution, retain current ownership/output and return. Analysis, history review and temporary view departure are not execution pauses.
+4. On an actual local turn, resolve the queue head against the actual board, or wait for normal current-turn input. During an actual engine turn start its provider once; local off-turn submissions only append.
+5. Validate the full speculative projection after relevant actual changes and the next due move's full legality before acceptance. Any invalid queue clears completely.
+6. Reconcile timeout at the actual commit timestamp and commit once through the existing clock/history/analysis/autosave path. Keep the turn owner attached through this atomic commit.
+7. Settle and retire that owner, remove its consumed queue entry/result, rebuild the remaining queue projection and arm the successor even if the user is still analysing or reviewing. An empty local queue leaves that local turn waiting while its clock runs.
 
-- At most one current-turn owner and one provider delivery may be active for a game. Attach the owner before starting any engine work, including readiness.
-- A turn owns the actual live parent and seat, independent of which historical board is rendered. Existing background engine completion during history review remains possible.
-- Keep the owner attached through its atomic commit. Retire it before starting the successor; do not clear shared ownership in an old handler's `finally` after replacement is allowed to start.
-- Cancellation closes input synchronously, aborts owned work and settles/drains it before a replacement starts. Concurrent invalidating actions join the same transition and then re-evaluate their preconditions.
-- Future intentions have no waiting callers. Submission returns an acknowledgement of queuing; it must not leave a UI or engine callback awaiting an eventual resume or future turn.
-- No new watchers, polling loops, generation/epoch/sequence counters or promise-identity invalidation guards. Computed values derive capabilities; explicit actions and lifecycle hooks drive effects.
+Separate input acknowledgement from internal turn completion. Future input acknowledges queuing immediately. An engine callback submits to its captured owner and returns without waiting for commit/resume; drain provider delivery outside its callback before replacement startup. Immediate `makeMove` callers still observe their commit before advancing playback.
 
-## Shared turn driver
+Remove successor scheduling from independent `_finaliseLiveMove`, flush and analysis-exit branches; the driver owns it. Analysis exit only returns selection/input to live and rebuilds the latest remaining display. It is not a resume action, queue replay, bulk commit or second engine search.
 
-Keep one guarded driver per game and call it from explicit actions: turn activation, accepted input, live commit completion, resume, return to live and eligible recovery. Repeated calls join existing work rather than starting a competing driver. Serialise wake requests with the action lane so input arriving as a drain exits gets another pass rather than being lost. Use a small iterative drain; do not recursively arm and commit a long queue on the JavaScript stack.
+Capture the searched position before asynchronous readiness. Cancellation closes acceptance synchronously, aborts/drains the old actual turn/provider and settles it before replacement. Long-lived pondering remains engine-owned and must not block turn retirement; immediate premoves follow existing ponder hit/miss ordering.
 
-1. Reject work for a disposed, transitioning or ended game. Reconcile clock expiry before accepting an executable move.
-2. Retain the current owner if its live parent/seat still belong to the game. When a new turn is eligible under the existing scheduling policy, attach its owner before starting its provider.
-3. If a pause or explicit-analysis owner blocks execution, retain the turn/result/queue and return. A plain history review still follows the existing background-completion policy; rendered/live equality is not a new blanket commit requirement.
-4. For the moving local seat, select its earliest intention, resolve it against the actual live position and claim it as the turn's result. A fresh normal submission can provide the result when no intention has already been claimed. An engine seat gets its result only from its bound provider.
-5. If no accepted result exists, leave the local turn waiting or start the engine provider once. Starting a provider and waiting for its result must not block the action lane needed for pause or cancellation.
-6. Reconcile timeout again at the commit timestamp. Commit exactly once through `commitLiveMove`, retaining the established history, clock, recorded-analysis, analysis-refresh and autosave behaviour.
-7. Finish and detach that turn, remove its consumed result/intention, publish queue state and evaluate the next turn. Stop if the result ends the game or scheduling policy requires waiting.
+Replace the unowned 500 ms failure-retry timeout with one owned cancellable retry. A seat/game change or disposal cancels it; genuine failures remain reported. No generation counters, promise-identity invalidation guards, orchestration watchers, polling loops or automatic reconnect redesign.
 
-Separate ordinary input acknowledgement from the internal completion used to drain a turn. Existing immediate `makeMove` callers must still observe the completed move before advancing playback; the new queue action acknowledges immediately. An engine callback only submits its result and wakes the driver, acknowledging acceptance without waiting for commit or resume. Drain its delivery task outside that callback before retiring the turn and starting a replacement provider. Avoid a completion cycle where cancellation or commit waits for a provider that is itself awaiting the same turn.
+## Background analysis and selection
 
-Refactor `_finaliseLiveMove` and its callback wiring so successor scheduling is owned by this driver. Resume and `exitInGameAnalysis` also invoke it; remove their independent flush-and-request paths. Analysis/history commit routes retain their current ownership and never enter the premove drain by accident.
+Use the entry/exit, canonical selected-position isolation, actual background progression, Takeback and pause/hydration behaviour delivered by [BackgroundAnalysisPlan](BackgroundAnalysisPlan.md). Those APIs must already have failing-then-passing unit evidence before this plan starts.
 
-Queue creation and editing do not pause a running clock. Use each actual commit's timestamp and existing elapsed-time/increment policy; add no artificial premove delay, minimum deduction or zero-time exemption. A paused result receives its increment only on actual commit after resume, and a turn that has already expired cannot be rescued by queued input.
+Queue integration adds only these requirements: analysis/review must not suspend queue execution; exploratory board/PV moves must not enqueue; actual commits consume entries while the selected board stays fixed; returning to live derives only the current remainder. Premoves never become analysis/history nodes, and branch pruning never owns the queue. A live Takeback/rewrite/reassignment invalidates the whole queue through its existing explicit action boundary.
 
-### Input arbitration
+## Whole-queue validation
 
-- A current input session is bound to its captured turn/node. If an engine reply or another move changes the board before the gesture/promotion finishes, discard that unfinished session; do not reinterpret its eventual event as a new future intention.
-- Accept only one current-turn result. Duplicate delivery from the same completed gesture/provider is ineffective and cannot move the next turn.
-- A deliberate local move that replaces an unclaimed queue clears that seat's intentions first. Once an intention has been claimed for commit, cancellation is subject to the same action ordering as any accepted move.
-- Cancellation accepted before commit prevents that commit. A completed atomic commit remains part of history before a later cancellation/rewrite action proceeds. Test both orders with controlled barriers rather than adding delayed stale-result checks.
+Premove creation uses speculative movement, not full current-turn legality for a side that is not due. Use a pure projection/target utility; do not mutate the real `sideToMove` or relax `genLegalMovesForPiece`.
 
-## Validation and speculative targets
-
-Store future input as raw intentions, not complete `IMove` objects. `movingColour`, `movingPiece`, capture kind, castling/en-passant kind, check state, ambiguity and notation depend on the eventual position. A preview must not supply these fields to the actual commit.
-
-At a local intention's turn:
-
-1. Confirm ongoing live ownership, the expected local seat and side to move, and the expected source piece in the actual live position.
-2. Find the matching legal raw move with the existing rule utilities, including the exact promotion choice. Do not mutate `sideToMove` on the real position to simulate legality.
-3. Generate a fresh detailed move using `toDetailedMove` and the actual legal candidates, then commit it through the shared turn owner.
-4. If resolution fails, remove that intention and all later intentions for that colour, publish the cleared preview and show a brief reason such as `Premove cancelled: the move is no longer legal`. Leave the current local turn waiting for manual input. Preserve the opponent's independent queue.
-
-The illegal head is not retained until it becomes legal on a later turn. A missing/captured source, blocked path, changed capture, check, lost castling rights, expired en-passant opportunity or ended game must never result in a partial move or history node.
-
-Engine output remains validated at `EngineRuntimeService.awaitPlayerTurnMove`, against the position searched by the captured turn. A paused result can retain that validated detailed move while its parent remains unchanged; no second engine search is needed. Ownership changes cancel it rather than transplanting it to a different parent. Future local intentions always require fresh validation. Leave normal current-board validation at its existing acceptance boundaries rather than adding repeated checks throughout the commit stack.
-
-### Preview rules
-
-`genLegalMovesForPiece` only supports the side to move and full current legality. Add a separately named pure utility for **speculative targets** and a pure projection of a seat's preceding intentions. Do not export/relax the existing legal-move API or run ordinary legal move application on a knowingly speculative position.
-
-The proposed initial target policy is conservative about occupancy, but does not claim future king safety:
-
-| Piece/case | Queue-time target policy | Actual-turn requirement |
+| Piece/case | Queue-time projection | At the actual due turn |
 | --- | --- | --- |
-| Knight/king | Movement geometry; reject friendly occupied destinations and captures of the opposing king. Ignore current attacked-square/check restrictions for this preview | Full legal move, including king safety |
-| Bishop/rook/queen | Movement geometry with paths blocked by the current projected occupancy | Recheck the actual path and king safety |
-| Pawn push | Correct direction; currently projected empty destination/path; double push only from its starting rank | Full current pawn legality |
-| Pawn diagonal | Allow an enemy-occupied or empty diagonal, excluding the enemy king, because a capture or en-passant opportunity may arise | A legal capture/en-passant move must actually exist |
-| Castling | King/rook present, existing castling right and projected clear path; ignore attacked-square restrictions in the preview | All actual castling conditions still hold |
-| Promotion | Request queen/rook/bishop/knight before appending; apply the chosen kind only to the speculative projection | Exact chosen promotion is legal; never silently substitute a queen |
+| All pieces | Correct geometry, own-piece provenance, no friendly target or opposing king capture | Generate actual legal candidates and match exact raw input |
+| Knight/king | Ignore current attacked-square/check restrictions for speculative input | Full king safety |
+| Slider | Respect projected blockers | Actual path and king safety |
+| Pawn push | Correct direction, empty projected path, starting-rank condition for double push | Actual pawn legality |
+| Pawn diagonal | Allow empty/enemy diagonal because a capture/en-passant opportunity may arise | An actual legal capture/en-passant opportunity must exist |
+| Castling | Existing right, projected king/rook and clear path; no speculative king-safety claim | All actual castling conditions |
+| Promotion | Explicit queen/rook/bishop/knight before appending; project the chosen piece | Match exact promotion and rebuild actual move details |
 
-This first policy does not offer slider paths through pieces that an unknown opponent reply might move away. It does allow preparing a check response that is not currently safe. Document these limits in the input help.
+After each relevant actual commit, rebuild the whole remaining speculative sequence from the new live board. If it can no longer project, **clear the entire queue immediately**. Also clear it if its next due move fails full legality. Do not retain an invalid tail, skip ahead, or let previously removed intentions revive.
 
-For chained moves such as `g1-f3`, then `f3-g5`, project only that seat's earlier intentions in order. Keep the opponent's pieces at their last known squares except speculative captures; do not invent opponent moves or copy this projection into canonical state. Rebuild the projection from the actual board and the remaining intentions after each actual commit. If a future dependency no longer projects, mark that suffix unavailable for editing; its first due intention is still resolved/cancelled at the actual-turn boundary, unless an explicit ownership change clears it sooner.
+Do not confuse speculative feasibility with requiring all future moves to be fully legal now: future opponent replies/checks/en-passant rights are unknown. Full chess legality belongs to each actual due turn. Regenerate detailed move/capture/check/ambiguity/notation from that actual board with the existing utilities.
 
-## Pause, cancellation and engine lifecycle
+A successful commit consumes only its own head; background analysis leaves the remainder executing normally. A failed intention clears all remaining entries/red shades without making a partial history node, changing clock ownership or undoing moves already actually played. Show brief cancellation feedback.
 
-| Boundary | Local intentions | Current turn/result and execution |
-| --- | --- | --- |
-| Add Manual/Menu pause | Preserve | Freeze commits immediately; an already-started engine may finish and retain one accepted result |
-| Remove one of several pause reasons | Preserve | Remain suspended; no move, increment or new search |
-| Remove final applicable reason at live board | Preserve | Resume clock, reconcile expiry and invoke the driver; consume a retained result once |
-| Enter explicit in-game analysis | Clear | Keep the suspended live owner/result; exploratory moves cannot consume it |
-| Exit explicit analysis | Already cleared | Remove only Analysis ownership; resume only when other pause reasons permit |
-| Navigate from live board into history | Clear | Preserve existing scheduling/background-result behaviour; reviewed positions are never queue targets |
-| Takeback, history rewrite, setup restart or board replacement | Clear both colours before changing paths | Close input, abort/drain the old turn/provider, then establish the new live/analysis context |
-| Any player reassignment, including Local to Engine/Unassigned | Clear both colours | Drain the old owner before replacing the assignment; late delivery cannot target the replacement |
-| Timeout, resignation, accepted draw, rule-resolved end or abandonment | Clear | Settle ownership and prevent all further delivery/arming; synchronous timeout reconciliation must also initiate owned cleanup |
-| Leave GameView, switch game or close its tab | Clear the departing game's local intentions via explicit route/close actions | Preserve the application's current Menu-pause/background-engine policy; returning never restores cancelled intentions |
-| Save/export | Preserve in memory only | Serialised document contains no queue or turn runtime |
-| Restore/hydrate | Empty | Build one fresh eligible turn after hydration, with no replay of saved pending input |
-| Workspace game/store disposal | Clear | Abort/drain turn work and dispose retry resources; late provider success/error has no consumer |
+## Presentation
 
-Pause is suspension, not cancellation. Reuse the existing pause-reason set and clock semantics, including the current restrictions on Manual/Menu pauses for untimed games. Do not turn pause into an engine stop/restart policy as part of this feature.
+- Derive displayed squares by applying the queue to a copy of canonical `renderedPosition` only while displaying live gameplay. Keep canonical rendered input unchanged for analysis, engines, FEN, saves and move validation. During review/explicit analysis show that selected canonical board; return to live reapplies the **current remainder** over the latest live position.
+- Move normal piece artwork to its final projected destination and empty its projected origin. No duplicate source piece or marker-only substitute. Selecting the projected destination extends a chain such as `g1-f3-g5`.
+- Red-fill the union of every pending `from`/`to`, including empty intermediate squares. Repeated squares use one opacity. Actual execution, Undo last and Clear rebuild the copied squares and red union; no in-place reversal of speculative captures.
+- Speculative capture hides the displayed target without changing actual captured-piece totals. Promotion displays the chosen kind; castling moves both king and rook. Recommended castling shading includes all four relocated squares.
+- When any remaining intention becomes invalid, clear the complete displayed sequence/red union. Do not display a valid prefix with an unavailable tail or resurrect a captured source.
+- Use a compact queue count/list and Undo last/Clear at the live board. No local-local colour selector or two-colour queue. Review/analysis may show read-only remaining-count/progression/cancellation status; inability to edit there must never suspend actual queued play.
+- Make explicit Analyse available on the selected canonical move. Analysis board/PV input stays independent; history navigation by itself remains review. Takeback remains clearly labelled as actual-game rewind.
+- Preserve actual clock/side/result/check/capture labels. Red fill takes precedence over actual-last-move background; retain distinct last-move outline, selection/focus and readable piece/coordinate layers. Never evaluate checkmate on the displaced display.
+- Escape cancels unfinished input/promotion first; in live premove context it can clear the queue. In analysis/review it must not silently clear background intentions. Provide explicit touch-accessible controls and accessible coordinate/status text.
+- Dispose unfinished gestures/playback on context changes and keep completed queue ownership per game across remounts. Real clock pauses still block execution; review/analysis/tab selection do not create extra pauses.
 
-Capture the searched live position at turn creation, before asynchronous readiness. Audit `ensureReady`/`startPlayerTurn`/callback wiring so delivery uses that captured parent instead of looking up whichever turn is current after an await. Keep the engine callback bound to the real turn owner and abort signal; it must not call an unqualified current-game resolver that could settle a replacement turn.
+Own board/queue styles in [board.css](../src/assets/styles/board.css) and shared control variants in their existing global owner. Use global CSS only, no scope escapes or inline presentation declarations. Keep derived projection computed and effects in explicit actions/lifecycle hooks; reuse only the documented narrow external-prop input-reset observer boundary.
 
-Provider cancellation must drain the relevant client search/stop boundary, not merely reject a move promise. Preserve browser/NW.js UCI ordering and isolate other games and analysis seats. Long-lived pondering belongs to the engine runtime, not to a turn's completion: retiring a committed turn must not wait indefinitely for pondering. Feed actual premoves into the existing ponder hit/miss path and test immediate replies, mismatches and interruption while pondering.
+## Boundary matrix
 
-Replace the anonymous 500 ms retry timeout with an owned, cancellable retry resource. Preserve delayed recovery where currently supported, but allow at most one retry, cancel it at turn/seat/game invalidation and re-enter the same arming gate. Cancellation is expected settlement; a genuine provider failure remains visible/logged. No tight retry loop or new automatic reconnect policy.
+| Boundary | Queue and actual execution |
+| --- | --- |
+| Analyse entry, analysis moves, history review, return/exit | Queue remains game-owned and executes in the background. These actions affect selection/input, not the actual clock |
+| Temporary menu/game-tab navigation | Preserve the same in-memory queue. Continue actual execution unless an existing Manual/Menu pause really applies |
+| Manual/Menu pause or final real Resume | Retain queue/accepted output while paused; final real resume re-enters the same actual driver once |
+| Queue invalidation | Clear every remaining intention, not a suffix. Already played history remains |
+| Actual Takeback, confirmed history rewrite, changed seat, setup/root replacement | Close old input, cancel queue, abort/drain actual turn, then change canonical ownership. No-op/cancelled actions preserve it |
+| Result/timeout/resignation/draw/abandonment | Clear queue, settle actual work, stop live arming. Analysis remains review-only; exit cannot revive play |
+| Explicit tab close or game/store disposal | Clear that game's queue and settle owned work; other games remain independent |
+| Save/export | Persist canonical selected/live workspace; omit all queue/display/turn runtime |
+| Load/restore | Empty queue and rebuilt actual ownership. Legacy saved pause remains explicit until Resume |
 
-## Board and control presentation
-
-- Derive an explicit input capability/mode for current local move, local premove, analysis, edit or disabled. During an engine turn, permit only the opposing assigned local seat's premove input. Apply the same permission rules to click, drag, drop and keyboard entry.
-- Keep the actual live board and last-move indication authoritative. Show queued origins/destinations with distinct numbered markers and a labelled `Premove preview` for the selected seat. Chained input selects projected pieces in that preview; switching back restores the actual board without committing anything.
-- Show an ordered queue list, `Undo last premove` and `Clear premoves` for the selected local seat. Undo removes the tail; clearing removes that seat's queue. If later removal of an earlier entry is added, remove its dependent suffix too.
-- Escape cancels the unfinished gesture/promotion first; Escape with no unfinished input clears that seat's queue. An explicit clear control provides the same action for touch users. Cancelling intentions never discards the opponent engine's accepted reply.
-- Promotion selection belongs to the captured board input session. Board/mode change, route leave or Escape closes it; no append occurs until a piece is chosen. A late promotion click cannot submit to a new turn.
-- Announce queued, removed, cancelled and executed moves through accessible text; include colour and promotion choice. Distinguish queue markers from legal current targets and last-move highlights without relying only on colour.
-- Own board/preview presentation in [board.css](../src/assets/styles/board.css) and shared control variants in their existing global owner. Use no Vue style blocks, scope escapes or inline presentation bindings.
-
-Queue clearing, input-session disposal and route handling must be explicit actions. Reuse the documented Chessboard external-prop reset boundary only where external input really changes; any necessary input-contract change must update its narrow reason and audit policy. Do not add a gameplay watcher or use remount counters as cancellation.
+Queue edits never pause running clocks or change actual history. Use actual commit timestamps and existing elapsed/increment policy, with no artificial premove delay or zero-time exemption. A timeout wins over an uncommitted queue head.
 
 ## Implementation sequence
 
-| Step | Work and owning files | Completion gate |
+| Step | Work | Completion gate |
 | --- | --- | --- |
-| PRE-01 | Characterise existing turn, pause, background history, engine delivery/retry and terminal cleanup in focused store/runtime tests. Review the above defaults before enabling UI | Tests assert public moves/searches/clocks and settlement, with controlled async barriers |
-| PRE-02 | Introduce the turn-flow runtime and serial driver in `Game.ts`, `GamePlayerTurnComposable.ts` and `GamesStore.ts`; migrate all four old fields together | One owner survives through commit; cancellation drains before replacement; immediate callers retain completion semantics |
-| PRE-03 | Route pause/resume, analysis exit and move finalisation through that driver in `GameClockComposable.ts`/`GameMoveComposable.ts`; integrate provider lifetime and retry cleanup | Existing pause/analysis race tests still pass; no separate deferred flush or replacement-turn delivery |
-| PRE-04 | Add raw local-intention enqueue/cancel actions, bounded per-colour ordering, legal resolution and pure speculative projection/target utility | Single and multiple premoves work through store actions; illegal heads clear their suffix; no canonical mutations during preview |
-| PRE-05 | Add GameView capabilities, Chessboard premove gestures/promotion, queue controls, route cleanup and global styles | Both orientations and all supported input methods use the same intent contract; engine-seat input remains blocked |
-| PRE-06 | Extend journey fixtures/browser coverage and update architecture/product documentation | Acceptance matrix below passes and verification is recorded with its actual scope |
+| PRE-00 | Complete and verify the separate background analysis plan | Its tests were written/failed before implementation and now pass; actual clocks/turns and selected boards have an independent verified contract |
+| PRE-01 | Write queue/capability/projection unit tests against existing data/actions, then run them before premove production edits | Record meaningful failing assertions for append, interleaving, full-clear, hotseat exclusion and red-square/piece projection |
+| PRE-02 | Introduce one actual-turn owner/queue and serial driver in Game runtime, PlayerTurn and GamesStore; preserve immediate input completion | One current owner/provider, owned cancellation/retry, no future-turn promises |
+| PRE-03 | Integrate queue consumption/cancellation with the verified actual-turn, analysis and invalidation actions | Multiple queued local/engine turns progress behind the stable selected board; no new analysis, pause, cache or pruning redesign |
+| PRE-04 | Add raw opponent-turn enqueue, whole-queue projection/clear and due-turn legal resolution | Every accepted off-turn local move appends; any invalid sequence clears completely |
+| PRE-05 | Add derived displaced-piece/red-square rendering, queue controls, current-move Analyse and explicit context cleanup | All gestures/labels agree in both orientations; hotseat has no queue; analysis return shows only current remainder |
+| PRE-06 | Implement the linked scenario matrix, focused browser/platform regression and architecture/product updates | Executed evidence covers the new background contract and existing real pauses; documentation matches behaviour |
 
-Keep helpers focused and normally under 35 lines, using meaningful private functions for turn activation, validation, commit and cancellation. Preserve UK spelling, interface naming and TypeScript semicolons. Do not reuse `OperationOwner.run` as an append queue: its current contract supersedes existing work. Reuse it only at a boundary whose actual policy is replacement.
+Keep functions focused and normally under 35 lines. Follow UK spelling, interface naming, TypeScript semicolons, inferred implementation returns and the audited async/style boundaries. `OperationOwner.run` supersedes work; do not use it as an append queue.
 
 ## Verification and acceptance
 
-Use real chess-rule utilities for position-dependent tests. Existing `GamesStore.spec.ts` mocks help test orchestration but cannot prove premove legality; add focused store/rule integration coverage with actual positions. Use deferred/barrier-controlled provider results and fake time for races/retries, with assertions on settled tasks and search/listener cleanup.
+Use real chess-rule utilities for legality/projection integration; mocked store tests alone cannot establish that queue moves are legal. Use held providers/fake time for race ordering, clocks and cleanup rather than incidental delays.
 
 | Case | Required evidence |
 | --- | --- |
-| PRE-A01: one/multiple intentions | Queue a local move during an engine turn; nothing changes early. Each legal intention commits on its own next turn, once, with one corresponding engine search per engine turn |
-| PRE-A02: ordering and ownership | Chained same-piece moves, independent piece moves, both-colour queues, bounded append and duplicate delivery; neither colour blocks or consumes the other's entries |
-| PRE-A03: illegal head | Captured source, new blocker, friendly target, check/pin and lost right/opportunity cancel that colour's suffix with no history/clock mutation and leave manual input available |
-| PRE-A04: canonical move details | Capture becomes quiet/quiet becomes capture, en passant appears/expires, castling succeeds/fails, all four promotions and check/ambiguity are resolved from the actual position |
-| PRE-A05: pause ownership | Existing engine output and local intentions survive Manual, Menu and layered pauses; removing a non-final reason commits nothing. Final resume commits one retained result without another search |
-| PRE-A06: analysis/history | Exploration never queues live input; analysis entry and route/history departure clear intentions. Retained live replies preserve current background/analysis policies and never move the explored board |
-| PRE-A07: invalidating actions | Takeback, history rewrite, setup replacement, seat reassignment, result/timeout and disposal settle all old work. Test move-first/cancel-first orders and returning to the same game/node/seat |
-| PRE-A08: provider lifecycle | Pause during readiness/search, immediate output, late success/error, duplicate callbacks, owned retry cancellation and stop draining cannot arm a second turn or deliver into replacement ownership |
-| PRE-A09: ponder interaction | Immediate premove hit, miss, illegal/cancelled premove and interruption during pondering preserve protocol ordering and exactly one actual move |
-| PRE-A10: clocks and commit effects | Queue/undo/clear performs no clock transition, increment, history node, recorded analysis or autosave count; running time continues normally. Each actual move applies existing clock policy once; an expired clock wins over an uncommitted intention |
-| PRE-A11: input and accessibility | Both colours/orientations, click/drag/keyboard, chained preview selection, queue limit, undo/clear/Escape and promotion cancellation; externally changed context discards unfinished input |
-| PRE-A12: persistence and isolation | Saves/exports omit runtime; restore starts empty. Another game's queue and independent engine seats remain unaffected by clears, provider failures or disposal |
+| PRE-A01: sequence | Multiple local premoves execute one per actual local turn, interleaved with successive engine searches, including while analysis/review is displayed |
+| PRE-A02: permissions | Human-engine own-turn versus off-turn versus explicit analysis; hotseat handoff and engine-engine reject all premove starts across click/drag/keyboard/PV |
+| PRE-A03: whole clear | Invalid head or unprojectable later dependency clears the entire remaining queue/red fill immediately; no retained prefix/tail or speculative history |
+| PRE-A04: actual details | Captures changing, check/pin, castling, en passant and all promotions are resolved from the actual due board |
+| PRE-A05: real pause | Manual/Menu/layered pauses retain queue/output, commit nothing while owned and resume once without repeated search/increment |
+| PRE-A06: background analysis | Analyse adds no pause or clock mutation; actual local/engine turns continue while selected board/evaluations remain anchored, even before the first exploratory move |
+| PRE-A07: history and navigation | Review/temporary menu/tab changes do not create queue suspension; actual progress and remaining-count feedback continue under real clock-pause policy |
+| PRE-A08: invalidating actions | Actual Takeback, rewrite, changed seat/root, terminal result and disposal drain old work and never restore old intentions on exit |
+| PRE-A09: provider/ponder/retry | Immediate and duplicate output, late success/error, cancellation, retry and ponder hit/miss preserve one actual turn and bounded cleanup |
+| PRE-A10: clocks/effects | Queue/display changes create no clock transition, increment, recorded analysis or autosave count; actual commits do so once, with timeout reconciliation during analysis |
+| PRE-A11: drawing/input | Final displaced pieces/red union, chaining, partial consumption, Undo/Clear, both orientations, accessible labels and context-cancelled promotion/drag agree |
+| PRE-A12: isolation/persistence | Canonical rendered/live boards, engine FEN, other games and saves never receive speculative pieces; restore has no queue and honours saved pause |
+| PRE-A13: active branch lifetime | Background actual commits cannot remove/reindex the selected analysis branch or re-alias its board; exit cleanup preserves actual mainline and unrelated history |
 
-Run `npm run check:code`, the affected unit/integration suites, `npm run build` and focused browser journeys. Existing regressions include [engine pause/analysis races](../e2e/journeys/engine-races/Pause.spec.ts), the remaining engine-race cases, clocks, history, promotion, fresh-engine play and browser/desktop UCI pondering. Extend the existing journey structure with owned premove cases/fixtures; do not claim native NW.js execution from browser tests alone.
+The historical four-test paused-analysis baseline is recorded in [BackgroundAnalysisPlan](BackgroundAnalysisPlan.md); it is not queue evidence. Record this plan's own failing unit run before premove development and its passing run afterwards. No new premove acceptance is claimed by this planning document.
 
-Use the portable Node/npm paths from the workspace instructions when running checks. Record exact commands, executed case counts and failures; this plan itself claims no new passing premove tests.
+During implementation run `npm run check:code`, affected unit/integration tests, `npm run build` and the focused browser scenarios. Preserve Manual/Menu pause, UCI pondering, cancellation and independent analysis-seat regressions; replace obsolete Analysis-freeze expectations. Record exact executed counts, platforms and failures; browser evidence is not native NW.js acceptance.
 
-Update [GamesStore architecture](LowLevel/Architecture/StateManagement/GamesStore.md), [Game runtime](LowLevel/Architecture/DataInterface/Game.md), [Chessboard interaction](LowLevel/Architecture/Presentation/Components/Chessboard.md), [engine runtime](HighLevel/engine_runtime.md), [scenarios](HighLevel/scenarios.md) and the [persistence contract](HighLevel/persistence_contract.md) with the implemented behaviour. The [journey baseline](JourneyTestPlan.md) currently excludes premoves because they have no current flow; add the new acceptance scope when that flow exists, without relabelling historical test results.
+Update [GamesStore architecture](LowLevel/Architecture/StateManagement/GamesStore.md), [Game runtime](LowLevel/Architecture/DataInterface/Game.md), [Chessboard](LowLevel/Architecture/Presentation/Components/Chessboard.md), [state model](HighLevel/state_model.md), [engine runtime](HighLevel/engine_runtime.md), [scenarios](HighLevel/scenarios.md) and [persistence](HighLevel/persistence_contract.md) when implementation changes. Add the new flow to the [journey plan](JourneyTestPlan.md) without relabelling old execution evidence. [Q-PLAY-001](questions/play/Q-PLAY-001-LiveProgressDuringAnalysis.md) now records the resolved background policy.
 
 ## Definition of done
 
-Multiple local premoves can be queued, inspected and cancelled; each is freshly resolved at its actual turn. Pauses and ordinary moves share the same driver, one current owner controls every commit, invalidation settles old work, and no queue data enters persistence. Existing history, clock, engine and analysis behaviour has passing regression evidence, and the documented defaults match the shipped UI and tests.
+Canonical rendered positions exclude premoves; derived pieces show the queued destinations and red source/destination squares. Human-engine opponent-turn input appends, hotseat cannot premove, actual play continues during analysis/review, Takeback affects live play and any invalid sequence clears the whole queue. Return displays only the surviving remainder. Ownership, active analysis selection, clocks, engines and persistence have passing evidence against these clarified requirements.

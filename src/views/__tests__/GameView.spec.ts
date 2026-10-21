@@ -14,8 +14,8 @@ import {
   type ISettingsSnapshot,
 } from '@/contracts';
 import { createAnalysisSeat, createClockSnapshot, createGame, createGameSessionSnapshot, createSettingsSnapshot, createUiLayoutState } from '@/state/__tests__/StateStoreTestUtility';
-import { createInitialBoardPosition } from '@/utility/chess';
-import { MoveApplicationService } from '@/domain';
+import { createInitialBoardPosition, toDetailedMove } from '@/utility/chess';
+import { MoveApplicationService, MoveHistoryService } from '@/domain';
 import GameView from '../GameView.vue';
 
 interface ITestDependency {
@@ -127,6 +127,32 @@ describe('GameView menu interruptions', () => {
   afterEach(() => {
     for (const wrapper of wrappers.splice(0)) wrapper.unmount();
     vi.useRealTimers();
+  });
+  it('renders history review as read-only until explicit analysis entry', async () => {
+    const game = createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    game.livePath = [0];
+    game.renderedPath = [];
+    game.gameState = GameState.LiveBlackTurn;
+    const wrapper = mountView(game);
+    await flushPromises();
+    expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('historyReview');
+    expect(wrapper.getComponent({ name: 'Chessboard' }).props('inputDisabled')).toBe(true);
+    expect(wrapper.getComponent({ name: 'AnalysisPanel' }).props('disabled')).toBe(true);
+  });
+  it('replaces the board input owner when entering analysis at the same canonical node', async () => {
+    const game = createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    const wrapper = mountView(game);
+    await flushPromises();
+    const board = wrapper.getComponent({ name: 'Chessboard' });
+    const original = board.props('position');
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    expect(board.props('position')).not.toBe(original);
+    expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('inGameAnalysis');
   });
   it('publishes raw seat changes through workspaceRevision and allows paused runtime controls', async () => {
     const game = createTimedGame();

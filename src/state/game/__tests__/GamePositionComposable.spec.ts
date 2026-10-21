@@ -1,10 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
-import { MoveNodeKind, PlayerColour } from '@/contracts';
+import { GameState, MoveNodeKind, PlayerColour } from '@/contracts';
 import { appendChild, createGame, createMove } from '@/state/__tests__/StateStoreTestUtility';
 import { useGamePosition } from '../GamePositionComposable';
 
 describe('useGamePosition', () => {
+  it.each(['rendered', 'live'])('preserves independent equal-path analysis caches when reading %s first', (first) => {
+    const position = useGamePosition();
+    const game = position.hydrateGame(createGame());
+    const live = position.getLivePosition(game);
+    const selected = structuredClone(live);
+    position.setRenderedPath(game, [...game.renderedPath], { node: game.moveTree.root, position: selected });
+    if (first === 'rendered') expect(position.getRenderedPosition(game)).toBe(selected);
+    else expect(position.getLivePosition(game)).toBe(live);
+    expect(position.getRenderedPosition(game)).toBe(selected);
+    expect(position.getLivePosition(game)).toBe(live);
+    expect(selected).not.toBe(live);
+  });
+  it('does not re-alias an explicitly analysed equal-path selection during hydration', () => {
+    const position = useGamePosition();
+    const game = position.hydrateGame(createGame({ gameState: GameState.LiveAnalysisFromWhiteTurnWhiteMove }));
+    expect(game.renderedPath).toEqual(game.livePath);
+    expect(game.renderedPath).not.toBe(game.livePath);
+    expect(position.getRenderedPosition(game)).not.toBe(position.getLivePosition(game));
+  });
   it('hydrates parent links and resolves rendered and live selections lazily', () => {
     const game = createGame();
     const child = appendChild(game.moveTree.root, createMove(), MoveNodeKind.Live);
