@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EngineAvailability, PlayerColour, PlayerType, type ICapturedPieceGroup, type IEnginePlayer, type IPlayer } from '@/contracts';
+import { EngineAvailability, PieceKind, PlayerColour, PlayerType, type ICapturedPieceGroup, type IEnginePlayer, type IPlayer } from '@/contracts';
 import AppIcon from './common/AppIcon.vue';
+import ChessPiece from './common/ChessPiece.vue';
 
 const props = defineProps<{
   colour: PlayerColour;
@@ -12,10 +13,7 @@ const props = defineProps<{
   capturedPieces?: readonly ICapturedPieceGroup[];
 }>();
 const emit = defineEmits<{ playerSelectionRequested: [colour: PlayerColour] }>();
-const pieceGlyphs = {
-  white: { queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙', king: '♔' },
-  black: { queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟', king: '♚' },
-} as const;
+const capturedColour = computed(() => props.colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White);
 const clockText = computed(() => {
   if (props.remainingMs === undefined) return '—';
   const remaining = Math.max(0, props.remainingMs);
@@ -32,15 +30,11 @@ const engineError = computed(() => {
   if (props.player?.type === PlayerType.Engine) return (props.player as IEnginePlayer).assignedEngine.$?.lastError;
   return;
 });
-function glyph(kind: keyof typeof pieceGlyphs.white): string {
-  const capturedColour = props.colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
-  return pieceGlyphs[capturedColour][kind];
-}
 </script>
 
 <template>
   <section class="player-panel" :class="{ 'player-panel--active': active }">
-    <span class="player-avatar" :class="`player-avatar--${colour}`">{{ colour === PlayerColour.White ? '♙' : '♟' }}<i v-if="active"></i></span>
+    <span class="player-avatar"><ChessPiece :kind="PieceKind.Pawn" :colour="colour" /><i v-if="active"></i></span>
     <div class="player-identity">
       <button class="player-name" :title="player?.displayName ?? 'Unassigned'" :disabled="selectionDisabled" @click="emit('playerSelectionRequested', colour)"><span>{{ player?.displayName ?? 'Unassigned' }}</span><AppIcon v-if="!selectionDisabled" name="chevron-down" /></button>
       <div v-if="!engineError" class="player-meta">
@@ -51,7 +45,7 @@ function glyph(kind: keyof typeof pieceGlyphs.white): string {
       <p v-if="engineError" class="engine-error engine-error--player" role="alert" :title="engineError">{{ engineError }}</p>
     </div>
     <div v-if="capturedPieces?.length" class="captured-pieces" aria-label="Captured material">
-      <template v-for="group in capturedPieces" :key="group.pieceKind"><span v-for="count in group.count" :key="count" :class="{ 'captured-piece--overlapped': count > 1 }">{{ glyph(group.pieceKind) }}</span></template>
+      <template v-for="group in capturedPieces" :key="group.pieceKind"><span v-for="count in group.count" :key="count" class="captured-piece" :class="{ 'captured-piece--overlapped': count > 1 }" role="img" :aria-label="`${capturedColour} ${group.pieceKind}`"><ChessPiece :kind="group.pieceKind" :colour="capturedColour" /></span></template>
     </div>
     <div class="player-clock" :class="{ 'player-clock--running': active && remainingMs !== undefined, 'player-clock--untimed': remainingMs === undefined }"><AppIcon v-if="remainingMs === undefined" name="clock" /><span>{{ clockText }}</span></div>
   </section>

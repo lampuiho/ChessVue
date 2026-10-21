@@ -50,7 +50,7 @@ export async function expectPromotedBoard(page: Page, scenario: IPromotionScenar
   await expect(material).toHaveCount(capture ? 1 : 0);
   if (capture) {
     await expect(material.locator('span')).toHaveCount(1);
-    await expect(material).toHaveText(scenario.opponent === 'black' ? '♜' : '♖');
+    await expect(material.getByRole('img', { name: `${scenario.opponent} rook`, exact: true })).toBeVisible();
     await expect(page.locator('.player-panel').filter({ has: material }).getByRole('button')).toHaveText(scenario.colour === 'white' ? 'White' : 'Black');
   }
 }

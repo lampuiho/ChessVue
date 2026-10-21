@@ -14,8 +14,8 @@ test('JRN-PLAY-01 @smoke commits one opening move with captures and immediate fe
   await expect(page.locator('.result-badge')).toHaveText('black to move');
   await expect(page.locator('.player-panel--active .player-name')).toHaveText('Black');
   await expect(page.locator('.captured-pieces')).toHaveCount(2);
-  await expect(page.locator('.captured-pieces').nth(0)).toHaveText('♙');
-  await expect(page.locator('.captured-pieces').nth(1)).toHaveText('♟');
+  await expect(page.locator('.captured-pieces').nth(0).getByRole('img', { name: 'white pawn', exact: true })).toBeVisible();
+  await expect(page.locator('.captured-pieces').nth(1).getByRole('img', { name: 'black pawn', exact: true })).toBeVisible();
   await expect(page.locator('.board-square--selected')).toHaveCount(0);
   await expect(page.locator('.board-square--last')).toHaveCount(2);
   await expect(square(page, 'f3')).toHaveClass(/board-square--last/);

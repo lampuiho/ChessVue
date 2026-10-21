@@ -18,6 +18,7 @@ import { toDetailedMove } from '@/utility/chess';
 import { useEnginesStore, useGamesStore, useSavedGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import NewGameModal from './NewGameModal.vue';
 import ModalDialog from './common/ModalDialog.vue';
+import ChessPiece from './common/ChessPiece.vue';
 
 const router = useRouter();
 const uiStateStore = useUiStateStore();
@@ -32,6 +33,12 @@ const engines = computed(() => {
   return enginesStore.listConfiguredEngines();
 });
 const setupGame = computed(() => modal.value?.kind === AppModalKind.StartGameFromSetup ? mutableGame(modal.value.payload.gameId) : undefined);
+const promotionPosition = computed(() => {
+  const current = modal.value;
+  if (current?.kind !== AppModalKind.Promotion) return;
+  const game = mutableGame(current.payload.gameId);
+  if (game) return MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, game.renderedPath));
+});
 const availableAnalysisEngines = computed(() => {
   const current = modal.value;
   if (current?.kind !== AppModalKind.AnalysisEngineSelection) return [];
@@ -202,7 +209,7 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button><button class="text-button text-button--primary" :disabled="!form.selectedEngineId" @click="confirmAnalysisEngine">Add engine</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Promotion" title="Choose promotion" subtitle="Select the piece your pawn should become." @dismissed="uiStateStore.hideModal">
-    <div class="promotion-row"><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${kind}`" @click="choosePromotion(kind)">{{ ({ queen: '♕', rook: '♖', bishop: '♗', knight: '♘' } as Record<string, string>)[kind] }}</button></div>
+    <div class="promotion-row"><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${kind}`" @click="choosePromotion(kind)"><ChessPiece :kind="kind" :colour="promotionPosition?.sideToMove ?? PlayerColour.White" /></button></div>
     <template #actions><button class="text-button text-button--ghost" @click="uiStateStore.hideModal">Cancel</button></template>
   </ModalDialog>
   <ModalDialog :key="modal?.kind" v-else-if="modal?.kind === AppModalKind.Resign" title="Resign this game?" subtitle="This records the game as finished. You can still review the position afterwards." @dismissed="uiStateStore.hideModal">

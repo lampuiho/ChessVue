@@ -3,6 +3,7 @@
 .board-grid { position: relative; display: grid; width: 100%; aspect-ratio: 1; container-type: inline-size; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); overflow: hidden; }
 .board-grid--disabled { cursor: not-allowed; }
 .board-square { position: relative; display: grid; min-width: 0; min-height: 0; padding: 0; place-items: center; border-radius: 0; overflow: hidden; }
+.board-square:disabled { opacity: 1; }
 .board-square--light { color: #7a4d2c; background: #e8d8b9; }
 .board-square--dark { color: #e8d8b9; background: #9b6744; }
 .board-square:focus-visible { z-index: 5; outline-offset: -0.2rem; }
@@ -10,26 +11,27 @@
 .board-square--selected::before { position: absolute; z-index: 1; inset: 0; box-shadow: inset 0 0 0 0.27rem rgb(225 163 45 / 88%); content: ''; }
 .board-square--capture::after { position: absolute; z-index: 2; inset: 7%; border: clamp(0.16rem, 0.55vw, 0.34rem) solid rgb(103 46 30 / 56%); border-radius: 50%; content: ''; }
 .move-dot { position: absolute; z-index: 2; width: 24%; aspect-ratio: 1; border-radius: 50%; background: rgb(69 47 34 / 45%); pointer-events: none; }
-.chess-piece { position: relative; z-index: 3; display: grid; width: 100%; height: 100%; place-items: center; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", serif; font-size: 11cqw; line-height: 1; user-select: none; transition: transform 100ms ease; }
+.chess-piece { position: relative; z-index: 3; display: grid; width: 100%; height: 100%; padding: 3%; place-items: center; user-select: none; transition: transform 100ms ease; }
 .board-square:hover .chess-piece { transform: translateY(-1.5%); }
-.chess-piece--white { color: #fff9e8; text-shadow: 0 0.0625rem 0 #5f4937, 0 0.125rem 0.125rem rgb(39 28 18 / 56%); }
-.chess-piece--black { color: #2d2824; text-shadow: 0 0.0625rem 0 rgb(255 255 255 / 26%), 0 0.125rem 0.125rem rgb(35 24 17 / 36%); }
+.piece-artwork { display: block; width: 100%; height: 100%; fill: var(--piece-fill); stroke: var(--piece-outline); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.piece-artwork--white { --piece-fill: #fff; --piece-outline: #252525; }
+.piece-artwork--black { --piece-fill: #252525; --piece-outline: #ded8ce; }
+.piece-artwork__detail { fill: none; }
+.piece-artwork__eye { fill: var(--piece-outline); stroke: none; }
 .coordinate { position: absolute; z-index: 4; font-size: clamp(0.5rem, 0.9vw, 0.7rem); font-weight: 800; line-height: 1; opacity: 0.78; pointer-events: none; }
 .coordinate--rank { top: 0.28rem; left: 0.3rem; }
 .coordinate--file { right: 0.3rem; bottom: 0.26rem; }
 .promotion-popover { position: absolute; z-index: 10; inset: 50% auto auto 50%; display: grid; width: min(21rem, 80%); padding: 0.9rem; gap: 0.6rem; color: var(--text-primary); border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-dialog); box-shadow: var(--shadow-md); text-align: center; transform: translate(-50%, -50%); }
 .promotion-popover > span { color: var(--text-muted); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .promotion-popover > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem; }
-.promotion-popover > div button { aspect-ratio: 1; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-panel); font-size: clamp(1.7rem, 4vw, 2.8rem); }
+.promotion-popover > div button { display: grid; aspect-ratio: 1; padding: 0.2rem; place-items: center; border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-panel); }
 .promotion-popover > div button:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .promotion-popover__cancel { color: var(--text-muted); background: transparent; font-size: 0.7rem; }
 .piece-palette { display: grid; width: 100%; min-width: 0; padding: 0; gap: 0.15rem; }
 .piece-palette__label { display: none; }
 .piece-palette__pieces { display: flex; min-width: 0; align-items: center; gap: 0.1rem; }
-.piece-palette__pieces button { display: grid; min-width: 0; height: 1.7rem; padding: 0; flex: 1; place-items: center; border-radius: 0.2rem; background: transparent; font-family: "Segoe UI Symbol", serif; font-size: 1.3rem; }
+.piece-palette__pieces button { display: grid; min-width: 0; height: 1.7rem; padding: 0; flex: 1; place-items: center; border-radius: 0.2rem; background: transparent; }
 .piece-palette__pieces button:hover, .piece-palette__pieces button.active { color: var(--accent); background: var(--accent-soft); }
-.piece-palette__pieces .palette-colour { font-size: 0.9rem; }
-.palette-colour--white { color: #c9b690; text-shadow: 0 0 0.0625rem #31291f; }
-.palette-colour--black { color: #302a24; }
+.piece-palette__pieces .palette-colour[aria-pressed="true"] { background: var(--accent-soft); }
 .palette-divider { width: 0.0625rem; height: 1.2rem; background: var(--border-subtle); }
 .piece-palette__actions { display: flex; justify-content: flex-end; gap: 0.25rem; }

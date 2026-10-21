@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { BoardOrientation, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IChessPiece, type IMove, type IMoveRaw } from '@/contracts';
 import { genLegalMovesForPiece, toDetailedMove } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
+import ChessPiece from './common/ChessPiece.vue';
 import { vFocusScope } from './common/FocusScope';
 
 const props = withDefaults(defineProps<{
@@ -35,18 +36,11 @@ const displayedBoardIds = computed<BoardId[]>(() => {
   return ids;
 });
 const legalMoves = computed(() => selectedBoardId.value === undefined ? [] : genLegalMovesForPiece(props.position, selectedBoardId.value, props.lastMove));
-const glyphByPiece = {
-  white: { king: '♔', queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙' },
-  black: { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' },
-} as const;
 const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 // External board/mode props also change after engine replies and history navigation.
 // This synchronous input boundary only clears transient input; Vue disposes it with the board.
 watch([() => props.position, () => props.boardEdit], clearSelection, { flush: 'sync' });
-function pieceGlyph(piece: IChessPiece): string {
-  return glyphByPiece[piece.colour][piece.kind];
-}
 function isLegalTarget(boardId: BoardId): boolean {
   return legalMoves.value.some((move) => move.to === boardId);
 }
@@ -153,12 +147,12 @@ function showFile(index: number): boolean {
         >
           <span v-if="showRank(index)" class="coordinate coordinate--rank">{{ Math.floor(boardId / 8) + 1 }}</span>
           <span v-if="showFile(index)" class="coordinate coordinate--file">{{ fileNames[boardId % 8] }}</span>
-          <span v-if="position.board[boardId]" class="chess-piece" :class="`chess-piece--${position.board[boardId]?.colour}`" :draggable="!inputDisabled" @dragstart.stop="onDragStart(boardId, $event)">{{ pieceGlyph(position.board[boardId]!) }}</span>
+          <span v-if="position.board[boardId]" class="chess-piece" :draggable="!inputDisabled" @dragstart.stop="onDragStart(boardId, $event)"><ChessPiece v-bind="position.board[boardId]!" /></span>
           <span v-if="isLegalTarget(boardId) && !position.board[boardId]" class="move-dot"></span>
         </button>
         <div v-if="pendingPromotionMoves.length" v-focus-scope class="promotion-popover" role="group" aria-label="Pawn promotion" tabindex="-1" @keydown.esc.stop.prevent="clearSelection">
           <span>Promote to</span>
-          <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${position.sideToMove} ${kind}`" @click="choosePromotion(kind)">{{ pieceGlyph({ kind, colour: position.sideToMove }) }}</button></div>
+          <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${position.sideToMove} ${kind}`" @click="choosePromotion(kind)"><ChessPiece :kind="kind" :colour="position.sideToMove" /></button></div>
           <button class="promotion-popover__cancel" @click="clearSelection">Cancel</button>
         </div>
       </div>
@@ -166,9 +160,9 @@ function showFile(index: number): boolean {
     <div v-if="boardEdit" class="piece-palette surface">
       <div class="piece-palette__label"><strong>Position editor</strong><span>Choose a piece, then click a square. Right-click removes.</span></div>
       <div class="piece-palette__pieces">
-        <button v-for="colour in [PlayerColour.White, PlayerColour.Black]" :key="colour" class="palette-colour" :class="`palette-colour--${colour}`" :aria-label="`${colour} pieces`" @click="editPiece.colour = colour">{{ colour === PlayerColour.White ? '○' : '●' }}</button>
+        <button v-for="colour in [PlayerColour.White, PlayerColour.Black]" :key="colour" class="palette-colour" :aria-label="`${colour} pieces`" :aria-pressed="editPiece.colour === colour" @click="editPiece.colour = colour"><ChessPiece :kind="PieceKind.Pawn" :colour="colour" /></button>
         <span class="palette-divider"></span>
-        <button v-for="kind in pieceKinds" :key="kind" :class="{ active: editPiece.kind === kind }" :aria-label="kind" @click="editPiece.kind = kind">{{ pieceGlyph({ kind, colour: editPiece.colour }) }}</button>
+        <button v-for="kind in pieceKinds" :key="kind" :class="{ active: editPiece.kind === kind }" :aria-label="kind" @click="editPiece.kind = kind"><ChessPiece :kind="kind" :colour="editPiece.colour" /></button>
       </div>
       <div class="piece-palette__actions"><button class="text-button text-button--ghost text-button--palette" @click="emit('boardCleared')"><AppIcon name="trash" />Clear</button><button class="text-button text-button--palette" @click="emit('boardReset')"><AppIcon name="rotate" />Reset</button></div>
     </div>
