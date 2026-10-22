@@ -35,18 +35,21 @@ describe('JRN-CLOCK-02/04/12 pause boundaries', () => {
   it('deduplicates repeated pause owners and removes only the named owner', async () => {
     const { games, game } = await createTimedContext();
     await games.enterInGameAnalysis(game);
-    const snapshot = game.clockSnapshot;
     for (const reason of [PauseReason.Manual, PauseReason.Menu, PauseReason.Manual, PauseReason.Menu]) await games.pauseGame(game, reason);
-    expect(game.$?.pauseReasons).toEqual([PauseReason.Analysis, PauseReason.Manual, PauseReason.Menu]);
+    const snapshot = game.clockSnapshot;
+    expect(game.$?.pauseReasons).toEqual([PauseReason.Manual, PauseReason.Menu]);
     vi.setSystemTime(Date.now() + 60000);
     await games.resumeGame(game, PauseReason.Menu);
     await games.resumeGame(game, PauseReason.Menu);
-    expect(game.$?.pauseReasons).toEqual([PauseReason.Analysis, PauseReason.Manual]);
+    expect(game.$?.pauseReasons).toEqual([PauseReason.Manual]);
     expect(game.clockSnapshot).toBe(snapshot);
     await games.resumeGame(game, PauseReason.Manual);
-    expect(game.$?.pauseReasons).toEqual([PauseReason.Analysis]);
-    expect(game.clockSnapshot).toBe(snapshot);
+    expect(game.$?.pauseReasons).toEqual([]);
+    expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnWhiteMove);
+    expect(game.clockSnapshot.white.isRunning).toBe(true);
+    const resumed = game.clockSnapshot;
     games.exitInGameAnalysis(game);
+    expect(game.clockSnapshot).toBe(resumed);
     expect(game.$?.pauseReasons).toEqual([]);
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);
     expect(game.clockSnapshot.white).toEqual({ remainingMs: 3000, isRunning: true });

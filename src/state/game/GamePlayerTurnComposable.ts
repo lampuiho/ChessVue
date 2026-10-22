@@ -126,7 +126,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     if (isEnginePlayer(player)) void _requestEngineMove(player.assignedEngine).catch((error) => pendingPlayerMove.reject(error));
   }
   function requestPlayerMoveIfNeeded(game: IGame) {
-    if (!status.isOngoingLiveGame(game) || !status.isLiveState(game.gameState) || !position.pathsEqual(game.renderedPath, game.livePath)) return;
+    if (!status.isLiveTurnReadyForMove(game)) return;
     if (position.requireGameRuntime(game).pendingPlayerTurnPromise) return;
     _requestPlayerMove(game);
   }
@@ -151,8 +151,8 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
       game.gameState = status.getAnalysisState(selectedPosition.sideToMove);
       touchGame(game);
     } else {
-      if (status.isPausedLiveState(game.gameState)) game.gameState = status.getPausedState(selectedPosition.sideToMove);
-      else if (status.isLiveState(game.gameState)) game.gameState = status.getLiveState(selectedPosition.sideToMove);
+      if (status.isPausedLiveState(game.gameState)) game.gameState = status.getPausedState(liveColour ?? selectedPosition.sideToMove);
+      else if (status.isLiveState(game.gameState)) game.gameState = status.getLiveState(liveColour ?? selectedPosition.sideToMove);
       else if (status.isAnyLiveAnalysisState(game.gameState) && liveColour) game.gameState = status.getLiveAnalysisState(liveColour, selectedPosition.sideToMove, status.isPausedLiveAnalysisState(game.gameState));
       else if (game.livePath && game.resultState === ResultState.Ongoing) game.gameState = status.getLiveState(selectedPosition.sideToMove);
       touchGame(game);

@@ -51,9 +51,9 @@ export function nodeAt(game: IGame, path: MovePath) {
 export function squareName(id: number): string {
   return String.fromCharCode(97 + id % 8) + (Math.floor(id / 8) + 1);
 }
-export async function expectMoveBoard(page: Page, move: IMove) {
+export async function expectMoveBoard(page: Page, move: IMove, actualColour = move.movingColour === 'white' ? 'black' : 'white') {
   await expect(square(page, squareName(move.to))).toHaveAttribute('aria-label', `${squareName(move.to)} ${move.movingColour} ${move.promotionPiece ?? move.movingPiece}`);
-  await expect(page.locator('.result-badge')).toHaveText(`${move.movingColour === 'white' ? 'black' : 'white'} to move`);
+  await expect(page.locator('.result-badge')).toHaveText(`${actualColour} to move`);
 }
 export function expectPrefix(game: IGame, anchor: MovePath, prefix: readonly IMove[], kind: string) {
   expect(game.renderedPath).toHaveLength(anchor.length + prefix.length);

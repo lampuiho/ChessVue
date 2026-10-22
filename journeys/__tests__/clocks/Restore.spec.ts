@@ -11,20 +11,21 @@ describe('JRN-CLOCK-04/10 restored pause ownership', () => {
     expect(game.$?.pauseReasons).toEqual([PauseReason.Manual]);
     expect(game.clockSnapshot.white.isRunning).toBe(false);
   });
-  it('restores analysis pauses with explicit manual consent and retains the analysis owner', async () => {
+  it('restores paused analysis with only a manual owner and resumes actual play independently', async () => {
     const context = await createTimedContext();
     const { games, game, domain } = context;
     await games.enterInGameAnalysis(game);
+    await games.pauseGame(game, PauseReason.Manual);
     const restored = await games.insertGame(domain.SerializationService.deserialiseGame(domain.SerializationService.serialiseGame(game)));
-    expect(restored.$?.pauseReasons).toEqual([PauseReason.Analysis, PauseReason.Manual]);
+    expect(restored.$?.pauseReasons).toEqual([PauseReason.Manual]);
     await games.pauseGame(restored, PauseReason.Menu);
     await games.resumeGame(restored, PauseReason.Menu);
     expect(restored.clockSnapshot.white.isRunning).toBe(false);
     await games.resumeGame(restored, PauseReason.Manual);
-    expect(restored.$?.pauseReasons).toEqual([PauseReason.Analysis]);
+    expect(restored.$?.pauseReasons).toEqual([]);
     await games.makeMove(restored, legalMove(context, restored, 'e2e4'));
     expect(restored.livePath).toEqual([]);
-    expect(restored.clockSnapshot.white.isRunning).toBe(false);
+    expect(restored.clockSnapshot.white.isRunning).toBe(true);
     games.exitInGameAnalysis(restored);
     expect(restored.clockSnapshot.white.isRunning).toBe(true);
   });

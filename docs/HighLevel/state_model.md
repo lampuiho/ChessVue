@@ -42,11 +42,11 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 - A non-ongoing `resultState`, together with the resulting analysis state, blocks further live moves.
 
 ## State Meaning
-- `Live*Turn` means the visible board is the committed live node and the named side is due to move.
-- `Paused*Turn` means the same live board state exists but live clock progression is intentionally suspended and gameplay interaction is locked until resume, with explicit management exceptions for player reassignment and analysis-engine actions.
+- `Live*Turn` means ordinary play or history review; the named side is currently due in actual play. Only shared path references make the selected board follow actual play.
+- `Paused*Turn` means actual play is suspended. Actual moves, Takeback and result actions stay locked; explicit Analyse entry, player reassignment and analysis-engine actions remain available.
 - `LiveAnalysisFrom*` means the game still has a committed live turn anchor, but the visible board is exploring analysis moves instead of progressing the live node.
 - `PausedLiveAnalysisFrom*` means the same live-analysis context exists while live clock progression remains paused.
-- In `LiveAnalysisFromWhiteTurnBlackMove`, for example, White was due to move when live analysis started, but the current analysis board has Black to move.
+- In `LiveAnalysisFromWhiteTurnBlackMove`, for example, White is currently due in actual play, but the current analysis board has Black to move.
 - `AnalysisWhiteMove` and `AnalysisBlackMove` cover free analysis/setup and post-result non-live analysis.
 - `BoardEdit` is direct free edit from the current visible board, applies board changes immediately, and is never a live state.
 
@@ -88,9 +88,9 @@ ChessVue game behaviour is defined by one authoritative `GameState` enum plus se
 ## Allowed Actions By State Family
 | Action | Live | Paused Live | Live Analysis | Paused Live Analysis | Analysis | Board Edit |
 | --- | --- | --- | --- | --- | --- | --- |
-| Make live move | Yes | No | No | No | No | No |
-| Make analysis move | No | No | Yes | No | Yes | No |
-| Navigate history | Yes | No | Yes | No | Yes | No |
+| Make live move | Yes | No | Background actual turn | No | No | No |
+| Make analysis move | No | No | Yes | Yes | Yes | No |
+| Navigate history | Yes | No | Yes | Yes | Yes | No |
 | Enter board edit | No | No | No | No | Yes | Already active |
 | Start or stop analysis engines | Yes | Yes | Yes | Yes | Yes | After board edit ends |
 | Reassign players | Yes | Yes | Yes | Yes | Yes | No |
@@ -107,7 +107,7 @@ The UI must enforce this matrix through control visibility and enablement so pla
 | Live | Yes | Only when `showLiveAnalysisMoves = true` | Commit a normal live move |
 | Paused Live | Yes | Read-only only when already supported by the current UI | No move commit |
 | Live Analysis | Yes | Only when `showLiveAnalysisMoves = true` | Apply analysis moves without advancing the live node |
-| Paused Live Analysis | Yes | Read-only only when already supported by the current UI | No move commit |
+| Paused Live Analysis | Yes | Only when `showLiveAnalysisMoves = true` | Apply analysis moves; actual play stays paused |
 | Analysis | Yes | Yes | Apply analysis moves |
 
 Score-only rendering is titled Evaluations, with engine names on the left and scores on the right. It has no panel or engine folds and no status/depth summary. Engines keep evaluating independently. Move-enabled Analysis retains folding and three lines per engine.
@@ -116,12 +116,12 @@ Score-only rendering is titled Evaluations, with engine names on the left and sc
 ### History Navigation
 - Navigating to an earlier node gives `renderedPath` an independent selector from `livePath`.
 - Returning to the live node restores `renderedPath` to the exact `livePath` reference so live appends advance both selections.
-- From a non-live highlighted line, making a move follows the takeback and branch rules defined in [settings_contract.md](settings_contract.md).
+- Ordinary history review keeps the ordinary live state and actual turn. Historical input requires Takeback permission and existing confirmation to rewrite actual play; otherwise press Analyse before exploratory input.
 
 ### Live Analysis
-- Entering live analysis is allowed only from a live state, and from timeout-ended games when post-timeout analysis is allowed.
+- Explicit Analyse starts at the selected canonical move from ordinary live or paused live play. Existing terminal review preserves the final result.
 - Entering live analysis detaches the rendered-path reference even when the rendered and live selectors initially identify the same node.
-- If the game clock is running, the app must pause it before entering a `LiveAnalysisFrom*` state.
+- Entry and Exit never pause/resume actual clocks or cancel/restart actual turns. Actual progression continues behind independent selection; genuinely paused entry uses `PausedLiveAnalysisFrom*` without releasing any pause owner.
 - Live analysis gives the user move control for both colours, but those moves do not advance the live node.
 - Exiting live analysis returns the board highlight to the live node and restores the shared live-path reference by default.
 - If there is a kept analysis branch, the branch remains in the move tree, but the default visible state returns to the live node.
@@ -136,14 +136,13 @@ Score-only rendering is titled Evaluations, with engine names on the left and sc
 
 ### Pausing And Interruptions
 - Menu-driven interruptions in timed games follow the auto-pause behaviour from [settings_contract.md](settings_contract.md).
-- Manual and menu pauses make gameplay and history read-only apart from `Resume`. Menu and route flows remain available.
-- An analysis-only pause permits both colours to explore and select history while the live node and clock stay fixed. Takeback still requires the game's permission. `Exit analysis` removes only the analysis pause. Player reassignment and analysis-engine management remain available outside board edit.
-- Adding a manual or menu pause to analysis suspends exploration until that owner resumes. Engine searches already in flight may finish during any pause, but player output cannot advance the live node or clock until resume; analysis-only exploration is the exception for move-tree changes.
+- Manual/Menu pauses block actual moves, Takeback and result actions. Explicit Analyse entry, analysis moves/history and Exit remain available; ordinary paused history remains locked. Resume stays reachable alongside paused Analyse/Exit.
+- Actual engine output arriving during a genuine pause is held by its existing owner. Entry/Exit and removing a non-final owner never flush it. Final Resume releases it once, including while analysis remains selected. Analysis-engine management remains available outside board edit.
 - A player-engine move produced while paused has already been validated at the engine-result boundary and is deferred until resume. It commits only if the live turn is still ready; otherwise it is discarded. **Why:** pause cannot change the live position and ownership-changing actions clear the turn runtime, so repeating legality or pondering would duplicate work and could start the same engine side effect twice.
 - Paused live-analysis states preserve the same live anchor and visible analysis side-to-move information as their unpaused `LiveAnalysisFrom*` counterparts.
 - Auto-resume is allowed only when the same interruption flow caused the pause.
 - Manual pause remains paused until the user explicitly resumes.
-- Restored paused live games reconstruct Manual ownership because runtime owners are not persisted. Restored paused live-analysis games reconstruct Analysis plus Manual: Resume unlocks exploration, and Exit analysis starts live timing. Menu return cannot clear either owner.
+- Restored paused live games reconstruct Manual ownership because runtime owners are not persisted. Restored paused live-analysis games also reconstruct Manual only. Explicit Resume restarts actual play while analysis remains selected; Menu return and Exit cannot clear Manual.
 
 ### Terminal Results
 - Timeout, resignation, accepted draw, or abandonment set `resultState` and `resultReason`, then leave live play for analysis.
@@ -158,7 +157,7 @@ Score-only rendering is titled Evaluations, with engine names on the left and sc
 - While that non-local pending-offer indicator is lit, pressing `Draw` accepts an incoming offer or withdraws an outgoing offer only when the game is in a playable live state. In paused live play the indicator is read-only until resume.
 
 ## Clock Rules
-- Ongoing live games consume time during play, ordinary history review and game-tab switches. Explicit Analyse adds an independent pause owner and freezes the live clock.
+- Ongoing live games consume time during play, ordinary history review and game-tab switches. Explicit Analyse also keeps actual time and turns running unless a genuine Manual/Menu pause is active.
 - Non-live analysis, board edit and terminal result states never consume live clock time.
 - Paused live states suspend clock consumption but do not require an already running engine search to stop before it yields its current best line.
 - UI timer loops are render cadence only; authoritative remaining-time reads come from relative timing data through the time-control service.

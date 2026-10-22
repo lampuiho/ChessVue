@@ -16,6 +16,8 @@ for (const preference of ['Return to live position', 'Stay on analysis branch'])
     await expect(page).toHaveURL(/\/game\/history-blocked$/);
     const before = await saveCurrentGame(page, 'before-branch');
     await historyRow(page, 'e5').click();
+    await expect(square(page, 'f1')).toBeDisabled();
+    await page.getByRole('button', { name: /^Analyse/ }).click();
     await playMove(page, 'f1', 'c4');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     const after = await saveCurrentGame(page, 'after-branch');
@@ -25,8 +27,8 @@ for (const preference of ['Return to live position', 'Stay on analysis branch'])
     expect(nodeAt(after, [0, 0]).mainlineChildIndex).toBe(0);
     expect(nodeAt(after, [0, 0]).children.slice(0, 2)).toEqual(nodeAt(before, [0, 0]).children);
     expect(nodeAt(after, [0, 0, 2]).kind).toBe('analysis');
-    expect(after.renderedPath).toEqual(preference.startsWith('Return') ? before.livePath : [0, 0, 2]);
-    if (preference.startsWith('Stay')) await returnLive(page);
+    expect(after.renderedPath).toEqual([0, 0, 2]);
+    await returnLive(page);
     await expect(square(page, 'b5')).toHaveAttribute('aria-label', 'b5 white bishop');
   });
 }

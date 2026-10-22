@@ -1,6 +1,6 @@
 # Background analysis: function flow for every scenario
 
-Draft replanned on 21 October 2026. Read with the [main plan](BackgroundAnalysisPlan.md), [paused-entry decision and breakage audit](questions/play/Q-PLAY-003-PausedAnalysisEntry.md) and [product decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md). **Documentation only; implementation and retained-test edits still require written-plan approval.** After approval, write/revise unit specifications and observe meaningful failures before production changes.
+Approved on 22 October 2026. Read with the [main plan](BackgroundAnalysisPlan.md), [paused-entry decision and breakage audit](questions/play/Q-PLAY-003-PausedAnalysisEntry.md) and [product decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md). BA-Q4 allows explicit analysis moves/history during genuine pauses. Implementation preserves the APIs and model; tests were written/revised and observed failing before development.
 
 The arrows below name existing functions, including private functions. `View`, `Move`, `Position`, `Status`, `Clock`, `Turn`, `Analysis` and `Workspace` abbreviate their existing GameView/composable owners. Store calls keep the current GamesStore facade. No arrow proposes a new public API, enum, model field, turn driver or watcher. Private view composition may reuse existing actions without changing component props/events.
 
@@ -11,7 +11,7 @@ These are the exact conditions reused in the scenario paths, not additional stor
 1. **Following live:** `game.renderedPath === game.livePath`. Equal array contents alone do not establish following. Position getters alias caches only for the shared reference; explicit analysis hydration preserves separate references even at equal values.
 2. **Actual readiness:** change existing `Status.isLiveTurnReadyForMove` to require ongoing result, a live path and an unpaused ordinary-live or explicit-analysis state. No selected-path equality. Real paused states remain unready. Existing turn ownership prevents duplicate starts.
 3. **Exploration:** explicit analysis is identified by existing game state, not by `PauseReason.Analysis`, panel mode or path inequality. An analysis input cannot resolve the actual deferred turn. Ordinary review does not enter Analyse implicitly.
-4. **BA-Q4 remains pending:** if paused exploration is allowed, `canExploreAnalysis` includes paused explicit analysis and existing move/navigation assertions use that permission. If not, paused analysis moves/history remain disabled and reject before mutation. Either way, paused entry/Exit work, actual play stays paused and actual Takeback/result actions keep their pause guard. Both branches are specified below; neither is inferred approved.
+4. **BA-Q4 resolved:** `canExploreAnalysis` includes paused explicit analysis and existing move/navigation assertions use that permission. Paused exploratory moves/history are enabled; paused entry/Exit work, actual play stays paused and actual Takeback/result actions keep their pause guard. Actual pause ownership stays independent of exploration.
 5. **Entry/Exit ownership:** capture pause status before changing state/path. Preserve clock snapshot, pause reasons, actual pending promise/controller and held reply. Entry/Exit never call clock pause/resume or deferred flush. Only final real Resume delivers held output.
 6. **Actual result:** ongoing commits preserve explicit-analysis versus ordinary-play/review family. A terminal result selects the appropriate existing non-live analysis state for the selected board. Return to the final actual node uses its side-to-move analysis state, preserves result and never restores a live state.
 7. **Pruning:** before an actual commit, skip `pruneFutureMoves(liveParent)` when `Position.isPathPrefix(game.livePath, game.renderedPath)` shows it would delete selected descendants. Otherwise keep the existing current-move policy. Once actual progression leaves the anchor behind, keep its analysis branch as history; no Exit/navigation cleanup.
@@ -19,7 +19,7 @@ These are the exact conditions reused in the scenario paths, not additional stor
 9. **Permissions stay separate:** `assertOngoingLiveAction` retains ordinary-live/result-action restrictions even though actual readiness also accepts analysis. Actual Takeback uses its own genuine-pause check rather than inheriting permission from a widened exploration assertion.
 10. **Paused controls without API changes:** retain existing paused control mode and its Resume action. GameView composes one contextual Analyse/Exit action in the same controls region, selected from existing game state and calling existing actions. Reuse current global button classes. Do not reorder mode precedence to hide Resume, add a mode/prop/event, or repurpose an unrelated prop to encode pause state. Normal unpaused controls remain in GameControlPanel.
 
-Test lanes: **U** data-driven store/position unit tests with controlled external callbacks; **V** mounted view/board tests; **J** affected existing journey/browser regressions. These paths are plans, not executed acceptance.
+Test lanes: **U** data-driven store/position unit tests with controlled external callbacks; **V** mounted view/board tests; **J** affected existing journey/browser regressions. These paths define acceptance; the main plan records executed verification.
 
 ## Entry, selection and actual progression
 
@@ -45,7 +45,7 @@ Gate the ongoing branch on live-path availability and the existing ordinary-live
 
 `View._navigateToNode -> Move.navigateToNode -> selected historical node -> Analyse -> BA-01 on that node -> View._makeMove/_playAnalysisLine -> _requestMoves -> _applyMoves -> makeMove -> assertMoveAllowed -> _commitLiveAnalysisMove -> _advanceRenderedAnalysisBranch -> addAnalysisMove/setRenderedPath -> _publishRenderedPosition`.
 
-View checks explicit analysis before creating `pendingContinuation`; Move checks it before historical rewrite. Both Takeback settings therefore explore the selected canonical position without rewrite confirmation, actual move/increment, actual result update or actual deferred resolution. Paused input follows the two BA-Q4 branches; entry itself is allowed in both.
+View checks explicit analysis before creating `pendingContinuation`; Move checks it before historical rewrite. Both Takeback settings therefore explore the selected canonical position without rewrite confirmation, actual move/increment, actual result update or actual deferred resolution. Paused input is enabled under BA-Q4, while actual play remains paused.
 
 ### BA-04
 
@@ -61,7 +61,7 @@ Capture whether explicit analysis was already active before selection; this case
 
 `HistoryPanel -> _navigateToNode -> playback.cancel() -> navigateToNode -> membership/permission -> setRenderedPath -> getLiveAnalysisState(actual colour, selected colour, captured pause status) -> _publishRenderedPosition`.
 
-Selecting an independent analysis/history node preserves explicit mode. The deliberate Live-position action follows `_returnToLivePosition -> navigateToNode -> _returnToLiveNode`; Exit follows `exitInGameAnalysis -> _returnToLiveNode`. The helper restores shared live references and chooses paused/live/terminal state as in BA-06. If BA-Q4 rejects paused history navigation, its history action stays disabled; explicit Exit remains available and preserves the actual pause.
+Selecting an independent analysis/history node preserves explicit mode. The deliberate Live-position action follows `_returnToLivePosition -> navigateToNode -> _returnToLiveNode`; Exit follows `exitInGameAnalysis -> _returnToLiveNode`. The helper restores shared live references and chooses paused/live/terminal state as in BA-06. Paused analysis history navigation and Exit remain available and preserve the actual pause.
 
 ### BA-06
 
@@ -135,7 +135,7 @@ Preserve actual clock snapshot, Manual/Menu set, pending promise/controller and 
 
 `Pause -> Clock.pauseGame -> reconcile existing expiry -> add actual pause owner -> pauseClock -> matching PausedLiveAnalysisFrom state -> refreshRuntimeRegistrations/touchGame`; actual output then follows `_playerMoveHandler -> deferredPlayerMove` and evaluation follows `Analysis subscription callback -> seat update -> touchGame`.
 
-BA-Q4 yes: `makeMove -> assertMoveAllowed/canExploreAnalysis -> _commitLiveAnalysisMove`, and history uses `assertExplorationAllowed -> navigateToNode`, preserving paused actual state. BA-Q4 no: disable those view actions and reject before selected mutation. Both variants keep actual moves, Takeback, draw/resignation and board edit blocked, retain held output and allow existing evaluation/management. Do not broaden `assertNotPausedForAction` globally.
+Under the confirmed BA-Q4 decision: `makeMove -> assertMoveAllowed/canExploreAnalysis -> _commitLiveAnalysisMove`, and history uses `assertExplorationAllowed -> navigateToNode`, preserving paused actual state. These exploration paths keep actual moves, Takeback, draw/resignation and board edit blocked, retain held output and allow existing evaluation/management. Do not broaden `assertNotPausedForAction` globally.
 
 ### BA-15
 
@@ -235,7 +235,7 @@ Direct free-board edit uses `enterBoardEdit -> existing live-path/paused guards 
 
 `AnalysisPanel moveSelected -> _playAnalysisLine -> explicit/non-live exploration? full selected prefix : first move -> _requestMoves -> _applyMoves -> genPosition(selected, []) -> validate/apply every preview move -> playback.run -> makeMove(first) -> abortableDelay -> ownership/path check -> next makeMove`.
 
-Validate the entire chosen prefix before the first mutation; stale later move rejects the whole request. Explicit mode routes each committed prefix move through `_commitLiveAnalysisMove`; free/terminal analysis uses `_commitStandaloneAnalysisMove`. No actual clock/result/deferred mutation. Respect the existing move-visibility preference. Paused playback follows BA-Q4; do not use an obsolete Analysis pause reason as its mode test.
+Validate the entire chosen prefix before the first mutation; stale later move rejects the whole request. Explicit mode routes each committed prefix move through `_commitLiveAnalysisMove`; free/terminal analysis uses `_commitStandaloneAnalysisMove`. No actual clock/result/deferred mutation. Respect the existing move-visibility preference. Paused explicit playback remains enabled under BA-Q4; do not use an obsolete Analysis pause reason as its mode test.
 
 ### BA-27
 
@@ -243,7 +243,7 @@ Validate the entire chosen prefix before the first mutation; stale later move re
 
 `Exit / selected-node navigation / mode switch / allowed Takeback / confirmed rewrite / root replacement / route teardown -> await playback.cancel() -> existing action`; unmount calls `playback.dispose()`.
 
-Capture the selected input context for delayed events and verify it through the existing owner, not a new epoch/token. Before every delayed commit, retain the existing game/path checks and check current result/mode/input permission against the operation's context. No remaining delayed move lands after replacement. For Pause: BA-Q4 no cancels analysis playback before input locks; BA-Q4 yes may keep a valid explicit-analysis prefix because only actual play paused and selected permission/context is unchanged. Ordinary live input always locks on pause. A background reply/score preserves selected analysis playback; a terminal result changes context and stops its loop before another commit. No observer or computed side effect is introduced.
+Capture the selected input context for delayed events and verify it through the existing owner, not a new epoch/token. Before every delayed commit, retain the existing game/path checks and check current result/mode/input permission against the operation's context. No remaining delayed move lands after replacement. For Pause: retain a valid explicit-analysis prefix because only actual play paused and selected permission/context is unchanged. Ordinary live input always locks on pause. A background reply/score preserves selected analysis playback; a terminal result changes context and stops its loop before another commit. No observer or computed side effect is introduced.
 
 ### BA-28
 
@@ -353,6 +353,4 @@ After each, resolve selected/live paths with `getNodeAtPath`, derive board state
 
 ## Delivery and verification boundary
 
-After the user approves the written plan, implement only the internal conditions and existing action composition necessary for these paths. First map each BA case to a retained/new data-driven test or a named existing regression, revise obsolete API/mode/Exit-cleanup expectations, and run the failing baseline. Then change production bodies, run focused unit and mounted tests, followed by affected journeys, code audit and build.
-
-The [main plan](BackgroundAnalysisPlan.md#traceability-to-existing-scenarios-and-journeys) retains SCN/JRN and future-premove mappings. The four [isolated paused-entry probes](questions/play/Q-PLAY-003-PausedAnalysisEntry.md#breakage-audit-after-the-user-requested-a-compatibility-check) establish why these guards are necessary, not that this replanned behaviour has been implemented or passed. BA-Q4 remains pending; keep its two variants visible until answered.
+The user approved implementation on 22 October and confirmed paused exploratory input. Production changes reuse existing actions and internal conditions. The [main plan](BackgroundAnalysisPlan.md#implementation-and-verification) records test-first evidence and final validation. The isolated paused-entry probes remain historical evidence for the ownership hazards, rather than integrated acceptance. Premoves remain separate.

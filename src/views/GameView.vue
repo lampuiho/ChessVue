@@ -37,7 +37,7 @@ import GameControlPanel from '@/components/GameControlPanel.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 import ModalDialog from '@/components/common/ModalDialog.vue';
 
-interface IRenderedBoard { game: IGame; node: IMoveNode; position: IBoardPosition; }
+interface IRenderedBoard { game: IGame; node: IMoveNode; position: IBoardPosition; analysis: boolean; inputAllowed: boolean; ongoing: boolean; boardEdit: boolean; }
 const route = useRoute();
 const router = useRouter();
 const gamesStore = useGamesStore();
@@ -68,14 +68,46 @@ const renderedNode = computed(() => {
   for (const childIndex of currentGame.renderedPath) node = node.children[childIndex]!;
   return node;
 });
+const livePosition = computed(() => {
+  const currentGame = game.value;
+  if (!currentGame?.livePath) return;
+  return MoveApplicationService.genPosition(currentGame.rootPosition, MoveHistoryService.getMoveSequence(currentGame.moveTree, currentGame.livePath));
+});
+const isInGameAnalysis = computed(() => !!game.value?.gameState.includes('AnalysisFrom'));
+const canInput = computed(() => {
+  const currentGame = game.value;
+  if (!currentGame) return false;
+  if (isInGameAnalysis.value) return true;
+  if (currentGame.gameState.startsWith('paused')) return false;
+  if (!currentGame.livePath || currentGame.resultState !== ResultState.Ongoing || currentGame.gameState === GameState.BoardEdit) return true;
+  if (currentGame.renderedPath !== currentGame.livePath) return !!currentGame.gameplayOptions.allowTakeback
+    && currentGame.renderedPath.length < currentGame.livePath.length && currentGame.renderedPath.every((part, index) => part === currentGame.livePath![index]);
+  const player = livePosition.value?.sideToMove === PlayerColour.White ? currentGame.whitePlayer : currentGame.blackPlayer;
+  return player?.type === PlayerType.Local;
+});
 const renderedBoard = computed<IRenderedBoard | undefined>((previous) => {
   const currentGame = game.value;
   const node = renderedNode.value;
   if (!currentGame || !node) return;
   const next = MoveApplicationService.genPosition(currentGame.rootPosition, MoveHistoryService.getMoveSequence(currentGame.moveTree, currentGame.renderedPath));
-  // Keep input during analysis publications; game, node or board changes replace its owner.
-  if (previous?.game === currentGame && previous.node === node && buildFen(previous.position) === buildFen(next)) return previous;
-  return { game: currentGame, node, position: next };
+  const analysis = isInGameAnalysis.value;
+  const inputAllowed = canInput.value;
+  const ongoing = currentGame.resultState === ResultState.Ongoing;
+  const boardEdit = currentGame.gameState === GameState.BoardEdit;
+  // Publications retain input only while the selected board and its permissions share the same owner.
+  if (previous?.game === currentGame && previous.node === node && previous.analysis === analysis && previous.inputAllowed === inputAllowed
+    && previous.ongoing === ongoing && previous.boardEdit === boardEdit && buildFen(previous.position) === buildFen(next)) return previous;
+  return { game: currentGame, node, position: next, analysis, inputAllowed, ongoing, boardEdit };
+});
+const inputActions = computed(() => {
+  const owner = renderedBoard.value;
+  return {
+    move: (move: IMove) => renderedBoard.value === owner ? _makeMove(move) : undefined,
+    line: (moves: readonly IMove[]) => renderedBoard.value === owner ? _playAnalysisLine(moves) : undefined,
+    analyse: () => _runInputAction(owner, (currentGame) => gamesStore.enterInGameAnalysis(currentGame)),
+    exit: () => _runInputAction(owner, (currentGame) => gamesStore.exitInGameAnalysis(currentGame)),
+    takeBack: () => _runInputAction(owner, (currentGame) => gamesStore.takeBack(currentGame)),
+  };
 });
 const position = computed(() => renderedBoard.value?.position);
 const lastMove = computed(() => renderedNode.value?.move);
@@ -88,8 +120,6 @@ const controlMode = computed<'live' | 'paused' | 'inGameAnalysis' | 'freeAnalysi
   const currentGame = game.value;
   if (!currentGame) return 'finished';
   if (currentGame.gameState === GameState.BoardEdit) return 'boardEdit';
-  const reasons = currentGame.$?.pauseReasons;
-  if (currentGame.gameState.includes('AnalysisFrom') && reasons?.includes(PauseReason.Analysis) && reasons.every((reason) => reason === PauseReason.Analysis)) return 'inGameAnalysis';
   if (currentGame.gameState.startsWith('paused')) return 'paused';
   if (currentGame.resultState !== ResultState.Ongoing) return 'finished';
   if (currentGame.gameState.includes('AnalysisFrom')) return 'inGameAnalysis';
@@ -97,13 +127,10 @@ const controlMode = computed<'live' | 'paused' | 'inGameAnalysis' | 'freeAnalysi
   return 'live';
 });
 const isBoardInputDisabled = computed(() => {
-  const currentGame = game.value;
-  if (!currentGame || controlMode.value === 'paused' || isPlayingLine.value) return true;
-  const currentPosition = position.value;
-  if (!currentPosition || controlMode.value !== 'live') return false;
-  const player = currentPosition.sideToMove === PlayerColour.White ? currentGame.whitePlayer : currentGame.blackPlayer;
-  return player?.type === PlayerType.Engine;
+  return !canInput.value || isPlayingLine.value;
 });
+const isHistoryInputDisabled = computed(() => controlMode.value === 'boardEdit' || (controlMode.value === 'paused' && !isInGameAnalysis.value) || isPlayingLine.value);
+const actualTurnColour = computed(() => game.value?.resultState === ResultState.Ongoing && !game.value.gameState.startsWith('paused') ? livePosition.value?.sideToMove : undefined);
 const canTakeBack = computed(() => {
   const currentGame = game.value;
   if (!currentGame || controlMode.value === 'boardEdit' || controlMode.value === 'paused' || isPlayingLine.value) return false;
@@ -195,6 +222,7 @@ async function _quickNewGame() {
   });
 }
 async function _handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown) {
+  await playback.cancel();
   const currentGame = game.value;
   if (!currentGame) return;
   if (settings.value?.gameSession.autoPauseOnMenu) await gamesStore.pauseGame(currentGame, PauseReason.Menu);
@@ -222,9 +250,20 @@ async function _closeTab(id: string) {
 async function _makeMove(move: IMove) {
   await _requestMoves([move]);
 }
+async function _runInputAction(owner: IRenderedBoard | undefined, action: (currentGame: IGame) => Promise<void> | void) {
+  if (!owner || renderedBoard.value !== owner) return;
+  await playback.cancel();
+  if (renderedBoard.value !== owner) return;
+  pendingContinuation.value = undefined;
+  await _run(() => action(owner.game));
+}
 async function _navigateToNode(node: IMoveNode) {
-  if (!game.value) return;
-  await _run(async () => gamesStore.navigateToNode(game.value!, node));
+  const currentGame = game.value;
+  if (!currentGame) return;
+  await playback.cancel();
+  if (game.value !== currentGame) return;
+  pendingContinuation.value = undefined;
+  await _run(() => gamesStore.navigateToNode(currentGame, node));
 }
 async function _returnToLivePosition() {
   const currentGame = game.value;
@@ -236,15 +275,15 @@ async function _returnToLivePosition() {
 async function _playAnalysisLine(moves: readonly IMove[]) {
   const currentGame = game.value;
   if (!currentGame || isPlayingLine.value) return;
-  const explore = !currentGame.livePath || currentGame.resultState !== ResultState.Ongoing || currentGame.$?.pauseReasons?.includes(PauseReason.Analysis);
+  const explore = !currentGame.livePath || currentGame.resultState !== ResultState.Ongoing || isInGameAnalysis.value;
   await _requestMoves(explore ? moves : moves.slice(0, 1));
 }
 async function _requestMoves(moves: readonly IMove[]) {
   const currentGame = game.value;
-  if (!currentGame || !moves.length || isPlayingLine.value) return;
+  if (!currentGame || !moves.length || !canInput.value || isPlayingLine.value || currentGame.gameState === GameState.BoardEdit) return;
   const livePath = currentGame.livePath;
   const historical = livePath && currentGame.renderedPath.length < livePath.length && currentGame.renderedPath.every((part, index) => part === livePath[index]);
-  if (historical && currentGame.resultState === ResultState.Ongoing && currentGame.gameplayOptions.allowTakeback && !currentGame.gameState.startsWith('paused')) {
+  if (historical && !isInGameAnalysis.value && currentGame.resultState === ResultState.Ongoing && currentGame.gameplayOptions.allowTakeback) {
     pendingContinuation.value = { game: currentGame, node: renderedNode.value!, moves };
     return;
   }
@@ -253,7 +292,8 @@ async function _requestMoves(moves: readonly IMove[]) {
 async function _confirmContinuation() {
   const pending = pendingContinuation.value;
   pendingContinuation.value = undefined;
-  if (!pending || game.value !== pending.game || renderedNode.value !== pending.node) return;
+  if (!pending || game.value !== pending.game || renderedNode.value !== pending.node || isInGameAnalysis.value
+    || pending.game.resultState !== ResultState.Ongoing || pending.game.gameState.startsWith('paused') || !pending.game.gameplayOptions.allowTakeback) return;
   await _run(() => _applyMoves(pending.game, pending.moves));
 }
 async function _applyMoves(currentGame: IGame, moves: readonly IMove[]) {
@@ -265,6 +305,9 @@ async function _applyMoves(currentGame: IGame, moves: readonly IMove[]) {
     validated.push(detailed);
     MoveApplicationService.applyMove(preview, detailed);
   }
+  const tree = currentGame.moveTree;
+  const analysis = isInGameAnalysis.value;
+  const ongoing = currentGame.resultState === ResultState.Ongoing;
   await playback.run(async (signal) => {
     isPlayingLine.value = validated.length > 1;
     let expectedPath = [...currentGame.renderedPath];
@@ -272,7 +315,9 @@ async function _applyMoves(currentGame: IGame, moves: readonly IMove[]) {
       for (const [index, move] of validated.entries()) {
         if (index > 0) await abortableDelay(350, signal);
         signal.throwIfAborted();
-        if (game.value !== currentGame || JSON.stringify(expectedPath) !== JSON.stringify(currentGame.renderedPath)) return;
+        if (game.value !== currentGame || currentGame.moveTree !== tree || analysis !== isInGameAnalysis.value
+          || ongoing !== (currentGame.resultState === ResultState.Ongoing) || !canInput.value || currentGame.gameState === GameState.BoardEdit
+          || JSON.stringify(expectedPath) !== JSON.stringify(currentGame.renderedPath)) return;
         await gamesStore.makeMove(currentGame, move);
         expectedPath = [...currentGame.renderedPath];
       }
@@ -284,7 +329,7 @@ async function _applyMoves(currentGame: IGame, moves: readonly IMove[]) {
 async function _toggleBoardEdit() {
   const currentGame = game.value;
   if (!currentGame) return;
-  if (controlMode.value === 'inGameAnalysis') {
+  if (isInGameAnalysis.value) {
     uiStateStore.showModal({ kind: AppModalKind.BoardEditBlocked, payload: { gameId: currentGame.metadata.id, reason: BoardEditBlockedReason.InGameAnalysis } });
     return;
   }
@@ -296,7 +341,7 @@ async function _handleDraw() {
   if (currentGame.drawOfferState?.direction === DrawOfferDirection.Incoming) return _run(() => gamesStore.acceptDrawOffer(currentGame));
   if (currentGame.drawOfferState?.direction === DrawOfferDirection.Outgoing) return _run(() => gamesStore.withdrawDrawOffer(currentGame));
   const isLocalGame = currentGame.whitePlayer?.type === PlayerType.Local && currentGame.blackPlayer?.type === PlayerType.Local;
-  if (isLocalGame) uiStateStore.showModal({ kind: AppModalKind.DrawOffer, payload: { gameId: currentGame.metadata.id, offeringColour: position.value.sideToMove } });
+  if (isLocalGame) uiStateStore.showModal({ kind: AppModalKind.DrawOffer, payload: { gameId: currentGame.metadata.id, offeringColour: livePosition.value?.sideToMove ?? position.value.sideToMove } });
   else await _run(() => gamesStore.offerDraw(currentGame));
 }
 function _requestPlayerSelection(colour: PlayerColour) {
@@ -361,7 +406,7 @@ async function _run(action: () => Promise<void> | void) {
       <GameTabs v-if="tabs.length > 1" :tabs="tabs" :active-id="game.metadata.id" @tab-selected="_selectTab" @tab-closed="_closeTab" />
       <div class="game-stage">
         <section class="board-column" :class="{ 'board-column--editing': controlMode === 'boardEdit' }">
-          <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="position.sideToMove === topColour && controlMode === 'live'" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="_requestPlayerSelection" />
+          <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="actualTurnColour === topColour" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="_requestPlayerSelection" />
           <Chessboard
             :position="position"
             :orientation="settings?.appearance.boardOrientation"
@@ -370,25 +415,25 @@ async function _run(action: () => Promise<void> | void) {
             :last-move="lastMove"
             :input-disabled="isBoardInputDisabled"
             :board-edit="controlMode === 'boardEdit'"
-            @move-attempted="_makeMove"
+            @move-attempted="inputActions.move"
             @chess-piece-toggled="(boardId, piece) => gamesStore.toggleChessPiece(game!, boardId, piece)"
             @chess-piece-deleted="(boardId) => gamesStore.deleteChessPiece(game!, boardId)"
             @chess-piece-moved="(from, to) => gamesStore.moveChessPiece(game!, from, to)"
             @board-cleared="gamesStore.clearBoard(game!)"
             @board-reset="gamesStore.resetBoardToStartPosition(game!)"
           />
-          <PlayerPanel :colour="bottomColour" :player="bottomPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="position.sideToMove === bottomColour && controlMode === 'live'" :captured-pieces="capturedByColour[bottomColour]" @player-selection-requested="_requestPlayerSelection" />
+          <PlayerPanel :colour="bottomColour" :player="bottomPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="actualTurnColour === bottomColour" :captured-pieces="capturedByColour[bottomColour]" @player-selection-requested="_requestPlayerSelection" />
         </section>
         <aside class="game-sidebar surface">
-          <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? position.sideToMove + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
-          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine" @collapse-toggled="_toggleSection('history')" @node-selected="_navigateToNode" @return-to-live-requested="_returnToLivePosition" />
+          <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? (livePosition?.sideToMove ?? position.sideToMove) + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
+          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="isHistoryInputDisabled" @collapse-toggled="_toggleSection('history')" @node-selected="_navigateToNode" @return-to-live-requested="_returnToLivePosition" />
           <AnalysisPanel
             v-if="layout?.showAnalysisPanel"
             :seats="analysisSeats"
             :collapsed="layout.analysisCollapsed"
             :expanded-by-index="layout.analysisEngineExpandedByIndex"
             :show-moves="showAnalysisMoves"
-            :disabled="controlMode === 'paused' || controlMode === 'boardEdit' || isPlayingLine"
+            :disabled="isBoardInputDisabled || controlMode === 'boardEdit'"
             :start-disabled="controlMode === 'boardEdit'"
             :can-add="canAddEngine"
             @collapse-toggled="_toggleSection('analysis')"
@@ -398,22 +443,23 @@ async function _run(action: () => Promise<void> | void) {
             @stop-requested="(index) => _run(() => gamesStore.stopAnalysis(game!, index))"
             @engine-add-requested="_requestAnalysisEngine"
             @engine-remove-requested="(index) => _run(() => _removeAnalysisEngine(index))"
-            @move-selected="_playAnalysisLine"
+            @move-selected="inputActions.line"
           />
+          <button v-if="controlMode === 'paused'" class="control-button" @click="isInGameAnalysis ? inputActions.exit() : inputActions.analyse()"><AppIcon name="activity" /><span><strong>{{ isInGameAnalysis ? 'Exit analysis' : 'Analyse' }}</strong><small>The game stays paused</small></span></button>
           <GameControlPanel
             class="game-sidebar__controls"
             :mode="controlMode"
             :can-take-back="canTakeBack"
             :can-pause="canPause"
             :draw-pending="!!game.drawOfferState"
-            @take-back-requested="_run(() => gamesStore.takeBack(game!))"
+            @take-back-requested="inputActions.takeBack"
             @pause-requested="_run(() => gamesStore.pauseGame(game!, PauseReason.Manual))"
             @resume-requested="_run(() => gamesStore.resumeGame(game!, PauseReason.Manual))"
-            @analysis-requested="_run(() => gamesStore.enterInGameAnalysis(game!))"
-            @exit-analysis-requested="gamesStore.exitInGameAnalysis(game!)"
+            @analysis-requested="inputActions.analyse"
+            @exit-analysis-requested="inputActions.exit"
             @board-edit-requested="_toggleBoardEdit"
             @start-game-requested="uiStateStore.showModal({ kind: AppModalKind.StartGameFromSetup, payload: { gameId: game.metadata.id } })"
-            @resign-requested="uiStateStore.showModal({ kind: AppModalKind.Resign, payload: { gameId: game.metadata.id, colour: position.sideToMove } })"
+            @resign-requested="uiStateStore.showModal({ kind: AppModalKind.Resign, payload: { gameId: game.metadata.id, colour: livePosition?.sideToMove ?? position.sideToMove } })"
             @draw-requested="_handleDraw"
           />
         </aside>

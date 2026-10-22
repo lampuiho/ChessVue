@@ -67,7 +67,7 @@ describe('useGameStatus', () => {
     expect(refreshRuntimeRegistrations).not.toHaveBeenCalled();
     expect(touchGame).not.toHaveBeenCalled();
   });
-  it('rejects result commands outside the rendered live position', async () => {
+  it('rejects result commands in explicit analysis but uses actual play during ordinary review', async () => {
     const { position, status } = _createSubject();
     const game = position.hydrateGame(createGame());
     game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
@@ -76,6 +76,7 @@ describe('useGameStatus', () => {
 
     game.gameState = GameState.LiveWhiteTurn;
     game.renderedPath = [0];
-    await expect(status.offerDraw(game)).rejects.toThrow('ongoing game at its live position');
+    await status.offerDraw(game);
+    expect(game.drawOfferState?.offeringColour).toBe(PlayerColour.White);
   });
 });

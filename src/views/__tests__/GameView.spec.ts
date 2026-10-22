@@ -8,6 +8,7 @@ import {
   GameState,
   PauseReason,
   PlayerColour,
+  ResultState,
   TimeControlPreset,
   type IAppModalState,
   type IGame,
@@ -17,6 +18,7 @@ import { createAnalysisSeat, createClockSnapshot, createGame, createGameSessionS
 import { createInitialBoardPosition, toDetailedMove } from '@/utility/chess';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
 import GameView from '../GameView.vue';
+import { ClockTimestamp } from '@/utility/date';
 
 interface ITestDependency {
   route: { params: { id: string } };
@@ -30,6 +32,9 @@ interface ITestDependency {
     pauseGame: ReturnType<typeof vi.fn>;
     resumeGame: ReturnType<typeof vi.fn>;
     onAutosaveFailed: ReturnType<typeof vi.fn>;
+    makeMove: ReturnType<typeof vi.fn>;
+    enterInGameAnalysis: ReturnType<typeof vi.fn>;
+    exitInGameAnalysis: ReturnType<typeof vi.fn>;
   };
   settingsStore: { settings: ISettingsSnapshot };
   uiStateStore: {
@@ -72,7 +77,17 @@ function _createTimedGame(id: string = 'game-1', pauseReasons: PauseReason[] = [
   });
   game.metadata.id = id;
   game.metadata.name = id;
+  game.clockSnapshot.startedAtUtc = new ClockTimestamp();
+  game.renderedPath = game.livePath!;
   return game;
+}
+function _line() {
+  const preview = createInitialBoardPosition();
+  return [[12, 28], [52, 36], [6, 21]].map(([from, to]) => {
+    const move = toDetailedMove(preview, { from: from!, to: to! });
+    MoveApplicationService.applyMove(preview, move);
+    return move;
+  });
 }
 function _mountView(game: IGame = _createTimedGame()): VueWrapper {
   games.set(game.metadata.id, game);
@@ -106,6 +121,9 @@ describe('GameView menu interruptions', () => {
         if (!game.$?.pauseReasons?.includes(reason)) return;
         game.$.pauseReasons = game.$.pauseReasons.filter((candidate) => candidate !== reason);
       }),
+      makeMove: vi.fn(async () => {}),
+      enterInGameAnalysis: vi.fn(async () => {}),
+      exitInGameAnalysis: vi.fn(),
     });
     dependency.settingsStore = reactive({ settings: createSettingsSnapshot() });
     dependency.uiStateStore = reactive({
@@ -128,18 +146,72 @@ describe('GameView menu interruptions', () => {
     for (const wrapper of wrappers.splice(0)) wrapper.unmount();
     vi.useRealTimers();
   });
-  it('renders history review as read-only until explicit analysis entry', async () => {
+  it('requires explicit analysis for history exploration without inventing a control mode', async () => {
     const game = _createTimedGame();
     game.rootPosition = createInitialBoardPosition();
     MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
     game.livePath = [0];
     game.renderedPath = [];
     game.gameState = GameState.LiveBlackTurn;
+    game.gameplayOptions.allowTakeback = false;
     const wrapper = _mountView(game);
     await flushPromises();
-    expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('historyReview');
+    expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('live');
     expect(wrapper.getComponent({ name: 'Chessboard' }).props('inputDisabled')).toBe(true);
     expect(wrapper.getComponent({ name: 'AnalysisPanel' }).props('disabled')).toBe(true);
+  });
+  it('retains ordinary history move confirmation when Takeback is allowed', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    game.livePath = [0];
+    game.renderedPath = [];
+    game.gameState = GameState.LiveBlackTurn;
+    game.gameplayOptions.allowTakeback = true;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    expect(wrapper.getComponent({ name: 'Chessboard' }).props('inputDisabled')).toBe(false);
+    wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', toDetailedMove(game.rootPosition, { from: 11, to: 27 }));
+    await flushPromises();
+    expect(wrapper.findComponent({ name: 'ModalDialog' }).exists()).toBe(true);
+    expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
+  });
+  it('exposes paused Analyse and Exit while retaining Resume and independent exploratory input', async () => {
+    const game = _createTimedGame('game-1', [PauseReason.Manual]);
+    game.gameState = GameState.PausedWhiteTurn;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    const action = wrapper.findAll('button').find((button) => button.text().includes('Analyse'));
+    expect(action).toBeDefined();
+    await action!.trigger('click');
+    expect(dependency.gamesStore.enterInGameAnalysis).toHaveBeenCalledWith(game);
+    game.gameState = GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove;
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('paused');
+    expect(wrapper.getComponent({ name: 'Chessboard' }).props('inputDisabled')).toBe(false);
+    expect(wrapper.getComponent({ name: 'HistoryPanel' }).props('disabled')).toBe(false);
+    expect(wrapper.getComponent({ name: 'AnalysisPanel' }).props('disabled')).toBe(false);
+    expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('canTakeBack')).toBe(false);
+    const exit = wrapper.findAll('button').find((button) => button.text().includes('Exit analysis'));
+    expect(exit).toBeDefined();
+    await exit!.trigger('click');
+    expect(dependency.gamesStore.exitInGameAnalysis).toHaveBeenCalledWith(game);
+    expect(dependency.gamesStore.resumeGame).not.toHaveBeenCalled();
+  });
+  it('applies explicit historical analysis directly without opening rewrite confirmation', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    game.livePath = [0];
+    game.renderedPath = [];
+    game.gameState = GameState.LiveAnalysisFromBlackTurnWhiteMove;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', toDetailedMove(game.rootPosition, { from: 11, to: 27 }));
+    await flushPromises();
+    expect(wrapper.findComponent({ name: 'ModalDialog' }).exists()).toBe(false);
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
   });
   it('replaces the board input owner when entering analysis at the same canonical node', async () => {
     const game = _createTimedGame();
@@ -153,6 +225,84 @@ describe('GameView menu interruptions', () => {
     await nextTick();
     expect(board.props('position')).not.toBe(original);
     expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('inGameAnalysis');
+  });
+  it('rejects a retained board callback after its selected input context changes', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    const wrapper = _mountView(game);
+    await flushPromises();
+    const board = wrapper.getComponent({ name: 'Chessboard' });
+    const retained = board.vm.$.vnode.props!.onMoveAttempted as (move: ReturnType<typeof toDetailedMove>) => unknown;
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    await retained(toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
+    board.vm.$emit('moveAttempted', toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    await flushPromises();
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
+  });
+  it.each([false, true])('plays a complete analysis prefix with actual pause %s', async (paused) => {
+    const game = _createTimedGame('game-1', paused ? [PauseReason.Manual] : []);
+    game.rootPosition = createInitialBoardPosition();
+    game.gameState = paused ? GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove : GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', _line());
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledTimes(3);
+    expect(game.$!.pauseReasons).toEqual(paused ? [PauseReason.Manual] : []);
+    expect(dependency.gamesStore.resumeGame).not.toHaveBeenCalled();
+  });
+  it('stops a delayed analysis prefix when background actual play ends', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', _line());
+    await flushPromises();
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
+    game.resultState = ResultState.BlackWon;
+    game.gameState = GameState.AnalysisWhiteMove;
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
+  });
+  it('preserves selected input when actual colour changes behind analysis', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    game.renderedPath = [];
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    const board = wrapper.getComponent({ name: 'Chessboard' });
+    const selected = board.props('position');
+    MoveHistoryService.addMainlineMove(game.moveTree.root, _line()[0]!);
+    game.livePath!.push(0);
+    game.gameState = GameState.LiveAnalysisFromBlackTurnWhiteMove;
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    expect(board.props('position')).toBe(selected);
+    expect(board.props('inputDisabled')).toBe(false);
+  });
+  it('cancels delayed analysis playback before Exit changes the mode', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    dependency.gamesStore.exitInGameAnalysis.mockImplementation(() => { game.gameState = GameState.LiveWhiteTurn; });
+    const wrapper = _mountView(game);
+    await flushPromises();
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', _line());
+    await flushPromises();
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
+    wrapper.getComponent({ name: 'GameControlPanel' }).vm.$emit('exitAnalysisRequested');
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
+    expect(dependency.gamesStore.exitInGameAnalysis).toHaveBeenCalledOnce();
   });
   it('publishes raw seat changes through workspaceRevision and allows paused runtime controls', async () => {
     const game = _createTimedGame();

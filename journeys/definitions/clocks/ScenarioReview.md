@@ -44,7 +44,7 @@ Intent: timestamp arithmetic survives missed UI ticks and repeated focus signals
 
 ## JRN-CLOCK-10
 
-Intent: running restores charge elapsed wall time; paused restores retain saved remaining time. Classification: ownership reconstruction implemented. Running, paused, expired and analysis-paused saves reload through normal session restoration, retaining named snapshot bytes and permitting continued play where eligible. Since version-1 saves exclude runtime pause reasons, restored paused analysis conservatively retains Analysis plus Manual: Resume unlocks exploration, then Exit analysis starts live time. This avoids silently discarding a saved manual pause without changing the schema. Browser and integration assertions cover this explicit return sequence and menu cancellation before Resume.
+Intent: running restores charge elapsed wall time; paused restores retain saved remaining time. Classification: ownership reconstruction implemented. Running, paused, expired and analysis-paused saves reload through normal session restoration, retaining named snapshot bytes and permitting continued play where eligible. Since version-1 saves exclude runtime pause reasons, restored paused analysis reconstructs Manual only: explicit Resume starts actual play while analysis stays selected, and Exit never releases a genuine pause. This preserves a saved genuine pause without requiring an extra Exit or changing the schema. Browser and integration assertions cover this explicit return sequence and menu cancellation before Resume.
 
 ## JRN-CLOCK-11
 

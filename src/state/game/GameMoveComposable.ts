@@ -1,17 +1,13 @@
 import {
-  AnalysisBranchExitBehaviour,
   GameState,
-  PauseReason,
   PlayerType,
-  ResultReason,
   ResultState,
   type IBoardPosition,
   type IGame,
   type IMove,
   type IMoveNode,
 } from '@/contracts';
-import { EngineRuntimeService, MoveApplicationService, MoveHistoryService, UserSettingService } from '@/domain';
-import { getOpponentColour } from '@/utility/chess/BoardUtility';
+import { EngineRuntimeService, MoveApplicationService, MoveHistoryService } from '@/domain';
 import { ClockTimestamp } from '@/utility/date';
 import type { GameAnalysisComposable } from './GameAnalysisComposable';
 import type { GameClockComposable } from './GameClockComposable';
@@ -53,23 +49,25 @@ export function useGameMove(dependency: IGameMoveDependency) {
     status.updateGameResultFromLivePosition(game, livePosition);
     if (game.resultState !== ResultState.Ongoing) position.getLiveNode(game).clockSnapshot = game.clockSnapshot;
     const renderedColour = isLivePositionRendered ? livePosition.sideToMove : position.getRenderedPosition(game).sideToMove;
-    if (game.resultState === ResultState.Ongoing && !isLivePositionRendered) game.gameState = status.getLiveAnalysisState(livePosition.sideToMove, renderedColour);
-    else status.updateGameStateAfterPosition(game, renderedColour);
+    if (game.resultState !== ResultState.Ongoing) game.gameState = status.getAnalysisState(renderedColour);
+    else if (status.isAnyLiveAnalysisState(game.gameState)) game.gameState = status.getLiveAnalysisState(livePosition.sideToMove, renderedColour);
+    else game.gameState = status.getLiveState(livePosition.sideToMove);
     void _publishRenderedPosition(game, isLivePositionRendered);
     clock.refreshRuntimeRegistrations(game);
     playerTurn.requestPlayerMoveIfNeeded(game);
   }
   async function _commitHistoryRewriteMove(game: IGame, move: IMove) {
-    const moveTimestamp = new ClockTimestamp();
     const renderedNode = position.getRenderedNode(game);
     const renderedPosition = position.getRenderedPosition(game);
-    position.setLivePath(game, game.renderedPath, { node: renderedNode, position: renderedPosition });
     await playerTurn.clearPlayerTurnRuntime(game);
+    if (game.resultState !== ResultState.Ongoing) return;
+    const moveTimestamp = new ClockTimestamp();
+    position.setLivePath(game, game.renderedPath, { node: renderedNode, position: renderedPosition });
     const selectedClockSnapshot = renderedNode.clockSnapshot ?? game.clockSnapshot;
-    game.clockSnapshot = clock.startClock(selectedClockSnapshot, renderedPosition.sideToMove, moveTimestamp); // clock is wrong without adding pause timestamp, should've added pause so game counts current turn used time than from when the history was played?
+    game.clockSnapshot = clock.startClock(selectedClockSnapshot, renderedPosition.sideToMove, moveTimestamp);
     game.gameState = status.getLiveState(renderedPosition.sideToMove);
     if (clock.reconcileTimeout(game, moveTimestamp)) return;
-    const nextNode = _applyLiveMove(game, move, moveTimestamp);
+    _applyLiveMove(game, move, moveTimestamp);
     _finaliseLiveMove(game, renderedPosition, true);
   }
   function commitLiveMove(game: IGame, move: IMove) {
@@ -77,21 +75,23 @@ export function useGameMove(dependency: IGameMoveDependency) {
     if (!livePath) throw new ReferenceError('live path is undefined even though we are making a live move');
     const moveTimestamp = new ClockTimestamp();
     if (clock.reconcileTimeout(game, moveTimestamp)) return;
-    const isLivePositionRendered = position.pathsEqual(game.renderedPath, livePath);
+    const isLivePositionRendered = game.renderedPath === livePath;
     const parentNode = position.getLiveNode(game);
     const livePosition = position.getLivePosition(game);
-    if (parentNode.children.length > 0) MoveHistoryService.pruneFutureMoves(parentNode);
-    const nextNode = _applyLiveMove(game, move, moveTimestamp);
+    if (parentNode.children.length > 0 && !position.isPathPrefix(livePath, game.renderedPath)) MoveHistoryService.pruneFutureMoves(parentNode);
+    _applyLiveMove(game, move, moveTimestamp);
     _finaliseLiveMove(game, livePosition, isLivePositionRendered);
   }
   function _returnToLiveNode(game: IGame) {
+    const paused = status.isPausedState(game.gameState);
     const changed = !position.pathsEqual(game.renderedPath, game.livePath);
     const liveNode = position.getLiveNode(game);
     const livePosition = position.getLivePosition(game);
     position.setRenderedPath(game, game.livePath!, { node: liveNode, position: livePosition });
-    game.gameState = status.getLiveState(livePosition.sideToMove);
+    game.gameState = game.resultState !== ResultState.Ongoing ? status.getAnalysisState(livePosition.sideToMove)
+      : paused ? status.getPausedState(livePosition.sideToMove) : status.getLiveState(livePosition.sideToMove);
     void _publishRenderedPosition(game, changed);
-    playerTurn.requestPlayerMoveIfNeeded(game);
+    if (status.isLiveTurnReadyForMove(game)) playerTurn.requestPlayerMoveIfNeeded(game);
   }
   function _advanceRenderedAnalysisBranch(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove): IBoardPosition {
     let renderedPosition = parentPosition;
@@ -101,15 +101,6 @@ export function useGameMove(dependency: IGameMoveDependency) {
     position.setRenderedPath(game, position.getPathToNode(nextNode), { node: nextNode, position: renderedPosition });
     moveCommitted(game);
     return renderedPosition;
-  }
-  function _commitLiveHistoryAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove, exitBehaviour: AnalysisBranchExitBehaviour) {
-    const renderedPosition = _advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move);
-    if (exitBehaviour === AnalysisBranchExitBehaviour.ReturnToLiveNode) {
-      _returnToLiveNode(game);
-      return;
-    }
-    game.gameState = status.getLiveAnalysisState(position.getLivePosition(game).sideToMove, renderedPosition.sideToMove, status.isPausedLiveAnalysisState(game.gameState));
-    void _publishRenderedPosition(game);
   }
   function _commitLiveAnalysisMove(game: IGame, parentNode: IMoveNode, parentPosition: IBoardPosition, move: IMove) {
     const renderedPosition = _advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move);
@@ -137,19 +128,18 @@ export function useGameMove(dependency: IGameMoveDependency) {
   }
   async function makeMove(game: IGame, move: IMove) {
     status.assertMoveAllowed(game);
-    if (status.isOngoingLiveGame(game) && status.isLiveState(game.gameState)) {
-      await playerTurn.attemptPlayerMove(game, move);
-      return;
-    }
     const parentNode = position.getRenderedNode(game);
     const parentPosition = position.getRenderedPosition(game);
-    if (status.isOngoingLiveGame(game) && !status.isPausedLiveAnalysisState(game.gameState) && status.isLiveHistoryReview(game)) {
-      if (game.gameplayOptions.allowTakeback) await _commitHistoryRewriteMove(game, move);
-      else _commitLiveHistoryAnalysisMove(game, parentNode, parentPosition, move, UserSettingService.getSettings().gameplay.analysisBranchExitBehaviour);
-      return;
+    if (!status.isOngoingLiveGame(game)) _commitStandaloneAnalysisMove(game, parentNode, parentPosition, move);
+    else if (status.isAnyLiveAnalysisState(game.gameState)) _commitLiveAnalysisMove(game, parentNode, parentPosition, move);
+    else if (status.isLiveHistoryReview(game) && game.gameplayOptions.allowTakeback) await _commitHistoryRewriteMove(game, move);
+    else if (game.renderedPath !== game.livePath) throw new Error('Enter analysis to explore this historical position.');
+    else {
+      const livePosition = position.getLivePosition(game);
+      const player = playerTurn.getSideToMovePlayer(game, livePosition.sideToMove);
+      if (player?.type !== PlayerType.Local || move.movingColour !== livePosition.sideToMove) throw new Error('This move does not belong to the current local turn.');
+      await playerTurn.attemptPlayerMove(game, move);
     }
-    if (status.isOngoingLiveGame(game)) _commitLiveAnalysisMove(game, parentNode, parentPosition, move);
-    else _commitStandaloneAnalysisMove(game, parentNode, parentPosition, move);
   }
   function getTakeBackMoveCount(game: IGame) {
     let node = game.livePath ? position.getLiveNode(game) : position.getRenderedNode(game);
@@ -169,7 +159,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
   }
   async function takeBack(game: IGame, moveCount: number = getTakeBackMoveCount(game)) {
     status.assertExplorationAllowed(game, 'Takeback');
-    const analysisPaused = status.canExploreAnalysis(game);
+    status.assertNotPausedForAction(game, 'Takeback');
     const hasLivePath = !!game.livePath;
     if (hasLivePath && !game.gameplayOptions.allowTakeback) throw new Error('Takeback is not allowed for this game.');
     if (moveCount <= 0) return;
@@ -188,7 +178,6 @@ export function useGameMove(dependency: IGameMoveDependency) {
       const selectedClockSnapshot = fallbackNode.clockSnapshot ?? game.clockSnapshot;
       game.clockSnapshot = clock.startClock(selectedClockSnapshot, fallbackPosition.sideToMove, new ClockTimestamp());
       game.gameState = status.getLiveState(fallbackPosition.sideToMove);
-      if (analysisPaused) await clock.pauseGame(game, PauseReason.Analysis);
     } else status.updateGameStateAfterPosition(game, fallbackPosition.sideToMove);
     const analysisWork = _publishRenderedPosition(game, changed);
     clock.refreshRuntimeRegistrations(game);
@@ -202,67 +191,31 @@ export function useGameMove(dependency: IGameMoveDependency) {
     const changed = !position.pathsEqual(game.renderedPath, nextPath);
     const hasLivePath = !!game.livePath;
     const isLiveNode = hasLivePath && position.pathsEqual(nextPath, game.livePath);
-    if (isLiveNode && (status.isLiveState(game.gameState) || status.isLiveAnalysisState(game.gameState))) {
+    if (isLiveNode) {
       _returnToLiveNode(game);
       return;
     }
-    const renderedPosition = isLiveNode ? position.getLivePosition(game) : undefined;
-    position.setRenderedPath(game, nextPath, { node, position: renderedPosition });
+    position.setRenderedPath(game, nextPath, { node });
     const renderedColour = position.getRenderedPosition(game).sideToMove;
-    if (hasLivePath && (status.isLiveState(game.gameState) || status.isAnyLiveAnalysisState(game.gameState))) game.gameState = status.getLiveAnalysisState(position.getLivePosition(game).sideToMove, renderedColour, status.isPausedLiveAnalysisState(game.gameState));
+    if (hasLivePath && game.resultState === ResultState.Ongoing && status.isAnyLiveAnalysisState(game.gameState)) game.gameState = status.getLiveAnalysisState(position.getLivePosition(game).sideToMove, renderedColour, status.isPausedState(game.gameState));
+    else if (hasLivePath && game.resultState === ResultState.Ongoing) game.gameState = status.isPausedState(game.gameState)
+      ? status.getPausedState(position.getLivePosition(game).sideToMove) : status.getLiveState(position.getLivePosition(game).sideToMove);
     else status.updateGameStateAfterPosition(game, renderedColour);
     void _publishRenderedPosition(game, changed);
   }
   async function enterInGameAnalysis(game: IGame) {
-    status.assertNotPausedForAction(game, 'In-game analysis entry');
-    if (status.isLiveState(game.gameState)) {
-      const liveNode = position.getLiveNode(game);
-      await clock.pauseGame(game, PauseReason.Analysis);
-      const livePosition = position.getLivePosition(game);
-      const changed = !position.pathsEqual(game.renderedPath, game.livePath);
-      position.setRenderedPath(game, position.getPathToNode(liveNode), { node: liveNode, position: livePosition });
-      const liveColour = livePosition.sideToMove;
-      game.gameState = status.getLiveAnalysisState(liveColour, liveColour, true);
-      void _publishRenderedPosition(game, changed);
-      return;
-    }
-    if (game.resultReason !== ResultReason.Timeout || !game.livePath) return;
-    if (game.renderedPath === game.livePath) {
-      position.setRenderedPath(game, [...game.renderedPath], { node: position.getRenderedNode(game), position: position.getRenderedPosition(game) });
-    }
-    game.gameState = status.getLiveAnalysisState(position.getLivePosition(game).sideToMove, position.getRenderedPosition(game).sideToMove);
-    touchGame(game);
+    if (!game.livePath || status.isAnyLiveAnalysisState(game.gameState) || game.gameState === GameState.BoardEdit) return;
+    const paused = status.isPausedState(game.gameState);
+    const livePosition = position.getLivePosition(game);
+    const renderedPosition = MoveApplicationService.genPosition(position.getRenderedPosition(game), []);
+    position.setRenderedPath(game, [...game.renderedPath], { node: position.getRenderedNode(game), position: renderedPosition });
+    game.gameState = game.resultState === ResultState.Ongoing
+      ? status.getLiveAnalysisState(livePosition.sideToMove, renderedPosition.sideToMove, paused) : status.getAnalysisState(renderedPosition.sideToMove);
+    void _publishRenderedPosition(game, false);
   }
   function exitInGameAnalysis(game: IGame) {
-    if (!status.isAnyLiveAnalysisState(game.gameState)) return;
-    const changed = !position.pathsEqual(game.renderedPath, game.livePath);
-    const liveNode = position.getLiveNode(game);
-    const livePosition = position.getLivePosition(game);
-    if (!game.livePath) throw new ReferenceError('Exiting in-game analysis without a live path is not possible.');
-    position.setRenderedPath(game, game.livePath, { node: liveNode, position: livePosition });
-    const liveColour = livePosition.sideToMove;
-    if (game.resultReason === ResultReason.Timeout && game.resultState !== ResultState.Ongoing) {
-      game.gameState = status.getAnalysisState(getOpponentColour(liveColour));
-      void _publishRenderedPosition(game, changed);
-      return;
-    }
-    if (status.isPausedLiveAnalysisState(game.gameState)) _resumeFromInGameAnalysis(game, liveColour);
-    else game.gameState = status.getLiveState(liveColour);
-    void _publishRenderedPosition(game, changed);
-    if (status.isLiveState(game.gameState)) {
-      void playerTurn.flushDeferredPlayerMove(game);
-      playerTurn.requestPlayerMoveIfNeeded(game);
-    }
-  }
-  function _resumeFromInGameAnalysis(game: IGame, liveColour: Parameters<GameStatusComposable['getLiveState']>[0]) {
-    const runtime = position.requireGameRuntime(game);
-    runtime.pauseReasons = (runtime.pauseReasons ?? []).filter((candidate) => candidate !== PauseReason.Analysis);
-    if ((runtime.pauseReasons ?? []).length > 0) game.gameState = status.getPausedState(liveColour);
-    else {
-      game.clockSnapshot = clock.resumeClock(game.clockSnapshot, new ClockTimestamp());
-      game.gameState = status.getLiveState(liveColour);
-    }
-    clock.refreshRuntimeRegistrations(game);
+    if (!game.livePath || (!status.isAnyLiveAnalysisState(game.gameState) && game.resultState === ResultState.Ongoing)) return;
+    _returnToLiveNode(game);
   }
   return {
     commitLiveMove,

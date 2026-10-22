@@ -39,6 +39,7 @@ for (const context of ['free', 'in-game', 'timed in-game']) for (const length of
     const before = await saveCurrentGame(page, 'prefix-anchor');
     const prefix = before.analysis.seats[0]!.lines[0]!.pv.slice(0, length);
     await page.clock.pauseAt(new Date(analysisTime.getTime() + 60000));
+    if (context === 'timed in-game') await page.clock.setFixedTime(new Date(analysisTime.getTime() + 60000));
     await analysisSeat(page).locator('.analysis-line').first().getByRole('button').nth(length - 1).click();
     await expect(page.locator('.history-row')).toHaveCount(3);
     if (length > 1) {
@@ -48,12 +49,16 @@ for (const context of ['free', 'in-game', 'timed in-game']) for (const length of
       await page.clock.runFor(351);
     }
     await expect(page.locator('.history-row')).toHaveCount(2 + length);
-    await expectMoveBoard(page, prefix[length - 1]!);
+    await expectMoveBoard(page, prefix[length - 1]!, context === 'free' ? undefined : 'white');
     await page.clock.runFor(1000);
+    if (context === 'timed in-game') await page.clock.setFixedTime(new Date(analysisTime.getTime() + 61000 + (length > 1 ? 700 : 0)));
     const after = await saveCurrentGame(page, 'selected-prefix');
     expectPrefix(after, before.renderedPath, prefix, 'analysis');
     expect(after.livePath).toEqual(before.livePath);
-    expect(after.clockSnapshot).toEqual(before.clockSnapshot);
+    if (context === 'timed in-game') {
+      expect(after.clockSnapshot.white.remainingMs).toBe(before.clockSnapshot.white.remainingMs! - 61000 - (length > 1 ? 700 : 0));
+      expect(after.clockSnapshot.black.remainingMs).toBe(before.clockSnapshot.black.remainingMs);
+    } else expect(after.clockSnapshot).toEqual(before.clockSnapshot);
     if (context !== 'free') {
       await page.getByRole('button', { name: /Exit analysis/ }).click();
       await expect(page.locator('.result-badge')).toHaveText('white to move');

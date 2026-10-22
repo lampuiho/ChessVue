@@ -4,13 +4,15 @@ import { playMove, square } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 import { addAnalysisEngine, createTimedHistory, nodeAt } from './HistorySetup';
 
-for (const mode of ['untimed', 'timed']) {
+for (const mode of ['untimed', 'timed', 'paused']) {
   test(`JRN-HIST-05 @smoke explores both colours and an engine prefix in ${mode} analysis then returns live`, async ({ page }) => {
     await openJourney(page, 'history');
-    await createTimedHistory(page, mode === 'timed');
+    await createTimedHistory(page, mode !== 'untimed');
     await addAnalysisEngine(page);
+    if (mode === 'paused') await page.getByRole('button', { name: /^Pause Stop/ }).click();
     await page.getByRole('button', { name: /Analyse/ }).click();
     const before = await saveCurrentGame(page, 'analysis-anchor');
+    if (mode === 'paused') await expect(page.getByRole('button', { name: /^Resume game/ })).toBeVisible();
     await playMove(page, 'g1', 'f3');
     await playMove(page, 'b8', 'c6');
     await expect(square(page, 'f3')).toHaveAttribute('aria-label', 'f3 white knight');
@@ -27,6 +29,11 @@ for (const mode of ['untimed', 'timed']) {
     await expect(square(page, 'g1')).toHaveAttribute('aria-label', 'g1 white knight');
     await expect(square(page, 'b8')).toHaveAttribute('aria-label', 'b8 black knight');
     const after = await saveCurrentGame(page, 'returned');
+    if (mode === 'paused') {
+      expect(after.gameState).toBe('pausedWhiteTurn');
+      expect(after.clockSnapshot.white.isRunning).toBe(false);
+      await expect(page.getByRole('button', { name: /^Resume game/ })).toBeVisible();
+    }
     expect(after.renderedPath).toEqual(before.livePath);
     expect(after.moveTree).toEqual(explored.moveTree);
     if (mode === 'timed') {

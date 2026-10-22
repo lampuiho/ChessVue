@@ -19,24 +19,26 @@ function _getNode(tree: IMoveTree, path: MovePath): IMoveNode {
 }
 
 describe('MoveHistoryService', () => {
-  it('removes released analysis children while preserving actual mainline and array ownership', () => {
+  it('retains analysis history when an actual sibling becomes the mainline', () => {
     const tree = MoveHistoryService.createMoveTree();
     const analysis = MoveHistoryService.addAnalysisMove(tree.root, sampleMove);
     const actual = MoveHistoryService.addMainlineMove(tree.root, sampleMove);
     const children = tree.root.children;
-    expect(MoveHistoryService.pruneAnalysisMoves(tree.root)).toBe(true);
     expect(tree.root.children).toBe(children);
-    expect(children).toEqual([actual]);
-    expect(tree.root.mainlineChildIndex).toBe(0);
+    expect(children).toEqual([analysis, actual]);
+    expect(tree.root.mainlineChildIndex).toBe(1);
     expect(actual.$?.parent).toBe(tree.root);
-    expect(analysis.$).toBeUndefined();
+    expect(analysis.$?.parent).toBe(tree.root);
   });
-  it('does not change an actual continuation when there are no released analysis children', () => {
+  it('keeps an unrelated actual continuation when another parent is explicitly pruned', () => {
     const tree = MoveHistoryService.createMoveTree();
+    const analysis = MoveHistoryService.addAnalysisMove(tree.root, sampleMove);
+    MoveHistoryService.addAnalysisMove(analysis, sampleMove);
     const actual = MoveHistoryService.addMainlineMove(tree.root, sampleMove);
-    expect(MoveHistoryService.pruneAnalysisMoves(tree.root)).toBe(false);
-    expect(tree.root.children).toEqual([actual]);
-    expect(tree.root.mainlineChildIndex).toBe(0);
+    MoveHistoryService.pruneFutureMoves(analysis);
+    expect(tree.root.children).toEqual([analysis, actual]);
+    expect(analysis.children).toEqual([]);
+    expect(tree.root.mainlineChildIndex).toBe(1);
   });
   it('creates a root-only tree with the supplied clock snapshot', () => {
     const clockSnapshot = TimeControlService.initialiseClockSnapshot({

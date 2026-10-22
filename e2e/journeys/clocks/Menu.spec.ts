@@ -31,18 +31,19 @@ for (const menu of clockMenus) {
       await closeClockMenu(page, menu);
       await expect(page.getByRole('heading', { name: owner === 'analysis' ? 'Analysis mode' : 'Game paused', exact: true })).toBeVisible();
       await expect(playerClock(page, 'white')).toHaveText(owner === 'restored manual' ? '2:00' : '1:59');
-      await expect(playerClock(page, 'white')).not.toHaveClass(/player-clock--running/);
+      if (owner === 'analysis') await expect(playerClock(page, 'white')).toHaveClass(/player-clock--running/);
+      else await expect(playerClock(page, 'white')).not.toHaveClass(/player-clock--running/);
       if (owner !== 'analysis') await expect(square(page, 'g1')).toBeDisabled();
       else {
         await playMove(page, 'g1', 'f3');
         expect((await saveCurrentGame(page, 'analysis-owned')).livePath).toEqual([0, 0]);
       }
       await advanceClock(page, 10000);
-      await expect(playerClock(page, 'white')).toHaveText(owner === 'restored manual' ? '2:00' : '1:59');
+      await expect(playerClock(page, 'white')).toHaveText(owner === 'analysis' ? '1:49' : owner === 'restored manual' ? '2:00' : '1:59');
       if (owner !== 'analysis') await resumeClock(page);
       else await page.getByRole('button', { name: /^Exit analysis/ }).click();
       await advanceClock(page, 1000);
-      await expect(playerClock(page, 'white')).toHaveText(owner === 'restored manual' ? '1:59' : '1:58');
+      await expect(playerClock(page, 'white')).toHaveText(owner === 'analysis' ? '1:48' : owner === 'restored manual' ? '1:59' : '1:58');
     });
   }
   test(`JRN-CLOCK-05 keeps time running through ${menu} when menu pause is disabled`, async ({ page }) => {

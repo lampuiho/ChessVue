@@ -2,7 +2,7 @@
 
 Reviewed on 16 October 2026 against the working-tree scenarios/contracts based on `36ea082`. Execution evidence belongs to the generated Playwright report. The stable two-game seed, IDs, branches and untimed clocks are retained in owned data; timed examples use Custom with browser time installed before startup.
 
-The review preserves [temporary exploration and actual-move recording](../../../docs/questions/analysis/Q-ANALYSIS-002-VariationRetention.md). Explicit Analyse pauses the live game; ordinary history review retains its running clock. This exercises the existing [progression policy](../../../docs/questions/play/Q-PLAY-001-LiveProgressDuringAnalysis.md), without introducing background opponent scheduling. Available pre-move engine output is automatically copied onto actual played nodes, independently of fresh analysis. No output means no record; no exploratory move creates a record. The 21 October presentation correction removes the unrequested recording panel. Saved actual-move records retain the pre-move context and copied engine names, depth, scores and principal variations; browser checks inspect saved data and confirm the extra panel is absent. Broader capture/replacement policies remain separate review prompts.
+The review preserves [temporary exploration and actual-move recording](../../../docs/questions/analysis/Q-ANALYSIS-002-VariationRetention.md). Explicit Analyse and ordinary history review keep actual play running under the [approved progression policy](../../../docs/questions/play/Q-PLAY-001-LiveProgressDuringAnalysis.md). Selected canonical position and actual turn ownership remain independent. Available pre-move engine output is automatically copied onto actual played nodes, independently of fresh analysis. No output means no record; no exploratory move creates a record. The 21 October presentation correction removes the unrequested recording panel. Saved actual-move records retain the pre-move context and copied engine names, depth, scores and principal variations; browser checks inspect saved data and confirm the extra panel is absent. Broader capture/replacement policies remain separate review prompts.
 
 ## JRN-HIST-01
 
@@ -18,11 +18,11 @@ Intent: BR-HIST-02-CONFIRM-REWRITE promotes a new Bc4 continuation while retaini
 
 ## JRN-HIST-04
 
-Intent: SCN-HIST-03 uses both documented exit preferences when takeback is disabled. Classification: aligned. Separate tests apply each setting through Settings, then assert analysis-only ownership, unchanged live/mainline/result/clock, the exact rendered selection and return to live.
+Intent: SCN-HIST-03 requires explicit Analyse when Takeback is disabled. Both existing exit preferences are exercised: neither auto-exits explicit analysis. Tests assert disabled ordinary input, explicit exploration, unchanged actual/mainline/result/clock, and deliberate return to live.
 
 ## JRN-HIST-05
 
-Intent: SCN-CTRL-04 explores both colours and a three-ply suggested prefix, then exits without a prompt. Classification: implementation defect corrected. Visiting Save during untimed analysis added Menu ownership, but resumption rejected all untimed Menu removals and left exploration locked. Pause ownership now clears independently of whether a clock exists. Independent timed and untimed variants verify all five exploratory nodes, fixed live path/clock, retained temporary tree, exact live board restoration and timed resumption. Suggested-prefix semantics stay consistent with the existing analysis contract.
+Intent: SCN-CTRL-04 explores both colours and a three-ply suggested prefix, then exits without a prompt. Timed, untimed and genuinely paused variants check five exploratory nodes, independent actual path, retained tree and exact actual board restoration. Paused exploration retains Resume and Exit preserves the pause. Actual clocks run during ordinary explicit analysis; only real pause owners freeze time.
 
 ## JRN-HIST-06
 
@@ -30,7 +30,7 @@ Intent: SCN-HIST-04 prunes superseded latest-node exploration, preserves histori
 
 ## JRN-HIST-07
 
-Intent: BR-HIST-01-PAUSED permits analysis-only exploration while manual/menu pauses independently block it. Classification: accessibility gaps corrected. Timed analysis now exposes Pause, allowing users to layer a manual pause through the UI, and squares expose the disabled input state to keyboard/accessibility consumers. Browser variants verify disabled board/history/root/suggestions, frozen timing and return to analysis after manual resume or Custom cancellation. [Pause integration](../../__tests__/history/Pause.spec.ts) separately exits analysis before removing manual/menu ownership and removes Menu while both Manual and Analysis remain.
+Intent: BR-HIST-01-PAUSED permits explicit analysis input/history during genuine pauses while actual play remains paused. Manual controls keep Resume reachable; a Custom modal retains its focus boundary. Integration checks preserve Manual/Menu owners through Exit and remove only the named owner; final Resume restarts actual play without requiring Exit.
 
 ## JRN-HIST-08
 

@@ -2,27 +2,27 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Entry resolved; paused exploration scope awaiting clarification; implementation not approved |
-| Raised/resolved | 21 October 2026; entry resolved by explicit user instruction |
+| Status | Resolved: paused entry and explicit exploratory moves/history allowed; implementation approved 22 October |
+| Raised/resolved | 21-22 October 2026; entry and exploratory scope resolved by explicit user instructions |
 | Classification | Product-policy change to an existing interaction restriction |
 | Discovery | Review of the background-analysis function flow and the reason for its paused-entry guard |
-| Evidence | Design/source review plus four isolated in-memory source probes on 21 October; no full unit/browser run or production changes |
+| Evidence | Historical design/source audit and four isolated probes on 21 October; approved implementation and final unit/browser evidence are linked below |
 | Related decisions | [Background play](Q-PLAY-001-LiveProgressDuringAnalysis.md), [premove conflicts](Q-PLAY-002-PremoveAnalysisConflicts.md), [analysis plan](../../BackgroundAnalysisPlan.md) |
 
 ## User decision and source
 
 The user instructed: "should allow entering analysis while game paused" and asked whether the reason for prompting that decision was recorded.
 
-Allow explicit Analyse on the selected canonical move in a paused game. Preserve its actual clock snapshot, Manual/Menu pause reasons, pending actual turn and any deferred actual output. Entry must not implicitly Resume. Exit must not implicitly Resume either. This is a product decision for the draft; it is not approval to implement the plan or change the retained tests.
+Allow explicit Analyse on the selected canonical move in a paused game. Preserve its actual clock snapshot, Manual/Menu pause reasons, pending actual turn and any deferred actual output. Entry must not implicitly Resume. Exit must not implicitly Resume either. On 22 October the user approved the plan with "looks fine implement" and separately answered "Allow analysis moves/history while paused (recommended)". Entry, exploratory input and Exit are therefore allowed while actual play stays paused.
 
 ## Why this required a decision
 
-The restriction was an explicit existing product contract, not a missing API or technical requirement of analysis:
+Before this change, the restriction was an explicit existing product contract, not a missing API or technical requirement of analysis:
 
 - [State model — live analysis and interruptions](../../HighLevel/state_model.md#live-analysis) restricts entry to live states and separately locks gameplay/history during Manual/Menu pauses.
 - [Control-panel mode matrix](../../LowLevel/Architecture/Presentation/Components/GameControlPanel.md#mode-matrix) exposes Resume as the paused gameplay action and explicitly hides/disables Analysis Mode.
 - [SCN-CTRL-04 paused branch](../../HighLevel/scenarios.md#scn-ctrl-04---enterexit-in-game-analysis-mode) blocks analysis entry while paused. [Its process flow](../../LowLevel/ProcessFlows/GameplayAndControl.md#scn-ctrl-04---enterexit-in-game-analysis-mode) names the paused-state assertion as intentional.
-- [GameMoveComposable.enterInGameAnalysis](../../../src/state/game/GameMoveComposable.ts) calls `assertNotPausedForAction`, and the existing paused control surface does not expose entry.
+- [GameMoveComposable.enterInGameAnalysis](../../../src/state/game/GameMoveComposable.ts) previously called `assertNotPausedForAction`, and the old paused control surface did not expose entry.
 
 The earlier requirement that Analyse must not itself pause a running game settled Analysis-owned clock freezes. It did not by itself settle what a user can do after deliberately pausing with Manual/Menu. Removing that separate restriction therefore needed an explicit product choice rather than silently treating the guard as accidental.
 
@@ -36,16 +36,16 @@ The initial draft identified the conflicting rules but did not provide a focused
 
 No new store/service API, game-state enum or persistence field is required for entry: select the existing paused-analysis state and retain actual pause ownership. Existing actions and component events remain the intended boundary.
 
-## Separate follow-up: analysis moves and history while paused
+## Resolved follow-up: analysis moves and history while paused
 
-Entry permission and exploratory input are distinct existing gates. The state model currently also blocks analysis moves and history under Manual/Menu, including in paused-analysis states. Allowing only entry would therefore still open a read-only analysis board until Resume.
+Entry permission and exploratory input are distinct existing gates. The previous state model also blocked analysis moves and history under Manual/Menu, including in paused-analysis states. Allowing only entry would therefore still open a read-only analysis board until Resume.
 
-The follow-up question was sent with its reason: should analysis moves/history work while actual play remains paused? The recommendation is yes, so an actual-game pause does not prevent explicit analysis, while actual commits, clocks, result actions and actual Takeback retain their pause restrictions. This recommendation is not yet a confirmed user decision. Do not infer approval from elapsed time or broaden the remaining pause permissions silently.
+The follow-up question was sent with its reason: should analysis moves/history work while actual play remains paused? The recommendation is yes, so an actual-game pause does not prevent explicit analysis, while actual commits, clocks, result actions and actual Takeback retain their pause restrictions. The user confirmed this recommendation on 22 October. Actual Takeback and result actions retain separate pause guards; only final real Resume flushes held actual output.
 
 ## Scenario and implementation impact
 
 - [Analysis plan](../../BackgroundAnalysisPlan.md): revise entry flow, real-pause distinction and BA-13 to permit entry while preserving paused actual data; entry/Exit must not flush deferred output.
-- BA-14/15/27 and history/PV controls depend on the separate exploratory-input answer. Preserve their independent actual-pause and cancellation assertions meanwhile.
+- BA-14/15/27 and history/PV controls permit paused explicit exploration. Preserve independent actual-pause and cancellation assertions.
 - Existing `PausedLiveAnalysisFrom*` state values and pause ownership are sufficient. Keep the schema and public API unchanged.
 - After written-plan approval, write/revise unit specifications before production code. Retain paused entry as a meaningful failing observable test, not a new helper contract.
 - Reconcile affected state/control/scenario descriptions and journey expectations with the approved scope. Old documentation/test results describe the previous restriction, not acceptance of the new behaviour.
@@ -66,8 +66,10 @@ Reviewed on 21 October 2026 with HEAD `f046bd4` and the then-current working-tre
 
 The supported combination is an existing `PausedLiveAnalysisFrom*` state, unchanged actual pause reasons/clock/pending work, and an independent selected board. Preserve that state/reason consistency through every entry/Exit/navigation path: player output checks the state, not just the pause-reason array. Otherwise a seemingly UI-only transition can allow an actual commit.
 
-No inherent API/schema blocker was found for paused entry. It is not a safe one-line guard removal. The four measured control-flow hazards and three related source findings must be covered by the unit-first implementation after plan approval. BA-Q4 still determines the exact exploratory-input assertions; it does not change the confirmed requirement that actual play stays paused until final Resume.
+No inherent API/schema blocker was found for paused entry. It is not a safe one-line guard removal. The four measured control-flow hazards and three related source findings must be covered by the unit-first implementation after plan approval. The confirmed BA-Q4 decision permits explicit paused exploratory input; it does not change the confirmed requirement that actual play stays paused until final Resume.
 
 The subsequent [scenario-by-scenario function replan](../../BackgroundAnalysisScenarioFlow.md) incorporates these findings into all 40 concrete paths, including each paused-input alternative. Entry, Exit, real Resume and actual Takeback now have separate branch rules; no production fix or new verification is implied by that documentation.
 
 Implementation and passing end-to-end verification are not claimed by this audit.
+
+Implementation record: the approved change follows these ownership boundaries, including Manual-only restore and a separate actual Takeback pause guard. See the [plan verification record](../../BackgroundAnalysisPlan.md#implementation-and-verification) for executed test lanes. The source probes above remain historical audit evidence.

@@ -400,7 +400,7 @@ Each scenario in this document uses the same structure:
 - **Branch Paths**:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore and refresh tree.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
-  - `BR-HIST-01-PAUSED`: Manual and menu pauses block history navigation until resume. An analysis-only pause permits rendered-branch navigation while the live node and clock stay fixed.
+  - `BR-HIST-01-PAUSED`: Manual/Menu pauses block ordinary history navigation; explicit paused analysis permits it while actual play remains paused.
 - **Postconditions**: Board and analysis context match the selected history node without changing the live clock.
 - **Implementation Touchpoints**:
   - `HistoryPanel.onNavigateNode`
@@ -433,14 +433,14 @@ Each scenario in this document uses the same structure:
 - **Status**: Current
 - **Goal**: Allow history exploration without altering live game progression.
 - **Preconditions**: User on prior node; takeback disabled.
-- **Entry Points**: Move made while browsing history.
+- **Entry Points**: Explicit Analyse on the selected historical move, then a move.
 - **Main Steps**:
   1. User navigates to old node.
-  2. User makes legal move.
+  2. User presses Analyse, then makes a legal move.
   3. App records move as analysis branch only.
   4. User can return to live game node.
 - **Branch Paths**:
-  - `BR-HIST-03-AUTO-RETURN`: App auto-returns to live node after analysis move.
+  - `BR-HIST-03-AUTO-RETURN`: Existing preference does not auto-exit explicit Analyse; return requires Exit/Live selection.
   - `BR-HIST-03-STAY-BRANCH`: App remains on branch until user explicitly returns.
 - **Postconditions**: Live game line preserved; analysis branch captured separately.
 - **Implementation Touchpoints**:
@@ -636,7 +636,7 @@ Each scenario in this document uses the same structure:
   - `BR-ANALYSIS-04-LIVE-SCORE-ONLY`: In any live-game context where `showLiveAnalysisMoves = false`, no move target is rendered from the analysis panel.
   - `BR-ANALYSIS-04-HISTORY-ANALYSIS-ONLY`: In `liveGame + historyReview` with `game.gameplayOptions.allowTakeback = false`, keep the live node unchanged and apply the selected continuation as an analysis-only branch.
   - `BR-ANALYSIS-04-APPLY-AS-BRANCH`: In analysis contexts, keep the inspected continuation as an analysis branch when that policy is enabled.
-  - `BR-ANALYSIS-04-PAUSED`: Manual and menu pauses make suggested moves read-only until resume. An analysis-only pause permits move-prefix playback on the rendered branch while the live node and clock stay fixed.
+  - `BR-ANALYSIS-04-PAUSED`: Ordinary paused suggestions remain read-only; explicit paused analysis permits full-prefix playback while actual play stays paused.
 - **Postconditions**: Suggested moves are interactive only where the workspace policy allows them, `freeAnalysisSetup` always retains move inspection, live-game clicks reuse the same context-specific move rules as ordinary move entry, and no separate panel-only rewrite rule is introduced.
 - **Implementation Touchpoints**:
   - `AnalysisPanel.moveSelected`
@@ -711,7 +711,7 @@ Each scenario in this document uses the same structure:
   3. User clicks `Resume`.
   4. App restores active timer without losing elapsed data.
   5. If an already validated player-engine move became ready while paused, app commits it after pause clears only when the live turn is still ready; otherwise app discards it. It does not repeat legality validation or pondering because pause did not change the live position and the engine-boundary work has already completed.
-  6. A restored paused game requires explicit Resume. Restored paused analysis retains Analysis plus Manual ownership; Resume unlocks exploration and Exit analysis returns to live timing.
+  6. A restored paused game requires explicit Resume. Restored paused analysis reconstructs Manual only; explicit Resume restarts actual play while analysis remains selected. Exit never resumes actual play.
 - **Branch Paths**:
   - `BR-TIME-02-DOUBLE-PAUSE`: Pause clicked while already paused -> no-op.
   - `BR-TIME-02-RESUME-GAME-OVER`: Resume attempt after game end -> blocked.
@@ -858,19 +858,19 @@ Each scenario in this document uses the same structure:
   - `SavedGamesStore.saveGame`
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 - **Status**: Current
-- **Goal**: Enter a mode from an active game where the user controls both sides for exploration without progressing the live game.
-- **Preconditions**: Active game is open and not paused, unless the flow is a timeout-ended review state that explicitly allows post-timeout analysis.
+- **Goal**: Explicitly explore both sides from the selected move while actual play progresses independently.
+- **Preconditions**: Active live workspace is open, including genuinely paused play; terminal review preserves its result.
 - **Entry Points**: Control panel `Analysis Mode` from a live game.
 - **Main Steps**:
   1. User enters in-game analysis mode.
   2. App gives the user move control for both colors.
   3. If engines were configured when the game was created, app refreshes analysis after each committed move.
-  4. User explores positions without progressing the live game.
+  4. User explores positions without exploratory input changing actual play. Actual turns/time continue unless genuinely paused.
   5. User exits in-game analysis mode and app returns to the live node immediately without prompting.
 - **Branch Paths**:
   - `BR-CTRL-04-LATEST-NODE-VARIATION`: When analysis started from the latest live node, exploratory continuations may remain visible as variations until a later real live move supersedes them.
-  - `BR-CTRL-04-LIVE-CONFLICT`: Attempt to submit live move while in analysis mode -> block or force exit.
-  - `BR-CTRL-04-PAUSED`: If the game is paused, block in-game analysis entry until resume.
+  - `BR-CTRL-04-LIVE-CONFLICT`: User board/PV input is analysis-only; actual provider replies continue against the live position without moving the selected board.
+  - `BR-CTRL-04-PAUSED`: Allow entry, exploratory moves/history and Exit while preserving the actual pause and held output. Resume remains explicit.
 - **Postconditions**: Mode boundaries are explicit, the user can explore from either side, and leaving the mode always returns the screen to the live game position without a keep-or-discard prompt.
 - **Implementation Touchpoints**:
   - `GameControlPanel.enterInGameAnalysisRequested`

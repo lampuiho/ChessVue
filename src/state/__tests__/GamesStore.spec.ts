@@ -865,9 +865,6 @@ describe('useGamesStore', () => {
     });
 
     await store.enterInGameAnalysis(game);
-    expect(game.gameState).toBe(GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove);
-
-    await store.resumeGame(game, PauseReason.Analysis);
     expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnWhiteMove);
 
     const analysisNode = appendChild(game.moveTree.root, createMove(PlayerColour.White), MoveNodeKind.Analysis);
@@ -916,7 +913,7 @@ describe('useGamesStore', () => {
     await pendingLiveHistoryMove;
     const runningClockSnapshot = liveGame.clockSnapshot;
     store.navigateToNode(liveGame, liveGame.moveTree.root);
-    expect(liveGame.gameState).toBe(GameState.LiveAnalysisFromBlackTurnWhiteMove);
+    expect(liveGame.gameState).toBe(GameState.LiveBlackTurn);
     expect(liveGame.clockSnapshot).toBe(runningClockSnapshot);
     expect(liveGame.clockSnapshot.black.isRunning).toBe(true);
     store.navigateToNode(liveGame, liveGame.moveTree.root.children[0]!);
@@ -953,6 +950,7 @@ describe('useGamesStore', () => {
     const liveNode = game.moveTree.root.children[0]!;
     store.navigateToNode(game, game.moveTree.root);
     settingsSnapshot.gameplay.analysisBranchExitBehaviour = AnalysisBranchExitBehaviour.StayOnBranch;
+    await store.enterInGameAnalysis(game);
     await store.makeMove(game, createMove(PlayerColour.White, 11, 27));
     const analysisNode = game.moveTree.root.children[1]!;
 
@@ -1049,7 +1047,7 @@ describe('useGamesStore', () => {
     expect(game.renderedPath).toBe(renderedPath);
     expect(game.renderedPath).toEqual([]);
     expect(game.$!.deferredPlayerMove).toBeUndefined();
-    expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnWhiteMove);
+    expect(game.gameState).toBe(GameState.LiveWhiteTurn);
     expect(game.analysis.seats[0]!.lines).toBe(renderedLines);
     expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(analysisStarts);
     store.navigateToNode(game, game.moveTree.root.children[0]!.children[0]!);
@@ -1608,14 +1606,17 @@ describe('useGamesStore', () => {
     branchGame.gameplayOptions.allowTakeback = false;
     settingsSnapshot.gameplay.analysisBranchExitBehaviour = AnalysisBranchExitBehaviour.ReturnToLiveNode;
     void branchGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
+    await store.enterInGameAnalysis(branchGame);
     await store.makeMove(branchGame, createMove(PlayerColour.White, 10, 26));
     expect(branchGame.livePath).toEqual([0]);
-    expect(branchGame.renderedPath).toEqual([0]);
-    expect(branchGame.gameState).toBe(GameState.LiveBlackTurn);
+    expect(branchGame.renderedPath).toEqual([1]);
+    expect(branchGame.gameState).toBe(GameState.LiveAnalysisFromBlackTurnBlackMove);
 
+    store.exitInGameAnalysis(branchGame);
     store.navigateToNode(branchGame, branchGame.moveTree.root);
     settingsSnapshot.gameplay.analysisBranchExitBehaviour = AnalysisBranchExitBehaviour.StayOnBranch;
     void branchGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
+    await store.enterInGameAnalysis(branchGame);
     await store.makeMove(branchGame, createMove(PlayerColour.White, 9, 25));
     expect(branchGame.livePath).toEqual([0]);
     expect(branchGame.renderedPath).toEqual([2]);
@@ -1709,6 +1710,7 @@ describe('useGamesStore', () => {
       timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
     });
     await store.enterInGameAnalysis(pausedGame);
+    await store.pauseGame(pausedGame, PauseReason.Manual);
     void pausedGame.$?.pendingPlayerTurnHandlePromise?.catch(() => undefined);
     await store.reassignPlayer(pausedGame, PlayerColour.White, _createEnginePlayer(PlayerColour.White, 'Engine White'));
     expect(pausedGame.gameState).toBe(GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove);
@@ -1840,11 +1842,11 @@ describe('useGamesStore', () => {
     expect(game.gameState).toBe(GameState.AnalysisBlackMove);
 
     await store.enterInGameAnalysis(game);
-    expect(game.gameState).toBe(GameState.LiveAnalysisFromWhiteTurnWhiteMove);
+    expect(game.gameState).toBe(GameState.AnalysisWhiteMove);
     expect(game.renderedPath).toEqual(game.livePath);
     expect(game.renderedPath).not.toBe(game.livePath);
     store.exitInGameAnalysis(game);
-    expect(game.gameState).toBe(GameState.AnalysisBlackMove);
+    expect(game.gameState).toBe(GameState.AnalysisWhiteMove);
     expect(game.resultReason).toBe(ResultReason.Timeout);
     expect(game.renderedPath).toBe(game.livePath);
   });
@@ -1869,10 +1871,12 @@ describe('useGamesStore', () => {
     await expect(store.acceptDrawOffer(game)).rejects.toThrow('pausedWhiteTurn');
     await expect(store.declineDrawOffer(game)).rejects.toThrow('pausedWhiteTurn');
     await expect(store.withdrawDrawOffer(game)).rejects.toThrow('pausedWhiteTurn');
-    await expect(store.enterInGameAnalysis(game)).rejects.toThrow('pausedWhiteTurn');
     expect(() => store.enterBoardEdit(game)).toThrow('pausedWhiteTurn');
-    game.gameState = GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove;
-    await expect(store.makeMove(game, move)).rejects.toThrow('pausedLiveAnalysisFromWhiteTurnWhiteMove');
+    await store.enterInGameAnalysis(game);
+    expect(game.gameState).toBe(GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove);
+    await expect(store.makeMove(game, move)).resolves.toBeUndefined();
+    expect(game.livePath).toEqual([]);
+    await expect(store.takeBack(game, 1)).rejects.toThrow('pausedLiveAnalysisFromWhiteTurnBlackMove');
     game.gameState = GameState.BoardEdit;
     await expect(store.makeMove(game, move)).rejects.toThrow('boardEdit');
   });

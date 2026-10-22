@@ -1,6 +1,6 @@
 # Premove and player-turn flow plan
 
-Updated on 21 October 2026 after the user's nine conflict decisions and request to split analysis into a prerequisite. **Status: waiting for the separate [background analysis plan](BackgroundAnalysisPlan.md); premove implementation has not started.** Complete that plan first, including its unit-tests-first gate. The [decision/scenario record](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md) retains the resolved product choices. Follow [AGENTS.md](../AGENTS.md) and the [code cleanup plan](CodeCleanupPlan.md).
+Updated on 21 October 2026 after the user's nine conflict decisions and request to split analysis into a prerequisite. **Status: background analysis implemented separately; premove implementation has not started.** See the [background analysis verification record](BackgroundAnalysisPlan.md#implementation-and-verification) for its unit-tests-first evidence and executed checks. The [decision/scenario record](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md) retains the resolved product choices. Follow [AGENTS.md](../AGENTS.md) and the [code cleanup plan](CodeCleanupPlan.md).
 
 ## Prerequisite and tests-first order
 

@@ -25,6 +25,7 @@ export function useGamePosition() {
   }
   function getRenderedNode(state: IGamePositionState): IMoveNode {
     const runtime = requireGameRuntime(state);
+    if (state.livePath && state.renderedPath === state.livePath) return runtime.renderedNode = getLiveNode(state);
     return runtime.renderedNode ??= getNodeAtPath(state.moveTree, state.renderedPath);
   }
   function getLiveNode(state: IGamePositionState): IMoveNode {
@@ -43,13 +44,13 @@ export function useGamePosition() {
     return livePosition;
   }
   function getRenderedPosition(state: IGamePositionState): IBoardPosition {
-    if (state.livePath && pathsEqual(state.renderedPath, state.livePath)) return _getAliasedLivePosition(state, state.livePath);
+    if (state.livePath && state.renderedPath === state.livePath) return _getAliasedLivePosition(state, state.livePath);
     const runtime = requireGameRuntime(state);
     return runtime.renderedPosition ??= _genPositionAtPath(state, state.renderedPath);
   }
   function getLivePosition(state: IGamePositionState): IBoardPosition {
     if (!state.livePath) throw new Error('Live position is not available.');
-    if (pathsEqual(state.renderedPath, state.livePath)) return _getAliasedLivePosition(state, state.livePath);
+    if (state.renderedPath === state.livePath) return _getAliasedLivePosition(state, state.livePath);
     const runtime = requireGameRuntime(state);
     return runtime.livePosition ??= _genPositionAtPath(state, state.livePath);
   }
@@ -130,7 +131,8 @@ export function useGamePosition() {
   }
   function hydrateGame(game: IGame): IGame {
     _hydrateMoveNode(game.moveTree.root);
-    if (game.livePath && pathsEqual(game.renderedPath, game.livePath)) game.renderedPath = game.livePath;
+    if (game.gameState.includes('AnalysisFrom')) game.renderedPath = [...game.renderedPath];
+    else if (game.livePath && pathsEqual(game.renderedPath, game.livePath)) game.renderedPath = game.livePath;
     game.$ = createGameRuntime();
     return game;
   }

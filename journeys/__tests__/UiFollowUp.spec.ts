@@ -4,26 +4,28 @@ import { describe, expect, it, vi } from 'vitest';
 import { AppModalKind, GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, TimeControlPreset, type IGame } from '@/contracts';
 import { boot, createTimedContext, legalMove, findButton, clickButton, setField, clickSquare } from './support/UiHarness';
 describe('UI-02 in-game analysis permissions', () => {
-  it('keeps a manual pause read-only when it is layered over analysis', async () => {
+  it('allows paused analysis exploration while actual play stays paused', async () => {
     const context = await createTimedContext();
     const { games, game } = context;
     await games.enterInGameAnalysis(game);
     await games.pauseGame(game, PauseReason.Manual);
-    await expect(games.makeMove(game, legalMove(context, game, 'e2e4'))).rejects.toThrow();
-    expect(() => games.navigateToNode(game, game.moveTree.root)).toThrow();
+    await games.makeMove(game, legalMove(context, game, 'e2e4'));
+    expect(() => games.navigateToNode(game, game.moveTree.root.children[0]!)).not.toThrow();
+    await expect(games.takeBack(game)).rejects.toThrow();
+    expect(game.clockSnapshot.white.isRunning).toBe(false);
     await nextTick();
     expect(findButton('Resume game', '.control-button')).toBeDefined();
     await games.resumeGame(game, PauseReason.Manual);
     await nextTick();
     expect(findButton('Exit analysis', '.control-button')).toBeDefined();
-    await games.makeMove(game, legalMove(context, game, 'e2e4'));
+    await games.makeMove(game, legalMove(context, game, 'e7e5'));
     expect(game.livePath).toEqual([]);
-    expect(game.clockSnapshot.white.isRunning).toBe(false);
+    expect(game.clockSnapshot.white.isRunning).toBe(true);
   });
   it('exposes an exit that returns to live play after entering analysis', async () => {
     const { game } = await createTimedContext();
     await clickButton('Analyse', '.control-button');
-    expect(game.clockSnapshot.white.isRunning).toBe(false);
+    expect(game.clockSnapshot.white.isRunning).toBe(true);
     expect(findButton('Exit analysis', '.control-button')).toBeDefined();
     await clickButton('Exit analysis', '.control-button');
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);
@@ -46,7 +48,7 @@ describe('UI-02 in-game analysis permissions', () => {
     expect(game.renderedPath).toBe(game.livePath);
     expect(game.clockSnapshot.white.isRunning).toBe(true);
   });
-  it('allows history navigation while only the analysis pause owns the clock', async () => {
+  it('allows history navigation without analysis owning a clock pause', async () => {
     const context = await createTimedContext();
     const { game, games } = context;
     await games.makeMove(game, legalMove(context, game, 'e2e4'));

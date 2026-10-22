@@ -94,7 +94,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GameAnalysisComposable.subscribeToAnalysis callback` |
 
-- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and manual/menu-paused states block move submission; an analysis-only pause permits rendered-branch moves while the live node and clock remain fixed; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
+- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and ordinary paused states block move submission; explicit analysis, including paused analysis, permits rendered-branch moves while actual turn/clock ownership remains independent; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
 - Continuous analysis update loop: `GameAnalysisComposable.refreshAnalysisForGame` -> `GameAnalysisComposable.startAnalysisSeat` -> `GameAnalysisComposable.subscribeToAnalysis` -> `EngineRuntimeService.startAnalysis(engine, game, request)` (owns `ensureReady` and cancellation) -> client state-machine updates -> guarded subscription callback selects three rendered lines -> `touchGame` -> `AnalysisPanel` rerenders the affected seat. A live move while browsing history preserves the unchanged rendered analysis.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer state transitions behind analysis start, streamed updates, player turns, and pondering.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
@@ -191,8 +191,8 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameMoveComposable.commitLiveMove` |
 
 - Runtime distinction: analysis search keeps streaming updates over time, while a player-engine turn waits only for the final awaited move and then ends that turn-scoped search.
-- State gate: `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` arms a turn only for `LiveWhiteTurn` or `LiveBlackTurn` with `resultState = ongoing`, while the rendered path is the live path and no turn promise is already pending. Local and engine players use the same game-level deferred turn.
-- Guardrails: player-engine turn generation is blocked in non-live analysis, live analysis, board edit, paused live games, and whenever `resultState` is not ongoing. A checkmating move records `CheckState.Checkmate` before the game transitions to non-live analysis.
+- State gate: `requestPlayerMoveIfNeeded` uses existing actual readiness: an ongoing live path in unpaused ordinary-live or explicit-analysis state, with no pending turn owner. Selected-path equality is not required. Local and engine players use the same game-level deferred turn.
+- Guardrails: player-engine turn generation is blocked in non-live analysis, board edit, paused live games, and whenever `resultState` is not ongoing. A checkmating move records `CheckState.Checkmate` before the game transitions to non-live analysis.
 - Paused completion rule: if an already-started player-engine turn resolves while the game is paused, the guarded result is accepted through the same `attemptPlayerMove(...)` and recorded as deferred output. Available pondering has already begun directly from the engine result. When pause clears, `flushDeferredPlayerMove(...)` commits it without revalidation, engine lookup, or a second pondering request.
 - Completion rule: the player-engine turn completes only when `EngineRuntimeService.awaitPlayerTurnMove(...)` resolves with a valid move. The baseline defines no no-response timeout.
 - Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.
@@ -254,7 +254,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 - Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
 - Start position selects the root through the same navigation boundary. Live position resolves the persisted live path through the current tree rather than requiring a populated runtime cache. Membership checks validate every parent-child link before deriving a path, including detached nodes whose stale parent reference remains.
-- State coverage: entering an earlier node moves the game into the matching live-analysis or non-live analysis state without pausing the live clock or current player turn. A player-engine result that completes while browsing advances the live selector while the rendered selector remains on the historical node. Returning to the live node restores the matching live state. Manual and menu pauses block history navigation; an analysis-only pause permits rendered-branch navigation without advancing the live node or clock.
+- State coverage: ordinary history review keeps the ordinary live state and actual colour. Background turns/clock continue while selected history stays independent. Explicit Analyse uses its existing analysis state family. Genuine pauses lock ordinary history; paused explicit analysis permits history/moves and preserves actual pause ownership.
 - Requirement verification: `Pass`. Board, history, and analysis bind to the selected visible node while live play remains independent.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
@@ -292,49 +292,14 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
 
-#### Flow A - Stay On The Analysis Branch
-| `Chessboard.moveSubmittedFromHistory` |
-| --- |
-| `GamesStore.makeMove` |
-| `UserSettingService.getSettings` |
-| `MoveHistoryService.addAnalysisMove` |
+#### Flow - Explicit Analysis Required
 
-| `GamesStore.makeMove` |
-| --- |
-| `GameMoveComposable.commitLiveHistoryAnalysisMove` |
-| `GameMoveComposable.advanceRenderedAnalysisBranch` |
+`GameView Analyse -> GamesStore.enterInGameAnalysis -> GameMoveComposable.enterInGameAnalysis -> detached selected canonical board`.
 
-| `UserSettingService.getSettings` |
-| --- |
+`board/PV -> GameView._requestMoves/_applyMoves -> GamesStore.makeMove -> _commitLiveAnalysisMove -> _advanceRenderedAnalysisBranch -> MoveHistoryService.addAnalysisMove`.
 
-| `MoveHistoryService.addAnalysisMove` |
-| --- |
-
-#### Flow B - Return To The Live Node After The Analysis Move
-| `Chessboard.moveSubmittedFromHistory` |
-| --- |
-| `GamesStore.makeMove` |
-| `UserSettingService.getSettings` |
-| `MoveHistoryService.addAnalysisMove` |
-| `GamesStore.navigateToNode` |
-
-| `GamesStore.makeMove` |
-| --- |
-| `GameMoveComposable.commitLiveHistoryAnalysisMove` |
-| `GameMoveComposable.advanceRenderedAnalysisBranch` |
-| `GamePositionComposable.setRenderedPath` |
-
-| `UserSettingService.getSettings` |
-| --- |
-
-| `MoveHistoryService.addAnalysisMove` |
-| --- |
-
-| `GamesStore.navigateToNode` |
-| --- |
-
-- Per-game coverage: `game.gameplayOptions.allowTakeback = false` keeps the live node unchanged. `gameplay.analysisBranchExitBehaviour` decides whether the game returns to the live node immediately or stays on the analysis branch.
-- Requirement verification: `Pass`. Analysis-only continuation does not mutate the live node.
+- With Takeback disabled, ordinary historical input is disabled until explicit Analyse. Both existing exit-preference settings leave explicit analysis selected; only a deliberate Exit/Live selection returns to actual play.
+- With Takeback enabled, ordinary historical input keeps its existing rewrite confirmation. Explicit analysis bypasses that confirmation and does not rewrite actual play.
 
 ### SCN-HIST-04 - Automatic Pruning After Live Move From The Latest Node
 
@@ -365,7 +330,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `SerializationService.writeGameDocument` |
 
 - UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. The pruning action is automatic and is triggered by the next real live move from the same latest node after in-game analysis exit.
-- Runtime selector coverage: `GamesStore` keeps `livePath` fixed throughout in-game analysis and runs the automatic pruning action through `MoveHistoryService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. Pruning mutates that node in the existing authoritative tree; the following move commit attaches its child and advances the selectors without replacing the tree. The separate history-rewrite flow retains old moves that were actually played.
+- Runtime selector coverage: `GamesStore` advances actual play independently during analysis and runs the automatic pruning action through `MoveHistoryService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. Pruning mutates that node in the existing authoritative tree; the following move commit attaches its child and advances the selectors without replacing the tree. The separate history-rewrite flow retains old moves that were actually played.
 - Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but the automatic pruning action discards them once real play supersedes them.
 
 ## Time Control
@@ -419,8 +384,8 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 | `GamePlayerTurnComposable.requestPlayerMove` |
 
-- State coverage: manual and menu pause or resume are valid only for ongoing timed live-family states with an active clock. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state. `PauseReason.Analysis` may still pause untimed live play for in-game analysis entry.
-- Paused-surface rule: manual/menu pauses block gameplay and history until resume. An analysis-only pause permits rendered-branch moves, history and policy-permitted takeback; live result actions and board edit remain blocked. Blocked store actions throw through the owning assertion boundary.
+- State coverage: manual and menu pause or resume are valid only for ongoing timed live-family states with an active clock. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state. Analyse no longer acquires a pause reason, including in untimed games.
+- Paused-surface rule: actual moves, Takeback and result actions stay blocked. Explicit Analyse entry, analysis moves/history and Exit remain available alongside Resume. Final real Resume alone flushes held actual output.
 - Paused-exception rule: player reassignment and analysis-engine management remain allowed while paused because they are treated as configuration actions rather than gameplay actions.
 - Deferred-engine rule: analysis searches may finish while paused and update rendered seat results, while any guarded player-engine move that resolves during pause is held as deferred output and committed without a second validation once play returns to a playable live state.
 - Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally, and paused live play is interaction-locked apart from resume.
@@ -535,7 +500,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | --- |
 
 - Requirement verification: `Pass`. Live-game takeback is policy-gated, rewinds from the authoritative live node to a live ancestor even while an analysis branch is rendered, and restarts that node's clock snapshot from the current timestamp.
-- State gate: manual/menu pauses block takeback. An analysis-only pause permits it when the game allows takeback and retains the analysis pause on the rewound clock.
+- State gate: all genuine pauses block actual Takeback. Unpaused explicit analysis uses the actual live node/count and game permission; Takeback returns selection to the rewound actual node without creating an Analysis pause.
 - Move ownership: local-versus-engine takeback removes the local player's last move together with any subsequent engine reply. During engine thinking it cancels the pending turn and removes only the local move. An engine's opening move alone cannot be taken back. Local/local play and standalone analysis rewind one ply; an explicit move count still selects that many plies.
 
 ### SCN-CTRL-02 - Resign Game
@@ -642,33 +607,17 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 
 #### Flow A - Enter In-Game Analysis
-| `GameControlPanel.analysisRequested` |
-| --- |
-| `GamesStore.enterInGameAnalysis` |
-| `GameMoveComposable.enterInGameAnalysis` |
-| `GameMoveComposable.enterInGameAnalysis` |
 
-| `GamesStore.enterInGameAnalysis` |
-| --- |
-| `GameMoveComposable.enterInGameAnalysis` |
-| `GameMoveComposable.enterInGameAnalysis` |
-| `GameMoveComposable.enterInGameAnalysis` |
+`GameView input action -> playback.cancel -> GamesStore.enterInGameAnalysis -> GameMoveComposable.enterInGameAnalysis -> copy selected canonical position/path -> matching LiveAnalysisFrom/PausedLiveAnalysisFrom state -> publish selection`.
 
 #### Flow B - Exit In-Game Analysis
-| `GameControlPanel.analysisExitRequested` |
-| --- |
-| `GamesStore.exitInGameAnalysis` |
-| `GameMoveComposable.exitInGameAnalysis` |
-| `GameMoveComposable.exitInGameAnalysis` |
 
-| `GamesStore.exitInGameAnalysis` |
-| --- |
-| `GameMoveComposable.exitInGameAnalysis` |
-| `GameMoveComposable.exitInGameAnalysis` |
+`GameView input action -> playback.cancel -> GamesStore.exitInGameAnalysis -> _returnToLiveNode -> shared latest actual path/position -> paused/live/terminal state -> publish`.
 
-- State coverage: in-game analysis is available for ongoing live games and may also be entered after timeout while preserving the stored final result. Entry installs an independent `renderedPath` even when analysis begins at the live node, and analysis moves advance only that rendered selection. For ongoing live games, analysis entry uses the matching `PausedLiveAnalysisFrom*` state so the analysis anchor and visible side-to-move remain explicit while the live clock is paused. Exiting the mode is prompt-free and restores the exact live path and position references immediately; if analysis began from the latest live node, any exploratory continuation may remain visible as a variation until `SCN-HIST-04` cleanup is triggered by the next real live move from that node.
-- State gate: paused live play and paused live-analysis block analysis entry through the same paused-state assertion boundary used by the other paused gameplay actions.
-- Requirement verification: `Pass`. Analysis mode gives both-colour move control without mutating the live line.
+- Entry starts at the selected move and preserves actual clock, pending turn, pause owners and held output. Repeated entry is a no-op. Ordinary review alone does not enable analysis input.
+- Explicit analysis permits both colours to explore, including during genuine pauses. Only actual unpaused turns advance the live node; actual result actions and Takeback keep their independent restrictions.
+- Exit/Live selection never resumes or flushes actual play. It preserves terminal results and genuine pauses. Analysis branches left behind by background progression remain history. Current-parent exploration is pruned only on the existing next actual move, unless it would delete selected descendants.
+- The existing paused panel retains Resume; GameView composes the contextual Analyse/Exit action without changing component APIs.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
 

@@ -19,19 +19,20 @@ describe('JRN-HIST-07 independent pause ownership', () => {
       expect(game.$?.pauseReasons).toEqual([]);
     });
   }
-  it('retains manual and analysis ownership after removing only a menu pause', async () => {
+  it('retains manual ownership while allowing analysis after removing only a menu pause', async () => {
     const context = await createTimedContext();
     const { games, game } = context;
     await games.enterInGameAnalysis(game);
     await games.pauseGame(game, PauseReason.Manual);
     await games.pauseGame(game, PauseReason.Menu);
     await games.resumeGame(game, PauseReason.Menu);
-    expect(game.$?.pauseReasons).toEqual([PauseReason.Analysis, PauseReason.Manual]);
-    await expect(games.makeMove(game, legalMove(context, game, 'e2e4'))).rejects.toThrow();
-    await games.resumeGame(game, PauseReason.Manual);
+    expect(game.$?.pauseReasons).toEqual([PauseReason.Manual]);
     await games.makeMove(game, legalMove(context, game, 'e2e4'));
-    expect(game.livePath).toEqual([]);
     expect(game.clockSnapshot.white.isRunning).toBe(false);
+    await games.resumeGame(game, PauseReason.Manual);
+    await games.makeMove(game, legalMove(context, game, 'e7e5'));
+    expect(game.livePath).toEqual([]);
+    expect(game.clockSnapshot.white.isRunning).toBe(true);
     games.exitInGameAnalysis(game);
     expect(game.clockSnapshot.white.isRunning).toBe(true);
   });

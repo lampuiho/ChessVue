@@ -133,6 +133,7 @@ describe('useGamePosition', () => {
     const sharedPath = game.livePath!;
     const liveChild = appendChild(game.moveTree.root, createMove(), MoveNodeKind.Live);
     position.getLiveNode(game);
+    position.getRenderedNode(game);
 
     position.appendLivePath(game, liveChild);
 
@@ -140,6 +141,7 @@ describe('useGamePosition', () => {
     expect(game.renderedPath).toBe(sharedPath);
     expect(sharedPath).toEqual([0]);
     expect(game.$?.liveNode).toBe(liveChild);
+    expect(position.getRenderedNode(game)).toBe(liveChild);
   });
   it('invalidates rendered caches on path changes and both caches on tree replacement', () => {
     const game = createGame();

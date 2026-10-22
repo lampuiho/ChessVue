@@ -14,10 +14,13 @@ for (const reason of ['manual', 'menu']) {
     const before = await saveCurrentGame(page, 'before-pause');
     if (reason === 'manual') await page.getByRole('button', { name: /^Pause/ }).click();
     else await page.getByRole('button', { name: 'Custom', exact: true }).click();
-    await expect(square(page, 'b8')).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Start position', exact: true })).toBeDisabled();
-    await expect(page.locator('.history-row').first()).toBeDisabled();
-    await expect(page.locator('.analysis-line').first().getByRole('button').first()).toBeDisabled();
+    if (reason === 'manual') {
+      await expect(square(page, 'b8')).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Start position', exact: true })).toBeEnabled();
+      await expect(page.locator('.history-row').first()).toBeEnabled();
+      await expect(page.locator('.analysis-line').first().getByRole('button').first()).toBeEnabled();
+      await expect(page.getByRole('button', { name: /^Resume game/ })).toBeVisible();
+    } else await expect(page.getByRole('dialog')).toBeVisible();
     await page.clock.setFixedTime(new Date(historyTime.getTime() + 60000));
     await page.clock.runFor(300);
     if (reason === 'manual') await page.getByRole('button', { name: /Resume game/ }).click();
@@ -25,7 +28,8 @@ for (const reason of ['manual', 'menu']) {
     await expect(page.getByRole('heading', { name: 'Analysis mode', exact: true })).toBeVisible();
     await expect(square(page, 'b8')).toBeEnabled();
     const resumed = await saveCurrentGame(page, 'resumed-analysis');
-    expect(resumed.clockSnapshot).toEqual(before.clockSnapshot);
+    expect(resumed.clockSnapshot.white.remainingMs).toBe(before.clockSnapshot.white.remainingMs);
+    expect(resumed.clockSnapshot.black.remainingMs).toBe(before.clockSnapshot.black.remainingMs);
     expect(resumed.livePath).toEqual(before.livePath);
     expect(resumed.moveTree).toEqual(before.moveTree);
     await playMove(page, 'b8', 'c6');

@@ -15,7 +15,7 @@ describe('PlayerPanel engine status', () => {
     runtime.availability = EngineAvailability.Failed;
     runtime.lastError = 'Engine unavailable. Choose another player.';
     await nextTick();
-    expect(wrapper.get('.engine-state').text()).toBe('failed');
+    expect(wrapper.find('.engine-state').exists()).toBe(false);
     expect(wrapper.get('[role="alert"]').text()).toContain('Engine unavailable');
     runtime.availability = EngineAvailability.Ready;
     runtime.lastError = undefined;

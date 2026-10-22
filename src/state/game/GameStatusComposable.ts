@@ -1,7 +1,6 @@
 import {
   DrawOfferDirection,
   GameState,
-  PauseReason,
   PlayerColour,
   ResultReason,
   ResultState,
@@ -53,7 +52,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     return state === GameState.AnalysisWhiteMove || state === GameState.AnalysisBlackMove || isAnyLiveAnalysisState(state);
   }
   function isLiveTurnReadyForMove(game: IGame): boolean {
-    return isLiveState(game.gameState) && game.resultState === ResultState.Ongoing && !!game.livePath && position.pathsEqual(game.renderedPath, game.livePath);
+    return (isLiveState(game.gameState) || isLiveAnalysisState(game.gameState)) && game.resultState === ResultState.Ongoing && !!game.livePath;
   }
   function getAnalysisState(colour: PlayerColour): GameState {
     return colour === PlayerColour.White ? GameState.AnalysisWhiteMove : GameState.AnalysisBlackMove;
@@ -102,8 +101,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     throw new Error(`${action} is not allowed while gameState is ${game.gameState}.`);
   }
   function canExploreAnalysis(game: IGame): boolean {
-    return isPausedLiveAnalysisState(game.gameState) && !!game.$?.pauseReasons?.includes(PauseReason.Analysis)
-      && game.$.pauseReasons.every((reason) => reason === PauseReason.Analysis);
+    return isAnyLiveAnalysisState(game.gameState);
   }
   function assertExplorationAllowed(game: IGame, action: string) {
     if (game.gameState === GameState.BoardEdit) throw new Error(`${action} is not allowed while editing the board.`);
@@ -111,7 +109,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
   }
   function assertOngoingLiveAction(game: IGame, action: string) {
     assertNotPausedForAction(game, action);
-    if (isLiveTurnReadyForMove(game)) return;
+    if (isLiveState(game.gameState) && isLiveTurnReadyForMove(game)) return;
     throw new Error(`${action} is only allowed for an ongoing game at its live position.`);
   }
   function assertMoveAllowed(game: IGame) {
@@ -149,7 +147,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
   }
   async function offerDraw(game: IGame) {
     assertOngoingLiveAction(game, 'Draw offer');
-    const offeringColour = position.getRenderedPosition(game).sideToMove;
+    const offeringColour = position.getLivePosition(game).sideToMove;
     game.drawOfferState = { offeringColour, respondingColour: getOpponentColour(offeringColour), direction: DrawOfferDirection.Outgoing };
     touchGame(game);
   }

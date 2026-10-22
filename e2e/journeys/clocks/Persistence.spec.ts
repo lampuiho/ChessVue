@@ -40,10 +40,11 @@ for (const policy of ['running', 'paused', 'expired'] as const) {
     expect(after.livePath).toEqual([0, 0, 0]);
   });
 }
-test('JRN-CLOCK-10 restores analysis pause until explicit resume and exit without charging hidden time', async ({ page }) => {
+test('JRN-CLOCK-10 restores genuinely paused analysis and resumes actual time before Exit', async ({ page }) => {
   await openRunningClock(page);
   await advanceClock(page, 1000);
-  await page.getByRole('button', { name: /^Analyse Explore/ }).click();
+  await page.getByRole('button', { name: /^Pause Stop/ }).click();
+  await page.getByRole('button', { name: /^Analyse/ }).click();
   await saveCurrentGame(page, 'analysis-restore');
   const now = await page.evaluate(() => Date.now());
   await page.clock.setFixedTime(new Date(now + 60000));
@@ -55,12 +56,12 @@ test('JRN-CLOCK-10 restores analysis pause until explicit resume and exit withou
   await page.getByRole('button', { name: /^Resume game/ }).click();
   await expect(page.getByRole('heading', { name: 'Analysis mode', exact: true })).toBeVisible();
   await advanceClock(page, 10000);
-  await expect(playerClock(page, 'white')).toHaveText('1:59');
+  await expect(playerClock(page, 'white')).toHaveText('1:49');
   await playMove(page, 'g1', 'f3');
   expect((await saveCurrentGame(page, 'restored-exploration')).livePath).toEqual([0, 0]);
   await page.getByRole('button', { name: /^Exit analysis/ }).click();
   await playMove(page, 'g1', 'f3');
   const saved = await saveCurrentGame(page, 'restored-live');
-  expect(saved.clockSnapshot.white.remainingMs).toBe(121000);
+  expect(saved.clockSnapshot.white.remainingMs).toBe(111000);
   expect(saved.livePath).toEqual([0, 0, 0]);
 });

@@ -60,7 +60,7 @@ export function useGameClock(dependency: IGameClockDependency) {
   }
   function _getExpiredColour(game: IGame, nowUtc: ClockTimestamp): PlayerColour | undefined {
     if (game.resultState !== ResultState.Ongoing) return;
-    if (!status.isLiveState(game.gameState) && !status.isPausedLiveState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) return;
+    if (!status.isLiveState(game.gameState) && !status.isPausedState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) return;
     if (!TimeControlService.hasExpired(game.clockSnapshot, nowUtc)) return;
     const remainingTime = TimeControlService.getRemainingTime(game.clockSnapshot, nowUtc);
     return (remainingTime.white ?? 1) <= 0 ? PlayerColour.White : PlayerColour.Black;
@@ -111,7 +111,7 @@ export function useGameClock(dependency: IGameClockDependency) {
     if ((!status.isLiveState(game.gameState) && !status.isLiveAnalysisState(game.gameState)) || game.resultState !== ResultState.Ongoing) return;
     runtime.pauseReasons = [...new Set([...(runtime.pauseReasons ?? []), reason])];
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, nowUtc);
-    if (status.isLiveState(game.gameState)) game.gameState = status.getPausedState(position.getRenderedPosition(game).sideToMove);
+    if (status.isLiveState(game.gameState)) game.gameState = status.getPausedState(position.getLivePosition(game).sideToMove);
     else game.gameState = status.getLiveAnalysisState(status.getLiveAnchorColour(game), position.getRenderedPosition(game).sideToMove, true);
     touchGame(game);
     refreshRuntimeRegistrations(game);
@@ -127,11 +127,11 @@ export function useGameClock(dependency: IGameClockDependency) {
       return;
     }
     game.clockSnapshot = TimeControlService.resumeClock(game.clockSnapshot, nowUtc);
-    if (status.isPausedLiveState(game.gameState)) game.gameState = status.getLiveState(position.getRenderedPosition(game).sideToMove);
+    if (status.isPausedLiveState(game.gameState)) game.gameState = status.getLiveState(position.getLivePosition(game).sideToMove);
     else game.gameState = status.getLiveAnalysisState(status.getLiveAnchorColour(game), position.getRenderedPosition(game).sideToMove);
     touchGame(game);
     refreshRuntimeRegistrations(game);
-    if (status.isLiveState(game.gameState)) {
+    if (status.isLiveTurnReadyForMove(game)) {
       await flushDeferredPlayerMove(game);
       requestPlayerMoveIfNeeded(game);
     }

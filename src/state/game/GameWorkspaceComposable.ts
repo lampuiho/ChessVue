@@ -61,8 +61,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const hydratedGame = position.hydrateGame(game);
     if (status.isPausedState(hydratedGame.gameState)) {
       // Saved states omit runtime owners; require an explicit resume after restore.
-      hydratedGame.$!.pauseReasons = status.isPausedLiveAnalysisState(hydratedGame.gameState)
-        ? [PauseReason.Analysis, PauseReason.Manual] : [PauseReason.Manual];
+      hydratedGame.$!.pauseReasons = [PauseReason.Manual];
     }
     playerTurn.normalisePlayers(hydratedGame);
     _replaceGame(hydratedGame);

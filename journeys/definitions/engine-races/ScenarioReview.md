@@ -10,7 +10,7 @@ Intent: SCN-TIME-02/05, including BR-TIME-05-ENGINE-READY-WHILE-AWAY and ALREADY
 
 ## JRN-RACE-02
 
-Intent: SCN-CTRL-04 and TIME-02, including LATEST-NODE-VARIATION. Explicit analysis freezes the live turn while both colours explore. Output released on that branch remains deferred; output released after exit targets the original live parent. Both orders commit once after return and retain the existing temporary-variation pruning policy. Classification: aligned; no live-background scheduling policy is added.
+Intent: SCN-CTRL-04 and TIME-02 under the approved 22 October background-analysis policy. A reply released while an analysis descendant is selected advances actual play and retains that historical branch. A reply released after Exit keeps the existing current-parent prune. Both orders preserve selected/actual ownership and commit exactly once; genuine Manual/Menu pause neighbours still defer output.
 
 ## JRN-RACE-03
 

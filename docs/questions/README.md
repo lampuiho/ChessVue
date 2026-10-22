@@ -20,7 +20,7 @@ One follow-up clarification is open from design/source review of the analysis pl
 
 | ID | Status | Concrete question and reason |
 | --- | --- | --- |
-| [Q-PLAY-003](play/Q-PLAY-003-PausedAnalysisEntry.md) | Paused entry resolved; exploratory-input scope pending | Entry is now allowed by explicit user instruction. Existing rules separately lock analysis moves/history while paused; clarify that scope while keeping actual pause ownership intact. The topic records why a decision was needed. |
+| [Q-PLAY-003](play/Q-PLAY-003-PausedAnalysisEntry.md) | Resolved | Entry and explicit analysis moves/history are allowed while actual play stays paused. The topic records the prior conflict, user decisions and ownership hazards. |
 
 ## Review prompts for future journey work
 
