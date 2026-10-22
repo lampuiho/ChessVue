@@ -2,11 +2,11 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Product decisions resolved; analysis prerequisite and queue data contract implemented; premove behaviour/tests planned |
+| Status | Product choices resolved; revised raw data/function plan awaits approval. No premove implementation is authorised by this planning revision |
 | Raised/resolved | 21 October 2026 |
-| Decision source | User's numbered answers 1–9 in this conversation |
+| Decision source | User numbered answers and subsequent explicit corrections through 22 October 2026 |
 | Parent plan | [Premove and player-turn flow](../../PreMovePlan%28ToDo%29.md) |
-| Evidence | Source/test inspection plus four existing store tests executed; no new premove acceptance |
+| Evidence | Existing source/design inspection and historical test records; no execution of the revised raw/no-buttons plan |
 | Related decisions | [Background analysis](Q-PLAY-001-LiveProgressDuringAnalysis.md), [temporary exploratory branch/recording scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) |
 
 ## Resolved decisions
@@ -25,6 +25,25 @@ These replace the earlier open recommendations. Resolved design does not mean th
 | 8 | Keep intentions across temporary navigation | Preserve the in-memory queue across menu/tab changes. Existing Manual/Menu pause rules still apply; close/disposal ends ownership |
 | 9 | Premoves are not history; invalid premoves clear the whole queue | No speculative move nodes, retained unavailable tail, skipping or revival. Clear every remaining entry/shade on invalidation |
 
+## Subsequent decisions carried into the replan
+
+These later instructions supersede incompatible details in older drafts. They do not reopen answers 1-9.
+
+| Decision | Required plan consequence |
+| --- | --- |
+| Reuse `IMoveRaw` | Queue stores `IMoveRaw[]`; remove the custom entry interface rather than aliasing it or copying its fields. No stored expected kind; derive the piece from the projected/actual board |
+| Include the still-pending raw-submission refactor | Complete the [CodexFollowUp item](../../CodexFollowUp.md#still-pending) as PRE-RAW first: legal selection/promotion and board/view/store submission stay raw, then canonical acceptance enriches for existing detailed services/history. Its own tests must fail before the refactor and pass before queue implementation |
+| No queue anchor | Current actual live position is the base. Keep exact seated-player ownership; no duplicated node/path/FEN, including Black before its first move |
+| Chess rules remain a proper utility | Extend existing `GameRuleUtility`; no premove utility/library. Use generic `genCandidateMovesForPiece` and existing legal/detail/application APIs |
+| No count or premove buttons | No queue count/list or Undo/Clear controls in GameControlPanel. Cancel the whole queue through live-board right-click; touch tap a premoved piece. Retain Escape access and board-edit deletion |
+| Paused analysis allowed | Preserve Q-PLAY-003: entry, exploratory moves/history and Exit work without releasing genuine Manual/Menu ownership. Actual commits and premove editing remain paused |
+| Preserve history policy | Only existing own-current-move pruning applies. A selected branch whose anchor became historical remains history through Exit/navigation; no deferred pruning registry |
+| Ordinary history input | Retain the existing actual-rewrite confirmation when Takeback is allowed. Require Analyse for exploratory input when Takeback is disabled |
+| Tests before behaviour | First migrate the data boundary with its assertions; then write/revise all raw scenario tests and record meaningful failures before gameplay/presentation development |
+| Full replan after undo | This revision edits the plan/data-design/decision documents only. No code/test changes or renewed implementation until the revised plan is approved |
+
+The chess.com reference concerns the cancellation gesture only. It does not add its timing deduction, queue cap, persistence policy or an alternative rendering/background-play rule. A cancel gesture is not a move submission; all completed eligible move submissions still append.
+
 The sequence remains game-owned through analysis, but it can be consumed or cancelled by background actual play. Reapplying on exit means recomputing the **remaining** valid queue over the latest live board; it never means rewinding actual play or restoring already-executed entries.
 
 Coverage-audit clarifications on 21 October: the user confirmed that pruning applies only when the branch comes from their own current move. Once background actual progression leaves that anchor behind, the branch remains history; do not introduce Exit/navigation cleanup. The user also confirmed preserving the existing history-move rewrite confirmation when Takeback is allowed, and requiring explicit Analyse for exploratory input when Takeback is disabled. These choices do not approve implementation of the written analysis plan.
@@ -35,7 +54,7 @@ Later clarification: [Q-PLAY-003](Q-PLAY-003-PausedAnalysisEntry.md) allows expl
 
 ## Historical implementation audit before the split
 
-The following source/test observations describe 21 October, before the [analysis prerequisite](../../BackgroundAnalysisPlan.md) was implemented and verified. They are retained as historical evidence, not current defects. The [queue data contract](../../PremoveDataStructure.md) was added afterwards; premove behaviour remains planned.
+The following source/test observations describe 21 October, before the [analysis prerequisite](../../BackgroundAnalysisPlan.md) was implemented and verified. They are retained as historical evidence, not current defects. The former queue declaration was added afterwards; its entry shape is superseded by the revised [raw queue design](../../PremoveDataStructure.md), whose implementation/tests remain pending approval.
 
 | Boundary | Observed implementation | Required implementation |
 | --- | --- | --- |
@@ -82,7 +101,10 @@ On 21 October 2026, a focused run of [GamesStore.spec.ts](../../../src/state/__t
 | C17: result/seat/root replacement | Cancel queue and settle actual work on timeout/result, real reassignment, setup/root replacement or disposal. Analysis exit cannot revive play. No-op assignment does not cancel |
 | C18: save/load isolation | Save canonical selected/live workspace, not queue/display/turn runtime. Continued in-memory game retains its queue; restored game has none. Keep legacy paused saves explicitly paused |
 | C19: background start at equal paths | Detach board caches as well as path arrays. A reply before any exploratory move must not mutate selected snapshot or cause the view to follow live merely because paths initially match |
-| C20: projection/highlight layers | Pieces sit at projected destinations; every pending source/destination is red at one opacity. Actual-last-move/selection/focus remain distinct; actual check is not inferred from projected king placement |
+| C20: projection/highlight layers | Pieces occupy projected destinations; every pending endpoint is red at one opacity, including castling rook movement. Distinguish actual-last outline, selection and focus; derive actual check from canonical state |
+| C21: generic raw data versus source validation | Reuse existing `IMoveRaw`; read source colour/kind at each projected/actual step and exact promotion through rules. No expected-kind field or alternate entry type |
+| C22: cancellation versus append/exploration | Board right-click or touch tap on a premoved piece clears the whole live queue; mouse selection still chains. No counts/buttons/Undo-last. Analysis/review/pause and stale input cannot clear the background queue; board-edit right-click deletes only its piece |
+| C23: obsolete tests/evidence after replan | Migrate old kind/button/Undo fixtures to raw source-geometry/promotion and board cancellation cases. Preserve all scenario IDs; record a fresh red baseline before behaviour code. Older test counts remain historical |
 
 Protecting active analysis does not add a new cleanup boundary. Existing current-move pruning remains, while branches left at historical anchors stay available as history per the user's audit clarification. The [actual-move recording scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) remains unchanged: exploratory nodes are not actual-move analysis records, and premoves are not history.
 
@@ -97,8 +119,8 @@ These are required planned checks, not passing acceptance. Where implementation 
 | Scenario | Actions / fixture | Required observable behaviour |
 | --- | --- | --- |
 | PRE-S01: chained drawing | Human White queues `g1-f3`, `f3-g5` during engine Black turn | Display knight `g5`, empty `g1`/`f3`, red union of all three. Canonical rendered/live knight stays `g1` until actual commit; no speculative node/increment |
-| PRE-S02: consumption/undo | First move commits, then undo remaining `f3-g5` before next local turn | Before undo only `f3`/`g5` red and knight displayed `g5`; undo shows actual `f3` and no queue shade. First actual move remains history |
-| PRE-S03: repeated marks/orientation | Shared intermediate squares, orientation flip, Clear | One red opacity per square; same board IDs/pieces after flip; Clear rebuilds canonical pieces and removes all queue marks |
+| PRE-S02: consumption/cancellation | First head commits, then cancel remaining f3-g5 before the next local turn | Before cancellation, only f3/g5 are red and the knight is displayed on g5. Whole clear shows actual Nf3 without queue shade; actual history/clock remain |
+| PRE-S03: marks/orientation/board cancellation | Shared squares, both orientations, right-click empty/ordinary/premoved squares and touch tap a premoved piece | One red opacity per square; consistent absolute squares. Whole clear rebuilds canonical pieces. No counts/buttons; mouse selection still chains; cancelled/empty input creates no actual move |
 | PRE-S04: special drawing | Queued capture, chosen promotion and castling | Correct displaced pieces without actual capture/rights/result changes; explicit promotion required, reversible display on Clear; both castle pieces move |
 | PRE-S05: explicit entry | Queue exists during engine search; click Analyse on selected canonical move | Analysis starts there without premove displacement; actual clock/search/queue continue. Selecting history alone previously did not enable analysis input |
 | PRE-S06: independent exploration | Explore moves matching queue coordinates while actual play advances | Analysis input changes only its branch; actual turn consumption alone removes entries. Selected analysis board/evaluations stay at its own node |
