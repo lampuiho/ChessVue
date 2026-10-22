@@ -7,6 +7,7 @@ import { clockSnapshotSchema, timeControlSchema, type IClockSnapshot, type ITime
 import { pieceKindSchema, playerColourSchema, type PieceKind, type PlayerColour } from './Chess'
 import { type PauseReason } from './state'
 import type { DeepReadonly } from './Readonly'
+import type { IPremoveQueue } from './Premove';
 import type { Deferred } from '@/utility/async/Deferred'
 import { RecordTimestamp } from '@/utility/date'
 import { utcTimestampSchema } from './UtcTimestampSchema'
@@ -110,6 +111,7 @@ export interface IGameplayOptions {
   showLiveAnalysisMoves?: boolean;
 }
 export interface IGameRuntime {
+  premoveQueue?: IPremoveQueue;
   timeoutNotificationShown?: boolean;
   renderedPosition?: IBoardPosition;
   renderedNode?: IMoveNode;

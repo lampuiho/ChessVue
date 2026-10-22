@@ -6,6 +6,7 @@ export * from './Engine'
 export * from './Game'
 export * from './ModalState'
 export * from './Move'
+export * from './Premove';
 export * from './PlatformError'
 export * from './RecentGame'
 export * from './Readonly'

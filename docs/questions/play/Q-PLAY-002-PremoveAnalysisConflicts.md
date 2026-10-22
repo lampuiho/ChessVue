@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Product decisions resolved; implementation/test work planned |
+| Status | Product decisions resolved; analysis prerequisite and queue data contract implemented; premove behaviour/tests planned |
 | Raised/resolved | 21 October 2026 |
 | Decision source | User's numbered answers 1–9 in this conversation |
 | Parent plan | [Premove and player-turn flow](../../PreMovePlan%28ToDo%29.md) |
@@ -31,9 +31,11 @@ Coverage-audit clarifications on 21 October: the user confirmed that pruning app
 
 For navigation, preservation and existing clock pauses remain separate: changing the selected board/view is not itself a queue pause; an actually applied Manual/Menu pause still blocks all actual commits.
 
-Later clarification: [Q-PLAY-003](Q-PLAY-003-PausedAnalysisEntry.md) allows explicit Analyse entry while actually paused, preserving real pause ownership. It records the reason for requesting that policy choice; the scope of paused exploratory input is a separate follow-up.
+Later clarification: [Q-PLAY-003](Q-PLAY-003-PausedAnalysisEntry.md) allows explicit Analyse entry and analysis moves/history while actually paused, preserving real pause ownership. Both decisions are resolved and implemented by the separate analysis prerequisite.
 
-## Current implementation differs from that decision
+## Historical implementation audit before the split
+
+The following source/test observations describe 21 October, before the [analysis prerequisite](../../BackgroundAnalysisPlan.md) was implemented and verified. They are retained as historical evidence, not current defects. The [queue data contract](../../PremoveDataStructure.md) was added afterwards; premove behaviour remains planned.
 
 | Boundary | Observed implementation | Required implementation |
 | --- | --- | --- |
@@ -46,7 +48,7 @@ Later clarification: [Q-PLAY-003](Q-PLAY-003-PausedAnalysisEntry.md) allows expl
 | Takeback | Rewinds actual play even during analysis and may reapply Analysis pause | Preserve actual rewind semantics, clear queue and safely relocate removed selection; do not create Analysis-owned pause |
 | Saved paused analysis | [Hydration](../../../src/state/game/GameWorkspaceComposable.ts) reconstructs Analysis plus Manual pause owners | Preserve saved paused timing until explicit Resume, without a synthetic Analysis pause that requires exit to resume |
 
-The current analysis implementation **does pause**, and it is tested to do so; the user's clarified requirement changes that contract. Do not report current passing tests as evidence that background analysis already works.
+At that audit, analysis entry **did pause**, and the tests verified that old contract. Those historical passes were not evidence for background analysis. The later prerequisite changed and verified that behaviour separately, as recorded in its implementation evidence.
 
 On 21 October 2026, a focused run of [GamesStore.spec.ts](../../../src/state/__tests__/GamesStore.spec.ts) passed these four existing tests, with 41 tests unselected:
 
@@ -87,6 +89,8 @@ Protecting active analysis does not add a new cleanup boundary. Existing current
 Full legality applies to the next due move, while the whole queue must remain projectable under the documented speculative rules. Do not reject every future off-turn intention using today's full chess legality, but do not retain a known unprojectable suffix either.
 
 ## Concrete scenario matrix
+
+The parent plan restores the [test-ready scenarios](../../PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests), [function flows](../../PreMovePlan%28ToDo%29.md#function-flow) and [plain-data fixture/assertion specification](../../PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification). The PRE-S01-PRE-S25 IDs below remain their product traceability record; use the parent plan for execution order and exact queue/state assertions.
 
 These are required planned checks, not passing acceptance. Where implementation details were not explicitly specified by the user, the parent plan provides the recommended mechanism; expected product behaviour follows the decisions above.
 
