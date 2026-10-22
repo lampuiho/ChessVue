@@ -1,8 +1,8 @@
 # Premove and player-turn flow plan
 
-Updated on 22 October 2026. **Status: background analysis and the [premove data structure](PremoveDataStructure.md) are implemented separately; premove behaviour/presentation implementation has not started.** The runtime data contract now supports plain-data fixtures for the test-first work below. See the [background analysis verification record](BackgroundAnalysisPlan.md#implementation-and-verification) for its executed checks. The [decision/scenario record](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md) retains the resolved product choices. Follow [AGENTS.md](../AGENTS.md) and the [code cleanup plan](CodeCleanupPlan.md).
+Updated on 22 October 2026. **Status: background analysis and the [premove data structure](PremoveDataStructure.md) are implemented separately; PRE-01 scenario unit tests are written and their failing baseline is recorded below. Premove behaviour/presentation implementation has not started.** See the [background analysis verification record](BackgroundAnalysisPlan.md#implementation-and-verification) for its executed checks. The [decision/scenario record](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md) retains the resolved product choices. Follow [AGENTS.md](../AGENTS.md) and the [code cleanup plan](CodeCleanupPlan.md).
 
-The [function flow](#function-flow) and [25 concrete scenarios](#concrete-scenarios-for-unit-tests) are restored in this plan, rather than requiring the reader to reconstruct them from the separate analysis plan or conflict record. The [data-driven test specification](#data-driven-unit-test-specification) defines fixture inputs, events and assertions. This revision changes documentation only; the flows below describe subsequent premove implementation, not existing behaviour or executed premove acceptance.
+The [function flow](#function-flow) and [25 concrete scenarios](#concrete-scenarios-for-unit-tests) remain in this plan. The [data-driven test specification](#data-driven-unit-test-specification) defines fixture inputs, events and assertions, now encoded in the [unit tests](#pre-01-unit-test-baseline). The flows below describe subsequent premove implementation, not existing behaviour or passing premove acceptance.
 
 ## Prerequisite and tests-first order
 
@@ -106,7 +106,7 @@ Queue integration adds only these requirements: analysis/review must not suspend
 
 ## Whole-queue validation
 
-Premove creation uses speculative movement, not full current-turn legality for a side that is not due. Use a pure projection/target utility; do not mutate the real `sideToMove` or relax `genLegalMovesForPiece`.
+Premove creation uses speculative movement, not full current-turn legality for a side that is not due. Extend the existing `GameRuleUtility` with piece-movement candidates; do not create a premove utility/library. The rule function reads one board/source and returns raw chess coordinates. Queue ownership, expected-piece provenance, sequence composition and red shading belong to the existing state/presentation owners. Do not mutate the real `sideToMove` or relax `genLegalMovesForPiece`.
 
 | Piece/case | Queue-time projection | At the actual due turn |
 | --- | --- | --- |
@@ -126,7 +126,7 @@ A successful commit consumes only its own head; background analysis leaves the r
 
 ## Function flow
 
-Names without a qualifier below are existing functions in the linked source owners. Names prefixed with `_` and the three pure chess functions are **planned implementation responsibilities** where they do not already exist; none is claimed implemented by the data-structure work. Keep the existing move/analysis/clock/history entry points and add only the raw-input/edit boundaries needed by premoves. No new `GameState`, persisted field, watcher, invalidation counter or future-turn promise is needed.
+Names without a qualifier below are existing functions in the linked source owners. Names prefixed with `_`, the position projection and the speculative rule function are **planned implementation responsibilities** where they do not already exist; none is claimed implemented by the data-structure work. Keep the existing move/analysis/clock/history entry points and add only the raw-input/edit boundaries needed by premoves. No new `GameState`, persisted field, watcher, invalidation counter or future-turn promise is needed.
 
 ### Planned call boundaries
 
@@ -134,13 +134,13 @@ Names without a qualifier below are existing functions in the linked source owne
 | --- | --- |
 | Existing `GamesStore.makeMove` / `GameMoveComposable.makeMove` | Keep the action name and immediate-move completion. Plan the smallest additive input union, `IMove \| IPremove`, so off-turn input can carry raw intent without invented capture/check/notation. Current callers supplying `IMove` remain valid. This extension is planned, not present in the current signature |
 | Planned `undoPremove(game)` / `clearPremoves(game)` | Queue-only store actions for explicit controls. They publish runtime changes and never invoke actual Takeback. Internal invalidation calls the same private clearing operation without requiring a visible live board |
-| Planned `projectPremoves(position, colour, moves)` | Pure whole-sequence projection: copied piece array plus unique `redSquares`, or `undefined` if any intention cannot project. Empty input returns canonical pieces/no red squares. No canonical position/queue mutation |
-| Planned `genPremoveTargets(position, colour, moves, from)` | Pure own-piece speculative targets after projecting the existing FIFO; raw intentions include expected piece kind and explicit promotion alternatives. Does not change canonical `sideToMove` or relax normal legal-move generation |
-| Planned `resolvePremoveMove(position, colour, intent, lastMove?)` | Pure due-turn resolution: matching actual legal detailed `IMove`, or `undefined`. Uses actual turn, expected source kind/colour, last actual move and exact promotion |
+| Planned `GameRuleUtility.genCandidateMovesForPiece(position, from)` | Raw `IMoveRaw[]` movement candidates for that piece's geometry, occupancy, castling rights and explicit promotion alternatives, independently of the actual side due/current attacks. Pawn capture diagonals are candidates even when empty; full legality is checked by the existing legal-move functions. No queue, player seat, history, red-square or application-mode input/output. Reuse existing private chess mechanics in this file |
+| Planned `GamePositionComposable.getPremoveProjection(position, queue)` | Existing app position owner composes the FIFO on a detached position through `MoveApplicationService` and rule candidates. Return copied pieces/unique red squares, or `undefined` for any invalid dependency. Expected kind/colour and queue ordering are app checks. Test through observable board output rather than require a new utility export |
+| Private `Turn._resolvePremoveMove` responsibility | Require the due actual colour and expected source kind, then reuse `genLegalMovesForPiece` plus exact raw/promotion matching and `toDetailedMove`. No exported premove resolver/wrapper is required |
 | Existing `requestPlayerMoveIfNeeded` / `attemptPlayerMove` | Retain current-turn entry responsibilities while moving scheduling to one private serial drain. Provider delivery is bound to the captured turn; ordinary local input still observes its actual commit |
 | Existing `commitLiveMove`, pause/resume, analysis/history and structural actions | Reuse their canonical effects. Add explicit queue validation/consumption/cancellation at the boundaries below; do not rewrite the completed analysis feature |
 
-The raw-intent union, queue-edit actions and pure helpers are the small premove-specific additions to plan against. They are distinct from the earlier API-preserving analysis prerequisite. Do not write tests requiring a new review mode, speculative `IMove` records, per-colour queues or a replacement serialization API.
+The raw-intent union, queue-edit actions and speculative movement in the existing chess rule utility are the small premove-specific additions to plan against. Internal queue composition stays with existing game owners. They are distinct from the earlier API-preserving analysis prerequisite. Do not write tests requiring a separate premove library, a new review mode, speculative history `IMove` records, per-colour queues or a replacement serialization API.
 
 ### PRE-F01 - Classify input before submitting it
 
@@ -156,7 +156,7 @@ The raw-intent union, queue-edit actions and pure helpers are the small premove-
 
 ### PRE-F02 - Append raw intention to the FIFO
 
-`PRE-F01 off-turn branch -> planned Turn._appendPremove -> Position.getLivePosition -> projectPremoves/genPremoveTargets -> queue mutation -> runtime publication`.
+`PRE-F01 off-turn branch -> planned Turn._appendPremove -> Position.getLivePosition/getPremoveProjection -> GameRuleUtility.genCandidateMovesForPiece(projectedPosition, from) -> queue mutation -> runtime publication`.
 
 1. Verify ongoing ordinary following-live gameplay, no real pause, exactly one local and one engine seat, the engine due, and a completed raw move from the local projected piece. Copy only `from/to/movingPiece/promotionPiece`; discard any supplied detailed-move/runtime metadata.
 2. For an existing queue, require its `player` to be the exact seated local object and validate its existing sequence on the current actual live position. Ownership mismatch or an already-invalid sequence clears that entire queue and rejects the obsolete submission; it does not silently rebind it.
@@ -168,9 +168,9 @@ The raw-intent union, queue-edit actions and pure helpers are the small premove-
 
 ### PRE-F03 - Derive displaced pieces, targets and red squares
 
-`GameView selected-board projection -> projectPremoves(canonicalPosition, queue.player.colour, queue.moves) -> Chessboard piece artwork + red squares`; next own-piece gesture uses `genPremoveTargets` on the same canonical base and complete FIFO.
+`GameView selected-board projection -> Position.getPremoveProjection(canonicalPosition, queue) -> Chessboard piece artwork + red squares`; next own-piece gesture uses `GameRuleUtility.genCandidateMovesForPiece` on the final detached projection. This remains application composition, not another utility/library.
 
-1. Copy the canonical piece array; walk intentions in order with private speculative piece/castling state. At each step require the expected local kind/colour and allowed geometry, destination and blockers. Move the projected piece, apply the chosen promotion, and move the rook for castling. Track local king/rook moves so rights cannot revive later in the sequence.
+1. Detach the canonical position through `MoveApplicationService`; walk intentions in order, checking expected local kind/colour and matching each raw intention to `GameRuleUtility.genCandidateMovesForPiece`. Apply the matching candidate to the copy through the existing move-application boundary, including promotion and castle rook movement. Retain the copy's evolving castling rights so king/rook movement cannot revive them. Do not duplicate piece movement rules in state or create accepted history metadata from this picture.
 2. Pawn empty diagonals express a possible future capture. Do not invent an en-passant victim or capture metadata where the actual base supplies no such fact. Slider paths/friendly occupancy remain real projection constraints; future opponent replies are not simulated. King safety/check is resolved only when due.
 3. Collect the union of every pending source/destination at one opacity, including vacated intermediate squares. Include the rook's source/destination for castling. Return the final copied pieces and unique absolute board IDs; orientation only changes drawing order.
 4. Show that result only when the selected board follows live gameplay. Explicit analysis/review shows canonical selected pieces with no premove red fill. Queue execution is independent of this display condition.
@@ -186,7 +186,7 @@ The raw-intent union, queue-edit actions and pure helpers are the small premove-
 1. Join owned drain work rather than start a competing loop. Serialise explicit state-changing actions and preserve a wake arriving while a drain finishes. This is action/work ownership, not a generation counter or polling loop. Never hold the action lane while waiting for an engine result.
 2. Reconcile actual expiry. Stop for ended/disposed/transitioning context. Attach one current-turn owner from the actual parent node, colour and seated player before any asynchronous readiness/provider start; its accepted result and completion belong to that actual turn.
 3. If a genuine Manual/Menu pause applies, retain the owner/result/queue and stop without consuming any intention. Analyse, history and another displayed game are not pause predicates.
-4. Validate any queue's human-versus-engine capability and exact seated-player binding. For an eligible local turn, call `projectPremoves` on the entire current queue using the current actual live position, then resolve its head using PRE-F07. Invalid data clears the queue and leaves the local turn waiting. With no queue/result, wait for normal local input; its clock continues. An ineligible queue never blocks an actual engine turn from starting.
+4. Validate any queue's human-versus-engine capability and exact seated-player binding. For an eligible local turn, ask `Position.getPremoveProjection` to validate the entire current queue using the current actual live position, then resolve its head using PRE-F07. Invalid data clears the queue and leaves the local turn waiting. With no queue/result, wait for normal local input; its clock continues. An ineligible queue never blocks an actual engine turn from starting.
 5. For an engine seat, start its captured provider once, then return while it thinks. Provider delivery uses PRE-F05. Duplicate wake requests cannot start another search.
 6. Commit an accepted actual move synchronously through `commitLiveMove` while its owner remains attached. Apply queue post-commit changes in PRE-F06 **before** evaluating the successor. Stop on terminal result; otherwise retire/drain the old delivery owner and iterate for the next actual turn.
 
@@ -208,7 +208,7 @@ Long-lived pondering remains engine-owned. Current `startPlayerTurn` ends by awa
 
 ### PRE-F06 - Rebase or consume after a real commit
 
-`commitLiveMove -> _applyLiveMove/_finaliseLiveMove canonical effects -> planned Turn._rebasePremoveQueue(game, consumedHead?) -> getLivePosition/projectPremoves -> runtime publication -> PRE-F04 successor`.
+`commitLiveMove -> _applyLiveMove/_finaliseLiveMove canonical effects -> planned Turn._rebasePremoveQueue(game, consumedHead?) -> Position.getLivePosition/getPremoveProjection -> runtime publication -> PRE-F04 successor`.
 
 1. Read the game's current actual live position and require any queue's player to remain its exact eligible local seat. Structural changes clear the queue at PRE-F12; queue revalidation does not reconstruct or compare a stored continuation anchor.
 2. If this was its due local head, remove **that head only after successful actual commit**. Remove the queue if now empty. Do not reproject the consumed entry from its now-vacated source.
@@ -220,7 +220,7 @@ Long-lived pondering remains engine-owned. Current `startPlayerTurn` ends by awa
 
 ### PRE-F07 - Resolve the next due intention on the actual board
 
-`PRE-F04 local turn -> resolvePremoveMove(actualPosition, localColour, head, actualNode.move) -> genLegalMovesForPiece -> exact raw/promotion match -> toDetailedMove(actualPosition, candidate) -> current-turn acceptance -> commitLiveMove`.
+`PRE-F04 local turn -> private Turn._resolvePremoveMove responsibility -> GameRuleUtility.genLegalMovesForPiece(actualPosition, head.from, actualNode.move) -> exact raw/promotion match -> toDetailedMove(actualPosition, candidate) -> current-turn acceptance -> commitLiveMove`.
 
 Require the actual side due and expected source kind/colour. Match legal candidates for `from/to` and exact promotion; never default a queued underpromotion to a queen. A missing candidate clears the whole queue through the caller and leaves the actual turn waiting. Do not skip to a later intention.
 
@@ -286,7 +286,7 @@ Menu return removes only Menu; switching the displayed game alone is not a runti
 
 ### PRE-F14 - Gestures, suggestions and stale input
 
-`own-piece click/drag/keyboard -> genPremoveTargets -> complete raw IPremove -> PRE-F01/PRE-F02`; live own-turn legal targets retain the normal actual route; explicit-analysis legal targets retain the full-prefix route.
+`own-piece click/drag/keyboard -> GameRuleUtility.genCandidateMovesForPiece(projectedPosition, from) -> complete raw IPremove -> PRE-F01/PRE-F02`; live own-turn legal targets retain the normal actual route; explicit-analysis legal targets retain the full-prefix route. The input owner adds expected source kind; the chess-rule query returns raw coordinates only.
 
 For PV targets, apply existing visibility/playability preferences. Normal due-local input keeps the existing first-actual-PV-move behaviour. In eligible off-turn input, use the clicked own-colour suggestion (the last move in the existing selected-prefix payload) as **one raw intention** and validate it against the current projected FIFO. Do not apply preceding opponent PV replies, assume they will happen, enqueue them or play a future prefix. An engine-colour clicked suggestion cannot steal that seat. Explicit Analyse retains canonical full-prefix preview validation and owned playback.
 
@@ -366,21 +366,21 @@ An example scenario row can be encoded as:
 }
 ```
 
-The event interpreter is **test code**, not a new production dispatcher. `providerMove` integration events release a captured controlled provider through the real actual commit route; they must not fake progression by editing live paths or clocks. Pure projection/resolution cases supply board/intent data directly and need no promises, timers, engine processes or Vue mounts.
+The event interpreter is **test code**, not a new production dispatcher. `providerMove` integration events release a captured controlled provider through the real actual commit route; they must not fake progression by editing live paths or clocks. Chess-rule cases supply board/raw-coordinate data directly and need no engine or Vue mount. Plain projection scenarios feed the mounted board to assert final pieces, red squares and untouched canonical data without inventing a premove utility API.
 
 ### Assertions and test owners
 
 | Lane | Proposed test owner | Required assertions |
 | --- | --- | --- |
-| U-P: pure chess data | New `PremoveUtility.spec.ts` beside chess utility tests | Expected copied piece map, exact red-square set, target candidates and due legal move/details. Deep-freeze inputs or compare before/after; invalid suffix returns no partial projection |
+| U-P: pure chess data | Existing `src/utility/__tests__/GameRuleUtility.spec.ts` | Speculative piece candidates and existing due legal moves/details; no queue, UI shading or seat ownership in the rule API. Deep-freeze candidate-query inputs or compare before/after |
 | U-S: state data/actions | New `src/state/__tests__/Premove.spec.ts` using existing fixture/rule helpers | Exact queue entries/order, seated player reference, actual/selected paths and FENs, tree identities/records, result, clocks and runtime-only publication. Use actual public actions and meaningful observable failures |
 | U-O: actual-turn integration | Premove state tests plus existing turn/runtime regressions | Deterministic provider acceptance/start/cancellation traces, one commit per turn, acknowledgements, pause/timeout ordering and no repeated increment/ponder. Fake only external provider/readiness/time boundaries; keep rules/history/time-control logic real |
-| V: mounted input | Existing `GameView.spec.ts` and `Chessboard.spec.ts` | Automatic routing, projected artwork/targets/red IDs, controls, selected-input ownership, unfinished promotion/drag and full-prefix analysis cancellation |
+| V: mounted input/projection | New `PremoveView.spec.ts`, with existing `GameView.spec.ts` and `Chessboard.spec.ts` regressions | Full copied piece map and unique red squares from plain projection cases; invalid suffix shows canonical fallback without a partial projection or getter mutation. Automatic routing, controls, selected-input ownership, unfinished promotion/drag and full-prefix analysis cancellation |
 | J: browser/platform | New premove journey plus affected existing Analysis/History/Clock/engine-race/Promotion checks | Actual gestures, accessible/focus layers, both orientations, visible background progression and native protocol evidence only where executed |
 
 For every state event assert both the changed data and important untouched data. Queue edits preserve serialized canonical bytes, timestamps, history/clock/move count and analysis-search starts. Actual commits advance history, timestamps, clock/increment and recording once, while an independently selected canonical board stays unchanged. Queue cancellation never undoes already committed moves.
 
-Write U-P/U-S cases first and record the failing baseline before premove behaviour changes. The already passing `PremoveData.spec.ts` covers only contract serialization/hydration, and the analysis tests cover only the prerequisite. Missing imports, missing methods or type errors alone are not meaningful behavioural red evidence. Add controlled U-O tests before replacing the actual-turn flow; add V/J tests for their presentation boundaries. Do not mock the projection, legal resolver or store action being tested.
+Write U-P/U-S cases first and record the failing baseline before premove behaviour changes. The already passing `PremoveData.spec.ts` covers only contract serialization/hydration, and the analysis tests cover only the prerequisite. Missing imports, missing methods or type errors alone are not meaningful behavioural red evidence. Add controlled U-O tests before replacing the actual-turn flow; add V/J tests for their presentation boundaries. Do not mock the chess rules, actual board projection or store action being tested.
 
 ### Rule fixtures required in addition to the scenario sequence
 
@@ -446,7 +446,7 @@ No arbitrary queue limit, hotseat premoving, review suspension, analysis-entry c
 | Step | Work | Completion gate |
 | --- | --- | --- |
 | PRE-00 | Complete and verify the separate background analysis plan | Its tests were written/failed before implementation and now pass; actual clocks/turns and selected boards have an independent verified contract |
-| PRE-01 | Write queue/capability/projection unit tests against existing data/actions, then run them before premove production edits | Record meaningful failing assertions for append, interleaving, full-clear, hotseat exclusion and red-square/piece projection |
+| PRE-01 | Write queue/capability/projection unit tests against existing data/actions, then run them before premove production edits | Complete: 139 new tests cover PRE-S01–PRE-S25; 82 fail and 57 pass before production changes. Missing API failures are separated from 76 behavioural failures below |
 | PRE-02 | Integrate the existing FIFO contract with one actual-turn owner and serial driver in Game runtime, PlayerTurn and GamesStore; preserve immediate input completion | One current owner/provider, owned cancellation/retry, no future-turn promises |
 | PRE-03 | Integrate queue consumption/cancellation with the verified actual-turn, analysis and invalidation actions | Multiple queued local/engine turns progress behind the stable selected board; no new analysis, pause, cache or pruning redesign |
 | PRE-04 | Add raw opponent-turn enqueue, whole-queue projection/clear and due-turn legal resolution | Every accepted off-turn local move appends; any invalid sequence clears completely |
@@ -475,11 +475,35 @@ Use real chess-rule utilities for legality/projection integration; mocked store 
 | PRE-A12: isolation/persistence | Canonical rendered/live boards, engine FEN, other games and saves never receive speculative pieces; restore has no queue and honours saved pause |
 | PRE-A13: active branch lifetime | Background actual commits cannot remove/reindex the selected analysis branch or re-alias its board. A branch left at a historical anchor stays history through Exit/navigation; pruning remains limited to the existing own-current-move case |
 
-The historical four-test paused-analysis baseline is recorded in [BackgroundAnalysisPlan](BackgroundAnalysisPlan.md); it is not queue evidence. Record this plan's own failing unit run before premove development and its passing run afterwards. No new premove acceptance is claimed by this planning document.
+The historical four-test paused-analysis baseline is recorded in [BackgroundAnalysisPlan](BackgroundAnalysisPlan.md); it is not queue evidence. This plan's failing unit run is recorded below; a passing run remains required after implementation. No passing premove acceptance is claimed by this planning document.
 
 During implementation run `npm run check:code`, affected unit/integration tests, `npm run build` and the focused browser scenarios. Preserve Manual/Menu pause, UCI pondering, cancellation and independent analysis-seat regressions; replace obsolete Analysis-freeze expectations. Record exact executed counts, platforms and failures; browser evidence is not native NW.js acceptance.
 
 Update [GamesStore architecture](LowLevel/Architecture/StateManagement/GamesStore.md), [Game runtime](LowLevel/Architecture/DataInterface/Game.md), [Chessboard](LowLevel/Architecture/Presentation/Components/Chessboard.md), [state model](HighLevel/state_model.md), [engine runtime](HighLevel/engine_runtime.md), [scenarios](HighLevel/scenarios.md) and [persistence](HighLevel/persistence_contract.md) when implementation changes. Add the new flow to the [journey plan](JourneyTestPlan.md) without relabelling old execution evidence. [Q-PLAY-001](questions/play/Q-PLAY-001-LiveProgressDuringAnalysis.md) now records the resolved background policy.
+
+### PRE-01 unit-test baseline
+
+Executed on 22 October 2026 before premove behaviour or presentation edits. All PRE-S01–PRE-S25 IDs appear in the specifications; tests remain ordinary executable assertions, with no skips, expected-failure markers, dummy production exports or test-side queue algorithms.
+
+| Test owner | Cases | Baseline | Scope |
+| --- | --- | --- | --- |
+| [Premove.spec.ts](../src/state/__tests__/Premove.spec.ts) | 66 | 50 fail, 16 pass | Real store actions, held engine providers, actual/selected histories, clocks, analysis/review, both local colours, pauses, structural invalidation, persistence, readiness, duplicate delivery and retry cancellation |
+| Existing [GameRuleUtility.spec.ts](../src/utility/__tests__/GameRuleUtility.spec.ts) | 19 added | 4 fail, 15 pass | Frozen speculative piece-candidate queries in the existing rule owner; actual legality and detail generation reuse the existing rule functions for king safety, castling, en passant, captures and all promotions |
+| [PremoveView.spec.ts](../src/views/__tests__/PremoveView.spec.ts) | 54 | 28 fail, 26 pass | 33 plain projection cases plus 21 mounted input cases. Compare actual piece components/accessibility labels, full displaced piece maps and exact red squares; cover both orientations, input/PV routing, controls, stale gestures, hotseat, rewrite confirmation and tab close |
+
+[PremoveScenario.ts](../src/state/__tests__/PremoveScenario.ts) holds the state scenario/event/expectation table; [PremoveProjectionScenario.ts](../src/state/__tests__/PremoveProjectionScenario.ts) holds board/intent/output examples; [PremoveFixture.ts](../src/state/__tests__/PremoveFixture.ts) holds raw intentions and sparse rule positions. State events invoke existing public actions and captured provider callbacks rather than editing actual paths to imitate queue execution. The runner checks expected actual/selected move sequences with the real legal generator before executing each fixture. Canonical clocks, history, serialization and chess rules are real; only external engine/platform providers and time are controlled. Mounted tests isolate view delegation from store behaviour, which the state suite tests separately. Frozen queue entries and canonical-board comparisons prevent projection getters from editing accepted intentions or canonical pieces.
+
+Of the **82 failures**, **six** are explicitly identified missing planned boundaries: four speculative-candidate assertions against `GameRuleUtility` and two queue-edit action assertions. The other **76** expose behaviour: three rejected off-turn submissions, 26 missing queued commits, 16 missing whole-queue cancellations, 28 drawing/input/control failures, and one each for duplicate provider delivery, startup after readiness cancellation and an uncancelled retry timer. The planned candidate function is looked up from the existing `GameRuleUtility` module, so its absence does not prevent module loading. No fixture-legality, TypeScript or setup failures were observed. The 57 passing new cases cover existing due-move rules, canonical fallback, analysis, permissions and persistence; they do not establish queue execution.
+
+The same run passed all **146 existing regression tests**: the original 40 GameRuleUtility cases plus 106 in PremoveData, BackgroundAnalysis, GamePositionComposable, SerializationService, EngineRuntimeService, GameView and Chessboard. Overall: **285 tests, 203 passed, 82 failed**, with no skipped/todo cases. The JSON execution report is generated at `test-results/PremoveScenarioRed.json` (ignored test output). `npm run type-check`, `npm run check:code` and `git diff --check` pass. Production sources and APIs are unchanged.
+
+To rerun the new specifications and existing rule regressions:
+
+```sh
+npm run test:unit -- run src/state/__tests__/Premove.spec.ts src/utility/__tests__/GameRuleUtility.spec.ts src/views/__tests__/PremoveView.spec.ts --maxWorkers=2
+```
+
+This command should currently fail. Browser gestures/focus, visible background progression and native pondering still need the PRE-06 journey/platform evidence after implementation. The mounted keyboard case covers the native button's shared activation handler; it does not establish browser keyboard/focus behaviour. EngineRuntimeService's existing 33 passing tests provide regression evidence for its mocked protocol boundary, not native premove acceptance.
 
 ## Definition of done
 

@@ -2,7 +2,7 @@
 
 Implemented on 22 October 2026 as the data prerequisite to the [premove behaviour plan](PreMovePlan%28ToDo%29.md). Queue execution, speculative movement and presentation are subsequent work, specified by data-driven unit tests first.
 
-The parent plan now includes the [concrete function flows](PreMovePlan%28ToDo%29.md#function-flow), [fixture/event/assertion specification](PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification) and [all 25 premove scenarios](PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests). Use those to write behaviour tests against these interfaces; the data-boundary tests alone do not cover queue behaviour.
+The parent plan includes the [concrete function flows](PreMovePlan%28ToDo%29.md#function-flow), [fixture/event/assertion specification](PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification) and [all 25 premove scenarios](PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests). Its [PRE-01 unit-test baseline](PreMovePlan%28ToDo%29.md#pre-01-unit-test-baseline) records 139 new tests against these interfaces before behaviour implementation: 82 fail and 57 pass. Rule cases extend the existing `GameRuleUtility` tests; board projection/red shading is checked through the mounted view. No separate premove utility/library is planned. The data-boundary tests alone do not cover queue behaviour.
 
 ## Contracts and ownership
 
@@ -52,6 +52,6 @@ These are the next implementation specifications, not behaviour added by declari
 
 ## Boundary verification
 
-[PremoveData.spec.ts](../src/state/__tests__/PremoveData.spec.ts) constructs both colours as plain game data, checks canonical save equality, queue/player reference ownership, actual-node advancement without queue bookkeeping, serialization with cyclic runtime parent links, empty restored queues and hydration isolation between games. It uses the real serialization and position functions without mocks or asynchronous work. Full gameplay/projection acceptance remains in the later premove test-first work.
+[PremoveData.spec.ts](../src/state/__tests__/PremoveData.spec.ts) constructs both colours as plain game data, checks canonical save equality, queue/player reference ownership, actual-node advancement without queue bookkeeping, serialization with cyclic runtime parent links, empty restored queues and hydration isolation between games. It uses the real serialization and position functions without mocks or asynchronous work. The new scenario/projection tests specify gameplay separately and intentionally fail until premove implementation; they do not change this green data contract.
 
 Verified on 22 October: all 24 focused PremoveData/SerializationService/GamePosition tests passed. `npm run build` passed, including TypeScript checking and `check:code`; `git diff --check` passed. This data-only change has no new browser interaction to exercise.

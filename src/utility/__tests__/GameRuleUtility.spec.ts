@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { AmbiguityKind, CheckState, MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove } from '@/contracts';
+import { AmbiguityKind, CheckState, MoveKind, PieceKind, PlayerColour, ResultReason, ResultState, type BoardId, type IBoardPosition, type IMove, type IMoveRaw } from '@/contracts';
 import { applyMove, createInitialBoardPosition, createSparseBoard, genDetailedMoves, genLegalMoves, genLegalMovesForPiece, genNextPosition, getCheckState, isMoveLegal, isStandardInitialPosition, requiresPromotionSelection, resolveGameResult, toDetailedMove } from '@/utility/chess';
+import * as chess from '@/utility/chess';
+import * as gameRule from '@/utility/chess/GameRuleUtility';
+import { castlePosition, fixturePosition, premove, promotionPosition, squareId, whiteChain, type IPositionFixture } from '@/state/__tests__/PremoveFixture';
+import { attackedCastle, pinned } from '@/state/__tests__/PremoveProjectionScenario';
 
 const _boardId = (file: number, rank: number): BoardId => file + (rank * 8);
 
@@ -563,5 +567,91 @@ describe('GameRuleUtility', () => {
       expect(resolveGameResult(sameColourBishops).resultState).toBe(ResultState.Drawn);
       expect(resolveGameResult(bishopPair).resultState).toBe(ResultState.Ongoing);
     });
+  });
+});
+
+// Premove capability and queue ownership stay in state; these are chess-rule cases.
+const white = PlayerColour.White;
+const black = PlayerColour.Black;
+const kings = [['e1', white, PieceKind.King], ['e8', black, PieceKind.King]] as const;
+function _board(root?: IPositionFixture, played: readonly string[] = []) {
+  const board = fixturePosition(root);
+  let lastMove: IMove | undefined;
+  for (const uci of played) {
+    lastMove = chess.genLegalMoves(board).find((move) => chess.getUci(move) === uci);
+    expect(lastMove, `Legal fixture move ${uci}`).toBeDefined();
+    chess.applyMove(board, lastMove!);
+  }
+  return { board, lastMove };
+}
+function _freeze<T>(value: T): T {
+  if (value && typeof value === 'object') {
+    for (const child of Object.values(value)) _freeze(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+function _targets(position: IBoardPosition, from: BoardId) {
+  const generate = Reflect.get(gameRule, 'genCandidateMovesForPiece') as ((position: IBoardPosition, from: BoardId) => IMoveRaw[]) | undefined;
+  expect(generate, 'Planned GameRuleUtility.genCandidateMovesForPiece is not implemented.').toBeTypeOf('function');
+  return generate!(position, from);
+}
+describe('GameRuleUtility movement candidates', () => {
+  it('PRE-S01 generates another knight move from the displaced board position', () => {
+    const { board } = _board(undefined, ['e2e4', 'e7e5', 'g1f3']);
+    const targets = _targets(_freeze(board), squareId('f3'));
+    expect(targets.map(chess.getUci).sort()).toEqual(['f3d4', 'f3e5', 'f3g1', 'f3g5', 'f3h4']);
+  });
+  it('PRE-S17 generates piece-colour geometry independently of the actual side due', () => {
+    const board = _freeze(fixturePosition());
+    expect(_targets(board, squareId('g8')).map(chess.getUci).sort()).toEqual(['g8f6', 'g8h6']);
+    expect(board.sideToMove).toBe(white);
+  });
+  it('PRE-S04 offers all four explicit promotion choices', () => {
+    const targets = _targets(_freeze(fixturePosition(promotionPosition)), squareId('a7'));
+    expect(targets.filter((move) => move.to === squareId('a8')).map((move) => move.promotionPiece).sort()).toEqual([PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight].sort());
+  });
+  it('PRE-S09 keeps speculative castling separate from actual attacked-path legality', () => {
+    expect(_targets(_freeze(fixturePosition(attackedCastle)), squareId('e1')).map(chess.getUci)).toContain('e1g1');
+  });
+});
+interface IRuleResolutionCase {
+  name: string;
+  root?: IPositionFixture;
+  played?: string[];
+  intent: IMoveRaw;
+  legal: boolean;
+  expected?: Partial<IMove>;
+}
+const resolutionCases: IRuleResolutionCase[] = [
+  { name: 'PRE-F07 resolves an actual normal move', played: ['e2e4', 'e7e5'], intent: whiteChain[0]!, legal: true, expected: { kind: MoveKind.Normal, movingColour: white, movingPiece: PieceKind.Knight } },
+  { name: 'PRE-F07 refuses the wrong actual turn', played: ['e2e4'], intent: whiteChain[0]!, legal: false },
+  { name: 'PRE-F07 reports actual source kind for matching coordinates', played: ['e2e4', 'e7e5'], intent: premove('g1f3', PieceKind.Bishop), legal: true, expected: { movingPiece: PieceKind.Knight } },
+  { name: 'PRE-S09 pinned knight cannot expose its actual king', root: pinned, intent: premove('e2f4'), legal: false },
+  { name: 'PRE-S09 king cannot actually enter attack', root: attackedCastle, intent: premove('e1f1', PieceKind.King), legal: false },
+  { name: 'PRE-S04 actual castle must also have a safe path', root: attackedCastle, intent: premove('e1g1', PieceKind.King), legal: false },
+  { name: 'PRE-S04 resolves valid actual castling', root: { ...castlePosition, side: white }, intent: premove('e1g1', PieceKind.King), legal: true, expected: { kind: MoveKind.Castle } },
+  { name: 'PRE-S04 resolves current actual en-passant', played: ['e2e4', 'a7a6', 'e4e5', 'd7d5'], intent: premove('e5d6', PieceKind.Pawn), legal: true, expected: { kind: MoveKind.EnPassant, capturePiece: PieceKind.Pawn } },
+  { name: 'PRE-S09 an empty diagonal without current en-passant is illegal', root: { side: white, pieces: [...kings, ['e5', white, PieceKind.Pawn], ['d5', black, PieceKind.Pawn]] }, intent: premove('e5d6', PieceKind.Pawn), legal: false },
+  { name: 'PRE-S04 captures the actual bishop rather than invented old capture metadata', root: { side: white, pieces: [...kings, ['f3', white, PieceKind.Knight], ['g5', black, PieceKind.Bishop]] },
+    intent: whiteChain[1]!, legal: true, expected: { capturePiece: PieceKind.Bishop, kind: MoveKind.Normal } },
+  ...(['q', 'r', 'b', 'n'] as const).map((letter): IRuleResolutionCase => ({ name: `PRE-S04 resolves exact promotion ${letter}`, root: { ...promotionPosition, side: white }, intent: premove(`a7a8${letter}`, PieceKind.Pawn), legal: true,
+    expected: { kind: MoveKind.Promotion, promotionPiece: premove(`a7a8${letter}`, PieceKind.Pawn).promotionPiece } })),
+  { name: 'PRE-F07 never silently queens a missing promotion', root: { ...promotionPosition, side: white }, intent: premove('a7a8', PieceKind.Pawn), legal: false },
+];
+describe('GameRuleUtility existing legal candidates and details used for due premoves', () => {
+  it.each(resolutionCases)('$name', (spec) => {
+    const { board, lastMove } = _board(spec.root, spec.played);
+    const before = structuredClone(board);
+    const candidates = genLegalMovesForPiece(board, spec.intent.from, lastMove);
+    const candidate = candidates.find((move) => move.to === spec.intent.to && move.promotionPiece === spec.intent.promotionPiece);
+    expect(isMoveLegal(board, spec.intent)).toBe(spec.legal);
+    expect(candidate !== undefined).toBe(spec.legal);
+    if (candidate) {
+      const detailed = toDetailedMove(board, candidate);
+      expect(detailed).toMatchObject({ from: spec.intent.from, to: spec.intent.to, ...spec.expected });
+      expect(isMoveLegal(board, detailed)).toBe(true);
+    }
+    expect(board).toEqual(before);
   });
 });
