@@ -81,6 +81,14 @@ describe('background analysis through game data and existing actions', () => {
     expect(game.clockSnapshot).toBe(clock);
     expect(game.renderedPath).toBe(game.livePath);
   });
+  it('rejects raw manual input on an engine turn without replacing its provider', async () => {
+    const game = await _start(_engine(PlayerColour.White));
+    const pending = game.$!.pendingPlayerTurnPromise;
+    await expect(store.makeMove(game, { from: 12, to: 28 })).rejects.toThrow('current local turn');
+    expect(game.livePath).toEqual([]);
+    expect(game.$!.pendingPlayerTurnPromise).toBe(pending);
+    expect(external.turns).toHaveLength(1);
+  });
   it('keeps an equal-path selected board fixed before the first exploratory move', async () => {
     const game = await _start(_engine(PlayerColour.White));
     await _explore(game);
@@ -327,7 +335,7 @@ describe('background analysis through game data and existing actions', () => {
     const oldMove = _detailed(game, 11, 27);
     await store.makeMove(game, _detailed(game, 12, 28));
     const pending = game.$!.pendingPlayerTurnPromise;
-    await expect(store.makeMove(game, oldMove)).rejects.toThrow('current local turn');
+    await expect(store.makeMove(game, oldMove)).rejects.toThrow('not legal');
     expect(game.livePath).toEqual([0]);
     expect(game.$!.pendingPlayerTurnPromise).toBe(pending);
     await store.makeMove(game, _detailed(game, 52, 36));

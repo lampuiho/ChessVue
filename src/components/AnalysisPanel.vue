@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { EngineAvailability, type IAnalysisLine, type ReadonlyAnalysisSeat, type IMove } from '@/contracts';
+import { EngineAvailability, type IAnalysisLine, type ReadonlyAnalysisSeat, type IMoveRaw } from '@/contracts';
 import { getSan } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 
@@ -12,8 +12,12 @@ const emit = defineEmits<{
   stopRequested: [index: number];
   engineAddRequested: [];
   engineRemoveRequested: [index: number];
-  moveSelected: [moves: readonly IMove[]];
+  moveSelected: [moves: readonly IMoveRaw[]];
 }>();
+function _selectMoves(line: IAnalysisLine, moveIndex: number) {
+  emit('moveSelected', line.pv.slice(0, moveIndex + 1).map(({ from, to, promotionPiece }) =>
+    promotionPiece === undefined ? { from, to } : { from, to, promotionPiece }));
+}
 function _score(line?: IAnalysisLine): string {
   if (line?.scoreMate !== undefined) return line.scoreMate > 0 ? `M${line.scoreMate}` : `−M${Math.abs(line.scoreMate)}`;
   if (line?.scoreCp !== undefined) {
@@ -64,7 +68,7 @@ function _summary(seat: ReadonlyAnalysisSeat): string {
           <div v-if="seat.lines.length" class="analysis-lines">
             <div v-for="(line, lineIndex) in seat.lines" :key="lineIndex" class="analysis-line">
               <span>{{ lineIndex + 1 }}</span><strong class="analysis-line__score">{{ _score(line) }}</strong>
-              <div class="analysis-line__moves"><button v-for="(move, moveIndex) in line.pv" :key="moveIndex" class="analysis-line__move" :disabled="disabled" :aria-label="`Play through ${getSan(move)}`" @click="emit('moveSelected', line.pv.slice(0, moveIndex + 1))">{{ getSan(move) }}</button></div>
+              <div class="analysis-line__moves"><button v-for="(move, moveIndex) in line.pv" :key="moveIndex" class="analysis-line__move" :disabled="disabled" :aria-label="`Play through ${getSan(move)}`" @click="_selectMoves(line, moveIndex)">{{ getSan(move) }}</button></div>
               <small>d{{ line.depth }}</small>
             </div>
           </div>

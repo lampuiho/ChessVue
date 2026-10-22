@@ -16,7 +16,7 @@ startGameFromSetup(game: IGame, request: IStartGameFromSetupRequest): Promise<vo
 insertGame(game: IGame): Promise<IGame>
 getGame(gameId: string): ReadonlyGame | undefined
 listGames(): readonly ReadonlyGame[]
-makeMove(game: IGame, move: IMove): Promise<void>
+makeMove(game: IGame, move: IMoveRaw): Promise<void>
 takeBack(game: IGame, moveCount?: number): Promise<void>
 navigateToNode(game: IGame, node: IMoveNode): void
 getVisibleAnalysis(game: IGame): IVisibleAnalysis | undefined
@@ -44,6 +44,8 @@ acceptDrawOffer(game: IGame): Promise<void>
 declineDrawOffer(game: IGame): Promise<void>
 withdrawDrawOffer(game: IGame): Promise<void>
 ```
+
+`makeMove` accepts coordinate/promotion intentions. `GameMoveComposable` selects the canonical position, checks integer board IDs and exact legal promotion, then enriches a fresh legal candidate immediately before actual/analysis/history delivery. Supplied colour, kind, capture, check and runtime caches are ignored. Invalid history input cannot cancel the current actual provider. If selection, analysis or pause changes while a valid rewrite settles, that rewrite is released and eligible actual work is rearmed. Detailed engine output and stored history remain full moves; board application/replay requires existing `IMoveCandidate`. See the [raw API design and retention audit](../../../RawMoveSubmissionDesign.md).
 
 ## Internal Composition
 

@@ -32,7 +32,7 @@ These later instructions supersede incompatible details in older drafts. They do
 | Decision | Required plan consequence |
 | --- | --- |
 | Reuse `IMoveRaw` | Queue stores `IMoveRaw[]`; remove the custom entry interface rather than aliasing it or copying its fields. No stored expected kind; derive the piece from the projected/actual board |
-| Include the still-pending raw-submission refactor | Complete the [CodexFollowUp item](../../CodexFollowUp.md#still-pending) as PRE-RAW first: legal selection/promotion and board/view/store submission stay raw, then canonical acceptance enriches for existing detailed services/history. Its own tests must fail before the refactor and pass before queue implementation |
+| Include the raw-submission prerequisite | Completed the [CodexFollowUp item](../../CodexFollowUp.md#raw-move-submission) as PRE-RAW with tests first: legal selection/promotion and board/view/store submission stay raw, then canonical acceptance enriches for existing detailed services/history. Its own tests must fail before the refactor and pass before queue implementation |
 | No queue anchor | Current actual live position is the base. Keep exact seated-player ownership; no duplicated node/path/FEN, including Black before its first move |
 | Chess rules remain a proper utility | Extend existing `GameRuleUtility`; no premove utility/library. Use generic `genCandidateMovesForPiece` and existing legal/detail/application APIs |
 | No count or premove buttons | No queue count/list or Undo/Clear controls in GameControlPanel. Cancel the whole queue through live-board right-click; touch tap a premoved piece. Retain Escape access and board-edit deletion |

@@ -264,7 +264,7 @@ function _clearCastlingAvailability(position: IBoardPosition, colour: PlayerColo
   if (type !== CastlingType.CastlingQueenSide) position.castlingAvailability.blackKingSide = false;
   if (type !== CastlingType.CastlingKingSide) position.castlingAvailability.blackQueenSide = false;
 }
-function _updateCastlingAvailability_(position: IBoardPosition, move: IMove, nextPosition: IBoardPosition) {
+function _updateCastlingAvailability_(position: IBoardPosition, move: IMoveCandidate, nextPosition: IBoardPosition) {
   const movingPiece = _getPiece(position, move.from)!;
   if (movingPiece.kind === PieceKind.King) _clearCastlingAvailability(nextPosition, movingPiece.colour, CastlingType.NotCastling);
   else if (movingPiece.kind === PieceKind.Rook) {
@@ -436,7 +436,7 @@ function _getMoveKind(position: IBoardPosition, move: IMoveRaw): MoveKind {
   if (movingPiece.kind === PieceKind.King && Math.abs(boardIdToCoords(move.to).file - boardIdToCoords(move.from).file) === 2) return MoveKind.Castle;
   return MoveKind.Normal;
 }
-function _isMoveEnpassantTarget(move: IMove)
+function _isMoveEnpassantTarget(move: IMoveCandidate)
 {
   const fromCoords = boardIdToCoords(move.from);
   const toCoords = boardIdToCoords(move.to);
@@ -446,7 +446,7 @@ function _isMoveEnpassantTarget(move: IMove)
 function _moveMatches(candidate: IMoveRaw, move: IMoveRaw): boolean {
   return candidate.from === move.from && candidate.to === move.to;
 }
-function _updatePositionAfterMove(position: IBoardPosition, move: IMove, movingPiece: IChessPiece, isCapture: boolean): IBoardPosition {
+function _updatePositionAfterMove(position: IBoardPosition, move: IMoveCandidate, movingPiece: IChessPiece, isCapture: boolean): IBoardPosition {
   const toCoords = boardIdToCoords(move.to);
   position.enPassantTarget = _isMoveEnpassantTarget(move)
     ? coordsToBoardId(toCoords.file, toCoords.rank - getForwardDirection(movingPiece.colour))
@@ -457,7 +457,7 @@ function _updatePositionAfterMove(position: IBoardPosition, move: IMove, movingP
   position.$ = undefined;
   return position;
 }
-function _applyCastleMove(position: IBoardPosition, move: IMove, king: IChessPiece): IBoardPosition {
+function _applyCastleMove(position: IBoardPosition, move: IMoveCandidate, king: IChessPiece): IBoardPosition {
   const castlingType = _getMoveCastlingType(move);
   const rookFrom = _getCastlingRookBoardId(position, king.colour, castlingType) ?? throwReferenceError('No castling rook square found.');
   const rook = _getPiece(position, rookFrom);
@@ -589,7 +589,7 @@ export function isStandardInitialPosition(position: IBoardPosition): boolean {
   (position.$ ??= {}).isStandardInitialPosition = isStandard;
   return isStandard;
 }
-export function applyMove(position: IBoardPosition, move: IMove): IBoardPosition
+export function applyMove(position: IBoardPosition, move: IMoveCandidate): IBoardPosition
 {
   const movingPiece = _getPiece(position, move.from);
   if (!movingPiece) throw new ReferenceError(`No piece found on ${move.from}.`);

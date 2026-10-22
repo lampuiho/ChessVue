@@ -1,4 +1,4 @@
-import { EngineOptionType, PieceKind, TimeControlPreset, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw } from '@/contracts';
+import { EngineOptionType, PieceKind, TimeControlPreset, type BoardId, type IBoardPosition, type IEngineOptionMeta, type IGame, type IMoveRaw } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
 import { isStandardInitialPosition } from '@/utility/chess/GameRuleUtility';
 import { buildFen, getUci } from '@/utility/chess/MoveNotationUtility';
@@ -28,7 +28,7 @@ export function buildAnalysisCommands(game: IGame): string[] {
 export function buildDebugCommand(enabled: boolean): string {
   return `debug ${enabled ? 'on' : 'off'}`;
 }
-export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMove): string[] {
+export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMoveRaw): string[] {
   if (expectedPonderMove) return isPonderHit(game, expectedPonderMove) ? ['ponderhit'] : ['stop'];
   const liveMoves = _getLiveMoves(game);
   return [_buildPositionCommand(game.rootPosition, liveMoves), _buildPlayerGoCommand(game)];
@@ -36,7 +36,7 @@ export function buildFindNextMoveCommands(game: IGame, expectedPonderMove?: IMov
 export function buildIsReadyCommand(): string {
   return 'isready';
 }
-export function buildPonderMoveCommands(game: IGame, engineMove: IMove, ponderMove: IMove): string[] {
+export function buildPonderMoveCommands(game: IGame, engineMove: IMoveRaw, ponderMove: IMoveRaw): string[] {
   return [_buildPositionCommand(game.rootPosition, [..._getLiveMoves(game), engineMove, ponderMove]), _buildPlayerGoCommand(game, true)];
 }
 /** Builds the UCI position command from the game root and highlighted path, caching standard-root verification under the position's runtime metadata. */
@@ -66,7 +66,7 @@ export function buildUciMove(move: IMoveRaw): string {
 export function buildUciNewGameCommand(): string {
   return 'ucinewgame';
 }
-export function isPonderHit(game: IGame, expectedPonderMove: IMove): boolean {
+export function isPonderHit(game: IGame, expectedPonderMove: IMoveRaw): boolean {
   const liveMoves = _getLiveMoves(game);
   return _movesMatch(liveMoves[liveMoves.length - 1], expectedPonderMove);
 }
@@ -120,7 +120,7 @@ export function parseUciMove(raw: string): IMoveRaw {
 
 // #region Private methods
 
-function _buildPositionCommand(rootPosition: IBoardPosition, moves: readonly IMove[]): string {
+function _buildPositionCommand(rootPosition: IBoardPosition, moves: readonly IMoveRaw[]): string {
   const position = `position ${_buildRootPosition(rootPosition)}`;
   if (moves.length === 0) return position;
   return `${position} moves ${moves.map((move) => buildUciMove(move)).join(' ')}`;
@@ -142,12 +142,12 @@ function _findTokenValue(tokens: string[], label: string): string | undefined {
   const index = tokens.indexOf(label);
   return index < 0 || index + 1 >= tokens.length ? undefined : tokens[index + 1]!;
 }
-function _getLiveMoves(game: IGame): IMove[] {
+function _getLiveMoves(game: IGame): IMoveRaw[] {
   if (game.livePath === undefined) throw new Error(`Live move path is unavailable for game ${game.metadata.id}.`);
   return _getMovesFromPath(game, game.livePath);
 }
-function _getMovesFromPath(game: IGame, path: readonly number[]): IMove[] {
-  const moves: IMove[] = [];
+function _getMovesFromPath(game: IGame, path: readonly number[]): IMoveRaw[] {
+  const moves: IMoveRaw[] = [];
   let node = game.moveTree.root;
   for (const childIndex of path) {
     const child = node.children[childIndex];
@@ -168,7 +168,7 @@ function _getOptionFieldValues(tokens: string[], fieldName: string): string[][] 
   }
   return values;
 }
-function _movesMatch(left: IMove | undefined, right: IMove): boolean {
+function _movesMatch(left: IMoveRaw | undefined, right: IMoveRaw): boolean {
   return left != null && left.from === right.from && left.to === right.to && left.promotionPiece === right.promotionPiece;
 }
 function _parseBoardId(notation: string): BoardId {

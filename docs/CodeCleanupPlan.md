@@ -46,7 +46,7 @@ Ten observer calls were removed or consolidated: only two synchronous Vue bounda
 | SavedGamesView selected-entry watcher | Selection and refresh actions start/cancel owned details delivery. |
 | SavedGamesView route watcher | Successful saved-route commit clears overwrite intent and explicitly initialises/resolves selection; hook is disposed on unmount. |
 | ModalHost form watcher | `UiStateStore.showModal` creates a fresh form on every activation, including the same kind/payload. |
-| Chessboard position and board-edit watchers | One synchronous observer of these two external props clears transient selection/drag/promotion. Moves can originate from engines, history or another route outside the board's input actions. |
+| Chessboard position and board-edit watchers | One synchronous observer clears transient selection/drag/promotion after external position, board-edit or input-disabled changes. PRE-RAW adds the permission input to the same boundary; engines/history and permission changes originate outside the board's actions. |
 | StartJourney readiness watcher | Read-only computed projection exposed through the journey API's `ready` getter; `stopReady` preserves explicit test teardown. |
 
 The App and Chessboard comments state the external boundary and output. Vue disposes both watchers with their component scopes. Their exact inputs and reasons are the only observer exceptions in [CodeAuditPolicy.json](../scripts/CodeAuditPolicy.json). Adding another watcher requires a specific boundary justification and policy review; existing use is not precedent. Do not substitute polling, computed side effects or unrelated subscriptions for removed observers.

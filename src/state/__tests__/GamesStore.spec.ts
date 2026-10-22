@@ -27,6 +27,7 @@ import {
   type IChessPiece,
   type IGame,
   type IMove,
+  type IMoveRaw,
   type IMoveNode,
   type IMoveTree,
   type MovePath,
@@ -142,6 +143,8 @@ function _installScholarMateRules() {
     const expectedMove = scholarMateSequence[_getTestMoveHistory(position).length];
     return expectedMove ? [structuredClone(expectedMove)] : [];
   });
+  utility.genLegalMovesForPiece.mockImplementation((position: IGame['rootPosition'], from: number) =>
+    utility.genLegalMoves(position).filter((move) => move.from === from));
   utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => {
     const expectedMove = scholarMateSequence[_getTestMoveHistory(position).length];
     return !!expectedMove && _isSameMove(expectedMove, move);
@@ -429,7 +432,8 @@ const domain = {
 const utility = {
   createInitialBoardPosition: vi.fn(() => createBoardPosition()),
   genLegalMoves: vi.fn((position: IGame['rootPosition']) => [createMove(position.sideToMove)]),
-  toDetailedMove: vi.fn((_position: IGame['rootPosition'], move: IMove) => structuredClone(move)),
+  genLegalMovesForPiece: vi.fn((position: IGame['rootPosition'], from: number) => Array.from({ length: 64 }, (_, to) => createMove(position.sideToMove, from, to))),
+  toDetailedMove: vi.fn((position: IGame['rootPosition'], move: IMoveRaw) => createMove(position.sideToMove, move.from, move.to)),
   isMoveLegal: vi.fn((position: IGame['rootPosition'], move: IMove) => _isLegalMove(position, move)),
   resolveGameResult: vi.fn((_position: IGame['rootPosition']): IResolvedResult => _createOngoingResult()),
   getSan: vi.fn((move: IMove) => ((move.$ ??= {}).san ??= `${move.from}-${move.to}`)),
@@ -476,13 +480,18 @@ describe('useGamesStore', () => {
     Object.values(utility).forEach((mock) => mock.mockClear());
     utility.createInitialBoardPosition.mockReset();
     utility.genLegalMoves.mockReset();
+    utility.genLegalMovesForPiece.mockReset();
     utility.toDetailedMove.mockReset();
     utility.isMoveLegal.mockReset();
     utility.resolveGameResult.mockReset();
     domain.MoveApplicationService.applyMove.mockReset();
     utility.createInitialBoardPosition.mockImplementation(() => createBoardPosition());
     utility.genLegalMoves.mockImplementation((position: IGame['rootPosition']) => [createMove(position.sideToMove)]);
-    utility.toDetailedMove.mockImplementation((_position: IGame['rootPosition'], move: IMove) => structuredClone(move));
+    // Synthetic orchestration fixtures stay mocked; RawMove.spec exercises canonical acceptance with real rules.
+    utility.genLegalMovesForPiece.mockImplementation((position: IGame['rootPosition'], from: number) => Array.from({ length: 64 }, (_, to) => createMove(position.sideToMove, from, to)));
+    utility.toDetailedMove.mockImplementation((position: IGame['rootPosition'], move: IMoveRaw) =>
+      structuredClone(utility.genLegalMoves(position).find((candidate) => candidate.from === move.from && candidate.to === move.to)
+        ?? createMove(position.sideToMove, move.from, move.to)));
     utility.isMoveLegal.mockImplementation((position: IGame['rootPosition'], move: IMove) => _isLegalMove(position, move));
     domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => _applyDefaultMove(position, move));
     utility.resolveGameResult.mockImplementation((_position: IGame['rootPosition']): IResolvedResult => _createOngoingResult());

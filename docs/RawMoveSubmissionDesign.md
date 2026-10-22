@@ -1,6 +1,6 @@
 # Raw move submission API design
 
-Proposed on 22 October 2026. **Status: design awaiting approval; no implementation or new test execution.** This specifies PRE-RAW in the [premove plan](PreMovePlan%28ToDo%29.md#pre-raw---pending-move-submission-refactor) and the still-pending [CodexFollowUp item](CodexFollowUp.md#still-pending). It must pass its own tests before premove behaviour starts. Preserve the separately completed [analysis/pause/history decisions](BackgroundAnalysisPlan.md) and [code cleanup rules](CodeCleanupPlan.md).
+Proposed on 22 October 2026. **Status: approved and implemented on 22 October 2026; verification recorded below.** This specifies PRE-RAW in the [premove plan](PreMovePlan%28ToDo%29.md#pre-raw---raw-move-submission-refactor) and the original [CodexFollowUp item](CodexFollowUp.md#raw-move-submission). This prerequisite is complete; premove implementation remains separate. Preserve the separately completed [analysis/pause/history decisions](BackgroundAnalysisPlan.md) and [code cleanup rules](CodeCleanupPlan.md).
 
 ## Decision and scope
 
@@ -25,7 +25,7 @@ Detailed preview steps stay local to the detached preview; they are not carried 
 
 ## Current APIs and problem
 
-Source inspected for this design:
+Pre-refactor source snapshot (the old transport described below is now replaced):
 
 - [Chessboard](../src/components/Chessboard.vue) already selects `IMoveRaw` legal targets, including promotion alternatives. `_emitMove` immediately calls `toDetailedMove`, and `moveAttempted` requires `IMove`.
 - [GameView](../src/views/GameView.vue) types board handlers, continuation data, requests and playback as detailed moves. `_applyMoves` validates a full prefix on a copy, enriches every step, then transports that detailed array to the store over time.
@@ -294,10 +294,28 @@ Migration order after approval:
 5. Pass RAW-S01-RAW-S10 and affected existing regressions, then `npm run check:code`, type checks/build and relevant browser gestures. Record exact runs and limits; leave the source follow-up pending until this stage passes.
 6. Only then migrate the raw premove FIFO/test fixtures and record a separate failing premove baseline. Implement speculative candidate generation, queue ownership/drain and projected presentation under their own plan stages.
 
-With implementation, reconcile the owning [Chessboard architecture](LowLevel/Architecture/Presentation/Components/Chessboard.md), [move model](LowLevel/Architecture/DataInterface/Move.md) and [GamesStore API](LowLevel/Architecture/StateManagement/GamesStore.md). Their current descriptions include detailed board submissions and the older UCI-only description of raw input; do not silently treat them as already migrated. Update the source follow-up's status only against actual passing evidence.
+With implementation, reconcile the owning [Chessboard architecture](LowLevel/Architecture/Presentation/Components/Chessboard.md), [move model](LowLevel/Architecture/DataInterface/Move.md) and [GamesStore API](LowLevel/Architecture/StateManagement/GamesStore.md). Their descriptions now match raw board/PV/modal submission, candidate application and canonical enrichment. Update the source follow-up's status only against actual passing evidence.
 
 ## Scope and completion checks
 
 PRE-RAW is complete when board/legal-promotion submission and delayed view data use existing `IMoveRaw`, canonical acceptance supplies correct `IMove` details, obsolete input cannot cross its owner boundary, history/notation retain full facts and application accepts candidate facts, and the tests-first/refactor/regression evidence is recorded. Existing analysis while paused, live background play, historical confirmation, branch retention and actual Takeback decisions stay intact.
 
-No queue cap, timing deduction, persistence change, new mode/button, generation counter or additional orchestration watcher is approved by this design. The premove plan still owns all 14 queue flows and 25 premove scenarios; this prerequisite supplies the input API they depend on. This document records design, not implementation approval or passing execution.
+No queue cap, timing deduction, persistence change, new mode/button, generation counter or additional orchestration watcher is approved by this design. The premove plan still owns all 14 queue flows and 25 premove scenarios; this prerequisite supplies the input API they depend on. The approved raw refactor and its verification are recorded below; this does not approve or implement the later queue stages.
+
+## Implementation and verification
+
+Implemented on 22 October 2026 after explicit approval of PRE-RAW. The main tests were written first: the five affected files ran 89 cases with **42 failing and 47 passing** before production changes. Failures demonstrated detailed board/PV/modal transport, raw store rejection, caller-owned continuation data and permission reset. The same 89 cases then passed. Two further history-settlement race tests first failed, then passed after the selected-parent/mode/pause guard and actual-turn rearming were corrected.
+
+The delivered flow is raw board/PV/modal submission -> copied raw view continuation/playback -> canonical legal matching and fresh enrichment -> existing detailed history/accepted-turn delivery. Detached promotion choices and changed input permission cannot complete obsolete input. Invalid raw historical input is rejected before provider cancellation. Analysis entry, selection or a genuine pause during rewrite settlement releases that rewrite; eligible actual work is rearmed. Engine output and saved history stay detailed; application/replay accepts candidates and ponder commands accept raw fields. No queue, speculative rule API or player-turn lifecycle refactor was implemented.
+
+Final unit verification passed **670 tests across 90 files**, with no failures or unhandled errors. The four cases in `GameRuleUtility movement candidates` were explicitly filtered because they target the unimplemented premove candidate API. The unchanged `Premove.spec.ts`, `PremoveData.spec.ts` and `PremoveView.spec.ts` were excluded for the same separate scope; no full-suite/premove pass is claimed. The earlier broad run exposed an outdated rule mock and a cached-colour error-message expectation; both were migrated to canonical raw acceptance, without weakening the real-rule assertions in `RawMove.spec.ts`.
+
+```text
+npm run test:unit -- run --exclude '**/Premove*.spec.ts' --testNamePattern '^(?!.*GameRuleUtility movement candidates)' --maxWorkers=1 --pool=threads --testTimeout=90000 --reporter=default --reporter=json --outputFile=test-results/RawMoveFinalUnitResults.json
+```
+
+Browser verification passed **47 distinct cases across three runs** (41, 11 and 8 executions; overlapping history/live-input checks were repeated after settlement/validation adjustments). The 41-case run covered Promotion Gesture/Cancellation, Analysis Suggestion/Pause, History Analysis/Rewrite/BranchPolicy and Engine-races Player. The 11-case run covered real browser Analysis/Player, History Analysis/Rewrite and Usability Keyboard. The final eight-case run repeated real browser Analysis/Player, History Rewrite and Usability Keyboard on the final acceptance ordering. All ran one worker, no retries, no failed/flaky/skipped browser cases, and closed their Vite servers normally. This includes both colours/orientations, click/drag, real keyboard promotion/cancellation, explicit paused analysis, raw PV playback, history confirmation and real Stockfish workers/reload.
+
+Retained reports are `test-results/RawMoveFinalUnitResults.json`, `test-results/RawMoveFinalJourneyResults.json` (11 cases) and `test-results/RawMoveFinalBoundaryResults.json` (8 cases). The first 41-case pass and initial red/green runs were observed in the session; later Playwright output cleanup replaced those earlier report files. The final browser run uses a separate output subdirectory so the final unit and browser reports remain available together.
+
+The final `npm run build` passed the code audit, all TypeScript projects and production bundling. Owning Chessboard, move model and GamesStore documentation and the exact retained observer policy were reconciled. No new watcher, invalidation counter, runtime data envelope, saved-game schema or premove utility was introduced. Native NW.js execution and the entire browser catalogue were not run.

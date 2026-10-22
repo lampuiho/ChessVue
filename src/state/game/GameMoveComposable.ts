@@ -5,10 +5,12 @@ import {
   type IBoardPosition,
   type IGame,
   type IMove,
+  type IMoveRaw,
   type IMoveNode,
 } from '@/contracts';
 import { EngineRuntimeService, MoveApplicationService, MoveHistoryService } from '@/domain';
 import { ClockTimestamp } from '@/utility/date';
+import { genLegalMovesForPiece, toDetailedMove } from '@/utility/chess';
 import type { GameAnalysisComposable } from './GameAnalysisComposable';
 import type { GameClockComposable } from './GameClockComposable';
 import type { GamePlayerTurnComposable } from './GamePlayerTurnComposable';
@@ -59,10 +61,15 @@ export function useGameMove(dependency: IGameMoveDependency) {
   async function _commitHistoryRewriteMove(game: IGame, move: IMove) {
     const renderedNode = position.getRenderedNode(game);
     const renderedPosition = position.getRenderedPosition(game);
+    const renderedPath = game.renderedPath;
     await playerTurn.clearPlayerTurnRuntime(game);
-    if (game.resultState !== ResultState.Ongoing) return;
+    if (game.resultState !== ResultState.Ongoing || game.renderedPath !== renderedPath || position.getRenderedNode(game) !== renderedNode
+      || status.isAnyLiveAnalysisState(game.gameState) || status.isPausedState(game.gameState) || !game.gameplayOptions.allowTakeback) {
+      playerTurn.requestPlayerMoveIfNeeded(game);
+      return;
+    }
     const moveTimestamp = new ClockTimestamp();
-    position.setLivePath(game, game.renderedPath, { node: renderedNode, position: renderedPosition });
+    position.setLivePath(game, renderedPath, { node: renderedNode, position: renderedPosition });
     const selectedClockSnapshot = renderedNode.clockSnapshot ?? game.clockSnapshot;
     game.clockSnapshot = clock.startClock(selectedClockSnapshot, renderedPosition.sideToMove, moveTimestamp);
     game.gameState = status.getLiveState(renderedPosition.sideToMove);
@@ -126,20 +133,29 @@ export function useGameMove(dependency: IGameMoveDependency) {
     game.gameState = nextState;
     void _publishRenderedPosition(game);
   }
-  async function makeMove(game: IGame, move: IMove) {
+  function _resolveMove(parentPosition: IBoardPosition, move: IMoveRaw, lastMove?: IMove) {
+    if (![move.from, move.to].every((boardId) => Number.isInteger(boardId) && boardId >= 0 && boardId < 64)) throw new Error('Invalid move coordinates.');
+    const candidate = genLegalMovesForPiece(parentPosition, move.from, lastMove)
+      .find((legal) => legal.to === move.to && legal.promotionPiece === move.promotionPiece);
+    if (!candidate) throw new Error('This move is not legal in the selected position.');
+    return toDetailedMove(parentPosition, candidate);
+  }
+  async function makeMove(game: IGame, rawMove: IMoveRaw) {
     status.assertMoveAllowed(game);
     const parentNode = position.getRenderedNode(game);
     const parentPosition = position.getRenderedPosition(game);
-    if (!status.isOngoingLiveGame(game)) _commitStandaloneAnalysisMove(game, parentNode, parentPosition, move);
-    else if (status.isAnyLiveAnalysisState(game.gameState)) _commitLiveAnalysisMove(game, parentNode, parentPosition, move);
+    const live = status.isOngoingLiveGame(game);
+    const analysing = status.isAnyLiveAnalysisState(game.gameState);
+    if (live && !analysing && game.renderedPath === game.livePath) {
+      const player = playerTurn.getSideToMovePlayer(game, parentPosition.sideToMove);
+      if (player?.type !== PlayerType.Local) throw new Error('This move does not belong to the current local turn.');
+    }
+    const move = _resolveMove(parentPosition, rawMove, parentNode.move);
+    if (!live) _commitStandaloneAnalysisMove(game, parentNode, parentPosition, move);
+    else if (analysing) _commitLiveAnalysisMove(game, parentNode, parentPosition, move);
     else if (status.isLiveHistoryReview(game) && game.gameplayOptions.allowTakeback) await _commitHistoryRewriteMove(game, move);
     else if (game.renderedPath !== game.livePath) throw new Error('Enter analysis to explore this historical position.');
-    else {
-      const livePosition = position.getLivePosition(game);
-      const player = playerTurn.getSideToMovePlayer(game, livePosition.sideToMove);
-      if (player?.type !== PlayerType.Local || move.movingColour !== livePosition.sideToMove) throw new Error('This move does not belong to the current local turn.');
-      await playerTurn.attemptPlayerMove(game, move);
-    }
+    else await playerTurn.attemptPlayerMove(game, move);
   }
   function getTakeBackMoveCount(game: IGame) {
     let node = game.livePath ? position.getLiveNode(game) : position.getRenderedNode(game);

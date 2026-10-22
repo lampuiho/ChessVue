@@ -58,8 +58,8 @@ describe('UciUtility', () => {
     expect(isPonderHit(game, { ...move, to: 20 })).toBe(false);
     expect(buildFindNextMoveCommands(game, { ...move })).toEqual(['ponderhit']);
     expect(buildFindNextMoveCommands(game, { ...move, to: 20 })).toEqual(['stop']);
-    const engineMove: IMove = { from: 52, to: 36, kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
-    const ponderMove: IMove = { from: 6, to: 21, kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Knight };
+    const engineMove: IMoveRaw = { from: 52, to: 36 };
+    const ponderMove: IMoveRaw = { from: 6, to: 21 };
     expect(buildPonderMoveCommands(game, engineMove, ponderMove)).toEqual([
       'position fen 8/8/8/8/8/8/8/8 w - - 0 1 moves e2e4 e7e5 g1f3',
       'go ponder wtime 60000 btime 45000 winc 1000 binc 1000',

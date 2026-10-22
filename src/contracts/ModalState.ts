@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 import { assignedEngineSchema, type IAssignedEngine } from './Engine';
 import { type PlayerType, playerTypeSchema, resultReasonSchema, resultStateSchema } from './Game';
-import { moveSchema, type IMove } from './Move';
-import { type PlayerColour, playerColourSchema } from './Chess';
+import type { IMoveRaw } from './Move';
+import { type PlayerColour, playerColourSchema, boardIdSchema, pieceKindSchema } from './Chess';
 
 export const enum AppModalKind {
   NewGame = 'newGame',
@@ -48,7 +48,7 @@ export type IAppModalState =
     kind: AppModalKind.Promotion;
     payload: {
       gameId: string;
-      move: IMove;
+      move: IMoveRaw;
     };
   }
   | {
@@ -140,7 +140,7 @@ export const appModalStateSchema = z.discriminatedUnion('kind', [
     kind: z.literal(AppModalKind.Promotion),
     payload: z.object({
       gameId: z.string().min(1),
-      move: moveSchema,
+      move: z.object({ from: boardIdSchema, to: boardIdSchema, promotionPiece: pieceKindSchema.optional() }),
     }),
   }),
   z.object({

@@ -18,7 +18,7 @@ import {
   type ICreateGameRequest,
   type IEnginePlayer,
   type IGame,
-  type IMove,
+  type IMoveRaw,
   type IMoveNode,
 } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService, TimeControlService } from '@/domain';
@@ -46,7 +46,7 @@ const uiStateStore = useUiStateStore();
 const now = ref(Date.now());
 const notice = ref('');
 const isPlayingLine = ref(false);
-const pendingContinuation = shallowRef<{ game: IGame; node: IMoveNode; moves: readonly IMove[] }>();
+const pendingContinuation = shallowRef<{ game: IGame; node: IMoveNode; moves: readonly IMoveRaw[] }>();
 const playback = new OperationOwner();
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined;
@@ -102,8 +102,8 @@ const renderedBoard = computed<IRenderedBoard | undefined>((previous) => {
 const inputActions = computed(() => {
   const owner = renderedBoard.value;
   return {
-    move: (move: IMove) => renderedBoard.value === owner ? _makeMove(move) : undefined,
-    line: (moves: readonly IMove[]) => renderedBoard.value === owner ? _playAnalysisLine(moves) : undefined,
+    move: (move: IMoveRaw) => renderedBoard.value === owner ? _makeMove(move) : undefined,
+    line: (moves: readonly IMoveRaw[]) => renderedBoard.value === owner ? _playAnalysisLine(moves) : undefined,
     analyse: () => _runInputAction(owner, (currentGame) => gamesStore.enterInGameAnalysis(currentGame)),
     exit: () => _runInputAction(owner, (currentGame) => gamesStore.exitInGameAnalysis(currentGame)),
     takeBack: () => _runInputAction(owner, (currentGame) => gamesStore.takeBack(currentGame)),
@@ -247,7 +247,7 @@ async function _closeTab(id: string) {
   const activeId = uiStateStore.gameSession?.activeGameId;
   await router.push(activeId ? `/game/${activeId}` : '/home');
 }
-async function _makeMove(move: IMove) {
+async function _makeMove(move: IMoveRaw) {
   await _requestMoves([move]);
 }
 async function _runInputAction(owner: IRenderedBoard | undefined, action: (currentGame: IGame) => Promise<void> | void) {
@@ -272,22 +272,23 @@ async function _returnToLivePosition() {
   for (const index of currentGame.livePath) node = node.children[index]!;
   await _navigateToNode(node);
 }
-async function _playAnalysisLine(moves: readonly IMove[]) {
+async function _playAnalysisLine(moves: readonly IMoveRaw[]) {
   const currentGame = game.value;
   if (!currentGame || isPlayingLine.value) return;
   const explore = !currentGame.livePath || currentGame.resultState !== ResultState.Ongoing || isInGameAnalysis.value;
   await _requestMoves(explore ? moves : moves.slice(0, 1));
 }
-async function _requestMoves(moves: readonly IMove[]) {
+async function _requestMoves(moves: readonly IMoveRaw[]) {
   const currentGame = game.value;
   if (!currentGame || !moves.length || !canInput.value || isPlayingLine.value || currentGame.gameState === GameState.BoardEdit) return;
+  const ownedMoves = moves.map(({ from, to, promotionPiece }) => promotionPiece === undefined ? { from, to } : { from, to, promotionPiece });
   const livePath = currentGame.livePath;
   const historical = livePath && currentGame.renderedPath.length < livePath.length && currentGame.renderedPath.every((part, index) => part === livePath[index]);
   if (historical && !isInGameAnalysis.value && currentGame.resultState === ResultState.Ongoing && currentGame.gameplayOptions.allowTakeback) {
-    pendingContinuation.value = { game: currentGame, node: renderedNode.value!, moves };
+    pendingContinuation.value = { game: currentGame, node: renderedNode.value!, moves: ownedMoves };
     return;
   }
-  await _run(() => _applyMoves(currentGame, moves));
+  await _run(() => _applyMoves(currentGame, ownedMoves));
 }
 async function _confirmContinuation() {
   const pending = pendingContinuation.value;
@@ -296,23 +297,21 @@ async function _confirmContinuation() {
     || pending.game.resultState !== ResultState.Ongoing || pending.game.gameState.startsWith('paused') || !pending.game.gameplayOptions.allowTakeback) return;
   await _run(() => _applyMoves(pending.game, pending.moves));
 }
-async function _applyMoves(currentGame: IGame, moves: readonly IMove[]) {
-  const validated: IMove[] = [];
+async function _applyMoves(currentGame: IGame, moves: readonly IMoveRaw[]) {
   const preview = MoveApplicationService.genPosition(position.value!, []);
   for (const move of moves) {
     if (!isMoveLegal(preview, move)) throw new Error('This suggested move is stale. Refresh analysis and try again.');
     const detailed = toDetailedMove(preview, move);
-    validated.push(detailed);
     MoveApplicationService.applyMove(preview, detailed);
   }
   const tree = currentGame.moveTree;
   const analysis = isInGameAnalysis.value;
   const ongoing = currentGame.resultState === ResultState.Ongoing;
   await playback.run(async (signal) => {
-    isPlayingLine.value = validated.length > 1;
+    isPlayingLine.value = moves.length > 1;
     let expectedPath = [...currentGame.renderedPath];
     try {
-      for (const [index, move] of validated.entries()) {
+      for (const [index, move] of moves.entries()) {
         if (index > 0) await abortableDelay(350, signal);
         signal.throwIfAborted();
         if (game.value !== currentGame || currentGame.moveTree !== tree || analysis !== isInGameAnalysis.value

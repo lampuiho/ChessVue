@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineOptionMeta, type IGame, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw, type IPlatformError } from '@/contracts';
 import type { EngineAnalysisUpdateHandler, IEngineAnalysisUpdate, IEngineClient, ProcessHandle } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
 import { cloneBoardPosition, genDetailedMoves } from '@/utility/chess/GameRuleUtility';
@@ -53,7 +53,7 @@ interface IUciPlayerMoveReadySessionContext {
 }
 interface IUciPonderingSessionContext {
   state: UciSessionState.Pondering;
-  expectedMove: IMove;
+  expectedMove: IMoveRaw;
 }
 interface IUciStoppingSearchSessionContext {
   state: UciSessionState.StoppingSearch;
@@ -166,7 +166,7 @@ export function defineUciEngineClientStore(storeId: string, resolveTransport: (h
       session.current = { state: UciSessionState.FindingMove, position, playerMoveCompletion };
       await _writeSearchCommands(engine, session, commands);
     }
-    async function startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove) {
+    async function startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMoveRaw, ponderMove: IMoveRaw) {
       const session = _requireInitialisedSession(engine);
       _requireState(session, UciSessionState.Ready, 'start pondering');
       await _prepareGameBoundaryIfNewGame(engine, session, game.metadata.id, buildFen(game.rootPosition));

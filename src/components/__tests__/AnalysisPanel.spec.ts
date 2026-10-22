@@ -13,7 +13,10 @@ describe('AnalysisPanel seats', () => {
     const buttons = wrapper.findAll('.analysis-lines button');
     await buttons[0]!.trigger('click');
     await buttons[1]!.trigger('click');
-    expect(wrapper.emitted('moveSelected')).toEqual([[[moves[0]]], [moves]]);
+    const raws = moves.map(({ from, to }) => ({ from, to }));
+    expect(wrapper.emitted('moveSelected')).toEqual([[[raws[0]]], [raws]]);
+    moves[0]!.to = 20;
+    expect(wrapper.emitted('moveSelected')![1]![0]).toEqual(raws);
     wrapper.unmount();
   });
   it('renders prepared lines and keeps restored empty assignments manageable', () => {

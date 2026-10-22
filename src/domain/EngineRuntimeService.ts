@@ -1,4 +1,4 @@
-import { EngineAvailability, PlatformError, PlatformErrorKind, ResultState, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisOperation, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEngineOptionMeta, type IEngineRecord, type IGame, type IMove, type IPlatformError } from '@/contracts';
+import { EngineAvailability, PlatformError, PlatformErrorKind, ResultState, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisOperation, type IEngineAnalysisRequest, type IEngineAnalysisUpdate, type IEngineOptionMeta, type IEngineRecord, type IGame, type IMove, type IMoveCandidate, type IMoveRaw, type IPlatformError } from '@/contracts';
 import Aborted from '@/contracts/errors/Aborted';
 import { Deferred } from '@/utility/async/Deferred';
 import { usePlatformService } from '@/platform';
@@ -8,7 +8,7 @@ import { MoveApplicationService } from './MoveApplicationService';
 
 type IRuntimeAssignedEngine = IAssignedEngine & { $: IAssignedEngineRuntime };
 
-function _canPonder(position: IBoardPosition, move: IMove, ponderMove: IMove): boolean {
+function _canPonder(position: IBoardPosition, move: IMoveCandidate, ponderMove: IMoveCandidate): boolean {
   const predictedPosition = MoveApplicationService.genPosition(position, [move, ponderMove]);
   return resolveGameResult(predictedPosition).resultState === ResultState.Ongoing;
 }
@@ -55,7 +55,7 @@ function _clearAnalysisState(runtimeState: IAssignedEngineRuntime) {
   runtimeState.analysisLines.clear();
   runtimeState.analysisNeedsStop = false;
 }
-function _isMoveSequenceLegal(position: IBoardPosition, moves: readonly IMove[]): boolean {
+function _isMoveSequenceLegal(position: IBoardPosition, moves: readonly IMoveCandidate[]): boolean {
   const currentPosition = MoveApplicationService.genPosition(position, []);
   for (const move of moves) {
     if (!isMoveLegal(currentPosition, move)) return false;
@@ -66,7 +66,7 @@ function _isMoveSequenceLegal(position: IBoardPosition, moves: readonly IMove[])
 function _isAnalysisUpdateLegal(update: IEngineAnalysisUpdate): boolean {
   const position = update.position as IBoardPosition;
   if (update.bestMove && !isMoveLegal(position, update.bestMove)) return false;
-  return update.lines.every((line) => _isMoveSequenceLegal(position, line.pv as readonly IMove[]));
+  return update.lines.every((line) => _isMoveSequenceLegal(position, line.pv as readonly IMoveCandidate[]));
 }
 function _acceptAnalysisUpdate(runtimeState: IAssignedEngineRuntime, operation: IEngineAnalysisOperation, update: IEngineAnalysisUpdate): boolean {
   if (operation.abortController.signal.aborted || operation.isFinal) return false;
@@ -332,7 +332,7 @@ export const EngineRuntimeService = {
     await pondering;
   },
   /** Mutates engine.$ by starting a client-private ponder search while runtime availability remains ready. */
-  async startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove) {
+  async startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMoveRaw, ponderMove: IMoveRaw) {
     const engineClient = _getEngineClient(engine);
     await _runInitialisedEngineOperation(engine, EngineAvailability.Ready, () => engineClient.startPondering(engine, game, engineMove, ponderMove));
   },

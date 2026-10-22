@@ -14,7 +14,6 @@ import {
   type IPlayer,
 } from '@/contracts';
 import { EngineRuntimeService, MoveApplicationService, MoveHistoryService } from '@/domain';
-import { toDetailedMove } from '@/utility/chess';
 import { useEnginesStore, useGamesStore, useSavedGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import NewGameModal from './NewGameModal.vue';
 import ModalDialog from './common/ModalDialog.vue';
@@ -161,8 +160,7 @@ async function _choosePromotion(pieceKind: PieceKind) {
   if (current?.kind !== AppModalKind.Promotion) return;
   const game = _mutableGame(current.payload.gameId);
   if (!game) return;
-  const position = MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, game.renderedPath));
-  const move = toDetailedMove(position, { from: current.payload.move.from, to: current.payload.move.to, promotionPiece: pieceKind });
+  const move = { from: current.payload.move.from, to: current.payload.move.to, promotionPiece: pieceKind };
   await _run(async (signal) => {
     await gamesStore.makeMove(game, move);
     await _closeModal(signal);

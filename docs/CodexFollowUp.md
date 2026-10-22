@@ -42,10 +42,13 @@ Completed UI scenario fixes are covered by [application regressions](../journeys
 - Completed the remaining move-flow, cache, copy-ownership, and documentation reconciliation. The temporary change tracker was removed after its design rationale was transferred to the owning high-level and low-level documents.
 - Implemented the [code cleanup plan](CodeCleanupPlan.md): explicit cancellation and route/dialog/selection ownership replace async generation counters and orchestration watchers. Only two documented boundary watchers remain; the build enforces their allowlist and inferred implementation returns. Removed 440 redundant annotations after the behaviour refactors. The separate turn-flow/premove proposal remains open.
 
+## Raw move submission
+- Completed the board-interaction move-submission boundary: legal selection uses `IMoveRaw`, explicit promotion completes that raw move, and canonical acceptance converts to `IMove` before move-tree/accepted-turn interactions.
+- PRE-RAW was explicitly approved and implemented tests first on 22 October 2026. Board/PV/modal events and view confirmation/playback transport raw fields. Application/replay uses existing `IMoveCandidate`; ponder/protocol inputs use raw fields. Detailed history and engine results retain the [audited consumers](RawMoveSubmissionDesign.md#type-retention-audit-and-justification).
+- [Executed tests and browser verification](RawMoveSubmissionDesign.md#implementation-and-verification) complete the original pending item. The premove FIFO and player-turn implementation are separate work.
+
 ## Still Pending
-- Define the board-interaction move-submission boundary so legal move selection uses `IMoveRaw`, promotion selection completes that raw move, and conversion to `IMove` happens only afterwards for move-tree and service interactions.
-  - Explicitly scheduled as [PRE-RAW in the premove plan](PreMovePlan%28ToDo%29.md#pre-raw---pending-move-submission-refactor), before queue implementation: tests first, then Chessboard/GameView/store raw submission and canonical enrichment, preserving detailed history/engine-result consumers and existing behaviour. Application requires candidate facts; PV/modal submission and ponder commands require only raw fields. This item remains pending; planning it does not complete the refactor.
-  - Full proposed signatures, [per-API justification for retaining `IMove`](RawMoveSubmissionDesign.md#type-retention-audit-and-justification), conversion/ownership rules, function flows and migration are in [Raw move submission API design](RawMoveSubmissionDesign.md); implementation still awaits approval.
+- Implement the separately proposed [premove queue and player-turn flow](PreMovePlan%28ToDo%29.md), starting with the approved raw data migration and fresh premove test baseline after its own approval.
 
 ## Verification
 - Current cleanup: **527/527 unit/application tests across 84 files**, code audit, type checking and production build passed. Browser scope and generated reports are recorded in the [cleanup verification](CodeCleanupPlan.md#verification).

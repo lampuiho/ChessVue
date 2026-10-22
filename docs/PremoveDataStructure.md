@@ -1,18 +1,18 @@
 # Premove data structure
 
-Replanned on 22 October 2026. **Proposed design, awaiting approval.** This revision updates documentation only, following the user's instruction to undo the premove implementation and reuse `IMoveRaw`. The current declaration/tests still describe the superseded entry contract until an approved migration. No new implementation or passing raw-queue test run is claimed.
+Replanned on 22 October 2026. **Proposed design, awaiting approval.** This queue design remains documentation only, following the user's instruction to undo the premove implementation and reuse `IMoveRaw`. The current declaration/tests still describe the superseded entry contract until an approved migration. No new implementation or passing raw-queue test run is claimed.
 
 The [parent plan](PreMovePlan%28ToDo%29.md) retains [14 function flows](PreMovePlan%28ToDo%29.md#function-flow), [25 scenarios](PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests) and the [tests-first specification](PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification). The separately completed analysis prerequisite stays unchanged.
 
-## Required pending submission refactor
+## Completed submission prerequisite
 
-Reusing the type in the FIFO depends on the still-pending [board-interaction refactor](CodexFollowUp.md#still-pending), now explicitly planned as [PRE-RAW](PreMovePlan%28ToDo%29.md#pre-raw---pending-move-submission-refactor). The existing type does not mean the submission chain has already been refactored: Chessboard currently converts a raw selection into `IMove`, while GameView and the store still transport detailed moves.
+Reusing the type in the FIFO builds on the completed [board-interaction refactor](CodexFollowUp.md#raw-move-submission), [PRE-RAW](PreMovePlan%28ToDo%29.md#pre-raw---raw-move-submission-refactor). Board/PV/modal and view/store submission now remain raw; canonical acceptance supplies `IMove` to history/commit. The [verification](RawMoveSubmissionDesign.md#implementation-and-verification) completes only this prerequisite, not the queue declaration or premove scenarios.
 
 The separate [raw submission API design](RawMoveSubmissionDesign.md) specifies the callable/event signatures, canonical conversion boundary, ownership, completion/error behaviour and tests. It governs the input refactor; this document governs the later plain queue structure.
 
-Write PRE-RAW's selection/promotion/submission assertions first, then complete the existing legal-move path before queue behaviour. Target flow is `legal IMoveRaw -> completed raw promotion -> board event -> raw view/confirmation/playback -> raw store acceptance -> canonical legal resolution/toDetailedMove -> accepted IMove commit/history`. Full types remain for the [audited clock/history/SAN and engine-result consumers](RawMoveSubmissionDesign.md#type-retention-audit-and-justification). Application requires existing `IMoveCandidate`; PV/modal submission and ponder commands use raw input. Saved game schemas and engine behaviour remain unchanged. Temporary detailed PV-preview steps are local look-ahead data, not queued or submitted authority.
+PRE-RAW selection/promotion/submission assertions were written and failed before implementation. The delivered flow is `legal IMoveRaw -> completed raw promotion -> board event -> raw view/confirmation/playback -> raw store acceptance -> canonical legal resolution/toDetailedMove -> accepted IMove commit/history`. Full types remain for the [audited clock/history/SAN and engine-result consumers](RawMoveSubmissionDesign.md#type-retention-audit-and-justification). Application requires existing `IMoveCandidate`; PV/modal submission and ponder commands use raw input. Saved game schemas and engine behaviour remain unchanged. Temporary detailed PV-preview steps are local look-ahead data, not queued or submitted authority.
 
-Only after this prerequisite passes should the raw FIFO declaration and premove scenario tests migrate. The future off-turn branch intercepts raw input before canonical enrichment; its due turn generates actual details later. No queue type alias or partial board-only event change completes the pending refactor.
+After separate premove approval, the raw FIFO declaration and premove scenario tests can migrate on this completed prerequisite. The future off-turn branch intercepts raw input before canonical enrichment; its due turn generates actual details later. The raw input refactor does not supply queue behaviour.
 
 ## Reuse the existing move contract
 

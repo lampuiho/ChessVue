@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { MoveKind, PieceKind, PlayerColour, type IBoardPosition, type IMove } from '@/contracts';
+import { MoveKind, PieceKind, PlayerColour, type IBoardPosition, type IMoveCandidate } from '@/contracts';
 import { MoveApplicationService } from '..';
 import { createInitialBoardPosition } from '@/utility/chess';
 
 const _boardId = (file: number, rank: number) => file + (rank * 8);
 
-const e2e4: IMove = {
+const e2e4: IMoveCandidate = {
   from: _boardId(4, 1),
   to: _boardId(4, 3),
   kind: MoveKind.Normal,
   movingColour: PlayerColour.White,
   movingPiece: PieceKind.Pawn,
 };
-const e7e5: IMove = {
+const e7e5: IMoveCandidate = {
   from: _boardId(4, 6),
   to: _boardId(4, 4),
   kind: MoveKind.Normal,

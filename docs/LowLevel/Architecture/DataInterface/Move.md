@@ -11,6 +11,7 @@ Define move payloads and tree structures for live play, history review, and anal
 ## Interfaces
 - `interface IMove`
 - `interface IMoveRaw`
+- `interface IMoveCandidate`
 - `interface IMoveRuntime`
 - `interface IMoveNodeRuntime`
 - `interface IMoveNode`
@@ -37,11 +38,14 @@ interface IMoveRaw {
   $?: IMoveRuntime
 }
 
-interface IMove extends IMoveRaw {
+interface IMoveCandidate extends IMoveRaw {
   kind: MoveKind
   movingColour: PlayerColour
   movingPiece: PieceKind
   capturePiece?: PieceKind
+}
+
+interface IMove extends IMoveCandidate {
   checkState?: CheckState
   ambiguityKind?: AmbiguityKind
 }
@@ -89,7 +93,8 @@ interface IMoveTree {
 - Omitted `move`, `clockSnapshot`, `mainlineChildIndex`, or `promotionPiece` fields mean that value is not applicable for the current node or move.
 - `clockSnapshot` is stored on the root node and on live nodes so time-aware takeback and restore flows can reconstruct the authoritative clock state. Analysis-only nodes may omit it.
 - `BoardId` uses `0..63`, `BoardId % 8` is the file and `Math.floor(BoardId / 8)` is the rank.
-- `IMoveRaw` is the UCI-internal coordinate shape. `GameRuleUtility.genDetailedMove(...)` enriches it into `IMove` before it crosses the engine-client boundary.
+- `IMoveRaw` is the shared coordinate/promotion contract for legal board input, selected PV prefixes, UI continuations and UCI coordinates. UI transport copies only from/to/optional promotion; caller runtime or detailed fields are not authority. `GameMoveComposable.makeMove` matches a canonical legal candidate before `toDetailedMove(...)` produces the history/commit transition. Engine clients separately enrich their accepted provider output before delivery.
+- `IMoveCandidate` carries the movement facts needed by board application and replay, without requiring check or SAN ambiguity computation. `IMove` adds those notation facts for history/PV display. The full-type retention reasons are recorded in the [API audit](../../../RawMoveSubmissionDesign.md#type-retention-audit-and-justification).
 - `IMove` persists the chess facts needed to derive SAN without a board position. Check/checkmate, capture, ambiguity, moving-piece, and promotion facts are captured while the source position is available. **Why:** history and restored games must describe the transition without retaining a destination board on every node. `MoveNotationUtility.getSan(...)` and `getUci(...)` remain runtime-only caches because they are deterministic formatting of those persisted facts; an engine-suggested ponder reply is runtime-only for the opposite reason—it is speculative intent, not committed history.
 - `IMove.checkState` persists whether the destination gives check or checkmate. Game completion remains represented by `resultState` and `resultReason`. **Why:** check is a fact about this transition and may occur in history or analysis, while terminal outcome may instead come from timeout, resignation, agreement, or abandonment; storing both on the game would conflate position state with lifecycle result.
 - Alternative live continuations remain `live` nodes; `mainlineChildIndex` decides which continuation is currently authoritative.

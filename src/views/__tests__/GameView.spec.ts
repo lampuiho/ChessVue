@@ -93,7 +93,9 @@ function _mountView(game: IGame = _createTimedGame()): VueWrapper {
   games.set(game.metadata.id, game);
   dependency.route.params.id = game.metadata.id;
   dependency.uiStateStore.gameSession = createGameSessionSnapshot({ openGameIds: [...games.keys()], activeGameId: game.metadata.id, activeRoute: `/game/${game.metadata.id}` });
-  const wrapper = shallowMount(GameView);
+  const wrapper = shallowMount(GameView, { global: { stubs: { ModalDialog: {
+    name: 'ModalDialog', template: '<div><slot /><slot name="actions" /></div>',
+  } } } });
   wrappers.push(wrapper);
   return wrapper;
 }
@@ -145,6 +147,59 @@ describe('GameView menu interruptions', () => {
   afterEach(() => {
     for (const wrapper of wrappers.splice(0)) wrapper.unmount();
     vi.useRealTimers();
+  });
+  it('submits only owned raw fields from a board attempt', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    const wrapper = _mountView(game);
+    await flushPromises();
+    wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', Object.freeze(toDetailedMove(game.rootPosition, { from: 12, to: 28 })));
+    await flushPromises();
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledExactlyOnceWith(game, { from: 12, to: 28 });
+  });
+  it('retains a copied raw PV prefix for playback, independently of its caller', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    const moves = _line();
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', moves);
+    await flushPromises();
+    moves[1]!.to = 0;
+    await vi.advanceTimersByTimeAsync(700);
+    expect(dependency.gamesStore.makeMove.mock.calls.map((call) => call[1])).toEqual([
+      { from: 12, to: 28 }, { from: 52, to: 36 }, { from: 6, to: 21 },
+    ]);
+  });
+  it('preflights the whole raw PV before the first store call', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', [{ from: 12, to: 28 }, { from: 52, to: 20 }]);
+    await flushPromises();
+    expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('stale');
+  });
+  it('copies raw historical continuation before confirmation', async () => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    game.livePath = [0];
+    game.renderedPath = [];
+    game.gameState = GameState.LiveBlackTurn;
+    game.gameplayOptions.allowTakeback = true;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    const move = { from: 11, to: 27 };
+    wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', move);
+    await flushPromises();
+    move.to = 0;
+    await wrapper.findAll('button').find((button) => button.text() === 'Continue game')!.trigger('click');
+    await flushPromises();
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledExactlyOnceWith(game, { from: 11, to: 27 });
   });
   it('requires explicit analysis for history exploration without inventing a control mode', async () => {
     const game = _createTimedGame();

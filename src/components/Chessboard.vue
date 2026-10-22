@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 import { BoardOrientation, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IChessPiece, type IMove, type IMoveRaw } from '@/contracts';
-import { genLegalMovesForPiece, toDetailedMove } from '@/utility/chess';
+import { genLegalMovesForPiece } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 import ChessPiece from './common/ChessPiece.vue';
 import { vFocusScope } from './common/FocusScope';
@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{
   boardEdit?: boolean;
 }>(), { orientation: BoardOrientation.White, showCoordinates: true, highlightLastMove: true, inputDisabled: false, boardEdit: false });
 const emit = defineEmits<{
-  moveAttempted: [move: IMove];
+  moveAttempted: [move: IMoveRaw];
   chessPieceToggled: [boardId: BoardId, piece: IChessPiece];
   chessPieceDeleted: [boardId: BoardId];
   chessPieceMoved: [from: BoardId, to: BoardId];
@@ -24,7 +24,7 @@ const emit = defineEmits<{
   boardReset: [];
 }>();
 const selectedBoardId = ref<BoardId>();
-const pendingPromotionMoves = ref<IMoveRaw[]>([]);
+const pendingPromotionMoves = shallowRef<IMoveRaw[]>([]);
 const draggedBoardId = ref<BoardId>();
 const editPiece = ref<{ kind: PieceKind; colour: PlayerColour }>({ kind: PieceKind.Queen, colour: PlayerColour.White });
 const pieceKinds = [PieceKind.King, PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight, PieceKind.Pawn];
@@ -35,12 +35,12 @@ const displayedBoardIds = computed<BoardId[]>(() => {
   for (const rank of ranks) for (const file of files) ids.push((rank * 8) + file);
   return ids;
 });
-const legalMoves = computed(() => selectedBoardId.value === undefined ? [] : genLegalMovesForPiece(props.position, selectedBoardId.value, props.lastMove));
+const legalMoves = computed<IMoveRaw[]>(() => selectedBoardId.value === undefined ? [] : genLegalMovesForPiece(props.position, selectedBoardId.value, props.lastMove));
 const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-// External board/mode props also change after engine replies and history navigation.
+// External board/mode/permission props also change after engine replies and history navigation.
 // This synchronous input boundary only clears transient input; Vue disposes it with the board.
-watch([() => props.position, () => props.boardEdit], _clearSelection, { flush: 'sync' });
+watch([() => props.position, () => props.boardEdit, () => props.inputDisabled], _clearSelection, { flush: 'sync' });
 function _isLegalTarget(boardId: BoardId): boolean {
   return legalMoves.value.some((move) => move.to === boardId);
 }
@@ -71,6 +71,7 @@ function _selectSquare(boardId: BoardId) {
   _commitTarget(boardId);
 }
 function _commitTarget(boardId: BoardId) {
+  if (props.inputDisabled) return;
   const matchingMoves = legalMoves.value.filter((move) => move.to === boardId);
   if (matchingMoves.length === 0) {
     _clearSelection();
@@ -83,12 +84,13 @@ function _commitTarget(boardId: BoardId) {
   _emitMove(matchingMoves[0]!);
 }
 function _emitMove(rawMove: IMoveRaw) {
-  emit('moveAttempted', toDetailedMove(props.position, rawMove));
+  if (props.inputDisabled || props.boardEdit) return;
+  const { from, to, promotionPiece } = rawMove;
+  emit('moveAttempted', promotionPiece === undefined ? { from, to } : { from, to, promotionPiece });
   _clearSelection();
 }
-function _choosePromotion(kind: PieceKind) {
-  const move = pendingPromotionMoves.value.find((candidate) => candidate.promotionPiece === kind);
-  if (move) _emitMove(move);
+function _choosePromotion(move: IMoveRaw) {
+  if (pendingPromotionMoves.value.includes(move)) _emitMove(move);
 }
 function _onDragStart(boardId: BoardId, event: DragEvent) {
   if (props.inputDisabled || !props.position.board[boardId]) {
@@ -103,7 +105,7 @@ function _onDragStart(boardId: BoardId, event: DragEvent) {
 function _onDrop(boardId: BoardId) {
   const from = draggedBoardId.value;
   draggedBoardId.value = undefined;
-  if (from === undefined) return;
+  if (from === undefined || props.inputDisabled) return;
   if (props.boardEdit) emit('chessPieceMoved', from, boardId);
   else _commitTarget(boardId);
 }
@@ -152,7 +154,7 @@ function _showFile(index: number): boolean {
         </button>
         <div v-if="pendingPromotionMoves.length" v-focus-scope class="promotion-popover" role="group" aria-label="Pawn promotion" tabindex="-1" @keydown.esc.stop.prevent="_clearSelection">
           <span>Promote to</span>
-          <div><button v-for="kind in [PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight]" :key="kind" :aria-label="`Promote to ${position.sideToMove} ${kind}`" @click="_choosePromotion(kind)"><ChessPiece :kind="kind" :colour="position.sideToMove" /></button></div>
+          <div><button v-for="move in pendingPromotionMoves" :key="move.promotionPiece" :aria-label="`Promote to ${position.sideToMove} ${move.promotionPiece}`" @click="_choosePromotion(move)"><ChessPiece :kind="move.promotionPiece!" :colour="position.sideToMove" /></button></div>
           <button class="promotion-popover__cancel" @click="_clearSelection">Cancel</button>
         </div>
       </div>
