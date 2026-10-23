@@ -2,11 +2,11 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Product choices resolved; revised raw data/function plan awaits approval. No premove implementation is authorised by this planning revision |
+| Status | Product choices resolved; raw data declaration and scenario tests migrated/executed on 23 October. Premove behaviour implementation remains pending |
 | Raised/resolved | 21 October 2026 |
 | Decision source | User numbered answers and subsequent explicit corrections through 22 October 2026 |
 | Parent plan | [Premove and player-turn flow](../../PreMovePlan%28ToDo%29.md) |
-| Evidence | Existing source/design inspection and historical test records; no execution of the revised raw/no-buttons plan |
+| Evidence | [Raw/no-buttons scenario baseline](../../PreMovePlan%28ToDo%29.md#raw-move-scenario-baseline---23-october-2026): all 25 IDs, 409 tests, 291 pass/118 fail; type checking and code audit pass |
 | Related decisions | [Background analysis](Q-PLAY-001-LiveProgressDuringAnalysis.md), [temporary exploratory branch/recording scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) |
 
 ## Resolved decisions
@@ -43,6 +43,8 @@ These later instructions supersede incompatible details in older drafts. They do
 | Full replan after undo | This revision edits the plan/data-design/decision documents only. No code/test changes or renewed implementation until the revised plan is approved |
 
 The chess.com reference concerns the cancellation gesture only. It does not add its timing deduction, queue cap, persistence policy or an alternative rendering/background-play rule. A cancel gesture is not a move submission; all completed eligible move submissions still append.
+
+On 23 October the user authorised updating the flows and writing the scenario unit tests, clarifying that "markRaw" meant the `IMoveRaw` submission refactor. This authorises the raw queue declaration/test migration after the prior documentation-only replan. It does not authorise premove gameplay development or change any resolved product choice above.
 
 The sequence remains game-owned through analysis, but it can be consumed or cancelled by background actual play. Reapplying on exit means recomputing the **remaining** valid queue over the latest live board; it never means rewinding actual play or restoring already-executed entries.
 

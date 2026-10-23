@@ -1,7 +1,7 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick, reactive } from 'vue';
+import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { markRaw, nextTick, reactive } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BoardOrientation, GameState, PieceKind, PlayerColour, PlayerType, ResultState, type IGame, type IMove, type IPremove } from '@/contracts';
+import { BoardOrientation, GameState, PieceKind, PlayerColour, PlayerType, ResultState, type IGame, type IMoveRaw } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
 import { buildFen, genLegalMoves, getUci } from '@/utility/chess';
 import { createGame, createGameSessionSnapshot, createSettingsSnapshot, createUiLayoutState } from '@/state/__tests__/StateStoreTestUtility';
@@ -10,6 +10,7 @@ import { premoveProjectionScenarios } from '@/state/__tests__/PremoveProjectionS
 import GameView from '../GameView.vue';
 import Chessboard from '@/components/Chessboard.vue';
 import ChessPiece from '@/components/common/ChessPiece.vue';
+import { modalPlugin } from '@/components/modals/__tests__/ModalTestUtility';
 
 interface IViewDependency {
   route: { params: { id: string } };
@@ -30,9 +31,9 @@ const wrappers: VueWrapper[] = [];
 function _store() {
   return { workspaceRevision: 0, getGame: vi.fn((id: string) => games.get(id)), listGames: vi.fn(() => [...games.values()]),
     getVisibleAnalysis: vi.fn((game: IGame) => ({ engineSeats: game.analysis.seats })), getTakeBackMoveCount: vi.fn(() => 1),
-    onAutosaveFailed: vi.fn(() => () => {}), makeMove: vi.fn(async (_game: IGame, _move: IMove | IPremove) => {}),
+    onAutosaveFailed: vi.fn(() => () => {}), makeMove: vi.fn(async (_game: IGame, _move: IMoveRaw) => {}),
     enterInGameAnalysis: vi.fn(async () => {}), exitInGameAnalysis: vi.fn(), navigateToNode: vi.fn(), takeBack: vi.fn(),
-    pauseGame: vi.fn(async () => {}), resumeGame: vi.fn(async () => {}), undoPremove: vi.fn(async () => {}),
+    pauseGame: vi.fn(async () => {}), resumeGame: vi.fn(async () => {}),
     clearPremoves: vi.fn(async (game: IGame) => { game.$!.premoveQueue = undefined; }),
   };
 }
@@ -43,7 +44,7 @@ function _ui() {
       dependency.ui.gameSession.activeGameId = dependency.ui.gameSession.openGameIds[0];
     }) };
 }
-interface IViewFixture { root?: IPositionFixture; played?: readonly string[]; queue?: readonly IPremove[]; hotseat?: boolean; id?: string; side?: PlayerColour; local?: PlayerColour; }
+interface IViewFixture { root?: IPositionFixture; played?: readonly string[]; queue?: readonly IMoveRaw[]; hotseat?: boolean; id?: string; side?: PlayerColour; local?: PlayerColour; }
 function _game(fixture: IViewFixture = {}) {
   const rootPosition = fixturePosition(fixture.root);
   if (fixture.side) rootPosition.sideToMove = fixture.side;
@@ -64,7 +65,7 @@ function _game(fixture: IViewFixture = {}) {
   game.metadata.id = fixture.id ?? 'premove-view';
   const queue = fixture.queue ?? whiteChain;
   if (queue.length) game.$!.premoveQueue = { player: localSeat(game, local), moves: structuredClone([...queue]) };
-  return game;
+  return markRaw(game);
 }
 function _legal(board: IGame['rootPosition'], uci: string) {
   const move = genLegalMoves(board).find((item) => getUci(item) === uci);
@@ -78,12 +79,15 @@ function _mount(game: IGame = _game()) {
   games.set(game.metadata.id, game);
   dependency.route.params.id = game.metadata.id;
   dependency.ui.gameSession = createGameSessionSnapshot({ openGameIds: [...games.keys()], activeGameId: game.metadata.id });
-  const wrapper = mount(GameView, { global: { stubs: { MenuBar: true, GameTabs: true, PlayerPanel: true, HistoryPanel: true, AnalysisPanel: true } } });
+  const wrapper = mount(GameView, { attachTo: document.body, global: { plugins: [modalPlugin], stubs: { MenuBar: true, GameTabs: true, PlayerPanel: true, HistoryPanel: true, AnalysisPanel: true } } });
   wrappers.push(wrapper);
   return wrapper;
 }
 function _square(wrapper: VueWrapper, square: string) {
   return wrapper.get(`.board-square[aria-label^="${square}"]`);
+}
+function _dialog(title: string) {
+  return new DOMWrapper(document.body).find(`[role="dialog"][aria-label="${title}"]`);
 }
 function _redSquares(wrapper: VueWrapper) {
   return wrapper.findAll('.board-square--premove').map((square) => square.attributes('aria-label')!.split(' ')[0]).sort();
@@ -108,7 +112,7 @@ function _preview(game: IGame, moves: string[]) {
   return moves.map((uci) => {
     const move = _legal(position, uci);
     MoveApplicationService.applyMove(position, move);
-    return move;
+    return premove(uci);
   });
 }
 async function _publish() {
@@ -133,6 +137,7 @@ describe('premove scenarios at the mounted input boundary', () => {
   });
   afterEach(() => {
     for (const wrapper of wrappers.splice(0)) wrapper.unmount();
+    document.body.replaceChildren();
     vi.useRealTimers();
   });
   it.each(premoveProjectionScenarios)('$name', async (spec) => {
@@ -194,24 +199,53 @@ describe('premove scenarios at the mounted input boundary', () => {
     await flushPromises();
     expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, whiteChain[0]);
   });
-  it('PRE-S03 exposes explicit Undo last and Clear controls without invoking actual Takeback', async () => {
+  it('PRE-S03 has no premove count, list or control buttons', async () => {
     const game = _game();
     const wrapper = _mount(game);
     await flushPromises();
-    const buttons = wrapper.findAll('button');
-    const undo = buttons.find((button) => /undo last/i.test(`${button.text()} ${button.attributes('aria-label') ?? ''}`));
-    const clear = buttons.find((button) => /clear premoves/i.test(`${button.text()} ${button.attributes('aria-label') ?? ''}`));
-    expect(undo, 'Undo last premove control').toBeDefined();
-    expect(clear, 'Clear premoves control').toBeDefined();
-    await undo!.trigger('click');
-    await clear!.trigger('click');
-    expect(dependency.store.undoPremove).toHaveBeenCalledWith(game);
-    expect(dependency.store.clearPremoves).toHaveBeenCalledWith(game);
+    const controls = wrapper.getComponent({ name: 'GameControlPanel' });
+    expect(controls.text()).not.toMatch(/premove|undo last/i);
+    expect(wrapper.findAll('button').some((button) => /premove|undo last/i.test(`${button.text()} ${button.attributes('aria-label') ?? ''}`))).toBe(false);
+  });
+  it.each([BoardOrientation.White, BoardOrientation.Black].flatMap((orientation) => ['a3', 'e4', 'g5'].map((square) => ({ orientation, square }))))('PRE-S03 right-click $square clears the whole queue with $orientation orientation', async ({ orientation, square }) => {
+    dependency.settings.settings.appearance.boardOrientation = orientation;
+    const game = _game();
+    const wrapper = _mount(game);
+    await flushPromises();
+    const canonical = buildFen(_position(game));
+    await _square(wrapper, square).trigger('contextmenu');
+    expect(dependency.store.clearPremoves).toHaveBeenCalledExactlyOnceWith(game);
+    await _publish();
+    expect(_redSquares(wrapper)).toEqual([]);
+    expect(_displayedPieces(wrapper)).toEqual(pieceMap(_position(game).board));
+    expect(buildFen(wrapper.getComponent(Chessboard).props('position'))).toBe(canonical);
     expect(dependency.store.takeBack).not.toHaveBeenCalled();
   });
+  it.each([BoardOrientation.White, BoardOrientation.Black])('PRE-S03 touch tap on a premoved piece cancels with %s orientation', async (orientation) => {
+    dependency.settings.settings.appearance.boardOrientation = orientation;
+    const game = _game();
+    const wrapper = _mount(game);
+    await flushPromises();
+    await _square(wrapper, 'g5').trigger('pointerdown', { pointerType: 'touch' });
+    await _square(wrapper, 'g5').trigger('pointerup', { pointerType: 'touch' });
+    await _square(wrapper, 'g5').trigger('click');
+    expect(dependency.store.clearPremoves).toHaveBeenCalledExactlyOnceWith(game);
+    expect(dependency.store.makeMove).not.toHaveBeenCalled();
+  });
+  it('PRE-S03 Escape cancels unfinished selection before clearing completed intentions', async () => {
+    const game = _game();
+    const wrapper = _mount(game);
+    await flushPromises();
+    await _square(wrapper, 'g5').trigger('click');
+    await _square(wrapper, 'g5').trigger('keydown', { key: 'Escape' });
+    expect(dependency.store.clearPremoves).not.toHaveBeenCalled();
+    expect(_square(wrapper, 'g5').attributes('aria-pressed')).toBe('false');
+    await _square(wrapper, 'g5').trigger('keydown', { key: 'Escape' });
+    expect(dependency.store.clearPremoves).toHaveBeenCalledExactlyOnceWith(game);
+  });
   it.each([
-    { name: 'castle', root: castlePosition, moves: [premove('e1g1', PieceKind.King)], cells: { g1: 'g1 white king', f1: 'f1 white rook', e1: 'e1', h1: 'h1' }, red: ['e1', 'f1', 'g1', 'h1'] },
-    { name: 'underpromotion', root: promotionPosition, moves: [premove('a7a8n', PieceKind.Pawn)], cells: { a7: 'a7', a8: 'a8 white knight' }, red: ['a7', 'a8'] },
+    { name: 'castle', root: castlePosition, moves: [premove('e1g1')], cells: { g1: 'g1 white king', f1: 'f1 white rook', e1: 'e1', h1: 'h1' }, red: ['e1', 'f1', 'g1', 'h1'] },
+    { name: 'underpromotion', root: promotionPosition, moves: [premove('a7a8n')], cells: { a7: 'a7', a8: 'a8 white knight' }, red: ['a7', 'a8'] },
   ])('PRE-S04 draws $name from queue data without altering canonical pieces', async (spec) => {
     const game = _game({ root: spec.root, queue: spec.moves });
     const canonical = buildFen(_position(game));
@@ -249,6 +283,40 @@ describe('premove scenarios at the mounted input boundary', () => {
     await flushPromises();
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
   });
+  it.each([PlayerColour.White, PlayerColour.Black])('PRE-S15 routes only the clicked %s raw PV intention without predicted opponent replies', async (local) => {
+    const game = _game({ played: local === PlayerColour.White ? ['e2e4'] : [], queue: [], local });
+    const wrapper = _mount(game);
+    await flushPromises();
+    const line = local === PlayerColour.White ? ['e7e5', 'g1f3'] : ['e2e4', 'g8f6'];
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', _preview(game, line));
+    await flushPromises();
+    expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove(line[1]!));
+  });
+  it('PRE-S15 derives PV mover from canonical parity when projection covers an engine source', async () => {
+    const game = _game({ root: { pieces: [
+      ['e1', PlayerColour.White, PieceKind.King], ['e8', PlayerColour.Black, PieceKind.King],
+      ['a1', PlayerColour.White, PieceKind.Rook], ['a8', PlayerColour.Black, PieceKind.Rook], ['h7', PlayerColour.Black, PieceKind.Pawn],
+    ] }, queue: [premove('a1a8')] });
+    const wrapper = _mount(game);
+    await flushPromises();
+    const line = _preview(game, ['a8a7']);
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', line);
+    await flushPromises();
+    expect(dependency.store.makeMove).not.toHaveBeenCalled();
+    expect(game.$!.premoveQueue!.moves).toEqual([premove('a1a8')]);
+  });
+  it('PRE-S15 score-only preference rejects suggestion events without disabling board premoves', async () => {
+    const game = _game({ queue: [] });
+    game.gameplayOptions.showLiveAnalysisMoves = false;
+    const wrapper = _mount(game);
+    await flushPromises();
+    expect(wrapper.getComponent({ name: 'AnalysisPanel' }).props('showMoves')).toBe(false);
+    wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', _preview(game, ['e7e5', 'g1f3']));
+    await flushPromises();
+    expect(dependency.store.makeMove).not.toHaveBeenCalled();
+    await _click(wrapper, 'g1', 'f3');
+    expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove('g1f3'));
+  });
   it('PRE-S15 ordinary local PV input still commits only the first actual move', async () => {
     const game = _game({ played: [], queue: [] });
     const wrapper = _mount(game);
@@ -280,7 +348,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     const wrapper = _mount(game);
     await flushPromises();
     const board = wrapper.getComponent(Chessboard);
-    const retainedMove = board.vm.$.vnode.props!.onMoveAttempted as (move: IMove) => unknown;
+    const retainedMove = board.vm.$.vnode.props!.onMoveAttempted as (move: IMoveRaw) => unknown;
     const retainedAnalyse = wrapper.getComponent({ name: 'GameControlPanel' }).vm.$.vnode.props!.onAnalysisRequested as () => unknown;
     const move = _legal(_position(game), first === PlayerColour.White ? 'e2e4' : 'e7e5');
     MoveHistoryService.addMainlineMove(game.moveTree.root, move);
@@ -312,12 +380,89 @@ describe('premove scenarios at the mounted input boundary', () => {
     await _click(wrapper, 'f3', 'g5');
     expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, whiteChain[1]);
   });
+  it('PRE-F08 PRE-S18 publishes in-place raw FIFO edits without changing canonical position', async () => {
+    const game = _game({ queue: [whiteChain[0]!] });
+    const wrapper = _mount(game);
+    await flushPromises();
+    const board = wrapper.getComponent(Chessboard);
+    const canonical = board.props('position');
+    const queue = game.$!.premoveQueue!;
+    const retained = board.vm.$.vnode.props!.onMoveAttempted as (move: IMoveRaw) => unknown;
+    queue.moves.push({ ...whiteChain[1]! });
+    await nextTick();
+    expect(_square(wrapper, 'f3').attributes('aria-label')).toBe('f3 white knight');
+    await _publish();
+    expect(_square(wrapper, 'g5').attributes('aria-label')).toBe('g5 white knight');
+    expect(_redSquares(wrapper)).toEqual(['f3', 'g1', 'g5']);
+    expect(board.props('position')).toBe(canonical);
+    expect(game.$!.premoveQueue).toBe(queue);
+    await retained(premove('f3h4'));
+    expect(dependency.store.makeMove).not.toHaveBeenCalled();
+    queue.moves.splice(1);
+    await _publish();
+    expect(_square(wrapper, 'f3').attributes('aria-label')).toBe('f3 white knight');
+    expect(_redSquares(wrapper)).toEqual(['f3', 'g1']);
+  });
+  it('PRE-S18 equal-looking queue replacement cancels the old input owner', async () => {
+    const game = _game();
+    const wrapper = _mount(game);
+    await flushPromises();
+    const retained = wrapper.getComponent(Chessboard).vm.$.vnode.props!.onMoveAttempted as (move: IMoveRaw) => unknown;
+    game.$!.premoveQueue = { player: game.whitePlayer!, moves: whiteChain.map((move) => ({ ...move })) };
+    await _publish();
+    await retained(premove('g5h7'));
+    expect(dependency.store.makeMove).not.toHaveBeenCalled();
+    await _click(wrapper, 'g5', 'h7');
+    expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove('g5h7'));
+  });
+  it('PRE-S22 evaluation publication preserves live projected selection', async () => {
+    const game = _game();
+    const wrapper = _mount(game);
+    await flushPromises();
+    await _square(wrapper, 'g5').trigger('click');
+    const retained = wrapper.getComponent(Chessboard).vm.$.vnode.props!.onMoveAttempted;
+    await _publish();
+    expect(_square(wrapper, 'g5').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.getComponent(Chessboard).vm.$.vnode.props!.onMoveAttempted).toBe(retained);
+    await _square(wrapper, 'h7').trigger('click');
+    expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove('g5h7'));
+  });
+  it('PRE-S06 PRE-S22 background queue edits preserve independent analysis input', async () => {
+    const game = _game();
+    game.gameState = GameState.LiveAnalysisFromBlackTurnBlackMove;
+    game.renderedPath = [...game.renderedPath];
+    const wrapper = _mount(game);
+    await flushPromises();
+    const canonical = wrapper.getComponent(Chessboard).props('position');
+    await _square(wrapper, 'b8').trigger('click');
+    game.$!.premoveQueue!.moves.pop();
+    await _publish();
+    expect(wrapper.getComponent(Chessboard).props('position')).toBe(canonical);
+    expect(_square(wrapper, 'b8').attributes('aria-pressed')).toBe('true');
+    expect(_redSquares(wrapper)).toEqual([]);
+    await _square(wrapper, 'c6').trigger('click');
+    expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove('b8c6'));
+    expect(game.$!.premoveQueue!.moves).toEqual([whiteChain[0]]);
+  });
+  it.each(['analysis', 'review', 'paused'] as const)('PRE-S03 forbids board queue cancellation during %s', async (mode) => {
+    const game = _game();
+    if (mode === 'analysis') { game.gameState = GameState.LiveAnalysisFromBlackTurnBlackMove; game.renderedPath = [...game.renderedPath]; }
+    if (mode === 'review') game.renderedPath = [];
+    if (mode === 'paused') game.gameState = GameState.PausedBlackTurn;
+    const queue = game.$!.premoveQueue;
+    const wrapper = _mount(game);
+    await flushPromises();
+    await _square(wrapper, 'g1').trigger('contextmenu');
+    await _square(wrapper, 'g1').trigger('keydown', { key: 'Escape' });
+    expect(dependency.store.clearPremoves).not.toHaveBeenCalled();
+    expect(game.$!.premoveQueue).toBe(queue);
+  });
   it('PRE-S18 incomplete promotion is never queued and a real reply cancels its old chooser', async () => {
     const game = _game({ root: promotionPosition, queue: [] });
     const wrapper = _mount(game);
     await flushPromises();
     await _click(wrapper, 'a7', 'a8');
-    const chooser = wrapper.find('[aria-label="Pawn promotion"]');
+    const chooser = _dialog('Choose promotion');
     expect(chooser.exists()).toBe(true);
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
     const retainedChoice = chooser.get('[aria-label="Promote to white knight"]');
@@ -326,14 +471,28 @@ describe('premove scenarios at the mounted input boundary', () => {
     game.livePath!.push(0);
     game.gameState = GameState.LiveWhiteTurn;
     await _publish();
-    expect(wrapper.find('[aria-label="Pawn promotion"]').exists()).toBe(false);
+    expect(_dialog('Choose promotion').exists()).toBe(false);
     await retainedChoice.trigger('click');
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
     await _click(wrapper, 'a7', 'a8');
-    await wrapper.get('[aria-label="Promote to white knight"]').trigger('click');
+    await _dialog('Choose promotion').get('[aria-label="Promote to white knight"]').trigger('click');
     await flushPromises();
     expect(dependency.store.makeMove).toHaveBeenCalledOnce();
     expect(dependency.store.makeMove.mock.calls[0]![1]).toMatchObject({ promotionPiece: PieceKind.Knight });
+  });
+  it('PRE-S18 Escape dismisses the mounted chooser before clearing an accepted queue', async () => {
+    const game = _game({ root: promotionPosition, queue: [premove('e1f1')] });
+    const wrapper = _mount(game);
+    await flushPromises();
+    await _click(wrapper, 'a7', 'a8');
+    const chooser = _dialog('Choose promotion');
+    expect(chooser.exists()).toBe(true);
+    await chooser.trigger('keydown', { key: 'Escape' });
+    expect(_dialog('Choose promotion').exists()).toBe(false);
+    expect(dependency.store.clearPremoves).not.toHaveBeenCalled();
+    expect(dependency.store.makeMove).not.toHaveBeenCalled();
+    await _square(wrapper, 'a7').trigger('keydown', { key: 'Escape' });
+    expect(dependency.store.clearPremoves).toHaveBeenCalledExactlyOnceWith(game);
   });
   it('PRE-S19 temporary tab selection retains queues but explicit close cancels only that game', async () => {
     const first = _game({ id: 'first' });
@@ -360,13 +519,13 @@ describe('premove scenarios at the mounted input boundary', () => {
     const wrapper = _mount(game);
     await flushPromises();
     await _click(wrapper, 'd2', 'd4');
-    const cancel = wrapper.findAll('button').find((button) => button.text() === 'Cancel')!;
+    const cancel = _dialog('Continue from this position?').findAll('button').find((button) => button.text() === 'Cancel')!;
     expect(cancel).toBeDefined();
     await cancel.trigger('click');
     expect(game.$!.premoveQueue).toBe(queue);
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
     await _click(wrapper, 'd2', 'd4');
-    const retainedConfirm = wrapper.findAll('button').find((button) => button.text() === 'Continue game')!;
+    const retainedConfirm = _dialog('Continue from this position?').findAll('button').find((button) => button.text() === 'Continue game')!;
     wrapper.getComponent({ name: 'GameControlPanel' }).vm.$emit('analysisRequested');
     await flushPromises();
     await retainedConfirm.trigger('click');

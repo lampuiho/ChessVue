@@ -1,4 +1,4 @@
-import { PieceKind, PlayerColour, PlayerType, type IBoardPosition, type IChessPiece, type IPlayer, type IPremove } from '@/contracts';
+import { PieceKind, PlayerColour, PlayerType, type IBoardPosition, type IChessPiece, type IPlayer, type IMoveRaw } from '@/contracts';
 import { createInitialBoardPosition, createSparseBoard } from '@/utility/chess';
 import { createAssignedEngine } from './StateStoreTestUtility';
 
@@ -12,9 +12,9 @@ export interface IPositionFixture {
 export function squareId(square: string) {
   return square.charCodeAt(0) - 97 + (Number(square[1]) - 1) * 8;
 }
-export function premove(uci: string, movingPiece: PieceKind = PieceKind.Knight): IPremove {
+export function premove(uci: string): IMoveRaw {
   const promotion = { q: PieceKind.Queen, r: PieceKind.Rook, b: PieceKind.Bishop, n: PieceKind.Knight } as const;
-  return { from: squareId(uci.slice(0, 2)), to: squareId(uci.slice(2, 4)), movingPiece,
+  return { from: squareId(uci.slice(0, 2)), to: squareId(uci.slice(2, 4)),
     ...(uci[4] ? { promotionPiece: promotion[uci[4] as keyof typeof promotion] } : {}) };
 }
 export function fixturePosition(fixture?: IPositionFixture): IBoardPosition {

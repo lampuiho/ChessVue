@@ -48,7 +48,7 @@ Completed UI scenario fixes are covered by [application regressions](../journeys
 - [Executed tests and browser verification](RawMoveSubmissionDesign.md#implementation-and-verification) complete the original pending item. The premove FIFO and player-turn implementation are separate work.
 
 ## Still Pending
-- Implement the separately proposed [premove queue and player-turn flow](PreMovePlan%28ToDo%29.md), starting with the approved raw data migration and fresh premove test baseline after its own approval.
+- Implement the separately proposed [premove queue and player-turn flow](PreMovePlan%28ToDo%29.md) after behaviour approval. The 23 October raw data migration and [scenario-test baseline](PreMovePlan%28ToDo%29.md#raw-move-scenario-baseline---23-october-2026) are complete: 409 tests run, 291 pass and 118 fail before premove behaviour development.
 
 ## Verification
 - Current cleanup: **527/527 unit/application tests across 84 files**, code audit, type checking and production build passed. Browser scope and generated reports are recorded in the [cleanup verification](CodeCleanupPlan.md#verification).

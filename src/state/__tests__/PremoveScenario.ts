@@ -1,10 +1,10 @@
-import { MoveKind, PauseReason, PieceKind, PlayerColour, PlayerType, ResultReason, ResultState, type IMove, type IPremove } from '@/contracts';
+import { MoveKind, PauseReason, PieceKind, PlayerColour, PlayerType, ResultReason, ResultState, type IMove, type IMoveRaw } from '@/contracts';
 import { blackChain, blockedTail, captureSource, castlePosition, checkingReply, premove, promotionPosition, whiteChain, type IPositionFixture } from './PremoveFixture';
 
 export interface IPremoveExpected {
   actual?: readonly string[];
   rendered?: readonly string[];
-  queue?: readonly IPremove[];
+  queue?: readonly IMoveRaw[];
   searches?: number;
   result?: ResultState;
   reason?: ResultReason;
@@ -21,9 +21,9 @@ export interface IPremoveExpected {
   branches?: Array<{ path: number[]; moves: string[] }>;
 }
 export interface IPremoveEvent {
-  action: 'append' | 'move' | 'reply' | 'lateReply' | 'analyse' | 'exit' | 'navigate' | 'pause' | 'resume' | 'undo' | 'clear' | 'takeBack' | 'reassign' | 'unassign' | 'timeout' | 'resign' | 'draw' | 'restore' | 'setup' | 'save' | 'tick' | 'remember';
+  action: 'append' | 'move' | 'reply' | 'lateReply' | 'analyse' | 'exit' | 'navigate' | 'pause' | 'resume' | 'clear' | 'takeBack' | 'reassign' | 'unassign' | 'timeout' | 'resign' | 'draw' | 'restore' | 'setup' | 'save' | 'tick' | 'remember';
   uci?: string;
-  intent?: IPremove;
+  intent?: IMoveRaw;
   path?: number[];
   reason?: PauseReason;
   colour?: PlayerColour;
@@ -40,7 +40,7 @@ export interface IPremoveScenario {
   seats?: 'hotseat' | 'engines';
   root?: IPositionFixture;
   played?: readonly string[];
-  queue?: readonly IPremove[];
+  queue?: readonly IMoveRaw[];
   clonePlayer?: boolean;
   allowTakeback?: boolean;
   increment?: number;
@@ -58,30 +58,31 @@ export const premoveScenarios: IPremoveScenario[] = [
   { id: 'PRE-S01', name: 'invalid new append preserves the previously accepted valid FIFO', queue: q, events: [
     { action: 'append', intent: premove('g5e4'), rejected: true },
   ], expected: { actual: ['e2e4'], queue: q, searches: 1, unchanged: ['canonical', 'clock', 'queue'] } },
-  { id: 'PRE-S02', name: 'consumes only Nf3 then Undo removes Ng5 without undoing actual play', queue: q, events: [
-    { action: 'reply', uci: 'e7e5', expected: { actual: ['e2e4', 'e7e5', 'g1f3'], queue: [q[1]!], searches: 2 } }, { action: 'undo' },
+  { id: 'PRE-S02', name: 'consumes only Nf3 then cancellation removes Ng5 without undoing actual play', queue: q, events: [
+    { action: 'reply', uci: 'e7e5', expected: { actual: ['e2e4', 'e7e5', 'g1f3'], queue: [q[1]!], searches: 2 } }, { action: 'clear' },
   ], expected: { actual: ['e2e4', 'e7e5', 'g1f3'], queue: undefined, actualPieces: { f3: 'white knight', g1: undefined } } },
   { id: 'PRE-S02', name: 'executes Black intentions one per actual Black turn', local: PlayerColour.Black, played: [], queue: blackChain, events: [
     { action: 'reply', uci: 'e2e4', expected: { actual: ['e2e4', 'g8f6'], queue: [blackChain[1]!], searches: 2 } },
     { action: 'reply', uci: 'd2d4' },
   ], expected: { actual: ['e2e4', 'g8f6', 'd2d4', 'f6g4'], queue: undefined, searches: 3, whiteMs: 64000, blackMs: 64000 } },
-  { id: 'PRE-S03', name: 'Clear and repeated empty edits never change canonical data', queue: q, events: [
-    { action: 'clear' }, { action: 'clear' }, { action: 'undo' },
+  { id: 'PRE-S03', name: 'whole cancellation and repeated empty cancellation never change canonical data', queue: q, events: [
+    { action: 'clear' }, { action: 'clear' },
   ], expected: { queue: undefined, unchanged: ['canonical', 'clock', 'rendered', 'searches'] } },
-  { id: 'PRE-S03', name: 'Undo removes only the last dependency and keeps its first intention', queue: q, events: [{ action: 'undo' }],
-    expected: { queue: [q[0]!], unchanged: ['canonical', 'clock', 'rendered', 'searches'] } },
+  { id: 'PRE-S03', name: 'cancelling before an opponent reply prevents every intended local move', queue: q, events: [
+    { action: 'clear' }, { action: 'reply', uci: 'e7e5' },
+  ], expected: { actual: ['e2e4', 'e7e5'], queue: undefined, searches: 1, active: PlayerColour.White, whiteMs: 60000 } },
   { id: 'PRE-S04', name: 'a queued castle records the actual king and rook movement', root: castlePosition, played: [],
-    queue: [premove('e1g1', PieceKind.King)], events: [{ action: 'reply', uci: 'h7h6' }],
+    queue: [premove('e1g1')], events: [{ action: 'reply', uci: 'h7h6' }],
     expected: { actual: ['h7h6', 'e1g1'], queue: undefined, searches: 2, lastMove: { kind: MoveKind.Castle },
       actualPieces: { e1: undefined, h1: undefined, g1: 'white king', f1: 'white rook' } } },
   ...(['q', 'r', 'b', 'n'] as const).map((letter): IPremoveScenario => {
-    const intent = premove(`a7a8${letter}`, PieceKind.Pawn);
+    const intent = premove(`a7a8${letter}`);
     return { id: 'PRE-S04', name: `commits exact queued promotion ${letter}`, root: promotionPosition, played: [], queue: [intent],
       events: [{ action: 'reply', uci: 'h7h6' }], expected: { actual: ['h7h6', `a7a8${letter}`], queue: undefined, searches: 2,
         lastMove: { kind: MoveKind.Promotion, promotionPiece: intent.promotionPiece }, actualPieces: { a7: undefined, a8: `white ${intent.promotionPiece}` } } };
   }),
   { id: 'PRE-S04', name: 'a real double push creates the queued en-passant opportunity', played: ['e2e4', 'a7a6', 'e4e5'],
-    queue: [premove('e5d6', PieceKind.Pawn)], events: [{ action: 'reply', uci: 'd7d5' }],
+    queue: [premove('e5d6')], events: [{ action: 'reply', uci: 'd7d5' }],
     expected: { actual: ['e2e4', 'a7a6', 'e4e5', 'd7d5', 'e5d6'], queue: undefined, searches: 2,
       lastMove: { kind: MoveKind.EnPassant, capturePiece: PieceKind.Pawn }, actualPieces: { e5: undefined, d5: undefined, d6: 'white pawn' } } },
   { id: 'PRE-S04', name: 'queued capture details come from the actual reply rather than a speculative move', played: [],
@@ -99,7 +100,7 @@ export const premoveScenarios: IPremoveScenario[] = [
   { id: 'PRE-S07', name: 'Exit before the reply never executes, replays or discards pending intentions', queue: q, events: [
     { action: 'analyse' }, { action: 'exit', expected: { actual: ['e2e4'], queue: q, searches: 1 } }, { action: 'exit' }, { action: 'reply', uci: 'e7e5' },
   ], expected: { actual: ['e2e4', 'e7e5', 'g1f3'], queue: [q[1]!], searches: 2 } },
-  ...(['analysis', 'review'] as const).map((mode): IPremoveScenario => ({ id: 'PRE-S08', name: `drains three local turns behind ${mode}`, queue: [...q, premove('f1c4', PieceKind.Bishop)], events: [
+  ...(['analysis', 'review'] as const).map((mode): IPremoveScenario => ({ id: 'PRE-S08', name: `drains three local turns behind ${mode}`, queue: [...q, premove('f1c4')], events: [
     mode === 'analysis' ? { action: 'analyse' } : { action: 'navigate', path: [] }, { action: 'remember' },
     { action: 'reply', uci: 'e7e5', expected: { actual: ['e2e4', 'e7e5', 'g1f3'], searches: 2 } },
     { action: 'reply', uci: 'b8c6', expected: { actual: ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f3g5'], searches: 3 } },
@@ -110,7 +111,7 @@ export const premoveScenarios: IPremoveScenario[] = [
     queue: [premove('c3d5'), premove('d5f6')], events: [{ action: 'reply', uci: 'b4c3' }], expected: { actual: ['b4c3'], queue: undefined, active: PlayerColour.White, searches: 1 } },
   { id: 'PRE-S09', name: 'a projected knight move cannot answer actual rook check', root: checkingReply, played: [], queue: q,
     events: [{ action: 'reply', uci: 'e8e2' }], expected: { actual: ['e8e2'], queue: undefined, active: PlayerColour.White, searches: 1 } },
-  { id: 'PRE-S09', name: 'wrong source provenance clears the whole accepted sequence', queue: [premove('g1f3', PieceKind.Bishop), q[1]!],
+  { id: 'PRE-S09', name: 'geometry incompatible with the actual source clears the whole accepted sequence', queue: [premove('g1g3'), q[1]!],
     events: [{ action: 'reply', uci: 'e7e5' }], expected: { actual: ['e2e4', 'e7e5'], queue: undefined, searches: 1 } },
   { id: 'PRE-S09', name: 'a copied player object cannot own the current local queue', queue: q, clonePlayer: true,
     events: [{ action: 'reply', uci: 'e7e5' }], expected: { actual: ['e2e4', 'e7e5'], queue: undefined, searches: 1 } },
@@ -149,6 +150,9 @@ export const premoveScenarios: IPremoveScenario[] = [
   ], expected: { actual: [], rendered: [], queue: undefined, active: PlayerColour.White, searches: 1 } },
   { id: 'PRE-S14', name: 'disabled Takeback does not cancel an otherwise valid queue', allowTakeback: false, queue: q,
     events: [{ action: 'takeBack', rejected: true }], expected: { queue: q, unchanged: ['canonical', 'clock', 'queue', 'searches'] } },
+  { id: 'PRE-S14', name: 'paused Takeback preserves accepted intentions and the held actual turn', queue: q, events: [
+    { action: 'pause', reason: PauseReason.Manual }, { action: 'remember' }, { action: 'takeBack', rejected: true },
+  ], expected: { queue: q, paused: [PauseReason.Manual], unchanged: ['canonical', 'clock', 'queue', 'searches'] } },
   { id: 'PRE-S15', name: 'normal current-side input still commits once with an empty FIFO', played: [], events: [
     { action: 'move', uci: 'e2e4' },
   ], expected: { actual: ['e2e4'], queue: undefined, searches: 1, whiteMs: 62000, blackMs: 60000 } },
@@ -171,7 +175,7 @@ export const premoveScenarios: IPremoveScenario[] = [
     { action: 'resume', reason: PauseReason.Menu },
   ], expected: { actual: ['e2e4', 'e7e5', 'g1f3'], queue: [q[1]!], searches: 2 } },
   { id: 'PRE-S20', name: 'an unprojectable tail clears the legal head before it can execute', root: blockedTail, played: [],
-    queue: [q[0]!, premove('f1c4', PieceKind.Bishop)], events: [{ action: 'reply', uci: 'd8d3' }],
+    queue: [q[0]!, premove('f1c4')], events: [{ action: 'reply', uci: 'd8d3' }],
     expected: { actual: ['d8d3'], queue: undefined, active: PlayerColour.White, searches: 1, actualPieces: { g1: 'white knight', f3: undefined } } },
   ...(['reassign', 'unassign', 'setup', 'resign', 'draw', 'timeout'] as const).map((action): IPremoveScenario => ({ id: 'PRE-S21', name: `${action} invalidates the complete live queue`, queue: q,
     events: [{ action, colour: PlayerColour.Black, type: PlayerType.Local }], expected: { queue: undefined,
@@ -180,7 +184,7 @@ export const premoveScenarios: IPremoveScenario[] = [
       ...(action === 'draw' ? { result: ResultState.Drawn, reason: ResultReason.DrawAgreement, running: false } : {}),
     } })),
   { id: 'PRE-S21', name: 'actual checkmate clears remaining intentions and starts no successor', played: ['f2f3', 'e7e5', 'g2g4'],
-    queue: [premove('b1c3'), premove('f1g2', PieceKind.Bishop)], events: [{ action: 'analyse' }, { action: 'reply', uci: 'd8h4' }],
+    queue: [premove('b1c3'), premove('f1g2')], events: [{ action: 'analyse' }, { action: 'reply', uci: 'd8h4' }],
     expected: { actual: ['f2f3', 'e7e5', 'g2g4', 'd8h4'], queue: undefined, searches: 1, result: ResultState.BlackWon, running: false } },
   { id: 'PRE-S21', name: 'exploratory checkmate preserves the ongoing actual game and queue', played: ['f2f3', 'e7e5', 'g2g4'], queue: q,
     events: [{ action: 'analyse' }, { action: 'move', uci: 'd8h4' }],

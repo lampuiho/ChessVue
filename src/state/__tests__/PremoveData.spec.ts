@@ -1,16 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { GameState, PieceKind, PlayerColour, PlayerType, type IGame, type IPremove } from '@/contracts';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import { GameState, PlayerColour, PlayerType, type IGame, type IMoveRaw, type IPremoveQueue } from '@/contracts';
 import { MoveHistoryService, SerializationService } from '@/domain';
 import { buildFen, createInitialBoardPosition, getOpponentColour, toDetailedMove } from '@/utility/chess';
 import { useGamePosition } from '../game/GamePositionComposable';
 import { createAssignedEngine, createGame } from './StateStoreTestUtility';
 
 const position = useGamePosition();
-const sequences: Array<{ colour: PlayerColour; moves: IPremove[] }> = [
-  { colour: PlayerColour.White, moves: [{ from: 6, to: 21, movingPiece: PieceKind.Knight }, { from: 21, to: 38, movingPiece: PieceKind.Knight }] },
-  { colour: PlayerColour.Black, moves: [{ from: 62, to: 45, movingPiece: PieceKind.Knight }, { from: 45, to: 30, movingPiece: PieceKind.Knight }] },
+const sequences: Array<{ colour: PlayerColour; moves: IMoveRaw[] }> = [
+  { colour: PlayerColour.White, moves: [{ from: 6, to: 21 }, { from: 21, to: 38 }] },
+  { colour: PlayerColour.Black, moves: [{ from: 62, to: 45 }, { from: 45, to: 30 }] },
 ];
-function _createQueuedGame(colour: PlayerColour, moves: IPremove[]) {
+function _createQueuedGame(colour: PlayerColour, moves: IMoveRaw[]) {
   const local = { colour, type: PlayerType.Local, displayName: 'Human' };
   const engine = { colour: getOpponentColour(colour), type: PlayerType.Engine, displayName: 'Engine', assignedEngine: createAssignedEngine() };
   const rootPosition = createInitialBoardPosition();
@@ -24,6 +24,12 @@ function _createQueuedGame(colour: PlayerColour, moves: IPremove[]) {
   return game;
 }
 describe('premove runtime data boundary', () => {
+  it('uses the shared raw move array without an entry wrapper, expected kind or anchor', () => {
+    expectTypeOf<IPremoveQueue['moves']>().toEqualTypeOf<IMoveRaw[]>();
+    const game = _createQueuedGame(PlayerColour.White, [{ from: 6, to: 21 }, { from: 21, to: 38 }]);
+    expect(Object.keys(game.$!.premoveQueue!).sort()).toEqual(['moves', 'player']);
+    expect(game.$!.premoveQueue!.moves).toEqual([{ from: 6, to: 21 }, { from: 21, to: 38 }]);
+  });
   it.each(sequences)('excludes the $colour queue and its references from canonical saves', ({ colour, moves }) => {
     const game = _createQueuedGame(colour, moves);
     const queue = game.$!.premoveQueue!;

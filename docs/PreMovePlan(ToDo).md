@@ -1,20 +1,20 @@
 # Premove and player-turn flow plan
 
-Replanned on 22 October 2026 after the user chose to undo the premove implementation. **Status: premove proposal awaiting approval; the separately approved PRE-RAW refactor is implemented and verified.** Queue entries reuse existing `IMoveRaw`. The separately delivered [background analysis prerequisite](BackgroundAnalysisPlan.md#implementation-and-verification) remains the baseline. Carry forward the [resolved decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md), [AGENTS.md](../AGENTS.md) and [code cleanup rules](CodeCleanupPlan.md).
+Replanned on 22 October 2026 after the user chose to undo the premove implementation. **Status: flows updated, raw queue declaration migrated and scenario tests written/executed on 23 October 2026; premove behaviour remains unimplemented. The separately approved PRE-RAW refactor is implemented and verified.** Queue entries reuse existing `IMoveRaw`. The separately delivered [background analysis prerequisite](ArchivedPlans/BackgroundAnalysisPlan.md#implementation-and-verification) remains the baseline. Carry forward the [resolved decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md), [AGENTS.md](../AGENTS.md) and [code cleanup rules](ArchivedPlans/CodeCleanupPlan.md).
 
-All [14 premove function flows](#function-flow), [25 premove scenarios](#concrete-scenarios-for-unit-tests) and the [data-driven test specification](#data-driven-unit-test-specification) are retained. [PRE-RAW](#pre-raw---raw-move-submission-refactor) records the completed submission refactor and ten prerequisite scenarios. The [older PRE-01 run](#pre-01-unit-test-baseline) is historical evidence for the superseded contract, not execution of this replan. Premove queue migration and implementation still require approval; the raw-submission approval covers PRE-RAW only.
+All [14 premove function flows](#function-flow), [25 premove scenarios](#concrete-scenarios-for-unit-tests) and the [data-driven test specification](#data-driven-unit-test-specification) are retained. [PRE-RAW](#pre-raw---raw-move-submission-refactor) records the completed submission refactor and ten prerequisite scenarios. The [older PRE-01 run](#pre-01-unit-test-baseline) is historical evidence for the superseded contract, not execution of this replan. The current request authorises the raw queue declaration/test migration and a fresh failing scenario baseline, not gameplay implementation.
 
 ## Prerequisite and tests-first order
 
-The [background analysis plan](BackgroundAnalysisPlan.md) has delivered analysis clocks, selected-position isolation, actual background-turn scheduling, active-branch pruning, analysis controls and old paused-state compatibility. This plan consumes those verified actions. Explicit analysis moves/history also remain permitted during genuine pauses, while actual commits stay paused, as confirmed in [Q-PLAY-003](questions/play/Q-PLAY-003-PausedAnalysisEntry.md).
+The [background analysis plan](ArchivedPlans/BackgroundAnalysisPlan.md) has delivered analysis clocks, selected-position isolation, actual background-turn scheduling, active-branch pruning, analysis controls and old paused-state compatibility. This plan consumes those verified actions. Explicit analysis moves/history also remain permitted during genuine pauses, while actual commits stay paused, as confirmed in [Q-PLAY-003](questions/play/Q-PLAY-003-PausedAnalysisEntry.md).
 
 After the prerequisite passes, write premove unit tests against game data and existing store actions **before changing production code**. Observe meaningful failures for opponent-turn append, due-turn validation, whole-queue clearing, hotseat exclusion and derived board/red-square projection. Only then implement the queue and presentation, rerun focused unit tests and add browser acceptance. Do not use the prerequisite's passing analysis tests as premove acceptance.
 
-The **board-interaction `IMoveRaw` refactor** in [CodexFollowUp](CodexFollowUp.md#raw-move-submission) is the separately approved and completed **PRE-RAW** prerequisite. Board/PV/modal submission, view confirmation/playback and the store now use raw input; canonical acceptance enriches for history/commit. Its [tests-first verification](RawMoveSubmissionDesign.md#implementation-and-verification) is independent of the pending raw FIFO migration. The remaining queue order follows the completed first two gates: **PRE-RAW tests fail -> raw-submission refactor passes -> raw queue data migration -> premove behaviour tests fail -> premove implementation**.
+The **board-interaction `IMoveRaw` refactor** in [CodexFollowUp](CodexFollowUp.md#raw-move-submission) is the separately approved and completed **PRE-RAW** prerequisite. Board/PV/modal submission, view confirmation/playback and the store now use raw input; canonical acceptance enriches for history/commit. Its [tests-first verification](ArchivedPlans/RawMoveSubmissionDesign.md#implementation-and-verification) is independent of the raw FIFO migration and scenario baseline now recorded below. The sequence is **PRE-RAW tests fail -> raw-submission refactor passes -> raw queue data migration -> premove behaviour tests fail -> premove implementation**; only the final behaviour step remains unimplemented.
 
 ## PRE-RAW - Raw move submission refactor
 
-The separate [Raw move submission API design](RawMoveSubmissionDesign.md) defines the complete before/after signatures, [per-boundary full-move justifications](RawMoveSubmissionDesign.md#type-retention-audit-and-justification), copying/validation boundary, five function flows, promise/error semantics and implementation migration. It is the API reference for PRE-RAW; this section retains its dependency and test matrix within the premove plan.
+The separate [Raw move submission API design](ArchivedPlans/RawMoveSubmissionDesign.md) defines the complete before/after signatures, [per-boundary full-move justifications](ArchivedPlans/RawMoveSubmissionDesign.md#type-retention-audit-and-justification), copying/validation boundary, five function flows, promise/error semantics and implementation migration. It is the API reference for PRE-RAW; this section retains its dependency and test matrix within the premove plan.
 
 **Status: complete after explicit approval, tests-first implementation and verification on 22 October 2026.** Source: [CodexFollowUp](CodexFollowUp.md#raw-move-submission). This covers existing legal gameplay, analysis and historical continuation; speculative targets, queue execution and displaced rendering remain pending. Preserve every previously agreed mode/pause/history policy.
 
@@ -44,12 +44,12 @@ When premoves are subsequently implemented, add one branch **before canonical en
 | `_commitTarget`, pending promotion and `_choosePromotion` | A completed choice selects a raw candidate with exact `promotionPiece`; no emission while incomplete. Cancel or source/mode replacement discards the attempt; an old choice cannot complete a new chooser |
 | `Chessboard._emitMove` / `moveAttempted` | Emit `IMoveRaw` directly. Remove board-side `toDetailedMove` and its import. `lastMove?: IMove` remains because the legal query consumes historical moving colour/check state; highlighting alone would not justify it |
 | `GameView.inputActions.move`, `_makeMove`, `_requestMoves` | Accept raw payloads through the existing captured input owner; no conversion back to a detailed payload for transport |
-| `pendingContinuation`, `_confirmContinuation` | Keep raw move data with the selected game/node owner. Confirmation rechecks its context; enrichment uses the accepted canonical source. Cancelled/stale confirmation changes neither actual play nor queue |
+| Captured `IContinuation`, `_confirmContinuation(pending, signal)` | Keep raw move data with the selected game/node owner in the mounted confirmation callback. Abort/context checks precede canonical acceptance. Cancelled/stale confirmation changes neither actual play nor queue |
 | `AnalysisPanel.moveSelected`, `_playAnalysisLine`, `_applyMoves` | PV props remain detailed for SAN; the selected-prefix event and view adapters use `readonly IMoveRaw[]`. Copy coordinates/promotion at the event boundary and when owning retained external data. Validate the full prefix on a detached canonical preview before its first move; temporary detailed moves needed to advance that preview stay local and are discarded. Retain raw entries for delayed submission, with the existing playback cancellation/context checks |
 | `GamesStore.makeMove`, `GameMoveComposable.makeMove` | Keep the existing action names, widen input to `IMoveRaw`, select the correct canonical board, reject stale/illegal raw moves and generate actual details immediately before the existing commit routes. No `IMove | IMoveRaw` union, raw-to-detailed cast or new public conversion wrapper |
-| Actual turn, history and engine-result delivery | Retain `IMove` for accepted transition facts consumed by clock/history/SAN and existing result schemas. The [audit](RawMoveSubmissionDesign.md#full-move-contracts-retained) gives each API's reader or downstream sink; forwarding alone is not a full-type requirement |
+| Actual turn, history and engine-result delivery | Retain `IMove` for accepted transition facts consumed by clock/history/SAN and existing result schemas. The [audit](ArchivedPlans/RawMoveSubmissionDesign.md#full-move-contracts-retained) gives each API's reader or downstream sink; forwarding alone is not a full-type requirement |
 | Existing application and protocol inputs | Application/rule replay and its engine validation helpers require existing `IMoveCandidate`; ponder command/expected-reply inputs require only `IMoveRaw`. Keep names, algorithms, engine commands and lifecycle; no full fields are needed by these consumers |
-| Legacy Promotion modal payload/schema/handler | Use raw from/to plus the explicit promotion choice through the existing store action. Remove this second UI-side conversion; leave saved game schemas unchanged |
+| Mounted `PromotionModal` chooser | Returns its offered raw candidate through `Chessboard._choosePromotion -> _emitMove -> GameView`; no game/store dependency or conversion inside the modal. Keep saved game schemas unchanged |
 
 An `IMove` is structurally compatible with `IMoveRaw`, so existing detailed callers can migrate incrementally without a duplicate union. Their supplied kind/colour/capture/check/notation/runtime fields must not become commit authority: resolve from the canonical board and matching legal candidate. Keep conversion at this explicit acceptance boundary; preview-only enrichment is allowed for existing look-ahead, never used as the committed payload.
 
@@ -74,7 +74,7 @@ Test owners are the existing `Chessboard.spec.ts` for raw selection/promotion, `
 
 After PRE-RAW implementation, require these tests and affected existing regressions to pass, with `npm run check:code`, type checks/build and focused real promotion/playback gestures as appropriate. Record the executed scope separately from premove acceptance. Leave the source follow-up item pending until this stage actually passes; the planning link is not completion.
 
-PRE-RAW preserves the existing actual-handler completion when genuine pause races an already-accepted move; it does not introduce the later actual-commit completion owner. The [API design's completion matrix](RawMoveSubmissionDesign.md#raw-f05---engine-pause-and-completion) separates this baseline from the subsequent PlayerTurn refactor.
+PRE-RAW preserves the existing actual-handler completion when genuine pause races an already-accepted move; it does not introduce the later actual-commit completion owner. The [API design's completion matrix](ArchivedPlans/RawMoveSubmissionDesign.md#raw-f05---engine-pause-and-completion) separates this baseline from the subsequent PlayerTurn refactor.
 
 ## Outcome and settled behaviour
 
@@ -112,7 +112,7 @@ Analysis preserves queue ownership, not a frozen snapshot of its entries. Actual
 
 The old note's pending-promise equality guard was already removed by the cleanup. Do not reintroduce it. Duplicate-turn prevention, owned cancellation/draining and the queue replace that concern.
 
-The former analysis mismatch/four-test baseline and the older queue declaration/tests are historical evidence. Existing queue tests still use the superseded entry shape; they must be migrated after approval. No old count establishes execution of this raw/no-buttons revision.
+The former analysis mismatch/four-test baseline and the older queue declaration/tests are historical evidence. The scenario tests are being migrated from the superseded entry shape under the 23 October request. No old count establishes execution of this raw/no-buttons revision; the fresh executed baseline is recorded below.
 
 ## Position, queue and input ownership
 
@@ -139,7 +139,23 @@ Publish runtime queue changes through the existing raw-game rendering boundary w
 - Add only `GameRuleUtility.genCandidateMovesForPiece(position, from)` as a generic chess-rule query. Reuse legal/detail/application functions. No premove utility/library, premove-named rule API, new service or public dispatcher.
 - Append, projection, due resolution and rebase stay private/in existing app owners. One store Clear action serves board cancellation; no Undo-last action, queue count/list or premove buttons in GameControlPanel.
 - Consolidate actual pending/deferred delivery in PlayerTurn with one current owner and a small serial drain; remove competing successor scheduling, rather than add another scheduler alongside it.
-- Global CSS only; extend the existing narrow audited board-prop input-reset boundary if necessary. No new orchestration watcher or async invalidation counter.
+- Global CSS only; extend the existing Chessboard `onBeforeUpdate` input-reset boundary if necessary. No watcher or async invalidation counter.
+
+## Integration update after IMoveRaw submission and modal changes
+
+Moves now cross board/view/store as `IMoveRaw`; this is the refactor referred to by the user, as clarified on 23 October. Preserve the existing raw-game publication model without changing Vue `markRaw` usage. The agreed product scenarios remain unchanged; submission and the subsequently migrated modal/lifecycle boundaries require these function-flow/test corrections:
+
+| Boundary | Current and planned flow |
+| --- | --- |
+| Raw intake (PRE-F01/F02/F14) | Keep `Chessboard._emitMove -> GameView.inputActions.move -> _makeMove -> _requestMoves`. Classify eligible live off-turn input before `_applyMoves` performs canonical side-to-move preflight. Forward the copied raw intention directly to `GamesStore.makeMove`; the store repeats seat/mode/pause checks before enqueueing, before `_resolveMove` canonical enrichment. Own-turn/history/analysis continue through the existing raw preflight/acceptance path. No detailed transport, duplicate dispatcher or cast |
+| Promotion (PRE-F14/S18) | `_commitTarget -> modal.open(PromotionModal, { moves, colour, onSelected: _choosePromotion }) -> _emitMove`. The chooser is outside the board DOM and has its own abort signal. Projected candidates use the human's source colour, not the engine's due colour. Changed input props or board unmount call `_clearSelection`, closing that opening; late detached buttons cannot append/commit. Escape dismisses the chooser first; a later board Escape may clear completed premoves |
+| Historical rewrite (PRE-F01/F12/S13) | `_requestMoves` captures `IContinuation { game, node, moves }` in the `ConfirmationModal.confirm(signal)` callback. `_confirmContinuation(pending, signal)` checks abort/current game/node/mode/pause/result/Takeback. Cancel, replacement or `_closeContinuation` aborts that opening and preserves the queue. Only a valid confirmed store rewrite clears it |
+| Runtime publication (PRE-F08) | `game.$.premoveQueue` is plain nested data on a deliberately raw game. Append/consume/clear must explicitly publish through the extracted private GamesStore publication helper and existing `workspaceRevision`. No `reactive(queue)`, watch/subscription, new revision counter or timestamp touch. The canonical `_touchGame` retains timestamp effects |
+| Stable display/input owner (PRE-F03/F14/S18/S22) | `GameView.renderedBoard` already preserves its canonical board identity across unrelated publications. Extend that owner to account for the displayed projection and a copied snapshot of the current queue's raw values plus actual seat/queue identity. Comparing only the queue/array reference misses in-place push/shift. Preserve the owner when the canonical selected board, permission/mode and relevant projection are unchanged; independent analysis ignores background queue edits. Changing queue/base/input context replaces the display owner and invalidates captured `inputActions` |
+| Board lifecycle (PRE-F03/F09/F14) | `Chessboard.onBeforeUpdate` compares actual canonical/display/input props before rendering the replacement; `_clearSelection` cancels selection, drag and mounted promotion. `onBeforeUnmount` closes unfinished input. No observer exceptions remain. Derived getters neither clear queues nor mount modals |
+| Mounted specifications | Use the real `modalPlugin` test owner and query promotion/confirmation through `document.body`, retaining old DOM buttons to prove abort behaviour. Mark game fixtures raw before exposing them through a reactive mock store; mutate nested fixtures only with explicit publication when simulating a completed action. This catches missing publication and referential-owner bugs rather than hiding them with deep reactive test data |
+
+The existing candidate query remains the only new chess-rule API. The only queue action remains `clearPremoves(game)`; neither Undo-last nor a premove control/count is restored. All PRE-F01-PRE-F14 and PRE-S01-PRE-S25 below remain in force.
 
 ## Input permissions and routing
 
@@ -180,7 +196,7 @@ Replace the unowned 500 ms failure-retry timeout with one owned cancellable retr
 
 ## Background analysis and selection
 
-Use the entry/exit, canonical selected-position isolation, actual background progression, Takeback and pause/hydration behaviour delivered by [BackgroundAnalysisPlan](BackgroundAnalysisPlan.md). Those APIs must already have failing-then-passing unit evidence before this plan starts.
+Use the entry/exit, canonical selected-position isolation, actual background progression, Takeback and pause/hydration behaviour delivered by [BackgroundAnalysisPlan](ArchivedPlans/BackgroundAnalysisPlan.md). Those APIs must already have failing-then-passing unit evidence before this plan starts.
 
 Queue integration adds only these requirements: analysis/review must not suspend queue execution; exploratory board/PV moves must not enqueue; actual commits consume entries while the selected board stays fixed; returning to live derives only the current remainder. Premoves never become analysis/history nodes, and branch pruning never owns the queue. A live Takeback/rewrite/reassignment invalidates the whole queue through its existing explicit action boundary.
 
@@ -206,7 +222,7 @@ A successful commit consumes only its own head; background analysis leaves the r
 
 ## Function flow
 
-Names without a qualifier below are existing source entry points; private names describe responsibilities within their current owners, not new exported APIs. Every flow uses the revised raw queue. This replan authorises no code/test implementation by itself.
+Names without a qualifier below are existing source entry points; private names describe responsibilities within their current owners, not new exported APIs. Every flow uses the revised raw queue. The 23 October request authorises the declaration/test migration below; behaviour implementation remains a separate step.
 
 ### Planned call boundaries
 
@@ -226,9 +242,9 @@ The existing raw input type, one queue-clear action and generic candidate query 
 
 `Chessboard moveAttempted(IMoveRaw) / AnalysisPanel moveSelected -> GameView._makeMove/_playAnalysisLine -> _requestMoves -> GamesStore.makeMove -> GameMoveComposable.makeMove`.
 
-1. Capture the selected input owner; reject obsolete game/node/mode/projection/permission before submission and repeat capability checks in the store.
+1. Capture the selected input owner; reject obsolete game/node/mode/projection/permission before submission and repeat capability checks in the store. Off-turn board input bypasses `_applyMoves` canonical preflight and reaches raw queue intake; analysis/history retain that preflight.
 2. Explicit Analyse, free and terminal analysis use existing canonical branch routes. Paused explicit analysis remains allowed. These routes never append, consume or clear the background FIFO.
-3. Ordinary history input preserves `_requestMoves -> pendingContinuation -> _confirmContinuation -> _commitHistoryRewriteMove` when Takeback is allowed. Cancelled/stale confirmation preserves actual game/queue; otherwise require explicit Analyse.
+3. Ordinary history input preserves `_requestMoves -> useModal().open(ConfirmationModal) -> _confirmContinuation(pending, signal) -> _commitHistoryRewriteMove` when Takeback is allowed. Cancelled/stale confirmation preserves actual game/queue; otherwise require explicit Analyse.
 4. Following-live ordinary input requires ongoing, genuinely unpaused gameplay. Human-engine input during the engine turn appends through PRE-F02. A due local move uses the actual owner; hotseat hands input to the newly due side and engine-engine cannot queue.
 5. For actual/analysis input, match raw coordinates and exact promotion against existing legal candidates on that canonical board, then build `IMove` with `toDetailedMove`. Do not trust supplied detailed fields or cast raw data to `IMove`. Preserve existing branch routing and immediate actual-commit completion.
 6. A due queued head has priority through PRE-F04; stale direct input cannot replace it or settle a successor. Keep full-prefix analysis validation before the first move and owned cancellation between delayed steps.
@@ -258,7 +274,7 @@ Steps 1-3 and canonical raw acceptance in step 5 are first established by PRE-RA
 3. Candidates are independent of actual side-to-move and king safety; respect projected occupancy, castling rights and promotion choices. Evolving king/rook movement cannot restore lost castling rights.
 4. Collect unique source/destination IDs, including castling rook endpoints. Use copied pieces for final artwork/accessibility labels. Captures/promotions affect this copy only.
 5. Any invalid dependency returns no partial projection. Explicit state actions own whole-queue invalidation/publication; a computed getter never mutates queue/canonical data.
-6. Preserve display/input identity across unrelated score publications. Actual base, queue, permission, mode, game or result replacement cancels obsolete gestures through the retained board boundary.
+6. Preserve display/input identity across unrelated score publications. Compare copied raw queue values as well as seat/queue identity so in-place append/shift also replaces the projection owner. Actual base, relevant queue, permission, mode, game or result replacement cancels obsolete gestures through `onBeforeUpdate`; background queue edits do not invalidate unchanged independent analysis input.
 
 **Assertions:** g1-f3-f3-g5 displays Ng5, empty g1/f3 and red `{6,21,38}`. Exact copied piece maps/red sets cover both orientations, castling, every promotion and later invalid dependencies; canonical/history/clock/evaluation data is untouched.
 
@@ -373,7 +389,7 @@ Menu return removes only Menu; switching the displayed game alone is not a runti
 
 `own-piece click/drag/keyboard -> genCandidateMovesForPiece(projectedPosition, from) -> IMoveRaw -> PRE-F01/PRE-F02`; own-turn and explicit-analysis input use canonical legal targets with the same raw-move contract.
 
-The board emits raw candidates; do not generate speculative detailed moves or add source-kind fields. Promotion must be explicitly chosen before emission. Unfinished selection/drag/promotion stays outside the FIFO.
+The board emits raw candidates; do not generate speculative detailed moves or add source-kind fields. Promotion must be explicitly chosen in the mounted `PromotionModal` before emission. Derive chooser colour from the local projected source. Unfinished selection/drag/promotion stays outside the FIFO; input replacement/unmount closes the captured modal handle.
 
 Keep suggestion visibility/playability preferences independent. Own-turn gameplay uses the existing first actual PV move. The raw selected-prefix event retains the clicked index through its length: derive its mover from the captured canonical PV source side and parity (odd length is that side, even length is the opponent). Off-turn gameplay requires that mover to be the local seat, then takes only the final raw entry as one intention validated against the current FIFO. A projected piece on the same source square must not turn an engine-colour click into local input. Never enqueue preceding opponent replies or a predicted prefix; an engine-colour click cannot steal its turn. Explicit Analyse retains canonical full-prefix validation/playback; ordinary history retains confirmation.
 
@@ -394,7 +410,7 @@ Bind callbacks to the input owner. Cancel selection/drag/promotion/PV on queue/b
 - Escape cancels unfinished input/promotion first; in live premove context it can clear the queue. In analysis/review it must not silently clear background intentions. Use the premoved piece itself for touch cancellation and retain accessible coordinate labels.
 - Dispose unfinished gestures/playback on context changes and keep completed queue ownership per game across remounts. Real clock pauses still block execution; review/analysis/tab selection do not create extra pauses.
 
-Own board/queue styles in [board.css](../src/assets/styles/board.css) without premove styling in the game control panel. Use global CSS only, no scope escapes or inline presentation declarations. Keep derived projection computed and effects in explicit actions/lifecycle hooks; reuse only the documented narrow external-prop input-reset observer boundary.
+Own board/queue styles in [board.css](../src/assets/styles/board.css) without premove styling in the game control panel. Use global CSS only, no scope escapes or inline presentation declarations. Keep derived projection computed and effects in explicit actions/lifecycle hooks; extend the existing `onBeforeUpdate` comparison of actual input props and `onBeforeUnmount` cleanup. All observers remain forbidden.
 
 ## Boundary matrix
 
@@ -415,7 +431,7 @@ Queue edits never pause running clocks or change actual history. Use actual comm
 
 ## Data-driven unit test specification
 
-The revised `IMoveRaw[]`/`IPremoveQueue` design is the fixture contract after its approved migration. Define examples as plain data, then bind `queue.player` to the constructed game's actual local seat **after** game construction/hydration. The existing actual live selector supplies the validation base; no node reference is stored in the queue fixture.
+The migrated `IMoveRaw[]`/`IPremoveQueue` declaration is the scenario fixture contract. Define examples as plain data, then bind `queue.player` to the constructed game's actual local seat **after** game construction/hydration. The existing actual live selector supplies the validation base; no node reference is stored in the queue fixture.
 
 Use the following common seeds throughout the scenarios:
 
@@ -497,7 +513,7 @@ First complete PRE-RAW's tests-first submission refactor. Then write the small r
 
 ## Concrete scenarios for unit tests
 
-These restore all **PRE-S01-PRE-S25** from the conflict record with explicit seeds, events, function paths and assertions in the implementation plan. They are planned acceptance cases, not executed/passing premove tests. The additional rule table above supplies the per-piece and invalid-input parameterisation. Keep scenario IDs in test names so omissions are visible.
+These retain all **PRE-S01-PRE-S25** from the conflict record with explicit seeds, events, function paths and assertions. Their raw-move test specifications have now been executed as a failing baseline, not passing feature acceptance. The additional rule table above supplies the per-piece and invalid-input parameterisation. Scenario IDs remain in test names so omissions are visible.
 
 | ID | Given / when | Function path | Required data and effects |
 | --- | --- | --- | --- |
@@ -545,8 +561,8 @@ No arbitrary queue limit, hotseat premoving, review suspension, analysis-entry c
 | Step | Work | Completion gate |
 | --- | --- | --- |
 | PRE-00 | Complete and verify the separate background analysis plan | Its tests were written/failed before implementation and now pass; actual clocks/turns and selected boards have an independent verified contract |
-| PRE-RAW | Board-interaction raw-submission refactor: RAW-S01-RAW-S10 tests written first, observed failing, then canonical acceptance implemented | Complete: [implementation and executed verification](RawMoveSubmissionDesign.md#implementation-and-verification). Queue implementation remains pending |
-| PRE-01 | After PRE-RAW passes, write raw queue data-boundary tests, migrate the declaration/imports, revise all raw scenario fixtures/assertions, then run premove behaviour tests before implementation | Pending: a fresh compiling failing baseline for the raw/no-buttons design. Old 139-case counts do not satisfy this gate |
+| PRE-RAW | Board-interaction raw-submission refactor: RAW-S01-RAW-S10 tests written first, observed failing, then canonical acceptance implemented | Complete: [implementation and executed verification](ArchivedPlans/RawMoveSubmissionDesign.md#implementation-and-verification). Queue implementation remains pending |
+| PRE-01 | After PRE-RAW passes, write raw queue data-boundary tests, migrate the declaration/imports, revise all raw scenario fixtures/assertions, then run premove behaviour tests before implementation | Complete on 23 October: five data-boundary tests pass; all 25 scenario IDs execute in the compiling raw/no-buttons baseline below. Behaviour remains unimplemented |
 | PRE-02 | Integrate the existing FIFO contract with one actual-turn owner and serial driver in Game runtime, PlayerTurn and GamesStore; preserve immediate input completion | One current owner/provider, owned cancellation/retry, no future-turn promises |
 | PRE-03 | Integrate queue consumption/cancellation with the verified actual-turn, analysis and invalidation actions | Multiple queued local/engine turns progress behind the stable selected board; no new analysis, pause, cache or pruning redesign |
 | PRE-04 | Add raw opponent-turn enqueue, whole-queue projection/clear and due-turn legal resolution | Every accepted off-turn local move appends; any invalid sequence clears completely |
@@ -575,15 +591,15 @@ Use real chess-rule utilities for legality/projection integration; mocked store 
 | PRE-A12: isolation/persistence | Canonical rendered/live boards, engine FEN, other games and saves never receive speculative pieces; restore has no queue and honours saved pause |
 | PRE-A13: active branch lifetime | Background actual commits cannot remove/reindex the selected analysis branch or re-alias its board. A branch left at a historical anchor stays history through Exit/navigation; pruning remains limited to the existing own-current-move case |
 
-The historical four-test paused-analysis baseline is in [BackgroundAnalysisPlan](BackgroundAnalysisPlan.md); it is not queue evidence. The old premove run below used the superseded entry/control contract. A new red baseline and subsequent passing evidence are required; no execution is claimed by this planning edit.
+The historical four-test paused-analysis baseline is in [BackgroundAnalysisPlan](ArchivedPlans/BackgroundAnalysisPlan.md); it is not queue evidence. The old premove run below used the superseded entry/control contract. A new red baseline and subsequent passing evidence are required; no execution is claimed by this planning edit.
 
 During implementation run `npm run check:code`, affected unit/integration tests, `npm run build` and the focused browser scenarios. Preserve Manual/Menu pause, UCI pondering, cancellation and independent analysis-seat regressions; replace obsolete Analysis-freeze expectations. Record exact executed counts, platforms and failures; browser evidence is not native NW.js acceptance.
 
-Update [GamesStore architecture](LowLevel/Architecture/StateManagement/GamesStore.md), [Game runtime](LowLevel/Architecture/DataInterface/Game.md), [Chessboard](LowLevel/Architecture/Presentation/Components/Chessboard.md), [state model](HighLevel/state_model.md), [engine runtime](HighLevel/engine_runtime.md), [scenarios](HighLevel/scenarios.md) and [persistence](HighLevel/persistence_contract.md) when implementation changes. Add the new flow to the [journey plan](JourneyTestPlan.md) without relabelling old execution evidence. [Q-PLAY-001](questions/play/Q-PLAY-001-LiveProgressDuringAnalysis.md) now records the resolved background policy.
+Update [GamesStore architecture](LowLevel/Architecture/StateManagement/GamesStore.md), [Game runtime](LowLevel/Architecture/DataInterface/Game.md), [Chessboard](LowLevel/Architecture/Presentation/Components/Chessboard.md), [state model](HighLevel/state_model.md), [engine runtime](HighLevel/engine_runtime.md), [scenarios](HighLevel/scenarios.md) and [persistence](HighLevel/persistence_contract.md) when implementation changes. Add the new flow to the [journey plan](ArchivedPlans/JourneyTestPlan.md) without relabelling old execution evidence. [Q-PLAY-001](questions/play/Q-PLAY-001-LiveProgressDuringAnalysis.md) now records the resolved background policy.
 
 ### PRE-01 unit-test baseline
 
-**Historical, superseded contract:** this run used the previous custom entry type, expected-kind fixtures and Undo/Clear controls. Preserve it as history only, not evidence for `IMoveRaw[]` or board-only cancellation. Revised tests have not been written/run in this planning turn.
+**Historical, superseded contract:** this run used the previous custom entry type, expected-kind fixtures and Undo/Clear controls. Preserve it as history only, not evidence for `IMoveRaw[]` or board-only cancellation. This historical run predates the 23 October raw-contract migration and is not its test evidence.
 
 Executed on 22 October 2026 before premove behaviour or presentation edits. All PRE-S01–PRE-S25 IDs appear in the specifications; tests remain ordinary executable assertions, with no skips, expected-failure markers, dummy production exports or test-side queue algorithms.
 
@@ -605,8 +621,29 @@ To rerun the new specifications and existing rule regressions:
 npm run test:unit -- run src/state/__tests__/Premove.spec.ts src/utility/__tests__/GameRuleUtility.spec.ts src/views/__tests__/PremoveView.spec.ts --maxWorkers=2
 ```
 
-This is the intended focused command after the raw-contract/test migration. It was not executed in this replan. Browser gestures/focus and visible background progression require separate actual journey evidence. Native NW.js engine/ponder acceptance requires its own real platform run; mocked protocol tests cannot establish it.
+This is the intended focused command after the raw-contract/test migration. The fresh raw-contract run is recorded separately below. Browser gestures/focus and visible background progression require separate actual journey evidence. Native NW.js engine/ponder acceptance requires its own real platform run; mocked protocol tests cannot establish it.
+
+### Raw-move scenario baseline - 23 October 2026
+
+The user requested the flow update and unit tests, then clarified that "markRaw" meant the **raw move refactor**. No Vue `markRaw` change or premove behaviour implementation was requested or made. The only production change is replacing the obsolete `IPremove` declaration with `IPremoveQueue.moves: IMoveRaw[]`. Existing raw submission, canonical acceptance and game APIs remain unchanged.
+
+The fixtures now use bare coordinates/explicit promotion, without an expected-kind argument, full-move cast or duplicate union. Obsolete wrong-stored-kind cases now test actual source geometry. Whole-queue board right-click/touch/Escape replaces all Undo/count/button requirements. Mounted tests use the actual modal provider and body-mounted chooser/confirmation, preserving input lifecycle and canonical board identity.
+
+| Test owner | Cases | Executed baseline | Scope |
+| --- | --- | --- | --- |
+| `PremoveData.spec.ts` | 5 | 5 pass | Exact shared raw-array type, no wrapper/anchor, exact seated-player reference, save exclusion and hydration isolation |
+| `Premove.spec.ts` / `PremoveScenario.ts` | 85 | 30 pass, 55 fail | Raw append/copy/frozen metadata, both local colours/Black's first move, cancellation around commits, promotion dependencies, due special moves, whole invalidation, background analysis/review, real layered pauses, Takeback/rewrite, clocks/results, provider ownership/retry and persistence |
+| `GameRuleUtility.spec.ts` additions | 37 | 17 pass, 20 fail | Plain frozen source/geometry/pawn/castling candidates in the existing rule owner, and actual legal/detail resolution including every promotion choice. Its 40 pre-existing tests all pass |
+| `PremoveView.spec.ts` / `PremoveProjectionScenario.ts` | 79 | 36 pass, 43 fail | Complete displaced piece maps/red unions, canonical fallback without getter mutation, both orientations, raw gestures/PV source parity, whole board cancellation, mounted promotion/history cancellation, stale input, current-remainder ownership and tab close |
+
+All **PRE-S01-PRE-S25** appear in the executed specifications. Of **118 failures**, **96 expose missing behaviour**, **20 identify the missing generic candidate query**, and **two identify the missing `clearPremoves` boundary**. The missing APIs are queried through existing owners, so they do not prevent module loading. No missing imports, TypeScript/setup/fixture failures, skipped/todo/expected-failure tests or unhandled errors establish this baseline. The passing permission/invalidation-input/canonical-fallback cases do not prove queue execution.
+
+The same run passes **203 existing regression tests** across the original chess-rule cases, RawMove, BackgroundAnalysis, GamePositionComposable, EngineRuntimeService, SerializationService, GameView and Chessboard. Including five data-boundary cases and 201 scenario/rule specifications, the total is **409 tests: 291 pass, 118 fail, zero skipped/todo**. The report is `node_modules/.tmp/premove-verification/PremoveRawScenarioFinal.json`; the adjacent `.log` records the invocation. `npm run type-check`, `npm run check:code` and `git diff --check` pass. Browser/native engine acceptance remains pending behaviour implementation.
+
+```sh
+npm run test:unit -- run src/state/__tests__/PremoveData.spec.ts src/state/__tests__/Premove.spec.ts src/utility/__tests__/GameRuleUtility.spec.ts src/views/__tests__/PremoveView.spec.ts src/state/__tests__/BackgroundAnalysis.spec.ts src/state/game/__tests__/GamePositionComposable.spec.ts src/state/__tests__/RawMove.spec.ts src/domain/__tests__/SerializationService.spec.ts src/domain/__tests__/EngineRuntimeService.spec.ts src/views/__tests__/GameView.spec.ts src/components/__tests__/Chessboard.spec.ts --maxWorkers=2 --reporter=json --outputFile=node_modules/.tmp/premove-verification/PremoveRawScenarioFinal.json
+```
 
 ## Definition of done
 
-Completion requires approval of this design, the pending PRE-RAW submission refactor tested first and completed, a subsequent meaningful failing premove baseline, and passing affected unit/browser/static checks after implementation. Canonical positions exclude premoves; copied artwork shows final destinations/red endpoints. Eligible off-turn input appends, actual play continues during analysis/review, real pauses retain output without commits, Takeback affects actual play and invalid accepted dependencies clear the whole queue. Board cancellation uses right-click/touch/Escape with no counts/buttons. Record exact executed evidence and limits; this planning edit is not completion.
+Completion requires behaviour implementation approval to implement behaviour, the completed PRE-RAW prerequisite, a subsequent meaningful failing premove baseline, and passing affected unit/browser/static checks after implementation. Canonical positions exclude premoves; copied artwork shows final destinations/red endpoints. Eligible off-turn input appends, actual play continues during analysis/review, real pauses retain output without commits, Takeback affects actual play and invalid accepted dependencies clear the whole queue. Board cancellation uses right-click/touch/Escape with no counts/buttons. Record exact executed evidence and limits; this planning edit is not completion.

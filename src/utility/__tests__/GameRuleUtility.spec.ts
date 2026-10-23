@@ -615,6 +615,43 @@ describe('GameRuleUtility movement candidates', () => {
     expect(_targets(_freeze(fixturePosition(attackedCastle)), squareId('e1')).map(chess.getUci)).toContain('e1g1');
   });
 });
+interface IRuleCandidateCase {
+  name: string;
+  root?: IPositionFixture;
+  from: string | number;
+  includes?: string[];
+  excludes?: string[];
+  empty?: boolean;
+}
+const candidateCases: IRuleCandidateCase[] = [
+  { name: 'PRE-S09 pinned knight remains a movement candidate', root: pinned, from: 'e2', includes: ['e2f4'] },
+  { name: 'PRE-S09 king can intend an attacked destination', root: attackedCastle, from: 'e1', includes: ['e1f1'] },
+  { name: 'PRE-S04 empty pawn diagonals are potential captures', root: { pieces: [...kings, ['e5', white, PieceKind.Pawn]] }, from: 'e5', includes: ['e5d6', 'e5f6', 'e5e6'], excludes: ['e5e4', 'e5e7'] },
+  { name: 'PRE-S04 black pawn uses its own direction on a White turn', root: { side: white, pieces: [...kings, ['d7', black, PieceKind.Pawn]] }, from: 'd7', includes: ['d7d6', 'd7d5', 'd7c6', 'd7e6'], excludes: ['d7d8'] },
+  { name: 'PRE-S20 double push respects its intermediate blocker', root: { pieces: [...kings, ['d2', white, PieceKind.Pawn], ['d3', black, PieceKind.Knight]] }, from: 'd2', excludes: ['d2d3', 'd2d4'] },
+  { name: 'PRE-S20 bishop stops at the first enemy blocker', root: { pieces: [...kings, ['c1', white, PieceKind.Bishop], ['e3', black, PieceKind.Pawn]] }, from: 'c1', includes: ['c1d2', 'c1e3'], excludes: ['c1f4', 'c1c2'] },
+  { name: 'PRE-S20 rook cannot capture or jump its own blocker', root: { pieces: [...kings, ['a1', white, PieceKind.Rook], ['a3', white, PieceKind.Pawn]] }, from: 'a1', includes: ['a1a2'], excludes: ['a1a3', 'a1a4', 'a1b2'] },
+  { name: 'PRE-S04 queen combines diagonal and straight geometry', root: { pieces: [...kings, ['d4', white, PieceKind.Queen]] }, from: 'd4', includes: ['d4d6', 'd4f6', 'd4a4'], excludes: ['d4f5', 'd4d4', 'd4e1'] },
+  { name: 'PRE-S04 opposing king cannot be a capture target', root: { pieces: [['a1', white, PieceKind.King], ['e8', black, PieceKind.King], ['e1', white, PieceKind.Rook]] }, from: 'e1', excludes: ['e1e8'] },
+  { name: 'PRE-S04 castle requires retained rights', root: { ...castlePosition, rights: {} }, from: 'e1', excludes: ['e1g1'] },
+  { name: 'PRE-S04 castle requires an actual rook', root: { pieces: kings, rights: { whiteKingSide: true } }, from: 'e1', excludes: ['e1g1'] },
+  { name: 'PRE-S04 castle requires a clear path', root: { ...castlePosition, pieces: [...castlePosition.pieces, ['f1', white, PieceKind.Bishop]] }, from: 'e1', excludes: ['e1g1'] },
+  { name: 'PRE-F03 empty source has no candidates', from: 'e4', empty: true },
+  ...([-1, 64, 6.5].map((from): IRuleCandidateCase => ({ name: `PRE-F03 invalid source ${from} has no candidates`, from, empty: true }))),
+];
+describe('GameRuleUtility candidate geometry from plain chess data', () => {
+  it.each(candidateCases)('$name', (spec) => {
+    const board = _freeze(fixturePosition(spec.root));
+    const before = structuredClone(board);
+    const moves = _targets(board, typeof spec.from === 'string' ? squareId(spec.from) : spec.from);
+    const coordinates = moves.map((move) => chess.getUci({ ...move }));
+    for (const move of spec.includes ?? []) expect(coordinates).toContain(move);
+    for (const move of spec.excludes ?? []) expect(coordinates).not.toContain(move);
+    if (spec.empty) expect(moves).toEqual([]);
+    for (const move of moves) expect(Object.keys(move).every((key) => ['from', 'to', 'promotionPiece'].includes(key))).toBe(true);
+    expect(board).toEqual(before);
+  });
+});
 interface IRuleResolutionCase {
   name: string;
   root?: IPositionFixture;
@@ -626,18 +663,19 @@ interface IRuleResolutionCase {
 const resolutionCases: IRuleResolutionCase[] = [
   { name: 'PRE-F07 resolves an actual normal move', played: ['e2e4', 'e7e5'], intent: whiteChain[0]!, legal: true, expected: { kind: MoveKind.Normal, movingColour: white, movingPiece: PieceKind.Knight } },
   { name: 'PRE-F07 refuses the wrong actual turn', played: ['e2e4'], intent: whiteChain[0]!, legal: false },
-  { name: 'PRE-F07 reports actual source kind for matching coordinates', played: ['e2e4', 'e7e5'], intent: premove('g1f3', PieceKind.Bishop), legal: true, expected: { movingPiece: PieceKind.Knight } },
+  { name: 'PRE-F07 rejects geometry incompatible with the actual knight', played: ['e2e4', 'e7e5'], intent: premove('g1g3'), legal: false },
   { name: 'PRE-S09 pinned knight cannot expose its actual king', root: pinned, intent: premove('e2f4'), legal: false },
-  { name: 'PRE-S09 king cannot actually enter attack', root: attackedCastle, intent: premove('e1f1', PieceKind.King), legal: false },
-  { name: 'PRE-S04 actual castle must also have a safe path', root: attackedCastle, intent: premove('e1g1', PieceKind.King), legal: false },
-  { name: 'PRE-S04 resolves valid actual castling', root: { ...castlePosition, side: white }, intent: premove('e1g1', PieceKind.King), legal: true, expected: { kind: MoveKind.Castle } },
-  { name: 'PRE-S04 resolves current actual en-passant', played: ['e2e4', 'a7a6', 'e4e5', 'd7d5'], intent: premove('e5d6', PieceKind.Pawn), legal: true, expected: { kind: MoveKind.EnPassant, capturePiece: PieceKind.Pawn } },
-  { name: 'PRE-S09 an empty diagonal without current en-passant is illegal', root: { side: white, pieces: [...kings, ['e5', white, PieceKind.Pawn], ['d5', black, PieceKind.Pawn]] }, intent: premove('e5d6', PieceKind.Pawn), legal: false },
+  { name: 'PRE-S09 king cannot actually enter attack', root: attackedCastle, intent: premove('e1f1'), legal: false },
+  { name: 'PRE-S04 actual castle must also have a safe path', root: attackedCastle, intent: premove('e1g1'), legal: false },
+  { name: 'PRE-S04 resolves valid actual castling', root: { ...castlePosition, side: white }, intent: premove('e1g1'), legal: true, expected: { kind: MoveKind.Castle } },
+  { name: 'PRE-S04 resolves current actual en-passant', played: ['e2e4', 'a7a6', 'e4e5', 'd7d5'], intent: premove('e5d6'), legal: true, expected: { kind: MoveKind.EnPassant, capturePiece: PieceKind.Pawn } },
+  { name: 'PRE-S09 an empty diagonal without current en-passant is illegal', root: { side: white, pieces: [...kings, ['e5', white, PieceKind.Pawn], ['d5', black, PieceKind.Pawn]] }, intent: premove('e5d6'), legal: false },
   { name: 'PRE-S04 captures the actual bishop rather than invented old capture metadata', root: { side: white, pieces: [...kings, ['f3', white, PieceKind.Knight], ['g5', black, PieceKind.Bishop]] },
     intent: whiteChain[1]!, legal: true, expected: { capturePiece: PieceKind.Bishop, kind: MoveKind.Normal } },
-  ...(['q', 'r', 'b', 'n'] as const).map((letter): IRuleResolutionCase => ({ name: `PRE-S04 resolves exact promotion ${letter}`, root: { ...promotionPosition, side: white }, intent: premove(`a7a8${letter}`, PieceKind.Pawn), legal: true,
-    expected: { kind: MoveKind.Promotion, promotionPiece: premove(`a7a8${letter}`, PieceKind.Pawn).promotionPiece } })),
-  { name: 'PRE-F07 never silently queens a missing promotion', root: { ...promotionPosition, side: white }, intent: premove('a7a8', PieceKind.Pawn), legal: false },
+  ...(['q', 'r', 'b', 'n'] as const).map((letter): IRuleResolutionCase => ({ name: `PRE-S04 resolves exact promotion ${letter}`, root: { ...promotionPosition, side: white }, intent: premove(`a7a8${letter}`), legal: true,
+    expected: { kind: MoveKind.Promotion, promotionPiece: premove(`a7a8${letter}`).promotionPiece } })),
+  { name: 'PRE-F07 never silently queens a missing promotion', root: { ...promotionPosition, side: white }, intent: premove('a7a8'), legal: false },
+  ...([PieceKind.King, PieceKind.Pawn] as const).map((promotionPiece): IRuleResolutionCase => ({ name: `PRE-F07 rejects ${promotionPiece} promotion`, root: { ...promotionPosition, side: white }, intent: { ...premove('a7a8'), promotionPiece }, legal: false })),
 ];
 describe('GameRuleUtility existing legal candidates and details used for due premoves', () => {
   it.each(resolutionCases)('$name', (spec) => {
