@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Product choices resolved; raw data declaration and scenario tests migrated/executed on 23 October. Premove behaviour implementation remains pending |
+| Status | Product choices resolved; rejected premove production implementation reverted on 23 October. Raw data/refactor and scenario tests retained; revised behaviour plan awaits approval |
 | Raised/resolved | 21 October 2026 |
-| Decision source | User numbered answers and subsequent explicit corrections through 22 October 2026 |
+| Decision source | User numbered answers and subsequent explicit corrections through 23 October 2026, including keeping the existing turn mechanism |
 | Parent plan | [Premove and player-turn flow](../../PreMovePlan%28ToDo%29.md) |
 | Evidence | [Raw/no-buttons scenario baseline](../../PreMovePlan%28ToDo%29.md#raw-move-scenario-baseline---23-october-2026): all 25 IDs, 409 tests, 291 pass/118 fail; type checking and code audit pass |
 | Related decisions | [Background analysis](Q-PLAY-001-LiveProgressDuringAnalysis.md), [temporary exploratory branch/recording scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) |
@@ -41,12 +41,20 @@ These later instructions supersede incompatible details in older drafts. They do
 | Ordinary history input | Retain the existing actual-rewrite confirmation when Takeback is allowed. Require Analyse for exploratory input when Takeback is disabled |
 | Tests before behaviour | First migrate the data boundary with its assertions; then write/revise all raw scenario tests and record meaningful failures before gameplay/presentation development |
 | Full replan after undo | This revision edits the plan/data-design/decision documents only. No code/test changes or renewed implementation until the revised plan is approved |
+| Retain turn taking and resolution | Revert the replacement turn owner/driver. Register the existing local Deferred, validate/shift the FIFO head and immediately submit through existing `attemptPlayerMove`. Keep existing handler, pending/deferred fields, successor request, final-Resume flush and engine/provider completion |
+| Trust producer/caller contracts when appending | Board/PV input supplies possible premoves; `makeMove` selects current context/local player. `_appendPremove` initialises if absent, pushes the supplied move reference and publishes. No copy, projection, movement, seat or existing-queue checks. Rebase/due checks own actual changed-board facts |
+| Trust contracts throughout the other flows | Drawing applies accepted moves without candidate/owner validation or malformed-data fallback. Post-commit revalidation owns one feasibility pass on changed board data; Local turn helper trusts it and checks only actual head legality. Structural actions clear at mutation after existing cleanup; no cloned-seat repair checks. Board owns cancellation eligibility; keep existing after-await context/abort checks, real expiry and external engine validation |
+| Avoid unnecessary copying throughout | Reuse stable move references through input/PV/confirmation/playback/FIFO. No stripping/rebuilding objects, copied queue snapshots or per-entry board clones. One board/rights copy per simulation pass; shared in-place projection application. Held output is an optional reference, not a copied combined sequence; castle shading reads endpoints without a board snapshot |
 
 The chess.com reference concerns the cancellation gesture only. It does not add its timing deduction, queue cap, persistence policy or an alternative rendering/background-play rule. A cancel gesture is not a move submission; all completed eligible move submissions still append.
 
 On 23 October the user authorised updating the flows and writing the scenario unit tests, clarifying that "markRaw" meant the `IMoveRaw` submission refactor. This authorises the raw queue declaration/test migration after the prior documentation-only replan. It does not authorise premove gameplay development or change any resolved product choice above.
 
+After subsequently authorising implementation, the user requested its reversal and a new plan because `GamePlayerTurnComposable` changed too much. That request supersedes the implementation approval for further work: revert production behaviour, retain the raw prerequisite/data/scenario tests, and plan the minimal local-turn hook. A head is now shifted at its ordinary turn request, not after a new owner's successful-commit acknowledgement. If pause intervenes, the existing held-output slot owns the already-submitted move; no new claimed-head state is needed. Product decisions 1-9 remain unchanged. See [the retained mechanism and revised flows](../../PreMovePlan%28ToDo%29.md#turn-mechanism-retained).
+
 The sequence remains game-owned through analysis, but it can be consumed or cancelled by background actual play. Reapplying on exit means recomputing the **remaining** valid queue over the latest live board; it never means rewinding actual play or restoring already-executed entries.
+
+On 23 October the user identified that descriptive flow arrows hid design changes. The plan now uses concrete function-call tables in the style of the low-level process-flow documents: exact existing/private names, proposed new calls and wiring, each function's work, branch, mutation and await/return boundary. All 14 flows and 25 scenario traces remain in the parent plan. This is a documentation correction, not approval to implement the proposal.
 
 Coverage-audit clarifications on 21 October: the user confirmed that pruning applies only when the branch comes from their own current move. Once background actual progression leaves that anchor behind, the branch remains history; do not introduce Exit/navigation cleanup. The user also confirmed preserving the existing history-move rewrite confirmation when Takeback is allowed, and requiring explicit Analyse for exploratory input when Takeback is disabled. These choices do not approve implementation of the written analysis plan.
 
@@ -56,7 +64,7 @@ Later clarification: [Q-PLAY-003](Q-PLAY-003-PausedAnalysisEntry.md) allows expl
 
 ## Historical implementation audit before the split
 
-The following source/test observations describe 21 October, before the [analysis prerequisite](../../BackgroundAnalysisPlan.md) was implemented and verified. They are retained as historical evidence, not current defects. The former queue declaration was added afterwards; its entry shape is superseded by the revised [raw queue design](../../PremoveDataStructure.md), whose implementation/tests remain pending approval.
+The following source/test observations describe 21 October, before the [analysis prerequisite](../../ArchivedPlans/BackgroundAnalysisPlan.md) was implemented and verified. They are retained as historical evidence, not current defects. The former queue declaration was added afterwards; its entry shape is superseded by the revised [raw queue design](../../PremoveDataStructure.md), whose implementation/tests remain pending approval.
 
 | Boundary | Observed implementation | Required implementation |
 | --- | --- | --- |
@@ -88,7 +96,7 @@ On 21 October 2026, a focused run of [GamesStore.spec.ts](../../../src/state/__t
 | C02: entering analysis from projected pieces | Explicit Analyse anchors the currently selected canonical move without queue displacement. Preserve background queue ownership; do not pause clock or show its red shading on the exploration board |
 | C03: exit confused with replay/resume | Return to latest actual live position and project the remaining queue. No clock transition, duplicate search, second delivery or restoration of entries consumed while away |
 | C04: engine replies during analysis | Commit actual reply at arrival, validate/commit due human head and start the next actual engine turn while analysis stays anchored. Never hold a valid reply solely for Exit |
-| C05: genuine Manual/Menu pause | Only real pause ownership blocks commits. Resume removes its own reason and restarts the actual driver once, whether analysis is still displayed or not |
+| C05: genuine Manual/Menu pause | Only real pause ownership blocks commits. Keep existing final-Resume held-output flush and duplicate-guarded turn request, whether analysis is still displayed or not |
 | C06: analysis input versus queue input | Explicit analysis board/PV moves only explore. All eligible off-turn gameplay input appends. No board gesture simultaneously modifies an analysis branch and the queue |
 | C07: history review with actual progression | Keep queue/clock/turns running behind the selected node. History does not implicitly enable analysis; entry remains explicit. Return shows current remainder or empty/cancelled status |
 | C08: local-local ownership | No hotseat queue or selector. Every actual move hands input to the other side. Reject the previous side's off-turn gesture/analysis session, including drag started before handoff |
@@ -98,7 +106,7 @@ On 21 October 2026, a focused run of [GamesStore.spec.ts](../../../src/state/__t
 | C12: evaluation and recorded analysis | Evaluations describe canonical rendered position. Background actual commits cannot copy unrelated exploratory output as actual-parent recorded analysis. Queue display/edit alone causes no engine search restart |
 | C13: active branch pruned by actual play | Preserve the active selection while appending actual mainline children. If its anchor becomes historical, keep that branch as history through Exit/navigation. Prune only the existing own-current-move case; no deferred cleanup registry or boundary |
 | C14: view remount or tab switch | Queue belongs to game, not Chessboard/GameView lifetime. Dispose unfinished gestures/playback, preserve and execute queued input according to genuine pause policy |
-| C15: invalid sequence after rebase | Reproject whole remaining sequence after actual changes. If it cannot project or the due move is illegal, clear the complete queue and all red shading, with no partial speculative history |
+| C15: invalid sequence after rebase | Post-commit action checks whole-sequence feasibility once after actual changes and clears the whole FIFO on failure. Drawing trusts the established sequence; Local request checks only due head legality. No duplicate passes, invalid-data fallback or partial history |
 | C16: late drag/promotion/PV | Bind unfinished input to actual context and cancel on mode/base/queue changes. A late callback cannot become a fresh queue entry or mutate replacement ownership |
 | C17: result/seat/root replacement | Cancel queue and settle actual work on timeout/result, real reassignment, setup/root replacement or disposal. Analysis exit cannot revive play. No-op assignment does not cancel |
 | C18: save/load isolation | Save canonical selected/live workspace, not queue/display/turn runtime. Continued in-memory game retains its queue; restored game has none. Keep legacy paused saves explicitly paused |

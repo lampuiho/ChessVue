@@ -361,4 +361,34 @@ describe('premove scenario data through actual game actions', () => {
       expect(EngineRuntimeService.ensureReady).toHaveBeenCalledOnce();
     } finally { report.mockRestore(); }
   });
+  it('PRE-F13 disposal aborts the actual provider, clears the queue and rejects late delivery', async () => {
+    const context = await _seed({ id: 'PRE-S19', name: 'store disposal', queue: whiteChain, events: [], expected: {} });
+    const provider = external.turns[0]!;
+    const before = _moves(context.game);
+    store.$dispose();
+    expect(provider.signal!.aborted).toBe(true);
+    expect(context.game.$!.premoveQueue).toBeUndefined();
+    await provider.deliver(_detailed(provider.position, 'e7e5'));
+    await flushPromises();
+    expect(_moves(context.game)).toEqual(before);
+    expect(_searches(context.game)).toBe(1);
+  });
+  it('PRE-S13 retains intentions when a rewrite is released during pending handler cleanup', async () => {
+    const context = await _seed({ id: 'PRE-S13', name: 'released rewrite', queue: whiteChain, events: [], expected: {} });
+    const queue = context.game.$!.premoveQueue;
+    store.navigateToNode(context.game, context.game.moveTree.root);
+    const finishing = new Deferred<void>();
+    const handling = context.game.$!.pendingPlayerTurnHandlePromise!;
+    context.game.$!.pendingPlayerTurnHandlePromise = handling.then(() => finishing);
+    const rewriting = store.makeMove(context.game, premove('d2d4'));
+    await flushPromises();
+    await store.enterInGameAnalysis(context.game);
+    finishing.resolve();
+    await rewriting;
+    await flushPromises();
+    expect(_moves(context.game)).toEqual(['e2e4']);
+    expect(context.game.$!.premoveQueue).toBe(queue);
+    expect(context.game.$!.premoveQueue!.moves).toEqual(whiteChain);
+    expect(context.game.gameState).toBe(GameState.LiveAnalysisFromBlackTurnWhiteMove);
+  });
 });

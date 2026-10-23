@@ -1,0 +1,35 @@
+[
+  {
+    "id": "JRN-RACE-09",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-04",
+      "SCN-CTRL-04",
+      "SCN-TIME-02"
+    ],
+    "branches": [],
+    "fixture": "engine-races",
+    "lane": "seeded-browser",
+    "implementation": "partial",
+    "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-09",
+    "data": [
+      "journeys/definitions/engine-races/data/RaceWorkspace.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/journeys/engine-races/Premove.spec.ts",
+        "titles": [
+          "JRN-RACE-09 PRE-S01 PRE-S02 PRE-S03 projects, consumes and cancels a chain with white orientation",
+          "JRN-RACE-09 PRE-S01 PRE-S02 PRE-S03 projects, consumes and cancels a chain with black orientation",
+          "JRN-RACE-09 PRE-S08 PRE-S11 drains successive actual turns behind analysis",
+          "JRN-RACE-09 PRE-S08 PRE-S11 drains successive actual turns behind review",
+          "JRN-RACE-09 PRE-S10 holds a queue and reply during a genuine pause, then drains once",
+          "JRN-RACE-09 PRE-S03 touch cancellation restores canonical pieces without playing a move"
+        ]
+      }
+    ],
+    "remaining": [
+      "Production premove implementation was reverted on 23 October 2026. Retained browser specifications await the revised minimal turn-request implementation and fresh execution."
+    ]
+  }
+]

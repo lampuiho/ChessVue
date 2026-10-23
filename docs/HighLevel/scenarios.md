@@ -7,7 +7,7 @@ The goal is to map **user actions -> branch paths -> implementation ownership im
 
 This is a design artifact only. It introduces no runtime code/API changes.
 
-While writing journeys, compare each scenario and branch with the current implementation, owning contracts and the user's clarified product intent. This catalogue may contain gaps, ambiguous policies and stale implementation labels. Follow the [journey drift review](../JourneyTestPlan.md#scenario-drift-review-while-writing-journeys) and record unresolved design questions in [docs/questions](../questions/README.md); neither current code nor scenario wording alone settles unclear product behaviour.
+While writing journeys, compare each scenario and branch with the current implementation, owning contracts and the user's clarified product intent. This catalogue may contain gaps, ambiguous policies and stale implementation labels. Follow the [journey drift review](../ArchivedPlans/JourneyTestPlan.md#scenario-drift-review-while-writing-journeys) and record unresolved design questions in [docs/questions](../questions/README.md); neither current code nor scenario wording alone settles unclear product behaviour.
 
 Recording scope, clarified by the user on 15 October 2026: recorded analysis belongs only to actual moves played in games. Exploratory moves remain temporary and are not recorded-analysis entries. Existing pruning under SCN-HIST-04 is accepted; see the [resolved decision](../questions/analysis/Q-ANALYSIS-002-VariationRetention.md). This does not change the separate workspace-restoration or historical-rewrite rules.
 
@@ -53,6 +53,7 @@ This matrix is the authoritative trace from each committed scenario to the contr
 | `SCN-MOVE-01` | `STATE`, `ENGINE` |
 | `SCN-MOVE-02` | `STATE` |
 | `SCN-MOVE-03` | `STATE`, `SETTINGS` |
+| `SCN-MOVE-04` | `STATE`, `ENGINE`, `PERSIST` |
 | `SCN-HIST-01` | `STATE`, `ENGINE` |
 | `SCN-HIST-02` | `STATE`, `SETTINGS` |
 | `SCN-HIST-03` | `STATE`, `SETTINGS` |
@@ -386,6 +387,22 @@ Each scenario in this document uses the same structure:
   - `Chessboard.choosePromotion` / `emitMove` / `clearSelection`
   - `GameRuleUtility.genLegalMovesForPiece` / `toDetailedMove`
   - `GamesStore.makeMove`
+
+### SCN-MOVE-04 - Queue Premoves Against an Engine
+- **Status**: Planned; production implementation reverted on 23 October 2026. Retained unit/browser specifications do not establish current support.
+- **Goal**: Prepare raw own-piece intentions during an engine turn and play one on each ordinary local-turn request.
+- **Preconditions**: Ongoing unpaused human-engine game; following the live gameplay board, outside explicit Analyse.
+- **Main Steps**:
+  1. Board/PV input offers possible premoves and completed promotion. Append stores the supplied `IMoveRaw` reference and publishes, with no copy, projection or duplicate checks. Rendering separately derives final displaced pieces and red endpoints on one detached board.
+  2. Actual opponent commits revalidate the whole FIFO. The existing local-turn request validates and shifts its head, then submits fresh actual details through existing `attemptPlayerMove`.
+  3. The existing handler commits or holds genuinely paused output; existing finalisation requests the successor. Analysis/history review keeps its canonical selected board while actual play continues.
+  4. Right-click, touch tap on a premoved piece or owned Escape clears all remaining intentions without changing actual history.
+- **Branch Paths**:
+  - Actual progression invalidating an accepted dependency or due head clears the entire FIFO. Possible targets belong to input/rule generation, so append does not reject or recheck supplied moves.
+  - Manual/Menu pauses retain intentions/held output and keep the existing Resume flush. Explicit paused analysis remains available.
+  - Hotseat/engine-engine exclude premoves. Actual structural/result changes and explicit tab close clear the affected queue; temporary navigation and in-memory save retain it. Restored games have no queue.
+- **Postconditions**: No speculative history, clock/increment, capture totals, analysis position or persisted data. Only actual commits produce those effects.
+- **Implementation Touchpoints**: [14 flows and 25 scenario specifications](../PreMovePlan%28ToDo%29.md#function-flow), [runtime FIFO design](../PremoveDataStructure.md). Turn registration, resolution, completion and engine delivery remain the existing mechanism.
 
 ### SCN-HIST-01 - Navigate Move History Node
 - **Status**: Current

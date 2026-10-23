@@ -184,6 +184,16 @@ describe('premove scenarios at the mounted input boundary', () => {
     await _click(wrapper, 'g5', 'h7');
     expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove('g5h7'));
   });
+  it.each([PlayerColour.White, PlayerColour.Black])('PRE-S17 cannot drag the engine piece while %s queues', async (local) => {
+    const game = _game({ played: local === PlayerColour.White ? ['e2e4'] : [], queue: [], local });
+    const wrapper = _mount(game);
+    await flushPromises();
+    const [from, to] = local === PlayerColour.White ? ['g8', 'f6'] : ['g1', 'f3'];
+    await _square(wrapper, from!).get('.chess-piece').trigger('dragstart');
+    await _square(wrapper, to!).trigger('drop');
+    await flushPromises();
+    expect(dependency.store.makeMove).not.toHaveBeenCalled();
+  });
   it.each(['click', 'drag', 'keyboard activation'] as const)('PRE-S17 permits eligible own-piece off-turn %s input', async (gesture) => {
     const game = _game({ queue: [] });
     const wrapper = _mount(game);

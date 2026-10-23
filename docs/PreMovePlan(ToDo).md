@@ -1,8 +1,26 @@
 # Premove and player-turn flow plan
 
-Replanned on 22 October 2026 after the user chose to undo the premove implementation. **Status: flows updated, raw queue declaration migrated and scenario tests written/executed on 23 October 2026; premove behaviour remains unimplemented. The separately approved PRE-RAW refactor is implemented and verified.** Queue entries reuse existing `IMoveRaw`. The separately delivered [background analysis prerequisite](ArchivedPlans/BackgroundAnalysisPlan.md#implementation-and-verification) remains the baseline. Carry forward the [resolved decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md), [AGENTS.md](../AGENTS.md) and [code cleanup rules](ArchivedPlans/CodeCleanupPlan.md).
+Replanned on 23 October 2026 after the user rejected the turn-resolution rewrite and requested its reversal. **Status: premove production implementation reverted; raw-move refactor, raw FIFO declaration and scenario tests retained. Behaviour implementation awaits approval of this revised plan.** Queue entries reuse existing `IMoveRaw`. The separately delivered [background analysis prerequisite](ArchivedPlans/BackgroundAnalysisPlan.md#implementation-and-verification) remains the baseline. Carry forward the [resolved decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md), [AGENTS.md](../AGENTS.md) and [code cleanup rules](ArchivedPlans/CodeCleanupPlan.md).
 
-All [14 premove function flows](#function-flow), [25 premove scenarios](#concrete-scenarios-for-unit-tests) and the [data-driven test specification](#data-driven-unit-test-specification) are retained. [PRE-RAW](#pre-raw---raw-move-submission-refactor) records the completed submission refactor and ten prerequisite scenarios. The [older PRE-01 run](#pre-01-unit-test-baseline) is historical evidence for the superseded contract, not execution of this replan. The current request authorises the raw queue declaration/test migration and a fresh failing scenario baseline, not gameplay implementation.
+All [14 premove function flows](#function-flow), [25 premove scenarios](#concrete-scenarios-for-unit-tests) and the [data-driven test specification](#data-driven-unit-test-specification) are retained. [PRE-RAW](#pre-raw---raw-move-submission-refactor) records the completed submission refactor and ten prerequisite scenarios. Earlier passing premove implementation results concern the reverted code, not this design. The current request authorises rollback and replanning only.
+
+Review correction on 23 October: the earlier arrows and responsibilities were too vague to assess the implementation. Each PRE-F flow now lists concrete calls, arguments, work, branches, mutation and await/return behaviour, following the low-level process-flow documents. Proposed functions/props/dependencies are identified separately from existing source. Each PRE-S row names its decisive calls rather than only referring to flow numbers. This update changes documentation only.
+
+Append ownership correction: trust each producer's contract. Board/PV input offers possible premoves, `makeMove` classifies their current game context, and `_appendPremove` appends the supplied move reference and publishes. It performs no copying, projection, chess-rule, seat or existing-queue checks. Checks after actual play changes the board remain necessary because the opponent can invalidate a previously possible intention.
+
+The same rule now applies to every flow: drawing trusts accepted queue data; the actual-turn helper trusts the existing request and post-commit revalidation; cancellation trusts the board's input eligibility. Each changing fact has one owner below. No new invariant checks, cloned-owner rejection, malformed-data fallback or repeated mode/seat checks are added to consumers.
+
+Copying correction: produced move coordinates/promotion are stable; pass and retain those objects by reference through events, confirmation, playback and FIFO. No destructuring/rebuilding, sanitising `.map`, repeated prefix copies or cloned queue-value snapshots. Detached board state is required where simulation would otherwise mutate canonical data: one board per projection or revalidation pass, never one per entry. Constructing actual move details or a temporary application candidate supplies new facts rather than copying a transport payload. See the explicit [copy and reference audit](#copy-and-reference-audit).
+
+## Turn mechanism retained
+
+The user's correction is explicit: premoves use the same turn-taking and resolving mechanism; shift the queue on a turn request and immediately make that move through the existing API. Keep `pendingPlayerTurnPromise`, `pendingPlayerTurnHandlePromise`, `pendingPlayerTurnAbortController` and `deferredPlayerMove`. Keep `_playerMoveHandler`, `attemptPlayerMove`, `_clearPendingPlayerTurn`, `flushDeferredPlayerMove`, retry timing, engine readiness/delivery/pondering and their completion semantics.
+
+The sole turn-dispatch addition is a local branch after `_requestPlayerMove` registers its existing Deferred/handler/controller. A small private `_tryPremove(game)` trusts that request and the revalidated FIFO, resolves only its head's actual legality, shifts once and immediately calls existing `attemptPlayerMove(game, detailedMove)`. It never calls `commitLiveMove` itself. The existing handler commits or holds accepted output during a genuine pause. `_finaliseLiveMove` continues requesting the successor; final real Resume continues flushing held output and requesting a turn.
+
+Do not add `IPlayerTurn`, a claimed-head field, a drain loop, another scheduler, delivery acknowledgements, provider-draining completion, action lanes or a replacement turn/disposal API. Do not restructure dependencies or consolidate engine stopping as part of this feature. The separate dependency-restructuring document is independent work.
+
+`GamesStore.makeMove(IMoveRaw)` remains the board/analysis/history intake API. `attemptPlayerMove(IMove)` is the existing actual-turn resolution API used by ordinary live input and engine delivery. A background premove uses the latter after resolving its raw head on `getLivePosition`; calling the selected-board `makeMove` would wrongly explore or rewrite the board being reviewed. No temporary selection/mode changes are permitted.
 
 ## Prerequisite and tests-first order
 
@@ -36,7 +54,7 @@ legal target IMoveRaw
   -> MoveHistoryService/recording retain full facts; MoveApplicationService requires candidate facts
 ```
 
-When premoves are subsequently implemented, add one branch **before canonical enrichment and the view's canonical-prefix preflight**: eligible off-turn input goes raw to the store and appends to `IMoveRaw[]` after speculative projection checks. Do not reject it against the opponent's current legal turn. Resolve its actual details later through PRE-F07. No speculative detailed move crosses into the actual commit path.
+When premoves are subsequently implemented, add one branch **before canonical enrichment and the view's canonical-prefix preflight**: possible off-turn input supplied by the board/PV producer goes raw to the store and appends to `IMoveRaw[]`. Intake trusts that producer and does not project or recheck the move. Resolve actual details later through PRE-F07. No speculative detailed move crosses into the actual commit path.
 
 | Existing owner | Planned refactor |
 | --- | --- |
@@ -45,7 +63,7 @@ When premoves are subsequently implemented, add one branch **before canonical en
 | `Chessboard._emitMove` / `moveAttempted` | Emit `IMoveRaw` directly. Remove board-side `toDetailedMove` and its import. `lastMove?: IMove` remains because the legal query consumes historical moving colour/check state; highlighting alone would not justify it |
 | `GameView.inputActions.move`, `_makeMove`, `_requestMoves` | Accept raw payloads through the existing captured input owner; no conversion back to a detailed payload for transport |
 | Captured `IContinuation`, `_confirmContinuation(pending, signal)` | Keep raw move data with the selected game/node owner in the mounted confirmation callback. Abort/context checks precede canonical acceptance. Cancelled/stale confirmation changes neither actual play nor queue |
-| `AnalysisPanel.moveSelected`, `_playAnalysisLine`, `_applyMoves` | PV props remain detailed for SAN; the selected-prefix event and view adapters use `readonly IMoveRaw[]`. Copy coordinates/promotion at the event boundary and when owning retained external data. Validate the full prefix on a detached canonical preview before its first move; temporary detailed moves needed to advance that preview stay local and are discarded. Retain raw entries for delayed submission, with the existing playback cancellation/context checks |
+| `AnalysisPanel.moveSelected`, `_playAnalysisLine`, `_applyMoves` | Existing event/adapters use `readonly IMoveRaw[]`; detailed PV entries already satisfy that type. Select the clicked prefix once with entry references, then forward/retain that prefix without raw-field `.map` or another array copy. Full-prefix canonical preview still needs one detached board before first commit. Temporary actual/preview detail construction is semantic enrichment, not payload cloning |
 | `GamesStore.makeMove`, `GameMoveComposable.makeMove` | Keep the existing action names, widen input to `IMoveRaw`, select the correct canonical board, reject stale/illegal raw moves and generate actual details immediately before the existing commit routes. No `IMove | IMoveRaw` union, raw-to-detailed cast or new public conversion wrapper |
 | Actual turn, history and engine-result delivery | Retain `IMove` for accepted transition facts consumed by clock/history/SAN and existing result schemas. The [audit](ArchivedPlans/RawMoveSubmissionDesign.md#full-move-contracts-retained) gives each API's reader or downstream sink; forwarding alone is not a full-type requirement |
 | Existing application and protocol inputs | Application/rule replay and its engine validation helpers require existing `IMoveCandidate`; ponder command/expected-reply inputs require only `IMoveRaw`. Keep names, algorithms, engine commands and lifecycle; no full fields are needed by these consumers |
@@ -66,7 +84,7 @@ Use ordinary legal boards and existing actual/analysis routes; do not require pr
 | RAW-S05 | Raw capture, en passant, castling, promotion and ambiguous move | Canonical rule resolution determines all stored details/SAN; forged/stale supplied detail fields cannot override them. Illegal coordinates/source/promotion produce no partial canonical mutation |
 | RAW-S06 | Raw explicit/free/post-result analysis, including genuinely paused analysis | Correct selected branch changes, actual game/clock unchanged by exploration, existing Takeback/result restrictions preserved |
 | RAW-S07 | Raw ordinary history continuation: cancel, confirm, disabled Takeback and stale confirmation | Existing confirmation policy remains; only valid confirmed continuation rewrites actual play. Cancel/obsolete data has no actual effects |
-| RAW-S08 | Detailed PV display chosen for due-local play or full-prefix analysis | Panel emits a copied raw prefix and view routes raw data; full prefix is preflighted before its first commit. A later illegal prefix step causes no earlier commit; temporary preview details never become authoritative playback data |
+| RAW-S08 | Detailed PV display chosen for due-local play or full-prefix analysis | Panel selects one prefix retaining original move references; view forwards it. Full prefix is preflighted before first commit; illegal suffix produces no partial commit. This reference policy supersedes earlier copied-payload assertions, while actual acceptance still derives canonical details |
 | RAW-S09 | Delayed raw playback/gesture/promotion followed by mode, game, path, permission or result replacement | Existing owner rejects obsolete callbacks/suffixes; unrelated evaluation of the same selected position preserves valid unfinished input |
 | RAW-S10 | Existing engine reply, paused output, save/load and hotseat handoff regressions | Detailed engine-result/history contracts remain intact; candidate application and raw ponder inputs preserve existing behaviour. No premove capability appears yet; no extra turn/provider, changed persistence or previous-side input after handoff |
 
@@ -74,7 +92,7 @@ Test owners are the existing `Chessboard.spec.ts` for raw selection/promotion, `
 
 After PRE-RAW implementation, require these tests and affected existing regressions to pass, with `npm run check:code`, type checks/build and focused real promotion/playback gestures as appropriate. Record the executed scope separately from premove acceptance. Leave the source follow-up item pending until this stage actually passes; the planning link is not completion.
 
-PRE-RAW preserves the existing actual-handler completion when genuine pause races an already-accepted move; it does not introduce the later actual-commit completion owner. The [API design's completion matrix](ArchivedPlans/RawMoveSubmissionDesign.md#raw-f05---engine-pause-and-completion) separates this baseline from the subsequent PlayerTurn refactor.
+PRE-RAW preserves the existing actual-handler completion when genuine pause races an already-accepted move. This premove plan preserves that same completion contract; there is no subsequent PlayerTurn refactor. See the [API design's completion matrix](ArchivedPlans/RawMoveSubmissionDesign.md#raw-f05---engine-pause-and-completion).
 
 ## Outcome and settled behaviour
 
@@ -92,7 +110,7 @@ For `g1-f3`, then `f3-g5`, display the knight on `g5`, leave `g1`/`f3` empty and
 | Takeback | Always applies to the actual live game, including while analysis is shown. History navigation remains selection, not Takeback |
 | Opponent-turn input | Every eligible human move during the engine opponent's turn appends to the queue, unless explicitly in analysis. No Play now/replace/append choice for the same action |
 | Navigation | Keep the queue for an in-memory game across temporary menu/game-tab navigation. Existing real Manual/Menu pauses still apply; close/disposal cancels the queue |
-| Invalid queue | If any accepted dependency no longer projects or the due head is illegal, clear the whole FIFO. An invalid new append preserves an otherwise-valid existing queue |
+| Invalid queue | If actual progression invalidates an accepted dependency or due head, clear the whole FIFO. Input producers offer possible premoves; append does not validate or reject them |
 | Queue data | Existing `IMoveRaw[]`; no duplicate entry type, stored expected kind or node anchor |
 | Board cancellation | Right-click anywhere on the live board clears all remaining premoves; touch tap on a premoved piece cancels. Keep Escape access; no count/list or premove control buttons |
 | chess.com comparison | Board cancellation interaction only; retain the agreed projection, clocks, background play and queue policies |
@@ -103,14 +121,14 @@ Analysis preserves queue ownership, not a frozen snapshot of its entries. Actual
 
 | Source boundary | Current behaviour | Planned change |
 | --- | --- | --- |
-| [Game runtime](../src/contracts/Game.ts) | Runtime premove FIFO data contract, three pending-turn fields and one `deferredPlayerMove` slot | Integrate the FIFO with one current-turn owner; no speculative future-turn promises |
-| [Player turn](../src/state/game/GamePlayerTurnComposable.ts) | Existing shared local/engine current-turn delivery; analysis prerequisite already removed the selected-board arming gate | Add ordered future local input while preserving one actual-turn owner and the verified background API |
+| [Game runtime](../src/contracts/Game.ts) | Runtime premove FIFO data contract, three pending-turn fields and one `deferredPlayerMove` slot | Retain these declarations; no new turn object or future-turn promises |
+| [Player turn](../src/state/game/GamePlayerTurnComposable.ts) | Existing shared local/engine Deferred and handler; background arming already ignores selected-board equality | Add only the local-turn premove attempt after the existing request is registered, plus queue invalidation at a changed seat |
 | [Game view](../src/views/GameView.vue) | Explicit analysis/review are already distinguished; no premove drawing/input exists | Enable own-piece off-turn queue gestures and derive displaced pieces/red squares |
 | Raw-submission boundary | PRE-RAW now uses raw board/PV/modal/view/store inputs and canonical enrichment | Completed independently; queue integration must reuse this boundary |
-| [Engine runtime](../src/domain/EngineRuntimeService.ts) | Validates actual/ponder moves at the searched position | Preserve legality/protocol ownership and bind result delivery to the captured actual turn |
+| [Engine runtime](../src/domain/EngineRuntimeService.ts) | Validates actual/ponder moves at the searched position | No changes to readiness, delivery, callback completion or ponder/protocol ownership |
 | Pause/recovery | Prerequisite owns real pause/old saved-analysis compatibility | Retain the new queue across genuine pauses without another pause policy |
 
-The old note's pending-promise equality guard was already removed by the cleanup. Do not reintroduce it. Duplicate-turn prevention, owned cancellation/draining and the queue replace that concern.
+The old note's pending-promise equality guard was already removed by the cleanup. Do not reintroduce it. Retain existing duplicate-request prevention and abort/handler settlement. Independent turn-hardening tests are recorded separately below; they do not justify replacing this mechanism.
 
 The former analysis mismatch/four-test baseline and the older queue declaration/tests are historical evidence. The scenario tests are being migrated from the superseded entry shape under the 23 October request. No old count establishes execution of this raw/no-buttons revision; the fresh executed baseline is recorded below.
 
@@ -122,12 +140,12 @@ Keep the existing concepts small:
 - `renderedPosition`/`renderedPath`: the canonical selected live/history/analysis board, without premoves.
 - Displayed pieces/red squares: a pure derived result of the rendered board plus the queue when showing the live gameplay board. A small helper returning copied squares and highlight IDs is sufficient; no third persisted game position or separate engine position is needed.
 - Runtime queue: one FIFO for the human seat in a human-versus-engine game, bound to the actual continuation and seat. Local-local and engine-engine games have no human premove queue.
-- Current turn: captures actual parent node, colour/player, abort controller, completion and provider work before asynchronous startup begins.
+- Current turn: existing Deferred, handler and abort controller registered before provider startup. `deferredPlayerMove` remains the existing genuinely paused accepted-output slot; none of these fields moves into the FIFO.
 - Input/analysis session: owns the selected node, unfinished drag/promotion or playback and the explicit mode. Queue entries outlive component remounts; unfinished gestures do not.
 
-The revised [data contract](PremoveDataStructure.md) is `game.$.premoveQueue?: IPremoveQueue`, containing only `player: IPlayer` and `moves: IMoveRaw[]`. Copy only `from`, `to` and optional explicit `promotionPiece`; discard `$` and supplied detailed metadata. There is no replacement move-entry interface/alias or stored expected piece kind. Read the source piece and its movement from the board at each projected/actual step; queue ownership supplies the required local colour. Its base is always the current actual live position, with no node/path/FEN anchor. Unknown opponent replies are not predicted; explicit structural actions invalidate the queue.
+The [data contract](PremoveDataStructure.md) remains `game.$.premoveQueue?: IPremoveQueue`, containing only `player: IPlayer` and `moves: IMoveRaw[]`. Push supplied move objects directly; their coordinates/promotion are stable. Objects may structurally carry PV details or `$`, but consumers read raw fields and actual acceptance generates its own canonical details. No sanitation copy, replacement entry interface or stored expected kind. Current actual live position remains the base, with no node/path/FEN anchor; structural actions invalidate ownership explicitly.
 
-Replace `pendingPlayerTurnPromise`, `pendingPlayerTurnHandlePromise`, `pendingPlayerTurnAbortController` and `deferredPlayerMove` together. A single internal `Deferred` may still represent current-turn completion. Accepted paused engine output belongs to that actual turn; it is not an editable local premove or a competing resolver.
+Retain `pendingPlayerTurnPromise`, `pendingPlayerTurnHandlePromise`, `pendingPlayerTurnAbortController` and `deferredPlayerMove` unchanged. The FIFO supplies an immediate answer to an ordinary local turn request. Once shifted/submitted, the move belongs to the existing handler or paused-output slot; it is no longer an editable FIFO entry.
 
 Publish runtime queue changes through the existing raw-game rendering boundary without changing persisted `metadata.updatedAt` or the move/autosave count just for preview edits. A computed projection must preserve identity across unrelated evaluation publications so new scores do not cancel an unfinished gesture.
 
@@ -138,7 +156,7 @@ Publish runtime queue changes through the existing raw-game rendering boundary w
 - Keep one `IPremoveQueue` with exact seated player and raw FIFO. Do not reintroduce expected piece kind through sidecars, signatures or snapshots.
 - Add only `GameRuleUtility.genCandidateMovesForPiece(position, from)` as a generic chess-rule query. Reuse legal/detail/application functions. No premove utility/library, premove-named rule API, new service or public dispatcher.
 - Append, projection, due resolution and rebase stay private/in existing app owners. One store Clear action serves board cancellation; no Undo-last action, queue count/list or premove buttons in GameControlPanel.
-- Consolidate actual pending/deferred delivery in PlayerTurn with one current owner and a small serial drain; remove competing successor scheduling, rather than add another scheduler alongside it.
+- Keep existing actual pending/deferred delivery, successor scheduling, final-Resume flush and engine/retry lifecycle. Add only the local premove hook; no new turn owner, scheduler or public turn API.
 - Global CSS only; extend the existing Chessboard `onBeforeUpdate` input-reset boundary if necessary. No watcher or async invalidation counter.
 
 ## Integration update after IMoveRaw submission and modal changes
@@ -147,11 +165,11 @@ Moves now cross board/view/store as `IMoveRaw`; this is the refactor referred to
 
 | Boundary | Current and planned flow |
 | --- | --- |
-| Raw intake (PRE-F01/F02/F14) | Keep `Chessboard._emitMove -> GameView.inputActions.move -> _makeMove -> _requestMoves`. Classify eligible live off-turn input before `_applyMoves` performs canonical side-to-move preflight. Forward the copied raw intention directly to `GamesStore.makeMove`; the store repeats seat/mode/pause checks before enqueueing, before `_resolveMove` canonical enrichment. Own-turn/history/analysis continue through the existing raw preflight/acceptance path. No detailed transport, duplicate dispatcher or cast |
+| Raw intake (PRE-F01/F02/F14) | Keep `Chessboard._emitMove -> GameView.inputActions.move -> _makeMove -> _requestMoves`. Board/PV producers own possible targets and completed promotion. Classify live off-turn context before `_applyMoves` canonical preflight; `makeMove` supplies the seated local player to `_appendPremove`, which only copies/appends/publishes. Own-turn/history/analysis retain existing raw acceptance. No duplicate intake validation |
 | Promotion (PRE-F14/S18) | `_commitTarget -> modal.open(PromotionModal, { moves, colour, onSelected: _choosePromotion }) -> _emitMove`. The chooser is outside the board DOM and has its own abort signal. Projected candidates use the human's source colour, not the engine's due colour. Changed input props or board unmount call `_clearSelection`, closing that opening; late detached buttons cannot append/commit. Escape dismisses the chooser first; a later board Escape may clear completed premoves |
 | Historical rewrite (PRE-F01/F12/S13) | `_requestMoves` captures `IContinuation { game, node, moves }` in the `ConfirmationModal.confirm(signal)` callback. `_confirmContinuation(pending, signal)` checks abort/current game/node/mode/pause/result/Takeback. Cancel, replacement or `_closeContinuation` aborts that opening and preserves the queue. Only a valid confirmed store rewrite clears it |
 | Runtime publication (PRE-F08) | `game.$.premoveQueue` is plain nested data on a deliberately raw game. Append/consume/clear must explicitly publish through the extracted private GamesStore publication helper and existing `workspaceRevision`. No `reactive(queue)`, watch/subscription, new revision counter or timestamp touch. The canonical `_touchGame` retains timestamp effects |
-| Stable display/input owner (PRE-F03/F14/S18/S22) | `GameView.renderedBoard` already preserves its canonical board identity across unrelated publications. Extend that owner to account for the displayed projection and a copied snapshot of the current queue's raw values plus actual seat/queue identity. Comparing only the queue/array reference misses in-place push/shift. Preserve the owner when the canonical selected board, permission/mode and relevant projection are unchanged; independent analysis ignores background queue edits. Changing queue/base/input context replaces the display owner and invalidates captured `inputActions` |
+| Stable display/input owner (PRE-F03/F14/S18/S22) | Retain queue/container, head, tail and held-local-move references in existing input owner; compare with canonical node/mode/permission before creating another projection. Push/shift/clear changes references, entries are stable. Unchanged context returns previous projection/owner, including score-only publications; no raw snapshot, counter, copied array or cloned entry |
 | Board lifecycle (PRE-F03/F09/F14) | `Chessboard.onBeforeUpdate` compares actual canonical/display/input props before rendering the replacement; `_clearSelection` cancels selection, drag and mounted promotion. `onBeforeUnmount` closes unfinished input. No observer exceptions remain. Derived getters neither clear queues nor mount modals |
 | Mounted specifications | Use the real `modalPlugin` test owner and query promotion/confirmation through `document.body`, retaining old DOM buttons to prove abort behaviour. Mark game fixtures raw before exposing them through a reactive mock store; mutate nested fixtures only with explicit publication when simulating a completed action. This catches missing publication and referential-owner bugs rather than hiding them with deep reactive test data |
 
@@ -172,27 +190,36 @@ The existing candidate query remains the only new chess-rule API. The only queue
 
 An enabled local-colour engine suggestion follows the same gameplay routing as board input: own turn commits, opponent turn appends, explicit analysis explores. An opponent-colour suggestion cannot steal the engine seat; inspect it through Analyse. Keep the existing suggestion-playability preference independent of queue routing.
 
-Bind each gesture to its actual game, input mode, source projection and owner. If a real move or mode change occurs before completion, cancel the unfinished gesture; do not reinterpret its late drop/promotion as a fresh premove. Repeated provider/gesture delivery cannot settle the next actual turn.
+Bind each gesture to its actual game, input mode, source projection and owner. If a real move or mode change occurs before completion, cancel the unfinished gesture; do not reinterpret its late drop/promotion as a fresh premove. Gesture delivery cannot settle another seat's turn. Keep engine delivery unchanged; independent hardening findings are recorded below.
 
-## Shared actual-turn driver
+## Existing actual-turn flow
 
-One guarded driver per game handles activation, accepted input, real commit completion, genuine resume and recovery. Repeated requests join owned work; serialise wake requests so input arriving as a drain exits is not lost. Use iterative draining rather than recursively committing a queue.
+```text
+requestPlayerMoveIfNeeded
+  -> _requestPlayerMove registers Deferred, handler and abort controller
+     -> engine: existing _requestEngineMove and delivery callback
+     -> local: _tryPremove resolves actual legal head, shifts, calls attemptPlayerMove
+  -> attemptPlayerMove resolves the same Deferred and awaits its handler
+  -> _playerMoveHandler clears pending fields
+     -> paused: existing deferredPlayerMove slot
+     -> unpaused: commitLiveMove
+        -> _finaliseLiveMove revalidates FIFO, retains its successor request
+```
 
-1. Reject disposed, transitioning or ended work and reconcile actual clock expiry.
-2. Attach one actual turn owner from the actual live parent/seat before readiness/provider work starts. Neither analysis selection nor another displayed game blocks ownership.
-3. If a real Manual/Menu pause prevents execution, retain current ownership/output and return. Analysis, history review and temporary view departure are not execution pauses.
-4. On an actual local turn, resolve the queue head against the actual board, or wait for normal current-turn input. During an actual engine turn start its provider once; local off-turn submissions only append.
-5. Validate the full speculative projection after relevant actual changes and the next due move's full legality before acceptance. Any invalid queue clears completely.
-6. Reconcile timeout at the actual commit timestamp and commit once through the existing clock/history/analysis/autosave path. Keep the turn owner attached through this atomic commit.
-7. Settle and retire that owner, remove its consumed queue entry/result, rebuild the remaining queue projection and arm the successor even if the user is still analysing or reviewing. An empty local queue leaves that local turn waiting while its clock runs.
+Final real Resume retains `await flushDeferredPlayerMove(game); requestPlayerMoveIfNeeded(game);`. Analysis entry/Exit/history only change selection and do not flush, replay or reschedule the queue. Existing readiness and pending-request guards prevent duplicate requests. Normal local input and engine delivery keep exactly the same API/completion behaviour.
 
-Separate input acknowledgement from internal turn completion. Future input acknowledges queuing immediately. An engine callback submits to its captured owner and returns without waiting for commit/resume; drain provider delivery outside its callback before replacement startup. Immediate `makeMove` callers still observe their commit before advancing playback.
+### Narrow implementation boundaries
 
-Remove successor scheduling from independent `_finaliseLiveMove`, flush and analysis-exit branches; the driver owns it. Analysis exit only returns selection/input to live and rebuilds the latest remaining display. It is not a resume action, queue replay, bulk commit or second engine search.
+| Owner | Necessary premove change |
+| --- | --- |
+| `GamePlayerTurnComposable` | One small private `_tryPremove` and local branch after existing registration; clear queue on a genuinely changed seat. Retain turn registration/resolution/handler/flush/engine/retry functions |
+| `GameMoveComposable` | Private `_appendPremove` before canonical enrichment; private `_revalidatePremoves` before existing successor request; queue clearing only at accepted rewrite/Takeback/root changes |
+| `GamePositionComposable` / `GameRuleUtility` | Pure copied projection and generic movement candidates. No turn lifecycle responsibilities |
+| `GamesStore` | Runtime-only publication callback and the already-planned `clearPremoves` board action; a new scope-disposal callback calls existing cancellation APIs listed in PRE-F13. No dispatcher/driver or dependency restructure |
+| Result/timeout/workspace actions | Clear queue at their accepted mutation boundaries; retain existing cancellation, clock, engine-stop and hydration mechanisms |
+| `GameView`, `Chessboard`, global `board.css` | Derived displaced pieces/red squares, eligible raw off-turn gestures and whole-queue board cancellation; retain raw input/modal ownership |
 
-Capture the searched position before asynchronous readiness. Cancellation closes acceptance synchronously, aborts/drains the old actual turn/provider and settles it before replacement. Long-lived pondering remains engine-owned and must not block turn retirement; immediate premoves follow existing ponder hit/miss ordering.
-
-Replace the unowned 500 ms failure-retry timeout with one owned cancellable retry. A seat/game change or disposal cancels it; genuine failures remain reported. No generation counters, promise-identity invalidation guards, orchestration watchers, polling loops or automatic reconnect redesign.
+No turn runtime/type replacement, engine service changes, clock Resume rewrite, retry redesign or regression-test migration to another owner is needed. If implementation appears to require them, stop that expansion and explain the concrete conflict in the plan.
 
 ## Background analysis and selection
 
@@ -218,184 +245,307 @@ After each relevant actual commit, rebuild the whole remaining speculative seque
 
 Do not confuse speculative feasibility with requiring all future moves to be fully legal now: future opponent replies/checks/en-passant rights are unknown. Full chess legality belongs to each actual due turn. Regenerate detailed move/capture/check/ambiguity/notation from that actual board with the existing utilities.
 
-A successful commit consumes only its own head; background analysis leaves the remainder executing normally. A failed intention clears all remaining entries/red shades without making a partial history node, changing clock ownership or undoing moves already actually played. A brief transient invalidation notice is sufficient; do not add a queue counter or control panel.
+A valid local-turn request consumes its head with `shift()` immediately before submitting it through `attemptPlayerMove`. The existing handler owns the accepted move thereafter; it is never shifted again or reinserted. Background analysis leaves the remainder executing normally. A failed intention clears all remaining entries/red shades without making a partial history node, changing clock ownership or undoing moves already actually played. A brief transient invalidation notice is sufficient; do not add a queue counter or control panel.
 
 ## Function flow
 
-Names without a qualifier below are existing source entry points; private names describe responsibilities within their current owners, not new exported APIs. Every flow uses the revised raw queue. The 23 October request authorises the declaration/test migration below; behaviour implementation remains a separate step.
+These proposed call sequences follow [GameplayAndControl](LowLevel/ProcessFlows/GameplayAndControl.md) and [EngineRuntimeOwnership](LowLevel/ProcessFlows/EngineRuntimeOwnership.md). Names, including private underscores, were checked against source. Each row gives the call, its work and its return/branch. **Existing** means retain today's implementation unless an insertion is specified; **new** means proposed code. Computed values and Vue events are labelled separately from functions.
+
+Within each owner, dependency names resolve to these source modules: `position` -> [GamePositionComposable](../src/state/game/GamePositionComposable.ts), `playerTurn` -> [GamePlayerTurnComposable](../src/state/game/GamePlayerTurnComposable.ts), `status` -> [GameStatusComposable](../src/state/game/GameStatusComposable.ts), `clock` -> [GameClockComposable](../src/state/game/GameClockComposable.ts), `analysis` -> [GameAnalysisComposable](../src/state/game/GameAnalysisComposable.ts). The `commitLiveMove`, `touchGame`, `publishRuntime` and `clearPremoves` injected calls are wired by [GamesStore](../src/state/GamesStore.ts); the canonical commit implementation stays in [GameMoveComposable](../src/state/game/GameMoveComposable.ts). UI callers are [GameView](../src/views/GameView.vue) and [Chessboard](../src/components/Chessboard.vue).
 
 ### Planned call boundaries
 
-| Boundary | Contract for writing tests |
+| Function/boundary | Inputs, result and owner |
 | --- | --- |
-| Existing `GamesStore.makeMove` / `GameMoveComposable.makeMove` | Accept `IMoveRaw`; existing `IMove` callers remain valid because it extends that contract. Classify context first, append off-turn raw data, otherwise resolve canonical legal details. Preserve immediate commit completion versus immediate append acknowledgement |
-| Planned `clearPremoves(game)` | One queue-only action for owned board cancellation and internal invalidation. Publish runtime changes; never invoke actual Takeback. No Undo-last, count/list or button API |
-| Planned `GameRuleUtility.genCandidateMovesForPiece(position, from)` | Raw `IMoveRaw[]` movement candidates for that piece's geometry, occupancy, castling rights and explicit promotion alternatives, independently of the actual side due/current attacks. Pawn capture diagonals are candidates even when empty; full legality is checked by the existing legal-move functions. No queue, player seat, history, red-square or application-mode input/output. Reuse existing private chess mechanics in this file |
-| Planned `GamePositionComposable.getPremoveProjection(position, queue)` | Existing app position owner composes the FIFO on a detached position through `MoveApplicationService` and rule candidates. Return copied pieces/unique red squares, or `undefined` for any invalid dependency. Check exact seat/source colour and queue ordering; derive source kind from the copy. Test observable board output without a new utility export |
-| Private `Turn._resolvePremoveMove` responsibility | Require the actual local side and own-colour source, derive its kind from the board, then use `genLegalMovesForPiece`, exact raw/promotion matching and `toDetailedMove`. No cast to detailed move or new public resolver |
-| Existing `requestPlayerMoveIfNeeded` / `attemptPlayerMove` | Retain current-turn entry responsibilities while moving scheduling to one private serial drain. Provider delivery is bound to the captured turn; ordinary local input still observes its actual commit |
-| Existing `commitLiveMove`, pause/resume, analysis/history and structural actions | Reuse their canonical effects. Add explicit queue validation/consumption/cancellation at the boundaries below; do not rewrite the completed analysis feature |
+| Existing `GamesStore.makeMove(game, rawMove)` | Alias of `GameMoveComposable.makeMove`. Raw board/PV/modal intake; no new public move dispatcher |
+| New private `GameMoveComposable._appendPremove(game, player, rawMove)` | Initialise FIFO if absent, `moves.push(rawMove)` and publish. Same supplied reference; no copy, checks, projection or turn resolution |
+| New private `GameMoveComposable._revalidatePremoves(game)` | Checks whole existing FIFO after actual commit; clears invalid/terminal remainder. Never shifts/submits |
+| New private `GamePlayerTurnComposable._tryPremove(game)` | Trust existing local request registration and revalidated queue. Resolve only actual legal head, shift and call `attemptPlayerMove`; no repeated whole-queue/seat/mode/runtime checks |
+| New `GameRuleUtility.genCandidateMovesForPiece(position, from)` | Pure `IMoveRaw[]` query for source geometry/occupancy/promotion/castling feasibility, independent of actual side due/check |
+| New returned `GamePositionComposable.getPremoveProjection(base, queue?, heldLocalMove?)` | One detached board for the pass. Apply optional held move, then existing queue entries by reference; no temporary combined sequence. Return `{ position, redSquares }` |
+| New returned internal `GamePositionComposable.applyPremoveProjection(preview, rawMove, redSquares?)` | Mutate caller-owned preview using a temporary `IMoveCandidate`; optionally collect affected IDs. Shared by drawing/revalidation to avoid another board clone or duplicated application logic. No rule query or validation |
+| New private `GamesStore._publishRuntime()` | Increments existing `workspaceRevision` only; `_touchGame` keeps timestamp update then calls it |
+| New `GamesStore.clearPremoves(game)` | Removes only that game's FIFO, publishes runtime. Empty is a no-op. Context-independent so structural actions and closing a paused/inactive tab can also call it |
+| Existing turn APIs | Keep `requestPlayerMoveIfNeeded`, `_requestPlayerMove`, nested `_requestEngineMove`, nested `_playerMoveHandler`, `attemptPlayerMove`, `flushDeferredPlayerMove` and `clearPlayerTurnRuntime` contracts |
 
-The existing raw input type, one queue-clear action and generic candidate query are the necessary boundaries. Internal queue composition stays with existing game owners. The earlier analysis prerequisite remains unchanged. Do not require a separate premove library, duplicate raw type/union, new review mode, speculative history `IMove`, per-colour queues or replacement serialization API.
+Dependency wiring is part of the proposal: `useGamePlayerTurn` and `useGameMove` receive `publishRuntime: _publishRuntime` and `clearPremoves`; `useGameStatus`, `useGameClock` and `useGameWorkspace` receive `clearPremoves` for accepted invalidation boundaries. `GamesStore` returns `clearPremoves` for board cancellation/tab close. Existing forwarding callbacks stay. No replacement turn object, scheduler, engine-service change or dependency restructure.
+
+Proposed board inputs: `displayPosition?: IBoardPosition`, `premoveSquares?: ReadonlySet<BoardId>`, `premoveColour?: PlayerColour`. Share the projection's red set directly and use `.has(boardId)`; no set-to-array copy. `Chessboard.position` stays canonical. `displayedPosition` computed chooses `displayPosition ?? position` for artwork/labels. Existing `legalMoves` selects movement candidates only in premove mode, otherwise canonical legal targets. New `premovesCancelled` event has no move payload; these are presentation additions, not turn APIs.
+
+### Contract audit for all 14 flows
+
+| Flow | What its consumer trusts / where a check belongs |
+| --- | --- |
+| PRE-F01 | Existing context dispatch chooses the route; downstream helpers do not repeat mode/seat or possible-move checks. Retain the completed raw-acceptance API and existing deferred input ownership |
+| PRE-F02 | Input produced a stable possible move; append pushes that object reference and publishes |
+| PRE-F03 | Input/rebase made the queue projectable; projection only applies/draws it. Remove candidate queries, coordinate/colour checks and invalid-data fallback |
+| PRE-F04 | Existing request gate owns readiness/duplicate prevention; the new local helper does not repeat those guards |
+| PRE-F05 | Existing engine service owns external output validation; delivery/handler/commit do not add premove checks |
+| PRE-F06 | **One whole-queue feasibility pass after an actual board change.** Source/geometry/occupancy may have changed, so check them here before publishing/requesting the successor |
+| PRE-F07 | Post-commit pass established sequence feasibility; current Local request established player/runtime ownership. Check only actual head legality, because speculative feasibility does not establish king safety/capture rights |
+| PRE-F08 | Caller completed a runtime mutation; publish without validating game/queue. Empty clearing is an ordinary idempotent operation |
+| PRE-F09 | Board input eligibility owns permission to emit cancellation. View only uses existing input-owner checks across playback cancellation; store clear is unconditional |
+| PRE-F10 | Existing analysis/history actions own selection/cache/pause policy. Add no queue checks, replays or resumption on entry/return |
+| PRE-F11 | Existing pause reasons and flush own readiness/held output. Do not revalidate a held detailed move: pause changed time, not its board |
+| PRE-F12 | Accepted structural action clears FIFO at the actual mutation boundary, after existing awaited cleanup. Consumers then trust seat/root/continuation ownership without equality checks |
+| PRE-F13 | Existing session/save/hydration owners supply valid objects and fresh runtime; no queue schema/recovery/clone validator. Scope cleanup calls existing owners |
+| PRE-F14 | Input candidate query/promotion chooser owns possible input. Retain existing context cancellation after awaits; do not repeat movement checks in emit/transport/append |
+
+Existing prerequisite guards are not being broadly refactored here. In particular, a callback can become obsolete across an await, elapsed time can expire a turn, and engine output is external; those checks establish facts rather than recheck an unchanged internal contract. No additional guards are introduced around them.
+
+### Copy and reference audit
+
+| Boundary | Reference/allocation rule |
+| --- | --- |
+| Board event, `_makeMove`, `_requestMoves`, `_appendPremove` | Same `IMoveRaw` object throughout; no destructuring/reconstruction. FIFO owns its array, not a clone of each entry. Caller/consumer never changes move coordinates/promotion |
+| AnalysisPanel prefix, confirmation, playback | One prefix selection may create an array of existing move references because its length identifies the clicked range. View/confirmation/playback retain that array; do not `.map` moves into new objects or recopy the same selected range |
+| Stable input context | Capture queue/head/tail/held references alongside canonical context. Return previous projection before allocating another when these remain unchanged; no queue-value snapshot, JSON signature or new revision counter |
+| Whole-queue revalidation | Clone board/rights once via `genPosition(actual, [])`; apply every validated raw entry in place through `applyPremoveProjection`. No one-entry queue wrappers, per-entry cloning or highlight collection |
+| Display projection | One detached board/rights copy for the whole pass; held local reference applied before existing queue iteration. Share result/red set directly with board; no combined move array or set-to-array conversion |
+| Castle highlight | Read rook endpoints before applying the castle. No before/after board-array snapshot |
+| Canonical accepted details / temporary candidate | New fields are required by the existing history/clock or move-application contract; construct them from canonical/preview facts. Do not clone the raw object merely for forwarding |
+| Existing analysis entry / full-prefix preview | Retain necessary detached board state because these operations mutate independently of actual play; no additional premove copy at their downstream calls |
+
+Existing forwarding copies in the completed raw refactor are explicitly superseded by this reference policy for the planned implementation. No shared type, event signature or turn resolver needs to change. Historical test counts below predate this correction.
 
 ### PRE-F01 - Classify raw input before submitting it
 
-`Chessboard moveAttempted(IMoveRaw) / AnalysisPanel moveSelected -> GameView._makeMove/_playAnalysisLine -> _requestMoves -> GamesStore.makeMove -> GameMoveComposable.makeMove`.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| Changed `Chessboard._emitMove(rawMove)` -> Vue `moveAttempted` | `emit('moveAttempted', rawMove)` passes supplied reference, then `_clearSelection`. No enrichment, stripping or reconstruction |
+| Existing `GameView.inputActions.move` -> `_makeMove(rawMove)` -> `_requestMoves([rawMove])` | Captured `renderedBoard` remains current. Single-move array contains same reference; remove existing raw-field `.map` in `_requestMoves` |
+| Changed `_requestMoves`: off-turn branch -> `await _run(() => gamesStore.makeMove(currentGame, moves[0]))` | Same eligible move reference. Return afterwards; **bypass `_applyMoves`**, whose canonical legality is inappropriate for speculation |
+| `_requestMoves`: historical branch -> `modal.open(ConfirmationModal, { confirm: signal => _confirmContinuation(pending, signal), ... })` | Capture game/node and existing `moves` array by reference. No move or prefix copy; return until confirmed |
+| `_requestMoves`: other branch -> `await _run(() => _applyMoves(currentGame, moves))` | Forward existing array; retain ordinary due-local/analysis canonical-prefix preflight/playback |
+| Existing store alias -> `GameMoveComposable.makeMove(game, rawMove)` -> `status.assertMoveAllowed(game)` | Authoritative mode check; ordinary paused/edit input rejected, explicit paused analysis permitted |
+| Changed `makeMove`: ordinary following-live human-engine off-turn context -> `_appendPremove(game, localPlayer, rawMove)` -> return | Existing action routing selects the seated local player. Pass it with the producer's possible raw move before `_resolveMove`; the append helper trusts both |
+| Existing other allowed input -> `_resolveMove(parentPosition, rawMove, parentNode.move)` | `getRenderedNode/getRenderedPosition` supply canonical selected source; match legal candidate/exact promotion, build fresh details |
+| Existing resolved branch calls | Non-live -> `_commitStandaloneAnalysisMove`; explicit live analysis -> `_commitLiveAnalysisMove`; allowed history -> `await _commitHistoryRewriteMove`; ordinary local live -> `await playerTurn.attemptPlayerMove`; forbidden seat/history throws |
 
-1. Capture the selected input owner; reject obsolete game/node/mode/projection/permission before submission and repeat capability checks in the store. Off-turn board input bypasses `_applyMoves` canonical preflight and reaches raw queue intake; analysis/history retain that preflight.
-2. Explicit Analyse, free and terminal analysis use existing canonical branch routes. Paused explicit analysis remains allowed. These routes never append, consume or clear the background FIFO.
-3. Ordinary history input preserves `_requestMoves -> useModal().open(ConfirmationModal) -> _confirmContinuation(pending, signal) -> _commitHistoryRewriteMove` when Takeback is allowed. Cancelled/stale confirmation preserves actual game/queue; otherwise require explicit Analyse.
-4. Following-live ordinary input requires ongoing, genuinely unpaused gameplay. Human-engine input during the engine turn appends through PRE-F02. A due local move uses the actual owner; hotseat hands input to the newly due side and engine-engine cannot queue.
-5. For actual/analysis input, match raw coordinates and exact promotion against existing legal candidates on that canonical board, then build `IMove` with `toDetailedMove`. Do not trust supplied detailed fields or cast raw data to `IMove`. Preserve existing branch routing and immediate actual-commit completion.
-6. A due queued head has priority through PRE-F04; stale direct input cannot replace it or settle a successor. Keep full-prefix analysis validation before the first move and owned cancellation between delayed steps.
-
-Steps 1-3 and canonical raw acceptance in step 5 are first established by PRE-RAW without enabling premoves. PRE-F02 adds the later off-turn branch; do not implement the same submission refactor again in queue code.
-
-**Assertions:** bare raw coordinates suffice, existing detailed callers remain compatible, and stale metadata never enters history. Forbidden modes/colours leave actual state and queue unchanged. Retain suggestion-preference and paused-analysis/Takeback regressions.
+Non-live/explicit analysis has priority over off-turn intake. Historical input keeps confirmation. A background premove is submitted separately by PRE-F04/PRE-F07, without changing selected mode/path.
 
 ### PRE-F02 - Append a raw move to the FIFO
 
-`GameMove.makeMove eligible off-turn input -> private PlayerTurn append responsibility -> getLivePosition -> validate existing queue -> trial whole projection -> publish runtime`.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| `makeMove` -> new `_appendPremove(game, player, rawMove)` | Caller has classified the current context and supplies the actual local seat. Board/PV producer has already supplied a possible move and completed promotion |
+| `_appendPremove` -> `runtime.premoveQueue ??= { player, moves: [] }` | Initialise only when absent; trust existing queue ownership maintained by actual structural actions |
+| `_appendPremove` -> `queue.moves.push(rawMove)` | Store the supplied reference in order. No move/array copy, field stripping, board inspection, validation or trial projection |
+| `_appendPremove` -> injected `publishRuntime()` -> return | Preview redraw only; no `attemptPlayerMove`, history, clock/increment, analysis refresh or move/autosave count |
 
-1. Require one human versus one engine, the engine due, genuinely unpaused ordinary following-live input and the exact seated human owner.
-2. Copy only `from/to/promotionPiece` from `IMoveRaw`, omitting absent promotion. Drop `$` and any detailed colour/kind/capture/check/notation fields. Do not mutate or retain the caller's object.
-3. Read source colour/kind from the projected board at this step. Trial the entire existing sequence plus the new move through PRE-F03; there is no expected-kind field to populate.
-4. Reject an invalid new append without damaging an otherwise-valid FIFO. If the already-accepted sequence itself is invalid, clear it completely rather than retaining a prefix.
-5. Append in order, publish runtime changes only and acknowledge immediately. No actual turn completion, node, clock transition, increment, recorded analysis or engine search is created.
+For `g1f3`, then `f3g5`, the board's candidate selection reads the second source at displayed f3. Append simply stores both entries; rendering separately derives the new picture after publication. Black can queue before its first actual move; no last-own-move node is needed.
 
-**Assertions:** `{ from: 6, to: 21 }` followed by `{ from: 21, to: 38 }` suffices. Both local colours work, including Black before its first actual move. Frozen/raw/detailed inputs cannot inject metadata or share mutable queue entries. Invalid coordinates/promotion choices leave a valid queue intact.
+The complete proposed helper is deliberately this small; `player` and `rawMove` satisfy their callers' contracts:
+
+```ts
+function _appendPremove(game: IGame, player: IPlayer, rawMove: IMoveRaw) {
+  const queue = game.$!.premoveQueue ??= { player, moves: [] };
+  queue.moves.push(rawMove);
+  publishRuntime();
+}
+```
 
 ### PRE-F03 - Derive displaced pieces and red squares
 
-`GameView computed display -> GamePositionComposable projection -> GameRuleUtility.genCandidateMovesForPiece -> MoveApplicationService on a detached copy -> Chessboard display props`.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| Existing `GameView.renderedBoard` computed | Keep existing canonical selected-board owner. Compare canonical/input and queue/head/tail/held references before rebuilding premove projection; unchanged publications return previous result |
+| Changed `renderedBoard` -> `GamePositionComposable.getPremoveProjection(canonicalPosition, queue)` | Existing view context selects ordinary following-live drawing; trust the queue maintained by actions. Analyse/history draws canonical board/empty red set. Instantiate existing `useGamePosition()` once for this pure query; no owner/seat validation |
+| `getPremoveProjection` -> `MoveApplicationService.genPosition(base, [])` | Detached board/rights copy plus local `Set<BoardId>` |
+| `getPremoveProjection` -> `applyPremoveProjection(copy, heldLocalMove, redSquares)` when held output exists, then each existing queue entry | Iterate references directly. No combined `[held, ...moves]` array or entry copies; no validation or queue mutation |
+| `applyPremoveProjection` -> read preview source/target | Trust source/movement; derive kind from this evolving board, including earlier promotion. No coordinate/colour/candidate-membership check |
+| `applyPremoveProjection` -> temporary `IMoveCandidate` | Derive application fields from preview source/target. Promotion -> `Promotion`; two-file king -> `Castle`; present en-passant right/victim -> `EnPassant`; otherwise `Normal`. Empty speculative diagonal is relocation, not fabricated capture |
+| `applyPremoveProjection` -> optional red endpoint collection, then `MoveApplicationService.applyMove(preview, candidate)` | Before castle, read rook origin from existing `castlingRook` layout or standard H/A home square, and rook destination F/D from castle side. Add rook/raw endpoints if a red set was supplied; no prior board snapshot. Mutate caller-owned preview in place; never clone here |
+| `getPremoveProjection` -> `{ position: copy, redSquares }` | Return owned board and set directly, with no extra array/map copy. No detail/check/history/clock work; temporary application candidate never enters FIFO |
+| Changed `renderedBoard` -> Chessboard `position`, `displayPosition`, `premoveSquares`, `premoveColour` | `position` canonical; copied position drives artwork/accessibility labels and red IDs. No queue/context projection requested -> canonical artwork/no red. There is no invalid-projection fallback |
+| Existing `Chessboard.onBeforeUpdate` -> `_clearSelection()` on changed input | Include display/colour context. Rendered owner retains queue/head/tail/held references, so edits replace input without copied snapshots; unchanged scores reuse previous projection/owner |
 
-1. When following live, derive from its canonical board. During explicit analysis/history show the selected canonical board without the FIFO. Genuine pause may retain the following-live picture but disables queue input/cancellation.
-2. Detach the source. For each `IMoveRaw`, require an own-colour source, read its kind from this evolving copy, find matching movement candidates and apply the exact promotion through existing move application. No expected kind or accepted actual metadata is stored on the entry.
-3. Candidates are independent of actual side-to-move and king safety; respect projected occupancy, castling rights and promotion choices. Evolving king/rook movement cannot restore lost castling rights.
-4. Collect unique source/destination IDs, including castling rook endpoints. Use copied pieces for final artwork/accessibility labels. Captures/promotions affect this copy only.
-5. Any invalid dependency returns no partial projection. Explicit state actions own whole-queue invalidation/publication; a computed getter never mutates queue/canonical data.
-6. Preserve display/input identity across unrelated score publications. Compare copied raw queue values as well as seat/queue identity so in-place append/shift also replaces the projection owner. Actual base, relevant queue, permission, mode, game or result replacement cancels obsolete gestures through `onBeforeUpdate`; background queue edits do not invalidate unchanged independent analysis input.
+Input and PRE-F06 establish projectability before publication. Drawing trusts it. A genuinely paused local head comes directly from `deferredPlayerMove` as the optional third argument; apply it before iterating remaining queue references, even if queue is absent. No combined move array or reinsertion. Pause changed no board data, so do not recheck. Held opponent output is not projected; no new runtime field.
 
-**Assertions:** g1-f3-f3-g5 displays Ng5, empty g1/f3 and red `{6,21,38}`. Exact copied piece maps/red sets cover both orientations, castling, every promotion and later invalid dependencies; canonical/history/clock/evaluation data is untouched.
+### PRE-F04 - Request the ordinary actual turn and try its premove
 
-### PRE-F04 - Wake and drain the actual turn once
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| Existing `_finaliseLiveMove`, workspace activation, final Resume or retry -> `requestPlayerMoveIfNeeded(game)` | Keep existing callers; no selected-board-equality gate |
+| Existing `requestPlayerMoveIfNeeded` -> `status.isLiveTurnReadyForMove(game)`; inspect `runtime.pendingPlayerTurnPromise` | Return if actual play not ready or request already pending; no shift/provider start |
+| Existing guard passes -> `_requestPlayerMove(game)` | Select actual player via `getSideToMovePlayer(game, position.getLivePosition(game).sideToMove)` |
+| Existing `_requestPlayerMove` -> `new AbortController()`, `new Deferred<IMove>()`, `_playerMoveHandler(pendingPlayerMove)` | Handler suspends at `await pendingPlayerMove`; store Deferred/handler/controller in existing three runtime fields |
+| Existing engine branch -> `void _requestEngineMove(player.assignedEngine).catch(error => pendingPlayerMove.reject(error))` | Preserve verbatim; delivery in PRE-F05 |
+| **Only new dispatch branch**, Local -> `void _tryPremove(game).catch(error => logHandledError('GameStore', '_tryPremove', error))` | After registration, immediately reaches PRE-F07 shift/submission before awaiting existing handler. Empty/invalid FIFO leaves same request waiting |
+| Existing `attemptPlayerMove(game, detailedMove)` -> `pendingPlayerMove.resolve(detailedMove)` -> `await pendingPlayerTurnHandle` | Same resolver as ordinary local/engine input; no direct commit/new acknowledgement |
+| Existing nested `_playerMoveHandler` resumes | Existing `finally` clears three pending fields; genuinely paused -> `runtime.deferredPlayerMove = move`; otherwise -> injected `commitLiveMove(game, move)` |
+| Existing `commitLiveMove` -> `_finaliseLiveMove` -> `requestPlayerMoveIfNeeded` | PRE-F06 inserts FIFO revalidation before the existing last call; successor stays here |
 
-`activation / accepted actual input / provider result / actual commit / final real Resume / eligible retry -> requestPlayerMoveIfNeeded -> planned Turn._drainTurns -> commitLiveMove -> next iteration`.
+The handler's existing promise wait supplies the asynchronous boundary. No synchronous recursive queue executor is added. Repeated request before settlement sees the registered Deferred and cannot shift twice. No function waits for finite provider/ponder startup before actual commit; existing error/abort/retry logic stays.
 
-1. Join owned drain work rather than start a competing loop. Serialise explicit state-changing actions and preserve a wake arriving while a drain finishes. This is action/work ownership, not a generation counter or polling loop. Never hold the action lane while waiting for an engine result.
-2. Reconcile actual expiry. Stop for ended/disposed/transitioning context. Attach one current-turn owner from the actual parent node, colour and seated player before any asynchronous readiness/provider start; its accepted result and completion belong to that actual turn.
-3. If a genuine Manual/Menu pause applies, retain the owner/result/queue and stop without consuming any intention. Analyse, history and another displayed game are not pause predicates.
-4. Validate any queue's human-versus-engine capability and exact seated-player binding. For an eligible local turn, ask `Position.getPremoveProjection` to validate the entire current queue using the current actual live position, then resolve its head using PRE-F07. Invalid data clears the queue and leaves the local turn waiting. With no queue/result, wait for normal local input; its clock continues. An ineligible queue never blocks an actual engine turn from starting.
-5. For an engine seat, start its captured provider once, then return while it thinks. Provider delivery uses PRE-F05. Duplicate wake requests cannot start another search.
-6. Commit an accepted actual move synchronously through `commitLiveMove` while its owner remains attached. Apply queue post-commit changes in PRE-F06 **before** evaluating the successor. Stop on terminal result; otherwise retire/drain the old delivery owner and iterate for the next actual turn.
+The proposed dispatch insertion is exactly after the existing three runtime assignments, with the engine branch retained:
 
-Remove independent successor arming from `_finaliseLiveMove` and the separate resume flush path when this driver is integrated. Entry/Exit never become scheduler/flush actions. Existing immediate `makeMove` calls still complete after their actual commit; enqueued input completes after append only.
+```ts
+if (isEnginePlayer(player)) void _requestEngineMove(player.assignedEngine).catch((error) => pendingPlayerMove.reject(error));
+else if (player?.type === PlayerType.Local) void _tryPremove(game).catch((error) => logHandledError('GameStore', '_tryPremove', error));
+```
 
-**Assertions:** a sequence produces `engine reply -> one local head -> next engine search`, including behind analysis/review, with one actual node/increment per committed move and one provider per actual engine turn.
+`_tryPremove` runs synchronously up to resolving the Deferred, then awaits that ordinary handler. Its caller does not await a future turn. Neither this branch nor the existing handler calls a new scheduler.
 
-### PRE-F05 - Deliver an engine reply to its captured actual owner
+### PRE-F05 - Keep existing engine delivery
 
-`Turn._requestPlayerMove/_requestEngineMove -> EngineRuntimeService.ensureReady/startPlayerTurn -> awaitPlayerTurnMove(searchedPosition) -> planned Turn._acceptProviderMove(capturedTurn, move) -> PRE-F04`.
+| Caller and call | Existing function work, retained |
+| --- | --- |
+| Nested `_requestEngineMove` -> `await EngineRuntimeService.ensureReady(engine, abortController.signal)` | Existing request cancellation signal, no new readiness owner |
+| `_requestEngineMove` -> `await EngineRuntimeService.startPlayerTurn(engine, game, callback, signal)` | Existing callback checks aborted signal, then `await attemptPlayerMove(game, move)` |
+| Service `startPlayerTurn` -> client `startPlayerTurn` -> `awaitPlayerTurnMove(engine, searchedPosition)` | Actual canonical searched-position legality/ponder validation; no selected/speculative position |
+| Service `startPlayerTurn` -> optional `startPondering(engine, game, move, ponderMove)` | Begin optional pondering before delivery; retain finite startup promise |
+| Service -> `await callback(move)` -> `await pondering` | Preserve this exact ordering/completion; no delivery-acknowledgement/provider-drain-before-commit change |
+| Callback -> `attemptPlayerMove` -> `_playerMoveHandler` | Unpaused: actual commit then local request. Paused: existing held `IMove`; callback completes on handler storage, not Resume |
 
-Capture/retain actual parent, player, position and abort ownership before readiness. After readiness, an aborted/replaced owner cannot begin its provider. Preserve `EngineRuntimeService.awaitPlayerTurnMove` as the actual engine/ponder legality boundary; selected analysis and speculative pieces never supply its position.
+No engine-service/UCI change is planned. Original duplicate-callback/readiness/retry findings remain separate; they do not justify changing this sequence.
 
-Accept one result for that captured turn. A duplicate or cancelled delivery does nothing and cannot claim the successor. The callback acknowledges acceptance without awaiting a future Resume/commit of the same provider; the drain settles delivery outside the callback, avoiding a cycle where each awaits the other. During a real pause the result stays owned and uncommitted.
+### PRE-F06 - Revalidate the remainder after a real commit
 
-Preserve `EngineRuntimeService.startPlayerTurn` and its UCI API. Its awaited pondering operation settles finite startup commands, not the ongoing ponder search. The captured callback acknowledges acceptance without awaiting commit; the driver settles finite provider delivery outside that callback before the successor reuses the client. Do not remove ponder-start awaiting as fire-and-forget or wait for a long-running ponder result. Retain hit/miss/stop ordering, handled failures and no repeated pondering on Resume.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| Existing `_playerMoveHandler` / `flushDeferredPlayerMove` -> `GameMoveComposable.commitLiveMove(game, move)` | Same actual commit for engine, direct local and premove |
+| Existing `commitLiveMove` -> `clock.reconcileTimeout(game, moveTimestamp)` | Expired -> return before application/history/increment; `_finaliseTimeout` clears FIFO via PRE-F12 |
+| Existing `commitLiveMove` -> optional `MoveHistoryService.pruneFutureMoves(parentNode)` | Keep current selection/pruning predicate; no ancestor/Exit pruning |
+| Existing `commitLiveMove` -> `_applyLiveMove(game, move, timestamp)` | `clock.applyMove`; `analysis.captureMoveAnalysis`; `MoveApplicationService.applyMove(actual, move)`; `MoveHistoryService.addMainlineMove`; `position.appendLivePath`; assign clock; `moveCommitted(game)` |
+| Existing caller -> `_finaliseLiveMove(game, actualPosition, isLivePositionRendered)` | Existing actual result and live/analysis state update |
+| **New insertion**, after result/state update -> `_revalidatePremoves(game)` | No FIFO -> return; terminal -> clear. Otherwise one ordered feasibility pass on the changed actual board, as expanded below. Trust queue seat/raw shape; no owner/equality/schema validation or head submission |
+| Existing finaliser -> `void _publishRenderedPosition(game, isLivePositionRendered)` -> `clock.refreshRuntimeRegistrations(game)` -> `playerTurn.requestPlayerMoveIfNeeded(game)` | Keep order; publication refreshes changed selected analysis or calls `touchGame` for independent selection. Successor sees only valid FIFO |
 
-**Assertions:** release a reply before/after pause, deliver it twice, abort during readiness and release it after reassignment; only the current captured owner may cause one actual commit. Native ponder acceptance needs its own executed platform lane.
+Neither opponent nor local commit shifts a head; PRE-F07 already does that at request. An invalid second entry after the opponent reply clears a still-legal queued first entry **before** local submission. Background execution never changes selection to make a move look live.
 
-### PRE-F06 - Rebase or consume after a real commit
+| `_revalidatePremoves` call sequence | Responsibility after actual board change |
+| --- | --- |
+| `position.getLivePosition(game)` -> `MoveApplicationService.genPosition(actual, [])` -> local `preview` | One detached board/rights copy for the entire validation pass; never clone each step |
+| For each raw entry: read `preview.board[raw.from]?.colour`, then `genCandidateMovesForPiece(preview, raw.from)` | Opponent may have removed/replaced a source or changed geometry/occupancy/rights. Require local source colour and matching raw destination/promotion. This is the sole whole-queue feasibility check |
+| No source/match -> `clearPremoves(game)` -> return | Clear entire remainder before any local head is submitted; no partial prefix |
+| Valid step -> `position.applyPremoveProjection(preview, raw)` | Advance same detached preview in place. Shared internal application method makes no board copy, temporary queue/array or red set, and no duplicate rule query. It is returned by existing position composable for reuse; no new utility/library |
+| End of sequence -> return | Drawing and turn request trust the pass. No cache, validation flag, second pass or future-reply prediction |
 
-`commitLiveMove -> _applyLiveMove/_finaliseLiveMove canonical effects -> planned Turn._rebasePremoveQueue(game, consumedHead?) -> Position.getLivePosition/getPremoveProjection -> runtime publication -> PRE-F04 successor`.
+### PRE-F07 - Resolve the raw head, then use the existing resolver
 
-1. Read the game's current actual live position and require any queue's player to remain its exact eligible local seat. Structural changes clear the queue at PRE-F12; queue revalidation does not reconstruct or compare a stored continuation anchor.
-2. If this was its due local head, remove **that head only after successful actual commit**. Remove the queue if now empty. Do not reproject the consumed entry from its now-vacated source.
-3. For an opponent commit, remove no entry. For either commit type, project the whole remaining sequence from the **new actual board** before letting another local intention execute. If the new state is terminal, clear all remaining entries instead.
-4. If any remaining source/dependency/path fails, remove the whole queue immediately, including an otherwise-valid head. Keep every move already committed. Otherwise retain the same queue, exact local seat and remaining order; no queue-side node bookkeeping is needed.
-5. A rebase does not use or change `renderedPath` to decide eligibility. An independently selected canonical board/analysis branch stays selected; only following-live aliases advance with actual play.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| New `_tryPremove(game)` -> read `game.$!.premoveQueue` | No queue -> ordinary Local turn waits. Runtime/request/queue ownership is supplied by existing caller and actions, not rechecked |
+| `_tryPremove` -> `getLivePosition(game)` / `getLiveNode(game)` | Trust registered Local request and PRE-F06's feasible sequence. No projection, seat/mode/pending checks or second whole-queue validation |
+| `_tryPremove` -> `genLegalMovesForPiece(actual, head.from, actualNode.move)` -> exact `to/promotionPiece` match | Sole head legality check; legal generator owns actual colour/source/check/capture/promotion rules. No match -> clear FIFO and leave same Local Deferred waiting; no separate source check |
+| `_tryPremove` -> `toDetailedMove(actual, legalCandidate)` | Fresh actual capture/en-passant/castle/check/ambiguity/promotion. Use generated raw candidate, not supplied/speculative metadata |
+| `_tryPremove` -> `queue.moves.shift()`; if empty, `runtime.premoveQueue = undefined` | Only after checks/conversion succeed. Exactly once at request, never again at commit |
+| `_tryPremove` -> `await attemptPlayerMove(game, detailedMove)` | **No await/publication between shift and this call.** Resolve existing Deferred synchronously, then await existing handler. No selected-board `makeMove`, direct `commitLiveMove` or successor request |
+| `_tryPremove` after handler settlement -> injected `publishRuntime()` if move was held by a genuine pause | Normal commit already published; held head plus tail redraws from existing slot. No reinsertion or second dequeue on Resume |
 
-**Assertions:** revalidation uses the new actual live position; failed actual commit/timeout consumes no head, terminal cleanup never restores one, and an invalid second entry prevents the otherwise-legal first entry from being played next.
-
-### PRE-F07 - Resolve the next due intention on the actual board
-
-`PRE-F04 local turn -> private Turn._resolvePremoveMove responsibility -> GameRuleUtility.genLegalMovesForPiece(actualPosition, head.from, actualNode.move) -> exact raw/promotion match -> toDetailedMove(actualPosition, candidate) -> current-turn acceptance -> commitLiveMove`.
-
-Require the actual local side due and own-colour source; read its kind from the actual board. Match legal candidates for `from/to` and exact promotion; never default a queued underpromotion to a queen. A missing candidate clears the whole queue through the caller and leaves the actual turn waiting. Do not skip to a later intention.
-
-Actual candidates determine capture, en-passant victim, castle legality, check/pin/king safety, ambiguity and notation. The speculative picture supplies no accepted move metadata. Reconcile clock expiry at commit so a legal queued move cannot rescue an expired turn or acquire an increment at the deadline.
-
-**Assertions:** intended diagonal succeeds only if an actual legal capture/en-passant exists; opponent king attacks/check can invalidate a projected king/castle move; every promotion kind resolves exactly; actual capture changes are recorded from this board.
+Existing `GameMoveComposable._resolveMove` remains ordinary selected-board acceptance. This small helper uses the same existing rule calls on the **actual** board because selected-board `makeMove` would explore/rewrite during analysis/history.
 
 ### PRE-F08 - Publish a queue edit without a canonical move
 
-`append / board cancellation / consumption / rebase / invalidation -> private GamesStore runtime publication -> workspaceRevision`.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| New `GamesStore._publishRuntime()` | Only `workspaceRevision.value += 1`; no new counter |
+| Changed `_touchGame(game)` -> timestamp assignment -> `_publishRuntime()` | Existing canonical timestamp/publication semantics |
+| `_appendPremove`, `clearPremoves` or held-head completion -> injected `_publishRuntime()` | Runtime redraw only; no `_touchGame`, `_moveCommitted`, analysis refresh, clock operation or save |
+| Existing `GameView.game` read -> `workspaceRevision` -> `renderedBoard` computed | Raw nested edits become visible; stable canonical/queue values preserve previous input owner |
 
-Extract the existing shallow publication increment from `_touchGame` into one private runtime publication helper; canonical `_touchGame` continues updating `metadata.updatedAt` and publishing. Queue-only actions use the runtime helper, not `_moveCommitted`, analysis refresh, clock operations or autosave thresholds. A real commit retains its established history/clock/recording/autosave effects once; any combined queue publication does not duplicate those effects.
-
-**Assertions:** queue-only edits preserve canonical serialized bytes, metadata timestamp, clock, actual history and search starts while making the new copied pieces/red union visible.
+Shift then actual commit uses commit publication, without publishing a partial remainder in between. Empty clear is a no-op. Queue-only edits preserve canonical serialization and timestamp.
 
 ### PRE-F09 - Cancel the whole queue from the board
 
-`right-click a board square / touch tap a premoved piece -> Chessboard cancellation event -> captured GameView input action -> GamesStore.clearPremoves -> runtime publication -> canonical drawing`.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| Existing `Chessboard._onContextMenu(boardId)` | Board edit keeps `chessPieceDeleted`; eligible live-premove branch `_clearSelection` -> new `premovesCancelled` event, for any board square |
+| New `Chessboard._onPointerDown(boardId, event)` | Clear prior touch gesture; on eligible touch of an occupied premoved square, retain this pointer's `{ pointerId, boardId }` as component-local `touchCancellation`. No queue mutation yet |
+| New `Chessboard._onPointerUp(boardId, event)` / `_onPointerCancel()` | Up on another square/pointer or pointer-cancel clears the captured touch gesture; same-pointer/square release leaves it for its ensuing click. No completed queue entry or async token is stored here |
+| New `Chessboard._onClick(boardId)` -> `_clearSelection()` and Vue `premovesCancelled`, OR existing `_selectSquare(boardId)` | Consume a matching captured touch tap, clear gesture/selection and emit cancellation once, then return without selection/submission. Otherwise use normal mouse/keyboard square selection. Input-context replacement/unmount clears this pointer state through `_clearSelection` |
+| New `Chessboard._onKeyDown(event)` | Escape with unfinished selection/drag -> `_clearSelection`, return. Otherwise eligible queue -> cancellation event. Mounted promotion owns first Escape via existing modal lifecycle |
+| New `GameView.inputActions.cancelPremoves` -> `_runInputAction(owner, game => gamesStore.clearPremoves(game))` | Trust board eligibility to emit cancellation. Reuse only existing owner checks before/after playback cancellation, since that await can replace context. Do not repeat seat, result, pause or mode predicates in the callback |
+| New `GamesStore.clearPremoves(game)` -> `runtime.premoveQueue = undefined` -> `_publishRuntime()` | Whole FIFO only. No Takeback, engine cancellation, history or Undo-last. Empty -> return |
 
-- Use the agreed chess.com interaction: [right-click anywhere on the board](https://www.chess.com/terms/premove-chess) clears every remaining entry. On touch devices, [tap the premoved piece](https://support.chess.com/en/articles/8562432-what-are-pre-moves-and-how-do-they-work). Ordinary mouse selection of that piece still extends a chain. No count/list, Undo/Clear buttons or Undo-last API.
-- Require current eligible following-live input ownership, ongoing gameplay and no genuine pause. Analysis/review cannot cancel background intentions. Internal invalidation/explicit tab close needs no visible edit capability.
-- Right-click also cancels unfinished selection/drag/promotion. Escape first cancels unfinished input, then clears the queue on the next press in live premove context. Board-edit right-click retains its piece-deletion meaning.
-- Cancellation before head commit prevents that intention; after an atomic commit it removes only the remainder. Never call actual Takeback, undo played history or change clock ownership.
-- Remove an empty optional queue and rebuild artwork from canonical data; do not reverse speculative captures in place. Empty/repeated cancellation is a no-op.
+Store primitive is context-independent for structural/close callers; board permissions belong to guarded event. After synchronous shift/submission, cancellation affects remaining raw entries only; accepted head follows ordinary input settlement.
 
-**Assertions:** empty/ordinary/premoved squares right-click clear the whole queue; real touch taps cancel in both orientations; mouse chaining works. No counts/buttons appear in GameControlPanel. Paused/analysis/history, obsolete callbacks and another game's input cannot cancel this queue. Cancelling after actual Nf3 leaves actual Nf3/history intact.
+### PRE-F10 - Enter Analyse, review history and return
 
-### PRE-F10 - Analyse, navigate history and return
+| Caller and call | Existing function work, retained |
+| --- | --- |
+| `GameView.inputActions.analyse` -> `_runInputAction(owner, game => gamesStore.enterInGameAnalysis(game))` | Existing playback/continuation cancellation and owner recheck before explicit Analyse |
+| `enterInGameAnalysis` -> `getLivePosition`; `MoveApplicationService.genPosition(getRenderedPosition(game), [])`; `setRenderedPath(game, [...renderedPath], detachedCache)` | Detach selected canonical board even if paths have equal values; select existing live-analysis state preserving genuine pause; `_publishRenderedPosition(game, false)`. No pause/turn clear/FIFO snapshot |
+| `_navigateToNode(node)` -> `playback.cancel`; `_closeContinuation`; `gamesStore.navigateToNode(game, node)` | Existing membership/paused-exploration checks, `getPathToNode`, selected-path/state publication. History selection alone does not enter Analyse |
+| Analysis `makeMove` -> `_commitLiveAnalysisMove` -> `_advanceRenderedAnalysisBranch` -> `MoveApplicationService.applyMove` / `MoveHistoryService.addAnalysisMove` / `setRenderedPath` | Selected branch only; no FIFO edit or actual clock transition |
+| `inputActions.exit` -> `exitInGameAnalysis` -> `_returnToLiveNode` | Select latest actual live cache/path, preserve genuine pause/result, publish. Keep existing guarded request, no queue replay/Resume |
+| `_returnToLivePosition` -> `_navigateToNode(latestLiveNode)` | Same canonical return for history; PRE-F03 draws current remainder |
 
-`GameView input action -> playback.cancel -> existing enterInGameAnalysis/navigateToNode/exitInGameAnalysis -> canonical selection publication`; actual queue processing independently continues via PRE-F04-PRE-F07.
-
-Do not snapshot, move or rebind the queue on entry. Analysis begins at the selected canonical move, even when live references have equal values or the live drawing was displaced by premoves. Legal exploratory moves/PV prefixes change only the selected branch. Genuine paused analysis retains its existing exploration/history permission and actual pause ownership.
-
-Exit/Live selection uses existing `_returnToLiveNode`, selects the latest actual state, then PRE-F03 derives only the **current** remainder. No clock resume, queue replay, consumed-entry restoration or second provider start. An actual sibling appended below a selected analysis parent keeps the existing selected-branch protection; once that anchor is historical, Exit/navigation never prunes it retrospectively.
-
-**Assertions:** queue identity survives entry and may shrink/clear while away; selected canonical board/evaluation stays anchored; return draws only surviving intentions. Background current-turn arming does not depend on rendered equality.
+PRE-F04-F07 continues from actual commits independently. Historical-anchor branches remain history through Exit; existing current-parent prune only.
 
 ### PRE-F11 - Real Pause and final Resume
 
-`pauseGame(Manual/Menu) -> existing pauseClock/state/owner set`; `provider result -> PRE-F05 retains accepted output`; `resumeGame(reason) -> remove named owner -> remaining owners? return : resumeClock/state -> PRE-F04`.
+| Caller and call | Existing function work, retained |
+| --- | --- |
+| Store alias -> `GameClockComposable.pauseGame(game, reason)` | Reconcile expiry, add Manual/Menu. First pause -> `TimeControlService.pauseClock`, paused state, `touchGame`, `refreshRuntimeRegistrations`. Further owners do not restart work |
+| Accepted move -> `_playerMoveHandler` -> `runtime.deferredPlayerMove = move` | Existing detailed held-output slot, no actual node/increment. Pending fields clear; original handler-completion semantics |
+| Store alias -> `resumeGame(game, reason)` | Remove named owner only. Another remains -> `touchGame`, return without flush/shift |
+| Final Resume -> `TimeControlService.resumeClock` -> state -> `touchGame` -> `refreshRuntimeRegistrations` | Actual clock resumes independently of selected board |
+| Existing `resumeGame` -> `await flushDeferredPlayerMove(game)` | Take/clear held detailed output; actual readiness -> `commitLiveMove`; PRE-F06 revalidates remainder and retains successor request |
+| Existing `resumeGame` -> `requestPlayerMoveIfNeeded(game)` | Keep this final call. Already-registered successor hits existing pending guard |
 
-Retain the queue while paused. Do not start new off-turn submissions or execute/consume queued moves. Removing a non-final owner, Analyse entry and Exit never deliver held output. Final Resume drains the held actual result once, rebases the queue and can execute its due head/start the successor with analysis still displayed. Repeated Resume cannot replay a move or increment. An actual expiry still wins before an accepted move commits.
-
-**Assertions:** Manual, Menu and layered owners in both removal orders; paused exploration remains legal; no actual move/search successor/increment until final Resume; one held reply is retained rather than lost to an early flush.
+Pause before request prevents shift. Pause after shift but before handler microtask holds that head; only tail stays queued. Resume flushes without shifting again. Paused analysis calls PRE-F10 and never removes Manual/Menu. Actual expiry still wins.
 
 ### PRE-F12 - Actual rewrites, changed seats, setup and results
 
-`Takeback / confirmed rewrite / changed reassignment / root or setup replacement / result finalisation -> cancel selected unfinished input/playback as applicable -> close actual acceptance -> clear FIFO -> abort/drain old actual turn -> existing canonical action -> request eligible actual work through PRE-F04`.
+| Entry and specific calls | Queue insertion point and branch/return |
+| --- | --- |
+| `_requestMoves` -> `modal.open(ConfirmationModal)` -> `_confirmContinuation(pending, signal)` -> `_applyMoves` -> `makeMove` | Existing signal/game/node/mode/pause/result/Takeback checks before submission; cancelled/obsolete confirmation preserves FIFO |
+| `_commitHistoryRewriteMove` -> capture selected node/position/path -> `await playerTurn.clearPlayerTurnRuntime(game)` -> existing context recheck | **After successful recheck**, `clearPremoves(game)` immediately before `setLivePath`. Failed recheck retains FIFO and requests eligible existing actual work. Generic turn cleanup does not clear queue |
+| Accepted rewrite -> `setLivePath` -> `clock.startClock` -> `clock.reconcileTimeout` -> `_applyLiveMove` -> `_finaliseLiveMove` | Existing rewrite keeps old sibling variation; do not call `commitLiveMove` or alter pruning |
+| `takeBack` -> existing exploration/pause/allowTakeback/count handling -> actual `getLiveNode` | Keep existing no-op/count handling, without an extra predecessor validator. Await existing `clearPlayerTurnRuntime` / `stopEngine`; clear FIFO immediately before `MoveHistoryService.takeBack`, then selectors/clock/state/publication/existing request |
+| `reassignPlayer` -> `createPlayerSnapshot` -> existing schema-equal/BoardEdit handling -> existing turn cleanup/optional `stopEngine` | Equal/forbidden keeps existing return/throw. After awaited cleanup, call `clearPremoves` immediately before seat mutation, then existing state/publication/request. Do not later recheck queue owner |
+| `replaceWithAnalysisRoot(game, rootPosition, nextState)` | Clear FIFO before replacing root/tree/selectors; retain clock/result/publication. Existing effective board-edit root replacement calls this function |
+| `startGameFromSetup` -> existing `disposeAnalysisForGame` / `clearPlayerTurnRuntime` -> seat/root/time-control transition | After existing awaited cleanup, clear immediately before replacing canonical ownership. Retain actual clock/analysis/start calls; no queue-owner validator |
+| `GameStatusComposable.resignGame` / `acceptDrawOffer` | Existing action/offer handling and awaited turn cleanup, then `clearPremoves` immediately before terminal mutation. Retain clock/publication. Offer/decline/withdraw do not clear |
+| `_finaliseLiveMove` -> `updateGameResultFromLivePosition` -> `_revalidatePremoves` | Actual mate/draw retains completed node/final clock, clears remainder; existing readiness blocks successor. Analysis mate does not clear |
+| `syncClock` -> `_settleTimeout` -> `_finaliseTimeout`, OR `commitLiveMove` -> `reconcileTimeout` -> `_finaliseTimeout` | Inject `clearPremoves` in `_finaliseTimeout` before terminal publication. Keep expiry/settlement checks and no post-deadline increment |
 
-Preserve no-op/cancelled actions: blocked or disabled Takeback, cancelled/stale rewrite confirmation and schema-equal reassignment do not clear a valid queue. Confirmed historical rewrite still cancels actual work before replacing its selectors; actual Takeback always chooses the live node/count even if another branch is selected. Root replacement explicitly clears the old queue before discarding the tree.
+These are queue-only insertions at named accepted actions. `_clearPendingPlayerTurn`, `_playerMoveHandler`, engine delivery and resource-stop ownership stay unchanged. Independent turn-hardening defects are not silently included.
 
-For a mate/draw caused by a real committed move, preserve that completed node and its final clock snapshot, then clear the remainder and stop successor scheduling. Timeout settles once and prevents a not-yet-committed head. Exploratory mate/draw is not an actual result and leaves the queue alone. Do not restore old intentions on later Exit, takeback-after-result or a return to equal coordinates.
-
-**Assertions:** test cancellation before commit and after completed commit separately; stale provider/input cannot mutate a replacement; one game's structural action leaves another game's queue untouched.
+Queue clearing and the actual seat/root/continuation/result mutation occur together after existing awaits. Any valid old-context input accepted during cleanup is therefore cleared at that mutation; no consumer needs a defensive owner comparison to repair the transition. Keep the existing post-await context/cancellation checks where the action itself can become obsolete.
 
 ### PRE-F13 - Navigation, close, save and hydrate
 
-`menu/route/tab selection -> existing view playback cancellation and Menu policy -> retain game.$.premoveQueue`; `return -> canonical selection + PRE-F03 current remainder`.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| `_handleMenuInterruptionRequested(action)` -> `playback.cancel` -> optional `pauseGame(game, Menu)` -> `action()` | Keep FIFO; actual pause only under existing Menu setting |
+| `_selectTab` -> `setActiveGame` -> `router.push`; route update -> `_activateGame` | View selection retains completed queue. Existing activation cancels unfinished playback/continuation and completes Menu interruption |
+| `_handleMenuInterruptionCompleted(game)` -> `resumeGame(game, Menu)` | Remove only Menu, preserve Manual; return draws current remainder |
+| Changed `_closeTab(id)` -> `getGame(id)` -> `clearPremoves(closedGame)` -> existing `uiStateStore.closeTab(id)` -> route | Clear that game's FIFO even inactive/paused. Tab close does not delete game or dispose actual turn |
+| Proposed GamesStore `onScopeDispose` callback -> per-game `clearPremoves`, `clearPlayerTurnRuntime`, player `stopEngine`, `analysis.disposeAnalysisForGame`, focus unsubscribe | Use existing cancellation/resource APIs at actual scope disposal, settle/log cleanup failure. No new turn `disposeGame` API; no disposal on view unmount |
+| Existing `SavedGamesStore.saveGame` -> `SerializationService.writeGameDocument` -> `serialiseGame` | Schema omits `$`. Saving in memory preserves FIFO; no speculative data persisted |
+| `deserialiseGame` -> store `insertGame` -> `_hydrateAndInsertGame` -> `position.hydrateGame` -> `createGameRuntime` | Empty fresh runtime; saved genuine pause reconstructed as Manual; normalise seats/insert raw game/existing eligible request. No queue restore |
 
-Menu return removes only Menu; switching the displayed game alone is not a runtime queue cancellation or execution pause. Explicit tab close clears that game's FIFO and view input before `UiStateStore.closeTab`; this existing function removes only a session tab, not the canonical game. Preserve the existing actual-game lifecycle instead of inventing a game deletion/disposal API. Actual game/store disposal additionally aborts/drains resources at their real owner.
-
-`SerializationService.serialiseGame/export -> existing schema omits $`; `deserialiseGame/insertGame -> hydrateGame creates fresh runtime -> no queue`. In-memory save/export preserves the original queue. A restored paused game reconstructs Manual ownership only, and actual work resumes solely through its existing eligible activation/Resume path.
-
-**Assertions:** queued/consumed state stays isolated across games and remounts; close clears only the closed queue; loaded queues are absent; actual saved paths, canonical FEN, clock/result and analysis records contain no speculative data.
+Scope disposal's exact calls are listed to prevent an invented turn-lifecycle abstraction. Single-game changes/close leave another game's queue/resources untouched.
 
 ### PRE-F14 - Gestures, suggestions and stale input
 
-`own-piece click/drag/keyboard -> genCandidateMovesForPiece(projectedPosition, from) -> IMoveRaw -> PRE-F01/PRE-F02`; own-turn and explicit-analysis input use canonical legal targets with the same raw-move contract.
+| Caller and call | Function work and branch/return |
+| --- | --- |
+| Existing view context -> Chessboard selection/`:draggable` bindings | Establish selectable colour from `premoveColour` or canonical due colour and existing input-disabled/edit context. Offer drag only for eligible displayed pieces; this input boundary owns selection eligibility |
+| `Chessboard._selectSquare` / `_onDragStart` | Selection distinguishes friendly source from destination; drag handler accepts the offered piece and records its square. Do not add another seat/source/candidate validator inside drag, emit or transport. Keep existing board-edit and lifecycle behaviour |
+| Changed `legalMoves` computed -> `genCandidateMovesForPiece(displayedPosition, selectedBoardId)` in premove mode | Otherwise existing `genLegalMovesForPiece(position, selectedBoardId, lastMove)`. Same raw targets feed `_isLegalTarget`, `_commitTarget`, `_onDrop` |
+| `_commitTarget` -> `modal.open(PromotionModal, { moves, colour, onSelected: _choosePromotion })` | Explicit choice before emission; premove chooser colour is projected source/local colour, not actual engine side |
+| Existing `_choosePromotion` -> `_emitMove` -> `inputActions.move` | Choice belongs to current `pendingPromotionMoves`; detached old modal cannot emit. PRE-F01/F02 transports raw intention |
+| AnalysisPanel Vue `moveSelected(rawPrefix)` -> `inputActions.line` -> `_playAnalysisLine` | Respect suggestion-playability setting. Own actual turn uses first move; explicit/free/result analysis uses full canonical prefix |
+| Changed off-turn `_playAnalysisLine` -> `_requestMoves([moves[moves.length - 1]])` | This PV input boundary offers only a local-colour possible candidate: derive clicked mover from canonical PV side/prefix parity and match the final raw entry against `genCandidateMovesForPiece(displayedPosition, from)`. A non-playable suggestion is not forwarded. Board selection already has its own candidate query; append repeats neither query. Do not enqueue preceding replies |
+| Existing `_applyMoves` -> detached canonical preview -> `isMoveLegal`, `toDetailedMove`, `MoveApplicationService.applyMove` for all steps | Due input/history/analysis only, never off-turn speculation. Bad suffix rejects before first submitted move |
+| Existing `_applyMoves` -> `playback.run` -> step `abortableDelay` / signal/context checks -> `await gamesStore.makeMove` | Retain delay/selected path/mode/result/capability owner, no FIFO promises |
+| Existing board `onBeforeUpdate/onBeforeUnmount` -> `_clearSelection`; route hooks -> `_closeContinuation` / `playback.cancel/dispose` | Extend compared display/colour/queue values. Relevant base/queue/permission/mode/game/result change cancels unfinished input; independent unchanged analysis ignores background queue changes |
 
-The board emits raw candidates; do not generate speculative detailed moves or add source-kind fields. Promotion must be explicitly chosen in the mounted `PromotionModal` before emission. Derive chooser colour from the local projected source. Unfinished selection/drag/promotion stays outside the FIFO; input replacement/unmount closes the captured modal handle.
+### Rule-query calls used by PRE-F06/PRE-F14
 
-Keep suggestion visibility/playability preferences independent. Own-turn gameplay uses the existing first actual PV move. The raw selected-prefix event retains the clicked index through its length: derive its mover from the captured canonical PV source side and parity (odd length is that side, even length is the opponent). Off-turn gameplay requires that mover to be the local seat, then takes only the final raw entry as one intention validated against the current FIFO. A projected piece on the same source square must not turn an engine-colour click into local input. Never enqueue preceding opponent replies or a predicted prefix; an engine-colour click cannot steal its turn. Explicit Analyse retains canonical full-prefix validation/playback; ordinary history retains confirmation.
+| Proposed `genCandidateMovesForPiece` calls | Work and branch/return |
+| --- | --- |
+| Existing `_genPieceMoves(position, from, source)` for knight/sliders | Geometry/blockers reused; filter friendly targets/opposing king capture. Source piece supplies colour, not actual side due |
+| Existing `_genPawnMoves` plus `_genPawnAttackMoves` | Keep empty-path pushes/start-rank double; add feasible empty diagonals, expand last-rank promotions to existing four choices, deduplicate. No new public pawn API |
+| Existing `_genOffsetMoves`, `_hasCastlingAvailability`, `_findCastleRook`, `_isCastlePathClear` for king/castle | Occupancy/rights/rook/path, without attack/king-safety filtering. Earlier projected movement cannot restore rights |
+| Return raw `IMoveRaw[]` | No detailed metadata, actual-turn gate, queue or red IDs; no premove library. Actual due legality stays in PRE-F07 |
 
-Bind callbacks to the input owner. Cancel selection/drag/promotion/PV on queue/base/mode/game/result/capability replacement. Late callbacks cannot become fresh input. Unrelated evaluation or actual progress behind an unchanged independent analysis board preserves its valid selected input. Delayed analysis playback retains its existing lifecycle owner.
+The PRE-S01-PRE-S25 matrix below names entry/decisive function calls and their PRE-F references. Tests use actual owners/actions, not a parallel test-side queue engine.
 
-**Assertions:** both local colours/orientations and supported gestures agree; touch tap cancellation is a cancel gesture, not a move submission. Detached promotion choices, old board-action callbacks, stale drops and delayed prefix steps cannot mutate replacement ownership.
 
 ## Presentation
 
@@ -418,7 +568,7 @@ Own board/queue styles in [board.css](../src/assets/styles/board.css) without pr
 | --- | --- |
 | Analyse entry, analysis moves, history review, return/exit | Queue remains game-owned and executes in the background. These actions affect selection/input, not the actual clock |
 | Temporary menu/game-tab navigation | Preserve the same in-memory queue. Continue actual execution unless an existing Manual/Menu pause really applies |
-| Manual/Menu pause or final real Resume | Retain queue/accepted output while paused; final real resume re-enters the same actual driver once |
+| Manual/Menu pause or final real Resume | Retain queue/accepted output while paused; keep existing held-output flush and duplicate-guarded turn requests |
 | Queue invalidation | Clear every remaining intention, not a suffix. Already played history remains |
 | Actual Takeback, confirmed history rewrite, changed seat, setup/root replacement | Close old input, cancel queue, abort/drain actual turn, then change canonical ownership. No-op/cancelled actions preserve it |
 | Result/timeout/resignation/draw/abandonment | Clear queue, settle actual work, stop live arming. Analysis remains review-only; exit cannot revive play |
@@ -456,7 +606,7 @@ An example scenario row can be encoded as:
   actualMoves: ['e2e4'],
   queue: [N1, N2],
   events: [
-    { kind: 'providerMove', uci: 'e7e5' }, // drain also commits the due N1
+    { kind: 'providerMove', uci: 'e7e5' }, // existing successor request submits N1
     { kind: 'cancelPremoves' },
   ],
   expected: {
@@ -478,13 +628,13 @@ The event interpreter is **test code**, not a new production dispatcher. `provid
 | --- | --- | --- |
 | U-P: pure chess data | Existing `src/utility/__tests__/GameRuleUtility.spec.ts` | Speculative piece candidates and existing due legal moves/details; no queue, UI shading or seat ownership in the rule API. Deep-freeze candidate-query inputs or compare before/after |
 | U-S: state data/actions | New `src/state/__tests__/Premove.spec.ts` using existing fixture/rule helpers | Exact queue entries/order, seated player reference, actual/selected paths and FENs, tree identities/records, result, clocks and runtime-only publication. Use actual public actions and meaningful observable failures |
-| U-O: actual-turn integration | Premove state tests plus existing turn/runtime regressions | Deterministic provider acceptance/start/cancellation traces, one commit per turn, acknowledgements, pause/timeout ordering and no repeated increment/ponder. Fake only external provider/readiness/time boundaries; keep rules/history/time-control logic real |
-| V: mounted input/projection | New `PremoveView.spec.ts`, with existing `GameView.spec.ts` and `Chessboard.spec.ts` regressions | Full copied piece map and unique red squares from plain projection cases; invalid suffix shows canonical fallback without a partial projection or getter mutation. Automatic routing, board cancellation, selected-input ownership, unfinished promotion/drag and full-prefix analysis cancellation |
+| U-O: actual-turn integration | Premove state tests plus unchanged existing turn/runtime regressions | Existing Deferred is registered before queue submission; shift once and use `attemptPlayerMove`, one commit per turn, original handler completion, pause/timeout ordering and no repeated increment/ponder. Fake only external provider/readiness/time boundaries; keep rules/history/time-control logic real |
+| V: mounted input/projection | New `PremoveView.spec.ts`, with existing `GameView.spec.ts` and `Chessboard.spec.ts` regressions | Full copied piece map/red squares from valid queue data. An actual invalidating move clears the FIFO in state before drawing; no malformed-input/getter-fallback contract. Automatic routing/cancellation/input ownership and promotion/playback remain covered |
 | J: browser/platform | New premove journey plus affected existing Analysis/History/Clock/engine-race/Promotion checks | Actual gestures, accessible/focus layers, both orientations, visible background progression and native protocol evidence only where executed |
 
 For every state event assert both the changed data and important untouched data. Queue edits preserve serialized canonical bytes, timestamps, history/clock/move count and analysis-search starts. Actual commits advance history, timestamps, clock/increment and recording once, while an independently selected canonical board stays unchanged. Queue cancellation never undoes already committed moves.
 
-Write U-P/U-S cases first and record the failing baseline before premove behaviour changes. The already passing `PremoveData.spec.ts` covers only contract serialization/hydration, and the analysis tests cover only the prerequisite. Missing imports, missing methods or type errors alone are not meaningful behavioural red evidence. Add controlled U-O tests before replacing the actual-turn flow; add V/J tests for their presentation boundaries. Do not mock the chess rules, actual board projection or store action being tested.
+Write U-P/U-S cases first and record the failing baseline before premove behaviour changes. The already passing `PremoveData.spec.ts` covers only contract serialization/hydration, and the analysis tests cover only the prerequisite. Missing imports, missing methods or type errors alone are not meaningful behavioural red evidence. Add controlled U-O tests before adding the local-turn hook; add V/J tests for their presentation boundaries. Keep rules real in rule/board/progression tests; a call-boundary test may use a failing projection spy to establish that append never calls it. Never mock the append action under test.
 
 ### Raw-contract test migration
 
@@ -492,16 +642,20 @@ First complete PRE-RAW's tests-first submission refactor. Then write the small r
 
 - Replace the custom entry imports/fixtures with `IMoveRaw` and bare `{ from, to, promotionPiece? }`. Remove the fixture helper's expected-kind argument and queue `movingPiece` fields; retain piece kinds on canonical pieces/actual move expectations.
 - Replace impossible "wrong stored expected kind" checks with source geometry/colour, missing sources and invalid promotion cases. Do not retain a hidden field merely to keep an obsolete assertion green.
+- The append correction supersedes the `invalid new append preserves...` scenario and the invalid-append/unfinished-promotion store rejection parameterisations. Move these examples to candidate/board/PV input tests, where impossible moves are never offered/emitted. Store append tests supply possible stable moves and assert object identity, order, ownership, publication and zero copying/projection/rule calls. Keep separate tests for actual replies invalidating accepted entries. This documentation edit leaves existing tests in place; update those superseded assertions before the next implementation rather than writing validation to satisfy them.
+- The wider contract audit also supersedes drawing tests that inject impossible queues and expect silent fallback, injected cloned-seat rejection tests and new turn-helper tests that repeat full revalidation. Test actual seat/root actions establishing ownership instead; test an opponent reply invalidating a real queue at PRE-F06. Assert valid drawing makes no candidate query and local turn execution makes no projection/whole-queue query. Wrong-colour drag and unavailable cancellation cases should assert what the input surface offers, rather than bypassing it with a forged event and expecting every downstream helper to reject it. Keep existing asynchronous stale-input tests at their actual owner boundary.
 - Replace button/count/Undo cases with whole-queue cancellation. Cover right-click on empty/ordinary/premoved squares, touch tap versus mouse selection, Escape priority, board-edit deletion, no-op cancellation and stale callbacks.
-- Exercise real public store actions with raw fixtures, not a cast to `IMove` or a test-side queue implementation. Assert exact copied fields and dropped incoming `$`/detailed metadata. Keep rules, clocks, history and serialization real; fake only external providers/time.
+- Exercise real public store actions with raw fixtures, not a cast to `IMove` or a test-side queue implementation. Assert the same supplied move references reach the FIFO and consumers do not mutate coordinates/promotion; actual accepted details still come from the canonical board. Keep rules, clocks, history and serialization real; fake only external providers/time.
 - Retain PRE-S01-PRE-S25 and existing analysis/pause/runtime regressions. Add raw promotion dependencies, Black queuing before its first actual move and cancellation before/after actual commit.
 - Refresh counts from executed runs. Missing imports/type errors alone are not meaningful behavioural failures; do not skip/expected-fail assertions to manufacture a green report.
 
+The copying correction also supersedes tests asserting distinct raw objects, dropped extra fields, or isolation after a producer mutates submitted coordinates. Replace them before implementation with reference-identity/no-consumer-mutation assertions across board, PV, view, confirmation and FIFO. Assert one board clone per revalidation pass, and no castle board snapshot or per-entry clone; keep required canonical-isolation assertions. Existing tests remain unchanged in this planning turn.
+
 ### Rule fixtures required in addition to the scenario sequence
 
-| Input data | Projection/append expectation | Due-turn expectation |
+| Input data | Candidate/input or projection expectation | Due-turn expectation |
 | --- | --- | --- |
-| Empty/opponent source, geometry incompatible with the real source, friendly target, opposing king target, non-integer/out-of-range coordinates | Reject a new candidate without corrupting an existing valid FIFO; accepted stale data detected on rebase clears the whole FIFO | Never create an actual node or resolve another seat's turn |
+| Empty/opponent source, geometry incompatible with the real source, friendly target, opposing king target, non-integer/out-of-range coordinates | Rule/input boundary offers/emits no such premove. Append trusts its caller and has no rejection test for injected impossible input. An actual board change invalidating accepted data clears the whole FIFO on rebase | Never create an actual node or resolve another seat's turn |
 | Knight or king currently pinned/in check or targeting an attacked square | Speculative geometry may project; no claim of actual king safety | Resolve only if an actual legal candidate exists; otherwise clear all remaining entries |
 | Bishop/rook/queen blocker introduced at an early or later step | Whole existing sequence becomes invalid; no displayed valid prefix | No due head executes if a later entry is already unprojectable |
 | Pawn single/double push, blocked intermediate square, wrong direction/rank | Respect own projected movement/start rank and empty path | Recompute actual legal candidate after the reply |
@@ -509,7 +663,7 @@ First complete PRE-RAW's tests-first submission refactor. Then write the small r
 | Castling with missing rights/rook/path; king/rook projected away and back | Missing rights/path rejects projection; preceding intentions cannot restore lost rights | Also require actual safe king/path/destination |
 | Each queen/rook/bishop/knight promotion followed by that piece moving; also missing/King/Pawn promotion choices | Require a completed valid choice; derive promoted kind from the copy; unfinished choice stays outside the queue | Match exact chosen kind and regenerate actual capture/check/notation |
 | Same-square repeat, repeated intermediate square and multiple pieces | Geometry rejects null moves; legitimate shared squares produce one red fill | Preserve FIFO dependency order; no entry IDs or speculative nodes |
-| Equal-looking cloned player or actual seat/root replacement | Reject a different player object; seat/root replacement explicitly invalidates the whole queue even if coordinates/FEN match | Whole clear, with no provider/actual mutation from the old queue |
+| Actual seat/root replacement, including equal coordinates/FEN | Accepted structural action clears the queue at mutation. Creation binds the actual local seat; consumers trust this invariant without cloned-owner rejection branches | No old queue survives replacement or changes actual turn ownership |
 
 ## Concrete scenarios for unit tests
 
@@ -517,44 +671,65 @@ These retain all **PRE-S01-PRE-S25** from the conflict record with explicit seed
 
 | ID | Given / when | Function path | Required data and effects |
 | --- | --- | --- | --- |
-| PRE-S01: chained drawing | Seed A; submit N1 then N2 during the same held Black turn | PRE-F01 -> F02 -> F08 -> F03 | FIFO `[N1,N2]`, player is actual White seat; validation reads the current live e4 position. Display Ng5, empty g1/f3; red `{6,21,38}`. Canonical knight stays g1; live/rendered paths, history, clock, timestamp and engine-search count unchanged |
-| PRE-S02: consumption and cancellation | A with `[N1,N2]`; release e7e5, drain N1, then cancel before another reply | PRE-F05 -> F04 -> F07 -> F06 -> F09 -> F03 | Actual line e4/e5/Nf3; N2 alone projects on actual Nf3 with red `{21,38}`. Board cancellation removes the remainder/red; actual Nf3/history and the once-started Black successor remain |
-| PRE-S03: marks, orientation and board cancellation | A with chained/shared-square sequence; flip orientation; right-click empty/ordinary/premoved squares or touch a premoved piece | PRE-F03 -> F09/F08 -> F03 | Same displaced pieces/unique red set in both orientations. Whole clear restores canonical artwork with no actual move/clock/search effect. Mouse selection still chains; touch tap cancels. No counts/buttons/Undo-last; empty cancellation is a no-op |
-| PRE-S04: special drawing | R fixtures for speculative capture, promotion with a following promoted-piece step, and castling | PRE-F02 -> F03; F09 to cancel; F07 when due | Projection hides a target without adding actual captures; displays exact chosen promotion and both castle pieces; red includes rook endpoints. Clear restores canonical pieces. Actual rights/check/result and canonical FEN never come from projection; due resolution uses real legality |
-| PRE-S05: explicit analysis entry | A with `[N1,N2]`, held actual search; press Analyse, then in a separate case only select history | PRE-F10 with PRE-F03 display switch | Analyse uses selected canonical node/position without displacement or red fill; queue/actual owner/search/clock preserved. Plain history selection does not enable exploration or edit the queue. Analysis entry itself consumes nothing |
-| PRE-S06: independent exploration | S05; make legal analysis moves including coordinates that match queued intentions, while releasing actual replies | PRE-F10 independently of F05/F04/F06 | Analysis changes only its selected branch. Actual commits alone consume/rebase queue, update actual clock and start successor searches. Selected board/evaluation stays on its analysis node, including when actual and selected sides differ |
-| PRE-S07: Exit before reply | A with queue; enter/Exit before delivering e7e5; repeat Exit | PRE-F10 -> F03; later F05/F04 | Return displays canonical actual board plus unchanged current remainder; no premature local move, clock resume, duplicate search or replay. Later reply still consumes one legal head through its original owner |
-| PRE-S08: successive background turns | A/C with N1, N2, then f1-c4; enter Analyse or ordinary review. Release e7e5, b8c6, g8f6 in order, repeating wake/delivery attempts | PRE-F05 -> F04 -> F07 -> F06 for each turn | Actual line alternates Black reply/one White intention three times before Exit. FIFO drains in order; one provider per Black turn and one increment per mover at its commit timestamp. Selected canonical board/path remains fixed. After the subsequent Black reply, the now-empty local queue leaves a waiting actual local turn |
-| PRE-S09: background invalidation | R with a queue; legal actual reply captures its intended source, adds a blocker or makes the due head illegal through check/pin | PRE-F05 -> F04 -> F06/F07 -> F08 | Opponent move commits once; whole remaining queue/red union disappears, local actual turn waits and its clock runs. No invalid local node/increment or retained suffix. Selected independent analysis/history board survives |
-| PRE-S10: genuine paused analysis | A/C with queue; enter Analyse; add Manual/Menu in both orders; deliver actual reply; remove non-final then final owner | PRE-F10 -> F11 -> F05 -> F11/F04 | Queue and accepted reply retained; paused analysis moves/history still work. No actual commit/consumption/increment/successor while any real owner remains. Final Resume commits reply/head and starts successor once without requiring Exit; repeated Resume is ineffective |
-| PRE-S11: ordinary review | A with queue; select an old/sibling node, release multiple actual replies, then return live | PRE-F10 + F04-F07 -> F03 | No queue editing from review, but valid queued moves continue. Canonical selected node remains stable, actual status/progression may update. Return projects current remainder only, never entry-time consumed entries |
-| PRE-S12: selected historical anchor | Actual line has several plies; queue belongs to the actual live game. Select earlier node and explicitly Analyse with Takeback allowed and disabled | PRE-F01 -> F10 | Analysis anchor is that historical canonical node. Exploratory board/PV moves do not open rewrite confirmation or append/clear queue. Queue validation still uses the actual live position, not selected history; actual progression continues |
-| PRE-S13: confirmed rewrite | A progressed beyond selected historical prefix with queue; request allowed history continuation, cancel, reopen/confirm; also deliver stale confirmation after mode/node change | PRE-F01 -> existing confirmation -> F12 | Cancel/stale/disabled confirmation preserves queue and actual game. Valid confirmed rewrite cancels FIFO and old actual provider before replacing selectors, retains played variation, relocates selection safely and starts only eligible replacement actual work. Old callback cannot commit |
-| PRE-S14: actual Takeback | Analyse away from actual live node with a queue; try disabled/paused Takeback, then an allowed live Takeback during thinking and after a reply | PRE-F12 -> existing live-node/count rewind | Blocked action leaves queue intact. Allowed action clears queue and rewinds actual history/count/clock, never just the selected analysis branch. Pending output is drained; invalid selected path/input relocates. Board cancellation remains PRE-F09 and cannot remove played history |
-| PRE-S15: suggestion routing | Move-enabled/score-only fixtures; choose own-colour suggestion on own turn, opponent turn, history and explicit Analyse; try engine-colour input | PRE-F14 -> F01 -> F02/F04/F10/F12 | Own due input commits one move, off-turn input appends one intention, explicit analysis plays selected legal prefix, ordinary history retains confirmed rewrite policy. Reject engine-colour raw prefixes by source-side/parity even when their source square overlaps a projected local piece. No opponent PV replies enqueued, implicit replacement or theft of engine turn; visibility preference stays independent |
-| PRE-S16: active branch lifetime | From current actual parent, enter Analyse/explore descendants; actual reply/head advances while selected; Exit, navigate, save/reload. Separate case exits before any actual advance | PRE-F10 + F04/F06; existing prune boundary | Selected analysis descendants are protected while actual siblings append. Once anchor is historical, branch remains through Exit/navigation/persistence. Existing current-parent temporary prune applies only to its already-defined next actual move case; no release/Exit cleanup registry or ancestor blanket prune |
-| PRE-S17: seat/first-move ownership | H in both colours/orientations; retain old click/drop/promotion/Analyse callbacks across handoff; repeat E and B0 | PRE-F14 -> F01/F02 | No queue for H/E; stale previous-side callbacks do nothing, fresh hotseat input belongs to the newly due side. B0 permits raw Black intentions before Black has played; source colour comes from the board and seat, not a node anchor |
-| PRE-S18: unfinished input | A/R with drag or unfinished promotion; change actual base, queue via cancellation/rebase, mode or route; separately publish only evaluations. During delayed analysis prefix Exit/receive actual result | PRE-F14 -> selected-input reset/cancel; F09/F10/F12/F13 | Obsolete gesture/promotion/PV cannot append or commit into new ownership; incomplete choice never entered queue. Completed entries survive non-invalidating navigation/analysis. Mere evaluation behind unchanged selected board preserves valid input; result/context replacement stops delayed playback |
-| PRE-S19: navigation and close | Two games with separate queues; visit Settings with Menu pause on/off, switch tabs/return, then explicitly close one tab | PRE-F13 with F11 as applicable | Temporary navigation retains/executes queues unless a genuine pause applies. Return draws surviving remainder without replay. Explicit close clears only that game's FIFO/view input; existing `closeTab` is not game disposal. Other queue/actual work unaffected; actual game disposal additionally drains its real resources |
-| PRE-S20: later dependency invalid | R where the new actual board still permits the head but blocks a later intended step; release that reply | PRE-F05 -> F06 -> whole-sequence project failure | Clear all remaining entries immediately **before** the local head commits; no valid-prefix move/node/increment, unavailable tail or later revival. Actual opponent move remains; local turn waits |
-| PRE-S21: terminal or structural change | Queue with provider pending; timeout, actual mate/draw, accepted resignation/draw, changed seat, unassignment or setup/root replacement. Also cancelled/no-op actions and late old output | PRE-F12 with F05/F04 ownership | Real invalidating transition clears queue and closes old acceptance before replacement; terminal actual move/clock/result remain final and no successor starts. Repeated/late output cannot affect replacement. No-op reassignment/cancelled action and exploratory mate preserve queue. Other game's data is unchanged |
-| PRE-S22: engine/save isolation | A/R with FIFO/projection and independent analysis seats; edit queue, save/export, continue in memory, then load/import a separate game | PRE-F08/F03 -> F13; existing recording boundary | Queue edits do not restart analysis or change canonical rendered FEN, captures, history or timestamp. Available actual-parent analysis is recorded once; unrelated selected output is not copied. Save preserves original in-memory FIFO, serialized schema omits runtime/projection, loaded game starts empty |
-| PRE-S23: equal-path race | A with queue; enter Analyse and make no exploratory move; release e7e5 immediately | PRE-F10 -> F05/F04/F06 | Actual e5/head and successor progress with no Exit; selected canonical entry snapshot/path/cache stays independent even though path values initially matched. Queue validation uses the current actual live position; selected picture has no red displacement |
-| PRE-S24: actual clock in analysis | C on local turn with no queue; enter Analyse; explore without committing actual move; advance explicit timestamp to expiry, then deliver stale Exit/Resume/input. Repeat expiry racing a queued head | PRE-F10 -> existing syncClock/commit expiry -> F12 | Actual human clock keeps running and expires once. Exploratory moves add no time/increment. Timeout clears queue/actual ownership; stale actions cannot revive result or rescue an uncommitted head at deadline |
-| PRE-S25: legacy paused restore | Load old paused live-analysis save, visit/cancel Menu, explicitly Resume while still analysing | PRE-F13 -> F11 -> F04 | Empty queue after restore, selected canonical node preserved and Manual-only reconstructed pause ownership. Menu cannot clear Manual. Final Resume permits actual work without an extra Analysis owner/Exit; no old runtime entry is restored |
+| PRE-S01: chained drawing | Seed A; board supplies possible N1 then N2 during the same held Black turn | `makeMove -> _appendPremove -> _publishRuntime`; separately `renderedBoard -> getPremoveProjection` (F01-F03/F08) | FIFO `[N1,N2]`, player is actual White seat; append pushes the exact supplied references and publishes, without copying or reading/projecting the board. Rendering separately displays Ng5, empty g1/f3; red `{6,21,38}`. Canonical knight stays g1; live/rendered paths, history, clock, timestamp and engine-search count unchanged |
+| PRE-S02: consumption and cancellation | A with `[N1,N2]`; release e7e5, request/shift/submit N1, then cancel before another reply | `_playerMoveHandler -> commitLiveMove -> _finaliseLiveMove -> _requestPlayerMove -> _tryPremove -> attemptPlayerMove`; `clearPremoves` (F04-F09) | Actual line e4/e5/Nf3; N1 shifted once at local request, not again at commit. N2 alone projects on actual Nf3 with red `{21,38}`. Cancellation removes remainder/red; actual Nf3/history and once-started Black successor remain |
+| PRE-S03: marks, orientation and board cancellation | A with chained/shared-square sequence; flip orientation; right-click empty/ordinary/premoved squares or touch a premoved piece | `getPremoveProjection -> applyPremoveProjection`; `_onContextMenu/_onClick/_onKeyDown -> inputActions.cancelPremoves -> clearPremoves` (F03/F09) | Same displaced pieces/unique red set in both orientations. Whole clear restores canonical artwork with no actual move/clock/search effect. Mouse selection still chains; touch tap cancels. No counts/buttons/Undo-last; empty cancellation is a no-op |
+| PRE-S04: special drawing | R fixtures for speculative capture, promotion with a following promoted-piece step, and castling | `_appendPremove -> _publishRuntime`; separately `getPremoveProjection -> applyPremoveProjection -> MoveApplicationService.applyMove`; due `_tryPremove -> genLegalMovesForPiece -> toDetailedMove` (F02/F03/F07) | Projection hides a target without adding actual captures; displays exact chosen promotion and both castle pieces; red includes rook endpoints. Input supplies completed promotion; append does not recheck it. Clear restores canonical pieces. Actual rights/check/result and canonical FEN never come from projection; due resolution uses real legality |
+| PRE-S05: explicit analysis entry | A with `[N1,N2]`, held actual search; press Analyse, then in a separate case only select history | `inputActions.analyse -> _runInputAction -> enterInGameAnalysis`; separately `_navigateToNode -> navigateToNode` (F10) | Analyse uses selected canonical node/position without displacement or red fill; queue/actual owner/search/clock preserved. Plain history selection does not enable exploration or edit the queue. Analysis entry itself consumes nothing |
+| PRE-S06: independent exploration | S05; make legal analysis moves including coordinates that match queued intentions, while releasing actual replies | `makeMove -> _commitLiveAnalysisMove -> _advanceRenderedAnalysisBranch`; independently `_playerMoveHandler -> commitLiveMove` (F05/F06/F10) | Analysis changes only its selected branch. Actual commits alone consume/rebase queue, update actual clock and start successor searches. Selected board/evaluation stays on its analysis node, including when actual and selected sides differ |
+| PRE-S07: Exit before reply | A with queue; enter/Exit before delivering e7e5; repeat Exit | `inputActions.exit -> exitInGameAnalysis -> _returnToLiveNode -> getPremoveProjection` (F03/F10) | Return displays canonical actual board plus unchanged current remainder; no premature local move, clock resume, duplicate search or replay. Later reply still consumes one legal head through its original owner |
+| PRE-S08: successive background turns | A/C with N1, N2, then f1-c4; enter Analyse or ordinary review. Release e7e5, b8c6, g8f6 in order, repeating wake/delivery attempts | `_playerMoveHandler -> commitLiveMove -> _revalidatePremoves -> requestPlayerMoveIfNeeded -> _tryPremove -> attemptPlayerMove`, repeated by existing finaliser (F04-F07) | Actual line alternates Black reply/one White intention three times before Exit. FIFO drains in order; one provider per Black turn and one increment per mover at its commit timestamp. Selected canonical board/path remains fixed. After the subsequent Black reply, the now-empty local queue leaves a waiting actual local turn |
+| PRE-S09: background invalidation | R with a queue; legal actual reply captures its intended source, adds a blocker or makes the due head illegal through check/pin | `commitLiveMove -> _revalidatePremoves -> genCandidateMovesForPiece -> clearPremoves`; or due-head `genLegalMovesForPiece -> clearPremoves` (F06/F07) | Opponent move commits once; whole queue/red union disappears before publication. Local turn waits; its clock runs. No invalid local node/increment, retained suffix or drawing fallback. Selected independent board survives |
+| PRE-S10: genuine paused analysis | A/C with queue; enter Analyse; add Manual/Menu in both orders; deliver actual reply; remove non-final then final owner | `pauseGame`; `_playerMoveHandler -> deferredPlayerMove`; `resumeGame -> flushDeferredPlayerMove -> commitLiveMove -> requestPlayerMoveIfNeeded` (F11) | Queue and accepted reply retained; paused analysis moves/history still work. No actual commit/consumption/increment/successor while any real owner remains. Final Resume commits reply/head and starts successor once without requiring Exit; repeated Resume is ineffective |
+| PRE-S11: ordinary review | A with queue; select an old/sibling node, release multiple actual replies, then return live | `_navigateToNode -> navigateToNode`; actual `_finaliseLiveMove -> requestPlayerMoveIfNeeded`; `_returnToLivePosition` (F04/F10) | No queue editing from review, but valid queued moves continue. Canonical selected node remains stable, actual status/progression may update. Return projects current remainder only, never entry-time consumed entries |
+| PRE-S12: selected historical anchor | Actual line has several plies; queue belongs to the actual live game. Select earlier node and explicitly Analyse with Takeback allowed and disabled | `_navigateToNode -> navigateToNode`; `inputActions.analyse -> enterInGameAnalysis -> setRenderedPath` (F10) | Analysis anchor is that historical canonical node. Exploratory board/PV moves do not open rewrite confirmation or append/clear queue. Queue validation still uses the actual live position, not selected history; actual progression continues |
+| PRE-S13: confirmed rewrite | A progressed beyond selected historical prefix with queue; request allowed history continuation, cancel, reopen/confirm; also deliver stale confirmation after mode/node change | `_requestMoves -> modal.open -> _confirmContinuation -> _applyMoves -> makeMove -> _commitHistoryRewriteMove -> clearPlayerTurnRuntime -> recheck -> clearPremoves -> setLivePath` (F01/F12) | Cancel/stale/disabled confirmation preserves queue and actual game. Valid confirmed rewrite cancels FIFO and old actual provider before replacing selectors, retains played variation, relocates selection safely and starts only eligible replacement actual work. Old callback cannot commit |
+| PRE-S14: actual Takeback | Analyse away from actual live node with a queue; try disabled/paused Takeback, then an allowed live Takeback during thinking and after a reply | `inputActions.takeBack -> takeBack -> getLiveNode -> clearPremoves -> clearPlayerTurnRuntime -> MoveHistoryService.takeBack` (F12) | Blocked action leaves queue intact. Allowed action clears queue and rewinds actual history/count/clock, never just the selected analysis branch. Pending output is drained; invalid selected path/input relocates. Board cancellation remains PRE-F09 and cannot remove played history |
+| PRE-S15: suggestion routing | Move-enabled/score-only fixtures; choose own-colour suggestion on own turn, opponent turn, history and explicit Analyse; try engine-colour input | `inputActions.line -> _playAnalysisLine -> _requestMoves -> makeMove -> _appendPremove/attemptPlayerMove/_commitLiveAnalysisMove` (F01/F14) | Own due input commits one move, off-turn input appends one intention, explicit analysis plays selected legal prefix, ordinary history retains confirmed rewrite policy. Reject engine-colour raw prefixes by source-side/parity even when their source square overlaps a projected local piece. No opponent PV replies enqueued, implicit replacement or theft of engine turn; visibility preference stays independent |
+| PRE-S16: active branch lifetime | From current actual parent, enter Analyse/explore descendants; actual reply/head advances while selected; Exit, navigate, save/reload. Separate case exits before any actual advance | `enterInGameAnalysis -> _advanceRenderedAnalysisBranch`; actual `commitLiveMove -> isPathPrefix -> optional pruneFutureMoves`; `exitInGameAnalysis` (F06/F10) | Selected analysis descendants are protected while actual siblings append. Once anchor is historical, branch remains through Exit/navigation/persistence. Existing current-parent temporary prune applies only to its already-defined next actual move case; no release/Exit cleanup registry or ancestor blanket prune |
+| PRE-S17: seat/first-move ownership | H in both colours/orientations; retain old click/drop/promotion/Analyse callbacks across handoff; repeat E and B0 | `_selectSquare/_onDragStart -> legalMoves -> _emitMove -> _requestMoves -> makeMove` context routing (F01/F02/F14) | Input/caller ownership excludes H/E premoves and stale previous-side callbacks; append repeats no checks. Fresh hotseat input belongs to newly due side. B0 permits raw Black intentions before Black has played; source colour comes from board/seat, not an anchor |
+| PRE-S18: unfinished input | A/R with drag or unfinished promotion; change actual base, queue via cancellation/rebase, mode or route; separately publish only evaluations. During delayed analysis prefix Exit/receive actual result | `Chessboard.onBeforeUpdate/onBeforeUnmount -> _clearSelection`; `playback.cancel/dispose`; captured `inputActions` owner check (F09/F10/F14) | Obsolete gesture/promotion/PV cannot append or commit into new ownership; incomplete choice never entered queue. Completed entries survive non-invalidating navigation/analysis. Mere evaluation behind unchanged selected board preserves valid input; result/context replacement stops delayed playback |
+| PRE-S19: navigation and close | Two games with separate queues; visit Settings with Menu pause on/off, switch tabs/return, then explicitly close one tab | `_handleMenuInterruptionRequested/_activateGame/_selectTab`; `_closeTab -> clearPremoves -> UiStateStore.closeTab`; actual `onScopeDispose` cleanup (F13) | Temporary navigation retains/executes queues unless a genuine pause applies. Return draws surviving remainder without replay. Explicit close clears only that game's FIFO/view input; existing `closeTab` is not game disposal. Other queue/actual work unaffected; actual game disposal additionally drains its real resources |
+| PRE-S20: later dependency invalid | R where the changed actual board still permits the head but blocks a later intended step; release that reply | `_finaliseLiveMove -> _revalidatePremoves`: candidate check then trusted single-step application; failure -> `clearPremoves`, before turn request (F06) | One whole-queue feasibility pass clears all remaining entries before the local head is submitted; no valid-prefix node/increment or later revival. Drawing and request do not repeat this pass |
+| PRE-S21: terminal or structural change | Queue with provider pending; timeout, actual mate/draw, accepted resignation/draw, changed seat, unassignment or setup/root replacement. Also cancelled/no-op actions and late old output | `reassignPlayer/startGameFromSetup/replaceWithAnalysisRoot/resignGame/acceptDrawOffer/_finaliseTimeout -> clearPremoves`; actual result via `_revalidatePremoves` (F12) | Real invalidating transition clears queue and closes old acceptance before replacement; terminal actual move/clock/result remain final and no successor starts. Repeated/late output cannot affect replacement. No-op reassignment/cancelled action and exploratory mate preserve queue. Other game's data is unchanged |
+| PRE-S22: engine/save isolation | A/R with FIFO/projection and independent analysis seats; edit queue, save/export, continue in memory, then load/import a separate game | `_publishRuntime/getPremoveProjection`; `saveGame -> serialiseGame`; `insertGame -> _hydrateAndInsertGame -> hydrateGame` (F03/F08/F13) | Queue edits do not restart analysis or change canonical rendered FEN, captures, history or timestamp. Available actual-parent analysis is recorded once; unrelated selected output is not copied. Save preserves original in-memory FIFO, serialized schema omits runtime/projection, loaded game starts empty |
+| PRE-S23: equal-path race | A with queue; enter Analyse and make no exploratory move; release e7e5 immediately | `enterInGameAnalysis -> genPosition -> setRenderedPath`; actual `_playerMoveHandler -> commitLiveMove -> _tryPremove` (F04-F07/F10) | Actual e5/head and successor progress with no Exit; selected canonical entry snapshot/path/cache stays independent even though path values initially matched. Queue validation uses the current actual live position; selected picture has no red displacement |
+| PRE-S24: actual clock in analysis | C on local turn with no queue; enter Analyse; explore without committing actual move; advance explicit timestamp to expiry, then deliver stale Exit/Resume/input. Repeat expiry racing a queued head | `syncClock -> _settleTimeout -> _finaliseTimeout`; or `commitLiveMove -> reconcileTimeout -> _finaliseTimeout` (F12) | Actual human clock keeps running and expires once. Exploratory moves add no time/increment. Timeout clears queue/actual ownership; stale actions cannot revive result or rescue an uncommitted head at deadline |
+| PRE-S25: legacy paused restore | Load old paused live-analysis save, visit/cancel Menu, explicitly Resume while still analysing | `insertGame -> _hydrateAndInsertGame -> hydrateGame`; `resumeGame -> flushDeferredPlayerMove -> requestPlayerMoveIfNeeded` (F11/F13) | Empty queue after restore, selected canonical node preserved and Manual-only reconstructed pause ownership. Menu cannot clear Manual. Final Resume permits actual work without an extra Analysis owner/Exit; no old runtime entry is restored |
 
 ### Deterministic ordering checks
 
 Pair the scenario rows with these controlled event orders; test both sides of an atomic commit rather than depending on arbitrary delays:
 
 - Append completes before a provider reply versus a retained gesture delivered after that reply: the first enters the FIFO; the second fails its old selected-input owner and cannot become a fresh intention.
-- Cancellation before due-head claim versus after committed head: the first prevents that queued move; the second clears only the remainder, preserving actual history.
-- Pause before reply versus after completed reply/head: held output waits only in the former case; neither order repeats a commit/increment/search.
+- Cancellation before local request versus after its synchronous shift/submission: the first prevents the queued move; the second cancels only remaining raw entries. An already submitted move follows the same settlement rules as ordinary input; no new rollback window is introduced.
+- Pause before request leaves the head queued. Pause after synchronous shift/submission but before the existing handler resumes leaves that head in `deferredPlayerMove` and only the tail queued; Resume flushes once. Compare with pause after commit; no order repeats a shift/commit/increment/search. Include paused following-live projection of held local output plus remainder.
 - Structural cancellation before readiness/result versus after completed actual move: old work cannot start/commit after cancellation; an already committed node is retained until the actual rewrite/Takeback policy changes it.
-- An append/wake arriving as the current drain exits is processed by the owned action lane; there is no lost wake, recursive unbounded drain, duplicate provider or future-turn promise.
-- Duplicate provider success, late failure after replacement, eligible retry and disposal during owned retry cannot mutate or restart a successor incorrectly. Use existing ponder hit/miss regression boundaries and report native execution separately.
+- Repeated calls while the existing Deferred is pending hit the existing guard; no extra shift or provider start. Successor registration remains in `_finaliseLiveMove`, and promise settlement supplies the existing asynchronous boundary.
+- Keep existing provider/ponder regression contracts. Retained tests exposing independent duplicate-callback, cancelled-readiness or retry-cleanup gaps are listed separately below; do not satisfy them by changing turn resolution. Report native execution separately.
 
 No arbitrary queue limit, hotseat premoving, review suspension, analysis-entry clear or invalid-tail retention is restored from superseded drafts. Those conflict with the user's settled choices. The queue/data structure alone still does not make any scenario above pass.
+
+### Tests to align with the retained turn mechanism
+
+Keep the data-driven PRE-S01-PRE-S25 specifications and real rule/store/modal owners. Revert the regression-test migrations to `playerTurn`, `completion`, `provider` and `controller`; those belong to the rejected replacement runtime. Remove the test demanding provider acknowledgement before commit: it asserted the rejected completion redesign, not a product requirement. Retain disposal, released-rewrite and wrong-colour drag scenarios; control released-rewrite cleanup through the existing handler promise.
+
+Before implementation, add focused tests through returned `useGamePlayerTurn` actions using the existing runtime fields:
+
+| Scenario | Observable boundary assertion |
+| --- | --- |
+| Valid local request, including both colours | Immediately after `requestPlayerMoveIfNeeded`, the ordinary Deferred/handler/controller are registered and one head is shifted. Await that captured Deferred and assert freshly resolved actual details; await its handler and assert one normal commit |
+| Empty FIFO or actual-illegal due head | Same Local Deferred remains pending; an illegal head clears the queue. Feasibility was already established by PRE-F06. Direct input can resolve the same request; no repeated owner/whole-queue validation |
+| Duplicate request before the handler settles | Existing pending guard returns; same Deferred/handler/controller, no second shift or commit |
+| Pause before request | Readiness prevents registration/shift; final Resume uses existing request path |
+| Pause after request, before its handler microtask | One shifted head becomes existing `deferredPlayerMove`, only tail stays queued, handler completion settles without Resume. Paused drawing includes held local head and tail; final Resume commits once, no re-shift |
+| Timeout or accepted structural action after submission | Existing commit/cancellation semantics prevail, no fabricated node/increment or reinsertion; clear remaining FIFO at the accepted action boundary |
+
+These assertions test the existing flow with data, not a substitute test-side queue engine. They are required tests before the next implementation; this rollback/replan does not implement the new hook.
+
+### Independent turn-hardening findings
+
+The retained baseline already has assertions for duplicate engine callback delivery, readiness resolving after cancellation and cancellation of the existing 500 ms retry timer. They expose gaps in the original turn code even without a FIFO. Keep them visible and identify their failures separately; do not rewrite turn ownership, provider completion, retries or engine stopping to make the premove feature pass. Any needed fixes require a separately reviewed, bounded proposal. Existing normal engine/ponder/pause regression tests must remain green and unchanged.
 
 ## Implementation sequence
 
@@ -563,8 +738,8 @@ No arbitrary queue limit, hotseat premoving, review suspension, analysis-entry c
 | PRE-00 | Complete and verify the separate background analysis plan | Its tests were written/failed before implementation and now pass; actual clocks/turns and selected boards have an independent verified contract |
 | PRE-RAW | Board-interaction raw-submission refactor: RAW-S01-RAW-S10 tests written first, observed failing, then canonical acceptance implemented | Complete: [implementation and executed verification](ArchivedPlans/RawMoveSubmissionDesign.md#implementation-and-verification). Queue implementation remains pending |
 | PRE-01 | After PRE-RAW passes, write raw queue data-boundary tests, migrate the declaration/imports, revise all raw scenario fixtures/assertions, then run premove behaviour tests before implementation | Complete on 23 October: five data-boundary tests pass; all 25 scenario IDs execute in the compiling raw/no-buttons baseline below. Behaviour remains unimplemented |
-| PRE-02 | Integrate the existing FIFO contract with one actual-turn owner and serial driver in Game runtime, PlayerTurn and GamesStore; preserve immediate input completion | One current owner/provider, owned cancellation/retry, no future-turn promises |
-| PRE-03 | Integrate queue consumption/cancellation with the verified actual-turn, analysis and invalidation actions | Multiple queued local/engine turns progress behind the stable selected board; no new analysis, pause, cache or pruning redesign |
+| PRE-02 | Add local `_tryPremove` after existing registration; preserve engine branch/handler/completion/successor/Resume | Trust registered request and feasible FIFO; resolve actual head once, shift then `attemptPlayerMove`. No repeat projection, owner checks or new turn runtime/driver |
+| PRE-03 | Revalidate remaining FIFO before the existing successor request; add queue clearing at accepted invalidation/lifecycle boundaries | Multiple queued local/engine turns progress behind stable selection; no analysis, pause, provider, retry or pruning redesign |
 | PRE-04 | Add raw opponent-turn enqueue, whole-queue projection/clear and due-turn legal resolution | Every accepted off-turn local move appends; any invalid sequence clears completely |
 | PRE-05 | Derive displaced artwork/red squares and board cancellation; reuse Analyse and context cleanup | Pending: both orientations, mouse chaining, real touch/right-click/Escape, no counts/buttons, hotseat exclusion and current-remainder return |
 | PRE-06 | Implement the linked scenario matrix, focused browser/platform regression and architecture/product updates | Executed evidence covers the new background contract and existing real pauses; documentation matches behaviour |
@@ -585,7 +760,7 @@ Use real chess-rule utilities for legality/projection integration; mocked store 
 | PRE-A06: background analysis | Analyse adds no pause or clock mutation; actual local/engine turns continue while selected board/evaluations remain anchored, even before the first exploratory move |
 | PRE-A07: history and navigation | Review/temporary menu/tab changes do not create queue suspension; actual progress continues under real clock-pause policy |
 | PRE-A08: invalidating actions | Actual Takeback, rewrite, changed seat/root, terminal result and disposal drain old work and never restore old intentions on exit |
-| PRE-A09: provider/ponder/retry | Immediate and duplicate output, late success/error, cancellation, retry and ponder hit/miss preserve one actual turn and bounded cleanup |
+| PRE-A09: turn mechanism | Registered existing Deferred receives the shifted head through `attemptPlayerMove`; existing handler/engine/Resume/ponder behaviour and regression tests stay unchanged. Record independent hardening failures separately |
 | PRE-A10: clocks/effects | Queue/display changes create no clock transition, increment, recorded analysis or autosave count; actual commits do so once, with timeout reconciliation during analysis |
 | PRE-A11: drawing/input | Final displaced pieces/red union, chaining, partial consumption, board cancellation, both orientations, accessible labels and context-cancelled promotion/drag agree |
 | PRE-A12: isolation/persistence | Canonical rendered/live boards, engine FEN, other games and saves never receive speculative pieces; restore has no queue and honours saved pause |
@@ -643,6 +818,20 @@ The same run passes **203 existing regression tests** across the original chess-
 ```sh
 npm run test:unit -- run src/state/__tests__/PremoveData.spec.ts src/state/__tests__/Premove.spec.ts src/utility/__tests__/GameRuleUtility.spec.ts src/views/__tests__/PremoveView.spec.ts src/state/__tests__/BackgroundAnalysis.spec.ts src/state/game/__tests__/GamePositionComposable.spec.ts src/state/__tests__/RawMove.spec.ts src/domain/__tests__/SerializationService.spec.ts src/domain/__tests__/EngineRuntimeService.spec.ts src/views/__tests__/GameView.spec.ts src/components/__tests__/Chessboard.spec.ts --maxWorkers=2 --reporter=json --outputFile=node_modules/.tmp/premove-verification/PremoveRawScenarioFinal.json
 ```
+
+## Rollback and revised-plan verification - 23 October 2026
+
+The user requested rollback because premoves should answer an ordinary turn request through the existing API. Restored every production change from the rejected implementation to the pre-implementation baseline, including `GamePlayerTurnComposable`, `GameMoveComposable`, `GameClockComposable`, `GamesStore`, contracts, rules and UI. The completed raw-move refactor and `IPremoveQueue.moves: IMoveRaw[]` are part of that baseline and remain. No premove production behaviour was developed for this revision. The separate staged dependency-restructuring plan was left untouched.
+
+Retained scenario/rule/mounted/browser specifications. Removed only the additional provider-acknowledgement-before-commit test that required the rejected resolver design. The released-rewrite test now holds the existing pending-handler settlement boundary, and passes without changing production code. The retained browser case is marked partial/pending; earlier browser passes apply only to the reverted implementation. Browsers were not rerun against this unimplemented design.
+
+| Executed lane | Result | Evidence/limits |
+| --- | --- | --- |
+| Existing raw-move, background-analysis, store, result, clock, player-assignment, recovery and registry regressions, plus FIFO data boundary | 131 distinct tests pass after registry correction | `node_modules/.tmp/premove-verification/RevertedTurnRegression.json`: 130/131 initially passed; the sole failure was retained JRN-RACE-09 referencing absent SCN-MOVE-04. Added the planned scenario, marked the case partial and reran registry 2/2 green in `RevertedJourneyRegistry.json` |
+| Retained premove/rule/mounted/data specifications | 250 tests: 131 pass, 119 fail, no skips or unhandled errors | `RevertedPremoveScenario.json`: state 31/87 pass, mounted 38/81, rules 57/77, data 5/5. Includes known missing feature boundaries/behaviour and the three independent original-turn hardening failures listed above; this is a red baseline, not feature acceptance |
+| Static checks | Pass | `npm run type-check`, `npm run check:code`; production turn/move/clock/runtime sources match the pre-implementation baseline |
+
+The additional request/shift/paused-handler tests listed above are part of the next tests-first implementation step, before production edits. This plan does not claim they have been written or executed.
 
 ## Definition of done
 

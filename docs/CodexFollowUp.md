@@ -40,18 +40,18 @@ Completed UI scenario fixes are covered by [application regressions](../journeys
 - Added `position startpos` output for standard initial roots, backed by runtime-only `IBoardPosition.$.isStandardInitialPosition` verification caching.
 - Added guarded board-edit APIs for toggling or deleting one chess piece, clearing the board, and resetting to the canonical start position, with first-edit root promotion, in-place later edits, and exact start-position cache handling.
 - Completed the remaining move-flow, cache, copy-ownership, and documentation reconciliation. The temporary change tracker was removed after its design rationale was transferred to the owning high-level and low-level documents.
-- Implemented the [code cleanup plan](CodeCleanupPlan.md): explicit cancellation and route/dialog/selection ownership replace async generation counters and orchestration watchers. The 23 October follow-up removes the final two watchers through UI settings events, native CSS system-theme selection and board lifecycle hooks; the build rejects all observers and enforces inferred implementation returns. Removed 440 redundant annotations after the behaviour refactors. The separate turn-flow/premove proposal remains open.
+- Implemented the [code cleanup plan](ArchivedPlans/CodeCleanupPlan.md): explicit cancellation and route/dialog/selection ownership replace async generation counters and orchestration watchers. The 23 October follow-up removes the final two watchers through UI settings events, native CSS system-theme selection and board lifecycle hooks; the build rejects all observers and enforces inferred implementation returns. Removed 440 redundant annotations after the behaviour refactors. The premove implementation has been reverted and its revised plan awaits approval.
 
 ## Raw move submission
 - Completed the board-interaction move-submission boundary: legal selection uses `IMoveRaw`, explicit promotion completes that raw move, and canonical acceptance converts to `IMove` before move-tree/accepted-turn interactions.
-- PRE-RAW was explicitly approved and implemented tests first on 22 October 2026. Board/PV/modal events and view confirmation/playback transport raw fields. Application/replay uses existing `IMoveCandidate`; ponder/protocol inputs use raw fields. Detailed history and engine results retain the [audited consumers](RawMoveSubmissionDesign.md#type-retention-audit-and-justification).
-- [Executed tests and browser verification](RawMoveSubmissionDesign.md#implementation-and-verification) complete the original pending item. The premove FIFO and player-turn implementation are separate work.
+- PRE-RAW was explicitly approved and implemented tests first on 22 October 2026. Board/PV/modal events and view confirmation/playback transport raw fields. Application/replay uses existing `IMoveCandidate`; ponder/protocol inputs use raw fields. Detailed history and engine results retain the [audited consumers](ArchivedPlans/RawMoveSubmissionDesign.md#type-retention-audit-and-justification).
+- [Executed tests and browser verification](ArchivedPlans/RawMoveSubmissionDesign.md#implementation-and-verification) complete the original pending item. The premove FIFO and player-turn implementation are separate work.
 
 ## Still Pending
-- Implement the separately proposed [premove queue and player-turn flow](PreMovePlan%28ToDo%29.md) after behaviour approval. The 23 October raw data migration and [scenario-test baseline](PreMovePlan%28ToDo%29.md#raw-move-scenario-baseline---23-october-2026) are complete: 409 tests run, 291 pass and 118 fail before premove behaviour development.
+- Replan the [premove queue flow](PreMovePlan%28ToDo%29.md#turn-mechanism-retained) after reverting the rejected turn-resolution rewrite on 23 October. Retain raw-move submission, `IMoveRaw[]` FIFO and scenario tests. Future implementation must shift/submit a head on the existing local-turn request through `attemptPlayerMove`, keeping its handler, successor requests and real-Resume flush. The revised plan awaits approval; earlier passing premove evidence applies only to reverted code.
 
 ## Verification
-- Current cleanup: **527/527 unit/application tests across 84 files**, code audit, type checking and production build passed. Browser scope and generated reports are recorded in the [cleanup verification](CodeCleanupPlan.md#verification).
+- Current cleanup: **527/527 unit/application tests across 84 files**, code audit, type checking and production build passed. Browser scope and generated reports are recorded in the [cleanup verification](ArchivedPlans/CodeCleanupPlan.md#verification).
 - The following 26-file/165-test record is the earlier baseline, not the current cleanup run.
 - `npm run type-check`
 - Result: passed.
