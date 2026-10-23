@@ -17,6 +17,7 @@ insertGame(game: IGame): Promise<IGame>
 getGame(gameId: string): ReadonlyGame | undefined
 listGames(): readonly ReadonlyGame[]
 makeMove(game: IGame, move: IMoveRaw): Promise<void>
+clearPremoves(game: IGame): void
 takeBack(game: IGame, moveCount?: number): Promise<void>
 navigateToNode(game: IGame, node: IMoveNode): void
 getVisibleAnalysis(game: IGame): IVisibleAnalysis | undefined
@@ -45,7 +46,9 @@ declineDrawOffer(game: IGame): Promise<void>
 withdrawDrawOffer(game: IGame): Promise<void>
 ```
 
-`makeMove` accepts coordinate/promotion intentions. `GameMoveComposable` selects the canonical position, checks integer board IDs and exact legal promotion, then enriches a fresh legal candidate immediately before actual/analysis/history delivery. Supplied colour, kind, capture, check and runtime caches are ignored. Invalid history input cannot cancel the current actual provider. If selection, analysis or pause changes while a valid rewrite settles, that rewrite is released and eligible actual work is rearmed. Detailed engine output and stored history remain full moves; board application/replay requires existing `IMoveCandidate`. See the [raw API design and retention audit](../../../RawMoveSubmissionDesign.md).
+`makeMove` accepts coordinate/promotion intentions. Eligible off-turn Local input against an Engine appends the supplied `IMoveRaw` reference before canonical enrichment; the input producer owns possible targets/promotion. Other routes select the canonical position, check integer board IDs and exact legal promotion, then enrich a fresh legal candidate immediately before actual/analysis/history delivery. Supplied colour, kind, capture, check and runtime caches are ignored. Invalid history input cannot cancel the current actual provider. If selection, analysis or pause changes while a valid rewrite settles, that rewrite is released and eligible actual work is rearmed. Detailed engine output and stored history remain full moves; board application/replay requires existing `IMoveCandidate`. See the [raw API design and retention audit](../../../ArchivedPlans/RawMoveSubmissionDesign.md).
+
+`clearPremoves` removes only the runtime queue and publishes if present. `GameMoveComposable` appends and revalidates the whole FIFO after actual commits; `GamePlayerTurnComposable._tryPremove` shifts one actually legal head into the existing `attemptPlayerMove` boundary. Pending/deferred fields, handler, engine delivery, successor request and final Resume are retained. Structural mutation and store disposal explicitly clear queue ownership. `_publishRuntime` invalidates rendering without touching persisted metadata or refreshing analysis; `_touchGame` still records canonical changes.
 
 ## Internal Composition
 

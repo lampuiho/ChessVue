@@ -21,10 +21,11 @@ interface IGameClockDependency {
   clearPlayerTurnRuntime: (game: IGame) => Promise<void>;
   flushDeferredPlayerMove: (game: IGame) => Promise<void>;
   requestPlayerMoveIfNeeded: (game: IGame) => void;
+  clearPremoves: (game: IGame) => void;
 }
 
 export function useGameClock(dependency: IGameClockDependency) {
-  const { position, status, touchGame, clearPlayerTurnRuntime, flushDeferredPlayerMove, requestPlayerMoveIfNeeded } = dependency;
+  const { position, status, touchGame, clearPlayerTurnRuntime, flushDeferredPlayerMove, requestPlayerMoveIfNeeded, clearPremoves } = dependency;
   const pendingTimeouts = new WeakMap<IGame, Promise<void>>();
   function isTimedGame(game: IGame): boolean {
     return game.timeControl.initialMs != null && game.timeControl.preset !== 'untimed';
@@ -66,6 +67,7 @@ export function useGameClock(dependency: IGameClockDependency) {
     return (remainingTime.white ?? 1) <= 0 ? PlayerColour.White : PlayerColour.Black;
   }
   function _finaliseTimeout(game: IGame, nowUtc: ClockTimestamp, expiredColour: PlayerColour) {
+    clearPremoves(game);
     position.requireGameRuntime(game).timeoutNotificationShown = false;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, nowUtc);
     game.resultState = expiredColour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;

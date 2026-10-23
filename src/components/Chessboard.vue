@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onBeforeUpdate, ref } from 'vue';
 import { BoardOrientation, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IChessPiece, type IMove, type IMoveRaw } from '@/contracts';
-import { genLegalMovesForPiece } from '@/utility/chess';
+import { genCandidateMovesForPiece, genLegalMovesForPiece } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 import ChessPiece from './common/ChessPiece.vue';
 import { useModal, type IModalHandle } from '@/composables/ModalComposable';
@@ -9,6 +9,9 @@ import PromotionModal from './modals/PromotionModal.vue';
 
 const props = withDefaults(defineProps<{
   position: IBoardPosition;
+  displayPosition?: IBoardPosition;
+  premoveSquares?: ReadonlySet<BoardId>;
+  premoveColour?: PlayerColour;
   orientation?: BoardOrientation;
   showCoordinates?: boolean;
   highlightLastMove?: boolean;
@@ -18,6 +21,7 @@ const props = withDefaults(defineProps<{
 }>(), { orientation: BoardOrientation.White, showCoordinates: true, highlightLastMove: true, inputDisabled: false, boardEdit: false });
 const emit = defineEmits<{
   moveAttempted: [move: IMoveRaw];
+  premovesCancelled: [];
   chessPieceToggled: [boardId: BoardId, piece: IChessPiece];
   chessPieceDeleted: [boardId: BoardId];
   chessPieceMoved: [from: BoardId, to: BoardId];
@@ -31,6 +35,9 @@ let pendingPromotionMoves: readonly IMoveRaw[] = [];
 const draggedBoardId = ref<BoardId>();
 const editPiece = ref<{ kind: PieceKind; colour: PlayerColour }>({ kind: PieceKind.Queen, colour: PlayerColour.White });
 const pieceKinds = [PieceKind.King, PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight, PieceKind.Pawn];
+const displayedPosition = computed(() => props.displayPosition ?? props.position);
+const inputColour = computed(() => props.premoveColour ?? props.position.sideToMove);
+let touchTap: { pointerId: number; boardId: BoardId; released: boolean } | undefined;
 const displayedBoardIds = computed<BoardId[]>(() => {
   const ids: BoardId[] = [];
   const ranks = props.orientation === BoardOrientation.White ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
@@ -38,13 +45,15 @@ const displayedBoardIds = computed<BoardId[]>(() => {
   for (const rank of ranks) for (const file of files) ids.push((rank * 8) + file);
   return ids;
 });
-const legalMoves = computed<IMoveRaw[]>(() => selectedBoardId.value === undefined ? [] : genLegalMovesForPiece(props.position, selectedBoardId.value, props.lastMove));
+const legalMoves = computed<IMoveRaw[]>(() => selectedBoardId.value === undefined ? [] : props.premoveColour
+  ? genCandidateMovesForPiece(displayedPosition.value, selectedBoardId.value)
+  : genLegalMovesForPiece(props.position, selectedBoardId.value, props.lastMove));
 const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-let _inputContext = [props.position, props.boardEdit, props.inputDisabled] as const;
+let _inputContext = [props.position, props.displayPosition, props.premoveColour, props.boardEdit, props.inputDisabled] as const;
 // Clear the previous gesture before rendering a replacement board or input permission.
 onBeforeUpdate(() => {
-  const next = [props.position, props.boardEdit, props.inputDisabled] as const;
+  const next = [props.position, props.displayPosition, props.premoveColour, props.boardEdit, props.inputDisabled] as const;
   if (next.every((value, index) => value === _inputContext[index])) return;
   _inputContext = next;
   _clearSelection();
@@ -57,6 +66,7 @@ function _clearSelection() {
   selectedBoardId.value = undefined;
   draggedBoardId.value = undefined;
   pendingPromotionMoves = [];
+  touchTap = undefined;
   const current = promotion;
   promotion = undefined;
   void current?.close();
@@ -67,16 +77,16 @@ function _selectSquare(boardId: BoardId) {
     emit('chessPieceToggled', boardId, { ...editPiece.value });
     return;
   }
-  const piece = props.position.board[boardId];
+  const piece = displayedPosition.value.board[boardId];
   if (selectedBoardId.value === boardId) {
     _clearSelection();
     return;
   }
   if (selectedBoardId.value === undefined) {
-    if (piece?.colour === props.position.sideToMove) selectedBoardId.value = boardId;
+    if (piece?.colour === inputColour.value) selectedBoardId.value = boardId;
     return;
   }
-  if (piece?.colour === props.position.sideToMove) {
+  if (piece?.colour === inputColour.value) {
     selectedBoardId.value = boardId;
     return;
   }
@@ -91,7 +101,7 @@ function _commitTarget(boardId: BoardId) {
   }
   if (matchingMoves.length > 1 && matchingMoves.some((move) => move.promotionPiece)) {
     pendingPromotionMoves = matchingMoves;
-    const current = modal.open(PromotionModal, { moves: matchingMoves, colour: props.position.sideToMove, onSelected: _choosePromotion }, () => {
+    const current = modal.open(PromotionModal, { moves: matchingMoves, colour: inputColour.value, onSelected: _choosePromotion }, () => {
       if (promotion === current) _clearSelection();
     });
     promotion = current;
@@ -101,15 +111,18 @@ function _commitTarget(boardId: BoardId) {
 }
 function _emitMove(rawMove: IMoveRaw) {
   if (props.inputDisabled || props.boardEdit) return;
-  const { from, to, promotionPiece } = rawMove;
-  emit('moveAttempted', promotionPiece === undefined ? { from, to } : { from, to, promotionPiece });
+  emit('moveAttempted', rawMove);
   _clearSelection();
 }
 function _choosePromotion(move: IMoveRaw) {
   if (pendingPromotionMoves.includes(move)) _emitMove(move);
 }
+function _canDrag(boardId: BoardId) {
+  const piece = displayedPosition.value.board[boardId];
+  return !props.inputDisabled && !!piece && (props.boardEdit || piece.colour === inputColour.value);
+}
 function _onDragStart(boardId: BoardId, event: DragEvent) {
-  if (props.inputDisabled || !props.position.board[boardId]) {
+  if (props.inputDisabled) {
     event.preventDefault();
     return;
   }
@@ -127,6 +140,31 @@ function _onDrop(boardId: BoardId) {
 }
 function _onContextMenu(boardId: BoardId) {
   if (props.boardEdit) emit('chessPieceDeleted', boardId);
+  else if (!props.inputDisabled) _cancelPremoves();
+}
+function _cancelPremoves() {
+  _clearSelection();
+  if (props.premoveSquares?.size) emit('premovesCancelled');
+}
+function _onKeyDown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || props.inputDisabled) return;
+  event.preventDefault();
+  if (selectedBoardId.value !== undefined || promotion) _clearSelection();
+  else _cancelPremoves();
+}
+function _onPointerDown(boardId: BoardId, event: PointerEvent) {
+  touchTap = event.pointerType === 'touch' && !props.inputDisabled && props.premoveSquares?.has(boardId)
+    && displayedPosition.value.board[boardId]?.colour === inputColour.value ? { pointerId: event.pointerId, boardId, released: false } : undefined;
+}
+function _onPointerUp(boardId: BoardId, event: PointerEvent) {
+  if (touchTap?.pointerId === event.pointerId && touchTap.boardId === boardId) touchTap.released = true;
+  else touchTap = undefined;
+}
+function _onClick(boardId: BoardId) {
+  const cancel = touchTap?.released && touchTap.boardId === boardId;
+  touchTap = undefined;
+  if (cancel) _cancelPremoves();
+  else _selectSquare(boardId);
 }
 function _isLastMoveSquare(boardId: BoardId): boolean {
   return !!props.highlightLastMove && (props.lastMove?.from === boardId || props.lastMove?.to === boardId);
@@ -154,19 +192,24 @@ function _showFile(index: number): boolean {
             'board-square--dark': (Math.floor(boardId / 8) + boardId % 8) % 2 === 0,
             'board-square--selected': selectedBoardId === boardId,
             'board-square--target': _isLegalTarget(boardId),
-            'board-square--capture': _isLegalTarget(boardId) && !!position.board[boardId],
+            'board-square--capture': _isLegalTarget(boardId) && !!displayedPosition.board[boardId],
             'board-square--last': _isLastMoveSquare(boardId),
+            'board-square--premove': premoveSquares?.has(boardId),
           }"
-          :aria-label="`${fileNames[boardId % 8]}${Math.floor(boardId / 8) + 1}${position.board[boardId] ? ` ${position.board[boardId]?.colour} ${position.board[boardId]?.kind}` : ''}`"
-          @click="_selectSquare(boardId)"
+          :aria-label="`${fileNames[boardId % 8]}${Math.floor(boardId / 8) + 1}${displayedPosition.board[boardId] ? ` ${displayedPosition.board[boardId]?.colour} ${displayedPosition.board[boardId]?.kind}` : ''}`"
+          @click="_onClick(boardId)"
+          @keydown="_onKeyDown"
+          @pointerdown="_onPointerDown(boardId, $event)"
+          @pointerup="_onPointerUp(boardId, $event)"
+          @pointercancel="touchTap = undefined"
           @contextmenu.prevent="_onContextMenu(boardId)"
           @dragover.prevent
           @drop.prevent="_onDrop(boardId)"
         >
           <span v-if="_showRank(index)" class="coordinate coordinate--rank">{{ Math.floor(boardId / 8) + 1 }}</span>
           <span v-if="_showFile(index)" class="coordinate coordinate--file">{{ fileNames[boardId % 8] }}</span>
-          <span v-if="position.board[boardId]" class="chess-piece" :draggable="!inputDisabled" @dragstart.stop="_onDragStart(boardId, $event)"><ChessPiece v-bind="position.board[boardId]!" /></span>
-          <span v-if="_isLegalTarget(boardId) && !position.board[boardId]" class="move-dot"></span>
+          <span v-if="displayedPosition.board[boardId]" class="chess-piece" :draggable="_canDrag(boardId)" @dragstart.stop="_onDragStart(boardId, $event)"><ChessPiece v-bind="displayedPosition.board[boardId]!" /></span>
+          <span v-if="_isLegalTarget(boardId) && !displayedPosition.board[boardId]" class="move-dot"></span>
         </button>
       </div>
     </div>

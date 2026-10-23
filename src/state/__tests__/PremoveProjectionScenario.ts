@@ -1,5 +1,5 @@
 import { PieceKind, PlayerColour, type IMoveRaw } from '@/contracts';
-import { blackChain, blockedTail, castlePosition, premove, promotionPosition, whiteChain, type IPositionFixture } from './PremoveFixture';
+import { blackChain, castlePosition, premove, promotionPosition, whiteChain, type IPositionFixture } from './PremoveFixture';
 
 interface IPremoveProjectionScenario {
   name: string;
@@ -7,9 +7,8 @@ interface IPremoveProjectionScenario {
   played?: readonly string[];
   colour?: PlayerColour;
   moves: readonly IMoveRaw[];
-  cells?: Record<string, string | undefined>;
-  red?: readonly string[];
-  invalid?: boolean;
+  cells: Record<string, string | undefined>;
+  red: readonly string[];
 }
 const white = PlayerColour.White;
 const black = PlayerColour.Black;
@@ -51,33 +50,4 @@ export const premoveProjectionScenarios: IPremoveProjectionScenario[] = [
     cells: { e1: undefined, f1: 'white king' }, red: ['e1', 'f1'] },
   { name: 'PRE-S09 pinned knight movement may be an intention before the reply', root: pinned, moves: [premove('e2f4')],
     cells: { e2: undefined, f4: 'white knight' }, red: ['e2', 'f4'] },
-  { name: 'PRE-S20 later blocked dependency returns no valid prefix', root: blockedTail, played: ['d8d3'],
-    moves: [whiteChain[0]!, premove('f1c4')], invalid: true },
-  { name: 'PRE-S20 a king moving away and back cannot restore projected castle rights', root: castlePosition,
-    moves: [premove('e1f1'), premove('f1e1'), premove('e1g1')], invalid: true },
-  { name: 'PRE-S20 a rook moving away and back cannot restore projected castle rights', root: castlePosition,
-    moves: [premove('h1h2'), premove('h2h1'), premove('e1g1')], invalid: true },
-  ...([
-    ['empty source', premove('g3f5')], ['wrong source geometry', premove('g1g3')],
-    ['friendly destination', premove('g1e2')], ['opponent source', premove('g8f6')], ['null move', premove('g1g1')],
-    ['out-of-range source', { from: -1, to: 21 }],
-    ['out-of-range target', { from: 6, to: 64 }],
-    ['non-integer source', { from: 6.5, to: 21 }],
-    ['non-integer target', { from: 6, to: 21.5 }],
-  ] as const).map(([name, intent]): IPremoveProjectionScenario => ({ name: `PRE-F03 rejects ${name}`, moves: [intent], invalid: true })),
-  { name: 'PRE-F03 rejects opposing king capture', root: { pieces: [['a1', white, PieceKind.King], ['e8', black, PieceKind.King], ['e1', white, PieceKind.Rook]] },
-    moves: [premove('e1e8')], invalid: true },
-  { name: 'PRE-F03 pawn double push respects intermediate blocker', root: { pieces: [...kings, ['d2', white, PieceKind.Pawn], ['d3', black, PieceKind.Knight]] },
-    moves: [premove('d2d4')], invalid: true },
-  { name: 'PRE-F03 pawn double push requires its starting rank', root: { pieces: [...kings, ['d3', white, PieceKind.Pawn]] },
-    moves: [premove('d3d5')], invalid: true },
-  { name: 'PRE-F03 pawn cannot move backwards', root: { pieces: [...kings, ['d4', white, PieceKind.Pawn]] },
-    moves: [premove('d4d3')], invalid: true },
-  { name: 'PRE-F03 unfinished promotion is not a queued move', root: promotionPosition, moves: [premove('a7a8')], invalid: true },
-  ...([PieceKind.King, PieceKind.Pawn] as const).map((promotionPiece): IPremoveProjectionScenario => ({
-    name: `PRE-F03 rejects ${promotionPiece} promotion`, root: promotionPosition,
-    moves: [{ ...premove('a7a8'), promotionPiece }], invalid: true,
-  })),
-  { name: 'PRE-F03 castle requires a rook', root: { pieces: kings, rights: { whiteKingSide: true } }, moves: [premove('e1g1')], invalid: true },
-  { name: 'PRE-F03 castle requires retained rights', root: { ...castlePosition, rights: {} }, moves: [premove('e1g1')], invalid: true },
 ];

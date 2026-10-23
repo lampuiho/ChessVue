@@ -1,7 +1,7 @@
 # Gameplay And Control Flows
 
 ## Scope
-This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`.
+This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`, including `SCN-MOVE-04` premoves.
 
 Persistence note: this document focuses on active-game mutation. When a flow needs the resulting workspace persisted, presentation follows up with `SavedGamesStore.saveGame(...)`; that caller-owned save step is shown only where persistence behaviour is itself part of the scenario or materially affects the branch.
 
@@ -143,6 +143,29 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 - Process note: once the selected piece is merged into the move, `GamesStore.makeMove` simply follows the same context-specific commit path as `SCN-MOVE-01`. There is no pending-promotion state on the game model.
 - Requirement verification: `Pass`. Promotion remains explicit without introducing a special pending-move game state.
 - Journey verification: JRN-PROMO-01–05 cover both colours, every quiet/capture choice, gestures/orientation and promoted save/reload/takeback; see [the owned review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../JourneyImplementation.md#promotion-verification). JRN-RULE-01–06 add castling, en passant, king-safety rejection, timed rule-resolved draws and special-move restoration; see the [Rules review](../../../journeys/definitions/rules/ScenarioReview.md).
+
+### SCN-MOVE-04 - Premoves Through The Existing Turn Request
+
+| Caller and function | Work and result |
+| --- | --- |
+| `GameView.premoveColour` / `canInput` | Offer off-turn input only for the Local seat against an Engine, following ongoing unpaused live play outside explicit analysis |
+| `Chessboard.legalMoves` -> `genCandidateMovesForPiece(displayedPosition, from)` | Offer piece-colour geometry, blockers, future pawn diagonals and castling availability independently of actual turn/check; explicit promotion completes the offered raw candidate |
+| `_emitMove(rawMove)` -> `GameView.inputActions.move` -> `_makeMove` -> `_requestMoves` | Forward the same reference through the captured input owner; the off-turn branch bypasses canonical prefix preflight |
+| `GamesStore.makeMove` -> `GameMoveComposable.makeMove` -> `_appendPremove(game, localPlayer, rawMove)` | Classify eligible context before `_resolveMove`; initialise `{ player, moves: [] }`, push the supplied raw reference, publish runtime only |
+| `GameView.renderedBoard` -> `GamePositionComposable.getPremoveProjection(canonical, queue, heldLocalMove)` | Copy the canonical board once; apply held local output, then the actual FIFO references. Return projected pieces and a `Set<BoardId>` of pending endpoints; canonical analysis/save/history remain unchanged |
+| `applyPremoveProjection(preview, move, redSquares?)` -> `MoveApplicationService.applyMove` | Build the temporary candidate required by application; move pieces in the caller's preview. Add king and rook endpoints for castling. No rule queries, validation, per-entry board copies or combined move arrays |
+| Existing actual output -> `attemptPlayerMove` -> `_playerMoveHandler` -> `commitLiveMove` -> `_finaliseLiveMove` | Apply the actual move, clock/increment and history through the existing mechanism; update result/state |
+| `_finaliseLiveMove` -> `_revalidatePremoves` | Before publication/successor request, simulate the whole remaining FIFO on one detached actual board using source colour and candidate geometry. Clear the whole queue if any dependency fails or actual play ended |
+| Existing `requestPlayerMoveIfNeeded` -> `_requestPlayerMove` | Register the same Deferred/handler/controller; preserve the Engine branch verbatim. For Local, call `_tryPremove` |
+| `_tryPremove` -> `genLegalMovesForPiece(actual, head.from, actualNode.move)` | Resolve exact actual legality and promotion for the head. No match clears the whole queue and leaves the same local request waiting |
+| `_tryPremove` -> `toDetailedMove` -> `moves.shift` -> `attemptPlayerMove` | Generate fresh actual facts, shift once, normalise an empty queue and immediately submit without an intervening await/publication. The original handler commits or holds the accepted output |
+| `renderedBoard` during pending Local handler | Draw canonical pieces until the shifted head commits or publishes as held output. The existing pending request identifies this microtask boundary; no new runtime field or resolver |
+| Existing `_playerMoveHandler` -> `deferredPlayerMove` while paused | Retain accepted output in the existing slot; the local premove hook publishes held output for drawing, without reinserting the head |
+| Existing final `resumeGame` -> `flushDeferredPlayerMove` -> `requestPlayerMoveIfNeeded` | Commit held output once and request the successor normally. Enter/Exit Analyse and ordinary history selection neither flush nor suspend the FIFO |
+| Chessboard right-click, touch tap on premoved piece, or Escape after clearing unfinished input -> `premovesCancelled` -> `inputActions.cancelPremoves` -> `GamesStore.clearPremoves` | Cancel the whole FIFO and publish; leave actual play/turn/history alone. Analysis/history/paused boards do not offer cancellation; board-edit right-click retains deletion |
+| `_playAnalysisLine` off-turn -> canonical prefix parity + projected candidate match -> `_requestMoves([clickedMove])` | Append only a possible local-colour final entry; never append predicted opponent replies. Own-turn input uses the first entry; explicit/free/result analysis retains full-prefix playback |
+
+Changed seats, Takeback, confirmed history rewrite, setup/root replacement and terminal actions clear the queue at the accepted mutation after existing cleanup. Temporary navigation preserves it; explicit tab close clears it, store disposal clears/cancels resources, and hydration creates a fresh empty runtime. These boundaries and all 25 scenario cases are specified in the [implementation plan](../../PreMovePlan%28ToDo%29.md#function-flow).
 
 ## Engine-Controlled Turn
 

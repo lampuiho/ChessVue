@@ -1,5 +1,7 @@
 # ChessVue Engine Runtime Contract
 
+Premoves do not change engine readiness, delivery, pondering, retries or cancellation. The existing actual-turn request registers its Deferred/handler/controller, then either starts the Engine provider or offers one queued raw Local head through `attemptPlayerMove`. Analysis/history selection does not gate actual successor requests. See the [implemented call flow](../LowLevel/ProcessFlows/GameplayAndControl.md#scn-move-04---premoves-through-the-existing-turn-request).
+
 ## Purpose
 This document defines the committed engine runtime model for the rewrite baseline.
 

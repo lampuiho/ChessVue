@@ -4,13 +4,15 @@
 Render the visible board state and collect move or board-edit input.
 
 ## Consumes
-- visible board position
+- canonical selected `position` for ordinary legality; optional `displayPosition` for projected artwork
+- optional `premoveColour` for off-turn selection and `premoveSquares: ReadonlySet<BoardId>` for red endpoints
 - orientation and appearance settings
 - input-disabled and board-edit flags from the owning view
 - last move for highlights and legal-move generation
 
 ## Emits
 - `moveAttempted(move: IMoveRaw)`
+- `premovesCancelled()`
 - `chessPieceToggled`
 - `chessPieceDeleted`
 - `chessPieceMoved`
@@ -27,3 +29,5 @@ Render the visible board state and collect move or board-edit input.
 - Clear emits `boardCleared`; Reset emits `boardReset`. The owning view maps these to the guarded `GamesStore` actions, including `resetBoardToStartPosition(...)`, and applies edits immediately.
 - Selection, pending drag and pending promotion clear when the position, editing mode or input permission changes. A drop from the previous context cannot move a piece in the replacement board; a fresh drag remains available. Disabled board squares expose their disabled state to accessibility consumers.
 - The `onBeforeUpdate` lifecycle hook clears transient input before rendering a changed position, editing mode or input permission. It compares those props with the current input context so selection renders and presentation-only updates preserve the gesture. `onBeforeUnmount` closes pending promotion. Neither boundary uses a watcher.
+- Off-turn targets use `genCandidateMovesForPiece(displayedPosition, from)`; ordinary targets use `genLegalMovesForPiece(position, from, lastMove)`. Displayed pieces, capture markers and accessible square names share the projected board; canonical position stays untouched. Drag is offered only for eligible pieces.
+- `_emitMove` forwards the offered raw reference. Right-click clears the entire queue; touch down/up on the same premoved piece captures a tap and the resulting click cancels once. Escape clears unfinished input first, then the queue. Modal focus owns the first Escape while promotion is open. External display/colour/input changes and unmount clear selection, drag, touch and promotion.

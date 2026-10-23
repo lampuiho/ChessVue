@@ -28,6 +28,9 @@ Render the integrated gameplay workspace for one active game.
 
 ## Notes
 - `GameView` hosts baseline analysis inside the game screen rather than through a dedicated analysis route.
+- `renderedBoard` keeps the canonical selected board stable across unrelated publications and derives optional projected artwork/red squares for following-live premoves through `useGamePosition`. Its input owner records queue/head/tail/held references, without copying queue values. Mode/permission changes replace input; unchanged analysis ignores background queue edits.
+- While the existing Local request is settling a shifted head, rendering uses canonical pieces; after commit or held-output publication it projects the current remainder. Board cancellation maps to `clearPremoves`, and explicit tab close clears that game's queue. Route changes/remounts retain it.
+- Off-turn board input bypasses canonical prefix preflight and appends raw references. A clicked PV final entry must have local canonical parity and possible projected geometry; only that entry appends. Explicit/free/result analysis keeps full-prefix playback. Analysis/engine inputs, captured totals, clocks, history and saves remain canonical.
 - Game-tab selection is resolved through route updates, with `GameTabs` delegating shared child-route tab logic to `TabbedView`.
 - `GameView` reads store state directly; it does not depend on a separate query-helper subsystem.
 - When a committed flow needs an authoritative derived read such as remaining clock time, `GameView` may call the relevant domain service locally while still keeping mutation ownership in stores.

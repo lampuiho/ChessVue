@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { onScopeDispose, ref } from 'vue';
 
 import { GameState, SaveGameTargetKind, type IBoardPosition, type IGame, type IMove } from '@/contracts';
-import { UserSettingService } from '@/domain';
+import { EngineRuntimeService, UserSettingService } from '@/domain';
 import { useSavedGamesStore } from './SavedGamesStore';
 import { RecordTimestamp } from '@/utility/date';
+import { logHandledError } from '@/utility/errors';
 import { useGameAnalysis, type GameAnalysisComposable } from './game/GameAnalysisComposable';
 import { useGameBoardEdit } from './game/GameBoardEditComposable';
 import { useGameClock, type GameClockComposable } from './game/GameClockComposable';
@@ -40,7 +41,15 @@ export const useGamesStore = defineStore('gamesStore', () => {
   }
   function _touchGame(game: IGame) {
     game.metadata.updatedAt = new RecordTimestamp();
+    _publishRuntime();
+  }
+  function _publishRuntime() {
     workspaceRevision.value += 1;
+  }
+  function clearPremoves(game: IGame) {
+    if (!game.$?.premoveQueue) return;
+    game.$.premoveQueue = undefined;
+    _publishRuntime();
   }
   const position = useGamePosition();
   let clock: GameClockComposable;
@@ -49,6 +58,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
   let move: GameMoveComposable;
   const status = useGameStatus({
     position,
+    clearPremoves,
     touchGame: _touchGame,
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     refreshRuntimeRegistrations: (game: IGame) => clock.refreshRuntimeRegistrations(game),
@@ -57,6 +67,8 @@ export const useGamesStore = defineStore('gamesStore', () => {
   playerTurn = useGamePlayerTurn({
     position,
     status,
+    clearPremoves,
+    publishRuntime: _publishRuntime,
     touchGame: _touchGame,
     commitLiveMove: (game: IGame, playerMove: IMove) => move.commitLiveMove(game, playerMove),
     replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => move.replaceWithAnalysisRoot(game, rootPosition, nextState),
@@ -65,14 +77,24 @@ export const useGamesStore = defineStore('gamesStore', () => {
   clock = useGameClock({
     position,
     status,
+    clearPremoves,
     touchGame: _touchGame,
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     flushDeferredPlayerMove: (game: IGame) => playerTurn.flushDeferredPlayerMove(game),
     requestPlayerMoveIfNeeded: (game: IGame) => playerTurn.requestPlayerMoveIfNeeded(game),
   });
-  move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame: _touchGame, moveCommitted: _moveCommitted });
+  move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame: _touchGame, moveCommitted: _moveCommitted, clearPremoves, publishRuntime: _publishRuntime });
   const boardEdit = useGameBoardEdit({ position, status, analysis, move, touchGame: _touchGame });
-  const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, touchGame: _touchGame });
+  const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, touchGame: _touchGame, clearPremoves });
+  onScopeDispose(() => {
+    for (const game of workspace.listGames() as readonly IGame[]) {
+      clearPremoves(game);
+      const cleanup = [playerTurn.clearPlayerTurnRuntime(game), analysis.disposeAnalysisForGame(game)];
+      for (const player of [game.whitePlayer, game.blackPlayer]) if (playerTurn.isEnginePlayer(player)) cleanup.push(EngineRuntimeService.stopEngine(player.assignedEngine));
+      void Promise.all(cleanup).catch((error) => logHandledError('GamesStore', 'dispose', error));
+      game.$?.focusReturnUnsubscribe?.();
+    }
+  });
   return {
     workspaceRevision,
     autosaveError,
@@ -83,6 +105,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     getGame: workspace.getGame,
     listGames: workspace.listGames,
     makeMove: move.makeMove,
+    clearPremoves,
     getTakeBackMoveCount: move.getTakeBackMoveCount,
     takeBack: move.takeBack,
     navigateToNode: move.navigateToNode,

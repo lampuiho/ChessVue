@@ -1,5 +1,6 @@
-import type { IBoardPosition, IGame, IGamePositionState, IGameRuntime, IMoveNode, IMoveTree, MovePath } from '@/contracts';
+import { MoveKind, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IGame, type IGamePositionState, type IGameRuntime, type IMoveCandidate, type IMoveNode, type IMoveRaw, type IMoveTree, type IPremoveQueue, type MovePath } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
+import { boardIdToCoords, coordsToBoardId, getForwardDirection, getPromotionRank } from '@/utility/chess';
 
 interface ISelectionCache {
   node?: IMoveNode;
@@ -7,6 +8,34 @@ interface ISelectionCache {
 }
 
 export function useGamePosition() {
+  function applyPremoveProjection(preview: IBoardPosition, move: IMoveRaw, redSquares?: Set<BoardId>) {
+    const piece = preview.board[move.from]!;
+    const from = boardIdToCoords(move.from);
+    const to = boardIdToCoords(move.to);
+    const victim = piece.kind === PieceKind.Pawn && from.file !== to.file && preview.enPassantTarget === move.to
+      ? preview.board[coordsToBoardId(to.file, to.rank - getForwardDirection(piece.colour))] : undefined;
+    const kind = piece.kind === PieceKind.King && Math.abs(to.file - from.file) === 2 ? MoveKind.Castle
+      : piece.kind === PieceKind.Pawn && to.rank === getPromotionRank(piece.colour) ? MoveKind.Promotion
+      : piece.kind === PieceKind.Pawn && from.file !== to.file && preview.enPassantTarget === move.to
+        && victim?.kind === PieceKind.Pawn && victim.colour !== piece.colour ? MoveKind.EnPassant : MoveKind.Normal;
+    const candidate: IMoveCandidate = { from: move.from, to: move.to, promotionPiece: move.promotionPiece,
+      movingPiece: piece.kind, movingColour: piece.colour, kind };
+    redSquares?.add(move.from).add(move.to);
+    if (kind === MoveKind.Castle && redSquares) {
+      const kingSide = to.file > from.file;
+      const rookKey = piece.colour === PlayerColour.White ? kingSide ? 'whiteKingSide' : 'whiteQueenSide' : kingSide ? 'blackKingSide' : 'blackQueenSide';
+      redSquares.add(preview.castlingRook?.[rookKey] ?? coordsToBoardId(kingSide ? 7 : 0, from.rank));
+      redSquares.add(coordsToBoardId(kingSide ? 5 : 3, from.rank));
+    }
+    MoveApplicationService.applyMove(preview, candidate);
+  }
+  function getPremoveProjection(base: IBoardPosition, queue?: IPremoveQueue, heldLocalMove?: IMoveRaw) {
+    const preview = MoveApplicationService.genPosition(base, []);
+    const redSquares = new Set<BoardId>();
+    if (heldLocalMove) applyPremoveProjection(preview, heldLocalMove, redSquares);
+    for (const move of queue?.moves ?? []) applyPremoveProjection(preview, move, redSquares);
+    return { position: preview, redSquares };
+  }
   function createGameRuntime(): IGameRuntime {
     return {};
   }
@@ -137,6 +166,8 @@ export function useGamePosition() {
     return game;
   }
   return {
+    applyPremoveProjection,
+    getPremoveProjection,
     createGameRuntime,
     requireGameRuntime,
     getNodeAtPath,

@@ -74,6 +74,7 @@ function _createTimedGame(id: string = 'game-1', pauseReasons: PauseReason[] = [
     timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 0 },
     clockSnapshot: createClockSnapshot(PlayerColour.White, true),
     $: { pauseReasons },
+    gameplayOptions: { allowTakeback: true, showLiveAnalysisMoves: true },
   });
   game.metadata.id = id;
   game.metadata.name = id;
@@ -141,16 +142,18 @@ describe('GameView menu interruptions', () => {
     for (const wrapper of wrappers.splice(0)) wrapper.unmount();
     vi.useRealTimers();
   });
-  it('submits only owned raw fields from a board attempt', async () => {
+  it('forwards the supplied stable raw reference from a board attempt', async () => {
     const game = _createTimedGame();
     game.rootPosition = createInitialBoardPosition();
     const wrapper = _mountView(game);
     await flushPromises();
-    wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', Object.freeze(toDetailedMove(game.rootPosition, { from: 12, to: 28 })));
+    const move = Object.freeze(toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', move);
     await flushPromises();
-    expect(dependency.gamesStore.makeMove).toHaveBeenCalledExactlyOnceWith(game, { from: 12, to: 28 });
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledExactlyOnceWith(game, move);
+    expect(dependency.gamesStore.makeMove.mock.calls[0]![1]).toBe(move);
   });
-  it('retains a copied raw PV prefix for playback, independently of its caller', async () => {
+  it('retains the supplied stable PV references throughout playback', async () => {
     const game = _createTimedGame();
     game.rootPosition = createInitialBoardPosition();
     game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
@@ -159,11 +162,10 @@ describe('GameView menu interruptions', () => {
     const moves = _line();
     wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', moves);
     await flushPromises();
-    moves[1]!.to = 0;
+    for (const move of moves) Object.freeze(move);
     await vi.advanceTimersByTimeAsync(700);
-    expect(dependency.gamesStore.makeMove.mock.calls.map((call) => call[1])).toEqual([
-      { from: 12, to: 28 }, { from: 52, to: 36 }, { from: 6, to: 21 },
-    ]);
+    expect(dependency.gamesStore.makeMove.mock.calls.map((call) => call[1])).toEqual(moves);
+    for (const [index, move] of moves.entries()) expect(dependency.gamesStore.makeMove.mock.calls[index]![1]).toBe(move);
   });
   it('preflights the whole raw PV before the first store call', async () => {
     const game = _createTimedGame();
@@ -176,7 +178,7 @@ describe('GameView menu interruptions', () => {
     expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('stale');
   });
-  it('copies raw historical continuation before confirmation', async () => {
+  it('retains the supplied raw historical continuation through confirmation', async () => {
     const game = _createTimedGame();
     game.rootPosition = createInitialBoardPosition();
     MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
@@ -186,14 +188,14 @@ describe('GameView menu interruptions', () => {
     game.gameplayOptions.allowTakeback = true;
     const wrapper = _mountView(game);
     await flushPromises();
-    const move = { from: 11, to: 27 };
+    const move = Object.freeze({ from: 11, to: 27 });
     wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', move);
     await flushPromises();
-    move.to = 0;
     const props = modal.open.mock.lastCall![1] as ModalProps<typeof ConfirmationModal>;
     await props.confirm(new AbortController().signal);
     await flushPromises();
-    expect(dependency.gamesStore.makeMove).toHaveBeenCalledExactlyOnceWith(game, { from: 11, to: 27 });
+    expect(dependency.gamesStore.makeMove).toHaveBeenCalledExactlyOnceWith(game, move);
+    expect(dependency.gamesStore.makeMove.mock.calls[0]![1]).toBe(move);
   });
   it.each([GameState.PausedBlackTurn, GameState.LiveAnalysisFromBlackTurnWhiteMove])('rejects a retained continuation after changing to %s', async (state) => {
     const game = _createTimedGame();

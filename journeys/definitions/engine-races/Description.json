@@ -18,7 +18,7 @@
   ],
   "steps": [
     "Use chessVueJourney.engines.hold('player') before Resume to hold the pending reply.",
-    "Planned premove acceptance (JRN-RACE-09): queue own-piece moves from projected destinations, release replies during Review/Analyse and cancel from the board. Production support awaits the revised turn-request implementation.",
+    "Premove acceptance (JRN-RACE-09): queue own-piece moves from projected destinations, release replies during Review/Analyse and cancel from the board. Each existing local-turn request submits one queued head.",
     "Pause, explore, reassign or finish the game; release the identified search and verify the live line.",
     "Select either analysis game and hold analysis searches; release records independently, stop or remove a seat, and simulate a crash with manual Retry.",
     "Reset to clear faults, barriers and persisted changes."

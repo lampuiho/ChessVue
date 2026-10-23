@@ -389,7 +389,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
 
 ### SCN-MOVE-04 - Queue Premoves Against an Engine
-- **Status**: Planned; production implementation reverted on 23 October 2026. Retained unit/browser specifications do not establish current support.
+- **Status**: Current. Implemented through the existing local-turn request on 23 October 2026; see [executed verification](../PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026).
 - **Goal**: Prepare raw own-piece intentions during an engine turn and play one on each ordinary local-turn request.
 - **Preconditions**: Ongoing unpaused human-engine game; following the live gameplay board, outside explicit Analyse.
 - **Main Steps**:

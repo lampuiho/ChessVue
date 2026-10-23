@@ -6,6 +6,8 @@ This document defines the authoritative state model for games and game-facing UI
 The low-level rewrite must derive action permissions and transitions from this contract rather than recreating the older multi-axis model.
 
 ## Game State
+Premoves are optional runtime input for a Local seat against an Engine. `game.$.premoveQueue` contains the actual local player reference and a FIFO of existing `IMoveRaw` references. They create no history nodes or game states. Each existing local-turn request resolves one actual legal head through `attemptPlayerMove`; an invalid dependency clears the whole FIFO. Explicit analysis and history remain independent while actual clocks/turns continue. Canonical positions exclude premoves; only artwork/red endpoints are projected. See the [implemented flow](../LowLevel/ProcessFlows/GameplayAndControl.md#scn-move-04---premoves-through-the-existing-turn-request).
+
 ChessVue game behaviour is defined by one authoritative `GameState` enum plus separate result fields.
 
 ### Live States

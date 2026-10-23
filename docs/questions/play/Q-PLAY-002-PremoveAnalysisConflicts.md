@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Product choices resolved; rejected premove production implementation reverted on 23 October. Raw data/refactor and scenario tests retained; revised behaviour plan awaits approval |
+| Status | Product choices resolved; revised existing-turn implementation approved and delivered on 23 October. Current evidence and independent baseline limitations are recorded in the parent plan |
 | Raised/resolved | 21 October 2026 |
 | Decision source | User numbered answers and subsequent explicit corrections through 23 October 2026, including keeping the existing turn mechanism |
 | Parent plan | [Premove and player-turn flow](../../PreMovePlan%28ToDo%29.md) |

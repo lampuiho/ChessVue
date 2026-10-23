@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardOrientation, GameState, PieceKind, PlayerColour, PlayerType, ResultState, type IGame, type IMoveRaw } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
 import { buildFen, genLegalMoves, getUci } from '@/utility/chess';
+import { Deferred } from '@/utility/async/Deferred';
 import { createGame, createGameSessionSnapshot, createSettingsSnapshot, createUiLayoutState } from '@/state/__tests__/StateStoreTestUtility';
 import { castlePosition, fixturePlayer, fixturePosition, localSeat, pieceMap, premove, promotionPosition, squareId, whiteChain, type IPositionFixture } from '@/state/__tests__/PremoveFixture';
 import { premoveProjectionScenarios } from '@/state/__tests__/PremoveProjectionScenario';
@@ -148,11 +149,9 @@ describe('premove scenarios at the mounted input boundary', () => {
     for (const move of queue?.moves ?? []) Object.freeze(move);
     if (queue) Object.freeze(queue.moves);
     const expected = pieceMap(canonical.board);
-    if (!spec.invalid) {
-      for (const [square, piece] of Object.entries(spec.cells!)) {
-        if (piece === undefined) delete expected[square];
-        else expected[square] = piece;
-      }
+    for (const [square, piece] of Object.entries(spec.cells)) {
+      if (piece === undefined) delete expected[square];
+      else expected[square] = piece;
     }
     const wrapper = _mount(game);
     await flushPromises();
@@ -188,9 +187,8 @@ describe('premove scenarios at the mounted input boundary', () => {
     const game = _game({ played: local === PlayerColour.White ? ['e2e4'] : [], queue: [], local });
     const wrapper = _mount(game);
     await flushPromises();
-    const [from, to] = local === PlayerColour.White ? ['g8', 'f6'] : ['g1', 'f3'];
-    await _square(wrapper, from!).get('.chess-piece').trigger('dragstart');
-    await _square(wrapper, to!).trigger('drop');
+    const from = local === PlayerColour.White ? 'g8' : 'g1';
+    expect(_square(wrapper, from!).get('.chess-piece').attributes('draggable')).toBe('false');
     await flushPromises();
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
   });
@@ -436,6 +434,30 @@ describe('premove scenarios at the mounted input boundary', () => {
     expect(wrapper.getComponent(Chessboard).vm.$.vnode.props!.onMoveAttempted).toBe(retained);
     await _square(wrapper, 'h7').trigger('click');
     expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove('g5h7'));
+  });
+  it('PRE-F04 renders a published opponent reply while the shifted local head is settling', async () => {
+    const game = _game();
+    const wrapper = _mount(game);
+    await flushPromises();
+    const board = _position(game);
+    const reply = _legal(board, 'e7e5');
+    const parent = game.moveTree.root.children[0]!;
+    MoveHistoryService.addMainlineMove(parent, reply);
+    game.livePath!.push(0);
+    game.gameState = GameState.LiveWhiteTurn;
+    game.$!.premoveQueue!.moves.shift();
+    game.$!.pendingPlayerTurnPromise = new Deferred();
+    await _publish();
+    expect(_square(wrapper, 'g1').attributes('aria-label')).toBe('g1 white knight');
+    expect(_redSquares(wrapper)).toEqual([]);
+    MoveApplicationService.applyMove(board, reply);
+    MoveHistoryService.addMainlineMove(parent.children[0]!, _legal(board, 'g1f3'));
+    game.livePath!.push(0);
+    game.gameState = GameState.LiveBlackTurn;
+    game.$!.pendingPlayerTurnPromise = undefined;
+    await _publish();
+    expect(_square(wrapper, 'g5').attributes('aria-label')).toBe('g5 white knight');
+    expect(_redSquares(wrapper)).toEqual(['f3', 'g5']);
   });
   it('PRE-S06 PRE-S22 background queue edits preserve independent analysis input', async () => {
     const game = _game();

@@ -73,6 +73,8 @@ No `movingPiece` or moving-colour field is required. Read the source from the se
 
 ### Copy and mutation ownership
 
+The 23 October approved [premove reference policy](../PreMovePlan%28ToDo%29.md#copy-and-reference-audit) supersedes the transport-copy requirements in this historical prerequisite. Board/modal emission passes the offered raw reference. AnalysisPanel slices the selected prefix once, retaining its stable entries; GameView confirmation/playback and the FIFO retain those same references. Structurally detailed PV entries are valid raw input; canonical acceptance still generates fresh actual facts. Revised reference assertions and current execution evidence are recorded in the parent implementation plan.
+
 | Boundary | Ownership |
 | --- | --- |
 | Legal candidate in Chessboard | Existing rule-derived raw value; selection/promotion never mutates the board or enriches that candidate |

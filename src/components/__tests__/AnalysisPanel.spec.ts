@@ -8,15 +8,17 @@ describe('AnalysisPanel seats', () => {
   it('selects only the suggested prefix ending at the clicked move', async () => {
     const seat = createAnalysisSeat();
     const moves = [createMove(PlayerColour.White), createMove(PlayerColour.Black)];
+    for (const move of moves) Object.freeze(move);
     seat.lines = [{ depth: 12, pv: moves }];
     const wrapper = mount(AnalysisPanel, { props: { seats: [seat], showMoves: true } });
     const buttons = wrapper.findAll('.analysis-lines button');
     await buttons[0]!.trigger('click');
     await buttons[1]!.trigger('click');
-    const raws = moves.map(({ from, to }) => ({ from, to }));
-    expect(wrapper.emitted('moveSelected')).toEqual([[[raws[0]]], [raws]]);
-    moves[0]!.to = 20;
-    expect(wrapper.emitted('moveSelected')![1]![0]).toEqual(raws);
+    expect(wrapper.emitted('moveSelected')).toEqual([[[moves[0]]], [moves]]);
+    const prefix = wrapper.emitted('moveSelected')![1]![0] as typeof moves;
+    expect(prefix).not.toBe(moves);
+    expect(prefix[0]).toBe(moves[0]);
+    expect(prefix[1]).toBe(moves[1]);
     wrapper.unmount();
   });
   it('renders prepared lines and keeps restored empty assignments manageable', () => {

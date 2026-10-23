@@ -15,8 +15,7 @@ const emit = defineEmits<{
   moveSelected: [moves: readonly IMoveRaw[]];
 }>();
 function _selectMoves(line: IAnalysisLine, moveIndex: number) {
-  emit('moveSelected', line.pv.slice(0, moveIndex + 1).map(({ from, to, promotionPiece }) =>
-    promotionPiece === undefined ? { from, to } : { from, to, promotionPiece }));
+  emit('moveSelected', line.pv.slice(0, moveIndex + 1));
 }
 function _score(line?: IAnalysisLine): string {
   if (line?.scoreMate !== undefined) return line.scoreMate > 0 ? `M${line.scoreMate}` : `−M${Math.abs(line.scoreMate)}`;

@@ -11,16 +11,19 @@ import {
   PlayerType,
   ResultReason,
   ResultState,
+  type BoardId,
   type IBoardPosition,
   type ICapturedPieceGroup,
   type ICreateGameRequest,
   type IGame,
   type IMoveRaw,
   type IMoveNode,
+  type IPremoveQueue,
 } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService, TimeControlService } from '@/domain';
 import { ClockTimestamp } from '@/utility/date';
-import { buildFen, isMoveLegal, toDetailedMove } from '@/utility/chess';
+import { buildFen, genCandidateMovesForPiece, getOpponentColour, isMoveLegal, toDetailedMove } from '@/utility/chess';
+import { useGamePosition } from '@/state/game/GamePositionComposable';
 import { OperationOwner } from '@/utility/async/OperationOwner';
 import { abortableDelay } from '@/utility/async/Abortable';
 import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
@@ -40,7 +43,12 @@ import AnalysisPanel from '@/components/AnalysisPanel.vue';
 import GameControlPanel from '@/components/GameControlPanel.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 
-interface IRenderedBoard { game: IGame; node: IMoveNode; position: IBoardPosition; analysis: boolean; inputAllowed: boolean; ongoing: boolean; boardEdit: boolean; }
+interface IRenderedBoard {
+  game: IGame; node: IMoveNode; position: IBoardPosition; analysis: boolean; inputAllowed: boolean; ongoing: boolean; boardEdit: boolean;
+  queue?: IPremoveQueue; head?: IMoveRaw; tail?: IMoveRaw; heldLocalMove?: IMoveRaw;
+  premoveColour?: PlayerColour; displayPosition?: IBoardPosition; premoveSquares?: ReadonlySet<BoardId>;
+}
+const gamePosition = useGamePosition();
 const modal = useModal();
 const route = useRoute();
 const router = useRouter();
@@ -79,6 +87,18 @@ const livePosition = computed(() => {
   return MoveApplicationService.genPosition(currentGame.rootPosition, MoveHistoryService.getMoveSequence(currentGame.moveTree, currentGame.livePath));
 });
 const isInGameAnalysis = computed(() => !!game.value?.gameState.includes('AnalysisFrom'));
+const localPlayer = computed(() => {
+  const currentGame = game.value;
+  return currentGame?.whitePlayer?.type === PlayerType.Local && currentGame.blackPlayer?.type === PlayerType.Engine ? currentGame.whitePlayer
+    : currentGame?.blackPlayer?.type === PlayerType.Local && currentGame.whitePlayer?.type === PlayerType.Engine ? currentGame.blackPlayer : undefined;
+});
+const premoveColour = computed(() => {
+  const currentGame = game.value;
+  if (!currentGame || !localPlayer.value || isInGameAnalysis.value || currentGame.gameState.startsWith('paused')
+    || currentGame.gameState === GameState.BoardEdit || currentGame.resultState !== ResultState.Ongoing
+    || !currentGame.livePath || currentGame.renderedPath !== currentGame.livePath) return;
+  if (livePosition.value?.sideToMove !== localPlayer.value.colour) return localPlayer.value.colour;
+});
 const canInput = computed(() => {
   const currentGame = game.value;
   if (!currentGame) return false;
@@ -88,7 +108,7 @@ const canInput = computed(() => {
   if (currentGame.renderedPath !== currentGame.livePath) return !!currentGame.gameplayOptions.allowTakeback
     && currentGame.renderedPath.length < currentGame.livePath.length && currentGame.renderedPath.every((part, index) => part === currentGame.livePath![index]);
   const player = livePosition.value?.sideToMove === PlayerColour.White ? currentGame.whitePlayer : currentGame.blackPlayer;
-  return player?.type === PlayerType.Local;
+  return player?.type === PlayerType.Local || premoveColour.value !== undefined;
 });
 const renderedBoard = computed<IRenderedBoard | undefined>((previous) => {
   const currentGame = game.value;
@@ -99,10 +119,25 @@ const renderedBoard = computed<IRenderedBoard | undefined>((previous) => {
   const inputAllowed = canInput.value;
   const ongoing = currentGame.resultState === ResultState.Ongoing;
   const boardEdit = currentGame.gameState === GameState.BoardEdit;
+  const visible = ongoing && !analysis && !boardEdit && !!localPlayer.value && !!currentGame.livePath && currentGame.renderedPath === currentGame.livePath;
+  // A shifted head reaches canonical play through the existing asynchronous turn handler.
+  const resolvingLocal = !!currentGame.$?.pendingPlayerTurnPromise && livePosition.value?.sideToMove === localPlayer.value?.colour;
+  const queue = visible && !resolvingLocal ? currentGame.$?.premoveQueue : undefined;
+  const held = currentGame.$?.deferredPlayerMove;
+  const heldLocalMove = visible && held?.movingColour === localPlayer.value?.colour ? held : undefined;
+  const head = queue?.moves[0];
+  const tail = queue?.moves[queue.moves.length - 1];
+  const colour = premoveColour.value;
+  const samePosition = previous?.game === currentGame && previous.node === node && buildFen(previous.position) === buildFen(next);
+  const sameContext = samePosition && previous.analysis === analysis && previous.inputAllowed === inputAllowed
+    && previous.ongoing === ongoing && previous.boardEdit === boardEdit;
   // Publications retain input only while the selected board and its permissions share the same owner.
-  if (previous?.game === currentGame && previous.node === node && previous.analysis === analysis && previous.inputAllowed === inputAllowed
-    && previous.ongoing === ongoing && previous.boardEdit === boardEdit && buildFen(previous.position) === buildFen(next)) return previous;
-  return { game: currentGame, node, position: next, analysis, inputAllowed, ongoing, boardEdit };
+  if (sameContext && previous.queue === queue && previous.head === head && previous.tail === tail
+    && previous.heldLocalMove === heldLocalMove && previous.premoveColour === colour) return previous;
+  const canonical = sameContext ? previous.position : next;
+  const projection = queue || heldLocalMove ? gamePosition.getPremoveProjection(canonical, queue, heldLocalMove) : undefined;
+  return { game: currentGame, node, position: canonical, analysis, inputAllowed, ongoing, boardEdit, queue, head, tail, heldLocalMove,
+    premoveColour: colour, displayPosition: projection?.position, premoveSquares: projection?.redSquares };
 });
 const inputActions = computed(() => {
   const owner = renderedBoard.value;
@@ -112,6 +147,7 @@ const inputActions = computed(() => {
     analyse: () => _runInputAction(owner, (currentGame) => gamesStore.enterInGameAnalysis(currentGame)),
     exit: () => _runInputAction(owner, (currentGame) => gamesStore.exitInGameAnalysis(currentGame)),
     takeBack: () => _runInputAction(owner, (currentGame) => gamesStore.takeBack(currentGame)),
+    cancelPremoves: () => _runInputAction(owner, (currentGame) => gamesStore.clearPremoves(currentGame)),
   };
 });
 const position = computed(() => renderedBoard.value?.position);
@@ -249,6 +285,8 @@ async function _selectTab(id: string) {
   await router.push(`/game/${id}`);
 }
 async function _closeTab(id: string) {
+  const closing = gamesStore.getGame(id) as IGame | undefined;
+  if (closing) gamesStore.clearPremoves(closing);
   uiStateStore.closeTab(id);
   const activeId = uiStateStore.gameSession?.activeGameId;
   await router.push(activeId ? `/game/${activeId}` : '/home');
@@ -280,25 +318,37 @@ async function _returnToLivePosition() {
 }
 async function _playAnalysisLine(moves: readonly IMoveRaw[]) {
   const currentGame = game.value;
-  if (!currentGame || isPlayingLine.value) return;
+  if (!currentGame || !showAnalysisMoves.value || isPlayingLine.value) return;
   const explore = !currentGame.livePath || currentGame.resultState !== ResultState.Ongoing || isInGameAnalysis.value;
+  if (!explore && premoveColour.value) {
+    const move = moves[moves.length - 1];
+    const mover = moves.length % 2 ? position.value!.sideToMove : getOpponentColour(position.value!.sideToMove);
+    const preview = renderedBoard.value!.displayPosition ?? position.value!;
+    if (!move || mover !== premoveColour.value || preview.board[move.from]?.colour !== mover
+      || !genCandidateMovesForPiece(preview, move.from).some((candidate) => candidate.to === move.to && candidate.promotionPiece === move.promotionPiece)) return;
+    await _requestMoves([move]);
+    return;
+  }
   await _requestMoves(explore ? moves : moves.slice(0, 1));
 }
 async function _requestMoves(moves: readonly IMoveRaw[]) {
   const currentGame = game.value;
   if (!currentGame || !moves.length || !canInput.value || isPlayingLine.value || currentGame.gameState === GameState.BoardEdit) return;
-  const ownedMoves = moves.map(({ from, to, promotionPiece }) => promotionPiece === undefined ? { from, to } : { from, to, promotionPiece });
+  if (premoveColour.value) {
+    await _run(() => gamesStore.makeMove(currentGame, moves[0]!));
+    return;
+  }
   const livePath = currentGame.livePath;
   const historical = livePath && currentGame.renderedPath.length < livePath.length && currentGame.renderedPath.every((part, index) => part === livePath[index]);
   if (historical && !isInGameAnalysis.value && currentGame.resultState === ResultState.Ongoing && currentGame.gameplayOptions.allowTakeback) {
-    const pending = { game: currentGame, node: renderedNode.value!, moves: ownedMoves };
+    const pending = { game: currentGame, node: renderedNode.value!, moves };
     continuation = modal.open(ConfirmationModal, {
       title: 'Continue from this position?', subtitle: 'This changes the played line. The previous continuation will remain as a variation.',
       confirmLabel: 'Continue game', confirm: (signal) => _confirmContinuation(pending, signal),
     });
     return;
   }
-  await _run(() => _applyMoves(currentGame, ownedMoves));
+  await _run(() => _applyMoves(currentGame, moves));
 }
 function _closeContinuation() {
   const current = continuation;
@@ -446,6 +496,9 @@ async function _run(action: () => Promise<void> | void) {
           <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="actualTurnColour === topColour" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="_requestPlayerSelection" />
           <Chessboard
             :position="position"
+            :display-position="renderedBoard?.displayPosition"
+            :premove-squares="renderedBoard?.premoveSquares"
+            :premove-colour="renderedBoard?.premoveColour"
             :orientation="settings?.appearance.boardOrientation"
             :show-coordinates="settings?.appearance.showCoordinates"
             :highlight-last-move="settings?.appearance.highlightLastMove"
@@ -453,6 +506,7 @@ async function _run(action: () => Promise<void> | void) {
             :input-disabled="isBoardInputDisabled"
             :board-edit="controlMode === 'boardEdit'"
             @move-attempted="inputActions.move"
+            @premoves-cancelled="inputActions.cancelPremoves"
             @chess-piece-toggled="(boardId, piece) => gamesStore.toggleChessPiece(game!, boardId, piece)"
             @chess-piece-deleted="(boardId) => gamesStore.deleteChessPiece(game!, boardId)"
             @chess-piece-moved="(from, to) => gamesStore.moveChessPiece(game!, from, to)"

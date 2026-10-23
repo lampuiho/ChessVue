@@ -20,6 +20,7 @@ Define the canonical game model used by `GamesStore`, related services, and pers
 - `interface IGameMetadata`
 - `interface IGameplayOptions`
 - `interface IGameRuntime`
+- `interface IPremoveQueue` (`player: IPlayer`, `moves: IMoveRaw[]`)
 - `interface IGame`
 - `interface ICreateGameRequest`
 - `interface IStartGameFromSetupRequest`
@@ -125,6 +126,7 @@ interface IGameRuntime {
   deferredPlayerMove?: IMove
   pendingPlayerTurnPromise?: Deferred<IMove>
   pendingPlayerTurnHandlePromise?: Promise<void>
+    pendingPlayerTurnAbortController?: AbortController
 }
 
 interface IGame {
@@ -203,6 +205,7 @@ Persistent move paths are mutable, store-owned selector values. Appending a chil
 - `schemaVersion` is part of `IGame`. **Why:** the persisted boundary must reject unknown formats instead of guessing their shape and needs an explicit dispatch key if a later schema is introduced. Version `1` is the first and only current schema.
 - `livePath` and `renderedPath` are persisted selectors for exact restore. They identify nodes by child-index traversal from `moveTree.root` and are resolved into runtime references during hydration.
 - `renderedPath` tracks the line currently highlighted in history and analysis. In normal live play it matches `livePath`, while in analysis or history navigation it may differ.
+- `premoveQueue` is runtime-only human-engine input. Entries retain stable raw references, with no anchor, expected-kind data, speculative history or additional turn owner. Structural actions clear ownership; save excludes `$` and hydration creates an empty runtime. Canonical positions remain unprojected; drawing uses one detached pass over the FIFO. See the [queue design](../../../PremoveDataStructure.md).
 - `drawOfferState` is cleared when the draw is accepted, declined, or withdrawn, when another terminal result supersedes it, or when the game leaves live play for free analysis/setup.
 - `gameplayOptions.showLiveAnalysisMoves` is persisted as part of the game, defaults to `false` for new live games and setup-to-live transitions, and is not part of global settings or remembered UI layout state.
 - `analysis.seats` is persisted and restored as part of the game, and its current row order is the source of truth for mapping remembered engine-group fold state by index.

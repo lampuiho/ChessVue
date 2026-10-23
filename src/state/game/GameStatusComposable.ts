@@ -20,10 +20,11 @@ interface IGameStatusDependency {
   touchGame: (game: IGame) => void;
   clearPlayerTurnRuntime: (game: IGame) => Promise<void>;
   refreshRuntimeRegistrations: (game: IGame) => void;
+  clearPremoves: (game: IGame) => void;
 }
 
 export function useGameStatus(dependency: IGameStatusDependency) {
-  const { position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = dependency;
+  const { position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations, clearPremoves } = dependency;
   function isLiveState(state: GameState): boolean {
     return state === GameState.LiveWhiteTurn || state === GameState.LiveBlackTurn;
   }
@@ -137,6 +138,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
   async function resignGame(game: IGame, colour: PlayerColour) {
     assertOngoingLiveAction(game, 'Resignation');
     await clearPlayerTurnRuntime(game);
+    clearPremoves(game);
     game.resultState = colour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
     game.resultReason = ResultReason.Resignation;
@@ -155,6 +157,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     assertOngoingLiveAction(game, 'Draw acceptance');
     if (!game.drawOfferState) return;
     await clearPlayerTurnRuntime(game);
+    clearPremoves(game);
     game.resultState = ResultState.Drawn;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
     game.resultReason = ResultReason.DrawAgreement;

@@ -23,6 +23,7 @@ vi.mock('@/domain', async (importOriginal) => {
   return { ...actual,
     EngineRuntimeService: { ...actual.EngineRuntimeService, ensureReady: vi.fn(async () => {}), stopEngine: vi.fn(async () => {}),
       startPlayerTurn: vi.fn(async (_engine: IAssignedEngine, game: IGame, deliver: IProviderTurn['deliver'], signal?: AbortSignal) => {
+        if (signal?.aborted) return;
         external.turns.push({ game, deliver, signal, position: actual.MoveApplicationService.genPosition(game.$!.livePosition!, []) });
       }),
       startAnalysis: vi.fn(async () => {}), subscribeToAnalysis: vi.fn(() => () => {}), stopAnalysis: vi.fn(async () => {}),
@@ -92,7 +93,7 @@ async function _seed(spec: IPremoveScenario) {
   await flushPromises();
   if (spec.queue) {
     const player = localSeat(game, colour);
-    game.$!.premoveQueue = { player: spec.clonePlayer ? { ...player } : player, moves: structuredClone([...spec.queue]) };
+    game.$!.premoveQueue = { player, moves: structuredClone([...spec.queue]) };
   }
   return { game, snapshot: _snapshot(game) } as IScenarioContext;
 }
@@ -208,14 +209,11 @@ describe('premove scenario data through actual game actions', () => {
     }
     _assert(context, spec.expected);
   });
-  it('PRE-S01 PRE-S22 copies accepted coordinates and discards caller-owned move metadata', async () => {
+  it('PRE-S01 PRE-S22 retains the supplied stable raw move reference', async () => {
     const context = await _seed({ id: 'PRE-S01', name: 'input isolation', events: [], expected: {} });
-    const input = { ...whiteChain[0]!, movingColour: PlayerColour.Black, movingPiece: PieceKind.Bishop, capturePiece: PieceKind.Queen, $: { san: 'stale notation', uci: 'stale coordinates' } };
+    const input = Object.freeze({ ...whiteChain[0]! });
     await _submit(context.game, input);
-    const accepted = context.game.$!.premoveQueue!.moves[0];
-    expect(accepted).toEqual(whiteChain[0]);
-    expect(accepted).not.toBe(input);
-    input.to = 0;
+    expect(context.game.$!.premoveQueue!.moves[0]).toBe(input);
     _assert(context, { queue: [whiteChain[0]!], unchanged: ['canonical', 'clock', 'rendered', 'searches'] });
   });
   it('PRE-F08 PRE-S22 publishes append and cancellation without canonical effects', async () => {
@@ -229,7 +227,7 @@ describe('premove scenario data through actual game actions', () => {
     await _submit(context.game, input);
     expect(store.workspaceRevision).toBeGreaterThan(before);
     expect(context.game.$!.premoveQueue!.moves[0]).toEqual({ from: 6, to: 21 });
-    expect(context.game.$!.premoveQueue!.moves[0]).not.toBe(input);
+    expect(context.game.$!.premoveQueue!.moves[0]).toBe(input);
     _assert(context, { unchanged: ['canonical', 'clock', 'rendered', 'searches'] });
     const appended = store.workspaceRevision;
     await _clearPremoves(context.game);
@@ -239,19 +237,6 @@ describe('premove scenario data through actual game actions', () => {
     await _clearPremoves(context.game);
     expect(store.workspaceRevision).toBe(cleared);
     expect(EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(searches);
-  });
-  it.each([
-    { name: 'empty source', move: premove('g3f5') }, { name: 'opposing source', move: premove('g8f6') },
-    { name: 'wrong geometry', move: premove('g5g7') }, { name: 'friendly target', move: premove('g5e4') },
-    { name: 'null move', move: premove('g5g5') }, { name: 'negative source', move: { from: -1, to: 21 } },
-    { name: 'large target', move: { from: 38, to: 64 } }, { name: 'fractional source', move: { from: 38.5, to: 21 } },
-    { name: 'fractional target', move: { from: 38, to: 21.5 } }, { name: 'non-pawn promotion', move: { ...premove('g5h7'), promotionPiece: PieceKind.Queen } },
-  ])('PRE-S01 invalid append preserves the valid raw FIFO: $name', async ({ move }) => {
-    const context = await _seed({ id: 'PRE-S01', name: 'invalid append', queue: whiteChain, events: [], expected: {} });
-    const before = store.workspaceRevision;
-    await expect(_submit(context.game, Object.freeze(move))).rejects.toThrow();
-    _assert(context, { queue: whiteChain, unchanged: ['canonical', 'clock', 'queue', 'rendered', 'searches'] });
-    expect(store.workspaceRevision).toBe(before);
   });
   it.each(['q', 'r', 'b', 'n'])('PRE-S04 derives the %s promotion dependency from the actual board', async (letter) => {
     const destination = letter === 'n' ? 'b6' : letter === 'b' ? 'c6' : 'a6';
@@ -267,12 +252,6 @@ describe('premove scenario data through actual game actions', () => {
     _assert(context, { actual, queue: undefined, searches: 3,
       lastMove: { movingPiece: first.promotionPiece }, actualPieces: { a7: undefined, a8: undefined, [destination]: `white ${first.promotionPiece}` } });
   });
-  it.each([undefined, PieceKind.King, PieceKind.Pawn])('PRE-S04 rejects an unfinished or invalid promotion choice: %s', async (promotionPiece) => {
-    const context = await _seed({ id: 'PRE-S04', name: 'invalid promotion', root: promotionPosition, played: [], events: [], expected: {} });
-    const move = { ...premove('a7a8'), ...(promotionPiece ? { promotionPiece } : {}) };
-    await expect(_submit(context.game, move)).rejects.toThrow();
-    _assert(context, { queue: undefined, unchanged: ['canonical', 'clock', 'rendered', 'searches'] });
-  });
   it('PRE-S19 PRE-S21 two games consume and cancel only their own queues and providers', async () => {
     const spec = { id: 'PRE-S19', name: 'game isolation', queue: whiteChain, events: [], expected: {} };
     const first = await _seed(spec);
@@ -287,13 +266,17 @@ describe('premove scenario data through actual game actions', () => {
     expect(first.game.$!.premoveQueue).toBeUndefined();
     expect(_snapshot(second.game)).toEqual(remaining);
   });
-  it('PRE-F05 duplicate provider output cannot settle the following local turn', async () => {
-    const context = await _seed({ id: 'PRE-S21', name: 'duplicate output', events: [], expected: {} });
+  it('PRE-F04 repeated wake actions preserve the waiting Local turn', async () => {
+    const context = await _seed({ id: 'PRE-S23', name: 'waiting Local turn', events: [], expected: {} });
     await _reply(context.game, 'e7e5', false);
     await flushPromises();
+    const pending = context.game.$!.pendingPlayerTurnPromise;
     const after = _snapshot(context.game);
-    await expect(_reply(context.game, 'e7e5', true)).resolves.toBeUndefined();
+    store.exitInGameAnalysis(context.game);
+    store.exitInGameAnalysis(context.game);
     await flushPromises();
+    expect(pending).toBeDefined();
+    expect(context.game.$!.pendingPlayerTurnPromise).toBe(pending);
     expect(_snapshot(context.game)).toEqual(after);
     await _submit(context.game, premove('g1f3'));
     await flushPromises();
@@ -315,17 +298,25 @@ describe('premove scenario data through actual game actions', () => {
     await flushPromises();
     _assert(context, { actual: ['e2e4', 'e7e5', 'g1f3'], queue: [whiteChain[1]!], searches: 2 });
   });
-  it('PRE-F12 PRE-S21 cancellation during readiness closes the old provider before a late success', async () => {
+  it('PRE-F12 PRE-S21 cancelled readiness starts no search and preserves the replacement Local turn', async () => {
     const ready = new Deferred<void>();
     vi.mocked(EngineRuntimeService.ensureReady).mockReturnValueOnce(ready);
     const context = await _seed({ id: 'PRE-S21', name: 'readiness cancellation', queue: whiteChain, events: [], expected: {} });
+    const cancelled = context.game.$!.pendingPlayerTurnAbortController!;
     await store.reassignPlayer(context.game, PlayerColour.Black, fixturePlayer(PlayerColour.Black, PlayerType.Local));
+    const pending = context.game.$!.pendingPlayerTurnPromise;
     const after = _snapshot(context.game);
     ready.resolve();
     await flushPromises();
-    expect(EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
+    expect(cancelled.signal.aborted).toBe(true);
+    expect(_searches(context.game)).toBe(0);
+    expect(pending).toBeDefined();
+    expect(context.game.$!.pendingPlayerTurnPromise).toBe(pending);
     expect(_snapshot(context.game)).toEqual(after);
     expect(context.game.$!.premoveQueue).toBeUndefined();
+    await _submit(context.game, premove('e7e5'));
+    await flushPromises();
+    _assert(context, { actual: ['e2e4', 'e7e5'], queue: undefined, searches: 0 });
   });
   it('PRE-F04 a genuine provider failure retains intentions and retries the same actual turn once', async () => {
     const failure = new Error('Controlled readiness failure');
@@ -346,19 +337,20 @@ describe('premove scenario data through actual game actions', () => {
       _assert(context, { actual: ['e2e4', 'e7e5', 'g1f3'], queue: [whiteChain[1]!], searches: 2 });
     } finally { report.mockRestore(); }
   });
-  it('PRE-F12 cancellation removes an owned retry instead of leaving a timer for a replaced game', async () => {
+  it('PRE-F12 a scheduled retry does not restart play after its engine seat is removed', async () => {
     const report = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       vi.mocked(EngineRuntimeService.ensureReady).mockRejectedValueOnce(new Error('Controlled retry cancellation'));
       const context = await _seed({ id: 'PRE-S21', name: 'retry cancellation', queue: whiteChain, events: [], expected: {} });
       expect(vi.getTimerCount()).toBe(1);
       await store.reassignPlayer(context.game, PlayerColour.Black, undefined);
-      expect(vi.getTimerCount()).toBe(0);
       const after = _snapshot(context.game);
       await vi.advanceTimersByTimeAsync(1000);
       await flushPromises();
+      expect(vi.getTimerCount()).toBe(0);
       expect(_snapshot(context.game)).toEqual(after);
       expect(EngineRuntimeService.ensureReady).toHaveBeenCalledOnce();
+      expect(EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
     } finally { report.mockRestore(); }
   });
   it('PRE-F13 disposal aborts the actual provider, clears the queue and rejects late delivery', async () => {

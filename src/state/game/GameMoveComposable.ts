@@ -7,10 +7,11 @@ import {
   type IMove,
   type IMoveRaw,
   type IMoveNode,
+  type IPlayer,
 } from '@/contracts';
 import { EngineRuntimeService, MoveApplicationService, MoveHistoryService } from '@/domain';
 import { ClockTimestamp } from '@/utility/date';
-import { genLegalMovesForPiece, toDetailedMove } from '@/utility/chess';
+import { genCandidateMovesForPiece, genLegalMovesForPiece, toDetailedMove } from '@/utility/chess';
 import type { GameAnalysisComposable } from './GameAnalysisComposable';
 import type { GameClockComposable } from './GameClockComposable';
 import type { GamePlayerTurnComposable } from './GamePlayerTurnComposable';
@@ -25,10 +26,31 @@ interface IGameMoveDependency {
   playerTurn: GamePlayerTurnComposable;
   touchGame: (game: IGame) => void;
   moveCommitted: (game: IGame) => void;
+  clearPremoves: (game: IGame) => void;
+  publishRuntime: () => void;
 }
 
 export function useGameMove(dependency: IGameMoveDependency) {
-  const { position, status, clock, analysis, playerTurn, touchGame, moveCommitted } = dependency;
+  const { position, status, clock, analysis, playerTurn, touchGame, moveCommitted, clearPremoves, publishRuntime } = dependency;
+  function _appendPremove(game: IGame, player: IPlayer, rawMove: IMoveRaw) {
+    const queue = game.$!.premoveQueue ??= { player, moves: [] };
+    queue.moves.push(rawMove);
+    publishRuntime();
+  }
+  function _revalidatePremoves(game: IGame) {
+    const queue = position.requireGameRuntime(game).premoveQueue;
+    if (!queue) return;
+    if (game.resultState !== ResultState.Ongoing) { clearPremoves(game); return; }
+    const preview = MoveApplicationService.genPosition(position.getLivePosition(game), []);
+    for (const move of queue.moves) {
+      if (preview.board[move.from]?.colour !== queue.player.colour
+        || !genCandidateMovesForPiece(preview, move.from).some((candidate) => candidate.to === move.to && candidate.promotionPiece === move.promotionPiece)) {
+        clearPremoves(game);
+        return;
+      }
+      position.applyPremoveProjection(preview, move);
+    }
+  }
   function _publishRenderedPosition(game: IGame, changed: boolean = true) {
     if (changed) return analysis.refreshAnalysisForGame(game);
     touchGame(game);
@@ -54,6 +76,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
     if (game.resultState !== ResultState.Ongoing) game.gameState = status.getAnalysisState(renderedColour);
     else if (status.isAnyLiveAnalysisState(game.gameState)) game.gameState = status.getLiveAnalysisState(livePosition.sideToMove, renderedColour);
     else game.gameState = status.getLiveState(livePosition.sideToMove);
+    _revalidatePremoves(game);
     void _publishRenderedPosition(game, isLivePositionRendered);
     clock.refreshRuntimeRegistrations(game);
     playerTurn.requestPlayerMoveIfNeeded(game);
@@ -69,6 +92,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
       return;
     }
     const moveTimestamp = new ClockTimestamp();
+    clearPremoves(game);
     position.setLivePath(game, renderedPath, { node: renderedNode, position: renderedPosition });
     const selectedClockSnapshot = renderedNode.clockSnapshot ?? game.clockSnapshot;
     game.clockSnapshot = clock.startClock(selectedClockSnapshot, renderedPosition.sideToMove, moveTimestamp);
@@ -120,6 +144,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
     void _publishRenderedPosition(game);
   }
   function replaceWithAnalysisRoot(game: IGame, rootPosition: IBoardPosition, nextState: GameState) {
+    clearPremoves(game);
     const nextClockSnapshot = clock.initialiseClockSnapshot(game.timeControl);
     game.rootPosition = rootPosition;
     const nextMoveTree = MoveHistoryService.createMoveTree(nextClockSnapshot);
@@ -148,6 +173,9 @@ export function useGameMove(dependency: IGameMoveDependency) {
     const analysing = status.isAnyLiveAnalysisState(game.gameState);
     if (live && !analysing && game.renderedPath === game.livePath) {
       const player = playerTurn.getSideToMovePlayer(game, parentPosition.sideToMove);
+      const local = game.whitePlayer?.type === PlayerType.Local && game.blackPlayer?.type === PlayerType.Engine ? game.whitePlayer
+        : game.blackPlayer?.type === PlayerType.Local && game.whitePlayer?.type === PlayerType.Engine ? game.blackPlayer : undefined;
+      if (player?.type === PlayerType.Engine && local) { _appendPremove(game, local, rawMove); return; }
       if (player?.type !== PlayerType.Local) throw new Error('This move does not belong to the current local turn.');
     }
     const move = _resolveMove(parentPosition, rawMove, parentNode.move);
@@ -182,6 +210,7 @@ export function useGameMove(dependency: IGameMoveDependency) {
     const targetNode = hasLivePath ? position.getLiveNode(game) : position.getRenderedNode(game);
     await playerTurn.clearPlayerTurnRuntime(game);
     await Promise.all([game.whitePlayer, game.blackPlayer].filter(playerTurn.isEnginePlayer).map((player) => EngineRuntimeService.stopEngine(player.assignedEngine)));
+    clearPremoves(game);
     const fallbackNode = MoveHistoryService.takeBack(targetNode, moveCount);
     const fallbackPath = position.getPathToNode(fallbackNode);
     const changed = !position.pathsEqual(game.renderedPath, fallbackPath);

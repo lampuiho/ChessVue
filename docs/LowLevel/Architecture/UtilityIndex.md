@@ -74,6 +74,10 @@ Each entry must define:
 - Theme projection, session-route coercion, engine-position mapping, and workspace hydration remain owner-private helpers inside their stores or services unless they become genuinely shared across multiple owners with meaningful behaviour beyond local composition.
 
 ## Chess Structure Support
+### Movement Candidates
+- `GameRuleUtility.genCandidateMovesForPiece(position, from)` returns raw piece-colour movement candidates independent of actual turn, pins, check and attacks. Geometry/blockers, friendly destinations, opposing king capture, pawn direction/start rank/promotion choices and castling rights/rook/path remain chess-rule concerns. Empty pawn diagonals are possible future captures.
+- It is a pure chess-data query shared by board input and changed-board FIFO revalidation. It owns no queue, UI, projection or turn API. Actual due legality remains in existing `genLegalMovesForPiece` and canonical details in `toDetailedMove`.
+
 ### Lazy Derived-Cache Contract
 - `GameRuleUtility.getCheckState(...)` and `isStandardInitialPosition(...)` may initialise `IBoardPosition.$`; `MoveNotationUtility.buildFen(...)`, `getSan(...)`, and `getUci(...)` may initialise position or move `$` metadata.
 - These functions are deterministic query APIs with read-through runtime caches. Callers may treat the returned domain value as a read, but contracts and reviews must account for the local `$` write.

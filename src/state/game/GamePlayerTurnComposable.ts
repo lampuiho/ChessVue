@@ -19,6 +19,7 @@ import { EngineRuntimeService, TimeControlService } from '@/domain';
 import { Deferred } from '@/utility/async/Deferred';
 import { ClockTimestamp } from '@/utility/date';
 import { logHandledError } from '@/utility/errors';
+import { genLegalMovesForPiece, toDetailedMove } from '@/utility/chess';
 import type { GamePositionComposable } from './GamePositionComposable';
 import type { GameStatusComposable } from './GameStatusComposable';
 
@@ -29,10 +30,12 @@ interface IGamePlayerTurnDependency {
   commitLiveMove: (game: IGame, move: IMove) => void;
   replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => void;
   refreshRuntimeRegistrations: (game: IGame) => void;
+  clearPremoves: (game: IGame) => void;
+  publishRuntime: () => void;
 }
 
 export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
-  const { position, status, touchGame, commitLiveMove, refreshRuntimeRegistrations } = dependency;
+  const { position, status, touchGame, commitLiveMove, refreshRuntimeRegistrations, clearPremoves, publishRuntime } = dependency;
   /** Creates the persisted per-game player snapshot and discards runtime owned by the input record. */
   function createPlayerSnapshot(player?: IPlayer): IPlayer | undefined {
     if (!player) return;
@@ -87,6 +90,21 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     pendingPlayerMove.resolve(move);
     await pendingPlayerTurnHandle;
   }
+  async function _tryPremove(game: IGame) {
+    const runtime = position.requireGameRuntime(game);
+    const queue = runtime.premoveQueue;
+    if (!queue) return;
+    const head = queue.moves[0]!;
+    const livePosition = position.getLivePosition(game);
+    const candidate = genLegalMovesForPiece(livePosition, head.from, position.getLiveNode(game).move)
+      .find((move) => move.to === head.to && move.promotionPiece === head.promotionPiece);
+    if (!candidate) { clearPremoves(game); return; }
+    const move = toDetailedMove(livePosition, candidate);
+    queue.moves.shift();
+    if (!queue.moves.length) runtime.premoveQueue = undefined;
+    await attemptPlayerMove(game, move);
+    if (runtime.deferredPlayerMove === move) publishRuntime();
+  }
   function _requestPlayerMove(game: IGame) {
     async function _requestEngineMove(engine: IAssignedEngine) {
       await EngineRuntimeService.ensureReady(engine, abortController.signal);
@@ -124,6 +142,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     runtime.pendingPlayerTurnHandlePromise = pendingPlayerTurnHandle;
     runtime.pendingPlayerTurnAbortController = abortController;
     if (isEnginePlayer(player)) void _requestEngineMove(player.assignedEngine).catch((error) => pendingPlayerMove.reject(error));
+    else if (player?.type === PlayerType.Local) void _tryPremove(game).catch((error) => logHandledError('GameStore', '_tryPremove', error));
   }
   function requestPlayerMoveIfNeeded(game: IGame) {
     if (!status.isLiveTurnReadyForMove(game)) return;
@@ -139,6 +158,7 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     if (isEnginePlayer(previousPlayer)) await EngineRuntimeService.stopEngine(previousPlayer.assignedEngine);
     const selectedPosition = position.getRenderedPosition(game);
     const liveColour = game.livePath ? position.getLivePosition(game).sideToMove : undefined;
+    clearPremoves(game);
     if (colour === PlayerColour.White) game.whitePlayer = nextPlayer;
     else game.blackPlayer = nextPlayer;
     if (!game.whitePlayer || !game.blackPlayer) {

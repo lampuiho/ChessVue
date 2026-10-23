@@ -11,7 +11,7 @@ describe('useGameStatus', () => {
     const touchGame = vi.fn();
     const clearPlayerTurnRuntime = vi.fn(async () => {});
     const refreshRuntimeRegistrations = vi.fn();
-    const status = useGameStatus({ position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations });
+    const status = useGameStatus({ position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations, clearPremoves: vi.fn() });
     return { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations };
   }
   it('preserves the live state family while the side to move changes', () => {

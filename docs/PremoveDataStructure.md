@@ -1,6 +1,6 @@
 # Premove data structure
 
-Replanned on 23 October 2026 after the user requested reversal of the turn-resolution rewrite. **Premove production implementation reverted; raw declaration, completed raw-move refactor and scenario tests retained.** This design keeps the existing turn runtime and supplies a shifted queue head through its existing `attemptPlayerMove` API. Further behaviour implementation awaits approval.
+Replanned, approved and implemented on 23 October 2026 after reversing the rejected turn-resolution rewrite. The FIFO retains `IMoveRaw` references; the existing turn runtime receives a shifted head through `attemptPlayerMove`. See the parent plan's [current implementation verification](PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026). Historical baselines below predate this implementation.
 
 The [parent plan](PreMovePlan%28ToDo%29.md) retains [14 function flows](PreMovePlan%28ToDo%29.md#function-flow), [25 scenarios](PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests) and the [tests-first specification](PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification). The separately completed analysis prerequisite stays unchanged.
 
@@ -12,7 +12,7 @@ The separate [raw submission API design](ArchivedPlans/RawMoveSubmissionDesign.m
 
 PRE-RAW selection/promotion/submission assertions were written and failed before implementation. The delivered flow is `legal IMoveRaw -> completed raw promotion -> board event -> raw view/confirmation/playback -> raw store acceptance -> canonical legal resolution/toDetailedMove -> accepted IMove commit/history`. Full types remain for the [audited clock/history/SAN and engine-result consumers](ArchivedPlans/RawMoveSubmissionDesign.md#type-retention-audit-and-justification). Application requires existing `IMoveCandidate`; PV/modal submission and ponder commands use raw input. Saved game schemas and engine behaviour remain unchanged. Temporary detailed PV-preview steps are local look-ahead data, not queued or submitted authority.
 
-The current request authorises rollback and replanning on this completed prerequisite. The future off-turn branch intercepts raw input before canonical enrichment; its due turn generates actual details later. The raw input refactor does not supply queue behaviour.
+The approved off-turn branch intercepts raw input before canonical enrichment; its due turn generates actual details later. The completed raw input refactor supplies the submission prerequisite; this implementation adds the queue behaviour.
 
 ## Reuse the existing move contract
 

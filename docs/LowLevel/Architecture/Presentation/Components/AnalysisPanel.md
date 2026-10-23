@@ -26,4 +26,6 @@ Props are `seats: readonly ReadonlyAnalysisSeat[]`, `collapsed`, `expandedByInde
 
 ## Remaining presentation work
 
+Selected-prefix emission slices the requested range once and retains the original stable move references as `readonly IMoveRaw[]`; detailed entries already satisfy this contract. GameView chooses actual, exploratory or eligible off-turn delivery without cloning transport fields. Score-only display continues to disable suggestion input.
+
 The component still contains its current template. Common-render-layer extraction remains FRONTEND-DRIFT-12. Individual targets and prefix playback are implemented and exercised by JRN-ANALYSIS-03–06/10; the old FRONTEND-DRIFT-04 interaction note is superseded by that [scenario review](../../../../../journeys/definitions/analysis/ScenarioReview.md).

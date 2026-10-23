@@ -25,10 +25,11 @@ interface IGameWorkspaceDependency {
   analysis: GameAnalysisComposable;
   playerTurn: GamePlayerTurnComposable;
   touchGame: (game: IGame) => void;
+  clearPremoves: (game: IGame) => void;
 }
 
 export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
-  const { position, status, clock, analysis, playerTurn, touchGame } = dependency;
+  const { position, status, clock, analysis, playerTurn, touchGame, clearPremoves } = dependency;
   const games = ref<IGame[]>([]);
   function _createGameMetadata(name: string, nowUtc: Date) {
     return {
@@ -39,6 +40,8 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     };
   }
   /** Insertion transfers ownership; duplicate repair mutates that supplied game before it enters the store. */
+  // this is wrong. the game should never be cloned silently. when I open the same game saved at different point
+  // I expect the game to just revert to that state
   function _repairDuplicateGameId(game: IGame, existingGameIds: ReadonlySet<string>) {
     if (!existingGameIds.has(game.metadata.id)) return;
     game.metadata.id = crypto.randomUUID();
@@ -101,6 +104,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const analysisCleanup = analysis.disposeAnalysisForGame(game);
     await playerTurn.clearPlayerTurnRuntime(game);
     await analysisCleanup;
+    clearPremoves(game);
     game.metadata.name = request.name ?? game.metadata.name;
     game.whitePlayer = playerTurn.createPlayerSnapshot(request.whitePlayer);
     game.blackPlayer = playerTurn.createPlayerSnapshot(request.blackPlayer);

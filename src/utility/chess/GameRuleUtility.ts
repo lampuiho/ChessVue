@@ -474,6 +474,34 @@ function _applyCastleMove(position: IBoardPosition, move: IMoveCandidate, king: 
   return _updatePositionAfterMove(position, move, king, false);
 }
 
+/** Movement geometry independent of turn and king safety, including possible future pawn captures. */
+export function genCandidateMovesForPiece(position: IBoardPosition, from: BoardId): IMoveRaw[] {
+  if (!Number.isInteger(from) || from < 0 || from >= 64) return [];
+  const piece = _getPiece(position, from);
+  if (!piece) return [];
+  const moves = _genPieceMoves(position, from, piece);
+  if (piece.kind === PieceKind.Pawn) {
+    for (const move of _genPawnAttackMoves(from, piece.colour)) {
+      if (boardIdToCoords(move.to).rank === getPromotionRank(piece.colour)) {
+        for (const promotionPiece of promotionPieces) {
+          if (!moves.some((item) => item.to === move.to && item.promotionPiece === promotionPiece)) moves.push({ ...move, promotionPiece });
+        }
+      } else if (!moves.some((item) => item.to === move.to)) moves.push(move);
+    }
+  } else if (piece.kind === PieceKind.King) {
+    const origin = boardIdToCoords(from);
+    if (origin.rank === (piece.colour === PlayerColour.White ? 0 : 7)) for (const direction of [-1, 1]) {
+      if (!_hasCastlingAvailability(position, piece.colour, direction)) continue;
+      const rook = _findCastleRook(position, from, piece.colour, direction);
+      const to = tryCoordsToBoardId(origin.file + direction * 2, origin.rank);
+      if (rook !== undefined && to !== undefined && _isCastlePathClear(position, from, rook, direction)) moves.push({ from, to });
+    }
+  }
+  return moves.filter((move) => {
+    const target = _getPiece(position, move.to);
+    return target?.colour !== piece.colour && target?.kind !== PieceKind.King;
+  });
+}
 export function genLegalMovesForPiece(position: IBoardPosition, from: BoardId, lastMove?: IMove): IMoveRaw[] {
   const colour = position.sideToMove;
   const piece = _getPiece(position, from);

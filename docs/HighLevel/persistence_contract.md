@@ -7,6 +7,8 @@ This document defines what ChessVue persists, how persisted artefacts are separa
 Desktop persistence remains the design contract. Browser adapters store the same canonical artefacts at logical paths in an origin-local localStorage namespace, with virtual directory enumeration and timestamps. Imports read selected files; exports download canonical JSON. Browser lifecycle checkpoints are best effort because tab shutdown cannot await asynchronous callbacks; ordinary explicit and move-count saves remain awaited. Seeded browser journeys use isolated sessionStorage with the same file representation.
 
 ## Canonical Persisted Artefacts
+Premoves stay in `IGame.$.premoveQueue` and are omitted by the existing game schema. Saving leaves the in-memory FIFO intact; restoring creates fresh runtime without it. Projected pieces/red squares never replace canonical root/tree/selectors or engine input, including while saving a live preview.
+
 ChessVue persists four artefact types.
 
 ### 1. User Settings Snapshot

@@ -10,7 +10,7 @@
     "branches": [],
     "fixture": "engine-races",
     "lane": "seeded-browser",
-    "implementation": "partial",
+    "implementation": "available",
     "scenarioReview": "journeys/definitions/engine-races/ScenarioReview.md#jrn-race-09",
     "data": [
       "journeys/definitions/engine-races/data/RaceWorkspace.ts"
@@ -28,8 +28,6 @@
         ]
       }
     ],
-    "remaining": [
-      "Production premove implementation was reverted on 23 October 2026. Retained browser specifications await the revised minimal turn-request implementation and fresh execution."
-    ]
+    "remaining": []
   }
 ]

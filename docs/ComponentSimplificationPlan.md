@@ -12,6 +12,7 @@ The main simplification is to let game-specific components read their own featur
 - A small prop count alone is not the objective. Replace redundant sources and parent relays with a clear owner. Do not conceal the same dependencies inside a large `context`, `options` or callback object, or replace named events with a generic command event.
 - Feature components may use their existing stores and `useModal`. Keep the board and drawing primitives explicit about their rendering inputs. Do not add a global game controller or an event bus.
 - All new composables belong outside `src/components`, use `useXxxx` names and keep implementation returns inferred. Use computed reads and explicit actions/lifecycle hooks; add no watchers, subscriptions for reactive effects, invalidation counters or polling.
+- Coordinate data reads with the corrected [workspace counter removal plan](WorkspaceRevisionRemovalPlan.md). Reactive game fields and arrays replace `revision`; no holder registry or manual publisher. Existing HistoryPanel tree/path props can become reactive without waiting for this plan's broader `gameId`/fold/event ownership change. Feature components read the actual data used by each computed projection.
 
 ## Component inventory and decisions
 

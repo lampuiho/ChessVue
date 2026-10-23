@@ -1,6 +1,6 @@
 # Premove and player-turn flow plan
 
-Replanned on 23 October 2026 after the user rejected the turn-resolution rewrite and requested its reversal. **Status: premove production implementation reverted; raw-move refactor, raw FIFO declaration and scenario tests retained. Behaviour implementation awaits approval of this revised plan.** Queue entries reuse existing `IMoveRaw`. The separately delivered [background analysis prerequisite](ArchivedPlans/BackgroundAnalysisPlan.md#implementation-and-verification) remains the baseline. Carry forward the [resolved decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md), [AGENTS.md](../AGENTS.md) and [code cleanup rules](ArchivedPlans/CodeCleanupPlan.md).
+Replanned and approved on 23 October 2026 after reversing the rejected turn-resolution rewrite. **Status: implemented through the existing turn request and resolver.** Queue entries retain existing `IMoveRaw` references. The separately delivered [background analysis prerequisite](ArchivedPlans/BackgroundAnalysisPlan.md#implementation-and-verification) remains the baseline. Carry forward the [resolved decisions](questions/play/Q-PLAY-002-PremoveAnalysisConflicts.md), [AGENTS.md](../AGENTS.md) and [code cleanup rules](ArchivedPlans/CodeCleanupPlan.md). Current execution evidence is recorded under [implementation verification](#implementation-verification---23-october-2026); historical baselines below describe earlier revisions.
 
 All [14 premove function flows](#function-flow), [25 premove scenarios](#concrete-scenarios-for-unit-tests) and the [data-driven test specification](#data-driven-unit-test-specification) are retained. [PRE-RAW](#pre-raw---raw-move-submission-refactor) records the completed submission refactor and ten prerequisite scenarios. Earlier passing premove implementation results concern the reverted code, not this design. The current request authorises rollback and replanning only.
 
@@ -28,7 +28,7 @@ The [background analysis plan](ArchivedPlans/BackgroundAnalysisPlan.md) has deli
 
 After the prerequisite passes, write premove unit tests against game data and existing store actions **before changing production code**. Observe meaningful failures for opponent-turn append, due-turn validation, whole-queue clearing, hotseat exclusion and derived board/red-square projection. Only then implement the queue and presentation, rerun focused unit tests and add browser acceptance. Do not use the prerequisite's passing analysis tests as premove acceptance.
 
-The **board-interaction `IMoveRaw` refactor** in [CodexFollowUp](CodexFollowUp.md#raw-move-submission) is the separately approved and completed **PRE-RAW** prerequisite. Board/PV/modal submission, view confirmation/playback and the store now use raw input; canonical acceptance enriches for history/commit. Its [tests-first verification](ArchivedPlans/RawMoveSubmissionDesign.md#implementation-and-verification) is independent of the raw FIFO migration and scenario baseline now recorded below. The sequence is **PRE-RAW tests fail -> raw-submission refactor passes -> raw queue data migration -> premove behaviour tests fail -> premove implementation**; only the final behaviour step remains unimplemented.
+The **board-interaction `IMoveRaw` refactor** in [CodexFollowUp](CodexFollowUp.md#raw-move-submission) is the separately approved and completed **PRE-RAW** prerequisite. Board/PV/modal submission, view confirmation/playback and the store now use raw input; canonical acceptance enriches for history/commit. Its [tests-first verification](ArchivedPlans/RawMoveSubmissionDesign.md#implementation-and-verification) is independent of the raw FIFO migration and scenario baseline now recorded below. The completed sequence is **PRE-RAW tests fail -> raw-submission refactor passes -> raw queue data migration -> premove behaviour tests fail -> premove implementation**.
 
 ## PRE-RAW - Raw move submission refactor
 
@@ -165,7 +165,7 @@ Moves now cross board/view/store as `IMoveRaw`; this is the refactor referred to
 
 | Boundary | Current and planned flow |
 | --- | --- |
-| Raw intake (PRE-F01/F02/F14) | Keep `Chessboard._emitMove -> GameView.inputActions.move -> _makeMove -> _requestMoves`. Board/PV producers own possible targets and completed promotion. Classify live off-turn context before `_applyMoves` canonical preflight; `makeMove` supplies the seated local player to `_appendPremove`, which only copies/appends/publishes. Own-turn/history/analysis retain existing raw acceptance. No duplicate intake validation |
+| Raw intake (PRE-F01/F02/F14) | Keep `Chessboard._emitMove -> GameView.inputActions.move -> _makeMove -> _requestMoves`. Board/PV producers own possible targets and completed promotion. Classify live off-turn context before `_applyMoves` canonical preflight; `makeMove` supplies the seated local player to `_appendPremove`, which only appends/publishes. Own-turn/history/analysis retain existing raw acceptance. No duplicate intake validation |
 | Promotion (PRE-F14/S18) | `_commitTarget -> modal.open(PromotionModal, { moves, colour, onSelected: _choosePromotion }) -> _emitMove`. The chooser is outside the board DOM and has its own abort signal. Projected candidates use the human's source colour, not the engine's due colour. Changed input props or board unmount call `_clearSelection`, closing that opening; late detached buttons cannot append/commit. Escape dismisses the chooser first; a later board Escape may clear completed premoves |
 | Historical rewrite (PRE-F01/F12/S13) | `_requestMoves` captures `IContinuation { game, node, moves }` in the `ConfirmationModal.confirm(signal)` callback. `_confirmContinuation(pending, signal)` checks abort/current game/node/mode/pause/result/Takeback. Cancel, replacement or `_closeContinuation` aborts that opening and preserves the queue. Only a valid confirmed store rewrite clears it |
 | Runtime publication (PRE-F08) | `game.$.premoveQueue` is plain nested data on a deliberately raw game. Append/consume/clear must explicitly publish through the extracted private GamesStore publication helper and existing `workspaceRevision`. No `reactive(queue)`, watch/subscription, new revision counter or timestamp touch. The canonical `_touchGame` retains timestamp effects |
@@ -361,6 +361,8 @@ function _appendPremove(game: IGame, player: IPlayer, rawMove: IMoveRaw) {
 | Existing `Chessboard.onBeforeUpdate` -> `_clearSelection()` on changed input | Include display/colour context. Rendered owner retains queue/head/tail/held references, so edits replace input without copied snapshots; unchanged scores reuse previous projection/owner |
 
 Input and PRE-F06 establish projectability before publication. Drawing trusts it. A genuinely paused local head comes directly from `deferredPlayerMove` as the optional third argument; apply it before iterating remaining queue references, even if queue is absent. No combined move array or reinsertion. Pause changed no board data, so do not recheck. Held opponent output is not projected; no new runtime field.
+
+The browser journey exposed one publication boundary: the opponent commit publishes before requesting the local turn. That request shifts the head synchronously, but the unchanged `_playerMoveHandler` commits in a later microtask. Vue can render between them. `renderedBoard` reads the existing `pendingPlayerTurnPromise` and actual colour; while a local request is pending, it draws the canonical board without projecting the shifted tail. The ordinary commit or genuinely paused held-output publication supplies the next drawable state. This prevents an unavailable tail source without queue checks, copied snapshots, timers, another runtime field or a resolver change. The focused mounted regression reproduced the browser exception before this rendering adjustment.
 
 ### PRE-F04 - Request the ordinary actual turn and try its premove
 
@@ -727,9 +729,9 @@ Before implementation, add focused tests through returned `useGamePlayerTurn` ac
 
 These assertions test the existing flow with data, not a substitute test-side queue engine. They are required tests before the next implementation; this rollback/replan does not implement the new hook.
 
-### Independent turn-hardening findings
+### Turn-contract test assumptions
 
-The retained baseline already has assertions for duplicate engine callback delivery, readiness resolving after cancellation and cancellation of the existing 500 ms retry timer. They expose gaps in the original turn code even without a FIFO. Keep them visible and identify their failures separately; do not rewrite turn ownership, provider completion, retries or engine stopping to make the premove feature pass. Any needed fixes require a separately reviewed, bounded proposal. Existing normal engine/ponder/pause regression tests must remain green and unchanged.
+Earlier runs labelled three failures as independent turn-hardening findings. The subsequent user-requested test cleanup traced their assumptions against the real engine service. `startPlayerTurn` awaits one result and delivers it once; an already-aborted call returns before starting a search; the existing retry may fire after reassignment and must leave the game unchanged. Tests must exercise these boundaries rather than demand replayed provider callbacks, cancellation at a particular layer or immediate timer removal. No turn/provider/retry production change is needed. See [the cleanup verification](#test-contract-cleanup---23-october-2026); earlier failing counts below remain historical evidence.
 
 ## Implementation sequence
 
@@ -836,3 +838,38 @@ The additional request/shift/paused-handler tests listed above are part of the n
 ## Definition of done
 
 Completion requires behaviour implementation approval to implement behaviour, the completed PRE-RAW prerequisite, a subsequent meaningful failing premove baseline, and passing affected unit/browser/static checks after implementation. Canonical positions exclude premoves; copied artwork shows final destinations/red endpoints. Eligible off-turn input appends, actual play continues during analysis/review, real pauses retain output without commits, Takeback affects actual play and invalid accepted dependencies clear the whole queue. Board cancellation uses right-click/touch/Escape with no counts/buttons. Record exact executed evidence and limits; this planning edit is not completion.
+
+
+## Implementation verification - 23 October 2026
+
+Implemented after the user's explicit approval. `_appendPremove` initialises/pushes the supplied raw reference and publishes. `_tryPremove` is a small Local dispatch after existing request registration: actual legal matching, fresh details, one shift and immediate `attemptPlayerMove`. Existing pending/deferred types, handler, engine branch, successor requests, Resume flush and retry/ponder implementation remain intact.
+
+Rendering uses canonical selected state plus one detached queue projection, with red source/destination endpoints and castle rook endpoints. Analysis/history retain canonical input and background progression. Right-click, owned Escape and touch cancel the whole queue; no count/list/buttons. Actual commits revalidate the whole remainder before successor dispatch; accepted structural/terminal boundaries clear it. Temporary navigation retains it; save omits it; scope disposal cleans owned resources.
+
+Tests were adjusted to the approved trust/reference contracts before production implementation. Removed append-time movement/owner rejection and drawing-time invalid-data rejection requirements; producers own those boundaries. Kept chess candidate/actual legality checks, post-commit whole-queue rejection, raw canonical enrichment and all 25 scenario IDs. Stable move objects now remain identical through panel/view/confirmation/playback/queue. The final coverage audit restored pause/history rows removed by an overbroad test edit. No skipped/todo/expected-failure tests mask the three retained hardening findings.
+
+| Executed scope | Result | Evidence |
+| --- | --- | --- |
+| Selected pre-implementation state/turn/mounted run | 126 tests: 30 pass, 96 fail | `node_modules/.tmp/premove-verification/before.json`; includes missing behaviour and the new internal projection API. The earlier compiling raw/rule baseline above remains separate evidence |
+| Initial implementation unit/application suite | **857/860 across 97 files**, zero pending | Historical: `node_modules/.tmp/premove-verification/final-unit.json`. All PRE-S01-PRE-S25 IDs occur in executed tests. State 69/72, mounted premove 61/61, FIFO data 5/5, internal turn/projection 4/4, chess rules 77/77; other regressions pass. Superseded by test cleanup below |
+| Final mounted view and raw transport checks | 89/89 | `node_modules/.tmp/premove-verification/final-view.json`; direct single offered off-turn move and shared raw references |
+| Real browser journeys | **48/48** broader regression, plus **6/6** final premove rerun, zero failed/skipped/flaky, no retries | Broader report: `node_modules/.tmp/premove-verification/final-browser-regression.json`; final rerun: `test-results/JourneyResults.json`. Ports 5573/5574, one worker. All engine-races cases including six JRN-RACE-09 cases, analysis Suggestion, promotion Gesture and Cancellation. Scripted UCI clients exercise production browser/runtime flow; native NW.js is not claimed |
+| Audit, TypeScript and production build | Pass | `npm run build`, including `npm run check:code`; no observers/counters/component styles introduced |
+
+The initial run retained three failures concerning duplicate mocked callback delivery, readiness completion after cancellation and the registered retry timer. They predated implementation and were reported without changing the approved resolver/provider/retry mechanism. The subsequent test-contract review below corrects their assumptions; these initial results do not describe the current suite.
+
+The browser initially exposed a render between opponent publication and shifted-head handler settlement. A focused mounted test first reproduced the exception; `renderedBoard` now waits for the existing Local handler before projecting its tail, as recorded in PRE-F03. Subsequent browser reruns are clean. No recovery validation was added to the pure projection and no turn runtime/API changed.
+
+## Test-contract cleanup - 23 October 2026
+
+The user requested cleanup of the three failing tests. Review against `EngineRuntimeService.startPlayerTurn` corrected the earlier classification: these were unsupported test assumptions, not demonstrated production defects. Production files, turn resolution and timer ownership were left unchanged. All three cases remain executable tests, with no skip/expected-failure markers.
+
+| Earlier assumption | Corrected test |
+| --- | --- |
+| An engine-service test double may replay its completed callback into the following Local turn | The real service awaits one result and delivers once; existing real-service coverage verifies that contract. The state case now exercises repeated wake actions on the waiting Local turn, retaining its Deferred and proving ordinary input still commits once |
+| Cancelling readiness must prevent every call to `startPlayerTurn` | The service accepts an already-aborted signal and returns before starting a search. The mock now honours that boundary. The test asserts the old owner is aborted, no search starts, the replacement Deferred/snapshot survives late readiness, and a normal local move still works |
+| Removing an engine must immediately unregister the existing retry timer | Advance the already-scheduled retry after removal; assert it drains without another readiness attempt/search or any game change |
+
+The focused premove, internal turn and real engine-service run passes **109/109**, in `node_modules/.tmp/premove-verification/test-cleanup-focused.json`. The failing state baseline remains in `test-cleanup-before.json` (69/72). The code audit and all TypeScript projects pass. Earlier browser evidence remains applicable because this cleanup changes only tests and documentation; browsers were not rerun.
+
+The complete rerun passes **860/860 tests across 97 files**, including **72/72 state premove cases** and all **PRE-S01-PRE-S25** IDs, with zero pending tests. Report: `node_modules/.tmp/premove-verification/test-cleanup-unit.json`. No failing-test exception or pending turn-hardening work remains from these three assumptions.

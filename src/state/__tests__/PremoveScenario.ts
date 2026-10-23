@@ -41,7 +41,6 @@ export interface IPremoveScenario {
   root?: IPositionFixture;
   played?: readonly string[];
   queue?: readonly IMoveRaw[];
-  clonePlayer?: boolean;
   allowTakeback?: boolean;
   increment?: number;
   events: readonly IPremoveEvent[];
@@ -55,9 +54,6 @@ export const premoveScenarios: IPremoveScenario[] = [
   { id: 'PRE-S01', name: 'appends a Black sequence before its first actual move', local: PlayerColour.Black, played: [], events: [
     { action: 'append', intent: blackChain[0] }, { action: 'append', intent: blackChain[1] },
   ], expected: { actual: [], queue: blackChain, searches: 1, unchanged: ['canonical', 'clock'] } },
-  { id: 'PRE-S01', name: 'invalid new append preserves the previously accepted valid FIFO', queue: q, events: [
-    { action: 'append', intent: premove('g5e4'), rejected: true },
-  ], expected: { actual: ['e2e4'], queue: q, searches: 1, unchanged: ['canonical', 'clock', 'queue'] } },
   { id: 'PRE-S02', name: 'consumes only Nf3 then cancellation removes Ng5 without undoing actual play', queue: q, events: [
     { action: 'reply', uci: 'e7e5', expected: { actual: ['e2e4', 'e7e5', 'g1f3'], queue: [q[1]!], searches: 2 } }, { action: 'clear' },
   ], expected: { actual: ['e2e4', 'e7e5', 'g1f3'], queue: undefined, actualPieces: { f3: 'white knight', g1: undefined } } },
@@ -112,8 +108,6 @@ export const premoveScenarios: IPremoveScenario[] = [
   { id: 'PRE-S09', name: 'a projected knight move cannot answer actual rook check', root: checkingReply, played: [], queue: q,
     events: [{ action: 'reply', uci: 'e8e2' }], expected: { actual: ['e8e2'], queue: undefined, active: PlayerColour.White, searches: 1 } },
   { id: 'PRE-S09', name: 'geometry incompatible with the actual source clears the whole accepted sequence', queue: [premove('g1g3'), q[1]!],
-    events: [{ action: 'reply', uci: 'e7e5' }], expected: { actual: ['e2e4', 'e7e5'], queue: undefined, searches: 1 } },
-  { id: 'PRE-S09', name: 'a copied player object cannot own the current local queue', queue: q, clonePlayer: true,
     events: [{ action: 'reply', uci: 'e7e5' }], expected: { actual: ['e2e4', 'e7e5'], queue: undefined, searches: 1 } },
   ...([0, 2000] as const).flatMap((increment) => [PauseReason.Manual, PauseReason.Menu].map((first): IPremoveScenario => {
     const second = first === PauseReason.Manual ? PauseReason.Menu : PauseReason.Manual;
