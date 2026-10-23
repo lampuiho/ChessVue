@@ -1914,6 +1914,40 @@ describe('useGamesStore', () => {
     expect(insertedGame.metadata.id).not.toBe(game.metadata.id);
     expect(store.listGames()).toHaveLength(2);
   });
+  it('preserves synchronous focus registration and pause-reason refresh boundaries', async () => {
+    const store = useGamesStore();
+    const created = store.createGame({
+      name: 'Focus boundaries',
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 },
+    });
+    expect(domain.PlatformEventService.subscribeToAppFocusReturned).toHaveBeenCalledOnce();
+    expect(store.listGames()[0]?.$?.pendingPlayerTurnPromise).toBeUndefined();
+    const game = await created;
+    const pause = store.pauseGame(game, PauseReason.Manual);
+    expect(unsubscribeMock).toHaveBeenCalledOnce();
+    expect(game.$!.focusReturnUnsubscribe).toBeUndefined();
+    await pause;
+    await store.pauseGame(game, PauseReason.Menu);
+    await store.resumeGame(game, PauseReason.Manual);
+    expect(game.gameState).toBe(GameState.PausedWhiteTurn);
+    expect(unsubscribeMock).toHaveBeenCalledOnce();
+    expect(domain.PlatformEventService.subscribeToAppFocusReturned).toHaveBeenCalledOnce();
+    const resume = store.resumeGame(game, PauseReason.Menu);
+    expect(domain.PlatformEventService.subscribeToAppFocusReturned).toHaveBeenCalledTimes(2);
+    expect(game.gameState).toBe(GameState.LiveWhiteTurn);
+    await resume;
+    await store.makeMove(game, createMove(PlayerColour.White));
+    expect(unsubscribeMock).toHaveBeenCalledTimes(2);
+    expect(domain.PlatformEventService.subscribeToAppFocusReturned).toHaveBeenCalledTimes(3);
+    await store.resignGame(game, PlayerColour.Black);
+    expect(unsubscribeMock).toHaveBeenCalledTimes(3);
+    expect(game.$!.focusReturnUnsubscribe).toBeUndefined();
+    expect(domain.PlatformEventService.subscribeToAppFocusReturned).toHaveBeenCalledTimes(3);
+  });
   it('keeps untimed live games out of timed pause and focus-return flows', async () => {
     const store = useGamesStore();
     const game = await store.createGame({

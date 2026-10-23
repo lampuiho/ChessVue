@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { GameState, PieceKind, PlayerColour, PlayerType, type IEnginePlayer, type IGame } from '@/contracts';
+import { GameState, PieceKind, PlayerColour, PlayerType, type IEnginePlayer } from '@/contracts';
 import { MoveApplicationService } from '@/domain';
 import { createInitialBoardPosition, toDetailedMove } from '@/utility/chess';
 import { createGame, createAssignedEngine } from '../../__tests__/StateStoreTestUtility';
@@ -7,6 +7,12 @@ import { whiteChain } from '../../__tests__/PremoveFixture';
 import { useGamePosition } from '../GamePositionComposable';
 import { useGameStatus } from '../GameStatusComposable';
 import { useGamePlayerTurn } from '../GamePlayerTurnComposable';
+import { useGameAnalysis } from '../GameAnalysisComposable';
+import { useGameClock } from '../GameClockComposable';
+import { useGameMove } from '../GameMoveComposable';
+import { useGameRecord } from '../GameRecordComposable';
+import { useGamePremove } from '../GamePremoveComposable';
+import { useGameTurnRuntime } from '../GameTurnRuntimeComposable';
 
 function _context() {
   const position = useGamePosition();
@@ -15,11 +21,16 @@ function _context() {
     blackPlayer: { colour: PlayerColour.Black, type: PlayerType.Engine, displayName: 'Engine', assignedEngine: createAssignedEngine() } as IEnginePlayer,
   }));
   game.renderedPath = game.livePath!;
-  const clearPremoves = vi.fn((current: IGame) => { current.$!.premoveQueue = undefined; });
-  const status = useGameStatus({ position, timestampGame: vi.fn(), clearPlayerTurnRuntime: async () => {}, refreshRuntimeRegistrations: vi.fn(), clearPremoves });
-  const commit = vi.fn();
-  const turn = useGamePlayerTurn({ position, status, timestampGame: vi.fn(), commitLiveMove: commit,
-    replaceWithAnalysisRoot: vi.fn(), refreshRuntimeRegistrations: vi.fn(), clearPremoves });
+  const record = useGameRecord();
+  const premove = useGamePremove({ position });
+  const clearPremoves = vi.spyOn(premove, 'clearPremoves');
+  const turnRuntime = useGameTurnRuntime({ position });
+  const status = useGameStatus({ position, record, premove });
+  const analysis = useGameAnalysis({ position, record });
+  const clock = useGameClock({ position, status, record, premove, turnRuntime });
+  const move = useGameMove({ position, status, clock, analysis, record, premove });
+  const commit = vi.spyOn(move, 'commitLiveMove').mockReturnValue(undefined);
+  const turn = useGamePlayerTurn({ position, status, record, premove, move, clock, turnRuntime });
   game.$!.premoveQueue = { player: game.whitePlayer!, moves: [...whiteChain] };
   return { game, turn, commit, clearPremoves, position };
 }

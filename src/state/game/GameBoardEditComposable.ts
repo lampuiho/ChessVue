@@ -5,18 +5,18 @@ import type { GameAnalysisComposable } from './GameAnalysisComposable';
 import type { GameMoveComposable } from './GameMoveComposable';
 import type { GamePositionComposable } from './GamePositionComposable';
 import type { GameStatusComposable } from './GameStatusComposable';
+import type { GameRecordComposable } from './GameRecordComposable';
 
 interface IGameBoardEditDependency {
   position: GamePositionComposable;
   status: GameStatusComposable;
   analysis: GameAnalysisComposable;
   move: GameMoveComposable;
-  // game persistent data touched event (internally updating update time)
-  timestampGame: (game: IGame) => void;
+  record: GameRecordComposable;
 }
 
 export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
-  const { position, status, analysis, move, timestampGame } = dependency;
+  const { position, status, analysis, move, record } = dependency;
   function _assertBoardEditState(game: IGame) {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board manipulation is only allowed while board edit mode is active.');
   }
@@ -48,7 +48,7 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     if (status.isLiveState(game.gameState) || status.isPausedState(game.gameState) || status.isAnyLiveAnalysisState(game.gameState)) return;
     void analysis.stopAnalysis(game);
     game.gameState = GameState.BoardEdit;
-    timestampGame(game);
+    record.timestampGame(game);
   }
   function applyBoardEdit(game: IGame, rootPosition: IBoardPosition) {
     _assertBoardEditState(game);

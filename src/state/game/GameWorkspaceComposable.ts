@@ -17,6 +17,8 @@ import type { GameClockComposable } from './GameClockComposable';
 import type { GamePlayerTurnComposable } from './GamePlayerTurnComposable';
 import type { GamePositionComposable } from './GamePositionComposable';
 import type { GameStatusComposable } from './GameStatusComposable';
+import type { GameRecordComposable } from './GameRecordComposable';
+import type { GamePremoveComposable } from './GamePremoveComposable';
 
 interface IGameWorkspaceDependency {
   position: GamePositionComposable;
@@ -24,12 +26,12 @@ interface IGameWorkspaceDependency {
   clock: GameClockComposable;
   analysis: GameAnalysisComposable;
   playerTurn: GamePlayerTurnComposable;
-  timestampGame: (game: IGame) => void;
-  clearPremoves: (game: IGame) => void;
+  record: GameRecordComposable;
+  premove: GamePremoveComposable;
 }
 
 export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
-  const { position, status, clock, analysis, playerTurn, timestampGame, clearPremoves } = dependency;
+  const { position, status, clock, analysis, playerTurn, record, premove } = dependency;
   const games = ref<IGame[]>([]);
   function _createGameMetadata(name: string, nowUtc: Date) {
     return {
@@ -104,7 +106,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     const analysisCleanup = analysis.disposeAnalysisForGame(game);
     await playerTurn.clearPlayerTurnRuntime(game);
     await analysisCleanup;
-    clearPremoves(game);
+    premove.clearPremoves(game);
     game.metadata.name = request.name ?? game.metadata.name;
     game.whitePlayer = playerTurn.createPlayerSnapshot(request.whitePlayer);
     game.blackPlayer = playerTurn.createPlayerSnapshot(request.blackPlayer);
@@ -118,7 +120,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       position.setLivePath(game, undefined);
       game.gameState = status.getAnalysisState(renderedPosition.sideToMove);
     }
-    timestampGame(game);
+    record.timestampGame(game);
     clock.refreshRuntimeRegistrations(game);
     playerTurn.requestPlayerMoveIfNeeded(game);
     await analysis.refreshAnalysisForGame(game);

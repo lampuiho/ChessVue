@@ -13,18 +13,18 @@ import { getOpponentColour } from '@/utility/chess/BoardUtility';
 import { TimeControlService } from '@/domain/TimeControlService';
 import { ClockTimestamp } from '@/utility/date';
 import type { GamePositionComposable } from './GamePositionComposable';
+import type { GameRecordComposable } from './GameRecordComposable';
+import type { GamePremoveComposable } from './GamePremoveComposable';
 
 type LiveGame = IGame & { livePath: MovePath };
 interface IGameStatusDependency {
   position: GamePositionComposable;
-  timestampGame: (game: IGame) => void;
-  clearPlayerTurnRuntime: (game: IGame) => Promise<void>;
-  refreshRuntimeRegistrations: (game: IGame) => void;
-  clearPremoves: (game: IGame) => void;
+  record: GameRecordComposable;
+  premove: GamePremoveComposable;
 }
 
 export function useGameStatus(dependency: IGameStatusDependency) {
-  const { position, timestampGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations, clearPremoves } = dependency;
+  const { position, record, premove } = dependency;
   function isLiveState(state: GameState): boolean {
     return state === GameState.LiveWhiteTurn || state === GameState.LiveBlackTurn;
   }
@@ -135,46 +135,39 @@ export function useGameStatus(dependency: IGameStatusDependency) {
   function isLiveHistoryReview(game: LiveGame): boolean {
     return position.isPathPrefix(game.renderedPath, game.livePath);
   }
-  async function resignGame(game: IGame, colour: PlayerColour) {
-    assertOngoingLiveAction(game, 'Resignation');
-    await clearPlayerTurnRuntime(game);
-    clearPremoves(game);
+  function finaliseResignation(game: IGame, colour: PlayerColour) {
+    premove.clearPremoves(game);
     game.resultState = colour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
     game.resultReason = ResultReason.Resignation;
     game.gameState = getAnalysisState(getOpponentColour(colour));
     game.drawOfferState = undefined;
-    timestampGame(game);
-    refreshRuntimeRegistrations(game);
+    record.timestampGame(game);
   }
   async function offerDraw(game: IGame) {
     assertOngoingLiveAction(game, 'Draw offer');
     const offeringColour = position.getLivePosition(game).sideToMove;
     game.drawOfferState = { offeringColour, respondingColour: getOpponentColour(offeringColour), direction: DrawOfferDirection.Outgoing };
-    timestampGame(game);
+    record.timestampGame(game);
   }
-  async function acceptDrawOffer(game: IGame) {
-    assertOngoingLiveAction(game, 'Draw acceptance');
-    if (!game.drawOfferState) return;
-    await clearPlayerTurnRuntime(game);
-    clearPremoves(game);
+  function finaliseDrawAgreement(game: IGame) {
+    premove.clearPremoves(game);
     game.resultState = ResultState.Drawn;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
     game.resultReason = ResultReason.DrawAgreement;
     game.gameState = getAnalysisState(position.getRenderedPosition(game).sideToMove);
     game.drawOfferState = undefined;
-    timestampGame(game);
-    refreshRuntimeRegistrations(game);
+    record.timestampGame(game);
   }
   async function declineDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw decline');
     game.drawOfferState = undefined;
-    timestampGame(game);
+    record.timestampGame(game);
   }
   async function withdrawDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw withdrawal');
     if (game.drawOfferState?.direction === DrawOfferDirection.Outgoing) game.drawOfferState = undefined;
-    timestampGame(game);
+    record.timestampGame(game);
   }
   return {
     isLiveState,
@@ -199,9 +192,9 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     assertMoveAllowed,
     isOngoingLiveGame,
     isLiveHistoryReview,
-    resignGame,
+    finaliseResignation,
     offerDraw,
-    acceptDrawOffer,
+    finaliseDrawAgreement,
     declineDrawOffer,
     withdrawDrawOffer,
   };
