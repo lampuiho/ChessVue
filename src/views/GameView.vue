@@ -65,11 +65,9 @@ let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 const gameId = computed(() => String(route.params.id));
 const game = toRef(() => {
-  void gamesStore.workspaceRevision;
   return gamesStore.getGame(gameId.value) as unknown as IGame | undefined;
 });
 const tabs = computed(() => {
-  void gamesStore.workspaceRevision;
   return gamesStore.listGames().filter((candidate) => uiStateStore.gameSession?.openGameIds.includes(candidate.metadata.id)).map((candidate) => ({ id: candidate.metadata.id, name: candidate.metadata.name }));
 });
 const settings = computed(() => settingsStore.settings);
@@ -182,7 +180,6 @@ const canPause = computed(() => game.value?.timeControl.initialMs !== undefined 
 const canAddEngine = computed(() => !!game.value && game.value.analysis.seats.length < 4 && (settings.value?.analysis.engineInventory.length ?? 0) > game.value.analysis.seats.length);
 const showAnalysisMoves = computed(() => !game.value?.livePath || !!game.value.gameplayOptions.showLiveAnalysisMoves);
 const analysisSeats = computed(() => {
-  void gamesStore.workspaceRevision;
   return game.value ? gamesStore.getVisibleAnalysis(game.value)?.engineSeats ?? [] : [];
 });
 const topColour = computed(() => settings.value?.appearance.boardOrientation === BoardOrientation.Black ? PlayerColour.White : PlayerColour.Black);
@@ -517,7 +514,7 @@ async function _run(action: () => Promise<void> | void) {
         </section>
         <aside class="game-sidebar surface">
           <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? (livePosition?.sideToMove ?? position.sideToMove) + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
-          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="isHistoryInputDisabled" @collapse-toggled="_toggleSection('history')" @node-selected="_navigateToNode" @return-to-live-requested="_returnToLivePosition" />
+          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="isHistoryInputDisabled" @collapse-toggled="_toggleSection('history')" @node-selected="_navigateToNode" @return-to-live-requested="_returnToLivePosition" />
           <AnalysisPanel v-if="layout?.showAnalysisPanel"
             :seats="analysisSeats"
             :collapsed="layout.analysisCollapsed"

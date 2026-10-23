@@ -1,5 +1,6 @@
 import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { computed, shallowReactive } from 'vue';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameState, PauseReason, PieceKind, PlayerColour, PlayerType, TimeControlPreset, type IAssignedEngine, type IGame, type IMove, type IMoveNode, type IMoveRaw, type IPremoveQueue } from '@/contracts';
 import { EngineRuntimeService, MoveApplicationService, MoveHistoryService, SerializationService, TimeControlService } from '@/domain';
@@ -75,7 +76,7 @@ async function _seed(spec: IPremoveScenario) {
   const whiteType = spec.seats === 'hotseat' || (spec.seats !== 'engines' && colour === PlayerColour.White) ? PlayerType.Local : PlayerType.Engine;
   const blackType = spec.seats === 'hotseat' || (spec.seats !== 'engines' && colour === PlayerColour.Black) ? PlayerType.Local : PlayerType.Engine;
   const clock = TimeControlService.initialiseClockSnapshot({ preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: spec.increment ?? 2000 });
-  const game = createGame({ rootPosition: fixturePosition(spec.root), whitePlayer: fixturePlayer(PlayerColour.White, whiteType), blackPlayer: fixturePlayer(PlayerColour.Black, blackType),
+  let game = createGame({ rootPosition: fixturePosition(spec.root), whitePlayer: fixturePlayer(PlayerColour.White, whiteType), blackPlayer: fixturePlayer(PlayerColour.Black, blackType),
     timeControl: { preset: TimeControlPreset.Blitz, initialMs: 60000, incrementMs: spec.increment ?? 2000 }, clockSnapshot: clock,
     gameplayOptions: { allowTakeback: spec.allowTakeback ?? true, showLiveAnalysisMoves: true } });
   const board = MoveApplicationService.genPosition(game.rootPosition, []);
@@ -89,11 +90,11 @@ async function _seed(spec: IPremoveScenario) {
   game.renderedPath = game.livePath!;
   game.gameState = board.sideToMove === PlayerColour.White ? GameState.LiveWhiteTurn : GameState.LiveBlackTurn;
   game.clockSnapshot = TimeControlService.startClock(clock, board.sideToMove, new ClockTimestamp());
-  await store.insertGame(game);
+  game = await store.insertGame(game);
   await flushPromises();
   if (spec.queue) {
     const player = localSeat(game, colour);
-    game.$!.premoveQueue = { player, moves: structuredClone([...spec.queue]) };
+    game.$!.premoveQueue = { player, moves: shallowReactive(structuredClone([...spec.queue])) };
   }
   return { game, snapshot: _snapshot(game) } as IScenarioContext;
 }
@@ -221,21 +222,20 @@ describe('premove scenario data through actual game actions', () => {
     await store.addAnalysisEngine(context.game, createEngineRecord());
     await store.refreshAnalysis(context.game);
     context.snapshot = _snapshot(context.game);
-    const before = store.workspaceRevision;
+    const queue = computed(() => context.game.$?.premoveQueue?.moves.length ?? 0);
+    expect(queue.value).toBe(0);
     const searches = vi.mocked(EngineRuntimeService.startAnalysis).mock.calls.length;
     const input = Object.freeze({ ...whiteChain[0]! });
     await _submit(context.game, input);
-    expect(store.workspaceRevision).toBeGreaterThan(before);
+    expect(queue.value).toBe(1);
     expect(context.game.$!.premoveQueue!.moves[0]).toEqual({ from: 6, to: 21 });
     expect(context.game.$!.premoveQueue!.moves[0]).toBe(input);
     _assert(context, { unchanged: ['canonical', 'clock', 'rendered', 'searches'] });
-    const appended = store.workspaceRevision;
     await _clearPremoves(context.game);
-    expect(store.workspaceRevision).toBeGreaterThan(appended);
+    expect(queue.value).toBe(0);
     _assert(context, { queue: undefined, unchanged: ['canonical', 'clock', 'rendered', 'searches'] });
-    const cleared = store.workspaceRevision;
     await _clearPremoves(context.game);
-    expect(store.workspaceRevision).toBe(cleared);
+    expect(queue.value).toBe(0);
     expect(EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(searches);
   });
   it.each(['q', 'r', 'b', 'n'])('PRE-S04 derives the %s promotion dependency from the actual board', async (letter) => {

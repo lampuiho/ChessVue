@@ -12,11 +12,11 @@ interface IGameBoardEditDependency {
   analysis: GameAnalysisComposable;
   move: GameMoveComposable;
   // game persistent data touched event (internally updating update time)
-  touchGame: (game: IGame) => void;
+  timestampGame: (game: IGame) => void;
 }
 
 export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
-  const { position, status, analysis, move, touchGame } = dependency;
+  const { position, status, analysis, move, timestampGame } = dependency;
   function _assertBoardEditState(game: IGame) {
     if (game.gameState !== GameState.BoardEdit) throw new Error('Board manipulation is only allowed while board edit mode is active.');
   }
@@ -48,7 +48,7 @@ export function useGameBoardEdit(dependency: IGameBoardEditDependency) {
     if (status.isLiveState(game.gameState) || status.isPausedState(game.gameState) || status.isAnyLiveAnalysisState(game.gameState)) return;
     void analysis.stopAnalysis(game);
     game.gameState = GameState.BoardEdit;
-    touchGame(game);
+    timestampGame(game);
   }
   function applyBoardEdit(game: IGame, rootPosition: IBoardPosition) {
     _assertBoardEditState(game);

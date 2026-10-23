@@ -1,11 +1,10 @@
-import type { IBoardPosition, IGame, MovePath } from '@/contracts';
+import type { IGame, MovePath } from '@/contracts';
+import { MoveApplicationService } from '@/domain/MoveApplicationService';
 import { MoveHistoryService } from '@/domain/MoveHistoryService';
 import { applyMove, genLegalMoves, getUci, toDetailedMove } from '@/utility/chess';
 
-export function getPosition(game: IGame, path: MovePath): IBoardPosition {
-  const position = structuredClone(game.rootPosition);
-  for (const move of MoveHistoryService.getMoveSequence(game.moveTree, path)) applyMove(position, move);
-  return position;
+export function getPosition(game: IGame, path: MovePath) {
+  return MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, path));
 }
 export function appendMoves(game: IGame, fromPath: MovePath, moves: string[], live = false): MovePath {
   const path = [...fromPath];

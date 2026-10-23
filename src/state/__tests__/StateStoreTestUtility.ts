@@ -1,3 +1,4 @@
+import { toRaw } from 'vue';
 import {
   AnalysisBranchExitBehaviour,
   BoardOrientation,
@@ -175,8 +176,8 @@ export function getPathToNode(node: IMoveNode): number[] {
 export function appendChild(parent: IMoveNode, move: IMove, kind: MoveNodeKind, clockSnapshot?: IClockSnapshot): IMoveNode {
   const child: IMoveNode = {
     kind,
-    move: structuredClone(move),
-    clockSnapshot: clockSnapshot ? structuredClone(clockSnapshot) : undefined,
+    move: structuredClone(toRaw(move)),
+    clockSnapshot: clockSnapshot ? structuredClone(toRaw(clockSnapshot)) : undefined,
     plyIndex: parent.plyIndex + 1,
     children: [],
     $: { parent },

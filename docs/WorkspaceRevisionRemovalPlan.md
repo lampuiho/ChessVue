@@ -1,6 +1,6 @@
 # Remove workspaceRevision and name timestamp updates explicitly
 
-Requested on 23 October 2026. **Status: proposed; documentation only.** Application and test implementation await approval. The current baseline is **860/860 unit/application tests**, recorded in the [premove test cleanup](PreMovePlan%28ToDo%29.md#test-contract-cleanup---23-october-2026).
+Requested on 23 October 2026. **Status: implemented and verified.** The user approved the corrected design before implementation. The pre-change baseline was **860/860 unit/application tests**, recorded in the [premove test cleanup](PreMovePlan%28ToDo%29.md#test-contract-cleanup---23-october-2026).
 
 ## Corrected decision
 
@@ -29,7 +29,7 @@ Removing `markRaw` changes the read object from the original plain payload to Vu
 | Workspace game | Store once in the existing collection, return that collection's reactive object, and use it for all post-insertion work. Do not retain the original raw payload as a competing mutation path |
 | Paths / tree nodes / selected caches | Let the reactive graph preserve shared-path and node aliases. Read and mutate through the canonical game, including cached nodes/positions. Audit service-returned new nodes and seeded caches for consistent references; do not add ID tables or raw/proxy comparison guards |
 | Premove entries | Retain exact supplied stable `IMoveRaw` references. Initialise the queue's `moves` container with `shallowReactive<IMoveRaw[]>([])` at its existing creation site: pushes/shifts are reactive, entries are not deep-converted. Keep direct append and the existing queue contract; no sidecar data or entry reconstruction |
-| Engine runtime | Keep the existing shallow-reactive runtime boundary for player engines. At `GameAnalysisComposable._startAnalysisSeat`, initialise/wrap the assigned engine runtime through `shallowReactive(EngineRuntimeService.ensureRuntime(engine))` before starting/subscribing. Existing readiness/streaming operations then mutate the same observable runtime. Do not import Vue into domain/protocol code |
+| Engine runtime | Keep the existing shallow-reactive runtime boundary for player engines. At `GameAnalysisComposable._startAnalysisSeat`, initialise/wrap the assigned engine runtime through `shallowReactive(toRaw(EngineRuntimeService.ensureRuntime(engine)))` before starting/subscribing. Unwrapping here establishes a shallow boundary over the same backing runtime, rather than leaving an already deep-reactive runtime unchanged. It is not a raw/proxy identity comparison or alternate mutation path. Existing readiness/streaming operations then mutate the same observable runtime. Do not import Vue into domain/protocol code |
 | Promise / AbortController / Date / process ownership | Preserve these concrete owners and existing completion/cancellation semantics. Verify them at real engine/turn boundaries; do not create replacement wrappers or counters for asynchronous identity |
 | Rule-derived display boards | Keep the existing necessary detached board projection; it is display data. Do not mutate it to notify the canonical model or make it a second game state |
 
@@ -57,7 +57,7 @@ expect(name.value).toBe('Renamed game');
 expect(insertedPayload.metadata.name).toBe('Renamed game');
 ```
 
-This fixture mutation proves that the computed observes the reactive field and the original payload remains its backing object. No counter, `triggerRef`, clock tick or `timestampGame` call is involved. This is planned test code; the current raw-game implementation is expected to fail it.
+This fixture mutation proves that the computed observes the reactive field and the original payload remains its backing object. No counter, `triggerRef`, clock tick or `timestampGame` call is involved. These assertions were written first and failed against the old raw-game implementation; they now pass.
 
 ## Concrete function flows
 
@@ -154,4 +154,22 @@ Use real stores/rules and mounted components for reactive behaviour, not a mock 
 6. Run the complete suite, TypeScript, code audit/build and affected real browser journeys: premoves, engine races, analysis, clocks/history, promotion, setup/tab changes and restore. Record actual counts; existing browser evidence predates this refactor.
 7. Update owning architecture/process-flow docs and the related plans; retire the historical counter-retention exception.
 
-Acceptance: no `workspaceRevision`, publication callback/holder infrastructure, HistoryPanel revision prop, `_touchGame` or `touchGame` in production/tests. Historical documents may explain the old mechanism. Timestamping is timestamp-only, actual data drives UI updates, canonical identities are consistent, all 25 premove scenario IDs execute, and full unit/journey/static checks pass. This remains a plan, not an implementation.
+Acceptance: no `workspaceRevision`, publication callback/holder infrastructure, HistoryPanel revision prop, `_touchGame` or `touchGame` in production/tests. Historical documents may explain the old mechanism. Timestamping is timestamp-only, actual data drives UI updates, canonical identities are consistent, all 25 premove scenario IDs execute, and full unit/journey/static checks pass. Implementation and verification are recorded below.
+
+## Implementation evidence - 23 October 2026
+
+The six new behavioural tests first failed against the old implementation (identity, names/membership, history, premoves, accepted analysis and pause state): `node_modules/.tmp/reactivity-verification/before.json`. An additional failing assertion showed that `shallowReactive` alone did not unwrap an existing deep runtime; the boundary now unwraps that same object before shallow wrapping. `runtime-boundary.json` records the failure; `runtime-boundary-fixed.json` records all six tests passing, including raw map ownership.
+
+The collection now returns its stored canonical game for hydration registrations and post-insertion work. Removed the counter, injected publishers, dummy dependencies and history revision prop. Timestamp names are migrated throughout state dependencies. Queue arrays preserve exact supplied entries. The original turn resolver, pending/deferred lifecycle and successor dispatch are unchanged. Test mocks use schema copies for reactive board/clock inputs and `toRaw` backing-identity assertions; no fixtures publish or poll to notify Vue.
+
+
+| Verification | Final result / report |
+| --- | --- |
+| Full unit/application suite | **866/866 across 98 files**, no pending tests; all **PRE-S01-PRE-S25** execute. `node_modules/.tmp/reactivity-verification/final-unit.json` |
+| Affected journey unit regressions | **51/51 across 18 files** after fixture/runtime corrections. `node_modules/.tmp/reactivity-verification/journey-unit-fixed.json` |
+| Browser journeys | **139/139**, one worker, no retries, no skipped tests; premoves, engine races, analysis, clocks/history, promotion gestures/cancellation, setup, restore and saved workspaces. `node_modules/.tmp/reactivity-verification/browser.json` (original `test-results/JourneyResults.json`) |
+| Code audit, all TypeScript projects, production bundle | `npm run build` passes, including `npm run check:code` |
+
+The timestamp regression checks canonical serialization changes only at `metadata.updatedAt`, while the same clock, Deferred, handler and abort controller survive and analysis startup count stays unchanged. No clock tick or notification is used to refresh names, history, analysis or queue views.
+
+The final code audit passes again after review. Changed local Markdown links and `git diff --check` pass. Browser execution covers the selected Chromium journey scope; native NW.js execution was not part of this run.

@@ -25,7 +25,6 @@ interface ITestDependency {
   route: { params: { id: string } };
   router: { push: ReturnType<typeof vi.fn>; replace: ReturnType<typeof vi.fn> };
   gamesStore: {
-    workspaceRevision: number;
     getGame: ReturnType<typeof vi.fn>;
     getTakeBackMoveCount: ReturnType<typeof vi.fn>;
     getVisibleAnalysis: ReturnType<typeof vi.fn>;
@@ -80,7 +79,7 @@ function _createTimedGame(id: string = 'game-1', pauseReasons: PauseReason[] = [
   game.metadata.name = id;
   game.clockSnapshot.startedAtUtc = new ClockTimestamp();
   game.renderedPath = game.livePath!;
-  return game;
+  return reactive(game);
 }
 function _line() {
   const preview = createInitialBoardPosition();
@@ -114,7 +113,6 @@ describe('GameView menu interruptions', () => {
     dependency.route = reactive({ params: { id: 'game-1' } });
     dependency.router = { push: vi.fn(async () => undefined), replace: vi.fn(async () => undefined) };
     dependency.gamesStore = reactive({
-      workspaceRevision: 0,
       onAutosaveFailed: vi.fn(() => () => {}),
       getGame: vi.fn((id: string) => games.get(id)),
       getTakeBackMoveCount: vi.fn(() => 0),
@@ -211,7 +209,6 @@ describe('GameView menu interruptions', () => {
     await flushPromises();
     const props = modal.open.mock.lastCall![1] as ModalProps<typeof ConfirmationModal>;
     game.gameState = state;
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     await props.confirm(new AbortController().signal);
     expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
@@ -256,7 +253,6 @@ describe('GameView menu interruptions', () => {
     await action!.trigger('click');
     expect(dependency.gamesStore.enterInGameAnalysis).toHaveBeenCalledWith(game);
     game.gameState = GameState.PausedLiveAnalysisFromWhiteTurnWhiteMove;
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('paused');
     expect(wrapper.getComponent({ name: 'Chessboard' }).props('inputDisabled')).toBe(false);
@@ -291,7 +287,6 @@ describe('GameView menu interruptions', () => {
     const board = wrapper.getComponent({ name: 'Chessboard' });
     const original = board.props('position');
     game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     expect(board.props('position')).not.toBe(original);
     expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('mode')).toBe('inGameAnalysis');
@@ -304,7 +299,6 @@ describe('GameView menu interruptions', () => {
     const board = wrapper.getComponent({ name: 'Chessboard' });
     const retained = board.vm.$.vnode.props!.onMoveAttempted as (move: ReturnType<typeof toDetailedMove>) => unknown;
     game.gameState = GameState.LiveAnalysisFromWhiteTurnWhiteMove;
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     await retained(toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
     expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
@@ -336,7 +330,6 @@ describe('GameView menu interruptions', () => {
     expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
     game.resultState = ResultState.BlackWon;
     game.gameState = GameState.AnalysisWhiteMove;
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     await vi.advanceTimersByTimeAsync(700);
     expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
@@ -353,7 +346,6 @@ describe('GameView menu interruptions', () => {
     MoveHistoryService.addMainlineMove(game.moveTree.root, _line()[0]!);
     game.livePath!.push(0);
     game.gameState = GameState.LiveAnalysisFromBlackTurnWhiteMove;
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     expect(board.props('position')).toBe(selected);
     expect(board.props('inputDisabled')).toBe(false);
@@ -374,7 +366,7 @@ describe('GameView menu interruptions', () => {
     expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
     expect(dependency.gamesStore.exitInGameAnalysis).toHaveBeenCalledOnce();
   });
-  it('publishes raw seat changes through workspaceRevision and allows paused runtime controls', async () => {
+  it('observes reactive seat changes and allows paused runtime controls', async () => {
     const game = _createTimedGame();
     game.gameState = GameState.PausedWhiteTurn;
     const seat = createAnalysisSeat();
@@ -385,13 +377,11 @@ describe('GameView menu interruptions', () => {
     const previousSeats = panel.props('seats');
     expect(panel.props('disabled')).toBe(true);
     expect(panel.props('startDisabled')).toBe(false);
-    seat.assignedEngine.$ = { availability: EngineAvailability.Failed, lastError: 'Startup failed', analysisLines: new Map() };
-    dependency.gamesStore.workspaceRevision += 1;
+    game.analysis.seats[0]!.assignedEngine.$ = { availability: EngineAvailability.Failed, lastError: 'Startup failed', analysisLines: new Map() };
     await nextTick();
-    expect(panel.props('seats')).not.toBe(previousSeats);
+    expect(panel.props('seats')).toBe(previousSeats);
     expect(panel.props('seats')[0].assignedEngine.$.lastError).toBe('Startup failed');
     game.gameState = GameState.BoardEdit;
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     expect(panel.props('startDisabled')).toBe(true);
   });
@@ -403,11 +393,9 @@ describe('GameView menu interruptions', () => {
     const board = wrapper.getComponent({ name: 'Chessboard' });
     const original = board.props('position');
     game.analysis.seats = [createAnalysisSeat()];
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     expect(board.props('position')).toBe(original);
     MoveApplicationService.deletePiece(game.rootPosition, 12);
-    dependency.gamesStore.workspaceRevision += 1;
     await nextTick();
     expect(board.props('position')).not.toBe(original);
     expect(board.props('position').board[12]).toBeUndefined();

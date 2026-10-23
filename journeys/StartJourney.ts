@@ -18,7 +18,6 @@ export async function startJourney(run: { name: string; id: string }) {
   const ui = stores.useUiStateStore();
   const games = stores.useGamesStore();
   const ready = computed(() => {
-    void games.workspaceRevision;
     return !!settings.settings && !!ui.layoutState && !!ui.gameSession
       && ui.gameSession.openGameIds.every((id) => !!games.getGame(id))
       && router.currentRoute.value.path === ui.gameSession.activeRoute;

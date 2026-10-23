@@ -26,16 +26,15 @@ import type { GameStatusComposable } from './GameStatusComposable';
 interface IGamePlayerTurnDependency {
   position: GamePositionComposable;
   status: GameStatusComposable;
-  touchGame: (game: IGame) => void;
+  timestampGame: (game: IGame) => void;
   commitLiveMove: (game: IGame, move: IMove) => void;
   replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => void;
   refreshRuntimeRegistrations: (game: IGame) => void;
   clearPremoves: (game: IGame) => void;
-  publishRuntime: () => void;
 }
 
 export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
-  const { position, status, touchGame, commitLiveMove, refreshRuntimeRegistrations, clearPremoves, publishRuntime } = dependency;
+  const { position, status, timestampGame, commitLiveMove, refreshRuntimeRegistrations, clearPremoves } = dependency;
   /** Creates the persisted per-game player snapshot and discards runtime owned by the input record. */
   function createPlayerSnapshot(player?: IPlayer): IPlayer | undefined {
     if (!player) return;
@@ -103,7 +102,6 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
     queue.moves.shift();
     if (!queue.moves.length) runtime.premoveQueue = undefined;
     await attemptPlayerMove(game, move);
-    if (runtime.deferredPlayerMove === move) publishRuntime();
   }
   function _requestPlayerMove(game: IGame) {
     async function _requestEngineMove(engine: IAssignedEngine) {
@@ -169,13 +167,13 @@ export function useGamePlayerTurn(dependency: IGamePlayerTurnDependency) {
       game.resultReason = undefined;
       position.requireGameRuntime(game).pauseReasons = undefined;
       game.gameState = status.getAnalysisState(selectedPosition.sideToMove);
-      touchGame(game);
+      timestampGame(game);
     } else {
       if (status.isPausedLiveState(game.gameState)) game.gameState = status.getPausedState(liveColour ?? selectedPosition.sideToMove);
       else if (status.isLiveState(game.gameState)) game.gameState = status.getLiveState(liveColour ?? selectedPosition.sideToMove);
       else if (status.isAnyLiveAnalysisState(game.gameState) && liveColour) game.gameState = status.getLiveAnalysisState(liveColour, selectedPosition.sideToMove, status.isPausedLiveAnalysisState(game.gameState));
       else if (game.livePath && game.resultState === ResultState.Ongoing) game.gameState = status.getLiveState(selectedPosition.sideToMove);
-      touchGame(game);
+      timestampGame(game);
     }
     refreshRuntimeRegistrations(game);
     requestPlayerMoveIfNeeded(game);

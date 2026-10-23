@@ -1,5 +1,5 @@
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { markRaw, nextTick, reactive } from 'vue';
+import { nextTick, reactive, shallowReactive } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardOrientation, GameState, PieceKind, PlayerColour, PlayerType, ResultState, type IGame, type IMoveRaw } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
@@ -30,7 +30,7 @@ const routeUpdates: Array<(to: { params: { id: string } }) => unknown> = [];
 const games = new Map<string, IGame>();
 const wrappers: VueWrapper[] = [];
 function _store() {
-  return { workspaceRevision: 0, getGame: vi.fn((id: string) => games.get(id)), listGames: vi.fn(() => [...games.values()]),
+  return { getGame: vi.fn((id: string) => games.get(id)), listGames: vi.fn(() => [...games.values()]),
     getVisibleAnalysis: vi.fn((game: IGame) => ({ engineSeats: game.analysis.seats })), getTakeBackMoveCount: vi.fn(() => 1),
     onAutosaveFailed: vi.fn(() => () => {}), makeMove: vi.fn(async (_game: IGame, _move: IMoveRaw) => {}),
     enterInGameAnalysis: vi.fn(async () => {}), exitInGameAnalysis: vi.fn(), navigateToNode: vi.fn(), takeBack: vi.fn(),
@@ -65,8 +65,8 @@ function _game(fixture: IViewFixture = {}) {
   game.gameState = board.sideToMove === PlayerColour.White ? GameState.LiveWhiteTurn : GameState.LiveBlackTurn;
   game.metadata.id = fixture.id ?? 'premove-view';
   const queue = fixture.queue ?? whiteChain;
-  if (queue.length) game.$!.premoveQueue = { player: localSeat(game, local), moves: structuredClone([...queue]) };
-  return markRaw(game);
+  if (queue.length) game.$!.premoveQueue = { player: localSeat(game, local), moves: shallowReactive(structuredClone([...queue])) };
+  return reactive(game);
 }
 function _legal(board: IGame['rootPosition'], uci: string) {
   const move = genLegalMoves(board).find((item) => getUci(item) === uci);
@@ -115,10 +115,6 @@ function _preview(game: IGame, moves: string[]) {
     MoveApplicationService.applyMove(position, move);
     return premove(uci);
   });
-}
-async function _publish() {
-  dependency.store.workspaceRevision += 1;
-  await nextTick();
 }
 async function _switch(id: string) {
   for (const hook of routeUpdates) await hook({ params: { id } });
@@ -223,7 +219,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     const canonical = buildFen(_position(game));
     await _square(wrapper, square).trigger('contextmenu');
     expect(dependency.store.clearPremoves).toHaveBeenCalledExactlyOnceWith(game);
-    await _publish();
+    await nextTick();
     expect(_redSquares(wrapper)).toEqual([]);
     expect(_displayedPieces(wrapper)).toEqual(pieceMap(_position(game).board));
     expect(buildFen(wrapper.getComponent(Chessboard).props('position'))).toBe(canonical);
@@ -362,7 +358,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     MoveHistoryService.addMainlineMove(game.moveTree.root, move);
     game.livePath!.push(0);
     game.gameState = first === PlayerColour.White ? GameState.LiveBlackTurn : GameState.LiveWhiteTurn;
-    await _publish();
+    await nextTick();
     await retainedMove(move);
     await retainedAnalyse();
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
@@ -380,7 +376,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     expect(board.props('inputDisabled')).toBe(false);
     await _square(wrapper, 'g1').get('.chess-piece').trigger('dragstart');
     game.$!.premoveQueue = { player: game.whitePlayer!, moves: [whiteChain[0]!] };
-    await _publish();
+    await nextTick();
     expect(buildFen(board.props('position'))).toBe(buildFen(canonical));
     await _square(wrapper, 'f3').trigger('drop');
     await flushPromises();
@@ -388,7 +384,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     await _click(wrapper, 'f3', 'g5');
     expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, whiteChain[1]);
   });
-  it('PRE-F08 PRE-S18 publishes in-place raw FIFO edits without changing canonical position', async () => {
+  it('PRE-F08 PRE-S18 observes in-place FIFO edits without changing canonical position', async () => {
     const game = _game({ queue: [whiteChain[0]!] });
     const wrapper = _mount(game);
     await flushPromises();
@@ -398,8 +394,6 @@ describe('premove scenarios at the mounted input boundary', () => {
     const retained = board.vm.$.vnode.props!.onMoveAttempted as (move: IMoveRaw) => unknown;
     queue.moves.push({ ...whiteChain[1]! });
     await nextTick();
-    expect(_square(wrapper, 'f3').attributes('aria-label')).toBe('f3 white knight');
-    await _publish();
     expect(_square(wrapper, 'g5').attributes('aria-label')).toBe('g5 white knight');
     expect(_redSquares(wrapper)).toEqual(['f3', 'g1', 'g5']);
     expect(board.props('position')).toBe(canonical);
@@ -407,7 +401,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     await retained(premove('f3h4'));
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
     queue.moves.splice(1);
-    await _publish();
+    await nextTick();
     expect(_square(wrapper, 'f3').attributes('aria-label')).toBe('f3 white knight');
     expect(_redSquares(wrapper)).toEqual(['f3', 'g1']);
   });
@@ -417,7 +411,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     await flushPromises();
     const retained = wrapper.getComponent(Chessboard).vm.$.vnode.props!.onMoveAttempted as (move: IMoveRaw) => unknown;
     game.$!.premoveQueue = { player: game.whitePlayer!, moves: whiteChain.map((move) => ({ ...move })) };
-    await _publish();
+    await nextTick();
     await retained(premove('g5h7'));
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
     await _click(wrapper, 'g5', 'h7');
@@ -429,7 +423,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     await flushPromises();
     await _square(wrapper, 'g5').trigger('click');
     const retained = wrapper.getComponent(Chessboard).vm.$.vnode.props!.onMoveAttempted;
-    await _publish();
+    await nextTick();
     expect(_square(wrapper, 'g5').attributes('aria-pressed')).toBe('true');
     expect(wrapper.getComponent(Chessboard).vm.$.vnode.props!.onMoveAttempted).toBe(retained);
     await _square(wrapper, 'h7').trigger('click');
@@ -447,7 +441,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     game.gameState = GameState.LiveWhiteTurn;
     game.$!.premoveQueue!.moves.shift();
     game.$!.pendingPlayerTurnPromise = new Deferred();
-    await _publish();
+    await nextTick();
     expect(_square(wrapper, 'g1').attributes('aria-label')).toBe('g1 white knight');
     expect(_redSquares(wrapper)).toEqual([]);
     MoveApplicationService.applyMove(board, reply);
@@ -455,7 +449,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     game.livePath!.push(0);
     game.gameState = GameState.LiveBlackTurn;
     game.$!.pendingPlayerTurnPromise = undefined;
-    await _publish();
+    await nextTick();
     expect(_square(wrapper, 'g5').attributes('aria-label')).toBe('g5 white knight');
     expect(_redSquares(wrapper)).toEqual(['f3', 'g5']);
   });
@@ -468,7 +462,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     const canonical = wrapper.getComponent(Chessboard).props('position');
     await _square(wrapper, 'b8').trigger('click');
     game.$!.premoveQueue!.moves.pop();
-    await _publish();
+    await nextTick();
     expect(wrapper.getComponent(Chessboard).props('position')).toBe(canonical);
     expect(_square(wrapper, 'b8').attributes('aria-pressed')).toBe('true');
     expect(_redSquares(wrapper)).toEqual([]);
@@ -502,7 +496,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     MoveHistoryService.addMainlineMove(game.moveTree.root, move);
     game.livePath!.push(0);
     game.gameState = GameState.LiveWhiteTurn;
-    await _publish();
+    await nextTick();
     expect(_dialog('Choose promotion').exists()).toBe(false);
     await retainedChoice.trigger('click');
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
@@ -576,7 +570,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     const before = buildFen(canonical);
     await _square(wrapper, 'b8').trigger('click');
     expect(_square(wrapper, 'b8').attributes('aria-pressed')).toBe('true');
-    await _publish();
+    await nextTick();
     expect(board.props('position')).toBe(canonical);
     expect(buildFen(board.props('position'))).toBe(before);
     expect(_square(wrapper, 'b8').attributes('aria-pressed')).toBe('true');

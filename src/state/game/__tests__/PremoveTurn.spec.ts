@@ -16,13 +16,12 @@ function _context() {
   }));
   game.renderedPath = game.livePath!;
   const clearPremoves = vi.fn((current: IGame) => { current.$!.premoveQueue = undefined; });
-  const publishRuntime = vi.fn();
-  const status = useGameStatus({ position, touchGame: vi.fn(), clearPlayerTurnRuntime: async () => {}, refreshRuntimeRegistrations: vi.fn(), clearPremoves });
+  const status = useGameStatus({ position, timestampGame: vi.fn(), clearPlayerTurnRuntime: async () => {}, refreshRuntimeRegistrations: vi.fn(), clearPremoves });
   const commit = vi.fn();
-  const turn = useGamePlayerTurn({ position, status, touchGame: vi.fn(), commitLiveMove: commit,
-    replaceWithAnalysisRoot: vi.fn(), refreshRuntimeRegistrations: vi.fn(), clearPremoves, publishRuntime });
+  const turn = useGamePlayerTurn({ position, status, timestampGame: vi.fn(), commitLiveMove: commit,
+    replaceWithAnalysisRoot: vi.fn(), refreshRuntimeRegistrations: vi.fn(), clearPremoves });
   game.$!.premoveQueue = { player: game.whitePlayer!, moves: [...whiteChain] };
-  return { game, turn, commit, clearPremoves, publishRuntime, position };
+  return { game, turn, commit, clearPremoves, position };
 }
 describe('premove answers the ordinary Local turn request', () => {
   it('registers the original Deferred and shifts once before normal handler settlement', async () => {

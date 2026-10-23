@@ -16,8 +16,6 @@ import { useGameStatus } from './game/GameStatusComposable';
 import { useGameWorkspace } from './game/GameWorkspaceComposable';
 
 export const useGamesStore = defineStore('gamesStore', () => {
-  // Canonical games stay raw; completed store transitions publish one shallow invalidation here.
-  const workspaceRevision = ref(0);
   const autosaveError = ref('');
   const _autosaveFailureListeners = new Set<(message: string) => void>();
   function onAutosaveFailed(listener: (message: string) => void) {
@@ -39,17 +37,12 @@ export const useGamesStore = defineStore('gamesStore', () => {
       for (const listener of _autosaveFailureListeners) listener(autosaveError.value);
     });
   }
-  function _touchGame(game: IGame) {
+  function _timestampGame(game: IGame) {
     game.metadata.updatedAt = new RecordTimestamp();
-    _publishRuntime();
-  }
-  function _publishRuntime() {
-    workspaceRevision.value += 1;
   }
   function clearPremoves(game: IGame) {
     if (!game.$?.premoveQueue) return;
     game.$.premoveQueue = undefined;
-    _publishRuntime();
   }
   const position = useGamePosition();
   let clock: GameClockComposable;
@@ -59,17 +52,16 @@ export const useGamesStore = defineStore('gamesStore', () => {
   const status = useGameStatus({
     position,
     clearPremoves,
-    touchGame: _touchGame,
+    timestampGame: _timestampGame,
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     refreshRuntimeRegistrations: (game: IGame) => clock.refreshRuntimeRegistrations(game),
   });
-  analysis = useGameAnalysis({ position, touchGame: _touchGame });
+  analysis = useGameAnalysis({ position, timestampGame: _timestampGame });
   playerTurn = useGamePlayerTurn({
     position,
     status,
     clearPremoves,
-    publishRuntime: _publishRuntime,
-    touchGame: _touchGame,
+    timestampGame: _timestampGame,
     commitLiveMove: (game: IGame, playerMove: IMove) => move.commitLiveMove(game, playerMove),
     replaceWithAnalysisRoot: (game: IGame, rootPosition: IBoardPosition, nextState: GameState) => move.replaceWithAnalysisRoot(game, rootPosition, nextState),
     refreshRuntimeRegistrations: (game: IGame) => clock.refreshRuntimeRegistrations(game),
@@ -78,14 +70,14 @@ export const useGamesStore = defineStore('gamesStore', () => {
     position,
     status,
     clearPremoves,
-    touchGame: _touchGame,
+    timestampGame: _timestampGame,
     clearPlayerTurnRuntime: (game: IGame) => playerTurn.clearPlayerTurnRuntime(game),
     flushDeferredPlayerMove: (game: IGame) => playerTurn.flushDeferredPlayerMove(game),
     requestPlayerMoveIfNeeded: (game: IGame) => playerTurn.requestPlayerMoveIfNeeded(game),
   });
-  move = useGameMove({ position, status, clock, analysis, playerTurn, touchGame: _touchGame, moveCommitted: _moveCommitted, clearPremoves, publishRuntime: _publishRuntime });
-  const boardEdit = useGameBoardEdit({ position, status, analysis, move, touchGame: _touchGame });
-  const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, touchGame: _touchGame, clearPremoves });
+  move = useGameMove({ position, status, clock, analysis, playerTurn, timestampGame: _timestampGame, moveCommitted: _moveCommitted, clearPremoves });
+  const boardEdit = useGameBoardEdit({ position, status, analysis, move, timestampGame: _timestampGame });
+  const workspace = useGameWorkspace({ position, status, clock, analysis, playerTurn, timestampGame: _timestampGame, clearPremoves });
   onScopeDispose(() => {
     for (const game of workspace.listGames() as readonly IGame[]) {
       clearPremoves(game);
@@ -96,7 +88,6 @@ export const useGamesStore = defineStore('gamesStore', () => {
     }
   });
   return {
-    workspaceRevision,
     autosaveError,
     onAutosaveFailed,
     createGame: workspace.createGame,

@@ -1,6 +1,6 @@
 # Premove data structure
 
-Replanned, approved and implemented on 23 October 2026 after reversing the rejected turn-resolution rewrite. The FIFO retains `IMoveRaw` references; the existing turn runtime receives a shifted head through `attemptPlayerMove`. See the parent plan's [current implementation verification](PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026). Historical baselines below predate this implementation.
+Replanned, approved and implemented on 23 October 2026 after reversing the rejected turn-resolution rewrite. The FIFO retains `IMoveRaw` references; the existing turn runtime receives a shifted head through `attemptPlayerMove`. See the parent plan's [current implementation verification](PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026). The [reactive workspace follow-up](WorkspaceRevisionRemovalPlan.md) replaces the original publication mechanism with observable canonical data and shallow-reactive queue arrays. Historical baselines below predate these changes.
 
 The [parent plan](PreMovePlan%28ToDo%29.md) retains [14 function flows](PreMovePlan%28ToDo%29.md#function-flow), [25 scenarios](PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests) and the [tests-first specification](PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification). The separately completed analysis prerequisite stays unchanged.
 
@@ -42,7 +42,7 @@ Keep the existing queue container/location to minimise change; delete the supers
 | `promotionPiece` | Explicit chosen promotion when required. Validate queen/rook/bishop/knight through chess rules; `IMoveRaw` itself deliberately remains generic |
 | `$` and structural extra fields | Supplied object is retained as `IMoveRaw`; it may already carry PV details or a runtime cache. No sanitising copy. Consumers use coordinates/promotion; actual accepted details come from the actual board |
 
-Trust the producer's possible, completed move and retain its object directly. `_appendPremove(game, player, rawMove)` initialises the FIFO if absent, calls `moves.push(rawMove)` and publishes. No field reconstruction, clone, sanitation or validation. Produced coordinates/promotion remain stable; the queue mutates its own array with push/shift/clear, not its entries. Board/PV/view/confirmation/playback pass the same move references. Existing `IMove` entries are structurally usable as `IMoveRaw`; actual metadata is still generated from the due board.
+Trust the producer's possible, completed move and retain its object directly. `_appendPremove(game, player, rawMove)` initialises the FIFO if absent, calls `moves.push(rawMove)` and updates the reactive array. No field reconstruction, clone, sanitation or validation. Produced coordinates/promotion remain stable; the queue mutates its own array with push/shift/clear, not its entries. Board/PV/view/confirmation/playback pass the same move references. Existing `IMove` entries are structurally usable as `IMoveRaw`; actual metadata is still generated from the due board.
 
 ## No stored expected kind or anchor
 
@@ -79,9 +79,9 @@ The [14 function-call tables](PreMovePlan%28ToDo%29.md#function-flow) are the im
 | Temporary `IMoveCandidate` | Returned internal `GamePositionComposable.applyPremoveProjection` derives application facts from caller-owned preview and calls `MoveApplicationService.applyMove(preview, candidate)` in place. Required semantic enrichment, not payload cloning. Shared by drawing/revalidation; no board copy or candidate query inside this helper |
 | Actual accepted `IMove` | `GamePlayerTurnComposable._tryPremove -> genLegalMovesForPiece(actual, head.from, actualNode.move) -> toDetailedMove(actual, legalCandidate) -> moves.shift -> attemptPlayerMove`. Required by the existing actual-turn/clock/history contract. No await between shift and resolver call; existing handler owns the move thereafter |
 | Detached projection result | `getPremoveProjection(base, queue?, heldLocalMove?)` creates one board/rights copy for the full pass. Apply optional held reference, then iterate existing queue references. No combined sequence, per-entry board clone or invalid-data fallback; return derived position/red set |
-| Runtime-only publication | New `GamesStore._publishRuntime` increments existing `workspaceRevision`; queue append/clear and held-head display use it. Existing `_touchGame` still owns canonical timestamps. New shared `clearPremoves(game)` clears raw FIFO only; it does not cancel the actual Deferred or held output |
+| Runtime-only observation | `moves: shallowReactive<IMoveRaw[]>([])` tracks push/shift without converting entries. `clearPremoves` clears only the observable FIFO. `_timestampGame` updates metadata only; no counter, publication callback or cancellation of the actual Deferred/held output |
 
-The concrete wiring is also recorded in that flow: new `publishRuntime`/`clearPremoves` dependency callbacks, the single Local branch after existing `_requestPlayerMove` registration, revalidation before the existing finaliser's successor request, and clearing at each named accepted structural/result action. There is no implied turn-driver or dependency restructure hidden behind a generic flow label.
+The concrete wiring is also recorded in that flow: the `clearPremoves` dependency callback, the single Local branch after existing `_requestPlayerMove` registration, revalidation before the existing finaliser's successor request, and clearing at each named accepted structural/result action. There is no implied turn-driver or dependency restructure hidden behind a generic flow label.
 
 ## Plain-data fixtures and derived output
 
@@ -105,8 +105,8 @@ A promotion fixture uses `{ from: 48, to: 56, promotionPiece: PieceKind.Knight }
 
 | Action | Data flow |
 | --- | --- |
-| Eligible off-turn move | Initialise if absent, append supplied reference and publish. Rendering derives its picture separately; no move copy |
-| Actual commit | `_revalidatePremoves` owns one feasibility pass before publication/request: clone actual board/rights once, check changed-board source/candidates and advance same preview in place through `applyPremoveProjection`. Failure clears whole queue; no per-entry projection clone, wrapper array or highlight set |
+| Eligible off-turn move | Initialise if absent, append supplied reference to the shallow-reactive array. Rendering derives its picture separately; no move copy |
+| Actual commit | `_revalidatePremoves` owns one feasibility pass before rendering/request: clone actual board/rights once, check changed-board source/candidates and advance same preview in place through `applyPremoveProjection`. Failure clears whole queue; no per-entry projection clone, wrapper array or highlight set |
 | Actual local turn request | Trust registered Local Deferred and established sequence feasibility; match actual legal head, build details, shift, normalise empty and immediately call `attemptPlayerMove`. No whole-queue projection or repeated ownership/readiness checks |
 | Accepted local head | Existing handler owns commit or real-pause holding. No second dequeue at commit. Revalidate only the remainder from the new actual board before the existing successor request |
 | Invalid accepted dependency/head | Clear every remaining entry immediately, including a currently legal head if a later dependency is already unprojectable. No skipped prefix/tail or partial history |
@@ -116,7 +116,7 @@ A promotion fixture uses `{ from: 48, to: 56, promotionPiece: PieceKind.Knight }
 | Actual Takeback/rewrite, changed seat/root, terminal result, explicit tab close/disposal | Clear at the actual mutation boundary, after existing awaited cleanup where applicable, so old-context appends cannot survive replacement. Keep existing cancellation/context handling; add no downstream owner comparison. Cancelled/no-op/blocked actions preserve queue; other games stay independent |
 | Save/export and hydration | Existing schema omits runtime `$`; save preserves the in-memory FIFO. A loaded/imported/hydrated game starts empty and retains any genuine saved pause |
 
-All queue edits preserve canonical serialized bytes, move history/count, clock/increment, recorded analysis and timestamp. Raw games publish through existing `workspaceRevision`. Stable input retains queue/head/tail/held-local references with canonical context; unchanged context returns its previous projection before allocating another. Push/shift/clear uses references, without copying entries/arrays or adding counters. Share projection red set through `ReadonlySet<BoardId>`, without array conversion. One actual move produces canonical effects once; Exit neither resumes clocks nor replays entries.
+All queue edits preserve canonical serialized bytes, move history/count, clock/increment, recorded analysis and timestamp. The existing workspace collection owns canonical reactive games; queue arrays are shallow-reactive to retain exact supplied move references. Actual field/array writes drive rendering; there is no publisher or revision counter. Stable input retains queue/head/tail/held-local references with canonical context; unchanged context returns its previous projection before allocating another. Push/shift/clear uses references, without copying entries/arrays or adding counters. Share projection red set through `ReadonlySet<BoardId>`, without array conversion. One actual move produces canonical effects once; Exit neither resumes clocks nor replays entries.
 
 ## Test migration and evidence
 

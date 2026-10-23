@@ -1,4 +1,4 @@
-import { markRaw, ref } from 'vue';
+import { ref } from 'vue';
 import {
   GameState,
   PauseReason,
@@ -24,12 +24,12 @@ interface IGameWorkspaceDependency {
   clock: GameClockComposable;
   analysis: GameAnalysisComposable;
   playerTurn: GamePlayerTurnComposable;
-  touchGame: (game: IGame) => void;
+  timestampGame: (game: IGame) => void;
   clearPremoves: (game: IGame) => void;
 }
 
 export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
-  const { position, status, clock, analysis, playerTurn, touchGame, clearPremoves } = dependency;
+  const { position, status, clock, analysis, playerTurn, timestampGame, clearPremoves } = dependency;
   const games = ref<IGame[]>([]);
   function _createGameMetadata(name: string, nowUtc: Date) {
     return {
@@ -54,10 +54,10 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     return new Set(games.value.filter((game) => game.metadata.id !== excludedGameId).map((game) => game.metadata.id));
   }
   function _replaceGame(game: IGame) {
-    markRaw(game);
     const gameIndex = _getGameIndex(game.metadata.id);
     if (gameIndex >= 0) games.value.splice(gameIndex, 1, game);
     else games.value.push(game);
+    return games.value[gameIndex >= 0 ? gameIndex : games.value.length - 1]!;
   }
   async function _hydrateAndInsertGame(game: IGame): Promise<IGame> {
     _repairDuplicateGameId(game, _getExistingGameIds());
@@ -67,9 +67,9 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       hydratedGame.$!.pauseReasons = [PauseReason.Manual];
     }
     playerTurn.normalisePlayers(hydratedGame);
-    _replaceGame(hydratedGame);
-    clock.refreshRuntimeRegistrations(hydratedGame);
-    return hydratedGame;
+    const insertedGame = _replaceGame(hydratedGame);
+    clock.refreshRuntimeRegistrations(insertedGame);
+    return insertedGame;
   }
   async function createGame(request: ICreateGameRequest): Promise<IGame> {
     const nowUtc = new Date();
@@ -118,7 +118,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       position.setLivePath(game, undefined);
       game.gameState = status.getAnalysisState(renderedPosition.sideToMove);
     }
-    touchGame(game);
+    timestampGame(game);
     clock.refreshRuntimeRegistrations(game);
     playerTurn.requestPlayerMoveIfNeeded(game);
     await analysis.refreshAnalysisForGame(game);
@@ -130,7 +130,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     game.resultReason = undefined;
     game.gameState = status.getLiveState(renderedPosition.sideToMove);
   }
-  /** Takes ownership of `game`, hydrates it in place, and inserts that same object into the workspace. */
+  /** Takes ownership of `game` in place and returns the workspace's canonical reactive game. */
   async function insertGame(game: IGame): Promise<IGame> {
     const insertedGame = await _hydrateAndInsertGame(game);
     playerTurn.requestPlayerMoveIfNeeded(insertedGame);

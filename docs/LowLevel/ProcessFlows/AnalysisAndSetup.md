@@ -8,18 +8,18 @@ Persistence note: this document focuses on setup and analysis mutation rules. An
 The implementation keeps the existing store/composable/service/client boundaries. [GameAnalysisComposable](../../../src/state/game/GameAnalysisComposable.ts) clears all targeted seat results before launching independent starts. [EngineRuntimeService](../../../src/domain/EngineRuntimeService.ts) owns cancellation and sequencing; [NwjsUciEngineClient](../../../src/platform/nwjs/NwjsUciEngineClient.ts) owns protocol states. See [EngineRuntimeOwnership](EngineRuntimeOwnership.md) for the detailed calls and stale-output guards.
 
 ```text
-GameMoveComposable.publishRenderedPosition(game, changed)
+GameMoveComposable._refreshRenderedAnalysis(game, changed)
   -> changed: GameAnalysisComposable.refreshAnalysisForGame(game)
-     -> disposeAnalysisSubscription and clearAnalysisSeatLines for every seat
-     -> startAnalysisSeat -> subscribeToAnalysis -> EngineRuntimeService.startAnalysis
+     -> _disposeAnalysisSubscription and _clearAnalysisSeatLines for every seat
+     -> _startAnalysisSeat -> shallowReactive(toRaw(ensureRuntime(engine))) -> _subscribeToAnalysis -> EngineRuntimeService.startAnalysis
         -> _beginAnalysisOperation -> _queueAnalysisOperation -> ensureReady -> client.startAnalysis
-     -> touchGame publishes empty/starting seats before any engine completes
-  -> unchanged: touchGame only; existing searches and results survive
+     -> timestampGame records metadata; reactive seat/runtime writes display empty/starting seats before any engine completes
+  -> unchanged: timestampGame only; existing searches and results survive
 
 client update -> EngineRuntimeService._acceptAnalysisUpdate
   -> validate all runtime lines -> captured subscription callback
-     -> seat.lines = update.lines.slice(0, 3); update result metadata; touchGame
-  -> GameView workspaceRevision -> GamesStore.getVisibleAnalysis -> AnalysisPanel.seats
+     -> seat.lines = update.lines.slice(0, 3); update result metadata; timestampGame
+  -> GameView computed reads reactive game/seat fields -> GamesStore.getVisibleAnalysis -> AnalysisPanel.seats
 ```
 
 `getVisibleAnalysis` returns all assignments in order without filtering or selecting lines. Effective board edits clear results through the same refresh preparation, but its BoardEdit gate stops engines instead of starting them. Empty, stopped, failed, and restored seats remain present.
@@ -62,16 +62,16 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSeat` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
+| `GameAnalysisComposable._startAnalysisSeat` |
+| `GameAnalysisComposable._subscribeToAnalysis` |
 
-| `GameAnalysisComposable.startAnalysisSeat` |
+| `GameAnalysisComposable._startAnalysisSeat` |
 | --- |
 | `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+| `GameAnalysisComposable._subscribeToAnalysis callback` |
 | --- |
-| select the first three ranked lines; update seat metadata; `touchGame` |
+| select the first three ranked lines; update seat metadata; `timestampGame` |
 
 - Requirement verification: `Pass`. A creation request with an unassigned side or a live-game reassignment to an omitted player value yields a non-live workspace while preserving engine-driven analysis when configured.
 
@@ -128,16 +128,16 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSeat` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
+| `GameAnalysisComposable._startAnalysisSeat` |
+| `GameAnalysisComposable._subscribeToAnalysis` |
 
-| `GameAnalysisComposable.startAnalysisSeat` |
+| `GameAnalysisComposable._startAnalysisSeat` |
 | --- |
 | `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+| `GameAnalysisComposable._subscribeToAnalysis callback` |
 | --- |
-| select the first three ranked lines; update seat metadata; `touchGame` |
+| select the first three ranked lines; update seat metadata; `timestampGame` |
 
 - UI surface coverage: free-analysis board editing uses the inline piece palette in `Chessboard.vue`, close to the active board-edit controls. `PiecePalette` remains a proposed component extraction rather than a separate runtime module.
 - State coverage: `GameState.BoardEdit` is valid only inside non-live analysis. While active, engine analysis is suspended and `GamesStore.refreshAnalysis` is blocked for that game.
@@ -172,12 +172,12 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSeat` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
+| `GameAnalysisComposable._startAnalysisSeat` |
+| `GameAnalysisComposable._subscribeToAnalysis` |
 
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+| `GameAnalysisComposable._subscribeToAnalysis callback` |
 | --- |
-| select the first three ranked lines; update seat metadata; `touchGame` |
+| select the first three ranked lines; update seat metadata; `timestampGame` |
 
 | `IModalHandle.close` |
 | --- |
@@ -197,16 +197,16 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | GamesStore.refreshAnalysis |
 | --- |
 | GameAnalysisComposable.refreshAnalysisForGame |
-| GameAnalysisComposable.startAnalysisSeat |
-| GameAnalysisComposable.subscribeToAnalysis |
+| GameAnalysisComposable._startAnalysisSeat |
+| GameAnalysisComposable._subscribeToAnalysis |
 
-| GameAnalysisComposable.startAnalysisSeat |
+| GameAnalysisComposable._startAnalysisSeat |
 | --- |
 | `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+| `GameAnalysisComposable._subscribeToAnalysis callback` |
 | --- |
-| select the first three ranked lines; update seat metadata; `touchGame` |
+| select the first three ranked lines; update seat metadata; `timestampGame` |
 
 | GamesStore.getVisibleAnalysis |
 | --- |
@@ -256,16 +256,16 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | GamesStore.retryAnalysis |
 | --- |
 | GameAnalysisComposable.refreshAnalysisForGame |
-| GameAnalysisComposable.startAnalysisSeat |
-| GameAnalysisComposable.subscribeToAnalysis |
+| GameAnalysisComposable._startAnalysisSeat |
+| GameAnalysisComposable._subscribeToAnalysis |
 
-| GameAnalysisComposable.startAnalysisSeat |
+| GameAnalysisComposable._startAnalysisSeat |
 | --- |
 | `EngineRuntimeService.startAnalysis` owns readiness and cancellation |
 
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+| `GameAnalysisComposable._subscribeToAnalysis callback` |
 | --- |
-| select the first three ranked lines; update seat metadata; `touchGame` |
+| select the first three ranked lines; update seat metadata; `timestampGame` |
 
 #### Flow C - Unexpected Analysis Engine Exit
 | `NwjsUciEngineClient` process-exit listener |
@@ -375,7 +375,7 @@ Add remains assignment-only. The modal starts only that seat, preserving other e
 | `GameAnalysisComposable.removeAnalysisEngine` |
 | `GameAnalysisComposable.disposeAnalysisSubscription` |
 | `GameAnalysisComposable.stopAssignedEngine` |
-| remove the captured seat synchronously; `touchGame`; then await cleanup |
+| remove the captured seat synchronously; `timestampGame`; then await cleanup |
 
 `GameView.removeAnalysisEngine` removes the corresponding remembered fold entry immediately after the store removes the seat, preserving indexes for the remaining assignments.
 

@@ -6,10 +6,8 @@ describe('JRN-CLOCK-06/09/12 timeout finalisation', () => {
     const { games, game, modal, router } = await createTimedContext();
     const { ClockTimestamp } = await import('@/utility/date');
     vi.setSystemTime(Date.now() + 10000);
-    const before = games.workspaceRevision;
     const show = vi.spyOn(modal, 'open');
     await Promise.all([games.syncClock(game, new ClockTimestamp()), games.syncClock(game, new ClockTimestamp())]);
-    expect(games.workspaceRevision - before).toBe(1);
     expect(game.resultReason).toBe(ResultReason.Timeout);
     expect(game.clockSnapshot.white).toEqual({ remainingMs: 0, isRunning: false });
     expect(game.$?.focusReturnUnsubscribe).toBeUndefined();

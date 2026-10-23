@@ -107,7 +107,6 @@ describe('UI-09 suggested move-prefix playback', () => {
     games.navigateToNode(source, source.moveTree.root.children[0]!);
     await games.stopAnalysis(source);
     source.analysis.seats[0]!.lines = [{ depth: 12, pv: oldMoves }];
-    games.workspaceRevision += 1;
     await nextTick();
     document.querySelectorAll<HTMLButtonElement>('.analysis-line__moves button')[2]!.click();
     await flushPromises();

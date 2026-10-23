@@ -99,7 +99,7 @@ A reviewer can follow the public action into its workflow and then follow direct
 - Preserve explicit action, component event, route and lifecycle boundaries. Add no watchers or equivalent reactive subscriptions for effects.
 - Preserve cancellation and settlement before superseded work is replaced. Do not introduce generation, epoch or sequence invalidation counters.
 - Preserve actual turn, analysis-seat and engine-resource ownership. Keep independent resources independent.
-- Follow the corrected [workspace counter removal and timestamp naming plan](WorkspaceRevisionRemovalPlan.md): remove `markRaw(game)`, the counter and publication callbacks; use the existing reactive collection's canonical game consistently. Keep backing data and required aliases without cloning. `timestampGame` updates only `metadata.updatedAt`. Do not add a holder map, manual publisher or another notification mechanism while restructuring dependencies.
+- Preserve the implemented [workspace counter removal and timestamp naming design](WorkspaceRevisionRemovalPlan.md): remove `markRaw(game)`, the counter and publication callbacks; use the existing reactive collection's canonical game consistently. Keep backing data and required aliases without cloning. `timestampGame` updates only `metadata.updatedAt`. Do not add a holder map, manual publisher or another notification mechanism while restructuring dependencies.
 - Keep domain calculations and platform access at their established service boundaries. Private store modules do not introduce new public same-layer dependencies.
 
 ## Migration order and later verification

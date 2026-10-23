@@ -17,14 +17,14 @@ import type { GamePositionComposable } from './GamePositionComposable';
 type LiveGame = IGame & { livePath: MovePath };
 interface IGameStatusDependency {
   position: GamePositionComposable;
-  touchGame: (game: IGame) => void;
+  timestampGame: (game: IGame) => void;
   clearPlayerTurnRuntime: (game: IGame) => Promise<void>;
   refreshRuntimeRegistrations: (game: IGame) => void;
   clearPremoves: (game: IGame) => void;
 }
 
 export function useGameStatus(dependency: IGameStatusDependency) {
-  const { position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations, clearPremoves } = dependency;
+  const { position, timestampGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations, clearPremoves } = dependency;
   function isLiveState(state: GameState): boolean {
     return state === GameState.LiveWhiteTurn || state === GameState.LiveBlackTurn;
   }
@@ -144,14 +144,14 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     game.resultReason = ResultReason.Resignation;
     game.gameState = getAnalysisState(getOpponentColour(colour));
     game.drawOfferState = undefined;
-    touchGame(game);
+    timestampGame(game);
     refreshRuntimeRegistrations(game);
   }
   async function offerDraw(game: IGame) {
     assertOngoingLiveAction(game, 'Draw offer');
     const offeringColour = position.getLivePosition(game).sideToMove;
     game.drawOfferState = { offeringColour, respondingColour: getOpponentColour(offeringColour), direction: DrawOfferDirection.Outgoing };
-    touchGame(game);
+    timestampGame(game);
   }
   async function acceptDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw acceptance');
@@ -163,18 +163,18 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     game.resultReason = ResultReason.DrawAgreement;
     game.gameState = getAnalysisState(position.getRenderedPosition(game).sideToMove);
     game.drawOfferState = undefined;
-    touchGame(game);
+    timestampGame(game);
     refreshRuntimeRegistrations(game);
   }
   async function declineDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw decline');
     game.drawOfferState = undefined;
-    touchGame(game);
+    timestampGame(game);
   }
   async function withdrawDrawOffer(game: IGame) {
     assertOngoingLiveAction(game, 'Draw withdrawal');
     if (game.drawOfferState?.direction === DrawOfferDirection.Outgoing) game.drawOfferState = undefined;
-    touchGame(game);
+    timestampGame(game);
   }
   return {
     isLiveState,

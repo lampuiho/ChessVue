@@ -8,11 +8,11 @@ import { useGameStatus } from '../GameStatusComposable';
 describe('useGameStatus', () => {
   function _createSubject() {
     const position = useGamePosition();
-    const touchGame = vi.fn();
+    const timestampGame = vi.fn();
     const clearPlayerTurnRuntime = vi.fn(async () => {});
     const refreshRuntimeRegistrations = vi.fn();
-    const status = useGameStatus({ position, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations, clearPremoves: vi.fn() });
-    return { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations };
+    const status = useGameStatus({ position, timestampGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations, clearPremoves: vi.fn() });
+    return { position, status, timestampGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations };
   }
   it('preserves the live state family while the side to move changes', () => {
     const { status } = _createSubject();
@@ -23,7 +23,7 @@ describe('useGameStatus', () => {
     expect(game.gameState).toBe(GameState.PausedBlackTurn);
   });
   it('finalises an accepted draw and invokes session teardown hooks', async () => {
-    const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = _createSubject();
+    const { position, status, timestampGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = _createSubject();
     const game = position.hydrateGame(createGame({ drawOfferState: createOutgoingDrawOffer(PlayerColour.White) }));
     let completeTurnCancellation!: () => void;
     clearPlayerTurnRuntime.mockImplementationOnce(() => new Promise<void>((resolve) => completeTurnCancellation = resolve));
@@ -32,7 +32,7 @@ describe('useGameStatus', () => {
     await Promise.resolve();
 
     expect(game.resultState).toBe(ResultState.Ongoing);
-    expect(touchGame).not.toHaveBeenCalled();
+    expect(timestampGame).not.toHaveBeenCalled();
     completeTurnCancellation();
     await drawAcceptance;
     expect(game.resultState).toBe(ResultState.Drawn);
@@ -40,10 +40,10 @@ describe('useGameStatus', () => {
     expect(game.drawOfferState).toBeUndefined();
     expect(clearPlayerTurnRuntime).toHaveBeenCalledWith(game);
     expect(refreshRuntimeRegistrations).toHaveBeenCalledWith(game);
-    expect(touchGame).toHaveBeenCalledWith(game);
+    expect(timestampGame).toHaveBeenCalledWith(game);
   });
   it('rejects every result command after the game has ended', async () => {
-    const { position, status, touchGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = _createSubject();
+    const { position, status, timestampGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = _createSubject();
     const game = position.hydrateGame(createGame({
       resultState: ResultState.WhiteWon,
       resultReason: ResultReason.RuleResolved,
@@ -65,7 +65,7 @@ describe('useGameStatus', () => {
     expect(game.drawOfferState).toEqual(createOutgoingDrawOffer(PlayerColour.White));
     expect(clearPlayerTurnRuntime).not.toHaveBeenCalled();
     expect(refreshRuntimeRegistrations).not.toHaveBeenCalled();
-    expect(touchGame).not.toHaveBeenCalled();
+    expect(timestampGame).not.toHaveBeenCalled();
   });
   it('rejects result commands in explicit analysis but uses actual play during ordinary review', async () => {
     const { position, status } = _createSubject();

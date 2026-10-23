@@ -49,7 +49,7 @@ GamesStore.refreshAnalysis / retryAnalysis / rendered-position action
            -> drain prior issued work; skip superseded pending requests
            -> ensureReady(engine, operation.abortController.signal)
            -> if current, EngineClient.startAnalysis(..., capturedGuard)
-     -> touchGame publishes empty/starting seats before awaiting startup
+     -> timestampGame records metadata; reactive seat/runtime writes display empty/starting seats before awaiting startup
 ```
 
 The service startup promise resolves after commands are issued, while its operation identity remains active for streaming. Replacing or stopping pending startup rejects it with `Aborted`. The composable consumes expected cancellation and checks subscription membership before publishing completion/error. Late service writes are guarded by operation identity, not position keys. Player-turn coordination remains separate.
@@ -67,7 +67,7 @@ NwjsUciEngineClient._consumeAnalysingLine
   -> validate every line and best move, including non-displayed ranks
   -> game subscription verifies its captured seat is still assigned
      -> seat.lines = update.lines.slice(0, 3)
-     -> update bestMove, updatedAt, isComplete; touchGame
+     -> update bestMove, updatedAt, isComplete; timestampGame
 ```
 
 A rejected update returns `false`, restoring the prior runtime entry. Emitted line/PV objects remain immutable. `bestmove` returns the client to Ready and publishes a final update; a final update during startup cannot be overwritten with Running afterwards. `getVisibleAnalysis` returns all seats in roster order without filtering, and the panel renders their prepared lines directly.

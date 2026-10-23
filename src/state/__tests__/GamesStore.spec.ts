@@ -1,3 +1,4 @@
+import { isReactive, toRaw } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -257,7 +258,7 @@ const domain = {
   MoveApplicationService: {
     applyMove: vi.fn((position: IGame['rootPosition'], move: IMove) => _applyDefaultMove(position, move)),
     genPosition: vi.fn((rootPosition: IGame['rootPosition'], moves: readonly IMove[]) =>
-      moves.reduce((position, move) => domain.MoveApplicationService.applyMove(position, move), structuredClone(rootPosition))),
+      moves.reduce((position, move) => domain.MoveApplicationService.applyMove(position, move), { ...rootPosition, board: [...rootPosition.board], castlingAvailability: { ...rootPosition.castlingAvailability } })),
     clearBoard: vi.fn((position: IGame['rootPosition']) => {
       if (position.board.every((piece) => piece === undefined)) return false;
       position.board.fill(undefined);
@@ -390,31 +391,31 @@ const domain = {
       } satisfies IClockSnapshot;
     }),
     startClock: vi.fn((clockSnapshot: IClockSnapshot, colour: PlayerColour, nowUtc: ClockTimestamp) => ({
-      ...structuredClone(clockSnapshot),
+      ...clockSnapshot,
       activeColour: colour,
       startedAtUtc: nowUtc,
-      white: { ...structuredClone(clockSnapshot.white), isRunning: colour === PlayerColour.White },
-      black: { ...structuredClone(clockSnapshot.black), isRunning: colour === PlayerColour.Black },
+      white: { ...clockSnapshot.white, isRunning: colour === PlayerColour.White },
+      black: { ...clockSnapshot.black, isRunning: colour === PlayerColour.Black },
     })),
     applyMove: vi.fn((clockSnapshot: IClockSnapshot, movingColour: PlayerColour, nowUtc: ClockTimestamp) => ({
-      ...structuredClone(clockSnapshot),
+      ...clockSnapshot,
       activeColour: movingColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White,
       lastMoveAtUtc: nowUtc,
-      white: { ...structuredClone(clockSnapshot.white), isRunning: movingColour !== PlayerColour.White },
-      black: { ...structuredClone(clockSnapshot.black), isRunning: movingColour !== PlayerColour.Black },
+      white: { ...clockSnapshot.white, isRunning: movingColour !== PlayerColour.White },
+      black: { ...clockSnapshot.black, isRunning: movingColour !== PlayerColour.Black },
     })),
     pauseClock: vi.fn((clockSnapshot: IClockSnapshot, nowUtc: ClockTimestamp) => ({
-      ...structuredClone(clockSnapshot),
+      ...clockSnapshot,
       pausedAtUtc: nowUtc,
-      white: { ...structuredClone(clockSnapshot.white), isRunning: false },
-      black: { ...structuredClone(clockSnapshot.black), isRunning: false },
+      white: { ...clockSnapshot.white, isRunning: false },
+      black: { ...clockSnapshot.black, isRunning: false },
     })),
     resumeClock: vi.fn((clockSnapshot: IClockSnapshot, nowUtc: ClockTimestamp) => ({
-      ...structuredClone(clockSnapshot),
+      ...clockSnapshot,
       startedAtUtc: nowUtc,
       pausedAtUtc: undefined,
-      white: { ...structuredClone(clockSnapshot.white), isRunning: clockSnapshot.activeColour === PlayerColour.White },
-      black: { ...structuredClone(clockSnapshot.black), isRunning: clockSnapshot.activeColour === PlayerColour.Black },
+      white: { ...clockSnapshot.white, isRunning: clockSnapshot.activeColour === PlayerColour.White },
+      black: { ...clockSnapshot.black, isRunning: clockSnapshot.activeColour === PlayerColour.Black },
     })),
     hasExpired: vi.fn(() => false),
     getRemainingTime: vi.fn((clockSnapshot: IClockSnapshot) => ({
@@ -567,7 +568,7 @@ describe('useGamesStore', () => {
       timeControl,
     });
 
-    expect(game.timeControl).toBe(timeControl);
+    expect(toRaw(game.timeControl)).toBe(timeControl);
     expect(game.whitePlayer).not.toBe(whitePlayer);
     expect(game.whitePlayer).toMatchObject({ colour: PlayerColour.White, displayName: 'White' });
     const setupTimeControl = { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 1000 };
@@ -578,7 +579,7 @@ describe('useGamesStore', () => {
       showLiveAnalysisMoves: false,
       timeControl: setupTimeControl,
     });
-    expect(game.timeControl).toBe(setupTimeControl);
+    expect(toRaw(game.timeControl)).toBe(setupTimeControl);
     expect(game.blackPlayer).not.toBe(blackPlayer);
   });
   it('aliases rendered and live positions while committing a move at the live node', async () => {
@@ -622,11 +623,11 @@ describe('useGamesStore', () => {
     domain.TimeControlService.hasExpired.mockReturnValueOnce(true);
     domain.TimeControlService.getRemainingTime.mockReturnValueOnce({ white: 0, black: 1000 });
     domain.TimeControlService.pauseClock.mockImplementationOnce((clockSnapshot: IClockSnapshot, nowUtc: ClockTimestamp) => ({
-      ...structuredClone(clockSnapshot),
+      ...clockSnapshot,
       startedAtUtc: undefined,
       pausedAtUtc: nowUtc,
       white: { remainingMs: 0, isRunning: false },
-      black: { ...structuredClone(clockSnapshot.black), isRunning: false },
+      black: { ...clockSnapshot.black, isRunning: false },
     }));
     domain.TimeControlService.applyMove.mockClear();
     domain.MoveApplicationService.applyMove.mockClear();
@@ -745,10 +746,10 @@ describe('useGamesStore', () => {
       expect(pendingPlayerTurnAbortController.signal.aborted).toBe(true);
       expect(game.$?.pendingPlayerTurnPromise).toBeUndefined();
       return {
-        ...structuredClone(clockSnapshot),
+        ...clockSnapshot,
         pausedAtUtc: nowUtc,
-        white: { ...structuredClone(clockSnapshot.white), isRunning: false },
-        black: { ...structuredClone(clockSnapshot.black), isRunning: false },
+        white: { ...clockSnapshot.white, isRunning: false },
+        black: { ...clockSnapshot.black, isRunning: false },
       };
     });
     domain.MoveApplicationService.applyMove.mockClear();
@@ -1072,8 +1073,8 @@ describe('useGamesStore', () => {
     expect(rendered).toHaveLength(3);
     expect(update.lines).toHaveLength(5);
     expect(rendered).not.toBe(update.lines);
-    expect(rendered[0]).toBe(update.lines[0]);
-    expect(rendered[2]).toBe(update.lines[2]);
+    expect(toRaw(rendered[0])).toBe(update.lines[0]);
+    expect(toRaw(rendered[2])).toBe(update.lines[2]);
     expect(store.getVisibleAnalysis(game)?.engineSeats).toEqual(game.analysis.seats);
     expect(store.getVisibleAnalysis(game)?.engineSeats[1]!.lines).toEqual([]);
     await store.stopAnalysis(game, 0);
@@ -1102,10 +1103,9 @@ describe('useGamesStore', () => {
     const oldCallback = analysisSubscriptions.get(seat.assignedEngine)!;
     const update = _emitSeatLines(game, 0);
     const child = appendChild(game.moveTree.root, createMove(PlayerColour.White), MoveNodeKind.Analysis);
-    const revision = store.workspaceRevision;
     store.navigateToNode(game, child);
     expect(seat.lines).toEqual([]);
-    expect(store.workspaceRevision).toBeGreaterThan(revision);
+    expect(game.renderedPath).toEqual([game.moveTree.root.children.indexOf(child)]);
     store.navigateToNode(game, game.moveTree.root);
     oldCallback(update);
     expect(seat.lines).toEqual([]);
@@ -1125,11 +1125,11 @@ describe('useGamesStore', () => {
     await store.refreshAnalysis(game);
     _emitSeatLines(game, 0);
     const rendered = game.analysis.seats[0]!.lines;
-    const revision = store.workspaceRevision;
+    const updatedAt = game.metadata.updatedAt;
     delayed.reject(new Error('old startup'));
     await previous;
     expect(game.analysis.seats[0]!.lines).toBe(rendered);
-    expect(store.workspaceRevision).toBe(revision);
+    expect(game.metadata.updatedAt).toBe(updatedAt);
   });
   it('preserves Stop results, ignores late output, and clears them on the next position', async () => {
     const { store, game } = await _createAnalysisWorkspace(1);
@@ -1216,22 +1216,22 @@ describe('useGamesStore', () => {
     expect(analysisSubscriptions.has(addedEngine)).toBe(false);
     await store.refreshAnalysis(game);
     const analysisUpdate: IEngineAnalysisUpdate = {
-      position: structuredClone(game.rootPosition),
+      position: { ...game.rootPosition, board: [...game.rootPosition.board] },
       bestMove: createMove(PlayerColour.White),
       lines: [{ depth: 12, pv: [createMove(PlayerColour.White)], scoreCp: 32 }],
       isFinal: false,
     };
     emitAnalysisUpdate(analysisSubscriptions, addedEngine, analysisUpdate);
     const addedSnapshot = game.analysis.seats[1]!;
-    expect(addedSnapshot.bestMove).toBe(analysisUpdate.bestMove);
+    expect(toRaw(addedSnapshot.bestMove)).toBe(analysisUpdate.bestMove);
     expect(addedSnapshot.lines).not.toBe(analysisUpdate.lines);
-    expect(addedSnapshot.lines[0]).toBe(analysisUpdate.lines[0]);
+    expect(toRaw(addedSnapshot.lines[0])).toBe(analysisUpdate.lines[0]);
     expect(store.getVisibleAnalysis(game)?.engineSeats[1]).toBe(addedSnapshot);
     expect(addedSnapshot.bestMove?.from).toBe(12);
 
     await store.stopAnalysis(game, 1);
     expect(game.analysis.seats[1]!.isComplete).toBe(false);
-    expect(game.analysis.seats[1]!.lines[0]).toBe(analysisUpdate.lines[0]);
+    expect(toRaw(game.analysis.seats[1]!.lines[0])).toBe(analysisUpdate.lines[0]);
     await store.removeAnalysisEngine(game, 1);
     expect(game.analysis.seats).toHaveLength(1);
 
@@ -1331,7 +1331,7 @@ describe('useGamesStore', () => {
     startPosition.$ = { isStandardInitialPosition: true };
     utility.createInitialBoardPosition.mockReturnValueOnce(startPosition);
     store.resetBoardToStartPosition(game);
-    expect(game.rootPosition).toBe(startPosition);
+    expect(toRaw(game.rootPosition)).toBe(startPosition);
     expect(startPosition.$.isStandardInitialPosition).toBe(true);
     expect(domain.MoveHistoryService.createMoveTree).toHaveBeenCalledTimes(2);
   });
@@ -1819,7 +1819,7 @@ describe('useGamesStore', () => {
     });
     const snapshot = game.analysis.seats[0]!;
     emitAnalysisUpdate(analysisSubscriptions, snapshot.assignedEngine, {
-      position: structuredClone(game.rootPosition),
+      position: { ...game.rootPosition, board: [...game.rootPosition.board] },
       bestMove: createMove(PlayerColour.White),
       lines: [{ depth: 10, pv: [createMove(PlayerColour.White)], scoreCp: 24 }],
       isFinal: false,
@@ -1907,7 +1907,10 @@ describe('useGamesStore', () => {
     insertedPayload.metadata.id = game.metadata.id;
     const insertedGame = await store.insertGame(insertedPayload);
 
-    expect(insertedGame).toBe(insertedPayload);
+    expect(isReactive(insertedGame)).toBe(true);
+    expect(toRaw(insertedGame)).toBe(insertedPayload);
+    expect(store.getGame(insertedGame.metadata.id)).toBe(insertedGame);
+    expect(store.listGames().find((candidate) => candidate.metadata.id === insertedGame.metadata.id)).toBe(insertedGame);
     expect(insertedGame.metadata.id).not.toBe(game.metadata.id);
     expect(store.listGames()).toHaveLength(2);
   });

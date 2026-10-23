@@ -24,12 +24,10 @@ it('JRN-RACE-08 disposes a runtime blocked on stop acknowledgement and rejects q
   expect(api.engines.processes().find((entry) => entry.id === search.processId)).toMatchObject({ closed: true, pendingTimer: false, searching: false, listeners: 0 });
   expect(api.engines.searches().find((entry) => entry.id === search.id)?.pending).toBe(false);
   const before = JSON.stringify(game.analysis);
-  const revision = games.workspaceRevision;
   api.engines.emit(search.id, 'info depth 99 score cp 999 pv g1f3');
   api.engines.emit(search.id, 'bestmove g1f3');
   await flushPromises();
   expect(JSON.stringify(game.analysis)).toBe(before);
-  expect(games.workspaceRevision).toBe(revision);
   await games.retryAnalysis(game, 0);
   await vi.waitFor(() => expect(engine.$?.availability).toBe('running'));
 });

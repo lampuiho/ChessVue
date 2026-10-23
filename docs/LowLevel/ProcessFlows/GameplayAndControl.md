@@ -44,17 +44,17 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSeat` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
+| `GameAnalysisComposable._startAnalysisSeat` |
+| `GameAnalysisComposable._subscribeToAnalysis` |
 
-| `GameAnalysisComposable.startAnalysisSeat` |
+| `GameAnalysisComposable._startAnalysisSeat` |
 | --- |
 | `EngineRuntimeService.ensureReady` |
 | `EngineRuntimeService.startAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+| `GameAnalysisComposable._subscribeToAnalysis callback` |
 
 | `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
 | --- |
@@ -87,15 +87,15 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.refreshAnalysis` |
 | --- |
 | `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSeat` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
+| `GameAnalysisComposable._startAnalysisSeat` |
+| `GameAnalysisComposable._subscribeToAnalysis` |
 
 | `GameView._handleAnalysisRuntimeUpdate` |
 | --- |
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+| `GameAnalysisComposable._subscribeToAnalysis callback` |
 
 - State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and ordinary paused states block move submission; explicit analysis, including paused analysis, permits rendered-branch moves while actual turn/clock ownership remains independent; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
-- Continuous analysis update loop: `GameAnalysisComposable.refreshAnalysisForGame` -> `GameAnalysisComposable.startAnalysisSeat` -> `GameAnalysisComposable.subscribeToAnalysis` -> `EngineRuntimeService.startAnalysis(engine, game, request)` (owns `ensureReady` and cancellation) -> client state-machine updates -> guarded subscription callback selects three rendered lines -> `touchGame` -> `AnalysisPanel` rerenders the affected seat. A live move while browsing history preserves the unchanged rendered analysis.
+- Continuous analysis update loop: `GameAnalysisComposable.refreshAnalysisForGame` -> `GameAnalysisComposable._startAnalysisSeat` -> `GameAnalysisComposable._subscribeToAnalysis` -> `EngineRuntimeService.startAnalysis(engine, game, request)` (owns `ensureReady` and cancellation) -> client state-machine updates -> guarded subscription callback selects three rendered lines -> `timestampGame` -> `AnalysisPanel` rerenders the affected seat. A live move while browsing history preserves the unchanged rendered analysis.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer state transitions behind analysis start, streamed updates, player turns, and pondering.
 - Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
 
@@ -151,7 +151,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameView.premoveColour` / `canInput` | Offer off-turn input only for the Local seat against an Engine, following ongoing unpaused live play outside explicit analysis |
 | `Chessboard.legalMoves` -> `genCandidateMovesForPiece(displayedPosition, from)` | Offer piece-colour geometry, blockers, future pawn diagonals and castling availability independently of actual turn/check; explicit promotion completes the offered raw candidate |
 | `_emitMove(rawMove)` -> `GameView.inputActions.move` -> `_makeMove` -> `_requestMoves` | Forward the same reference through the captured input owner; the off-turn branch bypasses canonical prefix preflight |
-| `GamesStore.makeMove` -> `GameMoveComposable.makeMove` -> `_appendPremove(game, localPlayer, rawMove)` | Classify eligible context before `_resolveMove`; initialise `{ player, moves: [] }`, push the supplied raw reference, publish runtime only |
+| `GamesStore.makeMove` -> `GameMoveComposable.makeMove` -> `_appendPremove(game, localPlayer, rawMove)` | Classify eligible context before `_resolveMove`; initialise `{ player, moves: shallowReactive<IMoveRaw[]>([]) }`, push the supplied raw reference; reactive array drives rendering |
 | `GameView.renderedBoard` -> `GamePositionComposable.getPremoveProjection(canonical, queue, heldLocalMove)` | Copy the canonical board once; apply held local output, then the actual FIFO references. Return projected pieces and a `Set<BoardId>` of pending endpoints; canonical analysis/save/history remain unchanged |
 | `applyPremoveProjection(preview, move, redSquares?)` -> `MoveApplicationService.applyMove` | Build the temporary candidate required by application; move pieces in the caller's preview. Add king and rook endpoints for castling. No rule queries, validation, per-entry board copies or combined move arrays |
 | Existing actual output -> `attemptPlayerMove` -> `_playerMoveHandler` -> `commitLiveMove` -> `_finaliseLiveMove` | Apply the actual move, clock/increment and history through the existing mechanism; update result/state |
@@ -159,10 +159,10 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | Existing `requestPlayerMoveIfNeeded` -> `_requestPlayerMove` | Register the same Deferred/handler/controller; preserve the Engine branch verbatim. For Local, call `_tryPremove` |
 | `_tryPremove` -> `genLegalMovesForPiece(actual, head.from, actualNode.move)` | Resolve exact actual legality and promotion for the head. No match clears the whole queue and leaves the same local request waiting |
 | `_tryPremove` -> `toDetailedMove` -> `moves.shift` -> `attemptPlayerMove` | Generate fresh actual facts, shift once, normalise an empty queue and immediately submit without an intervening await/publication. The original handler commits or holds the accepted output |
-| `renderedBoard` during pending Local handler | Draw canonical pieces until the shifted head commits or publishes as held output. The existing pending request identifies this microtask boundary; no new runtime field or resolver |
-| Existing `_playerMoveHandler` -> `deferredPlayerMove` while paused | Retain accepted output in the existing slot; the local premove hook publishes held output for drawing, without reinserting the head |
+| `renderedBoard` during pending Local handler | Draw canonical pieces until the shifted head commits or is stored as held output. The existing pending request identifies this microtask boundary; no new runtime field or resolver |
+| Existing `_playerMoveHandler` -> `deferredPlayerMove` while paused | Retain accepted output in the existing slot; the reactive held slot drives drawing, without reinserting the head |
 | Existing final `resumeGame` -> `flushDeferredPlayerMove` -> `requestPlayerMoveIfNeeded` | Commit held output once and request the successor normally. Enter/Exit Analyse and ordinary history selection neither flush nor suspend the FIFO |
-| Chessboard right-click, touch tap on premoved piece, or Escape after clearing unfinished input -> `premovesCancelled` -> `inputActions.cancelPremoves` -> `GamesStore.clearPremoves` | Cancel the whole FIFO and publish; leave actual play/turn/history alone. Analysis/history/paused boards do not offer cancellation; board-edit right-click retains deletion |
+| Chessboard right-click, touch tap on premoved piece, or Escape after clearing unfinished input -> `premovesCancelled` -> `inputActions.cancelPremoves` -> `GamesStore.clearPremoves` | Clear the reactive whole FIFO; leave actual play/turn/history alone. Analysis/history/paused boards do not offer cancellation; board-edit right-click retains deletion |
 | `_playAnalysisLine` off-turn -> canonical prefix parity + projected candidate match -> `_requestMoves([clickedMove])` | Append only a possible local-colour final entry; never append predicted opponent replies. Own-turn input uses the first entry; explicit/free/result analysis retains full-prefix playback |
 
 Changed seats, Takeback, confirmed history rewrite, setup/root replacement and terminal actions clear the queue at the accepted mutation after existing cleanup. Temporary navigation preserves it; explicit tab close clears it, store disposal clears/cancels resources, and hydration creates a fresh empty runtime. These boundaries and all 25 scenario cases are specified in the [implementation plan](../../PreMovePlan%28ToDo%29.md#function-flow).
@@ -631,11 +631,11 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 
 #### Flow A - Enter In-Game Analysis
 
-`GameView input action -> playback.cancel -> GamesStore.enterInGameAnalysis -> GameMoveComposable.enterInGameAnalysis -> copy selected canonical position/path -> matching LiveAnalysisFrom/PausedLiveAnalysisFrom state -> publish selection`.
+`GameView input action -> playback.cancel -> GamesStore.enterInGameAnalysis -> GameMoveComposable.enterInGameAnalysis -> copy selected canonical position/path -> matching LiveAnalysisFrom/PausedLiveAnalysisFrom state -> _refreshRenderedAnalysis`.
 
 #### Flow B - Exit In-Game Analysis
 
-`GameView input action -> playback.cancel -> GamesStore.exitInGameAnalysis -> _returnToLiveNode -> shared latest actual path/position -> paused/live/terminal state -> publish`.
+`GameView input action -> playback.cancel -> GamesStore.exitInGameAnalysis -> _returnToLiveNode -> shared latest actual path/position -> paused/live/terminal state -> _refreshRenderedAnalysis`.
 
 - Entry starts at the selected move and preserves actual clock, pending turn, pause owners and held output. Repeated entry is a no-op. Ordinary review alone does not enable analysis input.
 - Explicit analysis permits both colours to explore, including during genuine pauses. Only actual unpaused turns advance the live node; actual result actions and Takeback keep their independent restrictions.

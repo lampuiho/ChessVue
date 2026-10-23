@@ -1,3 +1,4 @@
+import { shallowReactive, toRaw } from 'vue';
 import { EngineAnalysisSearchMode, GameState, analysisSeatSchema, type IAnalysisSeat, type IAssignedEngine, type IEngineRecord, type IGame, type IRecordedAnalysis, type IVisibleAnalysis } from '@/contracts';
 import Aborted from '@/contracts/errors/Aborted';
 import { EngineRuntimeService } from '@/domain';
@@ -7,10 +8,10 @@ import type { GamePositionComposable } from './GamePositionComposable';
 
 interface IGameAnalysisDependency {
   position: GamePositionComposable;
-  touchGame: (game: IGame) => void;
+  timestampGame: (game: IGame) => void;
 }
 export function useGameAnalysis(dependency: IGameAnalysisDependency) {
-  const { position, touchGame } = dependency;
+  const { position, timestampGame } = dependency;
   const analysisDisposers = new WeakMap<IAssignedEngine, () => void>();
   function _createAssignedEngine(engineProfile: IEngineRecord): IAssignedEngine {
     return {
@@ -49,7 +50,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       seat.bestMove = update.bestMove;
       seat.lines = update.lines.slice(0, 3);
       seat.isComplete = update.isFinal;
-      touchGame(game);
+      timestampGame(game);
     });
     analysisDisposers.set(engine, () => { active = false; unsubscribe(); });
     return _isCurrent;
@@ -60,6 +61,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     seat.isComplete = false;
   }
   async function _startAnalysisSeat(game: IGame, seat: IAnalysisSeat) {
+    seat.assignedEngine.$ = shallowReactive(toRaw(EngineRuntimeService.ensureRuntime(seat.assignedEngine)));
     const isCurrent = _subscribeToAnalysis(game, seat);
     seat.updatedAt = new AnalysisTimestamp();
     try {
@@ -67,7 +69,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     } catch (error) {
       if (isCurrent() && !(error instanceof Aborted)) logHandledError('GamesStore', 'startAnalysis', error);
     } finally {
-      if (isCurrent()) touchGame(game);
+      if (isCurrent()) timestampGame(game);
     }
   }
   function _getTargetSeats(game: IGame, engineIndex?: number): IAnalysisSeat[] {
@@ -83,7 +85,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     }
     position.getRenderedPosition(game);
     const work = game.gameState === GameState.BoardEdit ? stopAnalysis(game, engineIndex) : Promise.all(seats.map((seat) => _startAnalysisSeat(game, seat)));
-    touchGame(game);
+    timestampGame(game);
     return work.then(() => undefined);
   }
   function getVisibleAnalysis(game: IGame): IVisibleAnalysis | undefined {
@@ -99,7 +101,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     if (game.analysis.seats.some((seat) => seat.assignedEngine.displayName === engineProfile.displayName)) throw new Error(`Analysis engine already assigned: ${engineProfile.displayName}.`);
     if (game.analysis.seats.length >= 4) throw new Error('A game cannot have more than four analysis engines.');
     game.analysis.seats.push(createAnalysisSeat(engineProfile, new Date()));
-    touchGame(game);
+    timestampGame(game);
   }
   async function removeAnalysisEngine(game: IGame, engineIndex: number) {
     const seat = game.analysis.seats[engineIndex];
@@ -107,7 +109,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
     _disposeAnalysisSubscription(seat.assignedEngine);
     const cleanup = _stopAssignedEngine(seat.assignedEngine);
     game.analysis.seats.splice(game.analysis.seats.indexOf(seat), 1);
-    touchGame(game);
+    timestampGame(game);
     await cleanup;
   }
   async function disposeAnalysisForGame(game: IGame) {
@@ -132,7 +134,7 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       } catch (error) {
         if (!(error instanceof Aborted)) logHandledError('GamesStore', 'stopAnalysis', error);
       } finally {
-        if (game.analysis.seats.includes(seat) && !analysisDisposers.has(seat.assignedEngine)) touchGame(game);
+        if (game.analysis.seats.includes(seat) && !analysisDisposers.has(seat.assignedEngine)) timestampGame(game);
       }
     }));
   }
