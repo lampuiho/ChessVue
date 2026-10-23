@@ -1,6 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import ModalDialog from '../common/ModalDialog.vue';
+import ModalDialog from '@/components/modals/ModalDialog.vue';
 const mounted: VueWrapper[] = [];
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([new DOMRect()] as unknown as DOMRectList);

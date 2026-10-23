@@ -88,7 +88,7 @@ for (const pause of [false, true]) {
     const custom = await openCustomGame(page);
     await setCustomClock(custom, '5', '0');
     await createWorkspace(page);
-    const white = page.locator('.player-panel').filter({ has: page.locator('.player-avatar--white') }).locator('.player-clock');
+    const white = page.locator('.player-panel').filter({ has: page.getByText('White', { exact: true }) }).locator('.player-clock');
     await expect(white).toHaveText('5:00');
     await openSettings(page, 'Session');
     await page.clock.setFixedTime(new Date(time.getTime() + 5000));

@@ -34,7 +34,9 @@ export async function boot(name: string, variant?: string) {
   const [stores, domain, rules, fixtures] = await Promise.all([
     import('@/state'), import('@/domain'), import('@/utility/chess'), import('../../builders/HistoryFixtureBuilder'),
   ]);
-  return { ...running, stores, domain, rules, fixtures };
+  const { useModal } = await import('@/composables/ModalComposable');
+  const modal = running.app.runWithContext(useModal);
+  return { ...running, stores, domain, rules, fixtures, modal };
 }
 export async function createTimedContext() {
   // Install Date before boot so timestamp subclasses inherit the controlled clock.

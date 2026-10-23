@@ -90,11 +90,11 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 
 | SavedGamesView.saveRequested |
 | --- |
-| UiStateStore.showModal |
+| useModal().open |
 | SavedGamesStore.saveGame |
 | SavedGamesStore.listSavedGames |
 
-| UiStateStore.showModal |
+| useModal().open |
 | --- |
 
 | SavedGamesStore.saveGame |
@@ -307,14 +307,14 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 | MenuBar.importGameRequested |
 | --- |
 | SavedGamesStore.importGame |
-| UiStateStore.showModal |
+| useModal().open |
 
 | SavedGamesStore.importGame |
 | --- |
 | SerializationService.selectImportFile |
 | SerializationService.readGameDocument |
 
-| UiStateStore.showModal |
+| useModal().open |
 | --- |
 
 - UI surface coverage: invalid external import uses the shared dialog shell as the acknowledge-only importError path.
@@ -330,7 +330,6 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 | `SettingsStore.updateSettings` |
 | `SettingsStore._projectPendingSettings` |
 | `SettingsStore.applySettings` |
-| `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
 
 | `SettingsStore.updateSettings` |
@@ -343,8 +342,6 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 | `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
-| `SettingsStore._resolveThemeMode` |
-| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 | `UserSettingService.saveSettings` |
@@ -371,8 +368,6 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 | `UserSettingService.saveSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
-| `SettingsStore._resolveThemeMode` |
-| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 - UI surface coverage: category tabs switch the active settings section, `Cancel`, `Save`, and `Apply` stay in the primary bottom-right row, and the secondary reset action area remains outside that primary commit row.
@@ -385,13 +380,12 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 #### Flow
 | `SettingsView.resetRequested` |
 | --- |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `SettingsStore.resetSettings` |
-| `SettingsStore._resolveThemeMode` |
 | `SettingsStore._buildAppearanceProjection` |
-| `UiStateStore.hideModal` |
+| `IModalHandle.close` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 | `SettingsStore.resetSettings` |
@@ -399,8 +393,6 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 | `UserSettingService.resetSettings` |
 | `SettingsStore._applyAcceptedSettings` |
 | `SettingsStore._syncDraftToAccepted` |
-| `SettingsStore._resolveThemeMode` |
-| `UserSettingService.getSystemTheme` |
 | `SettingsStore._buildAppearanceProjection` |
 
 | `UserSettingService.resetSettings` |
@@ -409,7 +401,7 @@ Case 2: autosave after quitting. Presentation registers a callback through `Save
 | `SerializationService.writeSettingsDocument` |
 | `UserSettingService._cacheAcceptedSettings` |
 
-| `UiStateStore.hideModal` |
+| `IModalHandle.close` |
 | --- |
 
 - UI surface coverage: reset is triggered from the secondary settings action area and always routes through the shared confirmation dialog before the default snapshot is applied.
@@ -438,7 +430,7 @@ Verification: [JRN-SETTINGS-07/08/10](../../../journeys/definitions/settings/Sce
 | Edit a detached form; Cancel leaves the draft record intact | `SettingsView.openEngineEditor` / `saveEngine` |
 | Remove a reusable profile from the draft | `SettingsView.removeEngine` |
 | Commit the settings draft for future assignments | `SettingsStore.applySettings` / `saveSettings` |
-| Keep existing copied in-game configuration until explicitly replaced | `ModalHost.confirmPlayerSelection`, `GamesStore.reassignPlayer` |
+| Keep existing copied in-game configuration until explicitly replaced | `PlayerSelectionModal._confirmPlayerSelection`, `GamesStore.reassignPlayer` |
 
 Verification: [JRN-SETTINGS-08/09](../../../journeys/definitions/settings/ScenarioReview.md#jrn-settings-09) cover editor cancellation, distinct copy identities, renamed/removed inventory choices, Keep existing, continued engine play and restoration. Profile removal never searches open games to replace their player payloads.
 
@@ -449,11 +441,11 @@ Verification: [JRN-SETTINGS-08/09](../../../journeys/definitions/settings/Scenar
 #### Flow
 | `SavedGamesView.deleteRequested` |
 | --- |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `SavedGamesStore.deleteSave` |
 | `SavedGamesStore.listSavedGames` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 | `SavedGamesStore.deleteSave` |
@@ -474,13 +466,13 @@ Verification: [JRN-SETTINGS-08/09](../../../journeys/definitions/settings/Scenar
 #### Flow
 | `SavedGamesView.deleteRequestedForSelectedGame` |
 | --- |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `SavedGamesStore.deleteSave` |
 | `SavedGamesStore.listSavedGames` |
 | `UiStateStore.setActiveRoute` |
 | `Router._selectSavedGamesFallback` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 | `SavedGamesStore.deleteSave` |

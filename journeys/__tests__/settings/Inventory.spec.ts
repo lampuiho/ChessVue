@@ -1,11 +1,11 @@
 import { nextTick } from 'vue';
 import { describe, expect, it } from 'vitest';
-import { AppModalKind } from '@/contracts';
 import { boot } from '../support/UiHarness';
 describe('UI-04 reactive engine inventory', () => {
   it('refreshes assignment choices after applied profile edits', async () => {
-    const { stores } = await boot('settings');
-    stores.useUiStateStore().showModal({ kind: AppModalKind.NewGame });
+    const { stores, modal } = await boot('settings');
+    const { default: GameCreationModal } = await import('@/components/modals/GameCreationModal.vue');
+    modal.open(GameCreationModal, {});
     await nextTick();
     expect(document.querySelector('#white-player')?.textContent).toContain('Journey A');
     const settings = stores.useSettingsStore();

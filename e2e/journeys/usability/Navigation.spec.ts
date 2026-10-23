@@ -28,7 +28,8 @@ test('JRN-UX-03 fits the desktop workspace with collapsed and expanded left navi
   await expectReachable(page, page.locator('.player-panel').last());
   await expectReachable(page, page.locator('.control-panel').getByRole('button').last());
   await expectReachable(page, page.getByRole('button', { name: 'Collapse history', exact: true }));
-  await expectReachable(page, page.getByRole('button', { name: 'Collapse analysis', exact: true }));
+  await expect(page.getByRole('heading', { name: 'Evaluations', exact: true })).toBeVisible();
+  await expectReachable(page, page.locator('.panel-empty').getByRole('button', { name: 'Add engine', exact: true }));
   const presentation = await _readWorkspacePresentation(page);
   await testInfo.attach('expanded-navigation', { body: await page.screenshot(), contentType: 'image/png' });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -52,7 +53,8 @@ for (const height of [667, 812]) test(`JRN-UX-03 fits mobile at 375x${height} wi
   await expectReachable(page, page.locator('.player-panel').last());
   await expectReachable(page, page.locator('.control-panel').getByRole('button').last());
   await expectReachable(page, page.getByRole('button', { name: 'Collapse history', exact: true }));
-  await expectReachable(page, page.getByRole('button', { name: 'Collapse analysis', exact: true }));
+  await expect(page.getByRole('heading', { name: 'Evaluations', exact: true })).toBeVisible();
+  await expectReachable(page, page.locator('.panel-empty').getByRole('button', { name: 'Add engine', exact: true }));
   await expect(page.locator('.navigation-frame')).toHaveCSS('flex-direction', 'row');
   const opener = page.getByRole('button', { name: 'Open navigation menu', exact: true });
   await opener.click();

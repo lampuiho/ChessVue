@@ -12,7 +12,7 @@ export function auditRepository(root = path.resolve(path.dirname(fileURLToPath(i
     const raw = fs.readFileSync(path.join(root, filename), 'utf8');
     const sourceFindings = filename.endsWith('.css') ? [] : inspectSource(filename, raw);
     for (const item of [...sourceFindings, ...inspectStyles(filename, raw)]) {
-      const allowance = policy[item.kind]?.[item.key];
+      const allowance = item.kind === 'observer' ? undefined : policy[item.kind]?.[item.key];
       const count = (observed.get(item.key) ?? 0) + 1;
       observed.set(item.key, count);
       if (!allowance?.trim() || count > 1) findings.push(item);
@@ -36,5 +36,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const findings = auditRepository();
   for (const finding of findings) console.error(`${finding.file}:${finding.line} ${finding.kind}: ${finding.message} [${finding.key}]`);
   if (findings.length) process.exitCode = 1;
-  else console.log('Code audit passed: observer exceptions are current; no invalidation counters, redundant return annotations or component style blocks found.');
+  else console.log('Code audit passed: no observers, invalidation counters, redundant return annotations or component style blocks found.');
 }

@@ -13,7 +13,7 @@ import {
   type IPlayer,
   type ISettingsSnapshot,
 } from '@/contracts';
-import ModalDialog from './common/ModalDialog.vue';
+import ModalDialog from './ModalDialog.vue';
 
 const props = defineProps<{ settings: ISettingsSnapshot; engines: readonly IEngineRecord[]; setupGame?: IGame; errorMessage?: string; busy?: boolean }>();
 const emit = defineEmits<{ createRequested: [request: ICreateGameRequest]; cancelRequested: [] }>();

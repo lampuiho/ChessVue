@@ -1,26 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AppModalKind, PauseReason, PlayerColour, ResultReason, ResultState } from '@/contracts';
+import { PauseReason, PlayerColour, ResultReason, ResultState } from '@/contracts';
 import { createTimedContext, legalMove } from '../support/UiHarness';
 describe('JRN-CLOCK-06/09/12 timeout finalisation', () => {
   it('finalises once when delayed UI and focus reconciliation arrive together', async () => {
-    const { games, game, stores, router } = await createTimedContext();
+    const { games, game, modal, router } = await createTimedContext();
     const { ClockTimestamp } = await import('@/utility/date');
     vi.setSystemTime(Date.now() + 10000);
     const before = games.workspaceRevision;
-    const show = vi.spyOn(stores.useUiStateStore(), 'showModal');
+    const show = vi.spyOn(modal, 'open');
     await Promise.all([games.syncClock(game, new ClockTimestamp()), games.syncClock(game, new ClockTimestamp())]);
     expect(games.workspaceRevision - before).toBe(1);
     expect(game.resultReason).toBe(ResultReason.Timeout);
     expect(game.clockSnapshot.white).toEqual({ remainingMs: 0, isRunning: false });
     expect(game.$?.focusReturnUnsubscribe).toBeUndefined();
     await vi.advanceTimersByTimeAsync(1000);
-    expect(show.mock.calls.filter(([modal]) => modal.kind === AppModalKind.Timeout)).toHaveLength(1);
-    stores.useUiStateStore().hideModal();
+    expect(show.mock.calls.filter(([, props]) => props.title === 'Time has expired')).toHaveLength(1);
+    await show.mock.results[0]!.value.close();
     await router.push('/settings/session');
     await router.push('/game/' + game.metadata.id);
     window.dispatchEvent(new Event('focus'));
     await vi.advanceTimersByTimeAsync(1000);
-    expect(show.mock.calls.filter(([modal]) => modal.kind === AppModalKind.Timeout)).toHaveLength(1);
+    expect(show.mock.calls.filter(([, props]) => props.title === 'Time has expired')).toHaveLength(1);
   });
   it('settles expiry before a menu pause can hide a finished turn', async () => {
     const { games, game } = await createTimedContext();

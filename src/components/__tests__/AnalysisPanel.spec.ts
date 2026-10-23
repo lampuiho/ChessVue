@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { EngineAvailability, PlayerColour } from '@/contracts';
 import { createAnalysisSeat, createEngineRecord, createMove } from '@/state/__tests__/StateStoreTestUtility';
-import AnalysisPanel from '../AnalysisPanel.vue';
+import AnalysisPanel from '@/components/AnalysisPanel.vue';
 
 describe('AnalysisPanel seats', () => {
   it('selects only the suggested prefix ending at the clicked move', async () => {

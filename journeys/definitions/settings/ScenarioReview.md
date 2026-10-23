@@ -10,7 +10,7 @@ SCN-SETTINGS-01. Classification: aligned. Both orientations apply light chrome, 
 
 ## JRN-SETTINGS-02
 
-SCN-SETTINGS-01 step 4. Classification: aligned. System, light and dark are independent variants, each alternating emulated host themes after three settings/game round trips. System follows the host, explicit modes hold, and settings bytes remain unchanged. Integration checks retain the same single SettingsStore subscription registration across navigation and remove it on store disposal; browser appearance alone would not prove subscription ownership.
+SCN-SETTINGS-01 step 4. Classification: aligned. System, light and dark are independent variants, each alternating emulated host themes after three settings/game round trips. System follows the host, explicit modes hold, and settings bytes remain unchanged. Integration checks verify that App and SettingsStore neither query nor subscribe to system-theme changes across navigation and disposal. SettingsView emits `appearanceChanged` after successful Apply, Save or Reset. App installs the accepted policy and both palette banks; CSS follows the host in system mode. Browser checks assert rendered colours while `matchMedia` throws, proving that host changes do not depend on a JavaScript theme handler.
 
 ## JRN-SETTINGS-03
 

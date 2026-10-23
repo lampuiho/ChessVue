@@ -1,3 +1,4 @@
+import { expectTheme } from '../../support/Appearance';
 import { test, expect } from './RecoveryTest';
 import { fallbackScenarios } from '../../../journeys/definitions/recovery/data/RecoveryScenario';
 import { readFile } from '../../support/SaveInspection';
@@ -8,7 +9,7 @@ for (const { name, route, ids, warning } of fallbackScenarios) {
     const activeId = route.startsWith('/game/') ? route.slice('/game/'.length) : undefined;
     await expectSession(page, ids, route, activeId);
     await expect(page.locator('.recovery-notice')).toHaveCount(warning ? 1 : 0);
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expectTheme(page, 'dark');
     expect(JSON.parse((await readFile(page, 'layout-state.json'))!).historyCollapsed).toBe(true);
     const before = await sourceFiles(page);
     if (ids.length > 1) await expect(page.locator('.tab-button__label')).toHaveText(['Second recovery game', 'Recoverable valid game']);

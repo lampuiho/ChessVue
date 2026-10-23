@@ -1,3 +1,4 @@
+import { expectTheme } from '../../support/Appearance';
 import { test, expect } from './RecoveryTest';
 import { faultVariants } from '../../../journeys/definitions/recovery/data/RecoveryScenario';
 import { playMove, square } from '../../support/BoardInteraction';
@@ -8,7 +9,7 @@ test('JRN-RECOVERY-01 restores the valid game with defaults and a recoverable co
   await openRecovery(page);
   await expectSession(page, ['recovery-valid'], '/game/recovery-valid', 'recovery-valid');
   await expect(page.locator('html')).toHaveAttribute('data-theme-mode', 'system');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expectTheme(page, 'light');
   await expect(page.locator('.board-square').first()).toHaveAttribute('aria-label', /^a8 /);
   await expectLayout(page, false);
   await expect(page.locator('.recovery-notice p')).toContainText(['Settings could not be read', 'default layout', 'recovery-missing', 'recovery-broken']);

@@ -2,7 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PlayerType, TimeControlPreset, type ICreateGameRequest } from '@/contracts';
 import { createEngineRecord, createSettingsSnapshot } from '@/state/__tests__/StateStoreTestUtility';
-import NewGameModal from '../NewGameModal.vue';
+import NewGameModal from '@/components/modals/NewGameModal.vue';
 
 let wrapper: VueWrapper;
 afterEach(() => wrapper?.unmount());

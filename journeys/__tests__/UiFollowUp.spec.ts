@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
-import { AppModalKind, GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, TimeControlPreset, type IGame } from '@/contracts';
+import { GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, TimeControlPreset, type IGame } from '@/contracts';
 import { boot, createTimedContext, legalMove, findButton, clickButton, setField, clickSquare } from './support/UiHarness';
 describe('UI-02 in-game analysis permissions', () => {
   it('allows paused analysis exploration while actual play stays paused', async () => {
@@ -72,16 +72,17 @@ describe('UI-02 in-game analysis permissions', () => {
 });
 describe('UI-05 required engine availability', () => {
   it('keeps custom creation open when its required engine cannot launch', async () => {
-    const { games, stores } = await boot('settings');
+    const { games, modal } = await boot('settings');
     const count = games.listGames().length;
-    stores.useUiStateStore().showModal({ kind: AppModalKind.NewGame });
+    const { default: GameCreationModal } = await import('@/components/modals/GameCreationModal.vue');
+    modal.open(GameCreationModal, {});
     await nextTick();
     setField('#white-player', 'engine:journey-unavailable');
     await nextTick();
     document.querySelector<HTMLFormElement>('#new-game-form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toContain('unavailable'));
     expect(games.listGames()).toHaveLength(count);
-    expect(stores.useUiStateStore().modalState?.kind).toBe(AppModalKind.NewGame);
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain('Set up a new board');
   });
 });
 describe('UI-09 suggested move-prefix playback', () => {

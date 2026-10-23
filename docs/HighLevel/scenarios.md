@@ -225,8 +225,8 @@ Each scenario in this document uses the same structure:
   - `NewGameModal.createRequested`
   - `GamesStore.createGame`
   - `EnginesStore.getEngine`
-  - `UiStateStore.showModal`
-  - `UiStateStore.hideModal`
+  - `useModal().open`
+  - `IModalHandle.close`
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
 - **Status**: Current
@@ -539,7 +539,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `GamesStore.startGameFromSetup`
   - `EnginesStore.getEngine`
-  - `UiStateStore.showModal`
+  - `useModal().open`
 ---
 ## Analysis and Engine Interaction
 
@@ -617,7 +617,7 @@ Each scenario in this document uses the same structure:
   - `EngineRuntimeService.stopEngine`
   - `GamesStore.retryAnalysis`
   - `GamesStore.getVisibleAnalysis`
-  - `UiStateStore.showModal`
+  - `useModal().open`
 
 ### SCN-ANALYSIS-04 - Click Suggested Move from Analysis Panel
 - **Status**: Current
@@ -669,7 +669,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `AnalysisPanel.analysisEngineAddRequested`
   - `AnalysisPanel.analysisEngineRemoveRequested`
-  - `UiStateStore.showModal`
+  - `useModal().open`
   - `GamesStore.addAnalysisEngine`
   - `GamesStore.removeAnalysisEngine`
   - `EnginesStore.validateAnalysisSelection`
@@ -760,7 +760,7 @@ Each scenario in this document uses the same structure:
   - `TimeControlService.getRemainingTime`
   - `GamesStore.syncClock`
   - `SavedGamesStore.saveGame`
-  - `UiStateStore.showModal`
+  - `useModal().open`
 
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
@@ -825,7 +825,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Result is final and clearly visible.
 - **Implementation Touchpoints**:
   - `GameControlPanel.resignRequested`
-  - `UiStateStore.showModal`
+  - `useModal().open`
   - `SavedGamesStore.saveGame`
 
 ### SCN-CTRL-03 - Draw Offer Flow
@@ -850,7 +850,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Implementation Touchpoints**:
   - `GameControlPanel.drawRequested`
-  - `UiStateStore.showModal`
+  - `useModal().open`
   - `GamesStore.offerDraw`
   - `GamesStore.acceptDrawOffer`
   - `GamesStore.declineDrawOffer`
@@ -893,8 +893,8 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-05-CANCEL`: User dismisses the explanation and remains in in-game analysis mode.
 - **Postconditions**: Live-game analysis remains move-based only; board editing stays isolated to free analysis / setup.
 - **Implementation Touchpoints**:
-  - `UiStateStore.showModal`
-  - `UiStateStore.hideModal`
+  - `useModal().open`
+  - `IModalHandle.close`
 
 ---
 ## Persistence, File I/O, Settings, and Engine Management
@@ -970,7 +970,7 @@ Each scenario in this document uses the same structure:
   - `BR-SAVE-03-INVALID-NAME`: Save name is blank, reserved, or path-like -> show inline validation, block save, and keep focus in the text box without calling `SavedGamesStore`.
 - **Postconditions**: The selected game has a new or replaced internal save entry in its game folder, and the same canonical payload is available for later internal load.
 - **Implementation Touchpoints**:
-  - `UiStateStore.showModal`
+  - `useModal().open`
   - `SavedGamesStore.saveGame`
   - `SavedGameIndexService.getNamedSaveFilePath`
   - `SerializationService.writeGameDocument`
@@ -1086,7 +1086,7 @@ Each scenario in this document uses the same structure:
   - `SerializationService.selectImportFile`
   - `SerializationService.readGameDocument`
   - `SavedGamesStore.importGame`
-  - `UiStateStore.showModal`
+  - `useModal().open`
 
 ### SCN-SETTINGS-01 - Update Visual/UI Preferences
 - **Status**: Current
@@ -1129,7 +1129,7 @@ Each scenario in this document uses the same structure:
   - `SettingsView.onReset`
   - `SettingsStore.resetSettings`
   - `SettingsStore.saveSettings`
-  - `UiStateStore.showModal`
+  - `useModal().open`
 
 ### SCN-ENGINE-01 - Add Engine Configuration
 - **Status**: Current
@@ -1151,7 +1151,7 @@ Each scenario in this document uses the same structure:
   - `EnginesStore.refreshOptionMeta`
   - `EngineRuntimeService.getOptions`
   - `UserSettingService.saveSettings`
-  - `UiStateStore.showModal`
+  - `useModal().open`
 
 ### SCN-ENGINE-02 - Update or Remove Engine Configuration
 - **Status**: Current
@@ -1198,7 +1198,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Player reassignment updates only the current game. Live games preserve their existing time control and clock state when they stay live, while transitions to `free analysis / setup` preserve board and move-tree history for any later `start game from setup` flow.
 - **Implementation Touchpoints**:
   - `PlayerPanel.playerSelectionRequested`
-  - `UiStateStore.showModal`
+  - `useModal().open`
   - `EnginesStore.createPlayer`
   - `GamesStore.reassignPlayer`
   - `EngineRuntimeService.awaitPlayerTurnMove`
@@ -1226,7 +1226,7 @@ Each scenario in this document uses the same structure:
   - `SavedGamesStore.deleteSave`
   - `SavedGamesStore.listSavedGames`
   - `SerializationService.deleteDocument`
-  - `UiStateStore.showModal`
+  - `useModal().open`
 
 ### SCN-LIFECYCLE-02 - Delete Selected Save and Switch Saved-Games Context
 - **Status**: Current

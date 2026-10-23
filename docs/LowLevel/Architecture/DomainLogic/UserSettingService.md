@@ -45,7 +45,7 @@ resetSettings(): Promise<ISettingsSnapshot>
 - `UserSettingService` is the layer-2 boundary for current-settings reads by other stores. `GamesStore` and other layer-3 owners do not read policy settings from `SettingsStore`.
 - `SettingsStore` remains the owner of settings-screen state, pending draft changes, and appearance projection for the UI.
 - `getSettingsOrDefault()` is the lazy first-read boundary. Missing or invalid files resolve to the default accepted snapshot without requiring an eager bootstrap phase.
-- `getSystemTheme()` is the layer-2 initial read path used by `SettingsStore._resolveThemeMode` when `appearance.themeMode = ThemeMode.System`.
+- `getSystemTheme()` exposes an explicit platform capability. App styling does not call it: CSS selects the active palette in system mode.
 - Validation, coercion, and defaulting belong here so the accepted snapshot stays consistent whether it was first read from a view setup path, applied from the settings screen, saved explicitly, or reset to defaults.
 - Schema parsing is the accepted-settings ownership boundary. The resulting snapshot is cached and returned directly without defensive cloning; `SettingsStore` provides draft isolation through copy-on-write when editing begins. **Why:** parsing already transfers validated ownership to the service, so cloning on every read would replace stable accepted-state identity without protecting against a mutation path; the actual divergence occurs only when a draft edit starts.
 - Build config owns the concrete settings-file path. `UserSettingService` does not decide that path; it only uses it.

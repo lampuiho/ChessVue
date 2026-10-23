@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
-import { computed, onScopeDispose, readonly, ref, shallowRef, toRaw } from 'vue';
+import { computed, readonly, ref, shallowRef, toRaw } from 'vue';
 
-import { ResolvedThemeMode, ThemeMode, type DeepReadonly, type IAppearanceProjection, type ISettingsSnapshot } from '@/contracts';
+import type { DeepReadonly, IAppearanceProjection, ISettingsSnapshot } from '@/contracts';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
-import { PlatformEventService, UserSettingService } from '@/domain';
+import { UserSettingService } from '@/domain';
 
 function _mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISettingsSnapshot>): ISettingsSnapshot {
   return {
@@ -26,17 +26,9 @@ function _cloneSettings(settings: ISettingsSnapshot): ISettingsSnapshot {
     appearance: { ...settings.appearance },
   };
 }
-function _resolveThemeMode(settings: ISettingsSnapshot, systemTheme: ResolvedThemeMode): ResolvedThemeMode {
-  switch (settings.appearance.themeMode) {
-    case ThemeMode.Light: return ResolvedThemeMode.Light;
-    case ThemeMode.Dark: return ResolvedThemeMode.Dark;
-    default: return systemTheme;
-  }
-}
-function _buildAppearanceProjection(settings: ISettingsSnapshot, resolvedThemeMode: ResolvedThemeMode): IAppearanceProjection {
+function _buildAppearanceProjection(settings: ISettingsSnapshot): IAppearanceProjection {
   return {
     themeMode: settings.appearance.themeMode,
-    resolvedThemeMode,
     lightThemeProfile: defaultLightThemeProfile,
     darkThemeProfile: defaultDarkThemeProfile,
   };
@@ -45,15 +37,13 @@ function _buildAppearanceProjection(settings: ISettingsSnapshot, resolvedThemeMo
 export const useSettingsStore = defineStore('settingsStore', () => {
   const _settings = shallowRef<ISettingsSnapshot>();
   const draftSettings = ref<ISettingsSnapshot>(); //required for switching tabs. otherwise we would have local state in the vue component
-  const _systemTheme = ref<ResolvedThemeMode>();
   const recoveryWarning = ref('');
   let _initialisePromise: Promise<void> | undefined;
-  let _disposeThemeSubscription: (() => void) | undefined;
 
   const settings = computed<DeepReadonly<ISettingsSnapshot> | undefined>(() => _settings.value ? readonly(_settings.value) : undefined);
   const appearanceProjection = computed<IAppearanceProjection | undefined>(() => {
-    if (!_settings.value || !_systemTheme.value) return;
-    return _buildAppearanceProjection(_settings.value, _resolveThemeMode(_settings.value, _systemTheme.value));
+    if (!_settings.value) return;
+    return _buildAppearanceProjection(_settings.value);
   });
   const hasPendingChanges = computed(() => {
     if (!_settings.value || !draftSettings.value) return false;
@@ -72,12 +62,6 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     _settings.value = acceptedSettings;
     draftSettings.value = _cloneSettings(acceptedSettings);
   }
-  function _subscribeToSystemTheme() {
-    if (_disposeThemeSubscription) return;
-    _disposeThemeSubscription = PlatformEventService.subscribeToSystemThemeChanged('SettingsStore', (theme) => {
-      _systemTheme.value = theme;
-    }, 'settings-theme-sync');
-  }
   async function loadSettings() {
     if (_settings.value && draftSettings.value) return;
     if (_initialisePromise) return _initialisePromise;
@@ -85,8 +69,6 @@ export const useSettingsStore = defineStore('settingsStore', () => {
       const acceptedSettings = await UserSettingService.getSettingsOrDefault();
       recoveryWarning.value = UserSettingService.getLoadWarning();
       _acceptSettings(acceptedSettings);
-      _systemTheme.value = UserSettingService.getSystemTheme();
-      _subscribeToSystemTheme();
     })();
     return _initialisePromise;
   }
@@ -110,10 +92,6 @@ export const useSettingsStore = defineStore('settingsStore', () => {
     await loadSettings();
     _acceptSettings(await UserSettingService.resetSettings());
   }
-  onScopeDispose(() => {
-    _disposeThemeSubscription?.();
-    _disposeThemeSubscription = undefined;
-  });
 
   return {
     settings,

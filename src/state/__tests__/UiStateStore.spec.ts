@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AppModalKind, PlayerColour, PlayerType, EngineAvailability, EngineClientType, EngineProtocol, PlatformErrorKind, type IAppModalState } from '@/contracts';
+import { PlatformErrorKind } from '@/contracts';
 
 import {
   createGameSessionSnapshot,
@@ -83,7 +83,7 @@ describe('useUiStateStore', () => {
     });
   });
 
-  it('coerces persisted routes and persists layout state with modal updates', async () => {
+  it('coerces persisted routes and persists layout state', async () => {
     storedGameSession = createGameSessionSnapshot({
       openGameIds: ['game-1'],
       activeGameId: 'missing',
@@ -102,9 +102,6 @@ describe('useUiStateStore', () => {
     store.setSectionCollapsed('history', true);
     store.setAnalysisEngineExpanded(1, false);
     expect(store.layoutState?.analysisEngineExpandedByIndex).toEqual([true, false]);
-    store.showModal({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
-    expect(store.modalState).toEqual({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
-    store.hideModal();
     await store.saveLayoutState();
 
     expect(storedLayoutState).toEqual({
@@ -115,27 +112,6 @@ describe('useUiStateStore', () => {
       analysisCollapsed: false,
       analysisEngineExpandedByIndex: [true, false],
     });
-  });
-  it('retains engine-bearing modal state without cloning runtime callbacks', () => {
-    const store = useUiStateStore();
-    const modal = {
-      kind: AppModalKind.AnalysisEngineSelection,
-      payload: {
-        gameId: 'game-1',
-        currentAnalysisEngines: [{
-          displayName: 'Engine',
-          executablePath: 'engine.exe',
-          clientType: EngineClientType.Uci,
-          protocol: EngineProtocol.Uci,
-          options: {},
-          $: { availability: EngineAvailability.Ready, analysisCallback: () => undefined, analysisLines: new Map() },
-        }],
-      },
-    } satisfies IAppModalState;
-
-    store.showModal(modal);
-
-    expect(store.modalState).toBe(modal);
   });
   it('publishes direct and commanded shell mutations to a mounted consumer', async () => {
     const store = useUiStateStore();
@@ -148,7 +124,6 @@ describe('useUiStateStore', () => {
         h('span', { class: 'panels' }, `${store.layoutState?.showHistoryPanel}/${store.layoutState?.showAnalysisPanel}`),
         h('span', { class: 'sections' }, `${store.layoutState?.historyCollapsed}/${store.layoutState?.analysisCollapsed}`),
         h('span', { class: 'engine-folds' }, store.layoutState?.analysisEngineExpandedByIndex.join(',') ?? 'loading'),
-        h('span', { class: 'modal' }, store.modalState?.kind ?? 'none'),
       ]),
     }));
 
@@ -166,20 +141,16 @@ describe('useUiStateStore', () => {
     store.layoutState!.showHistoryPanel = false;
     store.setSectionCollapsed('history', true);
     store.setAnalysisEngineExpanded(0, false);
-    store.showModal({ kind: AppModalKind.DeleteGame, payload: { gameId: 'game-1' } });
     await nextTick();
     expect(wrapper.get('.route').text()).toBe('/home');
     expect(wrapper.get('.panels').text()).toBe('false/false');
     expect(wrapper.get('.sections').text()).toBe('true/false');
     expect(wrapper.get('.engine-folds').text()).toBe('false');
-    expect(wrapper.get('.modal').text()).toBe(AppModalKind.DeleteGame);
 
     store.closeTab('game-1');
-    store.hideModal();
     await nextTick();
     expect(wrapper.get('.tabs').text()).toBe('');
     expect(wrapper.get('.active-game').text()).toBe('none');
-    expect(wrapper.get('.modal').text()).toBe('none');
   });
   it('loads each persisted UI document once and rejects mutations before loading', async () => {
     const store = useUiStateStore();
@@ -190,38 +161,5 @@ describe('useUiStateStore', () => {
 
     expect(domain.SerializationService.readGameSessionDocument).toHaveBeenCalledTimes(1);
     expect(domain.SerializationService.readUiLayoutDocument).toHaveBeenCalledTimes(1);
-  });
-  it('initialises each dialog explicitly without leaking the previous form or completion', async () => {
-    const store = useUiStateStore();
-    const closed = vi.fn(async () => {});
-    const selection = { kind: AppModalKind.PlayerSelection, payload: { gameId: 'game-1', colour: PlayerColour.Black, currentPlayerType: PlayerType.Engine } } as const;
-    store.showModal(selection, closed);
-    expect(store.modalForm.selectedPlayer).toBe('unchanged');
-    const oldForm = store.modalForm;
-    oldForm.errorMessage = 'Previous failure';
-    oldForm.isWorking = true;
-    store.showModal(selection);
-    oldForm.errorMessage = 'Late previous failure';
-    expect(store.modalForm).toEqual({ errorMessage: '', isWorking: false, selectedPlayer: 'unchanged', selectedEngineId: '' });
-    await store.hideModal();
-    await store.hideModal();
-    expect(closed).toHaveBeenCalledTimes(1);
-  });
-  it('settles the captured dialog completion once when cancellation is repeated', async () => {
-    const store = useUiStateStore();
-    const closed = vi.fn(async () => {});
-    store.showModal({ kind: AppModalKind.NewGame }, closed);
-    await Promise.all([store.hideModal(), store.hideModal()]);
-    expect(closed).toHaveBeenCalledTimes(1);
-    expect(store.modalState).toBeUndefined();
-  });
-  it('cancels dialog delivery when its store is disposed', () => {
-    const store = useUiStateStore();
-    const closed = vi.fn();
-    store.showModal({ kind: AppModalKind.NewGame }, closed);
-    const signal = store.getModalSignal();
-    store.$dispose();
-    expect(signal.aborted).toBe(true);
-    expect(closed).not.toHaveBeenCalled();
   });
 });

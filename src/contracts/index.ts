@@ -4,7 +4,6 @@ export * from './Chess'
 export * from './ChessboardState'
 export * from './Engine'
 export * from './Game'
-export * from './ModalState'
 export * from './Move'
 export * from './Premove';
 export * from './PlatformError'

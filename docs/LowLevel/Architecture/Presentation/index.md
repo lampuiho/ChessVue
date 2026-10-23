@@ -31,7 +31,7 @@ This section defines the low-level app-theme contract that presentation componen
 - Shared UI chrome must read semantic CSS variables rather than hardcoded palette values.
 - Common components may define local aliases over the semantic variables, but they must not fork separate light/dark palettes internally.
 - Stable semantic variables select between the two banks with CSS `light-dark(...)`. `color-scheme: light dark` follows the OS in system mode, while explicit light and dark modes constrain `color-scheme` through the root policy attribute.
-- The document declares the same supported scheme policy through `<meta name="color-scheme">`, and the active surface through `<meta name="theme-color">`, so browser controls and auto-detecting dark-mode extensions receive standard signals.
+- The document declares the same supported scheme policy through `<meta name="color-scheme">`, and the corresponding light/dark surface through media-qualified `<meta name="theme-color">` entries, so browser controls and auto-detecting dark-mode extensions receive standard signals.
 - Do not opt out of extension processing with extension-specific lock markers. Theme compatibility is based on standards, semantic colours, and accurate surface/text contrast.
 - Both CSS-variable banks are configuration-reactive so accepted profile changes can restyle app chrome without component remounts; system-theme changes switch the CSS-selected bank without rewriting settings.
 - `themeMode` styles app chrome only. `boardTheme` and `pieceTheme` remain separate appearance paths owned by their respective presentation surfaces for future implementation. The initial phase uses a fixed presentation and does not expose theme selection or require additional board or piece styles.

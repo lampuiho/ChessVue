@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, onBeforeUpdate, ref } from 'vue';
 import { BoardOrientation, PieceKind, PlayerColour, type BoardId, type IBoardPosition, type IChessPiece, type IMove, type IMoveRaw } from '@/contracts';
 import { genLegalMovesForPiece } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 import ChessPiece from './common/ChessPiece.vue';
-import { vFocusScope } from './common/FocusScope';
+import { useModal, type IModalHandle } from '@/composables/ModalComposable';
+import PromotionModal from './modals/PromotionModal.vue';
 
 const props = withDefaults(defineProps<{
   position: IBoardPosition;
@@ -23,8 +24,10 @@ const emit = defineEmits<{
   boardCleared: [];
   boardReset: [];
 }>();
+const modal = useModal();
+let promotion: IModalHandle | undefined;
 const selectedBoardId = ref<BoardId>();
-const pendingPromotionMoves = shallowRef<IMoveRaw[]>([]);
+let pendingPromotionMoves: readonly IMoveRaw[] = [];
 const draggedBoardId = ref<BoardId>();
 const editPiece = ref<{ kind: PieceKind; colour: PlayerColour }>({ kind: PieceKind.Queen, colour: PlayerColour.White });
 const pieceKinds = [PieceKind.King, PieceKind.Queen, PieceKind.Rook, PieceKind.Bishop, PieceKind.Knight, PieceKind.Pawn];
@@ -38,16 +41,25 @@ const displayedBoardIds = computed<BoardId[]>(() => {
 const legalMoves = computed<IMoveRaw[]>(() => selectedBoardId.value === undefined ? [] : genLegalMovesForPiece(props.position, selectedBoardId.value, props.lastMove));
 const fileNames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-// External board/mode/permission props also change after engine replies and history navigation.
-// This synchronous input boundary only clears transient input; Vue disposes it with the board.
-watch([() => props.position, () => props.boardEdit, () => props.inputDisabled], _clearSelection, { flush: 'sync' });
+let _inputContext = [props.position, props.boardEdit, props.inputDisabled] as const;
+// Clear the previous gesture before rendering a replacement board or input permission.
+onBeforeUpdate(() => {
+  const next = [props.position, props.boardEdit, props.inputDisabled] as const;
+  if (next.every((value, index) => value === _inputContext[index])) return;
+  _inputContext = next;
+  _clearSelection();
+});
+onBeforeUnmount(_clearSelection);
 function _isLegalTarget(boardId: BoardId): boolean {
   return legalMoves.value.some((move) => move.to === boardId);
 }
 function _clearSelection() {
   selectedBoardId.value = undefined;
   draggedBoardId.value = undefined;
-  pendingPromotionMoves.value = [];
+  pendingPromotionMoves = [];
+  const current = promotion;
+  promotion = undefined;
+  void current?.close();
 }
 function _selectSquare(boardId: BoardId) {
   if (props.inputDisabled) return;
@@ -78,7 +90,11 @@ function _commitTarget(boardId: BoardId) {
     return;
   }
   if (matchingMoves.length > 1 && matchingMoves.some((move) => move.promotionPiece)) {
-    pendingPromotionMoves.value = matchingMoves;
+    pendingPromotionMoves = matchingMoves;
+    const current = modal.open(PromotionModal, { moves: matchingMoves, colour: props.position.sideToMove, onSelected: _choosePromotion }, () => {
+      if (promotion === current) _clearSelection();
+    });
+    promotion = current;
     return;
   }
   _emitMove(matchingMoves[0]!);
@@ -90,7 +106,7 @@ function _emitMove(rawMove: IMoveRaw) {
   _clearSelection();
 }
 function _choosePromotion(move: IMoveRaw) {
-  if (pendingPromotionMoves.value.includes(move)) _emitMove(move);
+  if (pendingPromotionMoves.includes(move)) _emitMove(move);
 }
 function _onDragStart(boardId: BoardId, event: DragEvent) {
   if (props.inputDisabled || !props.position.board[boardId]) {
@@ -152,11 +168,6 @@ function _showFile(index: number): boolean {
           <span v-if="position.board[boardId]" class="chess-piece" :draggable="!inputDisabled" @dragstart.stop="_onDragStart(boardId, $event)"><ChessPiece v-bind="position.board[boardId]!" /></span>
           <span v-if="_isLegalTarget(boardId) && !position.board[boardId]" class="move-dot"></span>
         </button>
-        <div v-if="pendingPromotionMoves.length" v-focus-scope class="promotion-popover" role="group" aria-label="Pawn promotion" tabindex="-1" @keydown.esc.stop.prevent="_clearSelection">
-          <span>Promote to</span>
-          <div><button v-for="move in pendingPromotionMoves" :key="move.promotionPiece" :aria-label="`Promote to ${position.sideToMove} ${move.promotionPiece}`" @click="_choosePromotion(move)"><ChessPiece :kind="move.promotionPiece!" :colour="position.sideToMove" /></button></div>
-          <button class="promotion-popover__cancel" @click="_clearSelection">Cancel</button>
-        </div>
       </div>
     </div>
     <div v-if="boardEdit" class="piece-palette surface">

@@ -8,7 +8,7 @@ for (const change of ['rename', 'remove']) {
   test(`JRN-SETTINGS-09 preserves a copied assignment and Keep existing after profile ${change}`, async ({ page }) => {
     await openJourney(page, 'settings');
     await returnToGame(page);
-    await page.locator('.player-panel').filter({ has: page.locator('.player-avatar--black') }).locator('.player-name').click();
+    await page.locator('.player-panel').filter({ has: page.getByText('Black', { exact: true }) }).locator('.player-name').click();
     await page.getByRole('radio', { name: /Journey A Configured UCI engine/ }).check();
     await page.getByRole('button', { name: 'Assign player', exact: true }).click();
     const original = await saveCurrentGame(page, 'Original assignment');
@@ -22,7 +22,7 @@ for (const change of ['rename', 'remove']) {
     } else await profileRow(page, 'Journey A').getByTitle('Delete', { exact: true }).click();
     await applySettings(page);
     await returnToGame(page);
-    await page.locator('.player-panel').filter({ has: page.locator('.player-avatar--black') }).locator('.player-name').click();
+    await page.locator('.player-panel').filter({ has: page.getByText('Black', { exact: true }) }).locator('.player-name').click();
     await expect(page.getByRole('radio', { name: /Keep Journey A/ })).toBeChecked();
     await expect(page.getByRole('radio', { name: /Journey A Configured UCI engine/ })).toHaveCount(0);
     if (change === 'rename') await expect(page.getByRole('radio', { name: /Changed profile Configured UCI engine/ })).toBeVisible();
@@ -37,7 +37,7 @@ for (const change of ['rename', 'remove']) {
     expect((await saveCurrentGame(page, 'Continued assignment')).blackPlayer).toEqual(original.blackPlayer);
     await page.reload();
     await waitForJourney(page);
-    await page.locator('.player-panel').filter({ has: page.locator('.player-avatar--black') }).locator('.player-name').click();
+    await page.locator('.player-panel').filter({ has: page.getByText('Black', { exact: true }) }).locator('.player-name').click();
     await expect(page.getByRole('radio', { name: /Keep Journey A/ })).toBeChecked();
   });
 }

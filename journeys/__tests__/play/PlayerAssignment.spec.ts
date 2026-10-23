@@ -1,11 +1,11 @@
 import { nextTick } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
-import { AppModalKind, GameState, PlayerColour, PlayerType, type IEnginePlayer, type IGame } from '@/contracts';
+import { GameState, PlayerColour, PlayerType, type IEnginePlayer, type IGame } from '@/contracts';
 import { boot, clickButton } from '../support/UiHarness';
 describe('UI-04 copied engine seat preservation', () => {
   it.each(['unchanged', 'edited', 'renamed', 'deleted'])('keeps the seated engine when confirming without a new selection after its profile is %s', async (change) => {
     const context = await boot('settings');
-    const { games, stores, domain, router } = context;
+    const { games, stores, domain, router, modal } = context;
     const game = games.getGame('settings-game') as unknown as IGame;
     const profile = (await import('../../data/EngineProfile')).createEngineProfiles()[0]!;
     await games.reassignPlayer(game, PlayerColour.Black, {
@@ -22,11 +22,11 @@ describe('UI-04 copied engine seat preservation', () => {
     await settings.applySettings();
     await router.push('/game/' + game.metadata.id);
     const stopEngine = vi.spyOn(domain.EngineRuntimeService, 'stopEngine');
-    const ui = stores.useUiStateStore();
-    ui.showModal({ kind: AppModalKind.PlayerSelection, payload: { gameId: game.metadata.id, colour: PlayerColour.Black, currentPlayerType: PlayerType.Engine, currentAssignedEngine: seated.assignedEngine } });
+    const { default: PlayerSelectionModal } = await import('@/components/modals/PlayerSelectionModal.vue');
+    modal.open(PlayerSelectionModal, { gameId: game.metadata.id, colour: PlayerColour.Black, currentPlayer: seated });
     await nextTick();
     await clickButton('Assign player', '[role="dialog"] button');
-    expect(ui.modalState).toBeUndefined();
+    expect(document.querySelector('[role=dialog]')).toBeNull();
     expect(game.blackPlayer?.type).toBe(PlayerType.Engine);
     expect((game.blackPlayer as IEnginePlayer).assignedEngine).toMatchObject(snapshot);
     expect(game.gameState).toBe(GameState.LiveWhiteTurn);

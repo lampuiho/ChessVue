@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+import { computed, onBeforeUnmount, ref } from 'vue';
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import {
   AnalysisBranchExitBehaviour,
-  AppModalKind,
   BoardOrientation,
-  EngineClientType,
-  EngineProtocol,
   PlayerType,
   SettingsCategory,
   ThemeMode,
   TimeControlPreset,
-  type IEngineOptionMap,
   type IEngineRecord,
 } from '@/contracts';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
 import { useSettingsStore, useUiStateStore } from '@/state';
+import { useModal, type IModalHandle } from '@/composables/ModalComposable';
+import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import NavigationFrame from '@/components/NavigationFrame.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
-import ModalDialog from '@/components/common/ModalDialog.vue';
+import EngineProfileModal from '@/components/modals/EngineProfileModal.vue';
 
+const emit = defineEmits<{ appearanceChanged: [] }>();
+const modal = useModal();
 const route = useRoute();
 const router = useRouter();
 const settingsStore = useSettingsStore();
@@ -28,9 +28,7 @@ const category = computed(() => route.params.category as SettingsCategory);
 const draft = computed(() => settingsStore.draftSettings);
 const errorMessage = ref('');
 const successMessage = ref('');
-const editingEngineIndex = ref<number>();
-const engineEditorOpen = ref(false);
-const engineForm = reactive({ id: '', displayName: '', executablePath: '', options: [] as { name: string; value: string }[] });
+let engineEditor: IModalHandle | undefined;
 const categories = [
   { id: SettingsCategory.Session, label: 'Session', icon: 'save' },
   { id: SettingsCategory.Gameplay, label: 'Gameplay', icon: 'sliders' },
@@ -38,9 +36,12 @@ const categories = [
   { id: SettingsCategory.Engines, label: 'Engines', icon: 'activity' },
 ];
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` as const : '/home' as const);
+onBeforeUnmount(_closeEngineEditor);
+onBeforeRouteUpdate(_closeEngineEditor);
 onBeforeRouteLeave((to) => {
+  _closeEngineEditor();
   if (!settingsStore.hasPendingChanges) return true;
-  uiStateStore.showModal({ kind: AppModalKind.SettingsDirtyLeave, payload: { targetRoute: to.fullPath } });
+  _requestDiscardChanges(to.fullPath);
   return false;
 });
 
@@ -63,10 +64,32 @@ function _changeCategory(nextCategory: SettingsCategory) {
 }
 function _requestReturn() {
   if (settingsStore.hasPendingChanges) {
-    uiStateStore.showModal({ kind: AppModalKind.SettingsDirtyLeave, payload: { targetRoute: returnRoute.value } });
+    _requestDiscardChanges(returnRoute.value);
     return;
   }
   void router.push(returnRoute.value);
+}
+function _requestDiscardChanges(targetRoute: string) {
+  modal.open(ConfirmationModal, {
+    title: 'Discard unsaved changes?', subtitle: 'You have settings changes that have not been applied.',
+    cancelLabel: 'Keep editing', confirmLabel: 'Discard changes', confirm: (signal) => _discardChangesAndNavigate(targetRoute, signal),
+  });
+}
+async function _discardChangesAndNavigate(targetRoute: string, signal: AbortSignal) {
+  signal.throwIfAborted();
+  settingsStore.discardPendingSettings();
+  await router.push(targetRoute);
+}
+function _requestResetSettings() {
+  modal.open(ConfirmationModal, {
+    title: 'Reset all settings?', subtitle: 'Preferences and engine profiles will return to their defaults.',
+    message: 'This cannot be undone after you save another change.', confirmLabel: 'Reset settings', danger: true,
+    confirm: _resetSettings,
+  });
+}
+async function _resetSettings() {
+  await settingsStore.resetSettings();
+  emit('appearanceChanged');
 }
 async function _applySettings(leave: boolean) {
   errorMessage.value = '';
@@ -74,6 +97,7 @@ async function _applySettings(leave: boolean) {
   try {
     if (leave) await settingsStore.saveSettings();
     else await settingsStore.applySettings();
+    emit('appearanceChanged');
     successMessage.value = 'Settings applied.';
     if (leave) await router.push(returnRoute.value);
   } catch (error) {
@@ -81,12 +105,12 @@ async function _applySettings(leave: boolean) {
   }
 }
 function _openEngineEditor(engine?: IEngineRecord, index?: number) {
-  editingEngineIndex.value = index;
-  engineForm.id = engine?.id ?? crypto.randomUUID();
-  engineForm.displayName = engine?.displayName ?? '';
-  engineForm.executablePath = engine?.executablePath ?? '';
-  engineForm.options = Object.entries(engine?.options ?? {}).map(([name, value]) => ({ name, value: String(value) }));
-  engineEditorOpen.value = true;
+  engineEditor = modal.open(EngineProfileModal, { engine, index });
+}
+function _closeEngineEditor() {
+  const current = engineEditor;
+  engineEditor = undefined;
+  void current?.close();
 }
 function _copyEngine(engine: IEngineRecord) {
   const names = new Set(draft.value?.analysis.engineInventory.map((candidate) => candidate.displayName));
@@ -95,36 +119,8 @@ function _copyEngine(engine: IEngineRecord) {
   while (names.has(displayName)) displayName = `${engine.displayName} copy ${suffix++}`;
   _openEngineEditor({ ...engine, id: crypto.randomUUID(), displayName, options: { ...engine.options } });
 }
-function _saveEngine() {
-  const currentDraft = draft.value;
-  if (!currentDraft) return;
-  const name = engineForm.displayName.trim();
-  if (!name) {
-    errorMessage.value = 'Engine name is required.';
-    return;
-  }
-  const duplicate = currentDraft.analysis.engineInventory.some((engine, index) => engine.displayName === name && index !== editingEngineIndex.value);
-  if (duplicate) {
-    errorMessage.value = `An engine named “${name}” already exists.`;
-    return;
-  }
-  const options: IEngineOptionMap = {};
-  for (const option of engineForm.options) {
-    if (!option.name.trim()) continue;
-    const trimmedValue = option.value.trim();
-    options[option.name.trim()] = trimmedValue === 'true' ? true : trimmedValue === 'false' ? false : trimmedValue !== '' && Number.isFinite(Number(trimmedValue)) ? Number(trimmedValue) : option.value;
-  }
-  const record: IEngineRecord = { id: engineForm.id, displayName: name, executablePath: engineForm.executablePath.trim(), clientType: EngineClientType.Uci, protocol: EngineProtocol.Uci, options };
-  if (editingEngineIndex.value === undefined) currentDraft.analysis.engineInventory.push(record);
-  else currentDraft.analysis.engineInventory.splice(editingEngineIndex.value, 1, record);
-  engineEditorOpen.value = false;
-  errorMessage.value = '';
-}
 function _removeEngine(index: number) {
   draft.value?.analysis.engineInventory.splice(index, 1);
-}
-function _addOption() {
-  engineForm.options.push({ name: '', value: '' });
 }
 </script>
 
@@ -134,7 +130,7 @@ function _addOption() {
       <template #brand><button class="app-brand" aria-label="ChessVue home" title="ChessVue home" @click="_requestReturn"><span class="app-brand__mark">♞</span><span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Preferences</span></span></button></template>
       <button class="menu-button" :aria-label="`Back to ${uiStateStore.gameSession?.activeGameId ? 'game' : 'home'}`" @click="_requestReturn"><AppIcon name="chevron-left" /><span>Back to {{ uiStateStore.gameSession?.activeGameId ? 'game' : 'home' }}</span></button>
       <nav class="navigation-group" aria-label="Settings categories"><button v-for="item in categories" :key="item.id" class="menu-button" :class="{ active: category === item.id }" :aria-label="item.label" @click="_changeCategory(item.id)"><AppIcon :name="item.icon" /><span>{{ item.label }}</span></button></nav>
-      <template #footer><button class="menu-button menu-button--danger" aria-label="Reset to defaults" title="Reset to defaults" @click="uiStateStore.showModal({ kind: AppModalKind.ResetSettings })"><AppIcon name="rotate" /><span>Reset to defaults</span></button></template>
+      <template #footer><button class="menu-button menu-button--danger" aria-label="Reset to defaults" title="Reset to defaults" @click="_requestResetSettings()"><AppIcon name="rotate" /><span>Reset to defaults</span></button></template>
     </NavigationFrame>
     <div class="settings-layout">
       <section v-if="draft" class="settings-content surface">
@@ -192,12 +188,6 @@ function _addOption() {
         <footer class="settings-actions"><span v-if="errorMessage" class="settings-feedback settings-feedback--error">{{ errorMessage }}</span><span v-else-if="successMessage" class="settings-feedback">{{ successMessage }}</span><button class="text-button text-button--ghost text-button--settings-mobile" @click="_requestReturn">Cancel</button><button class="text-button text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(true)">Save</button><button class="text-button text-button--primary text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(false)">Apply changes</button></footer>
       </section>
     </div>
-    <ModalDialog v-if="engineEditorOpen" :title="editingEngineIndex === undefined ? 'Add engine profile' : 'Edit engine profile'" subtitle="Configure a UCI engine and its launch options." wide @dismissed="engineEditorOpen = false">
-      <section class="form-section form-section--settings"><h3 class="form-section__heading">General</h3><div class="field-row"><label class="field-label" for="engine-name">Display name</label><input id="engine-name" v-model="engineForm.displayName" class="field-control" autofocus></div><div class="field-row"><label class="field-label" for="engine-path">Engine location<span class="field-help">Desktop executable path or browser worker URL. Use stockfish.js for the bundled browser engine.</span></label><input id="engine-path" v-model="engineForm.executablePath" class="field-control" placeholder="stockfish.js or C:\Engines\stockfish.exe"></div><div class="field-row"><span class="field-label">Protocol</span><span class="read-only-value">Universal Chess Interface (UCI)</span></div></section>
-      <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Options</h3><p class="form-section__description form-section__description--inline">Name/value pairs sent when the engine starts.</p></div><button class="text-button" @click="_addOption"><AppIcon name="plus" />Add option</button></div><div v-if="engineForm.options.length" class="option-list"><div v-for="(option, index) in engineForm.options" :key="index"><input v-model="option.name" class="field-control" placeholder="Option name"><input v-model="option.value" class="field-control" placeholder="Value"><button class="icon-button icon-button--danger" @click="engineForm.options.splice(index, 1)"><AppIcon name="trash" /></button></div></div><p v-else class="inline-message">No custom options. The engine will use its own defaults.</p></section>
-      <p v-if="errorMessage" class="inline-message inline-message--error editor-error">{{ errorMessage }}</p>
-      <template #actions><button class="text-button text-button--ghost" @click="engineEditorOpen = false">Cancel</button><button class="text-button text-button--primary" @click="_saveEngine">Save profile</button></template>
-    </ModalDialog>
   </main>
 </template>
 

@@ -56,7 +56,6 @@ export interface IThemeProfileSnapshot {
 }
 export interface IAppearanceProjection {
   readonly themeMode: ThemeMode;
-  readonly resolvedThemeMode: ResolvedThemeMode;
   readonly lightThemeProfile: IThemeProfileSnapshot;
   readonly darkThemeProfile: IThemeProfileSnapshot;
 }
@@ -106,7 +105,6 @@ export const themeProfileSnapshotSchema = z.object({
 
 export const appearanceProjectionSchema = z.object({
   themeMode: themeModeSchema,
-  resolvedThemeMode: resolvedThemeModeSchema,
   lightThemeProfile: themeProfileSnapshotSchema,
   darkThemeProfile: themeProfileSnapshotSchema,
 });

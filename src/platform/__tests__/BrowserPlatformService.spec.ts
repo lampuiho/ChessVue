@@ -61,6 +61,7 @@ describe('browser host services', () => {
     const platform = useBrowserPlatformService();
     const checkpoint = vi.fn();
     platform.subscribeToAppCloseRequested('games', checkpoint);
+    platform.subscribeToSystemThemeChanged('explicit-consumer', vi.fn());
     window.dispatchEvent(new Event('pagehide'));
     await vi.waitFor(() => expect(checkpoint).toHaveBeenCalledOnce());
     disposePinia(pinia);

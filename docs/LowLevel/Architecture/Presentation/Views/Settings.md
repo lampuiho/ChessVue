@@ -19,6 +19,7 @@ Render user-editable settings and engine inventory management.
 - save settings
 - apply settings without leaving the view
 - reset settings
+- emit `appearanceChanged` after successful Apply, Save or Reset; App handles it to update document appearance
 - add, copy, edit, remove, and refresh metadata for engine profiles through `EnginesStore`
 
 ## Notes
@@ -27,6 +28,7 @@ Render user-editable settings and engine inventory management.
 - The baseline settings categories are `session`, `gameplay`, `appearance`, and `engines`, with `/settings` redirecting to `/settings/session`.
 - The appearance category chooses the colour-scheme policy and includes layout-related presentation preferences such as `uiScalePercent`, `boardOrientation`, `showCoordinates`, and `highlightLastMove`.
 - Theme-profile selection is not exposed by the baseline settings view. Its previews consume the same configured readonly profiles as the root appearance projection.
+- Appearance effects use the view's `appearanceChanged` component event. Failed writes, draft changes and discard emit nothing. App listens to the routed SettingsView and installs the accepted policy and both palette banks; CSS follows later host-theme changes; no store listener registry, action hook or watcher drives these effects.
 - Board and piece theme selection is also deferred. Preserve the reserved schema fields without exposing controls for them in the initial phase.
 - The engines category contains both `analysis.resumeLiveAnalysisAfterRestore` and engine inventory fields.
 - User-setting edits stay in the `SettingsStore` draft; engine-profile configuration remains owned separately by `EnginesStore` even though profiles are serialised in settings data.

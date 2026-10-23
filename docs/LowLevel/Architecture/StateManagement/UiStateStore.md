@@ -1,14 +1,12 @@
 # UiStateStore
 
 ## Purpose
-Own shell/session state such as active route, open tabs, active game, remembered non-modal UI layout state, and transient prompts needed by scenario flows.
+Own shell/session state such as active route, open tabs, active game, remembered non-modal UI layout state, and navigation expansion.
 
 ## Public Interface
 ```ts
 gameSession: IGameSessionSnapshot | undefined
 layoutState: IUiLayoutState | undefined
-modalState: IAppModalState | undefined
-modalForm: { errorMessage: string; isWorking: boolean; selectedEngineId: string; selectedPlayer: string }
 loadGameSession(): Promise<void>
 saveGameSession(): Promise<void>
 loadLayoutState(): Promise<void>
@@ -20,9 +18,6 @@ closeTab(gameId: string): void
 setLayoutState(layout: IUiLayoutState): void
 togglePanel(panel: "history" | "analysis", isVisible?: boolean): void
 setSectionCollapsed(section: "history" | "analysis", isCollapsed?: boolean): void
-showModal(modal: IAppModalState, onClosed?: () => Promise<void> | void): void
-hideModal(): Promise<void>
-getModalSignal(): AbortSignal
 setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 ```
 
@@ -30,7 +25,6 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - lazily read game-session shell state across launches when that behaviour is enabled by settings
 - lazily read remembered UI layout state independently from game-session restore
 - persist remembered panel visibility and fold state as one app-level layout snapshot, including analysis-engine fold state by rendered row index for the active game
-- own typed transient modal and confirmation prompts without persisting them
 - own remembered analysis-engine fold state inside the shared layout snapshot without introducing extra game-linked layout keys
 - exclude recent-game history from UI/session ownership
 - exclude conscious user settings from session ownership
@@ -54,6 +48,7 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `SCN-IMPORT-02`
 
 ## Notes
+- Dialog mounting belongs to [ModalComposable](../../../ModalComponentDesign.md); its mounted components own their forms and submission feedback.
 - `UiStateStore` consumes `SerializationService` as the layer-2 session and layout persistence path; it does not resolve `StorageAdapter` directly.
 - Build config supplies the concrete `game-session.json` and `layout-state.json` paths used by this store.
 - `gameSession` and `layoutState` are writable deep reactive state. Views may bind their visible editable fields directly, while compound tab and active-game transitions continue to use the store commands that update their related fields together.
@@ -64,7 +59,4 @@ setAnalysisEngineExpanded(index: number, isExpanded?: boolean): void
 - `setAnalysisEngineExpanded(...)` writes analysis-engine fold state into `IUiLayoutState` by rendered row index for the active game, using that game's ordered persisted analysis seat rows to derive the current mapping.
 - UI state is not a draft: every visible mutation is immediately current state, so the store does not clone reads or use immutable snapshot replacement. `setLayoutState(...)` accepts the supplied state directly.
 - Persistence methods use `toRaw(...)` when handing the reactive state to `SerializationService`. This removes the Vue proxy at the layer boundary without copying the state.
-- Modal state is transient shared state rather than a persistence snapshot. It remains a shallow ref because modal payloads may contain engine callbacks, maps, or host values whose identity must be retained; replacement and removal remain owned by `showModal(...)` and `hideModal()`.
-- `showModal` explicitly creates fresh form state and an abort controller, even for the same dialog kind/payload. `hideModal` aborts pending delivery and captures/clears the completion callback before awaiting it, so repeated cancellation invokes completion once. Replacement settles the previous callback independently; store disposal aborts delivery without starting a completion action.
-- `ModalHost` captures the active form and signal for each action. Late success/failure cannot close a replacement dialog, alter its error/busy state or navigate after cancelled creation. The form and dialog lifecycle require no watchers; already-started domain work retains its own completion semantics.
 - Flow docs continue to show `UiStateStore._coerceOpenTabs` and `UiStateStore._coerceActiveRoute` as the visible owner-private boundaries. Those functions remain store-private and are not shared utility-layer modules.

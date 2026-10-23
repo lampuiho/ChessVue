@@ -3,7 +3,7 @@ import { nextTick, shallowReactive } from 'vue';
 import { describe, expect, it } from 'vitest';
 import { EngineAvailability, PlayerColour, PlayerType, type IEnginePlayer } from '@/contracts';
 import { createAssignedEngine } from '@/state/__tests__/StateStoreTestUtility';
-import PlayerPanel from '../PlayerPanel.vue';
+import PlayerPanel from '@/components/PlayerPanel.vue';
 
 describe('PlayerPanel engine status', () => {
   it('updates failure and recovery feedback directly from its engine runtime', async () => {

@@ -1,3 +1,4 @@
+import { expectTheme } from '../../support/Appearance';
 import { test, expect } from './SettingsTest';
 import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
 import { acceptedSettings, applySettings, openSettings, returnToGame } from './SettingsAction';
@@ -65,7 +66,7 @@ test('JRN-SETTINGS-06 cancels then confirms a persisted reset including engine p
   expect(reset.appearance).toMatchObject({ themeMode: 'system', uiScalePercent: 100, boardOrientation: 'white', showCoordinates: true, highlightLastMove: true });
   expect(reset.analysis.engineInventory).toEqual([]);
   expect(reset.gameSession).toEqual({ restorePreviousSession: true, saveRootPath: 'saves', autosaveAfterMoveCount: 1, autosaveOnClose: true, autoPauseOnMenu: true });
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expectTheme(page, 'light');
   await page.reload();
   await waitForJourney(page);
   expect(await acceptedSettings(page)).toEqual(reset);

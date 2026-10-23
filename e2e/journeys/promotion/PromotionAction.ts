@@ -5,7 +5,7 @@ import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove, square } from '../../support/BoardInteraction';
 import { selectGame } from '../../support/GameNavigation';
 export function promotionChooser(page: Page): Locator {
-  return page.getByRole('group', { name: 'Pawn promotion', exact: true });
+  return page.getByRole('dialog', { name: 'Choose promotion', exact: true });
 }
 export async function openPromotionGame(page: Page, scenario: IPromotionScenario) {
   await openJourney(page, 'promotion');
@@ -18,7 +18,9 @@ export async function attemptPromotion(page: Page, scenario: IPromotionScenario,
   if (gesture === 'drag') await square(page, scenario.from).locator('.chess-piece').dragTo(square(page, target));
   else await playMove(page, scenario.from, target);
   await expect(promotionChooser(page)).toBeVisible();
-  await expect(promotionChooser(page).getByRole('button')).toHaveCount(5);
+  await expect(promotionChooser(page).getByRole('button', { name: /^Promote to / })).toHaveCount(4);
+  await expect(promotionChooser(page).getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
+  await expect(promotionChooser(page).getByRole('button', { name: 'Close dialog', exact: true })).toBeVisible();
   for (const { kind } of promotionPieces) await expect(promotionChooser(page).getByRole('button', { name: `Promote to ${scenario.colour} ${kind}`, exact: true })).toBeVisible();
   await expect(square(page, scenario.from)).toHaveAttribute('aria-label', `${scenario.from} ${scenario.colour} pawn`);
   await expect(square(page, scenario.capture)).toHaveAttribute('aria-label', `${scenario.capture} ${scenario.opponent} rook`);

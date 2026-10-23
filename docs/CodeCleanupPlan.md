@@ -2,6 +2,8 @@
 
 Requested and implemented on 19 October 2026: remove generation-based async invalidation, restrict watchers, and infer redundant implementation return types. [AGENTS.md](../AGENTS.md#async-work-and-watchers) records the durable rules. The separate [turn-flow/premove proposal](PreMovePlan%28ToDo%29.md) remains independent of this cleanup.
 
+Follow-up on 23 October 2026 removes the two remaining watchers. Explicit settings/theme events and the board update lifecycle now own those effects; observers have no audit exceptions.
+
 ## Status
 
 | Item | Result | Status |
@@ -9,9 +11,9 @@ Requested and implemented on 19 October 2026: remove generation-based async inva
 | CLEAN-01 | Inventory and coding rules recorded | Complete |
 | CLEAN-02 | Playback counter removed; turn, analysis and publication ownership audited | Complete |
 | CLEAN-03 | Route/session, autosave feedback and menu/modal orchestration use explicit actions and lifecycle hooks | Complete |
-| CLEAN-04 | Saved selection and modal watchers removed; board observers consolidated; readiness directly derived | Complete |
+| CLEAN-04 | Saved selection and modal watchers removed; board input reset uses its update lifecycle; readiness directly derived | Complete |
 | CLEAN-05 | Redundant body return annotations removed across application, journeys, tests and tooling | Complete |
-| CLEAN-06 | Build-enforced AST audit rejects unlisted observers, invalidation-counter candidates and redundant return annotations | Complete |
+| CLEAN-06 | Build-enforced AST audit rejects all observers, invalidation-counter candidates and redundant return annotations | Complete |
 
 The initial inventory based on `77acaa4` plus the IO follow-up found one remaining named async counter (`playbackGeneration`), 12 Vue observer calls, and 445 body return-annotation candidates. It also counted 120 bodyless callable signatures; those were contracts, not removal candidates. These are historical source counts, not defect or test counts. The earlier selected-details watcher-cleanup correction was an intermediate implementation; selection is now explicitly owned without a watcher.
 
@@ -25,19 +27,19 @@ The initial inventory based on `77acaa4` plus the IO follow-up found one remaini
 | [GamePlayerTurnComposable](../src/state/game/GamePlayerTurnComposable.ts) | Rejects duplicate private turn creation and uses the existing abort-and-drain path before replacement. Engine delivery checks its actual abort signal. Removed the pending-promise equality guard. Existing deferred-move validation and pause ownership are preserved; this does not implement premoves. |
 | [GameAnalysisComposable](../src/state/game/GameAnalysisComposable.ts), [EngineRuntimeService](../src/domain/EngineRuntimeService.ts) | Retain actual seat/subscription ownership, abort controllers, serialised client work and UCI stop draining. Callback equality protects the callback registration being detached; it is not a numeric stale-result marker. Independent engine resources remain independent. |
 | [SavedGamesView](../src/views/SavedGamesView.vue) | Selection, route activation and refresh explicitly resolve a valid snapshot and start owned details delivery. Replacement/unmount cancels it, including selection away from and back to the same snapshot. Late success/error cannot overwrite current details. |
-| [UiStateStore](../src/state/UiStateStore.ts), [ModalHost](../src/components/ModalHost.vue) | Dialog activation creates fresh form state and an abort controller. Dismissal/replacement aborts delivery and invokes the captured completion once. Store disposal aborts delivery. Pending actions retain their own form; their late error, close or create-navigation cannot affect a replacement dialog. Already-started domain mutations retain their own completion semantics. |
-| [FocusScope](../src/components/common/FocusScope.ts), added for [JRN-UX](../journeys/definitions/usability/ScenarioReview.md) on 20 October | Each rendered dialog/promotion surface and mobile navigation drawer owns its focus containment listeners through directive mount/unmount. A stack of actual mounted owners handles nested focus and restores surviving launchers. Chained modal kinds remount at their activation boundary. Successful overwrite closes after its action settles, so the launcher is enabled before focus returns. No observer, timer or async invalidation mechanism is used. |
-| [NavigationFrame](../src/components/NavigationFrame.vue) | Owns its mobile drawer through explicit open, selection and dismissal actions. The rendered drawer uses `FocusScope`; unmount disposes its listeners. `UiStateStore` owns only the transient shared desktop expansion preference. CSS flex and container sizing own navigation/board placement, without observers, DOM measurements or offset synchronisation. |
+| [ModalComposable](../src/composables/ModalComposable.ts), [modal design](ModalComponentDesign.md) | Each opening mounts its actual component with a fresh local form and abort controller. Dismissal/replacement unmounts that owner and settles its captured completion once. App disposal aborts delivery and suppresses unstarted completions. Late errors, closes and create-navigation cannot affect a replacement. Already-started domain mutations retain their own completion semantics. |
+| [FocusScope](../src/directives/FocusScope.ts), added for [JRN-UX](../journeys/definitions/usability/ScenarioReview.md) on 20 October | Each rendered dialog/promotion surface and mobile navigation modal owns its focus containment listeners through directive mount/unmount. A stack of actual mounted owners handles nested focus and restores surviving launchers. Chained modal components remount at their activation boundary. Successful overwrite closes after its action settles, so the launcher is enabled before focus returns. No observer, timer or async invalidation mechanism is used. |
+| [NavigationFrame](../src/components/NavigationFrame.vue) | Owns its mobile drawer through explicit open, selection and dismissal actions. The drawer mounts as `NavigationMenuModal` through `useModal`; its unmount disposes focus listeners, and the frame closes its captured handle on unmount. `UiStateStore` owns only the transient shared desktop expansion preference. CSS flex and container sizing own navigation/board placement, without observers, DOM measurements or offset synchronisation. |
 | [GamesStore](../src/state/GamesStore.ts), `workspaceRevision` | Retained as the publication count for deliberately raw canonical games, incremented at `touchGame`. Readers are GameView projections, HistoryPanel tree projection and journey readiness. This is an explicit rendering publication boundary, not a counter captured to reject async completion. Replacing it would require changing the raw-game reactivity contract. |
 | Platform and journey IDs | Retain IDs naming actual registrations, process/search handles and diagnostic/storage records. Schema versions, move sequences and loop indexes also retain their ordinary meanings. |
 
 ## Watcher disposition
 
-Ten observer calls were removed or consolidated: only two synchronous Vue boundary watchers remain. No watcher performs gameplay, engine, persistence, modal-completion or details-I/O orchestration.
+All Vue observer calls have been removed. Effects run at their explicit action, event, route or component lifecycle boundary.
 
 | Initial site | Final owner |
 | --- | --- |
-| App appearance `watchEffect` | Narrow `watch` on appearance projection, accepted appearance and resolved host theme. Its synchronous callback runs immediately and in Vue's normal pre-render batch. Output is document CSS/meta tags only. |
+| App appearance `watchEffect` | App applies initial appearance during setup and after startup settings load. `SettingsView` emits `appearanceChanged` after successful Apply, Save or Reset; App handles that routed component event to update document CSS/meta. CSS `color-scheme` and `light-dark()` handle host-theme changes. App and SettingsStore neither query nor subscribe to the system theme; the projection exposes the accepted policy and both palettes. Draft edits and failed writes emit nothing. |
 | App session route watcher | Router `afterEach` owns checkpoints for successful committed path changes; duplicate/query-only navigation is ignored. Startup owns its initial checkpoint. Hook is disposed with the app scope. |
 | GameView game-ID watcher | Shared activation action called on mount and by `onBeforeRouteUpdate`; validates destination and completes its Menu pause. |
 | GameView autosave-error watcher | Autosave failure action emits an explicit notification; the mounted view registers one consumer and disposes it on unmount. |
@@ -45,11 +47,11 @@ Ten observer calls were removed or consolidated: only two synchronous Vue bounda
 | SavedGamesView group fallback watcher | Refresh/activation actions resolve the current entry or latest valid fallback. |
 | SavedGamesView selected-entry watcher | Selection and refresh actions start/cancel owned details delivery. |
 | SavedGamesView route watcher | Successful saved-route commit clears overwrite intent and explicitly initialises/resolves selection; hook is disposed on unmount. |
-| ModalHost form watcher | `UiStateStore.showModal` creates a fresh form on every activation, including the same kind/payload. |
-| Chessboard position and board-edit watchers | One synchronous observer clears transient selection/drag/promotion after external position, board-edit or input-disabled changes. PRE-RAW adds the permission input to the same boundary; engines/history and permission changes originate outside the board's actions. |
+| Removed host form watcher | `useModal().open` mounts a fresh component on every opening, including the same component/props. |
+| Chessboard position and board-edit watchers | `onBeforeUpdate` compares the actual position, board-edit and input-disabled props with the current input context, then clears selection/drag/promotion before rendering a changed context. Selection renders and presentation-only updates retain input. `onBeforeUnmount` closes any pending promotion. |
 | StartJourney readiness watcher | Read-only computed projection exposed through the journey API's `ready` getter; `stopReady` preserves explicit test teardown. |
 
-The App and Chessboard comments state the external boundary and output. Vue disposes both watchers with their component scopes. Their exact inputs and reasons are the only observer exceptions in [CodeAuditPolicy.json](../scripts/CodeAuditPolicy.json). Adding another watcher requires a specific boundary justification and policy review; existing use is not precedent. Do not substitute polling, computed side effects or unrelated subscriptions for removed observers.
+The observer exceptions in [CodeAuditPolicy.json](../scripts/CodeAuditPolicy.json) are empty, and the audit rejects observer calls even if an allowance is added. Do not substitute polling, computed side effects or unrelated subscriptions for removed observers.
 
 ## Return inference and enforcement
 
@@ -59,7 +61,7 @@ Bodyless interfaces/overloads and callable properties remain typed. Promise/Defe
 
 `npm run check:code` executes [CodeAudit.mjs](../scripts/CodeAudit.mjs) during `npm run build`. Its [syntax inspector](../scripts/audit/InspectSource.mjs) checks Vue scripts, TypeScript and tooling for:
 
-- Unlisted watcher/effect calls, including imported aliases, Vue namespaces/bracket calls and direct `$watch`/Pinia `$subscribe` forms.
+- All watcher/effect calls, including imported aliases, Vue namespaces/bracket calls and direct `$watch`/Pinia `$subscribe` forms.
 - Generation/epoch/version-token candidates and mutable counters captured and compared around async work, including a renamed serial.
 - Implementation `void`/`Promise<void>` returns, separately from callable declarations and promise generics.
 - Duplicated allowed calls, missing justifications and stale policy entries.
@@ -67,6 +69,10 @@ Bodyless interfaces/overloads and callable properties remain typed. Promise/Defe
 These checks identify syntax candidates; they do not prove arbitrary async code correct or replace ownership review. Actual resource IDs are retained by purpose. New aliases, identity guards and subscription forms still need semantic review.
 
 ## Verification
+
+The CSS system-theme follow-up on 23 October 2026 passes **14/14 focused unit/application tests** and **16/16 browser tests**. App and SettingsStore make no system-theme query or subscription during startup, settings actions, navigation or disposal. Browser theme-policy tests make `matchMedia` throw while exercising system, forced light and forced dark modes, then check rendered colours and persisted settings. Apply, Save, Reset, rejected writes and reload/new-page restoration pass. `npm run build` passes the code audit, all TypeScript projects and production bundling. The browser report is `test-results/CssSystemThemeBrowserResults.json` (ports 5173/5174, one worker, no retries). Earlier watcher-removal verification below predates this CSS ownership follow-up.
+
+Watcher-removal follow-up on 23 October 2026 passes **78/78 focused unit/application tests across five files**. Coverage includes SettingsView Apply/Save/Reset events, failed persistence and disposal during an in-flight UI action; SettingsStore; Chessboard input ownership; GameView; and audit syntax. `npm run build` passes the code audit, all TypeScript projects and production bundling. The final browser rerun passes **7/7 appearance and scale tests**, using ports 5073/5074, one worker and no retries, with no skips or flaky results. The earlier 23-case browser run covers promotion cancellation and gestures alongside appearance and scale. Reports are `test-results/WatcherRemovalUnitResults.json`, `test-results/WatcherRemovalAppearanceBrowserResults.json` and `test-results/WatcherRemovalBrowserResults.json`. These focused checks supplement the historical cleanup verification below.
 
 Verification completed on 19 October 2026: **527 unit/application tests and 155 focused browser tests passed**. Reports are generated under ignored `test-results/`; source counts and discovery are not execution evidence. Earlier IO acceptance is recorded separately in [JourneyImplementation.md](JourneyImplementation.md#storage-failure-verification).
 

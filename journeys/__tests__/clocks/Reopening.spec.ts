@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AppModalKind, ResultReason, ResultState } from '@/contracts';
+import { ResultReason, ResultState } from '@/contracts';
 import { clickButton, createTimedContext, legalMove } from '../support/UiHarness';
 describe('JRN-CLOCK-07/08 original UI-06 timeout regressions', () => {
   it('adjudicates another timeout after reopening the same game with takeback', async () => {
@@ -9,8 +9,7 @@ describe('JRN-CLOCK-07/08 original UI-06 timeout regressions', () => {
     await vi.advanceTimersByTimeAsync(3250);
     expect(game.resultState).toBe(ResultState.WhiteWon);
     expect(game.resultReason).toBe(ResultReason.Timeout);
-    const ui = stores.useUiStateStore();
-    expect(ui.modalState?.kind).toBe(AppModalKind.Timeout);
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain('Time has expired');
     await clickButton('Review game', '[role="dialog"] button');
     await games.takeBack(game);
     expect(game.resultState).toBe(ResultState.Ongoing);
@@ -19,7 +18,7 @@ describe('JRN-CLOCK-07/08 original UI-06 timeout regressions', () => {
     await vi.advanceTimersByTimeAsync(3250);
     expect(game.resultState).toBe(ResultState.BlackWon);
     expect(game.resultReason).toBe(ResultReason.Timeout);
-    expect(ui.modalState?.kind).toBe(AppModalKind.Timeout);
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain('Time has expired');
   });
   it('shows another timeout after changing the selected game in the mounted view', async () => {
     const { game, games, stores, router } = await createTimedContext();
@@ -31,6 +30,6 @@ describe('JRN-CLOCK-07/08 original UI-06 timeout regressions', () => {
     await router.push('/game/' + second.metadata.id);
     await vi.advanceTimersByTimeAsync(3250);
     expect(second.resultReason).toBe(ResultReason.Timeout);
-    expect(stores.useUiStateStore().modalState).toMatchObject({ kind: AppModalKind.Timeout, payload: { gameId: second.metadata.id } });
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain('Black wins on time.');
   });
 });

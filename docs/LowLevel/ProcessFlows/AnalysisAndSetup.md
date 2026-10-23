@@ -150,12 +150,12 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 #### Flow
 | `StartGameFromSetupModal.confirmed` |
 | --- |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `GamesStore.startGameFromSetup` |
 | `GameWorkspaceComposable.startGameFromSetup` owns cleanup, replacement, player startup, and analysis refresh |
-| `UiStateStore.hideModal` |
+| `IModalHandle.close` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 | `GamesStore.startGameFromSetup` |
@@ -179,7 +179,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | --- |
 | select the first three ranked lines; update seat metadata; `touchGame` |
 
-| `UiStateStore.hideModal` |
+| `IModalHandle.close` |
 | --- |
 
 - State/settings coverage: the game may leave non-live analysis and enter `LiveWhiteTurn` or `LiveBlackTurn` only when both sides are assigned. That transition applies a newly chosen time control, captures the per-game `showLiveAnalysisMoves` choice for the resulting live game, and initialises fresh live clock state.
@@ -353,8 +353,8 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 
 ```text
 AnalysisPanel.engineAddRequested
-  -> UiStateStore.showModal
-  -> ModalHost.confirmAnalysisEngine
+  -> useModal().open
+  -> AnalysisEngineSelectionModal._confirmAnalysisEngine
      -> GamesStore.addAnalysisEngine
         -> GameAnalysisComposable.addAnalysisEngine
         -> createAnalysisSeat; validate duplicate/count; publish assignment

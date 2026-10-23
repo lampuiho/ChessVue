@@ -68,7 +68,6 @@ interface IThemeProfileSnapshot {
 
 interface IAppearanceProjection {
   readonly themeMode: ThemeMode
-  readonly resolvedThemeMode: ResolvedThemeMode
   readonly lightThemeProfile: IThemeProfileSnapshot
   readonly darkThemeProfile: IThemeProfileSnapshot
 }
@@ -76,7 +75,7 @@ interface IAppearanceProjection {
 
 ## Rules
 - `themeMode` is the persisted user choice from settings.
-- `resolvedThemeMode` is the effective colour scheme after `ThemeMode.System` has been mapped to the current OS theme.
+- System mode leaves CSS `color-scheme: light dark` active. Explicit light/dark settings override the colour scheme; `light-dark()` selects the corresponding palette without JavaScript OS-theme resolution.
 - The configured light and dark profile snapshots each contain the complete semantic app-chrome variable map for their declared colour scheme.
 - Theme profiles are not part of the baseline user-settings snapshot. `IAppearanceProjection` is the seam that can later receive independently selected light and dark snapshots without changing presentation components.
 - A profile snapshot has no profile ID and requires no registry lookup to render.

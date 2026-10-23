@@ -13,7 +13,8 @@ test('JRN-FRESH-01 opens empty screens without creating a game', async ({ page }
   await expect(page.getByRole('button', { name: 'Select game', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: /Settings/ }).click();
-  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings\/session$/);
+  await expect(page.getByRole('heading', { name: 'Session', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back to home', exact: true }).click();
   await expect(page).toHaveURL(/\/home$/);
   expect((await readSession(page)).openGameIds).toEqual([]);

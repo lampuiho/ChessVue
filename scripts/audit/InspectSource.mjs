@@ -73,7 +73,7 @@ export function inspectSource(file, raw) {
   function _visit(node) {
     if (ts.isCallExpression(node)) {
       const name = _observerName(node.expression, bindings);
-      if (observers.has(name)) _add(node, 'observer', name + '(' + _compact(node.arguments[0]?.getText(source) ?? '') + ')', 'Observer needs a justified boundary exception.');
+      if (observers.has(name)) _add(node, 'observer', name + '(' + _compact(node.arguments[0]?.getText(source) ?? '') + ')', 'Use explicit actions, component events or lifecycle hooks instead of observers.');
     }
     if (ts.isFunctionLike(node) && node.body && node.type && ['void', 'Promise<void>'].includes(_compact(node.type.getText(source)))) {
       _add(node, 'return', node.name?.getText(source) ?? '(callback)', 'Infer the implementation return type or document its required constraint.');

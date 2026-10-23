@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
-import { onScopeDispose, ref, shallowRef, toRaw } from 'vue';
+import { ref, toRaw } from 'vue';
 
-import { AppModalKind, PlayerType, PlatformErrorKind, type IAppModalState, type IGameSessionSnapshot, type IUiLayoutState } from '@/contracts';
+import { PlatformErrorKind, type IGameSessionSnapshot, type IUiLayoutState } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
 import { SerializationService } from '@/domain';
 import { logHandledError } from '@/utility/errors';
@@ -22,10 +22,6 @@ function _createDefaultLayoutState(): IUiLayoutState {
     analysisCollapsed: false,
     analysisEngineExpandedByIndex: [],
   };
-}
-function _createModalForm(modal?: IAppModalState) {
-  const playerType = modal?.kind === AppModalKind.PlayerSelection ? modal.payload.currentPlayerType : PlayerType.Local;
-  return { errorMessage: '', isWorking: false, selectedEngineId: '', selectedPlayer: playerType === PlayerType.Engine ? 'unchanged' : playerType === PlayerType.Local ? 'local' : 'none' };
 }
 const settingsRoutePattern = /^\/settings\/(session|gameplay|appearance|engines)$/;
 const gameRoutePattern = /^\/game\/(.+)$/;
@@ -87,14 +83,6 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
   }
   const gameSession = ref<IGameSessionSnapshot>();
   const layoutState = ref<IUiLayoutState>();
-  const modalState = shallowRef<IAppModalState>();
-  const modalForm = ref(_createModalForm());
-  let _modalClosed: (() => Promise<void> | void) | undefined;
-  let _modalController: AbortController | undefined;
-  onScopeDispose(() => {
-    _modalController?.abort();
-    _modalClosed = undefined;
-  });
   const recoveryWarnings = ref<string[]>([]);
   function addRecoveryWarning(message: string) {
     recoveryWarnings.value.push(message);
@@ -188,29 +176,6 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     if (section === 'history') currentLayout.historyCollapsed = isCollapsed ?? !currentLayout.historyCollapsed;
     if (section === 'analysis') currentLayout.analysisCollapsed = isCollapsed ?? !currentLayout.analysisCollapsed;
   }
-  function showModal(modal: IAppModalState, onClosed?: () => Promise<void> | void) {
-    void hideModal();
-    modalForm.value = _createModalForm(modal);
-    _modalController = new AbortController();
-    modalState.value = modal;
-    _modalClosed = onClosed;
-  }
-  async function hideModal() {
-    _modalController?.abort();
-    _modalController = undefined;
-    modalState.value = undefined;
-    const closed = _modalClosed;
-    _modalClosed = undefined;
-    try {
-      await closed?.();
-    } catch (error) {
-      logHandledError('UiStateStore', 'closeModal', error);
-    }
-  }
-  function getModalSignal() {
-    if (!_modalController) throw new Error('A dialog must be active before its action starts.');
-    return _modalController.signal;
-  }
   function setAnalysisEngineExpanded(index: number, isExpanded?: boolean) {
     const currentLayout = _requireLayoutState();
     while (currentLayout.analysisEngineExpandedByIndex.length <= index) currentLayout.analysisEngineExpandedByIndex.push(true);
@@ -222,9 +187,6 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     toggleNavigationExpanded,
     gameSession,
     layoutState,
-    modalState,
-    modalForm,
-    getModalSignal,
     recoveryWarnings,
     addRecoveryWarning,
     loadGameSession,
@@ -238,8 +200,6 @@ export const useUiStateStore = defineStore('uiStateStore', () => {
     setLayoutState,
     togglePanel,
     setSectionCollapsed,
-    showModal,
-    hideModal,
     setAnalysisEngineExpanded,
   };
 });

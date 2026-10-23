@@ -1,3 +1,4 @@
+import { expectTheme } from '../support/Appearance';
 import { test, expect } from './SessionTest';
 import type { Page } from '@playwright/test';
 import type { IGame } from '../../src/contracts';
@@ -27,7 +28,7 @@ async function _interruptEngineTurn(page: Page) {
   await page.getByRole('radio', { name: 'dark', exact: true }).check();
   await page.getByLabel('Orientation', { exact: true }).selectOption('black');
   await applySettings(page);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expectTheme(page, 'dark');
   await release(page, search.id);
   await expect.poll(() => page.evaluate((id) => window.chessVueJourney.engines.searches().find((search) => search.id === id)?.pending, search.id)).toBe(false);
   await advanceClock(page, 120000);
@@ -76,7 +77,7 @@ async function _reviewTimeout(page: Page, ended: IGame) {
 async function _restoreTimeoutReview(page: Page, id: string, reviewed: IGame) {
   await reloadSession(page);
   await expect(page).toHaveURL(new RegExp('/game/' + id + '$'));
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expectTheme(page, 'dark');
   await expect(page.locator('.result-badge')).toHaveText('black won');
   await expect(page.getByRole('button', { name: /^Resume game|^Resign$/ })).toHaveCount(0);
   await page.clock.runFor(250);

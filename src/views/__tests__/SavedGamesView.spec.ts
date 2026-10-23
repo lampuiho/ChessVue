@@ -1,8 +1,10 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlatformErrorKind, SaveGameTargetKind, type IGame } from '@/contracts';
 import { createGame, createSavedGameEntry, createSavedGameGroup } from '@/state/__tests__/StateStoreTestUtility';
 import SavedGamesView from '../SavedGamesView.vue';
+import { modalPlugin } from '@/components/modals/__tests__/ModalTestUtility';
+const body = new DOMWrapper(document.body);
 
 const dependency = vi.hoisted(() => ({
   route: { name: 'save-game', params: { name: 'game-a' }, fullPath: '/saved-games/save/game-a' },
@@ -20,7 +22,7 @@ vi.mock('@/state', () => ({
 let wrapper: VueWrapper;
 let game: IGame;
 async function _mountView() {
-  wrapper = mount(SavedGamesView);
+  wrapper = mount(SavedGamesView, { global: { plugins: [modalPlugin] } });
   await flushPromises();
 }
 async function _requestSave(name: string) {
@@ -76,19 +78,19 @@ describe('SavedGamesView named saves', () => {
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledExactlyOnceWith(game, {
       targetKind: SaveGameTargetKind.ManagedSave, saveName: 'New', overwrite: false,
     });
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(body.find('[role="dialog"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('Saved “New”.');
   });
   it.each(['cancel', 'close', 'escape', 'backdrop'])('leaves the save view open without writing on %s', async (action) => {
     await _mountView();
     await _requestSave('  Opening  ');
-    expect(wrapper.get('[role="dialog"]').text()).toContain('“Opening” already exists');
+    expect(body.get('[role="dialog"]').text()).toContain('“Opening” already exists');
     expect(dependency.savedGamesStore.saveGame).not.toHaveBeenCalled();
-    if (action === 'cancel') await wrapper.get('.modal-card__actions .text-button--ghost').trigger('click');
-    if (action === 'close') await wrapper.get('[aria-label="Close dialog"]').trigger('click');
-    if (action === 'escape') await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
-    if (action === 'backdrop') await wrapper.get('.modal-backdrop').trigger('mousedown');
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    if (action === 'cancel') await body.get('.modal-card__actions .text-button--ghost').trigger('click');
+    if (action === 'close') await body.get('[aria-label="Close dialog"]').trigger('click');
+    if (action === 'escape') await body.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
+    if (action === 'backdrop') await body.get('.modal-backdrop').trigger('mousedown');
+    expect(body.find('[role="dialog"]').exists()).toBe(false);
     expect(dependency.savedGamesStore.saveGame).not.toHaveBeenCalled();
     expect(dependency.router.push).not.toHaveBeenCalled();
     expect((wrapper.get('#save-name').element as HTMLInputElement).value).toBe('  Opening  ');
@@ -99,12 +101,12 @@ describe('SavedGamesView named saves', () => {
     await wrapper.get('#save-name').setValue('Different');
     await wrapper.get('#save-name').trigger('keydown', { key: 'Enter' });
     expect(dependency.savedGamesStore.saveGame).not.toHaveBeenCalled();
-    await wrapper.get('.modal-card__actions .text-button--danger').trigger('click');
+    await body.get('.modal-card__actions .text-button--danger').trigger('click');
     await flushPromises();
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledExactlyOnceWith(game, {
       targetKind: SaveGameTargetKind.ManagedSave, saveName: 'Opening', overwrite: true,
     });
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(body.find('[role="dialog"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('Saved “Opening”.');
   });
   it('asks for confirmation when storage reports a collision absent from the displayed list', async () => {
@@ -114,8 +116,8 @@ describe('SavedGamesView named saves', () => {
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledWith(game, {
       targetKind: SaveGameTargetKind.ManagedSave, saveName: 'opening', overwrite: false,
     });
-    expect(wrapper.get('[role="dialog"]').text()).toContain('“opening” already exists');
-    await wrapper.get('.modal-card__actions .text-button--ghost').trigger('click');
+    expect(body.get('[role="dialog"]').text()).toContain('“opening” already exists');
+    await body.get('.modal-card__actions .text-button--ghost').trigger('click');
     expect(dependency.savedGamesStore.saveGame).toHaveBeenCalledTimes(1);
   });
   it.each(['', ' ', 'auto', 'AUTO', '.', '..', '../Opening', '..\\Opening', 'CON', 'LPT1.json', 'Ending.', 'Bad\u0001'])('does not write or prompt for invalid name %s', async (name) => {
@@ -124,14 +126,14 @@ describe('SavedGamesView named saves', () => {
     await wrapper.get('#save-name').trigger('keydown', { key: 'Enter' });
     await flushPromises();
     expect(dependency.savedGamesStore.saveGame).not.toHaveBeenCalled();
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(body.find('[role="dialog"]').exists()).toBe(false);
   });
   it('reports write failures without claiming success', async () => {
     dependency.savedGamesStore.saveGame.mockRejectedValueOnce(new Error('Save failed.'));
     await _mountView();
     await _requestSave('New');
     expect(wrapper.get('.library-feedback--error').text()).toBe('Save failed.');
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(body.find('[role="dialog"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Saved “New”.');
   });
 });

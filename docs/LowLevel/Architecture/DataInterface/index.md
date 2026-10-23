@@ -11,7 +11,6 @@ This folder defines the shared low-level types used across the platform, domain,
 - [TimeControl](TimeControl.md): time-control config and live clock snapshots.
 - [Engine](Engine.md): configured engines, per-game assignment, and runtime sessions.
 - [Analysis](Analysis.md): streamed engine output and visible analysis seats.
-- [ModalState](ModalState.md): typed transient modal kinds and payloads.
 - [PlatformError](PlatformError.md): shared typed platform-layer failure contract.
 - [PlatformEventRegistration](PlatformEventRegistration.md): active platform event-registration snapshot entries.
 - [Appearance](Appearance.md): app theme modes, resolved theme state, and semantic CSS-variable projection.

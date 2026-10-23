@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, onScopeDispose, ref, watch } from 'vue';
+import { computed, onMounted, onScopeDispose, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
-import { ResolvedThemeMode, ThemeMode, type IThemeProfileSnapshot } from '@/contracts';
+import { ThemeMode, type IThemeProfileSnapshot } from '@/contracts';
 import { getPlatformTarget, PlatformTarget } from '@/utility/nwjs/NwjsUtility';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
 import { useGamesStore, useSavedGamesStore, useSettingsStore, useUiStateStore } from '@/state';
-import ModalHost from '@/components/ModalHost.vue';
+import { useModalProvider } from '@/composables/ModalComposable';
 
+useModalProvider();
 const route = useRoute();
 const router = useRouter();
 const settingsStore = useSettingsStore();
@@ -22,21 +23,13 @@ const warningDismissed = ref(false);
 const sessionSaveError = ref('');
 const isReady = computed(() => startupComplete.value && !!settings.value && !!gameSession.value && !!layoutState.value);
 const recoveryWarnings = computed(() => [settingsStore.recoveryWarning, ...uiStateStore.recoveryWarnings, sessionSaveError.value].filter(Boolean));
-const resolvedThemeMode = computed(() => {
-  if (appearanceProjection.value?.resolvedThemeMode) return appearanceProjection.value.resolvedThemeMode;
-  if (settings.value?.appearance.themeMode === ThemeMode.Dark) return ResolvedThemeMode.Dark;
-  if (settings.value?.appearance.themeMode === ThemeMode.Light) return ResolvedThemeMode.Light;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? ResolvedThemeMode.Dark : ResolvedThemeMode.Light;
-});
 function _applyThemeProfile(root: HTMLElement, profile: IThemeProfileSnapshot) {
   for (const [name, value] of Object.entries(profile.cssVariables)) {
     root.style.setProperty(`--theme-${profile.colourScheme}-${name.slice(2)}`, value);
   }
 }
-// Output-only bridge to document chrome; appearance changes can originate from the host theme.
-watch([appearanceProjection, () => settings.value?.appearance, resolvedThemeMode], () => {
+function _applyAppearance() {
   const root = document.documentElement;
-  const mode = resolvedThemeMode.value;
   const lightProfile = appearanceProjection.value?.lightThemeProfile ?? defaultLightThemeProfile;
   const darkProfile = appearanceProjection.value?.darkThemeProfile ?? defaultDarkThemeProfile;
   const themeMode = appearanceProjection.value?.themeMode ?? settings.value?.appearance.themeMode ?? ThemeMode.System;
@@ -46,14 +39,16 @@ watch([appearanceProjection, () => settings.value?.appearance, resolvedThemeMode
   root.style.setProperty('--root-font-size-browser', `${scale}%`);
   root.style.setProperty('--root-font-size-landscape', `${scale / appViewportRemCount}vh`);
   root.style.setProperty('--root-font-size-portrait', `${scale / appViewportRemCount}vw`);
-  root.dataset.theme = mode;
   root.dataset.themeMode = themeMode;
   root.dataset.appMode = String(getPlatformTarget() === PlatformTarget.Nwjs);
   const colourSchemeMeta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
   if (colourSchemeMeta) colourSchemeMeta.content = themeMode === ThemeMode.System ? 'light dark' : themeMode;
-  const themeColourMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (themeColourMeta) themeColourMeta.content = (mode === ResolvedThemeMode.Light ? lightProfile : darkProfile).cssVariables['--surface-app'];
-}, { immediate: true });
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    const profile = themeMode === ThemeMode.Dark || (themeMode === ThemeMode.System && meta.media === '(prefers-color-scheme: dark)') ? darkProfile : lightProfile;
+    meta.content = profile.cssVariables['--surface-app'];
+  });
+}
+_applyAppearance();
 
 async function _restoreWorkspace() {
   if (!gameSession.value) return;
@@ -95,6 +90,7 @@ async function _saveSession() {
 
 onMounted(async () => {
   await Promise.all([settingsStore.loadSettings(), uiStateStore.loadGameSession(), uiStateStore.loadLayoutState()]);
+  _applyAppearance();
   await _restoreWorkspace();
   const restoredRoute = gameSession.value?.activeRoute;
   await savedGamesStore.registerAutosaveOnClose(() => gamesStore.listGames() as never);
@@ -125,7 +121,6 @@ onScopeDispose(removeRouteCheckpoint);
   <div v-if="!isReady" class="app-loading">
     <div class="loading-mark"><span class="loading-mark__piece">♞</span><span>Preparing your board…</span></div>
   </div>
-  <RouterView v-else />
+  <RouterView v-else @appearance-changed="_applyAppearance" />
   <aside v-if="isReady && recoveryWarnings.length && !warningDismissed" class="recovery-notice" role="alert"><p v-for="warning in recoveryWarnings" :key="warning">{{ warning }}</p><div><button class="text-button" @click="router.push('/saved-games/load')">Saved games</button><button class="text-button" @click="router.push('/settings/session')">Settings</button><button class="text-button" @click="warningDismissed = true">Dismiss</button></div></aside>
-  <ModalHost v-if="isReady" />
 </template>

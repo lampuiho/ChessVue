@@ -32,7 +32,7 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
   const focusRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
   const themeRegistrations: IEventRegistration<(theme: ResolvedThemeMode) => void>[] = [];
   let nextRegistrationId = 1;
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  let _themeMediaQuery: MediaQueryList | undefined;
   function _register<TCallback>(entries: IEventRegistration<TCallback>[], eventKey: PlatformEventKey, owner: string, callback: TCallback, debugLabel?: string): () => void {
     const registrationId = `platform-registration-${nextRegistrationId++}`;
     const entry = { registration: { registrationId, eventKey, owner, debugLabel, registeredAtUtc: new RegistrationTimestamp() }, callback };
@@ -84,6 +84,13 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
   function _onTheme(event: MediaQueryListEvent) {
     triggerSystemThemeChanged(event.matches ? ResolvedThemeMode.Dark : ResolvedThemeMode.Light);
   }
+  function subscribeToSystemThemeChanged(owner: string, callback: (theme: ResolvedThemeMode) => void, debugLabel?: string) {
+    if (!_themeMediaQuery) {
+      _themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      _themeMediaQuery.addEventListener('change', _onTheme);
+    }
+    return _register(themeRegistrations, PlatformEventKey.SystemThemeChanged, owner, callback, debugLabel);
+  }
   function reset() {
     closeRegistrations.length = 0;
     focusRegistrations.length = 0;
@@ -92,12 +99,11 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
   window.addEventListener('pagehide', _checkpoint);
   window.addEventListener('focus', _onFocus);
   document.addEventListener('visibilitychange', _onVisibility);
-  mediaQuery.addEventListener('change', _onTheme);
   onScopeDispose(() => {
     window.removeEventListener('pagehide', _checkpoint);
     window.removeEventListener('focus', _onFocus);
     document.removeEventListener('visibilitychange', _onVisibility);
-    mediaQuery.removeEventListener('change', _onTheme);
+    _themeMediaQuery?.removeEventListener('change', _onTheme);
     browserProcessManager.dispose();
     reset();
   });
@@ -108,7 +114,7 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
     getEngineClient, getEventRegistrationSnapshot,
     subscribeToAppCloseRequested: (owner, callback, debugLabel?: string) => _register(closeRegistrations, PlatformEventKey.AppCloseRequested, owner, callback, debugLabel),
     subscribeToAppFocusReturned: (owner, callback, debugLabel?: string) => _register(focusRegistrations, PlatformEventKey.AppFocusReturned, owner, callback, debugLabel),
-    subscribeToSystemThemeChanged: (owner, callback, debugLabel?: string) => _register(themeRegistrations, PlatformEventKey.SystemThemeChanged, owner, callback, debugLabel),
+    subscribeToSystemThemeChanged,
   } satisfies IPlatformService;
   return { ...platformService, triggerAppCloseRequested, triggerAppFocusReturned, triggerSystemThemeChanged, reset };
 });

@@ -6,7 +6,7 @@ Collect quick or custom new-game input before forwarding a validated create requ
 ## Consumes
 - defaults from `SettingsStore`
 - engine inventory choices from `EnginesStore`
-- `ModalDialog` and `DialogButton` for shared dialog and action presentation
+- `ModalDialog` and shared button classes for dialog and action presentation
 - `FormSection` and `FieldRow` for shallow form structure
 
 ## Emits
@@ -21,4 +21,4 @@ Collect quick or custom new-game input before forwarding a validated create requ
 - The modal uses the shared dialog shell and keeps create and cancel actions in the shared dialog action row.
 - The same validated form serves new-game creation and start-from-setup. Setup hides workspace/none choices and exposes clocks, takeback, analysis engines and live-move preferences while `GamesStore.startGameFromSetup` preserves the prepared board.
 - Missing engine defaults remain explicit required selections. Independent none choices create free analysis without discarding the other selected seat. Invalid or empty custom time values block submission with an inline message.
-- `ModalHost` checks required player-engine launch readiness in temporary sessions before creating or starting a live game, and keeps the form open with feedback if a required engine is unavailable.
+- `GameCreationModal` checks required player-engine launch readiness in temporary sessions before creating or starting a live game, and keeps the form open with feedback if a required engine is unavailable.

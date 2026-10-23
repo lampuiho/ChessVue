@@ -1,3 +1,4 @@
+import { expectTheme } from '../support/Appearance';
 import { test, expect } from '@playwright/test';
 import { playMove } from '../support/BoardInteraction';
 test('JRN-IO-03 rejects a real browser storage write without accepting preferences and persists the retry', async ({ page }) => {
@@ -24,15 +25,16 @@ test('JRN-IO-03 rejects a real browser storage write without accepting preferenc
   });
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click();
   await expect(page.locator('.settings-feedback--error')).toContainText('Browser storage could not be written');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expectTheme(page, 'light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme-mode', 'system');
   await expect(page.getByRole('radio', { name: 'dark', exact: true })).toBeChecked();
   expect(await page.evaluate(() => localStorage.getItem('chessvue:files:v1'))).toBe(before);
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expectTheme(page, 'dark');
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.locator('.history-row')).toHaveCount(1);
   await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expectTheme(page, 'dark');
   await expect(page.locator('.history-row')).toHaveCount(1);
   expect(errors).toEqual([]);
 });

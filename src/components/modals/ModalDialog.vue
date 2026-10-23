@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import AppIcon from './AppIcon.vue';
-import { vFocusScope } from './FocusScope';
+import AppIcon from '../common/AppIcon.vue';
+import { vFocusScope } from '@/directives/FocusScope';
 
 withDefaults(defineProps<{ title: string; subtitle?: string; wide?: boolean; dismissible?: boolean }>(), { dismissible: true });
 const emit = defineEmits<{ dismissed: [] }>();

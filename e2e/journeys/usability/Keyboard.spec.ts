@@ -33,7 +33,7 @@ for (const colour of ['white', 'black'] as const) {
     const to = colour === 'white' ? 'a8' : 'h1';
     await keyboardActivate(page, square(page, from));
     await keyboardActivate(page, square(page, to), colour === 'white');
-    const chooser = page.getByRole('group', { name: 'Pawn promotion', exact: true });
+    const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
     await expectFocusInside(chooser);
     for (const kind of ['queen', 'rook', 'bishop', 'knight']) await expect(chooser.getByRole('button', { name: `Promote to ${colour} ${kind}`, exact: true })).toBeVisible();
     await page.keyboard.press('Escape');

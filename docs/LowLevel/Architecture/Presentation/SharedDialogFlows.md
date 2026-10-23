@@ -1,41 +1,25 @@
-# Shared Dialog Flows
+# Shared dialog flows
 
-## Purpose
-Define the committed shared-dialog variants that sit on top of `ModalDialog` and `DialogButton`.
+Shared dialogs mount through `useModal().open(Component, props, onClosed?)`. `App` initialises the app-scoped controller with `useModalProvider()`. The [modal design](../../../ModalComponentDesign.md) records exact function flows and scenarios.
 
-This document covers the dialog-hosted flows that do not need their own dedicated feature component like `NewGameModal`, while still requiring explicit ownership, payload, and action-row design.
+The composable owns one mounted component, container, abort signal and close completion. Each mounted feature owns its form, busy/error feedback and actions. `ModalDialog` owns the shell, permitted dismissal events and focus containment. Simple confirmations use an awaited `confirm(signal)` prop; acknowledgements emit dismissal only.
 
-## Rules
-- `UiStateStore` owns the typed transient modal state, but the triggering feature or store still owns the underlying decision.
-- `ModalDialog` owns shell markup only. Feature owners provide title, body intent, and action wiring.
-- Dialog actions should stay shallow and map directly to one store boundary or one explicit dismiss path.
-- Promotion may still use a board-local overlay; this document only covers the dialog-hosted variant.
-- `newGame` remains owned by [Components/NewGameModal.md](Components/NewGameModal.md) rather than this shared flow table.
+| Flow | Component and entry point | Inputs and actions |
+| --- | --- | --- |
+| Custom game | `GameCreationModal`, Home/Game `_openCustomGame` | Existing `NewGameModal` form; `_createGame` validates required engines, creates, opens the tab and navigates. Game menu completion retains its captured pause owner |
+| Prepared setup | `GameCreationModal`, Game `_requestSetupStart` | `gameId`; `_confirmSetupStart` validates and starts the prepared position |
+| Promotion | `PromotionModal`, Chessboard `_commitTarget` | Legal raw candidates and colour; `selected(move)` returns through `moveAttempted` and GameView history confirmation before store submission |
+| Resignation | `ConfirmationModal`, Game `_requestResignation` | Explicit callback to `resignGame`; Cancel/Resign |
+| Local draw offer | `ConfirmationModal`, Game `_handleDraw` | `_offerDraw` awaits `offerDraw`, checks its signal and mounts `DrawResponseModal` |
+| Draw response | `DrawResponseModal`, successful local offer | `gameId`, responding colour; `_acceptDraw`/`_declineDraw`. Requires an explicit response; no Escape/backdrop dismissal |
+| Timeout | `MessageModal`, Game `_reconcileTimeout` | Recorded winner text; Review game. Existing per-game notification ownership prevents duplicates |
+| Invalid import | `MessageModal`, SavedGames `_run` | Error message; Close. Invalid documents expose no partial-import continuation |
+| Reset settings | `ConfirmationModal`, Settings `_requestResetSettings` | Callback to `resetSettings`; Cancel/Reset settings |
+| Unsaved settings | `ConfirmationModal`, Settings `_requestDiscardChanges` | Captured target route; Keep editing/Discard changes. `_discardChangesAndNavigate` discards and navigates with the opening's signal |
+| Blocked editing | `MessageModal`, Game `_toggleBoardEdit` | Explanation and Understood; no domain action |
+| Player selection | `PlayerSelectionModal`, Game `_requestPlayerSelection` | `gameId`, colour, current player; keep/local/unassigned/profile choices, `_confirmPlayerSelection` |
+| Analysis selection | `AnalysisEngineSelectionModal`, Game `_requestAnalysisEngine` | `gameId`, current copied engines; `_confirmAnalysisEngine` adds and retries the captured seat when eligible |
 
-## Dialog Matrix
-| Modal kind | Owning entry point | Title and body intent | Action row | Payload |
-| --- | --- | --- | --- | --- |
-| `AppModalKind.Promotion` | `Chessboard.moveAttempt` before `GamesStore.makeMove` when the attempted pawn move needs an explicit promotion piece | Ask the user to choose the promotion piece for the draft move before any store mutation runs. | `Cancel` plus local `PiecePalette` choice actions. | `gameId`, draft `move` |
-| `AppModalKind.StartGameFromSetup` | `GameControlPanel.startGameFromSetupRequested` | Collect the live-game start details for a prepared setup workspace, including the per-game live-analysis move preference. | `Cancel` and primary `Start Game`. | `gameId` |
-| `AppModalKind.Resign` | `GameControlPanel.resignRequested` | Confirm resignation for the selected side before finalising the result. | `Cancel` and danger `Resign`. | `gameId`, resigning `colour` |
-| `AppModalKind.DrawOffer` | local-versus-local `GameControlPanel.drawRequested` | Confirm that the current local side wants to offer a draw. | `Cancel` and primary `Offer Draw`. | `gameId`, offering `colour` |
-| `AppModalKind.DrawResolve` | local draw-response presentation branch after `GamesStore.offerDraw` | Ask the responding local side whether to accept or decline the outstanding draw offer. | `Decline` and primary `Accept`. | `gameId`, offering `colour`, responding `colour` |
-| `AppModalKind.Timeout` | `GameView.onClockTick` or focus-return handling after `GamesStore.syncClock` records timeout | Explain that the game ended on time and identify the recorded timeout result. | Single acknowledge action. | `gameId`, `resultState`, `resultReason = ResultReason.Timeout` |
-| `AppModalKind.ImportError` | `MenuBar.importGameRequested` after `SavedGamesStore.importGame` rejects the selected document | Explain that the selected file could not be imported because it is unsupported, corrupt, or incomplete. | Single acknowledge action. | `message` |
-| `AppModalKind.ResetSettings` | `SettingsView.resetRequested` | Confirm reset of the pending settings draft back to defaults. | `Cancel` and danger `Reset`. | none |
-| `AppModalKind.DeleteGame` | `SavedGamesView.deleteRequested` | Confirm permanent removal of the selected managed save before the store mutates saved-game selection state. | `Cancel` and danger `Delete`. | `gameId` |
-| `AppModalKind.BoardEditBlocked` | `GameControlPanel.boardEditRequested` when board edit is not allowed | Explain that board editing belongs only to non-live analysis states. | Dismiss-only for the baseline, with room for a later setup shortcut. | `gameId`, `reason` |
-| `AppModalKind.SettingsDirtyLeave` | `SettingsView.returnRequested` with pending draft edits | Ask whether to discard or keep editing before leaving the settings route. | Secondary `Stay` and primary `Discard Changes`. | target route |
-| `AppModalKind.PlayerSelection` | `PlayerPanel.playerSelectionRequested` | Choose unassigned, `PlayerType.Local`, or a configured engine profile for one seat. | `Cancel` plus seat-selection actions. | `gameId`, seat `colour`, current player selection, current copied assigned engine |
-| `AppModalKind.AnalysisEngineSelection` | `AnalysisPanel.analysisEngineAddRequested` | Choose one configured engine profile to add to the current game's ordered analysis rows when that copied engine is not already present. | `Cancel` and primary `Add Engine`. | `gameId`, current copied analysis engines |
+Player and analysis-engine configuration remain available while paused. Non-local draw opponents keep the existing pending-offer indicator and accept/withdraw control. In-game analysis exit remains prompt-free. Save overwrite/deletion and history continuation use `ConfirmationModal`; `EngineProfileModal` owns the settings editor and `NavigationMenuModal` owns the mobile drawer; the removed legacy DeleteGame kind had no production opener or rendered branch.
 
-## Coverage Notes
-- Draw flow is intentionally split into `AppModalKind.DrawOffer` and `AppModalKind.DrawResolve` so the baseline local-versus-local response step is visible in design.
-- `AppModalKind.StartGameFromSetup` owns live-game-only choices gathered from a prepared setup workspace, including the persisted `showLiveAnalysisMoves` preference for the resulting live game.
-- `AppModalKind.PlayerSelection` and `AppModalKind.AnalysisEngineSelection` remain available while paused because those flows are treated as configuration changes rather than gameplay actions.
-- Non-local opponents skip the dialog-hosted response step and instead use the draw control's LED-like pending-offer indicator for any unresolved offer, where the lit state switches the next `Draw` press into `accept` for `DrawOfferDirection.Incoming` or `withdraw` for `DrawOfferDirection.Outgoing`.
-- In-game analysis exit is prompt-free in the baseline. The mode restores the live node immediately, and any exploratory continuation from the latest live node is cleaned up later by the next real live move if it becomes superseded.
-- Timeout, settings-dirty-leave, and blocked-action dialogs are notifications or confirmations only; they do not move business logic into presentation.
-- `AppModalKind.ImportError` is acknowledge-only in the baseline because invalid import never exposes a recoverable-subset continuation flow.
-- Exceptional runtime-error dialogs are outside this matrix. They may reuse the same shell through `RuntimeErrorDialogMountUtility` without becoming a typed feature-modal contract on `UiStateStore`.
-- The same dialog shell keeps placement and action-row conventions consistent across gameplay, setup, settings, and lifecycle flows.
+Replacement unmounts the previous owner before mounting the next, including the same component/props. A stale handle closes only its own opening. Closing or replacement aborts late UI delivery; already-started domain mutations retain their completion semantics. Root teardown suppresses unstarted close callbacks and removes detached DOM/listeners.

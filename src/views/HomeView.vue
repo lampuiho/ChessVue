@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { AppModalKind, PlayerColour, PlayerType, type ICreateGameRequest, type IRecentGameEntry } from '@/contracts';
+import { PlayerColour, PlayerType, type ICreateGameRequest, type IRecentGameEntry } from '@/contracts';
 import { useGamesStore, useRecentGameStore, useSavedGamesStore, useSettingsStore, useUiStateStore } from '@/state';
+import { useModal } from '@/composables/ModalComposable';
+import GameCreationModal from '@/components/modals/GameCreationModal.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 
+const modal = useModal();
 const router = useRouter();
 const gamesStore = useGamesStore();
 const recentGameStore = useRecentGameStore();
@@ -17,6 +20,7 @@ const pendingGameId = ref<string>();
 const errorMessage = ref('');
 
 onMounted(_refreshRecentGames);
+function _openCustomGame() { modal.open(GameCreationModal, {}); }
 async function _refreshRecentGames() {
   try {
     recentGames.value = await recentGameStore.getRecentGames();
@@ -86,7 +90,7 @@ async function _run(action: () => Promise<void>) {
       </div>
       <div class="home-actions" aria-label="Start actions">
         <button class="home-action home-action--primary" @click="_quickNewGame"><span class="home-action__icon"><AppIcon name="sparkles" /></span><strong>Quick game</strong><small>Start with your defaults</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
-        <button class="home-action" @click="uiStateStore.showModal({ kind: AppModalKind.NewGame })"><span class="home-action__icon"><AppIcon name="sliders" /></span><strong>Custom game</strong><small>Players, clock & engines</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
+        <button class="home-action" @click="_openCustomGame()"><span class="home-action__icon"><AppIcon name="sliders" /></span><strong>Custom game</strong><small>Players, clock & engines</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="router.push('/saved-games/load')"><span class="home-action__icon"><AppIcon name="folder" /></span><strong>Load game</strong><small>Return to a saved board</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="router.push('/settings/session')"><span class="home-action__icon"><AppIcon name="settings" /></span><strong>Settings</strong><small>Make the board yours</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
       </div>

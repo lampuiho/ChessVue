@@ -133,11 +133,11 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GamesStore.makeMove` |
 
 #### Flow B - Cancel Promotion Before Submission
-| `Chessboard` inline chooser `Cancel` |
+| `PromotionModal` `Cancel` |
 | --- |
 | `Chessboard.clearSelection` *(clears selected square and pending choices)* |
 
-- UI surface coverage: promotion uses the inline Chessboard popover, exposed as the named Pawn promotion group. Each choice has an accessible name identifying colour and kind. There is no separate PiecePalette or shared modal in this flow.
+- UI surface coverage: Chessboard mounts PromotionModal through useModal. Each choice has an accessible name identifying colour and kind; the selected raw move returns through the board event and existing GameView submission/confirmation flow. Cancel and external input invalidation close only that opening.
 - Cancellation and pending-choice boundary: no move, capture, turn or history mutation occurs before a choice. Cancel permits a different move to be selected. Position/edit-mode changes also clear local selection.
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received.
 - Process note: once the selected piece is merged into the move, `GamesStore.makeMove` simply follows the same context-specific commit path as `SCN-MOVE-01`. There is no pending-promotion state on the game model.
@@ -205,12 +205,12 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 #### Flow
 | `PlayerPanel.playerSelectionConfirmed` |
 | --- |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `EnginesStore.createPlayer` |
 | `GamesStore.reassignPlayer` |
 | `GameView._refreshRuntimeAfterPlayerReassignment` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 | `EnginesStore.createPlayer` |
@@ -508,11 +508,11 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 #### Flow
 | `GameControlPanel.resignRequested` |
 | --- |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `GamesStore.resignGame` |
 | `SavedGamesStore.saveGame` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 | `GamesStore.resignGame` |
@@ -533,13 +533,13 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 #### Flow A - Local Versus Local Draw Offer
 | `GameControlPanel.drawRequested` |
 | --- |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `GamesStore.offerDraw` |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | `GamesStore.acceptDrawOffer` |
 | `SavedGamesStore.saveGame` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 | `GamesStore.offerDraw` |
@@ -625,9 +625,9 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | `GameControlPanel.boardEditRequested` |
 | --- |
 | `GameBoardEditComposable.enterBoardEdit` |
-| `UiStateStore.showModal` |
+| `useModal().open` |
 
-| `UiStateStore.showModal` |
+| `useModal().open` |
 | --- |
 
 #### Flow B - Allowed Attempt

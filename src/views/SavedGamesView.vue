@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { AppModalKind, PlatformErrorKind, type IGame } from '@/contracts';
+import { PlatformErrorKind, type IGame } from '@/contracts';
 import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind } from '@/contracts/state';
 import { SavedGameIndexService } from '@/domain';
 import { useGamesStore, useSavedGamesStore, useUiStateStore } from '@/state';
+import { useModal, type IModalHandle } from '@/composables/ModalComposable';
+import MessageModal from '@/components/modals/MessageModal.vue';
 import NavigationFrame from '@/components/NavigationFrame.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
-import ModalDialog from '@/components/common/ModalDialog.vue';
+import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import { OperationOwner } from '@/utility/async/OperationOwner';
 import { abortable } from '@/utility/async/Abortable';
 
+const modal = useModal();
 const route = useRoute();
 const router = useRouter();
 const gamesStore = useGamesStore();
@@ -29,8 +32,7 @@ const isLoading = ref(true);
 const isWorking = ref(false);
 const message = ref('');
 const errorMessage = ref('');
-const deleteTarget = ref<ISavedGameFileEntry>();
-const overwriteTarget = ref<{ game: IGame; saveName: string }>();
+let confirmation: IModalHandle | undefined;
 const isSaveMode = computed(() => route.name === 'save-game');
 const isDetailMode = computed(() => route.name === 'load-game' || isSaveMode.value);
 const routeGameId = computed(() => String(route.params.name ?? ''));
@@ -50,11 +52,11 @@ const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/ga
 onMounted(_refreshGroups);
 const removeRouteActivation = router.afterEach((to, _from, failure) => {
   if (failure || !['save-game', 'load-game', 'load-games'].includes(String(to.name))) return;
-  overwriteTarget.value = undefined;
+  _closeConfirmation();
   _initialiseRoute();
   _refreshSelection();
 });
-onBeforeUnmount(() => { removeRouteActivation(); void details.dispose(); });
+onBeforeUnmount(() => { _closeConfirmation(); removeRouteActivation(); void details.dispose(); });
 function _loadDetails(entry?: ISavedGameFileEntry) {
   selectedDocument.value = undefined;
   detailError.value = '';
@@ -119,33 +121,51 @@ async function _loadGame(gameId: string, entryName?: string) {
 }
 async function _saveGame() {
   const currentGame = activeGame.value;
-  if (!currentGame || saveNameError.value || isLoading.value || isWorking.value || overwriteTarget.value) return;
+  if (!currentGame || saveNameError.value || isLoading.value || isWorking.value || (confirmation && !confirmation.signal.aborted)) return;
   const target = { game: currentGame, saveName: saveName.value.trim() };
   await _run(async () => {
     if (selectedGroup.value?.saves.some((entry) => entry.saveName === target.saveName)) {
-      overwriteTarget.value = target;
+      _requestOverwrite(target);
       return;
     }
     try {
       await _writeSave(target.game, target.saveName, false);
     } catch (error) {
       if (typeof error !== 'object' || error === null || !('kind' in error) || error.kind !== PlatformErrorKind.AlreadyExists) throw error;
-      overwriteTarget.value = target;
+      _requestOverwrite(target);
     }
   });
 }
-async function _writeSave(game: IGame, name: string, overwrite: boolean) {
+async function _writeSave(game: IGame, name: string, overwrite: boolean, signal?: AbortSignal) {
   await savedGamesStore.saveGame(game, { targetKind: SaveGameTargetKind.ManagedSave, saveName: name, overwrite });
+  if (signal?.aborted) return;
   message.value = `Saved “${name}”.`;
   await _refreshGroups();
+  if (signal?.aborted) return;
   selectedSaveName.value = name;
   _refreshSelection();
 }
-async function _confirmOverwrite() {
-  const target = overwriteTarget.value;
-  if (!target || isWorking.value) return;
-  await _run(() => _writeSave(target.game, target.saveName, true));
-  if (!errorMessage.value) overwriteTarget.value = undefined;
+function _closeConfirmation() {
+  const current = confirmation;
+  confirmation = undefined;
+  void current?.close();
+}
+function _requestOverwrite(target: { game: IGame; saveName: string }) {
+  confirmation = modal.open(ConfirmationModal, {
+    title: 'Replace this save?', subtitle: `“${target.saveName}” already exists for this game.`,
+    message: 'Replacing it will overwrite the existing snapshot with the current game.', confirmLabel: 'Replace save', danger: true,
+    dismissibleWhileWorking: false, confirm: (signal) => _confirmOverwrite(target, signal),
+  });
+}
+async function _confirmOverwrite(target: { game: IGame; saveName: string }, signal: AbortSignal) {
+  if (signal.aborted || isWorking.value) return;
+  isWorking.value = true;
+  errorMessage.value = '';
+  message.value = '';
+  try { await _writeSave(target.game, target.saveName, true, signal); } catch (error) {
+    if (!signal.aborted) errorMessage.value = error instanceof Error ? error.message : 'The action could not be completed.';
+    throw error;
+  } finally { isWorking.value = false; }
 }
 async function _importGame() {
   await _run(async () => {
@@ -162,16 +182,21 @@ async function _exportCurrent() {
     if (await savedGamesStore.exportGame(activeGame.value!)) message.value = 'Game exported.';
   });
 }
-async function _confirmDelete() {
-  const target = deleteTarget.value;
-  if (!target) return;
+function _requestDelete(target: ISavedGameFileEntry) {
+  confirmation = modal.open(ConfirmationModal, {
+    title: 'Delete this save?', subtitle: `“${target.saveName}” will be permanently removed from this game.`,
+    message: 'Other snapshots of this game will not be affected.', confirmLabel: 'Delete save', danger: true,
+    confirm: (signal) => _confirmDelete(target, signal),
+  });
+}
+async function _confirmDelete(target: ISavedGameFileEntry, signal: AbortSignal) {
+  signal.throwIfAborted();
   await _run(async () => {
-    deleteTarget.value = undefined;
-    try {
-      await savedGamesStore.deleteSave(target.gameId, target.saveName);
-    } finally {
-      await _refreshGroups();
-      if (route.name === 'load-game' && !groups.value.some((group) => group.gameId === routeGameId.value)) await router.replace('/saved-games/load');
+    try { await savedGamesStore.deleteSave(target.gameId, target.saveName); } finally {
+      if (!signal.aborted) {
+        await _refreshGroups();
+        if (!signal.aborted && route.name === 'load-game' && !groups.value.some((group) => group.gameId === routeGameId.value)) await router.replace('/saved-games/load');
+      }
     }
   });
 }
@@ -183,7 +208,7 @@ async function _run(action: () => Promise<void>, importAction: boolean = false) 
     await action();
   } catch (error) {
     const text = error instanceof Error ? error.message : 'The action could not be completed.';
-    if (importAction) uiStateStore.showModal({ kind: AppModalKind.ImportError, payload: { message: text } });
+    if (importAction) modal.open(MessageModal, { title: 'Could not import game', subtitle: 'The selected document is unsupported or incomplete.', message: text, error: true });
     else errorMessage.value = text;
   } finally {
     isWorking.value = false;
@@ -213,7 +238,7 @@ function _formatDate(entry: ISavedGameFileEntry): string {
           <div class="save-list" aria-label="Saved snapshots">
             <template v-for="(entry, index) in orderedSaves" :key="entry.filePath">
               <div v-if="index > 0 && orderedSaves[index - 1]?.isAutosave && !entry.isAutosave" class="save-separator" role="separator">Named saves</div>
-              <article class="save-row" :class="{ selected: entry.saveName === selectedSaveName }"><span class="save-row__icon"><AppIcon :name="entry.isAutosave ? 'clock' : 'save'" /></span><button class="save-row__content" :aria-pressed="entry.saveName === selectedSaveName" @click="_selectSave(entry)" @dblclick="!isSaveMode && _loadGame(entry.gameId, entry.saveName)"><strong>{{ entry.isAutosave ? 'Automatic save' : entry.saveName }}</strong><small>{{ _formatDate(entry) }}</small></button><span v-if="entry.isAutosave" class="auto-badge">Auto</span><button class="icon-button icon-button--danger" title="Delete save" :disabled="isWorking" @click="deleteTarget = entry"><AppIcon name="trash" /></button><button v-if="!isSaveMode" class="text-button text-button--compact-mobile" :disabled="isWorking" @click="_loadGame(entry.gameId, entry.saveName)">Load</button></article>
+              <article class="save-row" :class="{ selected: entry.saveName === selectedSaveName }"><span class="save-row__icon"><AppIcon :name="entry.isAutosave ? 'clock' : 'save'" /></span><button class="save-row__content" :aria-pressed="entry.saveName === selectedSaveName" @click="_selectSave(entry)" @dblclick="!isSaveMode && _loadGame(entry.gameId, entry.saveName)"><strong>{{ entry.isAutosave ? 'Automatic save' : entry.saveName }}</strong><small>{{ _formatDate(entry) }}</small></button><span v-if="entry.isAutosave" class="auto-badge">Auto</span><button class="icon-button icon-button--danger" title="Delete save" :disabled="isWorking" @click="_requestDelete(entry)"><AppIcon name="trash" /></button><button v-if="!isSaveMode" class="text-button text-button--compact-mobile" :disabled="isWorking" @click="_loadGame(entry.gameId, entry.saveName)">Load</button></article>
             </template>
           </div>
           <aside class="snapshot-details" aria-label="Selected save details"><h2>{{ selectedEntry?.isAutosave ? 'Automatic save' : selectedEntry?.saveName }}</h2><p v-if="detailError" class="library-feedback--error">{{ detailError }}</p><template v-else-if="selectedDocument"><strong>{{ selectedDocument.metadata.name }}</strong><dl><dt>Saved</dt><dd>{{ selectedEntry && _formatDate(selectedEntry) }}</dd><dt>Position</dt><dd>{{ selectedDocument.renderedPath.length }} plies</dd><dt>White</dt><dd>{{ selectedDocument.whitePlayer?.displayName ?? 'Unassigned' }}</dd><dt>Black</dt><dd>{{ selectedDocument.blackPlayer?.displayName ?? 'Unassigned' }}</dd><dt>Clock</dt><dd>{{ selectedDocument.timeControl.initialMs === undefined ? 'Untimed' : `${selectedDocument.timeControl.initialMs / 60000} minutes + ${selectedDocument.timeControl.incrementMs / 1000} seconds` }}</dd><dt>Result</dt><dd>{{ selectedDocument.resultState }}{{ selectedDocument.resultReason ? ` (${selectedDocument.resultReason})` : '' }}</dd></dl></template><p v-else>Reading snapshot…</p></aside>
@@ -238,8 +263,6 @@ function _formatDate(entry: ISavedGameFileEntry): string {
         <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="_saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedEntry || isWorking" @click="selectedEntry && _loadGame(selectedEntry.gameId, selectedEntry.saveName)">Load selected</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && router.push(`/saved-games/load/${selectedGameId}`)">Select game<AppIcon name="arrow-right" /></button></footer>
       </section>
     </div>
-    <ModalDialog v-if="deleteTarget" title="Delete this save?" :subtitle="`“${deleteTarget.saveName}” will be permanently removed from this game.`" @dismissed="deleteTarget = undefined"><p class="delete-warning">Other snapshots of this game will not be affected.</p><template #actions><button class="text-button text-button--ghost" @click="deleteTarget = undefined">Cancel</button><button class="text-button text-button--danger" @click="_confirmDelete">Delete save</button></template></ModalDialog>
-    <ModalDialog v-if="overwriteTarget" title="Replace this save?" :subtitle="`“${overwriteTarget.saveName}” already exists for this game.`" :dismissible="!isWorking" @dismissed="overwriteTarget = undefined"><p class="delete-warning">Replacing it will overwrite the existing snapshot with the current game.</p><p v-if="errorMessage" class="library-feedback--error" role="alert">{{ errorMessage }}</p><template #actions><button class="text-button text-button--ghost" :disabled="isWorking" @click="overwriteTarget = undefined">Cancel</button><button class="text-button text-button--danger" :disabled="isWorking" @click="_confirmOverwrite">Replace save</button></template></ModalDialog>
   </main>
 </template>
 

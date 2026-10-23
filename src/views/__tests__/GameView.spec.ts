@@ -3,14 +3,12 @@ import { nextTick, reactive } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  AppModalKind,
   EngineAvailability,
   GameState,
   PauseReason,
   PlayerColour,
   ResultState,
   TimeControlPreset,
-  type IAppModalState,
   type IGame,
   type ISettingsSnapshot,
 } from '@/contracts';
@@ -18,6 +16,9 @@ import { createAnalysisSeat, createClockSnapshot, createGame, createGameSessionS
 import { createInitialBoardPosition, toDetailedMove } from '@/utility/chess';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
 import GameView from '../GameView.vue';
+import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
+import type { ModalProps } from '@/composables/ModalComposable';
+import GameCreationModal from '@/components/modals/GameCreationModal.vue';
 import { ClockTimestamp } from '@/utility/date';
 
 interface ITestDependency {
@@ -40,13 +41,12 @@ interface ITestDependency {
   uiStateStore: {
     gameSession: ReturnType<typeof createGameSessionSnapshot>;
     layoutState: ReturnType<typeof createUiLayoutState>;
-    modalState?: IAppModalState;
-    showModal: (modal: IAppModalState, onClosed?: () => Promise<void> | void) => void;
-    hideModal: () => Promise<void>;
   };
 }
 
 const dependency = vi.hoisted(() => ({})) as ITestDependency;
+const modal = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('@/composables/ModalComposable', () => ({ useModal: () => modal }));
 vi.mock('vue-router', () => ({
   useRoute: () => dependency.route,
   useRouter: () => dependency.router,
@@ -61,7 +61,7 @@ vi.mock('@/state', () => ({
 
 const wrappers: VueWrapper[] = [];
 const routeUpdates: Array<(to: { params: { id: string } }) => unknown> = [];
-let modalClosed: (() => Promise<void> | void) | undefined;
+let closeModal: () => Promise<void>;
 let games: Map<string, IGame>;
 async function _selectRoute(id: string) {
   for (const update of routeUpdates) await update({ params: { id } });
@@ -105,7 +105,11 @@ describe('GameView menu interruptions', () => {
     vi.useFakeTimers();
     games = new Map();
     routeUpdates.splice(0);
-    modalClosed = undefined;
+    modal.open.mockReset().mockImplementation((_component: unknown, _props: unknown, onClosed?: () => Promise<void> | void) => {
+      const controller = new AbortController();
+      closeModal = async () => { controller.abort(); await onClosed?.(); };
+      return { signal: controller.signal, close: closeModal };
+    });
     dependency.route = reactive({ params: { id: 'game-1' } });
     dependency.router = { push: vi.fn(async () => undefined), replace: vi.fn(async () => undefined) };
     dependency.gamesStore = reactive({
@@ -131,17 +135,6 @@ describe('GameView menu interruptions', () => {
     dependency.uiStateStore = reactive({
       gameSession: createGameSessionSnapshot(),
       layoutState: createUiLayoutState(),
-      modalState: undefined,
-      showModal: vi.fn((modal: IAppModalState, onClosed?: () => Promise<void> | void) => {
-        dependency.uiStateStore.modalState = modal;
-        modalClosed = onClosed;
-      }),
-      hideModal: vi.fn(async () => {
-        dependency.uiStateStore.modalState = undefined;
-        const closed = modalClosed;
-        modalClosed = undefined;
-        await closed?.();
-      }),
     });
   });
   afterEach(() => {
@@ -197,9 +190,29 @@ describe('GameView menu interruptions', () => {
     wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', move);
     await flushPromises();
     move.to = 0;
-    await wrapper.findAll('button').find((button) => button.text() === 'Continue game')!.trigger('click');
+    const props = modal.open.mock.lastCall![1] as ModalProps<typeof ConfirmationModal>;
+    await props.confirm(new AbortController().signal);
     await flushPromises();
     expect(dependency.gamesStore.makeMove).toHaveBeenCalledExactlyOnceWith(game, { from: 11, to: 27 });
+  });
+  it.each([GameState.PausedBlackTurn, GameState.LiveAnalysisFromBlackTurnWhiteMove])('rejects a retained continuation after changing to %s', async (state) => {
+    const game = _createTimedGame();
+    game.rootPosition = createInitialBoardPosition();
+    MoveHistoryService.addMainlineMove(game.moveTree.root, toDetailedMove(game.rootPosition, { from: 12, to: 28 }));
+    game.livePath = [0];
+    game.renderedPath = [];
+    game.gameState = GameState.LiveBlackTurn;
+    game.gameplayOptions.allowTakeback = true;
+    const wrapper = _mountView(game);
+    await flushPromises();
+    wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', { from: 11, to: 27 });
+    await flushPromises();
+    const props = modal.open.mock.lastCall![1] as ModalProps<typeof ConfirmationModal>;
+    game.gameState = state;
+    dependency.gamesStore.workspaceRevision += 1;
+    await nextTick();
+    await props.confirm(new AbortController().signal);
+    expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
   });
   it('requires explicit analysis for history exploration without inventing a control mode', async () => {
     const game = _createTimedGame();
@@ -228,7 +241,7 @@ describe('GameView menu interruptions', () => {
     expect(wrapper.getComponent({ name: 'Chessboard' }).props('inputDisabled')).toBe(false);
     wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', toDetailedMove(game.rootPosition, { from: 11, to: 27 }));
     await flushPromises();
-    expect(wrapper.findComponent({ name: 'ModalDialog' }).exists()).toBe(true);
+    expect(modal.open).toHaveBeenCalledWith(ConfirmationModal, expect.objectContaining({ title: 'Continue from this position?' }));
     expect(dependency.gamesStore.makeMove).not.toHaveBeenCalled();
   });
   it('exposes paused Analyse and Exit while retaining Resume and independent exploratory input', async () => {
@@ -265,7 +278,7 @@ describe('GameView menu interruptions', () => {
     await flushPromises();
     wrapper.getComponent({ name: 'Chessboard' }).vm.$emit('moveAttempted', toDetailedMove(game.rootPosition, { from: 11, to: 27 }));
     await flushPromises();
-    expect(wrapper.findComponent({ name: 'ModalDialog' }).exists()).toBe(false);
+    expect(modal.open).not.toHaveBeenCalled();
     expect(dependency.gamesStore.makeMove).toHaveBeenCalledOnce();
   });
   it('replaces the board input owner when entering analysis at the same canonical node', async () => {
@@ -457,10 +470,10 @@ describe('GameView menu interruptions', () => {
 
     wrapper.getComponent({ name: 'MenuBar' }).vm.$emit('customNewGameRequested');
     await flushPromises();
-    expect(dependency.uiStateStore.modalState?.kind).toBe(AppModalKind.NewGame);
+    expect(modal.open).toHaveBeenCalledWith(GameCreationModal, {}, expect.any(Function));
     expect(dependency.gamesStore.pauseGame).toHaveBeenCalledWith(game, PauseReason.Menu);
 
-    dependency.uiStateStore.hideModal();
+    await closeModal();
     await flushPromises();
     expect(dependency.gamesStore.resumeGame).toHaveBeenCalledWith(game, PauseReason.Menu);
   });
@@ -474,7 +487,7 @@ describe('GameView menu interruptions', () => {
     wrapper.getComponent({ name: 'MenuBar' }).vm.$emit('customNewGameRequested');
     await flushPromises();
     await _selectRoute(newGame.metadata.id);
-    dependency.uiStateStore.hideModal();
+    await closeModal();
     await flushPromises();
     expect(dependency.gamesStore.resumeGame).not.toHaveBeenCalledWith(interruptedGame, PauseReason.Menu);
 

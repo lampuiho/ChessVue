@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, toRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, toRef } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import {
-  AppModalKind,
-  BoardEditBlockedReason,
   BoardOrientation,
   DrawOfferDirection,
   GameState,
@@ -16,7 +14,6 @@ import {
   type IBoardPosition,
   type ICapturedPieceGroup,
   type ICreateGameRequest,
-  type IEnginePlayer,
   type IGame,
   type IMoveRaw,
   type IMoveNode,
@@ -27,6 +24,13 @@ import { buildFen, isMoveLegal, toDetailedMove } from '@/utility/chess';
 import { OperationOwner } from '@/utility/async/OperationOwner';
 import { abortableDelay } from '@/utility/async/Abortable';
 import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
+import { useModal, type IModalHandle } from '@/composables/ModalComposable';
+import GameCreationModal from '@/components/modals/GameCreationModal.vue';
+import PlayerSelectionModal from '@/components/modals/PlayerSelectionModal.vue';
+import AnalysisEngineSelectionModal from '@/components/modals/AnalysisEngineSelectionModal.vue';
+import DrawResponseModal from '@/components/modals/DrawResponseModal.vue';
+import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
+import MessageModal from '@/components/modals/MessageModal.vue';
 import MenuBar from '@/components/MenuBar.vue';
 import GameTabs from '@/components/GameTabs.vue';
 import Chessboard from '@/components/Chessboard.vue';
@@ -35,9 +39,9 @@ import HistoryPanel from '@/components/HistoryPanel.vue';
 import AnalysisPanel from '@/components/AnalysisPanel.vue';
 import GameControlPanel from '@/components/GameControlPanel.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
-import ModalDialog from '@/components/common/ModalDialog.vue';
 
 interface IRenderedBoard { game: IGame; node: IMoveNode; position: IBoardPosition; analysis: boolean; inputAllowed: boolean; ongoing: boolean; boardEdit: boolean; }
+const modal = useModal();
 const route = useRoute();
 const router = useRouter();
 const gamesStore = useGamesStore();
@@ -46,7 +50,8 @@ const uiStateStore = useUiStateStore();
 const now = ref(Date.now());
 const notice = ref('');
 const isPlayingLine = ref(false);
-const pendingContinuation = shallowRef<{ game: IGame; node: IMoveNode; moves: readonly IMoveRaw[] }>();
+interface IContinuation { game: IGame; node: IMoveNode; moves: readonly IMoveRaw[]; }
+let continuation: IModalHandle | undefined;
 const playback = new OperationOwner();
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined;
@@ -173,9 +178,10 @@ onMounted(() => {
   }, 250);
 });
 onBeforeRouteUpdate((to) => _activateGame(String(to.params.id)));
-onBeforeRouteLeave(() => playback.cancel());
+onBeforeRouteLeave(() => { _closeContinuation(); return playback.cancel(); });
 const disposeAutosaveNotice = gamesStore.onAutosaveFailed((message) => _showNotice(`Automatic save failed: ${message}`));
 onBeforeUnmount(() => {
+  _closeContinuation();
   void playback.dispose();
   disposeAutosaveNotice();
   if (clockTimer) clearInterval(clockTimer);
@@ -183,7 +189,7 @@ onBeforeUnmount(() => {
 });
 async function _activateGame(id: string) {
   await playback.cancel();
-  pendingContinuation.value = undefined;
+  _closeContinuation();
   now.value = Date.now();
   const selected = gamesStore.getGame(id) as IGame | undefined;
   if (selected) return _handleMenuInterruptionCompleted(selected);
@@ -201,7 +207,7 @@ async function _reconcileTimeout() {
   if (game.value !== currentGame || runtime.timeoutNotificationShown) return;
   if (currentGame.resultReason !== ResultReason.Timeout) return;
   runtime.timeoutNotificationShown = true;
-  uiStateStore.showModal({ kind: AppModalKind.Timeout, payload: { gameId: currentGame.metadata.id, resultState: currentGame.resultState as Exclude<ResultState, ResultState.Ongoing>, resultReason: ResultReason.Timeout } });
+  modal.open(MessageModal, { title: 'Time has expired', subtitle: 'The game is finished, but the position remains available for review.', message: `${currentGame.resultState === ResultState.WhiteWon ? 'White wins' : 'Black wins'} on time.`, closeLabel: 'Review game' });
 }
 async function _quickNewGame() {
   const defaults = settings.value?.gameDefaults;
@@ -234,7 +240,7 @@ async function _handleMenuInterruptionCompleted(currentGame = game.value) {
 }
 function _openCustomGame() {
   const interrupted = game.value;
-  return _handleMenuInterruptionRequested(() => uiStateStore.showModal({ kind: AppModalKind.NewGame }, () => {
+  return _handleMenuInterruptionRequested(() => modal.open(GameCreationModal, {}, () => {
     if (game.value === interrupted) return _handleMenuInterruptionCompleted(interrupted);
   }));
 }
@@ -254,7 +260,7 @@ async function _runInputAction(owner: IRenderedBoard | undefined, action: (curre
   if (!owner || renderedBoard.value !== owner) return;
   await playback.cancel();
   if (renderedBoard.value !== owner) return;
-  pendingContinuation.value = undefined;
+  _closeContinuation();
   await _run(() => action(owner.game));
 }
 async function _navigateToNode(node: IMoveNode) {
@@ -262,7 +268,7 @@ async function _navigateToNode(node: IMoveNode) {
   if (!currentGame) return;
   await playback.cancel();
   if (game.value !== currentGame) return;
-  pendingContinuation.value = undefined;
+  _closeContinuation();
   await _run(() => gamesStore.navigateToNode(currentGame, node));
 }
 async function _returnToLivePosition() {
@@ -285,14 +291,22 @@ async function _requestMoves(moves: readonly IMoveRaw[]) {
   const livePath = currentGame.livePath;
   const historical = livePath && currentGame.renderedPath.length < livePath.length && currentGame.renderedPath.every((part, index) => part === livePath[index]);
   if (historical && !isInGameAnalysis.value && currentGame.resultState === ResultState.Ongoing && currentGame.gameplayOptions.allowTakeback) {
-    pendingContinuation.value = { game: currentGame, node: renderedNode.value!, moves: ownedMoves };
+    const pending = { game: currentGame, node: renderedNode.value!, moves: ownedMoves };
+    continuation = modal.open(ConfirmationModal, {
+      title: 'Continue from this position?', subtitle: 'This changes the played line. The previous continuation will remain as a variation.',
+      confirmLabel: 'Continue game', confirm: (signal) => _confirmContinuation(pending, signal),
+    });
     return;
   }
   await _run(() => _applyMoves(currentGame, ownedMoves));
 }
-async function _confirmContinuation() {
-  const pending = pendingContinuation.value;
-  pendingContinuation.value = undefined;
+function _closeContinuation() {
+  const current = continuation;
+  continuation = undefined;
+  void current?.close();
+}
+async function _confirmContinuation(pending: IContinuation, signal: AbortSignal) {
+  if (signal.aborted) return;
   if (!pending || game.value !== pending.game || renderedNode.value !== pending.node || isInGameAnalysis.value
     || pending.game.resultState !== ResultState.Ongoing || pending.game.gameState.startsWith('paused') || !pending.game.gameplayOptions.allowTakeback) return;
   await _run(() => _applyMoves(pending.game, pending.moves));
@@ -329,7 +343,7 @@ async function _toggleBoardEdit() {
   const currentGame = game.value;
   if (!currentGame) return;
   if (isInGameAnalysis.value) {
-    uiStateStore.showModal({ kind: AppModalKind.BoardEditBlocked, payload: { gameId: currentGame.metadata.id, reason: BoardEditBlockedReason.InGameAnalysis } });
+    modal.open(MessageModal, { title: 'Board editing is unavailable', subtitle: 'Finish in-game analysis before changing the position.', message: 'Board editing is only available in a free analysis workspace.', closeLabel: 'Understood' });
     return;
   }
   await _run(async () => gamesStore.enterBoardEdit(currentGame));
@@ -340,19 +354,43 @@ async function _handleDraw() {
   if (currentGame.drawOfferState?.direction === DrawOfferDirection.Incoming) return _run(() => gamesStore.acceptDrawOffer(currentGame));
   if (currentGame.drawOfferState?.direction === DrawOfferDirection.Outgoing) return _run(() => gamesStore.withdrawDrawOffer(currentGame));
   const isLocalGame = currentGame.whitePlayer?.type === PlayerType.Local && currentGame.blackPlayer?.type === PlayerType.Local;
-  if (isLocalGame) uiStateStore.showModal({ kind: AppModalKind.DrawOffer, payload: { gameId: currentGame.metadata.id, offeringColour: livePosition.value?.sideToMove ?? position.value.sideToMove } });
-  else await _run(() => gamesStore.offerDraw(currentGame));
+  if (isLocalGame) {
+    const offeringColour = livePosition.value?.sideToMove ?? position.value.sideToMove;
+    modal.open(ConfirmationModal, {
+      title: 'Offer a draw?', subtitle: 'The other side will be asked to accept or decline.',
+      message: `Offer a draw from the ${offeringColour} side.`, confirmLabel: 'Offer draw',
+      confirm: (signal) => _offerDraw(currentGame, offeringColour, signal),
+    });
+  } else await _run(() => gamesStore.offerDraw(currentGame));
+}
+async function _offerDraw(currentGame: IGame, offeringColour: PlayerColour, signal: AbortSignal) {
+  await gamesStore.offerDraw(currentGame);
+  signal.throwIfAborted();
+  modal.open(DrawResponseModal, { gameId: currentGame.metadata.id, respondingColour: offeringColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White });
+}
+function _requestSetupStart() {
+  if (game.value) modal.open(GameCreationModal, { gameId: game.value.metadata.id });
+}
+function _requestResignation() {
+  const currentGame = game.value;
+  const colour = livePosition.value?.sideToMove ?? position.value?.sideToMove;
+  if (!currentGame || !colour) return;
+  modal.open(ConfirmationModal, {
+    title: 'Resign this game?', subtitle: 'This records the game as finished. You can still review the position afterwards.',
+    message: `Confirm that ${colour} resigns.`, confirmLabel: 'Resign', danger: true,
+    confirm: () => gamesStore.resignGame(currentGame, colour),
+  });
 }
 function _requestPlayerSelection(colour: PlayerColour) {
   const currentGame = game.value;
   if (!currentGame || controlMode.value === 'boardEdit') return;
   const player = colour === PlayerColour.White ? currentGame.whitePlayer : currentGame.blackPlayer;
-  uiStateStore.showModal({ kind: AppModalKind.PlayerSelection, payload: { gameId: currentGame.metadata.id, colour, currentPlayerType: player?.type, currentAssignedEngine: player?.type === PlayerType.Engine ? (player as IEnginePlayer).assignedEngine : undefined } });
+  modal.open(PlayerSelectionModal, { gameId: currentGame.metadata.id, colour, currentPlayer: player });
 }
 function _requestAnalysisEngine() {
   const currentGame = game.value;
   if (!currentGame) return;
-  uiStateStore.showModal({ kind: AppModalKind.AnalysisEngineSelection, payload: { gameId: currentGame.metadata.id, currentAnalysisEngines: currentGame.analysis.seats.map((seat) => seat.assignedEngine) } });
+  modal.open(AnalysisEngineSelectionModal, { gameId: currentGame.metadata.id, currentAnalysisEngines: currentGame.analysis.seats.map((seat) => seat.assignedEngine) });
 }
 function _toggleSection(section: 'history' | 'analysis') {
   uiStateStore.setSectionCollapsed(section);
@@ -426,8 +464,7 @@ async function _run(action: () => Promise<void> | void) {
         <aside class="game-sidebar surface">
           <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? (livePosition?.sideToMove ?? position.sideToMove) + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
           <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :revision="gamesStore.workspaceRevision" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="isHistoryInputDisabled" @collapse-toggled="_toggleSection('history')" @node-selected="_navigateToNode" @return-to-live-requested="_returnToLivePosition" />
-          <AnalysisPanel
-            v-if="layout?.showAnalysisPanel"
+          <AnalysisPanel v-if="layout?.showAnalysisPanel"
             :seats="analysisSeats"
             :collapsed="layout.analysisCollapsed"
             :expanded-by-index="layout.analysisEngineExpandedByIndex"
@@ -457,17 +494,14 @@ async function _run(action: () => Promise<void> | void) {
             @analysis-requested="inputActions.analyse"
             @exit-analysis-requested="inputActions.exit"
             @board-edit-requested="_toggleBoardEdit"
-            @start-game-requested="uiStateStore.showModal({ kind: AppModalKind.StartGameFromSetup, payload: { gameId: game.metadata.id } })"
-            @resign-requested="uiStateStore.showModal({ kind: AppModalKind.Resign, payload: { gameId: game.metadata.id, colour: livePosition?.sideToMove ?? position.sideToMove } })"
+            @start-game-requested="_requestSetupStart()"
+            @resign-requested="_requestResignation()"
             @draw-requested="_handleDraw"
           />
         </aside>
       </div>
     </div>
     <div v-if="notice" class="toast"><AppIcon name="info" />{{ notice }}</div>
-    <ModalDialog v-if="pendingContinuation" title="Continue from this position?" subtitle="This changes the played line. The previous continuation will remain as a variation." @dismissed="pendingContinuation = undefined">
-      <template #actions><button class="text-button" @click="pendingContinuation = undefined">Cancel</button><button class="text-button text-button--primary" @click="_confirmContinuation">Continue game</button></template>
-    </ModalDialog>
   </main>
 </template>
 

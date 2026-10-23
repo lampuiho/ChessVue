@@ -1,3 +1,4 @@
+import { expectTheme } from '../../support/Appearance';
 import { test, expect } from './SettingsTest';
 import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
 import { playMove, square } from '../../support/BoardInteraction';
@@ -11,9 +12,9 @@ for (const orientation of ['white', 'black']) {
     await page.getByLabel('Orientation', { exact: true }).selectOption(orientation);
     await setSettingToggle(page, 'Coordinates', false);
     await setSettingToggle(page, 'Last move highlight', false);
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expectTheme(page, 'dark');
     await applySettings(page);
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expectTheme(page, 'light');
     await returnToGame(page);
     await expect(page.locator('.board-square').first()).toHaveAttribute('aria-label', new RegExp('^' + (orientation === 'white' ? 'a8' : 'h1')));
     await expect(page.locator('.coordinate, .board-square--last')).toHaveCount(0);
@@ -25,7 +26,7 @@ for (const orientation of ['white', 'black']) {
     expect(game.livePath).toHaveLength(3);
     await page.reload();
     await waitForJourney(page);
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expectTheme(page, 'light');
     await expect(page.locator('.coordinate, .board-square--last')).toHaveCount(0);
     await expect(square(page, 'f3').locator('.chess-piece')).toHaveCount(1);
     await openSettings(page, 'Appearance');
@@ -37,7 +38,7 @@ for (const orientation of ['white', 'black']) {
     await expect(page.locator('.board-square--last')).toHaveCount(2);
   });
 }
-for (const mode of ['system', 'light', 'dark']) {
+for (const mode of ['system', 'light', 'dark'] as const) {
   test(`JRN-SETTINGS-02 responds to host changes in ${mode} mode after repeated navigation`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await openJourney(page, 'settings');
@@ -50,7 +51,8 @@ for (const mode of ['system', 'light', 'dark']) {
       await openSettings(page, 'Appearance');
       for (const host of ['dark', 'light'] as const) {
         await page.emulateMedia({ colorScheme: host });
-        await expect(page.locator('html')).toHaveAttribute('data-theme', mode === 'system' ? host : mode);
+        await expect(page.locator('html')).toHaveAttribute('data-theme-mode', mode);
+        await expectTheme(page, mode === 'system' ? host : mode);
         expect(await acceptedSettings(page)).toEqual(before);
       }
     }

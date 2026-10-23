@@ -33,7 +33,7 @@ export async function applyAppearance(page: Page, scale: number, theme: string, 
   const apply = page.getByRole('button', { name: 'Apply changes', exact: true });
   if (await apply.isEnabled()) await apply.click();
   await expect(page.locator('html')).toHaveCSS('font-size', `${16 * scale / 100}px`);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+  await expect(page.locator('html')).toHaveAttribute('data-theme-mode', theme);
   await expectReachable(page, page.getByRole('button', { name: 'Back to game', exact: true }));
   await page.getByRole('button', { name: 'Back to game', exact: true }).click();
 }

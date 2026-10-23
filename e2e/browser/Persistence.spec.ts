@@ -1,3 +1,4 @@
+import { expectTheme } from '../support/Appearance';
 import { test, expect } from './BrowserTest';
 import type { IGameSessionSnapshot, ISettingsSnapshot } from '../../src/contracts';
 import { createGame, expectCanonical, exportGame, playOpening, saveNamedGame } from './BrowserAction';
@@ -29,7 +30,7 @@ test('JRN-BROWSER-01 preserves canonical game session and appearance after reloa
   const reopened = await context.newPage();
   await reopened.goto('/');
   await expect(reopened).toHaveURL(url);
-  await expect(reopened.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expectTheme(reopened, 'dark');
   await expect(reopened.locator('.board-square').first()).toHaveAttribute('aria-label', /^h1 /);
   await expect(reopened.locator('.history-row')).toHaveCount(1);
   expectCanonical(await exportGame(reopened), original);
