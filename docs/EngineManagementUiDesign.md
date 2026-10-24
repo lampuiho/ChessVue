@@ -2,6 +2,8 @@
 
 Proposed on 23 October 2026; revised on 24 October 2026 for the [engine rework](EngineInstallationReworkPlan.md). Status: design. The [clickable prototype](design/EngineManagement.html) uses sample data and simulated file picking, package reads and imports. It does not implement real engine loading.
 
+The rework's [implementation boundary](EngineInstallationReworkPlan.md#implementation-boundary) applies here: change only explicitly specified UI/integration behaviour and preserve everything unmentioned. EngineRuntimeService keeps its existing APIs and lifecycle; calls from these views do not authorise runtime changes.
+
 Open the HTML file in a browser. Documentation-only preview controls select desktop/browser, ready/missing/empty/invalid-archive states and light/dark/system appearance.
 
 Review the [profile editor](design/EngineManagementPackage.png), [package import](design/EngineManagementInstall.png), [narrow editor](design/EngineManagementMobile.png) and [dark editor](design/EngineManagementDark.png) alongside the clickable prototype.
@@ -58,7 +60,7 @@ The documentation prototype uses the installed Vue and Vue Router, with distinct
 
 Desktop shows Engine profiles and Analysis behaviour. Profiles point to executables or the actual entry files inside browser engine packages. There is no desktop installed-engine catalogue, registration or Install engine action. Browse opens the ordinary file dialog for the executable/script; the interface is chosen separately in the profile form.
 
-Browser adds Installed browser engines above those sections. `EnginesStore.loadPackages()` owns folder discovery through `EnginePackageService`. These are proposed generic package APIs on both hosts; results use IEnginePackage. Choosing a stored file updates the local entryPath directly. Browse calls the proposed browseEngineFile(startDirectory?) action, which returns the chosen executable/script path through the existing platform file dialog. Show optional import controls from canInstallPackages(), without host-specific store/service calls. Display the folder name as the engine name. There is no separate version or upstream name/version lookup. Do not require or generate loading manifests, catalogue rows or remembered-entry metadata. A folder's presence does not prove which script is its entry.
+Browser adds Installed browser engines above those sections. `EnginesStore.loadPackages()` owns folder discovery through `EnginePackageService`. The service owns browser package storage directly through IndexedDB; no package platform interface or desktop storage implementation is added. Bundled filenames come from the app build asset definition. These are proposed generic package APIs on both hosts; results use IEnginePackage. Choosing a stored file updates the local entryPath directly. Browse calls the proposed browseEngineFile(startDirectory?) action, which returns the chosen executable/script path through the existing platform file dialog. Show optional import controls from canInstallPackages(), without host-specific store/service calls. Display the folder name as the engine name. There is no separate version or upstream name/version lookup. Do not require or generate loading manifests, catalogue rows or remembered-entry metadata. A folder's presence does not prove which script is its entry.
 
 ```text
 DESKTOP / Settings / Engines
@@ -177,7 +179,7 @@ Create a profile after import to select its entry and interface.
 | Failure | Specific archive/path/storage error, Retry or another selection; no partially listed folder |
 | Files saved, refresh failed | Explain that installation completed; offer Refresh/Retry discovery instead of claiming the import rolled back |
 
-Validate Engine name using the [folder-name rules](EngineInstallationReworkPlan.md#installed-engine-names), including invalid characters and uniqueness. The folder and displayed engine name are identical; a user may include a version in that name. Repeat validation at the service/write boundary and reject collisions without overwriting files. ZIP selection/decoding is independent of this input, so editing the name does not require decoding again. This is the package installation name, not a profile label.
+The frontend owns both name-format and uniqueness validation using the [folder-name rules](EngineInstallationReworkPlan.md#installed-engine-names) and its already loaded engine list, including the bundled folder. It owns inline errors/Install eligibility. The folder and displayed engine name are identical; a user may include a version in that name. Store and service calls receive the validated name without repeating either check. ZIP selection/decoding is independent of this input, so editing the name does not require decoding again. This is the package installation name, not a profile label.
 
 Import stores package files without an entry/interface choice or engine execution. Entry and interface belong to the separate profile form. Engine startup and errors use the existing runtime when that profile is used.
 
@@ -219,24 +221,49 @@ At 760px use compact navigation; stack row actions, wrap paths and keep forms/ac
 
 Each table header names the caller and rows name its direct calls. Navigation goes through the router; no show/close editor operation swaps a Settings panel.
 
+The underscore-prefixed view actions/callbacks are local to their component setup, not exposed component APIs. Framework hooks invoke the loading and navigation callbacks:
+
+| `EngineProfileView setup` |
+| --- |
+| `onMounted(_load)` |
+
+| `EnginePackageDetailsView setup` |
+| --- |
+| `onMounted(_load)` |
+
+| `EnginePackageImportView setup` |
+| --- |
+| `onBeforeRouteLeave(_beforeRouteLeave)` |
+| `onBeforeRouteUpdate(_beforeRouteUpdate)` |
+
+SettingsView's mount/category route-update handler explicitly invokes _loadEnginePackages for the engines category. It stays mounted across child routes; no watcher is added.
+
+New profile branch:
+
+| `SettingsView._openEngineEditor()` |
+| --- |
+| `Router.push({ name: 'engine-profile-new', params: { category: 'engines' } })` |
+
+Edit branch:
+
 | `SettingsView._openEngineEditor(profile)` |
 | --- |
-| `Router.push(profile ? editRoute(profile.id) : newProfileRoute)` |
+| `Router.push({ name: 'engine-profile-edit', params: { category: 'engines', profileId: profile.id } })` |
 
 | `SettingsView._copyEngine(profile)` |
 | --- |
-| `Router.push(copyRoute(profile.id))` |
+| `Router.push({ name: 'engine-profile-copy', params: { category: 'engines', profileId: profile.id } })` |
 
 RouterView mounts EngineProfileView for that route. The new/edit/copy mode and profile id come from the route. It copies the selected Settings draft fields/options locally, without launching an engine.
 
-| `EngineProfileView.load()` |
+| `EngineProfileView._load()` |
 | --- |
 | `SettingsStore.loadSettings()` |
 | `EnginesStore.loadPackages()` |
 
 Read listPackages for stored-file choices and getPackage for an optional folder hint. A direct profile URL must initialise this data itself; it cannot depend on the overview having run first. Package discovery failure offers Retry while keeping the profile form/selected path editable.
 
-| `SettingsView.loadEnginePackages()` |
+| `SettingsView._loadEnginePackages()` |
 | --- |
 | `EnginesStore.loadPackages()` |
 | `EnginesStore.listPackages()` |
@@ -268,41 +295,43 @@ For a stored package, choose from IEnginePackage.files and update the local fiel
 
 | `EngineProfileView._saveEngine()` |
 | --- |
-| `Router.replace(engineOverviewRoute)` |
+| `Router.replace({ name: 'settings', params: { category: 'engines' } })` |
 
 Keep name validation and write the captured record into the Settings draft before navigation. No Apply or runtime call is added.
 
 | `EngineProfileView._cancel()` |
 | --- |
-| `Router.push(engineOverviewRoute)` |
+| `Router.push({ name: 'settings', params: { category: 'engines' } })` |
 
 Browser Back/Forward instead uses router history. Unmount discards the local form; it does not reset the Settings draft.
 
 | `SettingsView._openPackageImport()` |
 | --- |
-| `Router.push(importRoute)` |
+| `Router.push({ name: 'engine-package-import', params: { category: 'engines' } })` |
 
 | `EnginePackageImportView._chooseArchive(file)` |
 | --- |
 | `EnginePackageImportView._settleFileAction()` |
-| `File.arrayBuffer()` |
+| `file.arrayBuffer()` |
+| `new Uint8Array(buffer)` |
 | `EnginesStore.readArchive({ path: file.name, data }, signal)` |
 
-The view captures original bytes under its owned file action, checking cancellation after File.arrayBuffer settles. The store/service receive IEnginePackageFile, never the DOM File or a document-import token. readArchive returns a decoded review and writes nothing.
+The view captures original bytes under its owned file action, checking cancellation after file.arrayBuffer settles. The store/service receive IEnginePackageFile, never the DOM File or a document-import token. readArchive returns a decoded review and writes nothing.
 
 | `EnginePackageImportView._install()` |
 | --- |
+| `EnginePackageImportView._validateEngineName(engineName)` |
 | `EnginesStore.installPackage(engineName, archive, signal)` |
 
-The view supplies the current Engine name separately from the decoded archive. installPackage returns the installed packagePath for the success page's Create profile link; it creates no profile or catalogue record. It awaits the file transaction and subsequent discovery; distinguish a failed write from failed discovery after the files were saved.
+The private frontend helper validates both name format and uniqueness against the loaded list, supplies the name field's error/eligibility and stops submission when invalid or duplicated. The view supplies its validated Engine name separately from the decoded archive. installPackage returns the installed packagePath for the success page's Create profile link; it creates no profile or catalogue record. It awaits the file transaction and subsequent discovery; distinguish a failed write from failed discovery after the files were saved.
 
 The included engine is already served from app files and has no import/restore action.
 
-| `EnginePackageImportView.onBeforeRouteLeave(to, from)` |
+| `EnginePackageImportView._beforeRouteLeave(to, from)` |
 | --- |
 | `EnginePackageImportView._settleFileAction()` |
 
-| `EnginePackageImportView.onBeforeRouteUpdate(to, from)` |
+| `EnginePackageImportView._beforeRouteUpdate(to, from)` |
 | --- |
 | `EnginePackageImportView._settleFileAction()` |
 
@@ -310,19 +339,32 @@ _settleFileAction aborts an owned read when still cancellable, then awaits the a
 
 | `EnginePackageImportView._createProfile()` |
 | --- |
-| `Router.push(newProfileRoute(packagePath))` |
+| `Router.push({ name: 'engine-profile-new', params: { category: 'engines' }, query: { packagePath } })` |
 
 Create profile uses the committed folder as a hint. The new routed form chooses its entry/interface separately and does not apply settings automatically.
 
 | `SettingsView._openPackageDetails(packagePath)` |
 | --- |
-| `Router.push(detailsRoute(packagePath))` |
+| `Router.push({ name: 'engine-package-details', params: { category: 'engines' }, query: { packagePath } })` |
 
-| `EnginePackageDetailsView.load()` |
+| `EnginePackageDetailsView._load()` |
 | --- |
 | `EnginesStore.loadPackages()` |
 | `EnginesStore.getPackage(packagePath)` |
 
 Missing folders remain a view state with a return link. No modal, registration record or engine launch is involved.
+
+| `EnginePackageDetailsView._removePackage()` |
+| --- |
+| `IModalController.open(ConfirmationModal, confirmationProps)` |
+
+The existing confirm prop receives the private _confirmRemovePackage callback, with dismissibleWhileWorking false. Opening/cancelling the confirmation performs no deletion. The modal awaits confirmed work and displays failures through its existing action handling.
+
+| `EnginePackageDetailsView._confirmRemovePackage(signal)` |
+| --- |
+| `signal.throwIfAborted()` |
+| `EnginesStore.removePackage(packagePath, _readReferences)` |
+
+The view's private _readReferences callback supplies current accepted/draft profiles and open-game assignments when queued removal starts. Removal remains owned until file deletion and discovery refresh settle; no new public cancellation API is added. The [removal flow](EngineInstallationReworkPlan.md#removing-stored-package-files) expands the store/service calls.
 
 Eight browser checks passed for actual RouterView mounting/unmounting, direct new/edit/copy URLs and reload, missing profiles, browser Back/Forward, Settings draft ownership, read cancellation, issued-write settlement, package routes and 390px/200% text layouts. Opening the static HTML file directly at an editor hash URL also passed. Four screenshots were refreshed. No page errors or engine Worker starts occurred. Report: test-results/EngineRouterDesignResults.json. Files and engines remain simulated; application implementation is stopped.
