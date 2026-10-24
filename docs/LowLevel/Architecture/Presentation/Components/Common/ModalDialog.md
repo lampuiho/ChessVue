@@ -13,7 +13,7 @@ Provide a reusable dialog shell for confirmation, form, and interruption flows.
 - `dismissed`
 
 ## Notes
-- `NewGameModal`, confirmation prompts, invalid-load errors, and blocked board-edit explanations should use the same dialog shell.
+- `GameCreationModal`, confirmation prompts, invalid-load errors, and blocked board-edit explanations should use the same dialog shell.
 - Exceptional runtime errors may also reuse this shell through `RuntimeErrorDialogMountUtility`, even though that path is not part of the ordinary typed shared-dialog matrix.
 - Feature components supply the actions slot using shared button classes.
 - Modal visibility remains transient UI state owned outside the dialog component.

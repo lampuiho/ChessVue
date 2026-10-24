@@ -142,7 +142,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 - Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received.
 - Process note: once the selected piece is merged into the move, `GamesStore.makeMove` simply follows the same context-specific commit path as `SCN-MOVE-01`. There is no pending-promotion state on the game model.
 - Requirement verification: `Pass`. Promotion remains explicit without introducing a special pending-move game state.
-- Journey verification: JRN-PROMO-01–05 cover both colours, every quiet/capture choice, gestures/orientation and promoted save/reload/takeback; see [the owned review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../JourneyImplementation.md#promotion-verification). JRN-RULE-01–06 add castling, en passant, king-safety rejection, timed rule-resolved draws and special-move restoration; see the [Rules review](../../../journeys/definitions/rules/ScenarioReview.md).
+- Journey verification: JRN-PROMO-01–05 cover both colours, every quiet/capture choice, gestures/orientation and promoted save/reload/takeback; see [the owned review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../ArchivedPlans/JourneyImplementation.md#promotion-verification). JRN-RULE-01–06 add castling, en passant, king-safety rejection, timed rule-resolved draws and special-move restoration; see the [Rules review](../../../journeys/definitions/rules/ScenarioReview.md).
 
 ### SCN-MOVE-04 - Premoves Through The Existing Turn Request
 
@@ -165,7 +165,7 @@ Persistence note: this document focuses on active-game mutation. When a flow nee
 | Chessboard right-click, touch tap on premoved piece, or Escape after clearing unfinished input -> `premovesCancelled` -> `inputActions.cancelPremoves` -> `GamesStore.clearPremoves` | Clear the reactive whole FIFO; leave actual play/turn/history alone. Analysis/history/paused boards do not offer cancellation; board-edit right-click retains deletion |
 | `_playAnalysisLine` off-turn -> canonical prefix parity + projected candidate match -> `_requestMoves([clickedMove])` | Append only a possible local-colour final entry; never append predicted opponent replies. Own-turn input uses the first entry; explicit/free/result analysis retains full-prefix playback |
 
-Changed seats, Takeback, confirmed history rewrite, setup/root replacement and terminal actions clear the queue at the accepted mutation after existing cleanup. Temporary navigation preserves it; explicit tab close clears it, store disposal clears/cancels resources, and hydration creates a fresh empty runtime. These boundaries and all 25 scenario cases are specified in the [implementation plan](../../PreMovePlan%28ToDo%29.md#function-flow).
+Changed seats, Takeback, confirmed history rewrite, setup/root replacement and terminal actions clear the queue at the accepted mutation after existing cleanup. Temporary navigation preserves it; explicit tab close clears it, store disposal clears/cancels resources, and hydration creates a fresh empty runtime. These boundaries and all 25 scenario cases are specified in the [implementation plan](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#function-flow).
 
 ## Engine-Controlled Turn
 
@@ -381,7 +381,7 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 ### SCN-TIME-02 - Pause and Resume Clocks
 
 #### Flow A - Pause
-| `GameControlPanel.pauseRequested` |
+| `GameControlPanel._setPaused(true)` |
 | --- |
 | `GamesStore.pauseGame` |
 | `GameClockComposable.pauseGame` |
@@ -394,7 +394,7 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 | `GameClockComposable.pauseGame` |
 
 #### Flow B - Resume
-| `GameControlPanel.resumeRequested` |
+| `GameControlPanel._setPaused(false)` |
 | --- |
 | `GamesStore.resumeGame` |
 
@@ -529,7 +529,7 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 ### SCN-CTRL-02 - Resign Game
 
 #### Flow
-| `GameControlPanel.resignRequested` |
+| `GameControlPanel._requestResignation` |
 | --- |
 | `useModal().open` |
 | `GamesStore.resignGame` |
@@ -554,7 +554,7 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 ### SCN-CTRL-03 - Draw Offer Flow
 
 #### Flow A - Local Versus Local Draw Offer
-| `GameControlPanel.drawRequested` |
+| `GameControlPanel._handleDraw` |
 | --- |
 | `useModal().open` |
 | `GamesStore.offerDraw` |
@@ -576,7 +576,7 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 | `GameStatusComposable.assertNotPausedForAction` |
 
 #### Flow B - Send A Draw Offer To A Non-Local Opponent
-| `GameControlPanel.drawRequested` |
+| `GameControlPanel._handleDraw` |
 | --- |
 | `GamesStore.offerDraw` |
 | `SavedGamesStore.saveGame` |
@@ -592,7 +592,7 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 | `SerializationService.writeGameDocument` |
 
 #### Flow C - Accept An Incoming Non-Local Offer
-| `GameControlPanel.drawRequested` |
+| `GameControlPanel._handleDraw` |
 | --- |
 | `GamesStore.acceptDrawOffer` |
 | `SavedGamesStore.saveGame` |
@@ -608,7 +608,7 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 | `SerializationService.writeGameDocument` |
 
 #### Flow D - Withdraw An Outgoing Non-Local Offer
-| `GameControlPanel.drawRequested` |
+| `GameControlPanel._handleDraw` |
 | --- |
 | `GamesStore.withdrawDrawOffer` |
 | `SavedGamesStore.saveGame` |
@@ -645,18 +645,16 @@ Changed seats, Takeback, confirmed history rewrite, setup/root replacement and t
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
 
 #### Flow A - Blocked Attempt
-| `GameControlPanel.boardEditRequested` |
+| `GameControlPanel._toggleBoardEdit` |
 | --- |
-| `GameBoardEditComposable.enterBoardEdit` |
-| `useModal().open` |
+| `useModal().open(MessageModal)` |
 
 | `useModal().open` |
 | --- |
 
 #### Flow B - Allowed Attempt
-| `GameControlPanel.boardEditRequested` |
+| `GameControlPanel._toggleBoardEdit` |
 | --- |
-| `GameBoardEditComposable.enterBoardEdit` |
 | `GamesStore.enterBoardEdit` |
 
 | `GamesStore.enterBoardEdit` |

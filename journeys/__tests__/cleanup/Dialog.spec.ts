@@ -9,7 +9,7 @@ it.each(['success', 'failure'])('keeps a replacement dialog intact after late ac
   const pending = new Deferred<void>();
   vi.spyOn(games, 'reassignPlayer').mockImplementationOnce(() => pending);
   const { default: PlayerSelectionModal } = await import('@/components/modals/PlayerSelectionModal.vue');
-  const dialog = modal.open(PlayerSelectionModal, { gameId: api.gameIds[0]!, colour: PlayerColour.White, currentPlayer: { colour: PlayerColour.White, type: PlayerType.Local, displayName: 'White' } });
+  const dialog = modal.open(PlayerSelectionModal, { gameId: api.gameIds[0]!, colour: PlayerColour.White });
   await flushPromises();
   const signal = dialog.signal;
   await clickButton('Assign player', '.modal-card button');

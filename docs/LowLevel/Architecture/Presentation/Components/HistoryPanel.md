@@ -1,23 +1,9 @@
 # HistoryPanel
 
-## Purpose
-Render the move tree and expose history navigation and return-to-live actions.
+Props are `gameId` and `disabled`. The panel reads the canonical root, rendered/live paths and saved collapse preference from `GamesStore` and `UiStateStore`.
 
-## Consumes
-- move tree
-- visible node selection
-- live node selection
-- `PanelSurface` and `ItemList` for shared panel and row behaviour
-- `SidePanelButton` for panel actions
-- `HistoryTree` for nested move rendering
+The panel traverses reactive children and paths directly, including in-place mutations. Its collapse action updates and saves `historyCollapsed` locally and displays persistence failures in the panel. No revision prop, watcher or clock tick drives rows.
 
-## Emits
-- `nodeSelected` with the selected hydrated `IMoveNode`
-- `returnToLiveNodeRequested`
+Rows, Start position and Live position all emit the same `nodeSelected(IMoveNode)` event. The live button resolves its node locally. `GameView._navigateToNode` retains playback cancellation, captured-game validation and continuation dismissal before the store navigation action. The panel never mutates the tree itself.
 
-## Notes
-- The component displays mainline and sibling variations but does not mutate the move tree directly.
-- Emitted nodes are runtime references from the current hydrated tree and are intended for immediate store use only; callers must discard them after any tree-replacing mutation.
-- History-specific nesting is layered on top of generic item-list selection behaviour.
-- Ordinary paused live play disables history navigation; explicit paused analysis permits review. `_walk` and selection computations read reactive nodes, children and paths directly, including in-place mutations. No revision prop or publication callback is required.
-- `HistoryPanel` contains no HTML or template markup and binds history view models into `PanelSurface`, `TreeView`, and action buttons.
+Ordinary paused live play disables navigation; explicit paused analysis permits review. Emitted nodes are references from the current hydrated tree and are for immediate use, not storage across a tree replacement.

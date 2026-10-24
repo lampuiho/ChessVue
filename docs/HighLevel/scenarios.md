@@ -200,7 +200,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-01-CANCEL`: If confirmation modal exists and user cancels, no game is created.
 - **Postconditions**: New game context becomes active unless canceled.
 - **Implementation Touchpoints**:
-  - `MenuBar.quickNewGameRequested`
+  - `useQuickGame.start`
   - `GamesStore.createGame`
   - `UiStateStore.setActiveGame`
 
@@ -223,7 +223,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Game starts with validated custom settings, including the persisted per-game live-analysis move preference when the result is a live game.
 - **Implementation Touchpoints**:
   - `MenuBar.customNewGameRequested`
-  - `NewGameModal.createRequested`
+  - `GameCreationModal._submit`
   - `GamesStore.createGame`
   - `EnginesStore.getEngine`
   - `useModal().open`
@@ -244,7 +244,7 @@ Each scenario in this document uses the same structure:
   - `BR-GAME-03-INVALID-TARGET`: If selected game no longer exists, fallback to first valid game/home.
 - **Postconditions**: Navigation remains deterministic; hidden-tab rule is respected.
 - **Implementation Touchpoints**:
-  - `GameTabs.tabSelected`
+  - `useGameTabActions.select`
   - `UiStateStore.setActiveGame`
   - `UiStateStore.getCurrentGameId`
   - `Router.beforeRouteEnterGuard`
@@ -272,7 +272,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Settings are persisted or intentionally discarded; navigation context remains clear.
 - **Implementation Touchpoints**:
   - `MenuBar.settingsRequested`
-  - `GameControlPanel.pauseRequested`
+  - `GameView._handleMenuInterruptionRequested`
   - `SettingsStore.loadSettings`
   - `SettingsStore.saveSettings`
   - `SettingsStore.resetSettings`
@@ -389,7 +389,7 @@ Each scenario in this document uses the same structure:
   - `GamesStore.makeMove`
 
 ### SCN-MOVE-04 - Queue Premoves Against an Engine
-- **Status**: Current. Implemented through the existing local-turn request on 23 October 2026; see [executed verification](../PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026).
+- **Status**: Current. Implemented through the existing local-turn request on 23 October 2026; see [executed verification](../ArchivedPlans/PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026).
 - **Goal**: Prepare raw own-piece intentions during an engine turn and play one on each ordinary local-turn request.
 - **Preconditions**: Ongoing unpaused human-engine game; following the live gameplay board, outside explicit Analyse.
 - **Main Steps**:
@@ -402,7 +402,7 @@ Each scenario in this document uses the same structure:
   - Manual/Menu pauses retain intentions/held output and keep the existing Resume flush. Explicit paused analysis remains available.
   - Hotseat/engine-engine exclude premoves. Actual structural/result changes and explicit tab close clear the affected queue; temporary navigation and in-memory save retain it. Restored games have no queue.
 - **Postconditions**: No speculative history, clock/increment, capture totals, analysis position or persisted data. Only actual commits produce those effects.
-- **Implementation Touchpoints**: [14 flows and 25 scenario specifications](../PreMovePlan%28ToDo%29.md#function-flow), [runtime FIFO design](../PremoveDataStructure.md). Turn registration, resolution, completion and engine delivery remain the existing mechanism.
+- **Implementation Touchpoints**: [14 flows and 25 scenario specifications](../ArchivedPlans/PreMovePlan%28ToDo%29.md#function-flow), [runtime FIFO design](../ArchivedPlans/PremoveDataStructure.md). Turn registration, resolution, completion and engine delivery remain the existing mechanism.
 
 ### SCN-HIST-01 - Navigate Move History Node
 - **Status**: Current
@@ -735,7 +735,7 @@ Each scenario in this document uses the same structure:
   - `BR-TIME-02-ANALYSIS-READY-WHILE-PAUSED`: An analysis engine finishes while paused -> latest evaluation may update read-only, but no gameplay mutation occurs.
 - **Postconditions**: Pause state is explicit and non-destructive, the game surface stays locked while paused, and any engine output produced during pause is deferred or read-only until resume.
 - **Implementation Touchpoints**:
-  - `GameControlPanel.pauseRequested`
+  - `GameControlPanel._setPaused`
   - `TimeControlService.getRemainingTime`
 
 ### SCN-TIME-03 - Increment Applied After Move
@@ -801,7 +801,7 @@ Each scenario in this document uses the same structure:
 - **Implementation Touchpoints**:
   - `MenuBar.saveGameRequested`
   - `MenuBar.settingsRequested`
-  - `GameControlPanel.pauseRequested`
+  - `GameView._handleMenuInterruptionRequested`
   - `TimeControlService.getRemainingTime`
   - `UiStateStore.saveGameSession`
 
@@ -841,7 +841,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-02-PAUSED`: Game is paused -> resign action is blocked until resume.
 - **Postconditions**: Result is final and clearly visible.
 - **Implementation Touchpoints**:
-  - `GameControlPanel.resignRequested`
+  - `GameControlPanel._requestResignation`
   - `useModal().open`
   - `SavedGamesStore.saveGame`
 
@@ -866,7 +866,7 @@ Each scenario in this document uses the same structure:
   - `BR-CTRL-03-PAUSED`: Game is paused -> offer, accept, and withdraw draw actions are blocked until resume.
 - **Postconditions**: Draw resolution is explicit and persisted.
 - **Implementation Touchpoints**:
-  - `GameControlPanel.drawRequested`
+  - `GameControlPanel._handleDraw`
   - `useModal().open`
   - `GamesStore.offerDraw`
   - `GamesStore.acceptDrawOffer`
@@ -961,7 +961,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: The user reaches a consistent route-level save surface without leaving the app context, and the save screen is ready for creating or replacing a save entry for the current game.
 - **Implementation Touchpoints**:
   - `MenuBar.saveGameRequested`
-  - `GameControlPanel.pauseRequested`
+  - `GameView._handleMenuInterruptionRequested`
   - `Router.push`
   - `SavedGamesStore.listSavedGames`
   - `GamesStore.getGame`
@@ -1023,7 +1023,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: The selected internal save opens as an active game, whether reached through direct double-click latest-load or the nested `/saved-games/load/:name` save-list route, and live analysis resumes afterwards when engines are available.
 - **Implementation Touchpoints**:
   - `MenuBar.loadGameRequested`
-  - `GameControlPanel.pauseRequested`
+  - `GameView._handleMenuInterruptionRequested`
   - `Router.push`
   - `SavedGamesStore.listSavedGames`
   - `SavedGamesStore.loadGame`
@@ -1054,7 +1054,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Export either succeeds once or fails with a clear recovery path, and the external file contains the same canonical payload shape used by internal save files.
 - **Implementation Touchpoints**:
   - `MenuBar.exportGameRequested`
-  - `GameControlPanel.pauseRequested`
+  - `GameView._handleMenuInterruptionRequested`
   - `SavedGamesStore.exportGame`
   - `SerializationService.selectExportFile`
   - `SerializationService.writeGameDocument`
@@ -1214,9 +1214,9 @@ Each scenario in this document uses the same structure:
   - `BR-ENGINE-03-ENGINE-UNAVAILABLE`: Selected engine cannot start for a newly due live turn -> keep the new assignment with unavailable feedback and allow a later retry or another reassignment.
 - **Postconditions**: Player reassignment updates only the current game. Live games preserve their existing time control and clock state when they stay live, while transitions to `free analysis / setup` preserve board and move-tree history for any later `start game from setup` flow.
 - **Implementation Touchpoints**:
-  - `PlayerPanel.playerSelectionRequested`
+  - `PlayerPanel._selectPlayer`
   - `useModal().open`
-  - `EnginesStore.createPlayer`
+  - `PlayerSelectionModal._confirmPlayerSelection`
   - `GamesStore.reassignPlayer`
   - `EngineRuntimeService.awaitPlayerTurnMove`
 
@@ -1416,7 +1416,7 @@ Each scenario in this document uses the same structure:
 - **Postconditions**: Tab navigation can be reviewed later as an extension of menu auto-pause behavior.
 - **Implementation Touchpoints**:
   - `UiStateStore.setActiveGame`
-  - `GameControlPanel.pauseRequested`
+  - `GamesStore.pauseGame (proposed tab policy)`
   - `TimeControlService.getRemainingTime`
 
 ---

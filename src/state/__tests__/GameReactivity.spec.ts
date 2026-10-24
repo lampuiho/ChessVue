@@ -70,7 +70,7 @@ describe('game data drives Vue without publication counters', () => {
   });
   it('PUB-S04 PUB-S07 updates history from in-place nodes/paths and preserves selected aliases', async () => {
     const game = await _start();
-    const board = mount(HistoryPanel, { props: { root: game.moveTree.root, renderedPath: game.renderedPath, livePath: game.livePath } });
+    const board = mount(HistoryPanel, { props: { gameId: game.metadata.id } });
     const line = computed(() => game.livePath!.length);
     expect(line.value).toBe(0);
     await store.makeMove(game, { from: 12, to: 28 });

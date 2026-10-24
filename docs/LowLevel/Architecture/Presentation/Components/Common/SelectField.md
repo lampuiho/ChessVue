@@ -13,4 +13,4 @@ Provide a reusable select or dropdown control for constrained choices.
 - `valueChanged`
 
 ## Notes
-- `NewGameModal`, `SettingsView`, and engine-inventory editors use `SelectField`.
+- `GameCreationModal`, `SettingsView`, and engine-inventory editors use `SelectField`.

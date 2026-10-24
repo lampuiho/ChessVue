@@ -23,7 +23,7 @@ describe('UI-04 copied engine seat preservation', () => {
     await router.push('/game/' + game.metadata.id);
     const stopEngine = vi.spyOn(domain.EngineRuntimeService, 'stopEngine');
     const { default: PlayerSelectionModal } = await import('@/components/modals/PlayerSelectionModal.vue');
-    modal.open(PlayerSelectionModal, { gameId: game.metadata.id, colour: PlayerColour.Black, currentPlayer: seated });
+    modal.open(PlayerSelectionModal, { gameId: game.metadata.id, colour: PlayerColour.Black });
     await nextTick();
     await clickButton('Assign player', '[role="dialog"] button');
     expect(document.querySelector('[role=dialog]')).toBeNull();

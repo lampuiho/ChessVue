@@ -1,27 +1,9 @@
 # HomeView
 
-## Purpose
-Render the neutral landing screen for launch, no-active-game fallback, first-use actions, and recent-game reopening.
+Home renders launch/no-active-game actions and on-demand recent games. It never auto-creates a workspace.
 
-## Inputs
-- game-session and layout restore outcome from `UiStateStore`
-- available actions from `GamesStore`
-- recent game entries projected on demand from `RecentGameStore`
-- `HomeMenuButton` for landing-page actions
-- `ItemList` for recent game entries when present
+Quick game uses the same `useQuickGame` action as MenuBar: accepted defaults, two local players, owned busy/error feedback and cancellation of unstarted UI follow-up on route/lifecycle replacement. The Home button disables while its creation is pending. Custom creation opens GameCreationModal, which owns its form and submission.
 
-## Outputs
-- quick new game action
-- open custom new game modal
-- load game action
-- open settings action
-- open recent game action
+Load and Settings request their routes directly. RecentGameStore supplies recent entries; SavedGamesStore loads a selected snapshot and GamesStore inserts the canonical workspace. Home opens its tab and navigates, retaining local pending/error feedback and refreshing recent entries on failure.
 
-## Notes
-- `HomeView` does not auto-create a game on its own.
-- The landing surface centres its content vertically as much as practical for the available space.
-- Quick new, custom new, load, and settings render as one single row of large square icon-first buttons so the targets remain easy to click.
-- A recent games list sits below the button row and is hidden when no recent entries exist.
-- When the recent games list is hidden, the primary button row recentres within the home surface.
-- `HomeView` loads recent entries when it becomes active rather than binding to a permanently resident recent-games list in another store.
-- `HomeView` contains no HTML or template markup and delegates rendering to common components.
+The action row and optional recent grid use Home's markup and the global CSS modules; no permanently resident recent-games subscription is added.

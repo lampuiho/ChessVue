@@ -31,7 +31,11 @@ async function _exploreAndContinue(page: Page, opening: IGame) {
   await advanceClock(page, 30000);
   const explored = await saveCurrentGame(page, 'Temporary exploration');
   expect(explored.livePath).toEqual(opening.livePath);
-  expect(explored.clockSnapshot).toEqual(opening.clockSnapshot);
+  expect(explored.clockSnapshot).toEqual({
+    ...opening.clockSnapshot,
+    black: { ...opening.clockSnapshot.black, remainingMs: 270000 },
+    pausedAtUtc: new Date(new Date(opening.clockSnapshot.pausedAtUtc!).getTime() + 30000).toISOString(),
+  });
   for (const length of [4, 5]) expect(nodeAt(explored, explored.renderedPath.slice(0, length)).recordedAnalysis).toBeUndefined();
   await page.getByRole('button', { name: /^Exit analysis/ }).click();
   await expectOutput(page);
@@ -47,7 +51,7 @@ async function _exploreAndContinue(page: Page, opening: IGame) {
     const path = opening.livePath!.slice(0, length);
     expect(nodeAt(saved, path).recordedAnalysis).toEqual(nodeAt(opening, path).recordedAnalysis);
   }
-  expect(saved.clockSnapshot.black.remainingMs).toBe(298000);
+  expect(saved.clockSnapshot.black.remainingMs).toBe(268000);
   return saved;
 }
 async function _restoreSelectedGame(page: Page, saved: IGame) {

@@ -383,7 +383,7 @@ Dialog family rules:
 
 Named baseline uses:
 
-- `NewGameModal`: custom new game form with named sections, create or cancel actions, and the per-game live-analysis move preference for live games
+- `GameCreationModal`: custom new game form with named sections, create or cancel actions, and the per-game live-analysis move preference for live games
 - promotion selection: shared dialog shell or board-local overlay hosting `PiecePalette`
 - start game from setup: shared dialog shell for choosing the live-game start details, including the per-game live-analysis move preference, from a prepared setup workspace
 - player selection: shared dialog shell for changing one seat to `none`, `local`, or a configured engine profile
@@ -401,7 +401,7 @@ Named baseline uses:
 
 Live-analysis preference UI rules:
 
-- NewGameModal uses a boolean toggle labelled Show Live Analysis Moves.
+- GameCreationModal uses a boolean toggle labelled Show Live Analysis Moves.
 - The toggle default is off.
 - The toggle sits in the live-game analysis or engine section of the form.
 - In custom new game, the toggle is shown only when both sides are assigned and the request will create a `liveGame`; otherwise it stays hidden because the request will create `freeAnalysisSetup`.

@@ -184,12 +184,12 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 ### SCN-GAME-01 - Quick New Game from Menu
 
 #### Flow
-| `MenuBar.quickNewGameRequested` |
+| `useQuickGame.start` (Home and MenuBar) |
 | --- |
 | `GamesStore.createGame` |
 | `UiStateStore.openTab` |
-| `UiStateStore.setActiveGame` |
-| `UiStateStore.saveGameSession` |
+| `router.push` |
+| committed route: App.afterEach sets active game and saves session |
 
 | `GamesStore.createGame` |
 | --- |
@@ -213,39 +213,12 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 ### SCN-GAME-02 - Custom New Game with User Options
 
 #### Flow A - Create The Requested Workspace
-| `NewGameModal.createRequested` |
-| --- |
-| `useModal().open` |
-| `GamesStore.createGame` |
-| `IModalHandle.close` |
 
-| `useModal().open` |
-| --- |
-
-| `GamesStore.createGame` |
-| --- |
-| `GameWorkspaceComposable.createGame` |
-| `GamePlayerTurnComposable.createPlayerSnapshot` |
-| `GameClockComposable.initialiseClockSnapshot` |
-| `GameAnalysisComposable.createAnalysisSeat` |
-
-| `IModalHandle.close` |
-| --- |
+Home or the captured Game menu action opens GameCreationModal through useModal. The mounted form's _submit validates its local request and required engines, then awaits GamesStore.createGame. After checking its signal, it opens the returned game's tab, requests the game route and emits dismissed to its captured provider owner. Setup submission instead awaits GamesStore.startGameFromSetup for the captured prepared game. No child createRequested/cancelRequested relay remains.
 
 #### Flow B - Start Continuous Analysis For The New Workspace
-| `NewGameModal.createRequested` |
-| --- |
-| `GamesStore.refreshAnalysis` |
 
-| `GamesStore.refreshAnalysis` |
-| --- |
-| `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSeat` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
-
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
+The existing GameWorkspaceComposable creation/setup action owns analysis seat initialisation and analysis refresh through the store's composed dependencies. AnalysisPanel reads reactive accepted lines/status directly; no GameView runtime-update callback or publication counter is involved.
 
 #### Flow C - Request The Opening Engine Turn
 | `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
@@ -259,26 +232,21 @@ This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
 | `EngineRuntimeService.startPlayerTurn` |
 | `EngineRuntimeService.awaitPlayerTurnMove` |
 
-- UI surface coverage: the custom creation flow uses `NewGameModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
+- UI surface coverage: the custom creation flow uses `GameCreationModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
 - State/settings coverage: any request with both sides assigned becomes a live state, while any request with either side unassigned becomes a non-live analysis state. At the low-level request boundary, that unassigned state is encoded by omitting the relevant player-type or engine-id field. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` is evaluated immediately after creation for every playable live turn, including `PlayerType.Engine/PlayerType.Engine`.
 - Requirement verification: `Pass`. Partially or fully unassigned player requests resolve into non-live analysis, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
 
 #### Flow
-| `GameTabs.tabSelected` |
+| `useGameTabActions.select(id)` |
 | --- |
+| `router.push('/game/' + id)` |
+| successful route activation and App.afterEach checkpoint |
 | `UiStateStore.setActiveGame` |
-| `Router.navigateToGame` |
 | `GamesStore.getGame` |
-| `GamesStore.listGames` |
-| `Router._validateGameRoute` |
-| `Router._selectFallbackRoute` |
 
-| `UiStateStore.setActiveGame` |
-| --- |
-| `UiStateStore._coerceOpenTabs` |
-| `UiStateStore._coerceActiveRoute` |
+Selection is published only after a successful committed route; a rejected route retains the previous selected tab. GameTabs reads existing canonical names and open-game membership without props/events. Explicit close, shared with MenuBar, resolves the closing game, clears only its premoves, closes its session tab and navigates to the existing fallback. Switching retains queues; closing does not dispose the canonical game/turn or delete saves.
 
 | `GamesStore.getGame` |
 | --- |

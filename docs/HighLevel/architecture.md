@@ -89,7 +89,7 @@ Committed presentation modules:
 - `SettingsView`
 - `MenuBar`
 - `GameTabs`
-- `NewGameModal`
+- `GameCreationModal`
 - `Chessboard`
 - `PlayerPanel`
 - `HistoryPanel`
@@ -149,7 +149,7 @@ Analysis is part of `GameView` in the baseline architecture. A standalone analys
 - `GameView` is the main gameplay workspace and hosts board, players, history, analysis, and controls.
 - `SavedGamesView` is the route-level save/load surface for ChessVue-managed saved games.
 - `SettingsView` edits committed user settings through `SettingsStore` and engine profiles through `EnginesStore`.
-- `MenuBar`, `GameTabs`, and `NewGameModal` provide shell-level actions and navigation.
+- `MenuBar`, `GameTabs`, and `GameCreationModal` provide shell-level actions and navigation.
 - `Chessboard`, `PlayerPanel`, `HistoryPanel`, `AnalysisPanel`, and `GameControlPanel` render committed game interactions only.
 - Presentation may use specialised button families matched to their screen context rather than a single generic button primitive. Baseline contexts include menu toolbar, dialog, home menu, side panel, tab, settings action, and piece-choice buttons.
 

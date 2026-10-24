@@ -1,19 +1,9 @@
 # GameTabs
 
-## Purpose
-Render open game tabs and allow deterministic switching between workspaces.
+The component has no props or emits. It reads open-game membership from `UiStateStore`, game names and ordering from `GamesStore`, and the active committed game ID from the route. The strip hides when at most one game is open.
 
-## Consumes
-- ordered open games from `UiStateStore`
-- active game identity
-- `TabbedView` for shared tab-strip behaviour
+`useGameTabActions.select(id)` requests `/game/:id` without publishing a selected tab before navigation. App's committed-route hook updates the session; rejected navigation leaves selection unchanged.
 
-## Emits
-- `tabSelected`
-- `tabClosed`
+`useGameTabActions.close(id)` is shared with MenuBar. It clears only the target game's premoves, closes that tab and navigates to the current fallback or Home. Active, background and paused tabs use the same order. Temporary switching retains queues. Closing a tab does not delete a saved game, remove the canonical workspace game or dispose its actual turn.
 
-## Notes
-- The tab bar hides when only one game is open.
-- `GameTabs` is a game-specific adapter over the generic `TabbedView` pattern.
-- In the game workspace, tab switching is route-driven rather than local-panel-driven, so selecting a tab maps the selected game ID to `/game/:id`.
-- `GameTabs` contains no HTML or template markup and binds tab state into `TabbedView`.
+Duplicate closes for the same pending target are ignored. Action errors stay in the mounted component and cannot publish after disposal. Keyboard close and pointer close use the same action.

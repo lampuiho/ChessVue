@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { PlayerColour, PlayerType, type ICreateGameRequest, type IRecentGameEntry } from '@/contracts';
-import { useGamesStore, useRecentGameStore, useSavedGamesStore, useSettingsStore, useUiStateStore } from '@/state';
+import { type IRecentGameEntry } from '@/contracts';
+import { useGamesStore, useRecentGameStore, useSavedGamesStore, useUiStateStore } from '@/state';
 import { useModal } from '@/composables/ModalComposable';
+import { useQuickGame } from '@/composables/QuickGameComposable';
 import GameCreationModal from '@/components/modals/GameCreationModal.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
 
 const modal = useModal();
+const { start: _quickNewGame, isWorking: quickGameWorking, errorMessage: quickGameError } = useQuickGame();
 const router = useRouter();
 const gamesStore = useGamesStore();
 const recentGameStore = useRecentGameStore();
 const savedGamesStore = useSavedGamesStore();
-const settingsStore = useSettingsStore();
 const uiStateStore = useUiStateStore();
 const recentGames = ref<IRecentGameEntry[]>([]);
 const isLoadingRecent = ref(true);
@@ -30,24 +31,6 @@ async function _refreshRecentGames() {
     isLoadingRecent.value = false;
   }
 }
-async function _quickNewGame() {
-  const defaults = settingsStore.settings?.gameDefaults;
-  if (!defaults) return;
-  const request: ICreateGameRequest = {
-    name: defaults.quickNewGameName,
-    whitePlayer: { colour: PlayerColour.White, type: PlayerType.Local, displayName: 'White' },
-    blackPlayer: { colour: PlayerColour.Black, type: PlayerType.Local, displayName: 'Black' },
-    analysisEngineProfiles: [],
-    showLiveAnalysisMoves: false,
-    allowTakeback: true,
-    timeControl: { ...defaults.defaultTimeControl },
-  };
-  await _run(async () => {
-    const game = await gamesStore.createGame(request);
-    uiStateStore.openTab(game.metadata.id);
-    await router.push(`/game/${game.metadata.id}`);
-  });
-}
 async function _openRecent(entry: IRecentGameEntry) {
   pendingGameId.value = entry.gameId;
   try {
@@ -61,14 +44,6 @@ async function _openRecent(entry: IRecentGameEntry) {
     await _refreshRecentGames();
   } finally {
     pendingGameId.value = undefined;
-  }
-}
-async function _run(action: () => Promise<void>) {
-  errorMessage.value = '';
-  try {
-    await action();
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'The action could not be completed.';
   }
 }
 </script>
@@ -89,12 +64,12 @@ async function _run(action: () => Promise<void>) {
         <p class="page-description page-description--home">Open a fresh board, continue a saved game, or settle in for analysis.</p>
       </div>
       <div class="home-actions" aria-label="Start actions">
-        <button class="home-action home-action--primary" @click="_quickNewGame"><span class="home-action__icon"><AppIcon name="sparkles" /></span><strong>Quick game</strong><small>Start with your defaults</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
+        <button class="home-action home-action--primary" :disabled="quickGameWorking" @click="_quickNewGame"><span class="home-action__icon"><AppIcon name="sparkles" /></span><strong>Quick game</strong><small>Start with your defaults</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="_openCustomGame()"><span class="home-action__icon"><AppIcon name="sliders" /></span><strong>Custom game</strong><small>Players, clock & engines</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="router.push('/saved-games/load')"><span class="home-action__icon"><AppIcon name="folder" /></span><strong>Load game</strong><small>Return to a saved board</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="router.push('/settings/session')"><span class="home-action__icon"><AppIcon name="settings" /></span><strong>Settings</strong><small>Make the board yours</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
       </div>
-      <p v-if="errorMessage" class="inline-message inline-message--error home-error">{{ errorMessage }}</p>
+      <p v-if="errorMessage || quickGameError" class="inline-message inline-message--error home-error">{{ quickGameError || errorMessage }}</p>
       <section v-if="recentGames.length" class="recent-section">
         <div class="recent-section__heading"><div><p class="page-kicker page-kicker--flush">Continue</p><h2>Recent games</h2></div><button class="text-button text-button--ghost" @click="router.push('/saved-games/load')">View all <AppIcon name="arrow-right" /></button></div>
         <div class="recent-grid">

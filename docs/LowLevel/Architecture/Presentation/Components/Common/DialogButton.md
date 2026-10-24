@@ -12,5 +12,5 @@ Provide action buttons for modal and confirmation flows.
 - `clicked`
 
 ## Notes
-- `ModalDialog` and `NewGameModal` use `DialogButton`.
+- `ModalDialog` and `GameCreationModal` use `DialogButton`.
 - Keyboard-default and escape/cancel expectations belong to this button family.

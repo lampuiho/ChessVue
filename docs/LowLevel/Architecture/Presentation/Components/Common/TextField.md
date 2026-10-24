@@ -14,4 +14,4 @@ Provide a reusable text-input control for forms.
 - `blurred`
 
 ## Notes
-- `NewGameModal` and `SettingsView` use `TextField` inside `FieldRow`.
+- `GameCreationModal` and `SettingsView` use `TextField` inside `FieldRow`.

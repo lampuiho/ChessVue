@@ -93,7 +93,7 @@ function _mountView(game: IGame = _createTimedGame()): VueWrapper {
   games.set(game.metadata.id, game);
   dependency.route.params.id = game.metadata.id;
   dependency.uiStateStore.gameSession = createGameSessionSnapshot({ openGameIds: [...games.keys()], activeGameId: game.metadata.id, activeRoute: `/game/${game.metadata.id}` });
-  const wrapper = shallowMount(GameView, { global: { stubs: { ModalDialog: {
+  const wrapper = shallowMount(GameView, { global: { stubs: { AnalysisPanel: false, ModalDialog: {
     name: 'ModalDialog', template: '<div><slot /><slot name="actions" /></div>',
   } } } });
   wrappers.push(wrapper);
@@ -374,16 +374,14 @@ describe('GameView menu interruptions', () => {
     const wrapper = _mountView(game);
     await flushPromises();
     const panel = wrapper.getComponent({ name: 'AnalysisPanel' });
-    const previousSeats = panel.props('seats');
     expect(panel.props('disabled')).toBe(true);
-    expect(panel.props('startDisabled')).toBe(false);
+    expect(panel.get<HTMLButtonElement>('[title="Refresh analysis"]').element.disabled).toBe(false);
     game.analysis.seats[0]!.assignedEngine.$ = { availability: EngineAvailability.Failed, lastError: 'Startup failed', analysisLines: new Map() };
     await nextTick();
-    expect(panel.props('seats')).toBe(previousSeats);
-    expect(panel.props('seats')[0].assignedEngine.$.lastError).toBe('Startup failed');
+    expect(panel.text()).toContain('Startup failed');
     game.gameState = GameState.BoardEdit;
     await nextTick();
-    expect(panel.props('startDisabled')).toBe(true);
+    expect(panel.get<HTMLButtonElement>('[title="Refresh analysis"]').element.disabled).toBe(true);
   });
   it('preserves board input across analysis publications but replaces the position after a board edit', async () => {
     const game = _createTimedGame();

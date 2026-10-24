@@ -1,11 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { MoveNodeKind, type IMoveNode, type MovePath } from '@/contracts';
+import { computed, onScopeDispose, ref } from 'vue';
+import { useGamesStore, useUiStateStore } from '@/state';
+import { MoveNodeKind, type IGame, type IMoveNode, type MovePath } from '@/contracts';
 import { getSan } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 
-const props = defineProps<{ root: IMoveNode; renderedPath: MovePath; livePath?: MovePath; collapsed?: boolean; disabled?: boolean }>();
-const emit = defineEmits<{ collapseToggled: []; nodeSelected: [node: IMoveNode]; returnToLiveRequested: [] }>();
+const props = defineProps<{ gameId: string; disabled?: boolean }>();
+const emit = defineEmits<{ nodeSelected: [node: IMoveNode] }>();
+const gamesStore = useGamesStore();
+const uiStateStore = useUiStateStore();
+const game = computed(() => gamesStore.getGame(props.gameId) as IGame | undefined);
+const root = computed(() => game.value?.moveTree.root);
+const renderedPath = computed(() => game.value?.renderedPath ?? []);
+const livePath = computed(() => game.value?.livePath);
+const collapsed = computed(() => uiStateStore.layoutState?.historyCollapsed ?? false);
+const errorMessage = ref('');
+let _disposed = false;
+onScopeDispose(() => { _disposed = true; });
+async function _toggleSection() {
+  uiStateStore.setSectionCollapsed('history');
+  errorMessage.value = '';
+  try { await uiStateStore.saveLayoutState(); } catch (error) {
+    if (!_disposed) errorMessage.value = error instanceof Error ? error.message : 'The layout could not be saved.';
+  }
+}
+function _selectLive() {
+  let node = root.value;
+  if (!node || !livePath.value) return;
+  for (const index of livePath.value) node = node.children[index]!;
+  emit('nodeSelected', node);
+}
 interface IHistoryRow { node: IMoveNode; path: MovePath; depth: number; isVariation: boolean }
 const rows = computed<IHistoryRow[]>(() => {
   const result: IHistoryRow[] = [];
@@ -17,10 +41,10 @@ const rows = computed<IHistoryRow[]>(() => {
       if (index !== mainlineIndex) _walk(child, [...path, index], depth + 1, true);
     });
   }
-  _walk(props.root, [], 0, false);
+  if (root.value) _walk(root.value, [], 0, false);
   return result;
 });
-const isAtLive = computed(() => _pathsEqual(props.renderedPath, props.livePath));
+const isAtLive = computed(() => _pathsEqual(renderedPath.value, livePath.value));
 function _pathsEqual(left?: MovePath, right?: MovePath): boolean {
   return !!left && !!right && left.length === right.length && left.every((part, index) => part === right[index]);
 }
@@ -31,14 +55,15 @@ function _movePrefix(node: IMoveNode): string {
 </script>
 
 <template>
-  <section class="side-panel history-panel">
+  <section v-if="game" class="side-panel history-panel">
     <header class="side-panel__header">
-      <button class="side-panel__collapse" :aria-label="collapsed ? 'Expand history' : 'Collapse history'" @click="emit('collapseToggled')"><AppIcon :name="collapsed ? 'chevron-right' : 'chevron-down'" /></button>
+      <button class="side-panel__collapse" :aria-label="collapsed ? 'Expand history' : 'Collapse history'" @click="_toggleSection()"><AppIcon :name="collapsed ? 'chevron-right' : 'chevron-down'" /></button>
       <div class="side-panel__heading"><h2 class="side-panel__title">History</h2><span v-if="!collapsed" class="side-panel__meta">{{ rows.length }} {{ rows.length === 1 ? 'move' : 'moves' }}</span></div>
-      <button v-if="livePath && !isAtLive && !collapsed" class="panel-chip" :disabled="disabled" @click="emit('returnToLiveRequested')"><span></span>Live position</button>
+      <button v-if="livePath && !isAtLive && !collapsed" class="panel-chip" :disabled="disabled" @click="_selectLive()"><span></span>Live position</button>
     </header>
+    <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }}</p>
     <div v-if="!collapsed" class="side-panel__body history-list">
-      <button class="history-start" :class="{ 'history-row--selected': renderedPath.length === 0 }" :disabled="disabled" aria-label="Start position" @click="emit('nodeSelected', root)">Start position</button>
+      <button class="history-start" :class="{ 'history-row--selected': renderedPath.length === 0 }" :disabled="disabled" aria-label="Start position" @click="emit('nodeSelected', root!)">Start position</button>
       <div v-if="rows.length === 0" class="panel-empty"><AppIcon name="history" /><span>Moves will appear here as the game unfolds.</span></div>
       <button
         v-for="row in rows"

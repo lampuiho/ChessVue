@@ -1,38 +1,29 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
-import { GameState, type IAssignedEngine, type IGame } from '@/contracts';
+import { GameState, type IGame } from '@/contracts';
 import { useEnginesStore, useGamesStore, useSettingsStore } from '@/state';
+import { useModalAction } from '@/composables/ModalActionComposable';
 import ModalDialog from './ModalDialog.vue';
-const props = defineProps<{ gameId: string; currentAnalysisEngines: readonly IAssignedEngine[]; signal: AbortSignal }>();
+const props = defineProps<{ gameId: string; signal: AbortSignal }>();
 const emit = defineEmits<{ dismissed: [] }>();
 const gamesStore = useGamesStore();
 const enginesStore = useEnginesStore();
 const settingsStore = useSettingsStore();
-const form = reactive({ isWorking: false, errorMessage: '', selectedEngineId: '' });
+const form = reactive({ selectedEngineId: '' });
+const { isWorking, errorMessage, run } = useModalAction(props.signal);
 const engines = computed(() => { void settingsStore.settings; return enginesStore.listConfiguredEngines(); });
-const availableAnalysisEngines = computed(() => engines.value.filter((candidate) => !props.currentAnalysisEngines.some((assigned) => assigned.displayName === candidate.displayName)));
-function _confirmAnalysisEngine() {
+const availableAnalysisEngines = computed(() => engines.value.filter((candidate) => !gamesStore.getGame(props.gameId)?.analysis.seats.some((seat) => seat.assignedEngine.displayName === candidate.displayName)));
+async function _confirmAnalysisEngine() {
   const game = gamesStore.getGame(props.gameId) as unknown as IGame | undefined;
   const engine = engines.value.find((candidate) => candidate.id === form.selectedEngineId);
   if (!game || !engine) return;
-  return _run(async () => {
+  if (await run(async () => {
     const adding = gamesStore.addAnalysisEngine(game, engine);
     const seat = game.analysis.seats.find((candidate) => candidate.assignedEngine.displayName === engine.displayName);
     await adding;
     const index = seat ? game.analysis.seats.indexOf(seat) : -1;
     if (game.gameState !== GameState.BoardEdit && index >= 0) await gamesStore.retryAnalysis(game, index);
-  });
-}
-async function _run(action: () => Promise<void>) {
-  if (form.isWorking || props.signal.aborted) return;
-  form.isWorking = true;
-  form.errorMessage = '';
-  try {
-    await action();
-    if (!props.signal.aborted) emit('dismissed');
-  } catch (error) {
-    if (!props.signal.aborted) form.errorMessage = error instanceof Error ? error.message : 'The action could not be completed.';
-  } finally { form.isWorking = false; }
+  })) emit('dismissed');
 }
 </script>
 <template>
@@ -41,7 +32,7 @@ async function _run(action: () => Promise<void>) {
       <label v-for="engine in availableAnalysisEngines" :key="engine.id" class="choice-card"><input v-model="form.selectedEngineId" type="radio" :value="engine.id"><span class="choice-card__piece">♝</span><span><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'Executable not selected' }}</small></span></label>
     </div>
     <p v-else class="inline-message">Add an engine profile in Settings before assigning analysis.</p>
-    <p v-if="form.errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ form.errorMessage }}</p>
-    <template #actions><button class="text-button text-button--ghost" @click="emit('dismissed')">Cancel</button><button class="text-button text-button--primary" :disabled="form.isWorking || !form.selectedEngineId" @click="_confirmAnalysisEngine">Add engine</button></template>
+    <p v-if="errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ errorMessage }}</p>
+    <template #actions><button class="text-button text-button--ghost" @click="emit('dismissed')">Cancel</button><button class="text-button text-button--primary" :disabled="isWorking || !form.selectedEngineId" @click="_confirmAnalysisEngine">Add engine</button></template>
   </ModalDialog>
 </template>

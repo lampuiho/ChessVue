@@ -1,45 +1,15 @@
 # GameView
 
-## Purpose
-Render the integrated gameplay workspace for one active game.
+GameView composes MenuBar, GameTabs, Chessboard, two PlayerPanels, HistoryPanel, AnalysisPanel and GameControlPanel for the route's canonical game. Feature components read their own game data by ID rather than receive copied player, tree, seat or menu-capability props.
 
-## Inputs
-- active game from `GamesStore`
-- visible analysis from `GamesStore.getVisibleAnalysis(...)`
-- configured engine inventory from `EnginesStore` when selection flows need it
-- remembered global layout state from `UiStateStore`
-- effective app theme from the shared root app-shell appearance host
-- local pure mapping of store state into board, panel, control, and captured-material props
-- `GameWorkspaceShell` for shallow screen-region composition
+The view retains the rendered board/input owner, canonical and premove projection distinction, selected/live position reads, one clock timer and timeout notification, captured-material grouping, playback OperationOwner and historical continuation. Its retained control actions bind takeback and analysis entry/exit to the actual rendered context before draining playback and mutating through GamesStore.
 
-## Child Components
-- `MenuBar`
-- `GameTabs`
-- `GameWorkspaceShell`
-- `Chessboard`
-- `PlayerPanel`
-- `HistoryPanel`
-- `AnalysisPanel`
-- `GameControlPanel`
+Board raw input and completed promotion feed the same captured move action. Off-turn input appends the supplied raw reference without canonical prefix preflight. PV routing submits the first move on a local due turn, only the clicked local candidate when off-turn, or the legal prefix during explicit/free/result analysis. Captured premove cancellation drains playback and clears the correct game's queue. Mode/permission and projection replacement clear the prior gesture owner; background queue edits do not replace unrelated analysis input.
 
-## Outputs
-- forwards user intents to stores
-- does not own mutation or persistence logic directly
+History row and Live position selection both enter `_navigateToNode`, which cancels playback and continuation before store navigation. AnalysisPanel owns its folds and engine management; PlayerPanel opens its own chooser; GameControlPanel owns pause, setup, board editing, draw and resignation. These components continue to call the public store coordination methods.
 
-## Notes
-- `GameView` hosts baseline analysis inside the game screen rather than through a dedicated analysis route.
-- `renderedBoard` keeps the canonical selected board stable across unrelated publications and derives optional projected artwork/red squares for following-live premoves through `useGamePosition`. Its input owner records queue/head/tail/held references, without copying queue values. Mode/permission changes replace input; unchanged analysis ignores background queue edits.
-- While the existing Local request is settling a shifted head, rendering uses canonical pieces; after commit or held-output publication it projects the current remainder. Board cancellation maps to `clearPremoves`, and explicit tab close clears that game's queue. Route changes/remounts retain it.
-- Off-turn board input bypasses canonical prefix preflight and appends raw references. A clicked PV final entry must have local canonical parity and possible projected geometry; only that entry appends. Explicit/free/result analysis keeps full-prefix playback. Analysis/engine inputs, captured totals, clocks, history and saves remain canonical.
-- Game-tab selection is resolved through route updates, with `GameTabs` delegating shared child-route tab logic to `TabbedView`.
-- `GameView` reads store state directly; it does not depend on a separate query-helper subsystem.
-- When a committed flow needs an authoritative derived read such as remaining clock time, `GameView` may call the relevant domain service locally while still keeping mutation ownership in stores.
-- `GameView` may coordinate multiple stores for a single user or route action, for example calling `GamesStore` for mutation, analysis refresh, or visible analysis reads, `EnginesStore` for player selection, or `UiStateStore` for modal work.
-- `GameView` consumes the effective app theme from the shared root app-shell appearance host rather than owning the root theme attachment itself.
-- `GameView` owns the local pure derivation of captured-piece groups from the visible position before passing them into `PlayerPanel`.
-- `GameView` wires player-strip player-label clicks into the player-selection dialog flow and forwards confirmed assignment changes to `GamesStore`.
-- `GameView` wires the analysis-panel title `+` action and each engine-title-row `-` action into the per-game analysis-engine assignment flow.
-- Mount and route-update activation validate the destination and complete its Menu pause. Route leave/update and unmount cancel owned PV playback, including its real delay; replacement waits for old cleanup. Autosave failures arrive through an explicit action notification whose consumer is removed on unmount.
-- Custom-game activation supplies an exactly-once dialog completion callback. It resumes the interrupted game while that game remains displayed; returning from a newly created game resumes the old Menu pause through route activation. No watcher orchestrates these flows.
-- Manual and menu pauses permit menu navigation, player reassignment and analysis-engine management while disabling gameplay and history. An analysis-only pause exposes `Exit analysis` and permits both colours to explore and select history without advancing the live node or clock. Board edit disables player reassignment and history.
-- `GameView` contains no HTML or template markup and wires feature adapters into common render surfaces only.
+GameView retains five Menu interruption events. It cancels playback and applies PauseReason.Menu before configured navigation/custom creation. Custom creation captures the interrupted game in its close completion; activation resumes only that Menu pause owner. Route update/leave and unmount cancel owned playback. Autosave failure feedback registers one consumer and disposes it on unmount.
+
+GameTabs owns route-driven selection. GameTabs/MenuBar share explicit tab close, including target-only premove clearing; temporary route changes preserve queues. The view chooses whether history/analysis regions mount from shared visibility preferences and supplies their playback-sensitive disabled flags. It supplies the common control mode and takeback eligibility, while the control panel derives pause and draw status locally.
+
+All markup uses the shared global stylesheets. No watcher, publication counter or separate presentation query layer is used.

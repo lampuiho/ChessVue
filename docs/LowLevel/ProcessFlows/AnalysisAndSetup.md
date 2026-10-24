@@ -29,7 +29,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 ### SCN-FREE-ANALYSIS-01 - Enter Free Analysis / Setup Context
 
 #### Flow A - Create A Free Analysis Workspace
-| `NewGameModal.createRequestedWithUnassignedSide` |
+| `GameCreationModal._submit` |
 | --- |
 | `GamesStore.createGame` |
 | `GameWorkspaceComposable.createGame` |
@@ -78,7 +78,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 ### SCN-FREE-ANALYSIS-02 - Board Editing in Free Analysis / Setup
 
 #### Flow A - Enter Board Edit
-| `GameControlPanel.boardEditRequested` |
+| `GameControlPanel._toggleBoardEdit` |
 | --- |
 | `GamesStore.enterBoardEdit` |
 | `GamesStore.stopAnalysis` |
@@ -116,7 +116,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | `GameBoardEditComposable.applyEdit` |
 
 #### Flow D - Leave Board Edit And Resume Analysis
-| `GameControlPanel.boardEditRequested` |
+| `GameControlPanel._toggleBoardEdit` |
 | --- |
 | `GamesStore.enterBoardEdit` |
 | `GamesStore.refreshAnalysis` |
@@ -238,7 +238,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 ### SCN-ANALYSIS-03 - Engine Crash/Stop During Analysis
 
 #### Flow A - Stop Analysis Explicitly
-| AnalysisPanel.stopRequested |
+| AnalysisPanel._stop |
 | --- |
 | GamesStore.stopAnalysis |
 
@@ -249,7 +249,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 | retain seat lines, bestMove, timestamp, and completion; publish stopped availability |
 
 #### Flow B - Retry A Failed Engine
-| AnalysisPanel.retryRequested |
+| AnalysisPanel._retry |
 | --- |
 | GamesStore.retryAnalysis |
 
@@ -274,7 +274,7 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 
 - Failure handling: malformed analysis output keeps the existing baseline rule and is discarded per message without stopping the session.
 - Unexpected-exit handling: the client fails its UCI session and leaves the last valid rendered lines intact. Immediate publication of an otherwise idle process exit remains pending under ANALYSIS-DRIFT-12; no runtime event subscription or store-level polling helper was added. Failures observed by service operations do publish availability and errors.
-- Retry rule: retry remains manual through `AnalysisPanel.retryRequested`; the baseline does not invent timeout, auto-reconnect, or backoff behaviour.
+- Retry rule: retry remains manual through `AnalysisPanel._retry`; the baseline does not invent timeout, auto-reconnect, or backoff behaviour.
 - Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit restart, stop, malformed-output, and unexpected-exit runtime mutations.
 - Requirement verification: Stop retention, cancellation, malformed-output discard, and manual retry have automated coverage. Immediate unsolicited exit reporting remains pending.
 
@@ -345,14 +345,14 @@ client update -> EngineRuntimeService._acceptAnalysisUpdate
 
 - State/settings coverage: non-live analysis renders per-move engine targets. Live and live-analysis states render them only when `gameplayOptions.showLiveAnalysisMoves = true`. Manual/menu pauses make targets read-only; an analysis-only pause permits prefix exploration while the live node and clock stay fixed.
 - Runtime selector coverage: analysis-panel move selection reuses the current visible hydrated node. Any persisted `MovePath` updates remain store-internal bookkeeping derived from that node and are not a public runtime interaction contract.
-- Requirement verification: individual move selection, exact prefix playback, first-move live submission, whole-prefix stale rejection and cancellation on game switch have automated Analysis journey/integration coverage. The separate History tranche covers rewrite/no-takeback branch policies. See the [analysis review](../../../journeys/definitions/analysis/ScenarioReview.md) and [execution evidence](../../JourneyImplementation.md#analysis-verification).
+- Requirement verification: individual move selection, exact prefix playback, first-move live submission, whole-prefix stale rejection and cancellation on game switch have automated Analysis journey/integration coverage. The separate History tranche covers rewrite/no-takeback branch policies. See the [analysis review](../../../journeys/definitions/analysis/ScenarioReview.md) and [execution evidence](../../ArchivedPlans/JourneyImplementation.md#analysis-verification).
 
 ### SCN-ANALYSIS-05 - Add or Remove Per-Game Analysis Engine During Game
 
 #### Flow A - Add An Analysis Engine
 
 ```text
-AnalysisPanel.engineAddRequested
+AnalysisPanel._addEngine
   -> useModal().open
   -> AnalysisEngineSelectionModal._confirmAnalysisEngine
      -> GamesStore.addAnalysisEngine
@@ -366,7 +366,7 @@ AnalysisPanel.engineAddRequested
 Add remains assignment-only. The modal starts only that seat, preserving other engines' searches and results. During editing, the new seat waits for exit.
 
 #### Flow B - Remove An Analysis Engine
-| `AnalysisPanel.engineRemoveRequested` |
+| `AnalysisPanel._remove` |
 | --- |
 | `GamesStore.removeAnalysisEngine` |
 
@@ -377,7 +377,7 @@ Add remains assignment-only. The modal starts only that seat, preserving other e
 | `GameAnalysisComposable.stopAssignedEngine` |
 | remove the captured seat synchronously; `timestampGame`; then await cleanup |
 
-`GameView.removeAnalysisEngine` removes the corresponding remembered fold entry immediately after the store removes the seat, preserving indexes for the remaining assignments.
+`AnalysisPanel._remove` removes the corresponding remembered fold entry immediately after the store removes the seat, preserving indexes for the remaining assignments.
 
 - UI surface coverage: the analysis panel title owns the right-aligned `+` affordance for adding an engine to the current game, while each engine title row owns a right-aligned `-` affordance for removing that engine.
 - State gate: roster add and remove are valid in live states, paused live states, live-analysis states, and non-live analysis states. Paused live play keeps move-target selection blocked, but analysis-engine management remains allowed because it is treated as configuration rather than gameplay.

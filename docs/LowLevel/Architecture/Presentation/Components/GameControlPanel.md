@@ -3,23 +3,13 @@
 ## Purpose
 Render context-sensitive controls for live play, analysis transitions, setup, and lifecycle actions.
 
-## Consumes
-- workspace context
-- result state
-- clock state
-- settings-derived policy hints
-- `PanelSurface` and `SidePanelButton` for shared panel and action presentation
+## Inputs and action ownership
 
-## Emits
-- `takeBackRequested`
-- `enterInGameAnalysisRequested`
-- `exitInGameAnalysisRequested`
-- `startGameFromSetupRequested`
-- `enterBoardEditRequested`
-- `pauseRequested`
-- `resumeRequested`
-- `resignRequested`
-- `drawRequested`
+Props are `gameId`, `mode` and `canTakeBack`. The view retains the common mode and playback-sensitive takeback permission; the panel derives pause eligibility and draw status from its canonical game.
+
+Only `takeBackRequested`, `analysisRequested` and `exitAnalysisRequested` remain emitted. They cross GameView's captured rendered-input owner, which drains playback and closes continuation before mutation.
+
+Pause/resume, board-edit entry/finish, setup start, resignation confirmation and draw negotiation run locally through the existing public GamesStore methods. Manual resume preserves other pause owners. Resign/draw use the actual live-side colour, including while a historical position is displayed. Failures stay in the control panel.
 
 ## Mode Matrix
 | Context | Control surface |
@@ -39,4 +29,4 @@ Render context-sensitive controls for live play, analysis transitions, setup, an
 - Local-local draw negotiation is dialog-driven, while non-local draw negotiation uses the control's LED-like pending-offer indicator instead of a dialog-hosted response step.
 - For non-local opponents, the unlit `Draw` control means offer draw, while the lit state means accept when `drawOfferState.direction = "incoming"` and withdraw when `drawOfferState.direction = "outgoing"`.
 - Paused live play is intentionally treated as a locked state rather than a reduced-action variant of live play.
-- `GameControlPanel` contains no HTML or template markup and binds control groups into `PanelSurface`, `ButtonGroup`, and `SidePanelButton`.
+- The component owns its control markup and uses global CSS classes; no watcher or second game controller is added.

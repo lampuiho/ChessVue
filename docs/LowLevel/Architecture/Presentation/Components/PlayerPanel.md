@@ -1,22 +1,9 @@
 # PlayerPanel
 
-## Purpose
-Render player slots, clock state, and engine status for both sides.
+Props are `gameId`, `colour`, `remainingMs`, `active`, `selectionDisabled` and `capturedPieces`. There are no emits. The panel reads its colour's player and shallow-reactive engine status from the canonical game.
 
-## Consumes
-- player-slot data
-- clock snapshot
-- engine availability for assigned engines
-- captured piece groups derived for the player strips
-- `PanelSurface` for shared panel layout
+The player-label action opens PlayerSelectionModal locally with the game ID and colour. The modal captures its initial player from that game, preserving an existing copied engine when Keep is selected even if its configured profile changes. Board editing and the view's playback lock disable selection; genuine pauses still permit reassignment.
 
-## Emits
-- `playerSelectionRequested`
+GameView retains one clock timer, the actual live-turn projection and one captured-material traversal for both strips. It supplies remaining time, active status and captured groups so those displays agree with their shared source. Board orientation selects which colour appears in each strip.
 
-## Notes
-- Gameplay actions such as pause, resign, draw, and takeback are centralised in `GameControlPanel`.
-- Captured material is rendered as grouped icons in the player strip rather than as a separate control surface.
-- Player engine runtime is shallow reactive in the state layer. The panel tracks availability and error fields directly; a failed engine displays its error beside that seat while reassignment remains available.
-- `PlayerPanel` stays read-heavy, but each displayed player label for a baseline reassignable seat acts as the explicit click target for reassigning that side to unassigned, `PlayerType.Local`, or a configured engine profile. This reassignment affordance remains available while paused because it is treated as a game-configuration change rather than gameplay input.
-- Keeping `PlayerPanel` display-focused outside that explicit player-reassignment affordance reduces duplicated controls and unnecessary template depth.
-- `PlayerPanel` contains no HTML or template markup and binds player state into `PanelSurface`, `StatusCard`, and `ClockDisplay`.
+The panel owns its SVG/player/readout markup and uses global CSS. Gameplay controls remain in GameControlPanel; engine failure feedback stays beside the affected seat.

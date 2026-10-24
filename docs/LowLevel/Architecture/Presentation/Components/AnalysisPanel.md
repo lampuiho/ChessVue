@@ -4,14 +4,12 @@
 
 Render the game's ordered analysis seats supplied by `GamesStore.getVisibleAnalysis`. The accessor returns every assigned seat, including empty, failed, stopped, and restored seats. The panel never reads runtime line maps or filters by position.
 
-Props are `seats: readonly ReadonlyAnalysisSeat[]`, `collapsed`, `expandedByIndex`, `showMoves`, `disabled` (move selection), `startDisabled` (Refresh/Retry), and `canAdd`.
+Props are `gameId` and `disabled` (the view-owned move/playback permission). The panel reads canonical seats through `GamesStore.getVisibleAnalysis`, display/start/add eligibility from the game and settings, and folds from `UiStateStore`.
 
 ## Events
 
-- `collapseToggled` and `engineExpandedToggled(index)` control folds.
-- `refreshRequested`, `retryRequested(index)`, and `stopRequested(index)` use existing store actions.
-- `engineAddRequested` and `engineRemoveRequested(index)` change assignments.
-- `moveSelected(moves)` emits the PV prefix through the clicked move, using individual `Play through <SAN>` buttons. `GameView` validates the entire selected prefix before applying it; normal live play submits only its first move.
+- Folding, Refresh/Retry/Stop and engine add/remove are local actions. The panel updates/saves layout itself; removal reconciles the matching fold entry while the captured seat cleanup settles. Action/save failures stay visible in the panel.
+- `moveSelected(moves)` emits the PV prefix through the clicked move, using individual `Play through <SAN>` buttons. `GameView` retains captured input routing: due-turn play submits the first move, exploration preflights/plays the prefix, and eligible off-turn play submits only the clicked local candidate without preceding opponent replies.
 
 ## Rendering and permissions
 
@@ -20,7 +18,7 @@ Props are `seats: readonly ReadonlyAnalysisSeat[]`, `collapsed`, `expandedByInde
 - Missing runtime is unavailable, not Starting. Ready with an incomplete result is stopped; `isComplete` describes natural completion rather than runtime availability.
 - Keep accepted lines visible alongside failure feedback. Explicit Stop preserves the current result. Restored lines can display without a process.
 - Ordinary paused states disable move selection; explicit paused analysis permits exploratory moves. Meanwhile Refresh/Retry/Stop, assignment controls, and folding remain available. BoardEdit disables startup. `showLiveAnalysisMoves` continues to select score-only versus move rendering. Score-only mode is titled Evaluations: engine names sit left, scores sit right, and there are no panel/engine folds or status/depth summaries. Saved analysis collapse flags do not hide evaluations; management actions appear on row hover or keyboard focus. Analysis retains its panel/engine folds and three move lines.
-- Seats and their assigned runtimes are reactive. `GameView` reads the actual seat collection; AnalysisPanel reads nested fields directly without a revision prop, timestamp dependency or clock tick. Assigned runtimes are shallow-reactive, retaining nested resource identities.
+- Seats and their assigned runtimes are reactive. AnalysisPanel reads the actual seat collection and nested fields directly without a revision prop, timestamp dependency or clock tick. Assigned runtimes are shallow-reactive, retaining nested resource identities.
 - The separate Recorded analysis sidebar panel is removed. Actual-move records remain in saved game data.
 - Fold indexes follow assignment order, including empty seats. Removal reconciles the existing UI fold array.
 

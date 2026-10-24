@@ -1,100 +1,26 @@
-# Presentation Interaction Map
+# Presentation interaction map
 
-## Purpose
-Map committed user interactions from the baseline scenarios to concrete view, component, and store boundaries.
+This map records the implemented Vue surfaces and their action owners. Views compose routes and retain shared workflow resources; feature components render their own markup, read store data directly and handle complete local interactions. Shared primitives retain their drawing/dialog contracts, and all styling comes from the global CSS entry. Proposed generic render-layer components in older design pages are not an extra implementation layer.
 
-This document verifies that presentation coverage is complete and that templates can stay shallow by delegating behaviour to named subcomponents.
+| Surface | Local owner and store calls | Retained boundary |
+| --- | --- | --- |
+| Home quick game | useQuickGame constructs accepted defaults, awaits createGame, opens the tab and navigates with owned busy/error/cancellation. | The same action is used by MenuBar; disposal suppresses late UI navigation. |
+| Custom creation/setup | GameCreationModal owns form, validation, readiness checks and createGame/startGameFromSetup submission. | dismissed closes the captured modal opening. GameView retains custom creation's interrupted-game completion. |
+| Recent/library selection | Home/SavedGamesView coordinate RecentGameStore/SavedGamesStore loading, GamesStore insertion and tab navigation. | Saved details and confirmations keep their captured operation/target owners. |
+| Menu quick/close | MenuBar uses useQuickGame and useGameTabActions.close; gameId determines save/close availability. | Home, Custom, Load, Save and Settings events enter GameView's playback/Menu-pause workflow. There is no unused Delete action. |
+| Game tabs | GameTabs reads session membership, canonical names and committed route; select/close use useGameTabActions. | App's route checkpoint publishes successful selection. Close clears only the target queue before removing the tab; switching preserves queues. Canonical games and saved files survive tab close. |
+| Board input | Chessboard owns selection, drag, touch, palette and promotion gesture. | moveAttempted and premovesCancelled reach GameView's captured rendered owner. Five board-edit events target the canonical game through store guards and root/history handling. |
+| History | HistoryPanel reads reactive tree/paths, owns saved folds and resolves both row and Live position targets. | nodeSelected enters GameView's playback/continuation cancellation workflow before store navigation. |
+| Analysis management | AnalysisPanel reads canonical seats and settings, owns folds, refresh/retry/stop and add/remove. Assignment removal reconciles its fold entry. | moveSelected retains stable raw entry references and enters GameView's due-turn, off-turn or exploratory routing. |
+| Player strip | PlayerPanel reads its game's colour seat and opens PlayerSelectionModal directly. | GameView supplies the shared clock/active-turn/captured-material projections and playback lock. |
+| Controls | GameControlPanel owns manual pause/resume, board edit, setup start, resignation and draw negotiation through public GamesStore methods. | Takeback and analysis entry/exit events retain GameView's captured input owner, playback drain and continuation dismissal. |
+| Settings/profile | SettingsView owns draft actions and EngineProfileModal's seed/replacement destination. | Successful Apply/Save/Reset emits appearanceChanged to App; dirty navigation remains captured by its confirmation. |
+| Navigation drawer | NavigationFrame owns expansion/opening and NavigationMenuModal renders the same brand/actions/footer slot closures. | The modal provider owns exact mounted-opening dismissal and focus cleanup. |
 
-Under the template-ownership rule:
+GameView retains one clock timer, timeout notice, rendered canonical/premove snapshot, playback OperationOwner, historical continuation, Menu interruption and route activation. It does not forward player, seat, tree, fold or independent control actions. All mutations still cross existing store/domain boundaries; no rule, engine-resource or persistence implementation is moved into a component.
 
-- views contain no HTML or template markup
-- feature components contain no HTML or template markup
-- only common components own render markup
+Premove displayPosition remains distinct from canonical position. The endpoint set and eligible local colour drive artwork/cancellation and candidate selection. Board/PV input retains raw entries: local due play submits the first suggestion; eligible off-turn selection submits only the clicked local candidate after parity/projected-geometry checks; explicit/free/result analysis plays the selected canonical prefix. No opponent replies are enqueued from a PV.
 
-Read-side rule:
+Panels read reactive fields and arrays, including in-place history and seat changes, without a revision prop or clock tick. They save their explicit fold actions through UiStateStore and show local failures. Paused analysis retains its existing exploration permissions; analysis management and player reassignment remain available during genuine pauses while board edit blocks engine startup/player changes.
 
-- views and feature adapters consume store state directly
-- small pure local selectors or mapping functions may shape store state for render components
-- no separate presentation query-helper subsystem is part of the baseline
-
-## Interaction Coverage
-### Startup And Home Actions
-- Fresh launch and no-active-game fallback render in `HomeView`.
-- `HomeView` uses `WorkspaceShell`, `HomeMenuButton`, `ItemList`, and `EmptyState` for its render surface.
-- Custom new game opens `NewGameModal`, which owns form composition but not game-creation decisions.
-- The same landing surface also owns direct actions for quick new, load, and settings.
-- When recent entries exist, the same landing surface also owns recent-game reopening from a list positioned below the primary action row.
-- `RecentGameStore` owns on-demand recent-entry loading and latest-save deduping, while `SavedGamesStore` performs the saved-document load and `GamesStore.insertGame(...)` performs the active-workspace reopen; `HomeView` only triggers the load and selection interactions.
-
-### Shell Navigation
-- `MenuBar` owns shell-level actions for quick new, custom new, load, save, settings, and delete.
-- `ToolbarStrip`, `MenuToolbarButton`, `TabbedView`, and `TabButton` own the actual shell markup.
-- `GameTabs` owns open-game switching and close actions, with `TabbedView` and `TabButton` handling generic tab interaction while `GameTabs` maps selection to `/game/:id`.
-- `Router` and `UiStateStore` validate and persist route-level navigation state.
-
-### Saved Games Navigation
-- `SavedGamesView` owns the route-level save/load surface for `/saved-games/save/:name`, `/saved-games/load`, and `/saved-games/load/:name`.
-- `SavedGamesView` forwards grouped-game selection, latest-save load requests, save requests, delete requests, and external picker requests to `SavedGamesStore`, then forwards any returned saved-game payloads into `GamesStore.insertGame(...)`.
-- `SavedGamesStore` owns latest-save choice, save grouping, route-specific document load or save flows, close-trigger autosave registration, and external picker flows, while `GamesStore` owns only active-workspace creation, insertion, hydration, and gameplay mutation after a payload is already available; the view stays display and routing focused.
-
-### Board And Move Input
-- `Chessboard` owns board interaction entry points such as click-click move input, drag-drop, selection clearing, and direct board-edit piece placement or removal.
-- `BoardGrid`, `SquareSurface`, `ChessPiece`, `AnalysisChessPieceButton`, and `ButtonGroup` own the board and piece render surfaces.
-- `GameView` forwards board events to `GamesStore`, which remains the mutation boundary.
-
-### History Navigation
-- `HistoryPanel` owns node selection and return-to-live-node actions.
-- `PanelSurface`, `TreeView`, `SidePanelButton`, and `EmptyState` own the history render surface.
-- `HistoryTree` is a template-free adapter that prepares move-tree view models for `TreeView`.
-
-### Analysis Interaction
-- `AnalysisPanel` owns refresh, retry, stop, per-game analysis-engine add and remove, and conditional analysis-move selection actions, with `+` on the panel title row and `-` on each engine title row.
-- `PanelSurface`, `StatusCard`, `ItemList`, `InlineMessage`, and `EmptyState` own the analysis render surface.
-- `AnalysisEngineSection` is a template-free adapter that prepares per-engine view models for those common components.
-- Each engine group always exposes score and engine status, may expose up to `3` visible lines when the current workspace context allows move targets, and may be folded independently through remembered UI state keyed by rendered row index for the active game without changing the other engine groups.
-- `GameView` may coordinate `GamesStore`, `EnginesStore`, and `UiStateStore` in one user flow when engine selection, mutation, analysis updates, and modal handling all stem from the same concrete presentation event.
-
-### Game Control Interaction
-- `GameControlPanel` is the single source for live-game and setup controls:
-  - takeback
-  - pause and resume
-  - resign and draw
-  - enter and exit in-game analysis
-  - enter, leave, and toggle board edit
-  - start game from setup
-- `PanelSurface`, `ButtonGroup`, and `SidePanelButton` own control markup.
-- `PlayerPanel` remains display-focused for players, clocks, and engine status, with the explicit exception that clicking a displayed player label for a baseline reassignable seat opens the player-selection flow for that side.
-- `GameView` derives captured-material groups from the visible position and passes them to `PlayerPanel`, which stays display-focused for the player strips.
-- `StatusCard` and `ClockDisplay` own player readout markup.
-
-### Settings And Engine Management
-- `SettingsView` owns settings and engine-inventory workflows.
-- `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`, `SettingsActionButton`, `ItemList`, `InlineMessage`, and `EmptyState` provide the required settings and inventory render building blocks.
-- `SettingsSection` and `EngineInventoryEditor` are template-free adapters over those common form and list components.
-- `TabbedView` and `TabButton` also support top-level settings category switching, with `SettingsView` mapping selection to `/settings/:category`.
-- User-setting edits remain in the `SettingsStore` draft, while engine-profile configuration and cached option metadata belong to `EnginesStore`.
-- `SettingsView` keeps `Cancel`, `Save`, and `Apply` in the primary bottom-right action row, while `Reset` stays in a separate secondary settings action area.
-
-### Modal And Confirmation Flows
-- `ModalDialog`, `DialogButton`, `FormSection`, `FieldRow`, and form-field controls own shared confirmation and modal form markup.
-- [SharedDialogFlows.md](SharedDialogFlows.md) is the low-level source for dialog-hosted promotion, start-game-from-setup, player-selection, analysis-engine selection, resign, local-local draw offer, local-local draw resolve, timeout, settings-dirty-leave, delete, reset, import-error, and blocked board-edit coverage.
-- Non-local draw responses stay on the `GameControlPanel` control surface through its LED-like pending-offer indicator instead of opening a shared dialog, with the lit state meaning accept for incoming offers and withdraw for outgoing offers.
-- `NewGameModal` remains the dedicated form component for `newGame` instead of being folded into the generic shared-dialog flow table.
-
-## Building Block Verification
-The common layer is complete for the current baseline when it can render:
-
-- shell layout and navigation: `WorkspaceShell`, `ToolbarStrip`, `TabbedView`, `TabButton`
-- button families: menu, dialog, home, side-panel, tab, settings, and piece-choice buttons
-- board UI: `BoardGrid`, `SquareSurface`, `ChessPiece`, `AnalysisChessPieceButton`, `ButtonGroup`
-- panel and list UI: `PanelSurface`, `ButtonGroup`, `ItemList`, `TreeView`, `StatusCard`, `ClockDisplay`, `EmptyState`, `InlineMessage`
-- forms: `FormSection`, `FieldRow`, `TextField`, `SelectField`, `ToggleField`, `NumberField`
-- modal flows: `ModalDialog`, `DialogButton`
-- piece-choice flows: `AnalysisChessPieceButton`, `PiecePalette`
-
-## Abstraction Rules
-- Views compose screen regions and connect them to stores; they contain no template markup.
-- Feature components own one interaction surface each and contain no template markup.
-- Common components handle all render markup, layout, form, tab, dialog, and button behaviour.
-- Repeated structures should be extracted into common render building blocks before large nested templates form.
-
+[Shared dialog flows](SharedDialogFlows.md) records provider lifetime, local form submission, captured confirmations, draw response, promotion, profile editing and mobile navigation. The small modal action helper prevents duplicate starts and suppresses late UI errors/dismissal; it does not dispatch commands or own a global current dialog. Existing domain work keeps its completion semantics.

@@ -1,222 +1,175 @@
-# Engine installation and profile rework
+# Engine targets, browser packages and profiles
 
-Prepared on 23 October 2026. Status: planned; no application implementation is included.
+Prepared on 23 October 2026; revised on 24 October 2026. Status: planned. See the [UI specification](EngineManagementUiDesign.md) and [clickable preview](design/EngineManagement.html).
 
-## Required behaviour
+## Agreed model
 
-- Desktop supports native UCI executables and browser JS/WASM UCI engines together, including within one game's analysis seats and player assignments.
-- Browser supports installed browser engines. Native engine profiles remain readable but unavailable on that host.
-- Users can install additional browser engines, then create multiple profiles with different names and options from one installation.
-- Bundled Stockfish is a default installed browser engine, represented by the same installation record and package format as user-installed engines. Its launch path has no Stockfish-specific branch.
-- Assigned games retain copied names, options, protocol and launch configuration. Profile edits, package updates and profile deletion do not retarget existing games.
+Desktop profiles point directly to an executable or the entry file inside a browser engine package, wherever the user keeps it. Selecting a package folder lets the user choose its entry script. There is no desktop installation, registration or engine catalogue.
 
-Planning assumption: install browser engines by importing a local package containing its manifest and assets. A URL installer can later feed the same package installation pipeline; a saved remote worker URL alone is not an installed package.
+- Browser import stores the supplied package files, preserving their relative layout. Discover imported packages by reading those folders, without separate installation records.
+- Require neither a fixed entry filename nor a new manifest. Upstream archives do not generally contain a ChessVue manifest. Do not generate one during browser import or modify desktop folders.
+- Existing package metadata may provide a name/version. It is not guaranteed to declare a usable browser entry or its interface. Ask for missing launch information explicitly; never guess the first JavaScript file or assume an npm `main` is a Worker.
+- `EngineClientType` remains the single implementation selector. Remove the unused engine `protocol` field and `EngineProtocol` as part of the rework.
+- Bundled Stockfish uses an ordinary package folder and a default profile naming its actual supplied entry file. It uses the same loader as user packages.
+- Each assignment copies the profile's entry path, client type, name and options. Profile edits/deletions do not retarget existing games.
 
-## Current boundaries and changes needed
+Follow [AGENTS.md](../AGENTS.md), the [cleanup ownership rules](ArchivedPlans/CodeCleanupPlan.md) and [store dependency boundaries](ArchivedPlans/StoreDependencyRestructuringPlan.md). Use explicit actions and lifecycle ownership, no watchers or async invalidation counters. State reaches platform capabilities through layer-2 services; stores do not look up sibling stores.
 
-| Current owner | Current behaviour | Required change |
+## Upstream interfaces and files
+
+Documentation/source checked on 23 October 2026; entry files rechecked on 24 October. These are API findings, not runtime acceptance results.
+
+| Engine/build | Supplied entry and interface | Consequence |
 | --- | --- | --- |
-| [Engine contracts](../src/contracts/Engine.ts) | Profiles and assignments have `executablePath`, `clientType: uci`, protocol and options. | Separate installations from profiles; use an explicit launch descriptor in assignments. |
-| [Platform selection](../src/platform/PlatformService.ts) | Selects one app host. | Keep host selection; compose both execution backends in desktop. |
-| [EngineRuntimeService](../src/domain/EngineRuntimeService.ts) | Starts every engine through the host's one process manager. | Pass a typed launch descriptor to a manager capable of routing each launch. |
-| [BrowserProcessManager](../src/platform/browser/BrowserProcessManager.ts) | Resolves `stockfish.js` specially and starts a worker URL. | Start installed package assets through the generic worker loader. |
-| [Native process manager](../src/platform/nwjs/NwjsProcessManager.ts) | Starts native child processes. | Retain native mechanics behind the composed desktop manager. |
-| [Shared UCI client](../src/platform/uci/UciEngineClient.ts) | Already accepts the private `IUciTransport` abstraction. | Retain one protocol state machine over both transports. |
-| [EnginesStore](../src/state/EnginesStore.ts) | Reads profiles and caches discovered options. | Also expose installed engines, compatibility and owned installation actions. |
-| [Settings persistence](../src/domain/UserSettingService.ts) | Stores profile JSON; defaults contain no profiles. | Persist installation references and seed a default profile on a fresh setup. |
-| [Stockfish build assets](../build/StockfishAssets.ts) | Emits worker/WASM files and adds a worker failure boundary. | Emit an ordinary engine package and its manifest; move generic failure handling to the loader. |
+| [Stockfish.js](https://github.com/nmrugg/stockfish.js#browser) | Example: `stockfish-19-lite-single.js`, matching WASM beside it; Worker `postMessage` and string message events | Fits `UciWorker` without renaming or an extra wrapper. |
+| [Lozza](https://github.com/op12no2/lozza#basic-use-in-a-browser) | `lozza.js`; same Worker string interface | Independent engine using the same client. |
+| [tomitankChess](https://github.com/tomitank/tomitankChess#usage) | `tomitankChess.js`; same Worker string interface | Another supplied filename, same app-facing implementation. |
+| [Fairy-Stockfish WASM](https://github.com/fairy-stockfish/fairy-stockfish.wasm/blob/nnue/src/emscripten/public/package.json) | Package includes `stockfish.js`/`stockfish.wasm`; module [postMessage/addMessageListener API](https://github.com/fairy-stockfish/fairy-stockfish.wasm/blob/nnue/src/emscripten/preamble.js) | Requires a matching module client or explicit adaptation, rather than treating its helper workers as the engine entry. |
+| [Lichess stockfish-web](https://github.com/lichess-org/stockfish-web#run-locally-on-node) | Build-specific entry, e.g. `sf_19.js`; [uci/listen module API and NNUE loading](https://github.com/lichess-org/stockfish-web/blob/master/stockfishWeb.d.ts) | Different module interface despite also speaking UCI. |
 
-The existing [store restructuring](StoreDependencyRestructuringPlan.md) has changes in progress in the working tree. Implement this rework against its final ownership boundaries, keeping engine installation independent of that call-wiring change.
+`UciWorker` names the common string-message interface, not an engine brand or filename. Another implemented interface gets another member in the same enum. JS versus WASM, source provenance and display name do not select implementations. A common app interface does not imply common package metadata or directory names.
 
-Follow [AGENTS.md](../AGENTS.md) and the [archived cleanup ownership rules](ArchivedPlans/CodeCleanupPlan.md). The cleanup document referenced by AGENTS has moved to that archive. Use explicit actions and lifecycle owners, with no watchers or async invalidation counters.
+Check exact-build readiness, option support, active-search interruption, pondering and infinite analysis independently. The [Lozza fork originally examined](https://github.com/namanthanki/lozza/blob/main/README.md#limitations) documents missing `stop`; that finding is build-specific, not a universal Lozza guarantee. Preserve the existing stop/drain contract.
 
-## Data model
-
-An **installation** identifies engine software and how to launch it. A **profile** names an installation and supplies configured option values. An **assignment** copies the selected launch configuration into a game.
+## Profile and discovery contracts
 
 ```ts
-export const enum EngineExecutionKind {
-  Native = 'native',
-  BrowserWorker = 'browserWorker',
+export const enum EngineClientType {
+  Uci = 'uci',
+  UciWorker = 'uciWorker',
 }
-export interface IEnginePackageReference {
-  packageId: string;
-  version: string;
-  digest: string;
+export const enum EngineInstallationSource {
+  Bundled = 'bundled',
+  User = 'user',
 }
-export type EngineLaunch =
-  | { kind: EngineExecutionKind.Native; executablePath: string }
-  | { kind: EngineExecutionKind.BrowserWorker; package: IEnginePackageReference };
-export interface IEngineInstallation {
-  id: string;
-  displayName: string;
-  protocol: EngineProtocol;
-  launch: EngineLaunch;
-  source: 'bundled' | 'user';
+export interface IEngineLaunch {
+  clientType: EngineClientType;
+  entryPath: string;
 }
 export interface IEngineRecord {
   id: string;
   displayName: string;
-  installationId: string;
+  launch: IEngineLaunch;
   options: IEngineOptionMap;
 }
-export interface IEngineSelection {
-  displayName: string;
-  protocol: EngineProtocol;
-  launch: EngineLaunch;
-  options: IEngineOptionMap;
-}
+export type IEngineSelection = Omit<IEngineRecord, 'id'>;
 export interface IAssignedEngine extends IEngineSelection {
   $?: IAssignedEngineRuntime;
 }
+export interface IBrowserEnginePackage {
+  packagePath: string;
+  displayName: string;
+  version?: string;
+  source: EngineInstallationSource;
+}
 ```
 
-- Keep `EngineProtocol.Uci`. Remove redundant `EngineClientType.Uci` from the new persisted contracts and select the protocol client by protocol. Execution kind belongs to the launch descriptor, independently of protocol.
-- Package identity includes the digest of the manifest and declared files. Reimporting identical content resolves to the same installed package; a changed binary is a separate release even if its display version is unchanged.
-- The installation owns protocol and launch configuration. Profiles do not duplicate either. `IEngineSelection` is the resolved input passed to game creation, assignment and option discovery.
-- `EnginesStore` resolves profile plus installation for selection. `GamesStore` copies the resolved selection into a new assignment; it never looks up a sibling store or retains the editable profile object. Clone nested launch/package descriptors and option maps at this boundary.
-- Saved assignments contain the complete native launch path or exact package reference. They do not depend on a profile or installation row remaining present. Browser package bytes remain an external installed dependency, as a native executable does today.
-- `source` records provenance for display and default seeding only. Runtime launch, discovery, stop and retry never branch on it.
-- Keep installed, supported-on-host and running/failed as separate concepts. Derive availability from installation presence, package requirements and host capabilities; do not persist a second copy of runtime availability.
+`entryPath` is the actual launch target: native executable for Uci, supplied browser entry script for UciWorker. Desktop accepts user paths or app-relative bundled paths. Browser uses virtual file paths in its package filesystem. Other future clients interpret their entry according to that implementation. There is no additional execution-kind enum or protocol selector.
 
-## Browser package format and loading
+`IBrowserEnginePackage` is a transient folder-discovery result, not a persisted record. Read existing `package.json` name/version where present; otherwise display the folder name without inventing a version. Derive source from the bundled/user storage namespace. Source uses `EngineInstallationSource` and never selects the runtime.
 
-Import a ZIP package containing `engine.json` and declared files. The same manifest and files are emitted for bundled packages. The manifest includes schema version, package id, display version/name, protocol, worker entry, asset paths/media types/digests and licence/source notices.
+The profile stores launch information because the user chose that target. Imported package storage holds only package files. There is no installation id, catalogue, saved entry-selection registry or generated loading descriptor. Several profiles can target one script with different options, or different builds inside the same folder.
 
-The first package contract supports classic, single-threaded UCI workers using string messages, matching the existing browser engine. Required worker capabilities must be declared and checked before installation is published. Module workers and threaded WASM require a separate extension to this contract.
+Copy nested launch/options data into assignments. External desktop files can change or disappear: validate the actual target at use, invalidate transient option caches when it changes and preserve unavailable paths for explicit repair. Do not promise immutable external bytes or substitute another build silently.
 
-Use a package-owned entry wrapper where the vendor needs startup configuration. The generic loader provides an asset-path-to-URL map before importing that entry. Packages must resolve dependencies through this map rather than assuming a deployed directory exists. For vendor workers that locate resources through the worker URL fragment, support a manifest-declared ordered list of asset paths to encode into that fragment. Stockfish's WASM location is expressed through this package metadata, with no engine-name test in application runtime code.
+## Package reading and entry selection
 
-The loader reads stored assets, creates correctly typed Blob URLs and starts a bootstrap worker which installs the generic startup failure boundary, exposes the asset map and imports the entry. Browser Blob workers inherit their creator's origin; relative imports resolve against the worker entry URL, which is why package dependencies need an explicit mapping. See the [Worker constructor](https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker) and [importScripts documentation](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope/importScripts).
+Preserve the upstream folder structure, script names and auxiliary resources. Browser import accepts the archive's actual layout; desktop users may extract it anywhere and point a profile at the executable/package entry. No required `assets` subdirectory or renamed entry is introduced.
 
-An asset lease owns every created URL until the worker has terminated. Release the whole lease on failed startup, explicit stop, restart, crash and app disposal. Never persist Blob URLs, `Worker` objects or leases. A package's original source URL, when present, is provenance rather than its runtime dependency.
+1. Read existing small metadata files where applicable to show package information. This does not prove a browser launch contract.
+2. If a supported metadata format unambiguously identifies a compatible entry, offer that file as a confirmed choice. Generic npm `main`, `browser` and `exports` fields are not automatically interchangeable or necessarily Worker-safe.
+3. Otherwise show the actual candidate files and ask the user to select the intended entry and implemented interface. Do not choose a helper worker merely because of its filename. Unsupported module APIs remain unsupported until the matching client/adaptation exists.
+4. Probe the selected target at the explicit profile/import action boundary; derive engine identity and options through that client. Keep probe results transient. The profile name is the user's saved label.
+5. Launch the chosen entry with its required assets and platform requirements. A message-compatible script is not proof of full player/analysis lifecycle support.
 
-This format requires a conforming package or package-local wrapper. It does not claim that an arbitrary vendor `.js` file with implicit relative imports is sufficient. Prove the asset-map and fragment mechanism against real Stockfish before implementing the remaining layers.
+On desktop, selecting/checking a target writes no package files. In browser, import review can collect an entry to check and seed Create profile immediately after import. That temporary selection is not persisted as installation metadata. Later profile creation asks again when the files do not identify an unambiguous entry. Done may leave an imported folder with no profiles.
 
-## Installation storage and lifecycle
+The loader must preserve or explicitly support the build's relative imports, WASM/NNUE resolution, MIME types and host requirements. Do not assume every vendor entry accepts an app asset-map bootstrap or that Blob workers inherit a package directory. Prove actual Stockfish and an independent worker before fixing the serving mechanism. See [Worker construction](https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker) and [importScripts](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope/importScripts).
 
-Add a platform `IEngineInstallationAdapter`, reached from state only through a layer-2 `EngineInstallationService`. It owns installation records, staged package assets and committed package assets; keep the existing text-document `IStorageAdapter` focused on settings and games.
+A real resource lease retains worker/asset URLs until their consumers terminate. Release on failed startup, cancellation, crash, restart and disposal. Never save Blob URLs, workers or picker handles in profiles.
 
-| Host | Package storage | Execution support |
+## Retrieval without a catalogue
+
+| Target | Retrieval | Persisted data |
 | --- | --- | --- |
-| Browser | IndexedDB records and binary assets, committed transactionally | Browser worker packages |
-| Desktop/NW.js | An app-owned engine directory under the app data root, with staging directories and atomic publication | Native processes and browser worker packages |
+| Desktop executable | Use the profile's exact executable entry path | Profile/assignment launch data and options |
+| Desktop browser engine | Use the profile's supplied script path; resolve its required neighbouring/package resources | Profile/assignment launch data and options; no copy or registration |
+| Bundled desktop engine | Same file reader and client, using the default profile's actual entry | Ordinary default profile |
+| Imported browser package | Enumerate package directories/file keys; read existing metadata when present, otherwise folder name | Original package files and relative layout |
+| Browser engine profile | Resolve its exact virtual script path inside the discovered package folder | Profile/assignment launch data and options |
 
-IndexedDB supports significant structured data including files and Blobs, making it suitable for the browser packages rather than putting WASM in the existing localStorage JSON filesystem. See the [IndexedDB documentation](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API). Storage loss or a failed write must produce an unavailable installation or failed install with a repair action; no profile silently switches to another engine.
+Browser storage can use a dedicated `chessvue-engines` IndexedDB database, with files keyed by `[packagePath, relativePath]`. Package-root keys define folder boundaries. Enumerate distinct roots, then read existing small metadata files without loading WASM/NNUE bytes. A successful import of a valid engine contains files, so no independent folder/installation record is required. Bundled/user roots determine the source enum. See the [IndexedDB documentation](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
 
-`EnginesStore` coordinates the installation steps through layer-2 services. `EngineInstallationService` does not call `EngineRuntimeService`, and neither service looks up a store.
+Do not create an installations object store, catalogue singleton, generated package manifest or remembered-entry table. Desktop has no managed user-engine root to scan. Browser package discovery does not start engines to fill a list; identity/options probes belong to explicit user actions.
 
-1. A user action creates an installation operation with an abort controller. Prevent duplicate starts for the same package operation.
-2. Read the archive; validate its schema, declared assets, digests, worker requirements and contained paths. Stage complete bytes before publication.
-3. Obtain a temporary resolved selection from the staged package. Use `EngineRuntimeService` for a bounded UCI initialisation/options probe, then fully close that temporary runtime.
-4. Commit the complete installation through `EngineInstallationService`. Publish it to the store only after the adapter commits successfully. Return discovered metadata separately from configured profile options.
-5. On failure or cancellation, settle the temporary runtime and remove staging data. An already-issued commit finishes with its result handled; cancellation must not leave the UI reporting an unknown partial installation.
-
-Staging work and its temporary runtime have one explicit operation owner. Modal dismissal, route exit and app disposal cancel uncommitted work and await cleanup. Interrupted staging is reconciled at the next installation initialisation. The committed installation catalogue is authoritative; failed publication must not leave a selectable record.
-
-Native installation means registering an existing executable, without copying or managing that executable. Its path is copied into assignments as today. Browser installation means retaining all package assets, so subsequent engine starts do not redownload them. This does not add offline caching for the application shell.
-
-## Default installed engine
-
-- Convert `StockfishConfig` and the build asset emitter into a bundled package manifest plus its files. Keep the dependency pinned and include the existing licence/source notices.
-- Initialise the installation catalogue before restoring games. On a fresh catalogue, install bundled Stockfish through the same validation, staging and publication path used for imports. Record completion durably so reloads do not duplicate installations.
-- A clean settings setup receives one ordinary Stockfish profile referring to that installation. Existing settings migration preserves existing profile choices rather than inventing extra profiles.
-- The default installation can be used by copied and newly created profiles exactly like an imported installation. Removing a profile leaves it installed.
-- Explicit uninstall records the user's removal so startup does not reinstall it. Provide an explicit restore-default-engine action using the packaged source. Missing/corrupt assets are reported as repairable instead of being confused with intentional removal.
-- Settings reset restores the default profile and ensures its package is installed, while retaining other installed packages. Resetting preferences is not package deletion.
-- App upgrades never overwrite a referenced package or silently retarget profiles or assignments. A new bundled release is a separate package; existing installed bytes remain usable until explicitly removed.
-
-If initial seeding fails, complete application startup with a recoverable installation warning and leave local play available. Report the default engine as unavailable and offer Retry; do not hold the whole app on a loading screen.
-
-## Runtime composition
-
-Keep the host-wide `PlatformService`, but make its engine services support multiple execution kinds.
+| Boundary | Responsibility |
+| --- | --- |
+| Platform package adapter | Desktop reads selected files/folders. Browser lists/reads/imports/removes stored package files. Expose only supported host operations. |
+| `EnginePackageService` | List package folders and candidate files; read existing metadata through the adapter, isolating unreadable folders into warnings. No native registration lookup. |
+| `EnginesStore.loadBrowserPackages()` / `refreshBrowserPackages()` | Own/share browser discovery at startup and explicit import/removal/Refresh/focus actions. Preserve profile drafts; no watchers or polling. Desktop profiles do not depend on this list. |
+| Profile/import target action | Collect exact entry and `EngineClientType`; validate/probe through layer-2 services and own cancellation. |
+| Selection resolution | Validate copied entry path, host and requested role at assignment/launch; return `Promise<IEngineSelection>`. Preserve the form on failure. |
+| Asset preparation | Read the selected entry and required resources, acquiring a real lease. Derive browser package boundary from its virtual path, not a registry id. |
 
 ```text
-EnginesStore -> EngineInstallationService -> installation adapter
-            -> EngineRuntimeService      -> temporary installation probe
-
-Selected profile + installation -> IEngineSelection
-  -> GamesStore copies IAssignedEngine
-  -> EngineRuntimeService
-       -> ProcessManager.spawnProcess(engine.launch)
-            native        -> native process + stream transport
-            browserWorker -> package asset lease + worker transport
-       -> EngineClient(engine.protocol)
-            shared UCI state machine -> registered IUciTransport
+Desktop profile -> executable entry -> native client/process
+Desktop profile -> supplied JS entry -> matching browser client
+Browser profile -> stored virtual entry -> same browser client
 ```
 
-- Change `IProcessManager` to accept a typed launch descriptor instead of interpreting a location string. Carry cancellation through asset preparation/startup so a cancelled owner cannot launch a replacement worker later.
-- Compose a desktop process manager with both native and worker backends. Browser composes only the worker backend and rejects native launch explicitly.
-- Maintain a platform-owned process registry which binds each opaque handle to its actual lifecycle owner and `IUciTransport`. Stop, validity checks, restart and disposal use that registered owner rather than parsing handles or consulting a mutable profile.
-- Extract the existing native stream adapter from `NwjsUciEngineClient` into transport construction. Register it beside `BrowserUciTransport`; the UCI client resolves both through the same transport seam.
-- Keep one UCI session implementation and the existing stop acknowledgement, pending player-move, ponder and failure semantics. Engine search ownership and game legality checks stay with their current owners.
-- Keep worker execution in the browser environment on NW.js. Verify the packaged application does not enable Node integration in these workers; NW.js exposes that integration through `--enable-node-worker`. See [NW.js command-line options](https://docs.nwjs.io/References/Command%20Line%20Options/).
-- Every running assignment retains its own process/worker, even when several profiles share one package. Share immutable installed files, not live engine sessions.
-- Change temporary option discovery to consume a resolved selection. Cache discovered metadata against launch identity and protocol, so retargeting a profile cannot reuse another installation's option declarations.
+## Browser import and defaults
 
-## Settings and selection flows
+Only browser hosts need import/removal. `EnginesStore` coordinates package storage through `EnginePackageService` and temporary probes through `EngineRuntimeService`; those layer-2 services do not call each other.
 
-Keep one Engines settings category with two clear lists: installed engines and configured profiles.
+1. An explicit import owns its picker, abort controller and staging work; prevent duplicate starts.
+2. Validate archive paths and layout, list actual entry candidates, collect the user's supported interface/entry choice, and check necessary assets/host requirements. No new manifest is required or generated.
+3. Probe the chosen entry's startup/options and intended role lifecycle, then release the temporary runtime.
+4. Publish all original files atomically in one IndexedDB transaction, preserving relative paths. Use a separate virtual folder for different content; no metadata/catalogue publication follows.
+5. Refresh discovery. Failed/cancelled work publishes nothing. Settle an issued publication even if the initiating UI closes. Create profile may use the action's captured entry choice; Done retains files only.
 
-- Installation actions: Install browser engine, Register native engine on desktop, Remove installation, Restore default engine and Retry failed installation. Show engine version, execution kind and availability.
-- Profile actions: Add, Copy, Edit and Delete. The profile editor selects an installed engine, then edits display name and options. Raw worker URL/path entry moves out of profile editing.
-- Profile edits retain the current settings draft and Apply/Save/Discard behaviour. Installation actions are explicit operations which commit immediately and show their own success/failure. Discarding a profile draft does not roll back a completed installation.
-- Installing software does not silently create a configured profile. Offer an explicit Create profile action after successful import; first-run default seeding is the documented exception.
-- Removing a profile never removes shared package files. Block uninstall while a committed profile or an open game's assignment uses that installation/package. The UI coordinates the checks from the owning stores without store-to-store lookups; the platform adapter also rejects deletion while a live asset lease exists.
-- Closed saved games keep their launch reference and can report a missing package after uninstall. Reinstalling identical content repairs that dependency without changing the game. New package versions never substitute automatically.
-- Reject Apply/Save if a draft profile refers to an installation removed since the draft was opened. Keep the draft and show the repair action.
-- New-game, player and analysis selectors show host compatibility and missing-package reasons. Prevent new unsupported selections while retaining the stored profile and existing assigned snapshot.
-- Replace path-specific rendering and validation, including `PlayerSelectionModal`'s `executablePath.trim()` check and paths shown by `AnalysisEngineSelectionModal`. A valid package reference is sufficient for browser launch.
-- Use global classes in `src/assets/styles/settings.css` and existing primitives. New production components remain `.vue`; install/loader TypeScript belongs outside `src/components`.
+Cancel/settle superseded checks before replacement work. Serialise conflicting publication/discovery. Browser package removal checks committed/draft profile entries, open-game assignments and active leases inside the folder. A draft-only profile deletion still blocks removal until Apply. Removal never touches desktop files or automatically rewrites profiles/games.
 
-Installation UI owns its picker, progress and errors for the actual operation. Dismissal and navigation must not deliver a late result into another dialog. Once publication starts, preserve its completion and refresh the catalogue from that outcome even if its initiating dialog has closed.
+The build supplies Stockfish's original script/assets in a normal bundled folder. Its default profile/configuration names the actual entry; no special client branch or manifest is needed. Desktop reads it directly. On first browser package-database creation, import those files through the ordinary pipeline into the bundled namespace. Existing empty storage is intentional, so reload does not continually reseed it. Failed setup offers Retry/Restore.
 
-## Persistence and migration
+Desktop Use included Stockfish fills the default script path. Browser Restore included engine reimports the supplied files if missing. Settings reset restores default profiles and ensures that entry resolves, while keeping unrelated browser packages and desktop files. App updates do not silently rewrite saved targets.
 
-Introduce version 2 for settings and saved games, with a separately versioned installation catalogue and package manifest. Leave session/layout document versions alone unless their own shapes change.
+## Mixed runtime and UI
 
-- Convert on read and write version 2 at the next normal save. Keep explicit version-1 parsers; never let a new strict schema discard old engine fields before migration.
-- Update both deserialisation paths: `UserSettingService` currently parses settings directly, while `SerializationService` also exposes settings parsing. Both use the same pure migration utilities outside the services, avoiding same-layer calls and inconsistent recovery.
-- Pure migration returns converted data and any required installation-registration intents; it performs no storage writes or engine starts. Startup coordinates registration through `EnginesStore` before workspace restore. Retain unresolved source metadata until registration commits, so saving after a failed migration cannot lose the original engine location.
-- Migrate recognised native locations into registered native installations and copy their launch paths into saved assignments. Map the exact `stockfish.js` alias to the bundled package reference.
-- Preserve arbitrary old worker URLs and ambiguous locations as unavailable legacy entries requiring Install/Relink. Their dependent asset sets cannot be reconstructed reliably from one URL. Keep the original location and options in a dedicated compatibility representation; do not fabricate a package digest, infer execution solely from the current host or silently point them at Stockfish.
-- Compatibility entries cannot reach a launcher until explicitly resolved. Give the version-2 schemas a discriminated unresolved-reference form and migrate it only through the Relink action. This is a persistence repair state, not a third executable backend.
-- Reading a saved game remains a pure data conversion; it must not install software. Resolve compatibility/package presence when inserting/restoring the workspace, preserving valid moves, clocks and recorded analysis if an engine is unavailable.
-- Catalogue initialisation and known-alias migration must agree on the exact bundled package reference before game restore. Keep a migration mapping for the currently bundled alias target so a later app update does not reinterpret an already migrated assignment.
-- Settings/game JSON contains metadata and package references only. Exporting a game does not embed engine binaries; importing on another host may require the matching package or native executable.
-- Preserve unknown/unsupported inputs with an actionable recovery result, rather than resetting the whole settings file because one engine cannot yet be installed.
+Host selection happens once. Its binding table is keyed only by `EngineClientType`, pairing each client with its matching lifecycle backend:
 
-## Implementation sequence
+```text
+EngineRuntimeService -> binding for launch.clientType
+  Uci       -> native process manager -> launch.entryPath
+  UciWorker -> package/file loader    -> launch.entryPath
+```
 
-| Step | Deliverable | Completion evidence |
+Desktop offers native and supported browser bindings together, including within one game. Browser offers its implemented browser bindings. Preserve `getEngineClient(clientType)` and obtain the matching lifecycle backend from the same table, avoiding independent switches. Bind each opaque handle to its actual owner for stop/restart/disposal; do not parse handles.
+
+Share the current UCI state machine through `IUciTransport` where appropriate, parameterising the hard-coded Uci guard while preserving ownership. Other interfaces can implement `IEngineClient` directly. Preserve turns, pondering, analysis stop acknowledgement, supersession, pause/deferred-result and legality semantics. Each assignment owns its runtime; share package bytes, not sessions. Verify actual [NW.js worker configuration](https://docs.nwjs.io/References/Command%20Line%20Options/) and packaging.
+
+Desktop Settings shows profiles and behaviour; Add/Edit selects an executable or browser entry file. Browse package can expose its script candidates. Browser adds the discovered package-folder list and import/remove controls, then profile entry selection. Both retain name/options and Apply/Save/Discard. Existing foreign-host/native targets remain visible and repairable. Profile deletion changes configuration only. Game selectors use accepted profiles and copy exact launch data/options.
+
+Follow the [UI specification](EngineManagementUiDesign.md), existing `.vue` ownership and shared global CSS. No new watchers, component style blocks or scope escapes.
+
+## Protocol removal, migration and delivery
+
+Remove engine `protocol`, `EngineProtocol`, `engineProtocols` and `engineProtocolSchema` from contracts/schemas, copies/defaults, option-cache keys, imports/fixtures and the read-only Protocol row in `EngineProfileModal`. Retain unrelated `URL.protocol` checks. Update affected runtime/store/composable/modal/journey utilities and architecture examples during implementation.
+
+Introduce settings/saved-game version 2; leave unrelated session/layout versions unchanged. No package-manifest schema version is needed.
+
+- Pure shared migration helpers serve `UserSettingService` and `SerializationService`; ignore legacy engine protocol values and omit them on new saves.
+- Native records retain their exact executable as `entryPath`, with no install/registration side effect.
+- Exact legacy `stockfish.js` aliases map to the supplied default entry and `UciWorker`; browser storage initialisation stays separate from document conversion.
+- Preserve ambiguous legacy worker paths/URLs and options with an explicit repair state. Do not invent missing resources or import packages while reading a saved game.
+- Export copied entry paths, client type and options, not engine binaries. Preserve moves/clocks/analysis even when launch targets are unavailable. Relink only through an explicit profile/assignment action.
+
+| Step | Deliverable | Evidence |
 | --- | --- | --- |
-| 1. Prove package loading | A real Stockfish package using the generic Blob bootstrap, asset map/fragment and failure handling on browser and actual NW.js. Include a second small worker package with an auxiliary asset. | Both load from stored bytes after reload; discovery and legal move search succeed; no special Stockfish resolver remains in the prototype. Confirm the supported package ABI before proceeding. |
-| 2. Contracts and compatibility | Installation/selection/launch/package schemas, version-2 readers/writers, common pure migration helpers and updated fixture factories. | Existing settings/games remain readable; unresolved legacy sources survive round trips. |
-| 3. Installation lifecycle | Binary adapters, catalogue, staging/commit/disposal, import picker and owned `EnginesStore` actions. | Complete installs survive restart; failed/cancelled/interrupted installs never become selectable; identical imports deduplicate. |
-| 4. Mixed execution | Composed desktop process manager, common transport registry and launch-based runtime entry points. | Native and worker assignments run concurrently; isolated stop/restart/crash and cancellation settle correctly. |
-| 5. Default package and startup | Package-producing build, default seeding, startup-before-restore ordering, explicit repair/reset behaviour and removal of runtime alias handling. | Fresh setup, subsequent reload, default uninstall, repair and app/package upgrade follow the same installation rules. |
-| 6. Settings and assignments | Installed/profile lists, profile installation picker, resolved selection inputs and copied assignment payloads. | Draft save/discard, copy/edit/delete, uninstall references and all player/analysis selectors work on both hosts. |
-| 7. Acceptance and documentation | Focused regression suites, browser journeys, real NW.js acceptance and architecture documentation. | Record actual results; distinguish mocked protocol coverage from native host evidence. |
+| 0. UI review | Actual entry-file selection, desktop direct paths, browser-only import | No assumed filenames/manifests or desktop installation. |
+| 1. Runtime proof | Real Stockfish plus an independent worker using upstream layouts | Different supplied entries and assets load from desktop and browser storage; role lifecycle verified separately. |
+| 2. Contracts/migration | Entry path, single client enum, source enum, protocol removal | Exact paths/options round-trip without installation ids or new package metadata. |
+| 3. Package files | Desktop reads; browser discovery/import/removal | No package writes on desktop, browser list reconstructs from files, cancelled/failed import publishes nothing. |
+| 4. Composition/defaults | Matching client/resource owners, ordinary bundled files/profile | Native/browser runtimes coexist with isolated stop/crash/restart; default uses same loader. |
+| 5. Acceptance | Forms, focused tests, browser/NW.js journeys and architecture docs | Exact entry selection, Apply/Cancel, recovery and reference checks; separate simulation from real runtime results. |
 
-Keep the working tree runnable at each integration boundary. Do not enable the new profile writer until its installation resolver, runtime path and migration reader are available. Remove transitional readers/aliases only after all callers and fixtures have moved; retain supported version-1 deserialisation.
-
-## Verification
-
-Tests should establish behaviour across the new boundaries, not duplicate individual mapping functions.
-
-| Area | Required scenarios |
-| --- | --- |
-| Mixed desktop runtime | Native player plus worker analysis; worker player plus native analysis; both analysis kinds in one game; independent stop/restart/crash; two profiles sharing installed files with independent runtimes. |
-| Browser compatibility | Installed worker runs; native profile remains visible/unavailable; imported native assignment does not prevent opening the rest of a game. |
-| Real package assets | Built-in and imported JS/WASM work from installed bytes after reload with original download requests blocked; auxiliary assets resolve through the package contract; missing/corrupt WASM settles with an error. |
-| Installation ownership | Duplicate install, picker cancellation, cancellation during asset reads/probe, dismissal/navigation, failed publication, quota/write failure, interrupted staging and app disposal. |
-| Defaults and updates | Fresh default installation/profile, no duplicate seeding, intentional uninstall survives reload, restore/reset, installation failure during startup and immutable old package after update. |
-| Profiles and persistence | Two profiles for one installation; edits/deletion do not alter assigned games; blocked uninstall, stale draft reference, v1/v2 round trips, alias/native/ambiguous migration and missing-package repair. |
-| Existing engine behaviour | Option discovery cleanup, player turns, pondering, pause/deferred move, multi-engine analysis, supersession, restart and per-engine failure isolation. |
-
-Update the existing engine runtime/platform/store tests, settings and serialization tests, `journeys/data/EngineProfile.ts`, journey bootstrap and `e2e/support/EngineInventory.ts`. Replace path-entry assumptions in the real browser engine journeys with installation and profile actions. Run real installed Stockfish as well as deterministic protocol fixtures.
-
-Run `npm run check:code` after relevant implementation changes, focused Vitest suites, affected Playwright journeys and `npm run build`. Actual NW.js acceptance is required for mixed desktop execution; browser tests and NW.js mocks do not establish that result. This planning-only change does not claim execution of those implementation checks.
-
-Update the high-level engine runtime/settings/build/persistence contracts, low-level engine data interfaces, platform process/client contracts, runtime ownership flow, store contracts and Settings component documentation with their implementation steps. Record the final package format and authoring instructions alongside a distributable example package.
+Cover absent package metadata, ambiguous multi-build archives, Node-only metadata entries, helper-worker confusion, different layouts/names, absent scripts/assets, path traversal, external changes, missing/foreign-host paths, cancellation/disposal and ignored protocol migration. Run `npm run check:code`, focused Vitest suites, affected Playwright journeys and `npm run build` after implementation. Real NW.js mixed-engine acceptance remains required. This is a plan and simulated design, not implemented engine loading.

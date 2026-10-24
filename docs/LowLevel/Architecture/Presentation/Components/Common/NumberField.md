@@ -15,4 +15,4 @@ Provide a reusable numeric input control with range guidance.
 - `blurred`
 
 ## Notes
-- `NewGameModal` and `SettingsView` use `NumberField` for time and scale controls.
+- `GameCreationModal` and `SettingsView` use `NumberField` for time and scale controls.

@@ -80,7 +80,7 @@ function _mount(game: IGame = _game()) {
   games.set(game.metadata.id, game);
   dependency.route.params.id = game.metadata.id;
   dependency.ui.gameSession = createGameSessionSnapshot({ openGameIds: [...games.keys()], activeGameId: game.metadata.id });
-  const wrapper = mount(GameView, { attachTo: document.body, global: { plugins: [modalPlugin], stubs: { MenuBar: true, GameTabs: true, PlayerPanel: true, HistoryPanel: true, AnalysisPanel: true } } });
+  const wrapper = mount(GameView, { attachTo: document.body, global: { plugins: [modalPlugin], stubs: { MenuBar: true, PlayerPanel: true, HistoryPanel: true } } });
   wrappers.push(wrapper);
   return wrapper;
 }
@@ -314,7 +314,7 @@ describe('premove scenarios at the mounted input boundary', () => {
     game.gameplayOptions.showLiveAnalysisMoves = false;
     const wrapper = _mount(game);
     await flushPromises();
-    expect(wrapper.getComponent({ name: 'AnalysisPanel' }).props('showMoves')).toBe(false);
+    expect(wrapper.getComponent({ name: 'AnalysisPanel' }).find('.analysis-lines').exists()).toBe(false);
     wrapper.getComponent({ name: 'AnalysisPanel' }).vm.$emit('moveSelected', _preview(game, ['e7e5', 'g1f3']));
     await flushPromises();
     expect(dependency.store.makeMove).not.toHaveBeenCalled();
@@ -523,18 +523,26 @@ describe('premove scenarios at the mounted input boundary', () => {
   it('PRE-S19 temporary tab selection retains queues but explicit close cancels only that game', async () => {
     const first = _game({ id: 'first' });
     const second = _game({ id: 'second' });
+    first.metadata.name = 'First queue';
+    second.metadata.name = 'Second queue';
     games.set(second.metadata.id, second);
     const wrapper = _mount(first);
     await flushPromises();
     const firstQueue = first.$!.premoveQueue;
     const secondQueue = second.$!.premoveQueue;
-    await _switch('second');
-    await _switch('first');
+    dependency.router.push.mockImplementation(async (path: string) => { await _switch(path.slice('/game/'.length)); });
+    await wrapper.findAll('.tab-button').find((button) => button.get('.tab-button__label').attributes('title') === 'Second queue')!.trigger('click');
+    await flushPromises();
+    expect(dependency.route.params.id).toBe('second');
+    await wrapper.findAll('.tab-button').find((button) => button.get('.tab-button__label').attributes('title') === 'First queue')!.trigger('click');
+    await flushPromises();
+    expect(dependency.route.params.id).toBe('first');
     expect(first.$!.premoveQueue).toBe(firstQueue);
     expect(second.$!.premoveQueue).toBe(secondQueue);
-    wrapper.getComponent({ name: 'GameTabs' }).vm.$emit('tabClosed', 'first');
+    await wrapper.get('[aria-label="Close First queue"]').trigger('click');
     await flushPromises();
     expect(dependency.store.clearPremoves).toHaveBeenCalledWith(first);
+    expect(dependency.store.clearPremoves.mock.invocationCallOrder[0]).toBeLessThan(dependency.ui.closeTab.mock.invocationCallOrder[0]!);
     expect(first.$!.premoveQueue).toBeUndefined();
     expect(second.$!.premoveQueue).toBe(secondQueue);
   });

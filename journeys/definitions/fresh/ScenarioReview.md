@@ -2,9 +2,9 @@
 
 Reviewed on 15 October 2026 against working-tree design documents based on `2d693f7`. Source inspection and execution evidence are recorded separately. This review covers the case branches below; it does not establish every branch of their owning scenarios.
 
-Sources: [creation/session scenarios](../../../docs/HighLevel/scenarios.md), [state model](../../../docs/HighLevel/state_model.md), [settings contract](../../../docs/HighLevel/settings_contract.md), [persistence contract](../../../docs/HighLevel/persistence_contract.md), [engine runtime](../../../docs/HighLevel/engine_runtime.md), `HomeView.vue`, `NewGameModal.vue`, `ModalHost.vue`, `GameWorkspaceComposable.ts`, `SettingsView.vue` and the normal autosave/serialisation paths.
+Sources: [creation/session scenarios](../../../docs/HighLevel/scenarios.md), [state model](../../../docs/HighLevel/state_model.md), [settings contract](../../../docs/HighLevel/settings_contract.md), [persistence contract](../../../docs/HighLevel/persistence_contract.md), [engine runtime](../../../docs/HighLevel/engine_runtime.md), `HomeView.vue`, `GameCreationModal.vue`, `ModalHost.vue`, `GameWorkspaceComposable.ts`, `SettingsView.vue` and the normal autosave/serialisation paths.
 
-Execution: named Playwright cases in `e2e/journeys/fresh/`; `npm run journey -- report` aggregates the latest `test-results/JourneyResults.json`. A missing or partial run is unverified. Baseline and implementation checks are documented in [JourneyImplementation.md](../../../docs/JourneyImplementation.md).
+Execution: named Playwright cases in `e2e/journeys/fresh/`; `npm run journey -- report` aggregates the latest `test-results/JourneyResults.json`. A missing or partial run is unverified. Baseline and implementation checks are documented in [JourneyImplementation.md](../../../docs/ArchivedPlans/JourneyImplementation.md).
 
 ## JRN-FRESH-01
 

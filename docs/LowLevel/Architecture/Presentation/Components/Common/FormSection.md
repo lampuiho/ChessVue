@@ -13,4 +13,4 @@ Provide a reusable form subsection wrapper with title, help text, and grouped fi
 - none directly
 
 ## Notes
-- `NewGameModal` and `SettingsView` use `FormSection` to avoid long anonymous field stacks.
+- `GameCreationModal` and `SettingsView` use `FormSection` to avoid long anonymous field stacks.

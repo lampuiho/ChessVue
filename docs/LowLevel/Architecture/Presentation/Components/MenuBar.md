@@ -1,23 +1,9 @@
 # MenuBar
 
-## Purpose
-Expose shell-level actions for new game, save, load, settings, and game lifecycle flows.
+The sole prop is `gameId`, the target workspace. Save/close availability follows whether that game exists. The old invariant capability flags and unused Delete action are removed.
 
-## Consumes
-- active game availability
-- current route
-- `MenuToolbarButton` for consistent menu action rendering
+Quick creation runs locally through `useQuickGame`, shared with Home. It uses accepted quick defaults, prevents duplicate submission and cancels UI follow-up on route/lifecycle replacement. It retains the existing two-local-player request and adds no Menu pause. Close calls the same `useGameTabActions.close` used by GameTabs, including target-only premove cancellation. Failures appear in the menu footer.
 
-## Emits
-- `quickNewGameRequested`
-- `customNewGameRequested`
-- `loadGameRequested`
-- `saveGameRequested`
-- `settingsRequested`
-- `deleteGameRequested`
+Five events retain the view-owned interruption boundary: `homeRequested`, `customNewGameRequested`, `loadGameRequested`, `saveGameRequested` and `settingsRequested`. GameView cancels playback, applies the configured Menu pause and owns activation/completion. Custom creation also captures the interrupted game in its exactly-once close callback.
 
-## Notes
-- Save and load orchestration happens in stores and adapters, not in the component.
-- Reusable menu-toolbar button behaviour stays in the common component layer.
-- Distinguishing quick-new from custom-new keeps the menu aligned with the committed scenario entry points.
-- `MenuBar` contains no HTML or template markup and binds menu actions into `ToolbarStrip` and `MenuToolbarButton`.
+NavigationFrame owns the desktop expansion and mobile drawer. Its slots render the same action closures in both surfaces.

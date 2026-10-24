@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref, toRef } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import {
   BoardOrientation,
-  DrawOfferDirection,
   GameState,
   PauseReason,
   PieceKind,
@@ -14,7 +13,6 @@ import {
   type BoardId,
   type IBoardPosition,
   type ICapturedPieceGroup,
-  type ICreateGameRequest,
   type IGame,
   type IMoveRaw,
   type IMoveNode,
@@ -29,9 +27,6 @@ import { abortableDelay } from '@/utility/async/Abortable';
 import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import { useModal, type IModalHandle } from '@/composables/ModalComposable';
 import GameCreationModal from '@/components/modals/GameCreationModal.vue';
-import PlayerSelectionModal from '@/components/modals/PlayerSelectionModal.vue';
-import AnalysisEngineSelectionModal from '@/components/modals/AnalysisEngineSelectionModal.vue';
-import DrawResponseModal from '@/components/modals/DrawResponseModal.vue';
 import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import MessageModal from '@/components/modals/MessageModal.vue';
 import MenuBar from '@/components/MenuBar.vue';
@@ -66,9 +61,6 @@ let clockTimer: ReturnType<typeof setInterval> | undefined;
 const gameId = computed(() => String(route.params.id));
 const game = toRef(() => {
   return gamesStore.getGame(gameId.value) as unknown as IGame | undefined;
-});
-const tabs = computed(() => {
-  return gamesStore.listGames().filter((candidate) => uiStateStore.gameSession?.openGameIds.includes(candidate.metadata.id)).map((candidate) => ({ id: candidate.metadata.id, name: candidate.metadata.name }));
 });
 const settings = computed(() => settingsStore.settings);
 const layout = computed(() => uiStateStore.layoutState);
@@ -176,16 +168,9 @@ const canTakeBack = computed(() => {
   const hasMove = gamesStore.getTakeBackMoveCount(currentGame) > 0;
   return hasMove && (!currentGame.livePath || !!currentGame.gameplayOptions.allowTakeback);
 });
-const canPause = computed(() => game.value?.timeControl.initialMs !== undefined && game.value.timeControl.preset !== 'untimed');
-const canAddEngine = computed(() => !!game.value && game.value.analysis.seats.length < 4 && (settings.value?.analysis.engineInventory.length ?? 0) > game.value.analysis.seats.length);
 const showAnalysisMoves = computed(() => !game.value?.livePath || !!game.value.gameplayOptions.showLiveAnalysisMoves);
-const analysisSeats = computed(() => {
-  return game.value ? gamesStore.getVisibleAnalysis(game.value)?.engineSeats ?? [] : [];
-});
 const topColour = computed(() => settings.value?.appearance.boardOrientation === BoardOrientation.Black ? PlayerColour.White : PlayerColour.Black);
 const bottomColour = computed(() => topColour.value === PlayerColour.White ? PlayerColour.Black : PlayerColour.White);
-const topPlayer = computed(() => topColour.value === PlayerColour.White ? game.value?.whitePlayer : game.value?.blackPlayer);
-const bottomPlayer = computed(() => bottomColour.value === PlayerColour.White ? game.value?.whitePlayer : game.value?.blackPlayer);
 const capturedByColour = computed(() => {
   const result: Record<PlayerColour, ICapturedPieceGroup[]> = { white: [], black: [] };
   const currentGame = game.value;
@@ -242,24 +227,6 @@ async function _reconcileTimeout() {
   runtime.timeoutNotificationShown = true;
   modal.open(MessageModal, { title: 'Time has expired', subtitle: 'The game is finished, but the position remains available for review.', message: `${currentGame.resultState === ResultState.WhiteWon ? 'White wins' : 'Black wins'} on time.`, closeLabel: 'Review game' });
 }
-async function _quickNewGame() {
-  const defaults = settings.value?.gameDefaults;
-  if (!defaults) return;
-  const request: ICreateGameRequest = {
-    name: defaults.quickNewGameName,
-    whitePlayer: { colour: PlayerColour.White, type: PlayerType.Local, displayName: 'White' },
-    blackPlayer: { colour: PlayerColour.Black, type: PlayerType.Local, displayName: 'Black' },
-    analysisEngineProfiles: [],
-    allowTakeback: true,
-    showLiveAnalysisMoves: false,
-    timeControl: { ...defaults.defaultTimeControl },
-  };
-  await _run(async () => {
-    const createdGame = await gamesStore.createGame(request);
-    uiStateStore.openTab(createdGame.metadata.id);
-    await router.push(`/game/${createdGame.metadata.id}`);
-  });
-}
 async function _handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown) {
   await playback.cancel();
   const currentGame = game.value;
@@ -276,17 +243,6 @@ function _openCustomGame() {
   return _handleMenuInterruptionRequested(() => modal.open(GameCreationModal, {}, () => {
     if (game.value === interrupted) return _handleMenuInterruptionCompleted(interrupted);
   }));
-}
-async function _selectTab(id: string) {
-  uiStateStore.setActiveGame(id);
-  await router.push(`/game/${id}`);
-}
-async function _closeTab(id: string) {
-  const closing = gamesStore.getGame(id) as IGame | undefined;
-  if (closing) gamesStore.clearPremoves(closing);
-  uiStateStore.closeTab(id);
-  const activeId = uiStateStore.gameSession?.activeGameId;
-  await router.push(activeId ? `/game/${activeId}` : '/home');
 }
 async function _makeMove(move: IMoveRaw) {
   await _requestMoves([move]);
@@ -305,13 +261,6 @@ async function _navigateToNode(node: IMoveNode) {
   if (game.value !== currentGame) return;
   _closeContinuation();
   await _run(() => gamesStore.navigateToNode(currentGame, node));
-}
-async function _returnToLivePosition() {
-  const currentGame = game.value;
-  if (!currentGame?.livePath) return;
-  let node = currentGame.moveTree.root;
-  for (const index of currentGame.livePath) node = node.children[index]!;
-  await _navigateToNode(node);
 }
 async function _playAnalysisLine(moves: readonly IMoveRaw[]) {
   const currentGame = game.value;
@@ -386,80 +335,6 @@ async function _applyMoves(currentGame: IGame, moves: readonly IMoveRaw[]) {
     }
   });
 }
-async function _toggleBoardEdit() {
-  const currentGame = game.value;
-  if (!currentGame) return;
-  if (isInGameAnalysis.value) {
-    modal.open(MessageModal, { title: 'Board editing is unavailable', subtitle: 'Finish in-game analysis before changing the position.', message: 'Board editing is only available in a free analysis workspace.', closeLabel: 'Understood' });
-    return;
-  }
-  await _run(async () => gamesStore.enterBoardEdit(currentGame));
-}
-async function _handleDraw() {
-  const currentGame = game.value;
-  if (!currentGame || !position.value) return;
-  if (currentGame.drawOfferState?.direction === DrawOfferDirection.Incoming) return _run(() => gamesStore.acceptDrawOffer(currentGame));
-  if (currentGame.drawOfferState?.direction === DrawOfferDirection.Outgoing) return _run(() => gamesStore.withdrawDrawOffer(currentGame));
-  const isLocalGame = currentGame.whitePlayer?.type === PlayerType.Local && currentGame.blackPlayer?.type === PlayerType.Local;
-  if (isLocalGame) {
-    const offeringColour = livePosition.value?.sideToMove ?? position.value.sideToMove;
-    modal.open(ConfirmationModal, {
-      title: 'Offer a draw?', subtitle: 'The other side will be asked to accept or decline.',
-      message: `Offer a draw from the ${offeringColour} side.`, confirmLabel: 'Offer draw',
-      confirm: (signal) => _offerDraw(currentGame, offeringColour, signal),
-    });
-  } else await _run(() => gamesStore.offerDraw(currentGame));
-}
-async function _offerDraw(currentGame: IGame, offeringColour: PlayerColour, signal: AbortSignal) {
-  await gamesStore.offerDraw(currentGame);
-  signal.throwIfAborted();
-  modal.open(DrawResponseModal, { gameId: currentGame.metadata.id, respondingColour: offeringColour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White });
-}
-function _requestSetupStart() {
-  if (game.value) modal.open(GameCreationModal, { gameId: game.value.metadata.id });
-}
-function _requestResignation() {
-  const currentGame = game.value;
-  const colour = livePosition.value?.sideToMove ?? position.value?.sideToMove;
-  if (!currentGame || !colour) return;
-  modal.open(ConfirmationModal, {
-    title: 'Resign this game?', subtitle: 'This records the game as finished. You can still review the position afterwards.',
-    message: `Confirm that ${colour} resigns.`, confirmLabel: 'Resign', danger: true,
-    confirm: () => gamesStore.resignGame(currentGame, colour),
-  });
-}
-function _requestPlayerSelection(colour: PlayerColour) {
-  const currentGame = game.value;
-  if (!currentGame || controlMode.value === 'boardEdit') return;
-  const player = colour === PlayerColour.White ? currentGame.whitePlayer : currentGame.blackPlayer;
-  modal.open(PlayerSelectionModal, { gameId: currentGame.metadata.id, colour, currentPlayer: player });
-}
-function _requestAnalysisEngine() {
-  const currentGame = game.value;
-  if (!currentGame) return;
-  modal.open(AnalysisEngineSelectionModal, { gameId: currentGame.metadata.id, currentAnalysisEngines: currentGame.analysis.seats.map((seat) => seat.assignedEngine) });
-}
-function _toggleSection(section: 'history' | 'analysis') {
-  uiStateStore.setSectionCollapsed(section);
-  void _run(() => uiStateStore.saveLayoutState());
-}
-function _toggleAnalysisEngine(index: number) {
-  uiStateStore.setAnalysisEngineExpanded(index);
-  void _run(() => uiStateStore.saveLayoutState());
-}
-async function _removeAnalysisEngine(index: number) {
-  const currentGame = game.value;
-  if (!currentGame?.analysis.seats[index]) return;
-  const cleanup = gamesStore.removeAnalysisEngine(currentGame, index);
-  let saving = Promise.resolve();
-  if (layout.value) {
-    const expanded = [...layout.value.analysisEngineExpandedByIndex];
-    expanded.splice(index, 1);
-    uiStateStore.setLayoutState({ ...layout.value, analysisEngineExpandedByIndex: expanded });
-    saving = uiStateStore.saveLayoutState();
-  }
-  await Promise.all([cleanup, saving]);
-}
 function _showNotice(message: string) {
   notice.value = message;
   if (noticeTimer) clearTimeout(noticeTimer);
@@ -476,21 +351,17 @@ async function _run(action: () => Promise<void> | void) {
 
 <template>
   <main v-if="game && position" class="game-page app-page">
-    <MenuBar
-      can-save
-      can-close
-      @close-game-requested="_run(() => _closeTab(game!.metadata.id))"
+    <MenuBar :game-id="game.metadata.id"
       @home-requested="_run(() => _handleMenuInterruptionRequested(() => router.push('/home')))"
-      @quick-new-game-requested="_quickNewGame"
       @custom-new-game-requested="_run(_openCustomGame)"
       @load-game-requested="_run(() => _handleMenuInterruptionRequested(() => router.push('/saved-games/load')))"
       @save-game-requested="_run(() => _handleMenuInterruptionRequested(() => router.push(`/saved-games/save/${game!.metadata.id}`)))"
       @settings-requested="_run(() => _handleMenuInterruptionRequested(() => router.push('/settings/session')))" />
     <div class="game-content">
-      <GameTabs v-if="tabs.length > 1" :tabs="tabs" :active-id="game.metadata.id" @tab-selected="_selectTab" @tab-closed="_closeTab" />
+      <GameTabs />
       <div class="game-stage">
         <section class="board-column" :class="{ 'board-column--editing': controlMode === 'boardEdit' }">
-          <PlayerPanel :colour="topColour" :player="topPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="actualTurnColour === topColour" :captured-pieces="capturedByColour[topColour]" @player-selection-requested="_requestPlayerSelection" />
+          <PlayerPanel :colour="topColour" :game-id="game.metadata.id" :selection-disabled="isPlayingLine" :remaining-ms="remainingTime[topColour]" :active="actualTurnColour === topColour" :captured-pieces="capturedByColour[topColour]" />
           <Chessboard
             :position="position"
             :display-position="renderedBoard?.displayPosition"
@@ -510,45 +381,15 @@ async function _run(action: () => Promise<void> | void) {
             @board-cleared="gamesStore.clearBoard(game!)"
             @board-reset="gamesStore.resetBoardToStartPosition(game!)"
           />
-          <PlayerPanel :colour="bottomColour" :player="bottomPlayer" :selection-disabled="controlMode === 'boardEdit' || isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="actualTurnColour === bottomColour" :captured-pieces="capturedByColour[bottomColour]" @player-selection-requested="_requestPlayerSelection" />
+          <PlayerPanel :colour="bottomColour" :game-id="game.metadata.id" :selection-disabled="isPlayingLine" :remaining-ms="remainingTime[bottomColour]" :active="actualTurnColour === bottomColour" :captured-pieces="capturedByColour[bottomColour]" />
         </section>
         <aside class="game-sidebar surface">
           <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? (livePosition?.sideToMove ?? position.sideToMove) + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
-          <HistoryPanel v-if="layout?.showHistoryPanel" :root="game.moveTree.root" :rendered-path="game.renderedPath" :live-path="game.livePath" :collapsed="layout.historyCollapsed" :disabled="isHistoryInputDisabled" @collapse-toggled="_toggleSection('history')" @node-selected="_navigateToNode" @return-to-live-requested="_returnToLivePosition" />
-          <AnalysisPanel v-if="layout?.showAnalysisPanel"
-            :seats="analysisSeats"
-            :collapsed="layout.analysisCollapsed"
-            :expanded-by-index="layout.analysisEngineExpandedByIndex"
-            :show-moves="showAnalysisMoves"
-            :disabled="isBoardInputDisabled || controlMode === 'boardEdit'"
-            :start-disabled="controlMode === 'boardEdit'"
-            :can-add="canAddEngine"
-            @collapse-toggled="_toggleSection('analysis')"
-            @engine-expanded-toggled="_toggleAnalysisEngine"
-            @refresh-requested="_run(() => gamesStore.refreshAnalysis(game!))"
-            @retry-requested="(index) => _run(() => gamesStore.retryAnalysis(game!, index))"
-            @stop-requested="(index) => _run(() => gamesStore.stopAnalysis(game!, index))"
-            @engine-add-requested="_requestAnalysisEngine"
-            @engine-remove-requested="(index) => _run(() => _removeAnalysisEngine(index))"
-            @move-selected="inputActions.line"
-          />
+          <HistoryPanel v-if="layout?.showHistoryPanel" :game-id="game.metadata.id" :disabled="isHistoryInputDisabled" @node-selected="_navigateToNode" />
+          <AnalysisPanel v-if="layout?.showAnalysisPanel" :game-id="game.metadata.id" :disabled="isBoardInputDisabled || controlMode === 'boardEdit'" @move-selected="inputActions.line" />
           <button v-if="controlMode === 'paused'" class="control-button" @click="isInGameAnalysis ? inputActions.exit() : inputActions.analyse()"><AppIcon name="activity" /><span><strong>{{ isInGameAnalysis ? 'Exit analysis' : 'Analyse' }}</strong><small>The game stays paused</small></span></button>
-          <GameControlPanel
-            class="game-sidebar__controls"
-            :mode="controlMode"
-            :can-take-back="canTakeBack"
-            :can-pause="canPause"
-            :draw-pending="!!game.drawOfferState"
-            @take-back-requested="inputActions.takeBack"
-            @pause-requested="_run(() => gamesStore.pauseGame(game!, PauseReason.Manual))"
-            @resume-requested="_run(() => gamesStore.resumeGame(game!, PauseReason.Manual))"
-            @analysis-requested="inputActions.analyse"
-            @exit-analysis-requested="inputActions.exit"
-            @board-edit-requested="_toggleBoardEdit"
-            @start-game-requested="_requestSetupStart()"
-            @resign-requested="_requestResignation()"
-            @draw-requested="_handleDraw"
-          />
+          <GameControlPanel class="game-sidebar__controls" :game-id="game.metadata.id" :mode="controlMode" :can-take-back="canTakeBack"
+            @take-back-requested="inputActions.takeBack" @analysis-requested="inputActions.analyse" @exit-analysis-requested="inputActions.exit" />
         </aside>
       </div>
     </div>

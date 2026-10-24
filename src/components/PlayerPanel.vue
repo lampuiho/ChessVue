@@ -1,18 +1,28 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EngineAvailability, PieceKind, PlayerColour, PlayerType, type ICapturedPieceGroup, type IEnginePlayer, type IPlayer } from '@/contracts';
+import { EngineAvailability, GameState, PieceKind, PlayerColour, PlayerType, type ICapturedPieceGroup, type IEnginePlayer } from '@/contracts';
+import { useGamesStore } from '@/state';
+import { useModal } from '@/composables/ModalComposable';
+import PlayerSelectionModal from './modals/PlayerSelectionModal.vue';
 import AppIcon from './common/AppIcon.vue';
 import ChessPiece from './common/ChessPiece.vue';
 
 const props = defineProps<{
   colour: PlayerColour;
-  player?: IPlayer;
+  gameId: string;
   remainingMs?: number;
   active?: boolean;
   selectionDisabled?: boolean;
   capturedPieces?: readonly ICapturedPieceGroup[];
 }>();
-const emit = defineEmits<{ playerSelectionRequested: [colour: PlayerColour] }>();
+const gamesStore = useGamesStore();
+const modal = useModal();
+const game = computed(() => gamesStore.getGame(props.gameId));
+const player = computed(() => props.colour === PlayerColour.White ? game.value?.whitePlayer : game.value?.blackPlayer);
+const canSelect = computed(() => !!game.value && !props.selectionDisabled && game.value.gameState !== GameState.BoardEdit);
+function _selectPlayer() {
+  if (canSelect.value) modal.open(PlayerSelectionModal, { gameId: props.gameId, colour: props.colour });
+}
 const capturedColour = computed(() => props.colour === PlayerColour.White ? PlayerColour.Black : PlayerColour.White);
 const clockText = computed(() => {
   if (props.remainingMs === undefined) return '—';
@@ -23,11 +33,11 @@ const clockText = computed(() => {
   return remaining < 10000 ? `${minutes}:${String(seconds).padStart(2, '0')}.${tenths}` : `${minutes}:${String(seconds).padStart(2, '0')}`;
 });
 const engineStatus = computed(() => {
-  if (props.player?.type !== PlayerType.Engine) return;
-  return (props.player as IEnginePlayer).assignedEngine.$?.availability ?? EngineAvailability.Ready;
+  if (player.value?.type !== PlayerType.Engine) return;
+  return (player.value as IEnginePlayer).assignedEngine.$?.availability ?? EngineAvailability.Ready;
 });
 const engineError = computed(() => {
-  if (props.player?.type === PlayerType.Engine) return (props.player as IEnginePlayer).assignedEngine.$?.lastError;
+  if (player.value?.type === PlayerType.Engine) return (player.value as IEnginePlayer).assignedEngine.$?.lastError;
   return;
 });
 </script>
@@ -36,7 +46,7 @@ const engineError = computed(() => {
   <section class="player-panel" :class="{ 'player-panel--active': active }">
     <span class="player-avatar"><ChessPiece :kind="PieceKind.Pawn" :colour="colour" /><i v-if="active"></i></span>
     <div class="player-identity">
-      <button class="player-name" :title="player?.displayName ?? 'Unassigned'" :disabled="selectionDisabled" @click="emit('playerSelectionRequested', colour)"><span>{{ player?.displayName ?? 'Unassigned' }}</span><AppIcon v-if="!selectionDisabled" name="chevron-down" /></button>
+      <button class="player-name" :title="player?.displayName ?? 'Unassigned'" :disabled="!canSelect" @click="_selectPlayer"><span>{{ player?.displayName ?? 'Unassigned' }}</span><AppIcon v-if="canSelect" name="chevron-down" /></button>
       <div v-if="!engineError" class="player-meta">
         <span>{{ colour === PlayerColour.White ? 'White' : 'Black' }}</span>
         <span v-if="player?.type === PlayerType.Engine" class="engine-state"><i :class="`engine-state--${engineStatus}`"></i>{{ engineStatus }}</span>
