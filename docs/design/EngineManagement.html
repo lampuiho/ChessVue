@@ -6,6 +6,8 @@
   <title>ChessVue engine management design</title>
   <link rel="stylesheet" href="../../src/assets/main.css">
   <link rel="stylesheet" href="EngineManagement.css">
+  <script src="../../node_modules/vue/dist/vue.global.prod.js" defer></script>
+  <script src="../../node_modules/vue-router/dist/vue-router.global.prod.js" defer></script>
   <script src="EngineManagement.js" defer></script>
 </head>
 <body>
@@ -14,7 +16,7 @@
       <div><strong>Engine management &middot; design preview</strong><small>Sample data. File selection, folder reads and imports are simulated; nothing is saved.</small></div>
       <div class="ed-preview__controls">
         <label>Host<select id="preview-host" class="field-control"><option value="desktop">Desktop</option><option value="browser">Browser</option></select></label>
-        <label>State<select id="preview-state" class="field-control"><option value="ready">Ready</option><option value="missing">Missing package</option><option value="empty">Empty</option><option value="incompatible">Incompatible package</option></select></label>
+        <label>State<select id="preview-state" class="field-control"><option value="ready">Ready</option><option value="missing">Missing package</option><option value="empty">Empty</option><option value="invalidArchive">Invalid archive</option></select></label>
         <label>Theme<select id="preview-theme" class="field-control"><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
         <button class="text-button" data-action="analysis">Analysis chooser</button>
         <button class="text-button text-button--ghost" data-action="reset-preview">Reset preview</button>
@@ -29,8 +31,13 @@
       </aside>
       <main class="ed-main">
         <header class="ed-page-header"><div><p class="page-kicker">Settings</p><h1 class="ed-page-title" tabindex="-1">Engines</h1></div><span id="unsaved" class="ed-tag ed-tag--accent" hidden>Unsaved changes</span></header>
-        <div class="ed-content">
-          <div id="feedback" class="ed-feedback" role="status" aria-live="polite" hidden></div>
+        <div id="feedback" class="ed-feedback" role="status" aria-live="polite" hidden></div>
+        <div id="engine-route-view" class="ed-route-outlet"></div>
+      </main>
+    </div>
+  </div>
+  <template id="engine-overview-template"><div class="ed-overview-view"><div class="ed-content">
+<div id="engine-overview">
           <section id="packages-section" class="ed-section" aria-labelledby="installed-title" hidden>
             <header class="ed-section__heading"><div><h2 id="installed-title">Installed browser engines</h2><p>Packages stored in this browser. Installation changes take effect immediately.</p></div><button class="text-button text-button--primary" data-action="install">+ Install browser engine</button></header>
             <div id="installed-engines" class="ed-list"></div>
@@ -41,11 +48,10 @@
             <div id="engine-profiles" class="ed-list"></div>
           </section>
           <section class="ed-section" aria-labelledby="behaviour-title"><header class="ed-section__heading"><div><h2 id="behaviour-title">Analysis behaviour</h2><p>Applies when ChessVue restores your workspace.</p></div></header><label class="ed-toggle"><input id="resume-analysis" type="checkbox" checked> Resume assigned analysis engines after restore</label></section>
-        </div>
-        <footer class="ed-footer"><span id="draft-summary">All profile changes saved</span><div class="ed-actions"><button class="text-button text-button--ghost" data-action="cancel-settings">Cancel</button><button id="save-settings" class="text-button" data-action="save" disabled>Save</button><button id="apply-settings" class="text-button text-button--primary" data-action="apply" disabled>Apply changes</button></div></footer>
-      </main>
-    </div>
+          </div>
   </div>
+<footer class="ed-footer"><span id="draft-summary">All profile changes saved</span><div class="ed-actions"><button class="text-button text-button--ghost" data-action="cancel-settings">Cancel</button><button id="save-settings" class="text-button" data-action="save" disabled>Save</button><button id="apply-settings" class="text-button text-button--primary" data-action="apply" disabled>Apply changes</button></div></footer>
+  </div></template>
   <dialog id="engine-dialog" class="ed-dialog" aria-labelledby="dialog-title"></dialog>
 </body>
 </html>

@@ -45,6 +45,14 @@
 .engine-design .ed-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 0.5rem; }
 .engine-design .ed-feedback { margin-bottom: 0.5rem; padding: 0.8rem 1rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-panel); font-size: 0.8rem; }
 .engine-design .ed-feedback button { margin-left: 0.5rem; }
+.engine-design .ed-route-outlet, .engine-design .ed-overview-view { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+.engine-design .ed-engine-view { display: grid; gap: 1.4rem; padding: 0.5rem 0 1.5rem; }
+.engine-design .ed-engine-view__back { justify-self: start; }
+.engine-design .ed-engine-view__header { display: grid; gap: 0.35rem; }
+.engine-design .ed-engine-view__header h2 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; }
+.engine-design .ed-engine-view__header p { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
+.engine-design .ed-engine-view__body { display: grid; gap: 1.25rem; }
+.engine-design .ed-engine-view__footer { display: flex; flex-wrap: wrap; justify-content: end; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); }
 .engine-design .ed-dialog { width: min(42rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 0; color: var(--text-primary); background: var(--surface-dialog); border: 0; border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
 .engine-design .ed-dialog::backdrop { background: var(--scrim); }
 .engine-design .ed-dialog__body { display: grid; gap: 1rem; padding: 1.35rem; }
