@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
-import { onScopeDispose } from 'vue';
+import { markRaw, onScopeDispose } from 'vue';
 import { PlatformErrorKind, ResolvedThemeMode, type IPlatformError } from '@/contracts';
 import { EngineClientType, PlatformEventKey, type IEngineClient, type IPlatformEventRegistration, type IPlatformService, type IProcessManager } from '@/contracts/platform';
 import { RegistrationTimestamp } from '@/utility/date';
-import { defineBrowserUciEngineClientStore } from './BrowserEngineClient';
-import { BrowserProcessManager, type BrowserEngineRegistry } from './BrowserProcessManager';
+import { BrowserUciEngineClient } from './BrowserEngineClient';
+import { BrowserProcessManager } from './BrowserProcessManager';
 import { defineBrowserStorageAdapterStore } from './BrowserStorageAdapter';
 import { BrowserSystemThemeAdapter } from './BrowserSystemThemeAdapter';
 
@@ -24,9 +24,8 @@ export function setBrowserPlatformOptions(options: IBrowserPlatformOptions = {})
 }
 export const useBrowserPlatformService = defineStore('platformService', () => {
   const storageAdapter = defineBrowserStorageAdapterStore(_options.storage, _options.storageKey)();
-  const registry: BrowserEngineRegistry = new Map();
-  const browserProcessManager = new BrowserProcessManager(registry);
-  const { processManager, engineClient } = _options.createEngineServices?.() ?? { processManager: browserProcessManager, engineClient: defineBrowserUciEngineClientStore(registry)() };
+  const browserProcessManager = new BrowserProcessManager();
+  const { processManager, engineClient } = _options.createEngineServices?.() ?? { processManager: browserProcessManager, engineClient: markRaw(new BrowserUciEngineClient()) };
   const systemThemeAdapter = new BrowserSystemThemeAdapter();
   const closeRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
   const focusRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];

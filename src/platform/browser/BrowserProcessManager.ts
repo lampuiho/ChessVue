@@ -2,40 +2,41 @@ import { PlatformError, PlatformErrorKind } from '@/contracts';
 import { markRaw } from 'vue';
 import type { IProcessManager, IProcess } from '@/contracts/platform';
 import { StockfishConfig } from '@/config/StockfishConfig';
-import { BrowserUciTransport } from './BrowserUciTransport';
+import { BrowserWorkerProcess } from '@/utility/BrowserWorkerProcess';
 
-export type BrowserEngineRegistry = Map<IProcess, BrowserUciTransport>;
 export class BrowserProcessManager implements IProcessManager {
-  constructor(private readonly _registry: BrowserEngineRegistry, private readonly _createWorker = (url: URL): Worker => new Worker(url, { name: 'ChessVue UCI' })) {}
+  private readonly _processes = new Set<BrowserWorkerProcess>();
   async spawnProcess(executablePath: string, args: string[] = []): Promise<IProcess> {
     if (args.length) throw this._startError('Browser engines do not accept desktop command-line arguments.');
     const url = this._resolveWorkerUrl(executablePath);
+    let worker: Worker | undefined;
     try {
-      const worker = this._createWorker(url);
-      const process = markRaw(worker) as unknown as IProcess;
-      this._registry.set(process, new BrowserUciTransport(worker, () => this._registry.delete(process)));
+      worker = new Worker(url, { name: 'ChessVue UCI' });
+      const process = markRaw(new BrowserWorkerProcess(worker));
+      this._processes.add(process);
+      process.once('exit', () => this._processes.delete(process));
       return process;
     } catch (error) {
+      worker?.terminate();
       throw this._startError('The UCI engine worker could not be started.', String(error));
     }
   }
   assertProcessOpen(process: IProcess) {
-    this._requireTransport(process);
+    if (!(process instanceof BrowserWorkerProcess) || process.closed) throw new PlatformError({ kind: PlatformErrorKind.InvalidProcessHandle, operation: 'process', message: 'Engine worker is no longer running.' });
   }
   async stopProcess(process: IProcess) {
-    this._requireTransport(process).terminate();
+    this.assertProcessOpen(process);
+    await new Promise<void>((resolve) => {
+      process.once('exit', () => resolve());
+      process.kill();
+    });
   }
   async restartProcess(process: IProcess, executablePath: string, args?: string[]): Promise<IProcess> {
     await this.stopProcess(process);
     return this.spawnProcess(executablePath, args);
   }
   dispose() {
-    for (const transport of [...this._registry.values()]) transport.terminate();
-  }
-  private _requireTransport(handle: IProcess): BrowserUciTransport {
-    const transport = this._registry.get(handle);
-    if (!transport) throw new PlatformError({ kind: PlatformErrorKind.InvalidProcessHandle, operation: 'process', message: `Engine worker handle is no longer valid: ${handle}.` });
-    return transport;
+    for (const process of [...this._processes]) process.kill();
   }
   private _resolveWorkerUrl(path: string): URL {
     if (!path.trim() || /^[a-z]:[\\/]|^\\\\|\.exe$/i.test(path)) throw this._startError('Local UCI executables require the desktop app. Use stockfish.js or a browser UCI worker URL.');

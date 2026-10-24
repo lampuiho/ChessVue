@@ -151,6 +151,15 @@ Analysis and ponder searches share `StoppingSearch` because their stop protocol 
 
 The service stores the exact returned process under engine.$.process, including a late result after cancellation so terminal disposal can release it. The existing initialiseClient callback calls the selected EngineClient.initialiseEngine(engine). Existing-process checks call assertProcessOpen with the same object; only the existing invalid-process recovery path respawns.
 
+| NwjsPlatformService platform-store setup |
+| --- |
+| useNwjsStorageAdapter() |
+| useNwjsProcessManager() |
+| useNwjsSystemThemeAdapter() |
+| markRaw(new NwjsUciEngineClient()) |
+
+The native platform getter returns that same class instance. No native client store or binding object is created. Browser journey injection likewise constructs a raw NwjsUciEngineClient alongside its scripted native manager.
+
 | `NwjsProcessManager.spawnProcess(executablePath, args)` |
 | --- |
 | `childProcess.spawn(executablePath, args, { stdio: 'pipe' })` |
@@ -168,9 +177,14 @@ Resolve with that exact object after stream setup. Both startup listeners are re
 
 | `NwjsUciEngineClient._writeCommand(process, command)` |
 | --- |
-| Native line write through existing `NwjsUtility.writeProcessLine(process, command)` - await |
+| `_writeProcessLine(process, command)` - await |
 
-The native client reads the object directly from engine.$.process and owns its attached protocol session/listeners. Its existing UCI state machine and command sequencing stay unchanged. Native helper functions are implementation support, not flow owners.
+| NwjsUciEngineClient._writeProcessLine(process, command): inherited implementation |
+| --- |
+| _isProcessOpen(process) - native protected override |
+| process.stdin.write(command + '\n') |
+
+Both write methods are inherited from the unchanged UciEngineClientBase, retaining the existing two async boundaries and missing-input error kind. The native client reads the object directly from engine.$.process; its attached protocol session/listeners and command order are shared base implementation. Native liveness checks read exitCode/signalCode through NwjsUtility. Exit-detail formatting also uses those native fields and retains the previous code/signal text. The duplicate native line/write helpers are removed; support helpers are not additional flow owners.
 
 | `EngineRuntimeService._releaseEngineProcess(engine, runtime): process present` |
 | --- |
@@ -186,4 +200,53 @@ Capture the process before awaiting. An already-exited resource follows the same
 | `process.once('exit', onExit)` |
 | `process.kill()` |
 
-The one-shot exit listener resolves the stop promise, preserving the original shutdown behaviour. Browser operations retain their existing registry/transport paths with a raw Worker object key; the shared runtime never invokes process members directly.
+The one-shot exit listener resolves the stop promise, preserving the original shutdown behaviour. The shared runtime passes process references to the selected implementations and never invokes process members directly.
+
+## Browser process reference boundaries
+
+| useBrowserPlatformService setup: default engine services |
+| --- |
+| new BrowserProcessManager() |
+| markRaw(new BrowserUciEngineClient()) |
+
+The platform store constructs the implementations independently and returns the raw client instance through getEngineClient. The client is a plain class inheriting the protocol implementation; there is no client store or method-binding object. Custom engine-services injection and existing platform-scope disposal remain unchanged.
+
+| BrowserProcessManager.spawnProcess(executablePath, args) |
+| --- |
+| _resolveWorkerUrl(executablePath) |
+| new Worker(url, { name: 'ChessVue UCI' }) |
+| Construct the Worker-backed process and markRaw |
+| process.once('exit', removeClosedProcess) |
+
+The manager adds the returned object to its private disposal Set before registering the listener. That listener deletes the same object on closure; it is independent of client-session callbacks. No registry lookup or injected constructor callback is involved. The runtime retains the exact process reference, including a late result awaiting disposal.
+
+| BrowserUciEngineClient.initialiseEngine(engine) |
+| --- |
+| _requireProcess(engine) |
+| _initialiseAssignedEngineSession(engine) |
+| _attachToProcess(engine, process, session) |
+| _awaitUciOk(session, process) - await |
+| parseOptionLines(optionLines) |
+| Existing configured-option writes - await each |
+| _awaitReadyOk(session, process) - await |
+
+Both native and browser clients inherit these same method bodies, verified against the original NW.js implementation with shared IProcess types. Existing session reuse/replacement and command/state order remain unchanged. The private browser hooks provide liveness and stored exit detail; neither calls the manager. Process attachment owns its data/exit callbacks and detaches only those exact registrations. Imported private support is not an additional flow owner.
+
+| BrowserProcessManager.stopProcess(process): open channel |
+| --- |
+| assertProcessOpen(process) |
+| process.once('exit', onExit) |
+| process.kill() |
+
+The one-shot callback resolves the stop promise. kill closes the managed channel, terminates its Worker and emits one exit notification; the callback is not a physical-exit acknowledgement. A closed/wrong object rejects with invalidProcessHandle before waiting, reaching the existing runtime already-closed cleanup. Client stop remains a presence-only session cleanup after physical stop.
+
+| BrowserProcessManager.restartProcess(process, executablePath, args) |
+| --- |
+| stopProcess(process) - await |
+| spawnProcess(executablePath, args) - await |
+
+| BrowserProcessManager.dispose() |
+| --- |
+| process.kill() - for each object in a snapshot of the manager's live-process Set |
+
+Worker error/messageerror and postMessage failures close only the affected object, retain its diagnostic and notify the client to reject its session-owned wait. Every closure route removes Worker handlers and triggers the manager's independent disposal listener. UCI-session detach never terminates the Worker or removes that manager listener.

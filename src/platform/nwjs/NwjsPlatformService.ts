@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { markRaw } from 'vue';
 
 import { ResolvedThemeMode, PlatformErrorKind, type IPlatformError } from '@/contracts';
 import { EngineClientType, PlatformEventKey, type IPlatformEventRegistration, type IPlatformService } from '@/contracts/platform';
@@ -7,7 +8,7 @@ import { RegistrationTimestamp } from '@/utility/date';
 import { defineNwjsProcessManagerStore } from './NwjsProcessManager';
 import { defineNwjsStorageAdapterStore } from './NwjsStorageAdapter';
 import { defineNwjsSystemThemeAdapterStore } from './NwjsSystemThemeAdapter';
-import { defineNwjsUciEngineClientStore } from './NwjsUciEngineClient';
+import { NwjsUciEngineClient } from './NwjsUciEngineClient';
 
 interface IEventRegistration<TCallback> {
   registration: IPlatformEventRegistration;
@@ -21,13 +22,12 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
   const useNwjsStorageAdapter = defineNwjsStorageAdapterStore(nw);
   const useNwjsProcessManager = defineNwjsProcessManagerStore(nw);
   const useNwjsSystemThemeAdapter = defineNwjsSystemThemeAdapterStore(nw);
-  const useNwjsUciEngineClient = defineNwjsUciEngineClientStore(nw);
   return defineStore('platformService', () => {
     let nextRegistrationId = 1;
     const storageAdapter = useNwjsStorageAdapter();
     const processManager = useNwjsProcessManager();
     const systemThemeAdapter = useNwjsSystemThemeAdapter();
-    const uciEngineClient = useNwjsUciEngineClient();
+    const uciEngineClient = markRaw(new NwjsUciEngineClient());
     const appCloseRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
     const appFocusRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
     const themeRegistrations: IEventRegistration<(theme: ResolvedThemeMode) => void>[] = [];

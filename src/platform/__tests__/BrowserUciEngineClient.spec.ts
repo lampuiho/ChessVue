@@ -1,10 +1,10 @@
 import { isProxy, reactive } from 'vue';
-import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineAnalysisSearchMode, EngineAvailability, EngineOptionType, type IAssignedEngine } from '@/contracts';
-import type { IEngineAnalysisUpdate } from '@/contracts/platform';
-import { defineBrowserUciEngineClientStore } from '../browser/BrowserEngineClient';
-import { BrowserProcessManager, type BrowserEngineRegistry } from '../browser/BrowserProcessManager';
+import type { IEngineAnalysisUpdate, IEngineClient } from '@/contracts/platform';
+import { BrowserUciEngineClient } from '../browser/BrowserEngineClient';
+import { BrowserProcessManager } from '../browser/BrowserProcessManager';
+import { BrowserWorkerProcess } from '@/utility/BrowserWorkerProcess';
 import { createAssignedEngine, createEngineGame } from './NwjsPlatformTestUtility';
 
 class FakeWorker extends EventTarget {
@@ -25,26 +25,22 @@ class FakeWorker extends EventTarget {
   terminate() { this.terminated = true; }
   crash() { this.dispatchEvent(new ErrorEvent('error', { message: 'WASM load failed', cancelable: true })); }
 }
-let pinia: Pinia;
-let registry: BrowserEngineRegistry;
 let manager: BrowserProcessManager;
 let workers: FakeWorker[];
-let client: ReturnType<ReturnType<typeof defineBrowserUciEngineClientStore>>;
+let client: IEngineClient;
 beforeEach(() => {
-  pinia = createPinia();
-  setActivePinia(pinia);
-  registry = new Map();
   workers = [];
-  manager = new BrowserProcessManager(registry, (url) => {
+  vi.stubGlobal('Worker', vi.fn(function (url: URL) {
     const worker = new FakeWorker(url);
     workers.push(worker);
-    return worker as unknown as Worker;
-  });
-  client = defineBrowserUciEngineClientStore(registry)();
+    return worker;
+  }));
+  manager = new BrowserProcessManager();
+  client = new BrowserUciEngineClient();
 });
 afterEach(() => {
   manager.dispose();
-  disposePinia(pinia);
+  vi.unstubAllGlobals();
 });
 async function _createEngine(): Promise<IAssignedEngine> {
   const engine = createAssignedEngine();
@@ -52,10 +48,12 @@ async function _createEngine(): Promise<IAssignedEngine> {
   engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
   return engine;
 }
-describe('browser UCI transport', () => {
+describe('browser UCI process', () => {
   it('uses the bundled worker for handshake, option discovery, analysis and stop', async () => {
-    const engine = reactive(await _createEngine());
-    expect(engine.$!.process).toBe(workers[0]);
+    const assigned = await _createEngine();
+    const engine = reactive(assigned);
+    expect(engine.$!.process).toBe(assigned.$!.process);
+    expect(engine.$!.process).toBeInstanceOf(BrowserWorkerProcess);
     expect(isProxy(engine.$!.process)).toBe(false);
     await client.initialiseEngine(engine);
     expect(workers[0]!.url.pathname).toBe('/engines/stockfish/stockfish-19-lite-single.js');
@@ -74,7 +72,7 @@ describe('browser UCI transport', () => {
     await client.startPlayerTurn(engine, createEngineGame());
     expect((await client.awaitPlayerTurnMove(engine)).$?.uci).toBe('e7e5');
   });
-  it('rejects pending initialisation and invalidates the handle on worker failure', async () => {
+  it('rejects pending initialisation and closes the process on worker failure', async () => {
     const engine = await _createEngine();
     workers[0]!.respondToUci = false;
     const starting = client.initialiseEngine(engine);
@@ -83,8 +81,9 @@ describe('browser UCI transport', () => {
     await rejected;
     expect(() => manager.assertProcessOpen(engine.$!.process!)).toThrow();
     expect(workers[0]!.terminated).toBe(true);
+    await expect(client.stopEngine(engine)).resolves.toBeUndefined();
   });
-  it('isolates worker lifetimes and replaces handles on restart', async () => {
+  it('isolates worker lifetimes and replaces process objects on restart', async () => {
     const first = await manager.spawnProcess('stockfish.js');
     const second = await manager.spawnProcess('/custom-uci.js');
     const restarted = await manager.restartProcess(first, 'stockfish.js');
@@ -93,7 +92,6 @@ describe('browser UCI transport', () => {
     expect(workers[0]!.terminated).toBe(true);
     expect(() => manager.assertProcessOpen(second)).not.toThrow();
     manager.dispose();
-    expect(registry.size).toBe(0);
     expect(workers.every((worker) => worker.terminated)).toBe(true);
   });
   it('rejects native executables, cross-origin URLs and desktop arguments', async () => {
@@ -111,5 +109,39 @@ describe('browser UCI transport', () => {
     await manager.stopProcess(engine.$!.process!);
     workers[0]!.dispatchEvent(new MessageEvent('message', { data: 'info depth 9 score cp 99 pv e7e5' }));
     expect(onUpdate).toHaveBeenCalledTimes(count);
+  });
+  it('uses a process directly without manager registration', async () => {
+    const worker = new FakeWorker(new URL('http://localhost/engine.js'));
+    const process = new BrowserWorkerProcess(worker as unknown as Worker);
+    expect(() => manager.assertProcessOpen(process)).not.toThrow();
+    await manager.stopProcess(process);
+    expect(worker.terminated).toBe(true);
+    await expect(manager.stopProcess(process)).rejects.toMatchObject({ kind: 'invalidProcessHandle' });
+  });
+  it('keeps manager cleanup when the client detaches its session', async () => {
+    const engine = await _createEngine();
+    await client.initialiseEngine(engine);
+    await client.stopEngine(engine);
+    expect(workers[0]!.terminated).toBe(false);
+    const process = engine.$!.process!;
+    process.kill();
+    const kill = vi.spyOn(process, 'kill');
+    manager.dispose();
+    expect(kill).not.toHaveBeenCalled();
+  });
+  it('terminates a created worker when process construction fails', async () => {
+    const worker = new FakeWorker(new URL('http://localhost/engine.js'));
+    vi.spyOn(worker, 'addEventListener').mockImplementation(() => { throw new Error('Listener setup failed.'); });
+    vi.stubGlobal('Worker', function () { return worker; });
+    await expect(manager.spawnProcess('stockfish.js')).rejects.toMatchObject({ kind: 'processStartFailed', detail: expect.stringContaining('Listener setup failed.') });
+    expect(worker.terminated).toBe(true);
+  });
+  it('parses complete UCI lines from one message with blanks and CRLF', async () => {
+    const engine = await _createEngine();
+    workers[0]!.respondToUci = false;
+    const starting = client.initialiseEngine(engine);
+    workers[0]!.dispatchEvent(new MessageEvent('message', { data: '  option name Hash type spin default 32 min 1 max 1024\r\n\nuciok' }));
+    await starting;
+    expect(client.getOptions(engine)).toContainEqual({ name: 'Hash', type: EngineOptionType.Integer, defaultValue: 32, minimum: 1, maximum: 1024 });
   });
 });

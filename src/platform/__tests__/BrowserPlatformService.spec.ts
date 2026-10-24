@@ -1,7 +1,9 @@
+import { isProxy } from 'vue';
+import { BrowserUciEngineClient } from '../browser/BrowserEngineClient';
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineClientType, ResolvedThemeMode } from '@/contracts';
-import type { IProcess } from '@/contracts/platform';
+import type { IEngineClient, IProcess, IProcessManager } from '@/contracts/platform';
 import { setBrowserPlatformOptions, useBrowserPlatformService } from '../browser/BrowserPlatformService';
 
 let pinia: Pinia;
@@ -29,7 +31,11 @@ describe('browser host services', () => {
     expect(platform.getSystemThemeAdapter().getSystemTheme()).toBe(ResolvedThemeMode.Dark);
     await expect(platform.getProcessManager().spawnProcess('stockfish.exe')).rejects.toMatchObject({ kind: 'processStartFailed', message: expect.stringContaining('desktop') });
     expect(() => platform.getProcessManager().assertProcessOpen({} as IProcess)).toThrow();
-    expect(typeof platform.getEngineClient(EngineClientType.Uci).startAnalysis).toBe('function');
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    expect(client).toBeInstanceOf(BrowserUciEngineClient);
+    expect(isProxy(client)).toBe(false);
+    expect(platform.getEngineClient(EngineClientType.Uci)).toBe(client);
+    expect(typeof client.startAnalysis).toBe('function');
   });
   it('dispatches focus/theme events, tracks copied registrations and unsubscribes', async () => {
     const platform = useBrowserPlatformService();
@@ -82,5 +88,16 @@ describe('browser host services', () => {
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
     document.dispatchEvent(new Event('visibilitychange'));
     await vi.waitFor(() => expect(focus).toHaveBeenCalledOnce());
+  });
+  it('retains explicitly injected engine services', () => {
+    const processManager: IProcessManager = { spawnProcess: vi.fn(), assertProcessOpen: vi.fn(), stopProcess: vi.fn(), restartProcess: vi.fn() };
+    const engineClient: IEngineClient = {
+      awaitPlayerTurnMove: vi.fn(), getOptions: vi.fn(), initialiseEngine: vi.fn(), restartEngine: vi.fn(),
+      startAnalysis: vi.fn(), startPlayerTurn: vi.fn(), startPondering: vi.fn(), stopAnalysis: vi.fn(), stopEngine: vi.fn(),
+    };
+    setBrowserPlatformOptions({ storage: sessionStorage, createEngineServices: () => ({ processManager, engineClient }) });
+    const platform = useBrowserPlatformService();
+    expect(platform.getProcessManager()).toBe(processManager);
+    expect(platform.getEngineClient(EngineClientType.Uci)).toBe(engineClient);
   });
 });

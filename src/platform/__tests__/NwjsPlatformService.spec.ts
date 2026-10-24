@@ -1,17 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import { isProxy } from 'vue';
+import { EngineClientType } from '@/contracts/platform';
 
 import { registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
 
 const { getEnvironment, getPlatformService } = registerNwjsPlatformTestEnvironment();
 
 describe('usePlatformService', () => {
-  it('exposes platform services through the platform store', () => {
+  it('exposes platform services through the platform store', async () => {
+    const { NwjsUciEngineClient } = await import('../nwjs/NwjsUciEngineClient');
     const platform = getPlatformService();
 
     expect(typeof platform.getStorageAdapter).toBe('function');
     expect(typeof platform.getProcessManager).toBe('function');
     expect(typeof platform.getSystemThemeAdapter).toBe('function');
     expect(typeof platform.getEngineClient).toBe('function');
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    expect(client).toBeInstanceOf(NwjsUciEngineClient);
+    expect(isProxy(client)).toBe(false);
+    expect(platform.getEngineClient(EngineClientType.Uci)).toBe(client);
     expect(platform.getEventRegistrationSnapshot()).toEqual([]);
   });
   it('tracks app event registrations from the injected nw window and theme listener', async () => {

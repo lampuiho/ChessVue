@@ -130,31 +130,39 @@ Each entry must define:
 - Search-context predicate: `isPonderHit(game, expectedPonderMove)` shares the exact move-match rule used by `buildFindNextMoveCommands(...)` so the client can select state before sending the builder's contextual result.
 - Touched contract models: `IEngineOptionMeta`, `IAnalysisLine`, `IBoardPosition`, `IGame`, and `IMove`.
 - Allowed importers: concrete UCI engine clients and utility tests.
-- Owner-private delegates: `NwjsUciEngineClient` handshake, game-boundary, state-transition, analysis-line, and best-move handlers.
+- Owner-private delegates: inherited native and browser UCI handshake, game-boundary, state-transition, analysis-line and best-move handlers.
 - Classification: `mixed`; command construction and parsing are deterministic, while `buildUciMove(...)` may populate the runtime-only `IMove.$.uci` cache.
 - Validation or failure semantics: invalid highlighted or live paths, missing timed clocks, malformed UCI moves or option declarations, and unsupported option types throw rather than creating partial protocol data. Standard initial roots emit `position startpos`; one-time verification is cached under `IBoardPosition.$.isStandardInitialPosition`, while custom roots emit full FEN. `buildFindNextMoveCommands(...)` retains its contextual contract: a matching ponder returns `ponderhit`, a mismatch returns `stop`, and a normal request returns the current position plus a timed `go` or bounded untimed `go movetime 1000` (`BuildConfig.engine.untimedMoveTimeMs`). The client selects hit or miss independently, and a miss awaits its own stop boundary before rebuilding normal commands from the current game.
 
+### BrowserWorkerProcess
+- Purpose: adapt a dedicated Worker resource to the existing Node-free IProcess input/output/exit subset.
+- Location: src/utility/BrowserWorkerProcess.ts.
+- Touched contract models: IProcess, IProcessInput, IProcessOutput and IPlatformError.
+- Allowed importers: BrowserProcessManager and the browser UCI client, plus focused tests; no platform-barrel export.
+- Owner-private delegates: manager spawn/validity/stop/disposal and the client liveness/exit-detail hooks and inherited process I/O.
+- Classification: resource-owning implementation support; it is not a service or architecture flow owner.
+- Validation or failure semantics: the constructor takes only the Worker. Buffer incomplete input; post complete command lines; preserve string message boundaries as stdout chunks. Closure is one-shot, records closed/exitDetail, detaches handlers, terminates the Worker and emits exit(null, null) without replay. Worker errors and failed postMessage retain existing diagnostics. Managed closure is not a physical Worker-exit acknowledgement. The manager owns its disposal-set removal through its own exit listener.
+
 ### NwjsUtility
-- Purpose: share typed NW.js host access and native process liveness, line-listener attachment and command writes for the independent native manager/client implementations.
-- Touched contract models: IProcess and IPlatformError, with the native ISpawnedProcess refinement kept private to host implementations.
+- Purpose: share typed NW.js host access and native process liveness for the independent native manager/client implementations.
+- Touched contract models: PlatformTarget and IProcess through the native ISpawnedProcess refinement, kept private to host implementations.
 - Allowed importers: platform bootstrap and NW.js implementations, plus the app shell for resolved host styling.
 - Owner-private delegates:
   - `PlatformService` bootstrap
   - `NwjsProcessManager` native liveness checks
-  - `NwjsUciEngineClient` process-listener attachment, line buffering and command writes
+  - `NwjsUciEngineClient._isProcessOpen` native liveness hook
 - Classification: `mixed`.
 - Validation or failure semantics: the utility must return one shared typed `nw` object for the active build target, allow explicit test or bootstrap override, and fall back to the cached mock host when real NW.js bindings are unavailable. `getNwjs()` throws when the resolved target is not `PlatformTarget.Nwjs`, before resolving overrides, real bindings or fallback mocks. The `PlatformTarget` enum represents resolved targets. Automatic selection ignores the mock fallback and uses the browser platform when no real or explicitly injected NW.js runtime exists. `PlatformService` resolves that shared instance once, and the concrete NW.js store definitions receive it through injected parameters rather than resolving host globals independently.
 
-The manager owns UTF-8 configuration; line helpers consume strings and retain existing framing/trimming. These utility functions neither own process lifecycle nor retain process registries. Listener attachment returns the client-owned detacher, and writes reject exited resources or missing stdin with the existing error kinds.
+The native manager owns UTF-8 configuration. The inherited UCI base owns string line framing, listener detachment and command writes; the unused native copies of those helpers are removed. NwjsUtility keeps host lookup and exitCode/signalCode liveness checking only, without process lifecycle ownership or a registry.
 
 ### NodeUtility
 - Purpose: share access to Node modules exposed through the NW.js host and the temporary mock-module fallback required before the real desktop bootstrap is present.
 - Touched contract models: none directly; supports platform-owned file-system and process implementations without adding Node-module concerns to the public platform contract.
-- Allowed importers: `NwjsStorageAdapter`, `NwjsProcessManager`, `NwjsUciEngineClient`.
+- Allowed importers: `NwjsStorageAdapter`, `NwjsProcessManager`.
 - Owner-private delegates:
   - `NwjsStorageAdapter._resolveFs`
   - `NwjsStorageAdapter._resolvePath`
   - `NwjsProcessManager._resolveChildProcess`
-  - `NwjsUciEngineClient._resolveChildProcess`
 - Classification: `mixed`.
 - Validation or failure semantics: the utility must resolve each required Node-backed dependency separately from the active NW.js host when available, and fall back to temporary mock implementations only when the real NW.js-exposed Node environment is unavailable.

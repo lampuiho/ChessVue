@@ -421,4 +421,18 @@ describe('NwjsUciEngineClient', () => {
 
     expect(process.getCommandLog()).toContain('register later');
   });
+  it.each([[1, null], [null, 'SIGTERM']] as const)('retains native exit detail for code %s and signal %s', async (code, signal) => {
+    const platform = getPlatformService();
+    const process = await platform.getProcessManager().spawnProcess('stockfish.exe');
+    const native = getEnvironment().latestProcess();
+    native.queueResponse('uci', []);
+    const engine = createAssignedEngine();
+    engine.$ = { process, availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const starting = client.initialiseEngine(engine);
+    const rejected = expect(starting).rejects.toMatchObject({ kind: PlatformErrorKind.UnexpectedExit, detail: 'code=' + (code ?? 'null') + ' signal=' + (signal ?? 'null') });
+    native.emit('exit', code, signal);
+    await rejected;
+    await expect(client.stopEngine(engine)).resolves.toBeUndefined();
+  });
 });

@@ -1,3 +1,4 @@
+import { markRaw } from 'vue';
 import { PlatformErrorKind } from '@/contracts';
 import type { IStorageAdapter } from '@/contracts/platform';
 import { setNodeModuleOverrides } from '@/utility/nwjs/NodeUtility';
@@ -5,7 +6,7 @@ import { getMockNodePath, getMockNwjs } from '@/utility/nwjs/NwjsMockUtility';
 import { setBrowserPlatformOptions } from '@/platform/browser/BrowserPlatformService';
 import { BrowserFileSystem } from '@/platform/browser/BrowserFileSystem';
 import { defineNwjsProcessManagerStore } from '@/platform/nwjs/NwjsProcessManager';
-import { defineNwjsUciEngineClientStore } from '@/platform/nwjs/NwjsUciEngineClient';
+import { NwjsUciEngineClient } from '@/platform/nwjs/NwjsUciEngineClient';
 import { JourneyFileSystem } from './JourneyFileSystem';
 import { changeManagedFile } from './JourneyStorageControl';
 import { ScriptedEngine } from './runtime/engine/ScriptedEngine';
@@ -40,7 +41,7 @@ function _installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileS
   setBrowserPlatformOptions({
     storage, storageKey: key,
     createEngineServices: () => {
-      return { processManager: defineNwjsProcessManagerStore(nw)(), engineClient: defineNwjsUciEngineClientStore(nw)() };
+      return { processManager: defineNwjsProcessManagerStore(nw)(), engineClient: markRaw(new NwjsUciEngineClient()) };
     },
   });
 }
