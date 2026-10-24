@@ -23,11 +23,15 @@ import {
 import { applyMove, createInitialBoardPosition, genDetailedMoves } from '@/utility/chess';
 import { parseUciMove } from '@/utility/UciUtility';
 import { Deferred } from '@/utility/async/Deferred';
+import type { IProcess } from '@/contracts/platform';
+const _firstProcess: IProcess = { once: vi.fn(), removeListener: vi.fn(), kill: vi.fn(() => true) };
+const _secondProcess: IProcess = { once: vi.fn(), removeListener: vi.fn(), kill: vi.fn(() => true) };
+const _lateProcess: IProcess = { once: vi.fn(), removeListener: vi.fn(), kill: vi.fn(() => true) };
 let Aborted: typeof import('@/contracts/errors/Aborted').default;
 
 let EngineRuntimeService: typeof import('..').EngineRuntimeService;
 const spawnProcess = vi.fn();
-const assertProcessHandleOpen = vi.fn();
+const assertProcessOpen = vi.fn();
 const stopProcess = vi.fn();
 const restartProcess = vi.fn();
 const initialiseEngine = vi.fn();
@@ -96,7 +100,7 @@ describe('EngineRuntimeService', () => {
   beforeEach(async () => {
     vi.resetModules();
     spawnProcess.mockReset();
-    assertProcessHandleOpen.mockReset();
+    assertProcessOpen.mockReset();
     stopProcess.mockReset();
     restartProcess.mockReset();
     initialiseEngine.mockReset();
@@ -107,14 +111,14 @@ describe('EngineRuntimeService', () => {
     startPondering.mockReset();
     awaitPlayerTurnMove.mockReset();
     stopEngine.mockReset();
-    spawnProcess.mockResolvedValue('process-1');
-    restartProcess.mockResolvedValue('process-2');
+    spawnProcess.mockResolvedValue(_firstProcess);
+    restartProcess.mockResolvedValue(_secondProcess);
     awaitPlayerTurnMove.mockResolvedValue(_createMove());
     vi.doMock('@/platform', () => ({
       usePlatformService: () => ({
         getProcessManager: () => ({
           spawnProcess,
-          assertProcessHandleOpen,
+          assertProcessOpen,
           stopProcess,
           restartProcess,
         }),
@@ -142,7 +146,7 @@ describe('EngineRuntimeService', () => {
 
     expect(spawnProcess).toHaveBeenCalledWith('stockfish.exe');
     expect(initialiseEngine).toHaveBeenCalledWith(engine);
-    expect(engine.$?.processHandle).toBe('process-1');
+    expect(engine.$?.process).toBe(_firstProcess);
     expect(engine.$?.availability).toBe(EngineAvailability.Ready);
   });
   it('rejects missing analysis base runtime through the existing promise contract', async () => {
@@ -210,8 +214,8 @@ describe('EngineRuntimeService', () => {
     expect(runtimeEngine.options).not.toBe(engineProfile.options);
     expect(getOptions).toHaveBeenCalledWith(runtimeEngine);
     expect(stopEngine).toHaveBeenCalledWith(runtimeEngine);
-    expect(stopProcess).toHaveBeenCalledWith('process-1');
-    expect(runtimeEngine.$?.processHandle).toBeUndefined();
+    expect(stopProcess).toHaveBeenCalledWith(_firstProcess);
+    expect(runtimeEngine.$?.process).toBeUndefined();
     expect(options).toEqual(discoveredOptions);
     expect(options).not.toBe(discoveredOptions);
     expect(options[1]?.choices).not.toBe(discoveredOptions[1]?.choices);
@@ -226,7 +230,7 @@ describe('EngineRuntimeService', () => {
 
     const runtimeEngine = initialiseEngine.mock.calls[0]?.[0] as IAssignedEngine;
     expect(stopEngine).toHaveBeenCalledWith(runtimeEngine);
-    expect(stopProcess).toHaveBeenCalledWith('process-1');
+    expect(stopProcess).toHaveBeenCalledWith(_firstProcess);
   });
 
   it('guards analysis moves before forwarding updates from the mocked engine client', async () => {
@@ -235,8 +239,8 @@ describe('EngineRuntimeService', () => {
     const game = _createGame(position);
     const onUpdate = vi.fn();
     const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, onUpdate);
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
 
     await EngineRuntimeService.startAnalysis(engine, game, _createAnalysisRequest());
 
@@ -263,8 +267,8 @@ describe('EngineRuntimeService', () => {
     const game = {} as IGame;
     const engineMove = _createMove();
     const ponderMove = _createPonderMove();
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
 
     await EngineRuntimeService.startPondering(engine, game, engineMove, ponderMove);
 
@@ -280,8 +284,8 @@ describe('EngineRuntimeService', () => {
     const events: string[] = [];
     let finishAttempt: (() => void) | undefined;
     move.$ = { ponderMove };
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     startPlayerTurn.mockImplementation(async () => { events.push('start'); });
     awaitPlayerTurnMove.mockImplementation(async () => { events.push('await'); return move; });
     startPondering.mockImplementation(async () => { events.push('ponder'); });
@@ -306,8 +310,8 @@ describe('EngineRuntimeService', () => {
     const abortController = new AbortController();
     const attemptPlayerMove = vi.fn();
     let rejectPlayerMove!: (error: Error) => void;
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     awaitPlayerTurnMove.mockReturnValue(new Promise<IMove>((_resolve, reject) => { rejectPlayerMove = reject; }));
 
     const turn = EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove, abortController.signal);
@@ -324,8 +328,8 @@ describe('EngineRuntimeService', () => {
     const engine = _createAssignedEngine();
     const game = _createGame();
     const attemptPlayerMove = vi.fn();
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     awaitPlayerTurnMove.mockResolvedValue({ ..._createMove(), to: _boardId(4, 4) });
 
     await expect(EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove)).rejects.toThrow('illegal move');
@@ -340,8 +344,8 @@ describe('EngineRuntimeService', () => {
     const move = _createMove();
     const attemptPlayerMove = vi.fn();
     move.$ = { ponderMove: { ..._createPonderMove(), to: _boardId(4, 3) } };
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     awaitPlayerTurnMove.mockResolvedValue(move);
 
     await expect(EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove)).rejects.toThrow('illegal ponder move');
@@ -355,8 +359,8 @@ describe('EngineRuntimeService', () => {
     const game = _createGame();
     const move = _createMove();
     const attemptPlayerMove = vi.fn(async () => undefined);
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     awaitPlayerTurnMove.mockResolvedValue(move);
 
     await EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove);
@@ -374,8 +378,8 @@ describe('EngineRuntimeService', () => {
     const attemptPlayerMove = vi.fn(async () => undefined);
     game.resultState = ResultState.Drawn;
     move.$ = { ponderMove };
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     awaitPlayerTurnMove.mockResolvedValue(move);
 
     await EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove);
@@ -390,8 +394,8 @@ describe('EngineRuntimeService', () => {
     const move = _createMove();
     const attemptPlayerMove = vi.fn(async () => undefined);
     move.$ = { ponderMove: _createPonderMove() };
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     awaitPlayerTurnMove.mockResolvedValue(move);
     startPondering.mockRejectedValue(new Error('ponder boom'));
 
@@ -407,8 +411,8 @@ describe('EngineRuntimeService', () => {
     for (const move of genDetailedMoves(position, ['f2f3', 'e7e5'].map(parseUciMove))) applyMove(position, move);
     const [move, ponderMove] = genDetailedMoves(position, ['g2g4', 'd8h4'].map(parseUciMove));
     move!.$ = { ponderMove };
-    engine.$!.processHandle = 'process-1';
-    assertProcessHandleOpen.mockReturnValue(undefined);
+    engine.$!.process = _firstProcess;
+    assertProcessOpen.mockReturnValue(undefined);
     awaitPlayerTurnMove.mockResolvedValue(move);
     const attemptPlayerMove = vi.fn(async () => undefined);
     await EngineRuntimeService.startPlayerTurn(engine, _createGame(position), attemptPlayerMove);
@@ -479,29 +483,29 @@ describe('EngineRuntimeService', () => {
   it('clears a stale process handle when stopping analysis fails its liveness check', async () => {
     const engine = _createAssignedEngine();
     await EngineRuntimeService.startAnalysis(engine, _createGame(), _createAnalysisRequest());
-    const error = Object.assign(new Error('Process closed'), { kind: PlatformErrorKind.InvalidProcessHandle, operation: 'assertProcessHandleOpen' });
-    assertProcessHandleOpen.mockImplementationOnce(() => { throw error; });
+    const error = Object.assign(new Error('Process closed'), { kind: PlatformErrorKind.InvalidProcessHandle, operation: 'assertProcessOpen' });
+    assertProcessOpen.mockImplementationOnce(() => { throw error; });
     await expect(EngineRuntimeService.stopAnalysis(engine)).rejects.toBe(error);
     expect(stopAnalysis).not.toHaveBeenCalled();
-    expect(engine.$?.processHandle).toBeUndefined();
+    expect(engine.$?.process).toBeUndefined();
     expect(engine.$?.availability).toBe(EngineAvailability.Failed);
     expect(engine.$?.lastError).toBe('Process closed');
   });
   it('releases a process spawned after removal without initialising its client', async () => {
     const engine = _createAssignedEngine();
     const entered = new Deferred<void>();
-    const spawned = new Deferred<string>();
+    const spawned = new Deferred<IProcess>();
     spawnProcess.mockImplementationOnce(() => { entered.resolve(); return spawned; });
     const starting = EngineRuntimeService.startAnalysis(engine, _createGame(), _createAnalysisRequest()).catch((error) => error);
     await entered;
     const disposal = EngineRuntimeService.stopEngine(engine);
     expect(await starting).toBeInstanceOf(Aborted);
-    spawned.resolve('late-process');
+    spawned.resolve(_lateProcess);
     await disposal;
-    expect(stopProcess).toHaveBeenCalledWith('late-process');
+    expect(stopProcess).toHaveBeenCalledWith(_lateProcess);
     expect(initialiseEngine).not.toHaveBeenCalled();
     expect(startAnalysis).not.toHaveBeenCalled();
-    expect(engine.$?.processHandle).toBeUndefined();
+    expect(engine.$?.process).toBeUndefined();
     expect(engine.$?.availability).toBe(EngineAvailability.Unavailable);
   });
   it('preserves natural completion received before the startup promise resolves', async () => {
@@ -517,7 +521,7 @@ describe('EngineRuntimeService', () => {
   it.each(['stopEngine', 'restartEngine'] as const)('reuses a late spawn when %s is superseded before shutdown starts', async (terminalAction) => {
     const engine = _createAssignedEngine();
     const entered = new Deferred<void>();
-    const spawned = new Deferred<string>();
+    const spawned = new Deferred<IProcess>();
     spawnProcess.mockImplementationOnce(() => { entered.resolve(); return spawned; });
     const starting = EngineRuntimeService.startAnalysis(engine, _createGame(), _createAnalysisRequest()).catch((error) => error);
     await entered;
@@ -526,14 +530,14 @@ describe('EngineRuntimeService', () => {
     expect(await starting).toBeInstanceOf(Aborted);
     expect(await disposal).toBeInstanceOf(Aborted);
     expect(initialiseEngine).not.toHaveBeenCalled();
-    spawned.resolve('late-process');
+    spawned.resolve(_lateProcess);
     await replacement;
     expect(spawnProcess).toHaveBeenCalledOnce();
     expect(stopProcess).not.toHaveBeenCalled();
     expect(stopEngine).not.toHaveBeenCalled();
     expect(initialiseEngine).toHaveBeenCalledOnce();
     expect(startAnalysis).toHaveBeenCalledOnce();
-    expect(engine.$?.processHandle).toBe('late-process');
+    expect(engine.$?.process).toBe(_lateProcess);
     expect(engine.$?.availability).toBe(EngineAvailability.Running);
   });
   it('waits for issued shutdown and interrupted client work before starting another search', async () => {
@@ -543,7 +547,7 @@ describe('EngineRuntimeService', () => {
     const shutdownEntered = new Deferred<void>();
     const stopped = new Deferred<void>();
     initialiseEngine.mockImplementationOnce(() => { entered.resolve(); return ready; });
-    spawnProcess.mockResolvedValueOnce('process-1').mockResolvedValue('process-2');
+    spawnProcess.mockResolvedValueOnce(_firstProcess).mockResolvedValue(_secondProcess);
     stopProcess.mockImplementationOnce(() => { shutdownEntered.resolve(); return stopped; });
     const starting = EngineRuntimeService.startAnalysis(engine, _createGame(), _createAnalysisRequest()).catch((error) => error);
     await entered;
@@ -566,7 +570,7 @@ describe('EngineRuntimeService', () => {
     await replacement;
     expect(spawnProcess).toHaveBeenCalledTimes(2);
     expect(startAnalysis).toHaveBeenCalledOnce();
-    expect(engine.$?.processHandle).toBe('process-2');
+    expect(engine.$?.process).toBe(_secondProcess);
     expect(engine.$?.availability).toBe(EngineAvailability.Running);
   });
   it('retains the client wait and handle when physical shutdown fails', async () => {
@@ -580,7 +584,7 @@ describe('EngineRuntimeService', () => {
     await expect(EngineRuntimeService.stopEngine(engine)).rejects.toThrow('Shutdown failed.');
     expect(await starting).toBeInstanceOf(Aborted);
     expect(engine.$?.availability).toBe(EngineAvailability.Failed);
-    expect(engine.$?.processHandle).toBe('process-1');
+    expect(engine.$?.process).toBe(_firstProcess);
     expect(stopEngine).not.toHaveBeenCalled();
     const replacement = EngineRuntimeService.startAnalysis(engine, _createGame(), _createAnalysisRequest());
     await flushPromises();
@@ -650,7 +654,7 @@ describe('EngineRuntimeService', () => {
   });
   it('stops the engine and clears runtime state through the mocked platform services', async () => {
     const engine = _createAssignedEngine();
-    engine.$!.processHandle = 'process-1';
+    engine.$!.process = _firstProcess;
     engine.$!.availability = EngineAvailability.Running;
     engine.$!.analysisCallback = vi.fn();
     engine.$!.analysisLines.set(1, { depth: 1, scoreCp: 23, pv: [_createMove()] });
@@ -658,8 +662,8 @@ describe('EngineRuntimeService', () => {
     await EngineRuntimeService.stopEngine(engine);
 
     expect(stopEngine).toHaveBeenCalledWith(engine);
-    expect(stopProcess).toHaveBeenCalledWith('process-1');
-    expect(engine.$?.processHandle).toBeUndefined();
+    expect(stopProcess).toHaveBeenCalledWith(_firstProcess);
+    expect(engine.$?.process).toBeUndefined();
     expect(engine.$?.analysisCallback).toBeUndefined();
     expect(engine.$?.analysisLines.size).toBe(0);
     expect(engine.$?.availability).toBe(EngineAvailability.Unavailable);

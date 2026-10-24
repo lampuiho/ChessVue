@@ -1,6 +1,6 @@
 # NW.js spawned-process ownership correction
 
-Prepared on 24 October 2026. Status: plan for review; application implementation has not started. Complete the NW.js correction first, with only the browser reference substitution described below. The full [browser dependency correction](BrowserEngineDependencyFixPlan.md) and [engine package rework](EngineInstallationReworkPlan.md) remain subsequent work. Shared-process feasibility research is retained below for the later browser plan.
+Prepared on 24 October 2026. Status: implemented and verified. Complete the NW.js correction first, with only the browser reference substitution described below. The full [browser dependency correction](BrowserEngineDependencyFixPlan.md) and [engine package rework](EngineInstallationReworkPlan.md) remain subsequent work. Shared-process feasibility research is retained below for the later browser plan.
 
 ## Agreed direction and scope
 
@@ -110,7 +110,7 @@ This assertion does not add stdin/stdout, kill, exit events or lifecycle propert
 Extend the existing ISpawnedProcess model in src/utility/nwjs/models with the native fields needed for lifecycle checks and diagnostics:
 
 ```ts
-readonly pid: number | undefined;
+readonly pid?: number;
 readonly exitCode: number | null;
 readonly signalCode: NodeJS.Signals | null;
 ```
@@ -147,9 +147,7 @@ spawnProcess keeps the existing executable/argument and stdio: 'pipe' configurat
 
 assertProcessOpen refines the supplied IProcess to the native process model and checks its lifecycle through isProcessOpen, throwing the existing InvalidProcessHandle kind for an exited resource. It performs no manager-membership or registry lookup. The browser implementation keeps its existing registry-presence check, using the raw object key; no browser liveness policy changes here.
 
-stopProcess checks liveness, attaches operation-owned exit/error listeners, sends the existing default kill signal, then awaits actual exit. Listener cleanup occurs on every settlement. A failed kill must reject rather than leave an exit wait pending: use the existing InvalidOperation kind with operation stopProcess, retain the resource for the caller, and do not claim physical shutdown succeeded. If kill reports failure after the object has already exited, settle from that native exit state. Node documents that [error need not be followed by exit](https://nodejs.org/api/child_process.html#event-error), so an error cannot leave this operation waiting indefinitely.
-
-There is no timeout, escalation policy or extra retry. A successful signal still waits for exit. restartProcess continues awaiting stop before spawning and returns the replacement object.
+stopProcess checks liveness, registers the existing one-shot exit listener, calls process.kill() and awaits exit. Keep the original shutdown behaviour, replacing session.process with the supplied process. restartProcess continues awaiting stop before spawning and returns the replacement object.
 
 ### Engine client
 
@@ -351,10 +349,9 @@ Capture runtime.process before awaiting. In the first two branches, keep the ref
 | --- |
 | `assertProcessOpen(process)` |
 | `process.once('exit', onExit)` |
-| `process.once('error', onStopError)` |
 | `process.kill()` |
 
-Await actual exit; remove both operation-owned listeners on settlement. Kill failure/error rejects as described above. Do not clear the runtime from this layer.
+The one-shot exit listener resolves the stop promise. Do not clear the runtime from this layer.
 
 | `NwjsUciEngineClient.stopEngine(engine)` |
 | --- |
@@ -441,11 +438,11 @@ During implementation, update affected runtime/process/client and utility owners
 
 1. Change the shared contracts and runtime field/method references. For browser compatibility, use only the raw-object assertion and string-to-reference substitution described above. Keep its existing registry/transport implementation and behavioural expectations. The full browser plan is not a prerequisite for this NW.js step.
 2. Change native spawn/stop/client communication to direct objects, configure stdout/stderr as UTF-8 in the manager, move the described helpers into NwjsUtility with string-only input, and remove native registry composition and both obsolete files. Preserve the restored UCI method bodies except for the explicit access substitutions.
-3. Update the existing process doubles to maintain native lifecycle properties, including signalled exit, and accept output-encoding configuration. Verify that both streams deliver intact text when a UTF-8 character is split across byte chunks, and that encoding is configured before spawnProcess resolves. Add focused tests for actual resource identity through reactive runtime assignment; two independent processes; ordinary/signalled exit; restart replacement; startup failure; stop failure retaining the resource; listener cleanup; session replacement; and stopping a runtime whose process has already exited.
+3. Update the existing process doubles to maintain native lifecycle properties, including signalled exit, and accept output-encoding configuration. Verify that both streams deliver intact text when a UTF-8 character is split across byte chunks, and that encoding is configured before spawnProcess resolves. Add focused tests for actual resource identity through reactive runtime assignment; two independent processes; ordinary/signalled exit; restart replacement; startup failure; startup listener cleanup; waiting for exit after kill; session replacement; and stopping a runtime whose process has already exited.
 4. Preserve the existing late-spawn cancellation, overlapping shutdown and pending-handshake/stop acknowledgement race checks. Add missing coverage only for the changed ownership paths, without mirroring implementation helpers.
 5. Run npm run check:code, the focused native/runtime/browser/platform suites, the existing engine-races journey tests and npm run build. Preserve browser identity, isolation, closed-reference rejection, restart and disposal assertions while changing their reference types; verify that the returned reference is the original raw Worker. Run the existing real-Worker browser analysis/failure checks since the shared runtime references changed. Inspect for remaining native handle lookups/registries, imports of the deleted files, newly introduced sibling dependencies and new persistence fields. Existing browser sibling dependencies remain for its separate plan.
 6. Only after these checks pass, update the corresponding committed low-level documentation. Then return to the separate browser correction plan; do not resume package implementation automatically.
 
 Completion means runtime.process is the exact native spawn result, the native implementations communicate independently through that object, no NW.js handle registry/session map remains, native line support lives in the existing utility, EngineRuntimeService's public APIs are preserved, and the focused checks pass. Browser changes are limited to raw object identity in place of string identity and the necessary contract references; its implementation correction remains in the browser plan.
 
-Application implementation and integration verification have not been performed. Only the native type-compatibility check and isolated real-Worker feasibility probe described above passed. The earlier NW.js restoration and these research probes do not establish completion of this ownership rework.
+Implementation verification on 24 October 2026: 77 focused unit/application tests passed across nine files, including native process/client, runtime, browser compatibility and engine-race journeys. The code audit, all TypeScript projects and production build passed. Six real-Worker browser analysis/failure tests passed with one worker and no retries; report: test-results/NwjsProcessBrowserResults.json (ports 5473/5474). The journey unit teardown logs Pinia-destroyed cleanup messages; the same messages were confirmed on unchanged HEAD and its assertions passed. No browser adapter, inheritance correction or package rework was implemented.

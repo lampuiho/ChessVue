@@ -1,6 +1,6 @@
 # Browser engine dependency correction
 
-Prepared on 24 October 2026. Status: superseded draft requiring revision after the [NW.js correction and minimal browser reference substitution](NwjsProcessOwnershipFixPlan.md#browser-reference-substitution-only); browser architecture implementation has not started. This plan does not block the native correction. Review its revision before implementing the browser correction or resuming the [engine package rework](EngineInstallationReworkPlan.md).
+Prepared on 24 October 2026. Status: superseded draft requiring revision after the [NW.js correction and minimal browser reference substitution](NwjsProcessOwnershipFixPlan.md#browser-reference-substitution-only); browser architecture implementation has not started. The native correction and minimal raw-reference substitution are implemented and verified; their results are recorded in the linked plan. Review its revision before implementing the browser correction or resuming the [engine package rework](EngineInstallationReworkPlan.md).
 
 ## Shared-process decision supersedes the registry draft
 

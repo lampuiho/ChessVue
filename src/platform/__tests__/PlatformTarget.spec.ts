@@ -36,9 +36,9 @@ describe('platform selection', () => {
       await storage.deleteFile('mock-platform-check.json');
       const processes = platform.getProcessManager();
       const handle = await processes.spawnProcess('mock-engine');
-      expect(() => processes.assertProcessHandleOpen(handle)).not.toThrow();
+      expect(() => processes.assertProcessOpen(handle)).not.toThrow();
       await processes.stopProcess(handle);
-      expect(() => processes.assertProcessHandleOpen(handle)).toThrow();
+      expect(() => processes.assertProcessOpen(handle)).toThrow();
     } finally {
       nwjsUtility.setNwjsOverride(null);
       disposePinia(pinia);

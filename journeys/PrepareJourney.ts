@@ -4,7 +4,6 @@ import { setNodeModuleOverrides } from '@/utility/nwjs/NodeUtility';
 import { getMockNodePath, getMockNwjs } from '@/utility/nwjs/NwjsMockUtility';
 import { setBrowserPlatformOptions } from '@/platform/browser/BrowserPlatformService';
 import { BrowserFileSystem } from '@/platform/browser/BrowserFileSystem';
-import { createNwjsProcessRegistry } from '@/platform/nwjs/NwjsProcessRegistry';
 import { defineNwjsProcessManagerStore } from '@/platform/nwjs/NwjsProcessManager';
 import { defineNwjsUciEngineClientStore } from '@/platform/nwjs/NwjsUciEngineClient';
 import { JourneyFileSystem } from './JourneyFileSystem';
@@ -41,8 +40,7 @@ function _installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileS
   setBrowserPlatformOptions({
     storage, storageKey: key,
     createEngineServices: () => {
-      const registry = createNwjsProcessRegistry();
-      return { processManager: defineNwjsProcessManagerStore(nw, registry)(), engineClient: defineNwjsUciEngineClientStore(nw, registry)() };
+      return { processManager: defineNwjsProcessManagerStore(nw)(), engineClient: defineNwjsUciEngineClientStore(nw)() };
     },
   });
 }

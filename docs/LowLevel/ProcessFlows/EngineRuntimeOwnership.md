@@ -6,13 +6,13 @@ This document covers the layer-2 and layer-1 runtime ownership behind `SCN-ANALY
 ## Ownership Summary
 - `EnginesStore` owns reusable engine profiles and caches discovered option metadata separately by profile id for configuration rendering.
 - `GamesStore` decides when analysis should run and when a live player turn should be armed.
-- `EngineRuntimeService` owns temporary option-discovery runtimes, base runtime creation, process lifecycle, process-handle checks, availability, last-error updates, analysis callback registration on `IAssignedEngine.$`, and optional pondering from a guarded engine-player result.
+- `EngineRuntimeService` owns temporary option-discovery runtimes, base runtime creation, process lifecycle, process-reference checks, availability, last-error updates, analysis callback registration on `IAssignedEngine.$`, and optional pondering from a guarded engine-player result.
 - `EngineClient` owns the protocol session, process listeners, current search position, expected ponder move, pending player-turn completion, protocol I/O, and parsing.
 - `UciUtility` only builds protocol commands and parses individual protocol records. It does not own a process or session.
 - Runtime state changes use explicit object-attached state. No flow relies on hidden side tables or silent runtime initialisation.
 
 ## Owner And Mutable State
-`EngineRuntimeService` may mutate `engine.$.processHandle`, `availability`, `lastError`, `analysisCallback`, `analysisOperation`, `analysisWork`, `analysisNeedsStop`, and analysis-cache cleanup. The client owns normal map entry updates.
+`EngineRuntimeService` may mutate `engine.$.process`, `availability`, `lastError`, `analysisCallback`, `analysisOperation`, `analysisWork`, `analysisNeedsStop`, and analysis-cache cleanup. The client owns normal map entry updates.
 
 The concrete `EngineClient` may refine `engine.$` with a private session. Its UCI session records stable game-boundary and process-listener data plus a discriminated context for the current protocol state. Handshake lines and completions, active positions, the expected ponder move, the stopping completion, and a ready player move are owned only by the states that require them.
 
@@ -138,6 +138,52 @@ Any active state -> Stopped or Failed
 Analysis and ponder searches share `StoppingSearch` because their stop protocol is identical: write `stop`, wait for `bestmove`, discard it, and return to `Ready`. Output handling is selected by the current state, not by trying several output parsers. Each pending completion belongs to its state context, so a stop result cannot satisfy a player turn.
 
 ## Stop, Restart, And Failure
-`EngineRuntimeService.stopEngine(...)` asks the client to reject and clear private session work, then stops the process and clears shared analysis runtime. `restartEngine(...)` replaces or respawns the process before explicitly initialising a fresh protocol session.
+`EngineRuntimeService.stopEngine(...)` stops the physical process first, then asks the client to reject and clear private session work before clearing the process reference and shared analysis runtime. An already-exited process follows the same client cleanup; a physical-stop failure retains the resource and client wait for retry. `restartEngine(...)` replaces or respawns the process before explicitly initialising a fresh protocol session.
 
 `startPlayerTurn(...)` and `startPondering(...)` may retry once only after `InvalidProcessHandle`, using the explicit engine initialisation path. Missing base runtime or a missing client session remains an exception and is not hidden by lazy repair. Start, await, or validation failure rejects the game-level deferred through the provider path; the owning handler logs an unexpected failure and schedules the existing delayed player-turn retry. An `Aborted` cancellation returns without retry. Pondering failure alone preserves the accepted or deferred move.
+
+## Native process reference boundaries
+
+| `EngineRuntimeService._initialiseEngine(engine, runtime, signal): process absent` |
+| --- |
+| `ProcessManager.spawnProcess(engine.executablePath)` - await |
+| `_runAnalysisClientWork(runtime, initialiseClient)` - await unless cancelled |
+
+The service stores the exact returned process under engine.$.process, including a late result after cancellation so terminal disposal can release it. The existing initialiseClient callback calls the selected EngineClient.initialiseEngine(engine). Existing-process checks call assertProcessOpen with the same object; only the existing invalid-process recovery path respawns.
+
+| `NwjsProcessManager.spawnProcess(executablePath, args)` |
+| --- |
+| `childProcess.spawn(executablePath, args, { stdio: 'pipe' })` |
+| `process.once('spawn', onSpawn)` |
+| `process.once('error', onStartError)` |
+
+| `NwjsProcessManager: onSpawn callback` |
+| --- |
+| `process.stdout.setEncoding('utf8')` |
+| `process.stderr.setEncoding('utf8')` |
+| `_cleanup()` |
+| `markRaw(process)` |
+
+Resolve with that exact object after stream setup. Both startup listeners are removed on settlement. No native handle or lookup registry is created.
+
+| `NwjsUciEngineClient._writeCommand(process, command)` |
+| --- |
+| Native line write through existing `NwjsUtility.writeProcessLine(process, command)` - await |
+
+The native client reads the object directly from engine.$.process and owns its attached protocol session/listeners. Its existing UCI state machine and command sequencing stay unchanged. Native helper functions are implementation support, not flow owners.
+
+| `EngineRuntimeService._releaseEngineProcess(engine, runtime): process present` |
+| --- |
+| `ProcessManager.stopProcess(process)` - await |
+| `_stopClientSession(engine)` - await |
+| `_clearAnalysisState(runtime)` |
+
+Capture the process before awaiting. An already-exited resource follows the same client cleanup through the existing invalidProcessHandle handling. Clear runtime.process after client cleanup, before clearing analysis state. Other physical-stop failures propagate without dropping the resource. Existing analysisShutdownWork shares an issued stop between terminal requests.
+
+| `NwjsProcessManager.stopProcess(process)` |
+| --- |
+| `assertProcessOpen(process)` |
+| `process.once('exit', onExit)` |
+| `process.kill()` |
+
+The one-shot exit listener resolves the stop promise, preserving the original shutdown behaviour. Browser operations retain their existing registry/transport paths with a raw Worker object key; the shared runtime never invokes process members directly.

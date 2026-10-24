@@ -74,6 +74,13 @@ class FakeChildProcess extends EventEmitter implements ISpawnedProcess {
     });
   }
 
+  override emit(eventName: string | symbol, ...args: any[]): boolean {
+    if (eventName === 'exit') {
+      this.exitCode = args[0];
+      this.signalCode = args[1];
+    }
+    return super.emit(eventName, ...args);
+  }
   queueResponse(command: string, lines: string[]) {
     this._responseByCommand.set(command, lines);
   }

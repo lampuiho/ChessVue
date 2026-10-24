@@ -37,7 +37,7 @@ describe('NwjsUciEngineClient', () => {
     EngineRuntimeService.subscribeToAnalysis(engine, (update) => updates.push(update));
     await EngineRuntimeService.startAnalysis(engine, game, request);
     const process = getEnvironment().latestProcess();
-    const handle = engine.$!.processHandle;
+    const handle = engine.$!.process;
     const nextGame = createEngineGame();
     _appendLiveMove(nextGame, { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn });
     // B waits for A's Stop response; disposal D is then superseded by C returning to A's position.
@@ -63,7 +63,7 @@ describe('NwjsUciEngineClient', () => {
     expect(process.getCommandLog().slice(-2)).toEqual(['position startpos moves e2e4', 'go infinite']);
     expect(await replacing).toBeInstanceOf(Error);
     expect(await disposal).toBeInstanceOf(Error);
-    expect(engine.$!.processHandle).toBe(handle);
+    expect(engine.$!.process).toBe(handle);
     expect(getEnvironment().latestProcess()).toBe(process);
     expect(engine.$!.availability).toBe(EngineAvailability.Running);
     process.stdout.write('info depth 12 score cp 30 pv c7c5\nbestmove c7c5\n');
@@ -81,7 +81,7 @@ describe('NwjsUciEngineClient', () => {
     EngineRuntimeService.subscribeToAnalysis(engine, () => undefined);
     await EngineRuntimeService.startAnalysis(engine, game, request);
     const process = getEnvironment().latestProcess();
-    const handle = engine.$!.processHandle;
+    const handle = engine.$!.process;
     const replacing = EngineRuntimeService.startAnalysis(engine, game, request).catch((error) => error);
     await flushPromises();
     const disposal = EngineRuntimeService.stopEngine(engine).catch((error) => error);
@@ -93,7 +93,7 @@ describe('NwjsUciEngineClient', () => {
     await stopping;
     expect(await replacing).toBeInstanceOf(Error);
     expect(await disposal).toBeInstanceOf(Error);
-    expect(engine.$!.processHandle).toBe(handle);
+    expect(engine.$!.process).toBe(handle);
     expect(engine.$!.availability).toBe(EngineAvailability.Ready);
     await EngineRuntimeService.stopEngine(engine);
   });
@@ -142,7 +142,7 @@ describe('NwjsUciEngineClient', () => {
     const engine = createAssignedEngine();
     await EngineRuntimeService.ensureReady(engine);
     const process = getEnvironment().latestProcess();
-    const handle = engine.$!.processHandle;
+    const handle = engine.$!.process;
     process.queueResponse('isready', []);
     const starting = EngineRuntimeService.startAnalysis(engine, createEngineGame(), { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }).catch((error) => error);
     await flushPromises();
@@ -153,11 +153,11 @@ describe('NwjsUciEngineClient', () => {
     await flushPromises();
     expect(process.getCommandLog()).not.toContain('go infinite');
     if (terminalAction === 'stopEngine') {
-      expect(engine.$!.processHandle).toBeUndefined();
+      expect(engine.$!.process).toBeUndefined();
       expect(engine.$!.availability).toBe(EngineAvailability.Unavailable);
     } else {
-      expect(engine.$!.processHandle).toBeDefined();
-      expect(engine.$!.processHandle).not.toBe(handle);
+      expect(engine.$!.process).toBeDefined();
+      expect(engine.$!.process).not.toBe(handle);
       expect(engine.$!.availability).toBe(EngineAvailability.Ready);
       await EngineRuntimeService.stopEngine(engine);
     }
@@ -167,7 +167,7 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     const process = getEnvironment().latestProcess();
     process.queueResponse('uci', [
       'option name Ponder type check default false',
@@ -189,7 +189,7 @@ describe('NwjsUciEngineClient', () => {
     const engine = createAssignedEngine();
     const game = createEngineGame();
     const updates: IEngineAnalysisUpdate[] = [];
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
 
     await client.initialiseEngine(engine);
     const process = getEnvironment().latestProcess();
@@ -253,7 +253,7 @@ describe('NwjsUciEngineClient', () => {
     const engine = createAssignedEngine();
     const game = createEngineGame();
     const updates: IEngineAnalysisUpdate[] = [];
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     await client.initialiseEngine(engine);
     const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, (update) => updates.push(update));
     const process = getEnvironment().latestProcess();
@@ -282,7 +282,7 @@ describe('NwjsUciEngineClient', () => {
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const game = createEngineGame();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     await client.initialiseEngine(engine);
     const process = getEnvironment().latestProcess();
     const timedGo = 'go wtime 60000 btime 60000 winc 1000 binc 1000';
@@ -321,14 +321,14 @@ describe('NwjsUciEngineClient', () => {
     const engine = createAssignedEngine();
     const game = createEngineGame();
     const staleHandle = await manager.spawnProcess(engine.executablePath);
-    engine.$ = { processHandle: staleHandle, availability: EngineAvailability.Ready, analysisLines: new Map() };
+    engine.$ = { process: staleHandle, availability: EngineAvailability.Ready, analysisLines: new Map() };
 
     await client.initialiseEngine(engine);
     await manager.stopProcess(staleHandle);
     await EngineRuntimeService.startAnalysis(engine, game, { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite });
 
-    expect(engine.$?.processHandle).toBeDefined();
-    expect(engine.$?.processHandle).not.toBe(staleHandle);
+    expect(engine.$?.process).toBeDefined();
+    expect(engine.$?.process).not.toBe(staleHandle);
     expect(engine.$?.availability).toBe(EngineAvailability.Running);
     expect(getEnvironment().latestProcess().getCommandLog()).toContain('uci');
   });
@@ -337,10 +337,10 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     await client.initialiseEngine(engine);
 
-    engine.$.processHandle = await manager.spawnProcess(engine.executablePath);
+    engine.$.process = await manager.spawnProcess(engine.executablePath);
     await client.initialiseEngine(engine);
 
     expect(getEnvironment().latestProcess().getCommandLog()).toContain('uci');
@@ -350,7 +350,7 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     const game = createEngineGame();
     const engineMove: IMove = { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
     const ponderMove: IMove = { from: getBoardId(6, 0), to: getBoardId(5, 2), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Knight };
@@ -377,7 +377,7 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     const game = createEngineGame();
     await client.initialiseEngine(engine);
     game.$!.renderedPosition = undefined;
@@ -392,7 +392,7 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     const game = createEngineGame();
 
     await client.initialiseEngine(engine);
@@ -413,7 +413,7 @@ describe('NwjsUciEngineClient', () => {
     const manager = platform.getProcessManager();
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     const process = getEnvironment().latestProcess();
     process.queueResponse('uci', ['registration error', 'uciok']);
 

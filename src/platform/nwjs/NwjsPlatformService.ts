@@ -5,7 +5,6 @@ import { EngineClientType, PlatformEventKey, type IPlatformEventRegistration, ty
 import type { INwjsGlobal } from '@/utility/nwjs/NwjsUtility';
 import { RegistrationTimestamp } from '@/utility/date';
 import { defineNwjsProcessManagerStore } from './NwjsProcessManager';
-import { createNwjsProcessRegistry } from './NwjsProcessRegistry';
 import { defineNwjsStorageAdapterStore } from './NwjsStorageAdapter';
 import { defineNwjsSystemThemeAdapterStore } from './NwjsSystemThemeAdapter';
 import { defineNwjsUciEngineClientStore } from './NwjsUciEngineClient';
@@ -19,11 +18,10 @@ function _createPlatformError(kind: PlatformErrorKind, operation: string, messag
   return { kind, operation, message, detail };
 }
 export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
-  const processRegistry = createNwjsProcessRegistry();
   const useNwjsStorageAdapter = defineNwjsStorageAdapterStore(nw);
-  const useNwjsProcessManager = defineNwjsProcessManagerStore(nw, processRegistry);
+  const useNwjsProcessManager = defineNwjsProcessManagerStore(nw);
   const useNwjsSystemThemeAdapter = defineNwjsSystemThemeAdapterStore(nw);
-  const useNwjsUciEngineClient = defineNwjsUciEngineClientStore(nw, processRegistry);
+  const useNwjsUciEngineClient = defineNwjsUciEngineClientStore(nw);
   return defineStore('platformService', () => {
     let nextRegistrationId = 1;
     const storageAdapter = useNwjsStorageAdapter();

@@ -4,12 +4,18 @@ import { smotheredMateReply } from '../../definitions/play/data/SmotheredMate';
 import { JourneyEmitter } from './JourneyEmitter';
 import { createVariations, parseFen } from './JourneyEngineSearch';
 import type { JourneyEngineBarrier } from './JourneyEngineBarrier';
+class ScriptedEngineOutput extends JourneyEmitter {
+  setEncoding(_encoding: string): this { return this; }
+}
 export class ScriptedEngine extends JourneyEmitter implements ISpawnedProcess {
+  readonly pid = 1;
+  exitCode: number | null = null;
+  signalCode: NodeJS.Signals | null = null;
   private readonly _id: number;
   private _searchId?: number;
   private _stopping = false;
-  readonly stdout = new JourneyEmitter() as unknown as NodeJS.ReadableStream;
-  readonly stderr = new JourneyEmitter() as unknown as NodeJS.ReadableStream;
+  readonly stdout = new ScriptedEngineOutput() as unknown as NodeJS.ReadableStream;
+  readonly stderr = new ScriptedEngineOutput() as unknown as NodeJS.ReadableStream;
   readonly stdin = { write: (chunk: string) => { this._command(chunk.trim()); return true; } } as unknown as NodeJS.WritableStream;
   private _position = createInitialBoardPosition();
   private _timer: ReturnType<typeof setTimeout> | undefined;
@@ -30,7 +36,7 @@ export class ScriptedEngine extends JourneyEmitter implements ISpawnedProcess {
   kill(): boolean {
     clearTimeout(this._timer);
     this._timer = undefined;
-    if (!this._closed) queueMicrotask(() => this.emit('exit', 0, null));
+    if (!this._closed) queueMicrotask(() => { this.exitCode = 0; this.emit('exit', 0, null); });
     this._closed = true;
     this._searching = false;
     this._control?.settle(this._searchId);

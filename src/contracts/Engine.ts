@@ -4,8 +4,8 @@ import type { IMove } from './Move'
 import type { IAnalysisLine } from './Analysis'
 import type { DeepReadonly } from './Readonly'
 import type { Deferred } from '@/utility/async/Deferred';
+import type { IProcess } from './platform/IProcess';
 
-export type ProcessHandle = string
 export const enum EngineProtocol {
   Uci = 'uci',
 }
@@ -59,7 +59,7 @@ export interface IEngineAnalysisOperation {
   isFinal: boolean;
 }
 export interface IAssignedEngineRuntime {
-  processHandle?: ProcessHandle
+  process?: IProcess;
   availability: EngineAvailability
   lastError?: string
   analysisCallback?: (update: IEngineAnalysisUpdate) => void

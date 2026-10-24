@@ -1,41 +1,28 @@
 import { defineStore } from 'pinia';
-
+import { markRaw } from 'vue';
 import { PlatformErrorKind, type IPlatformError } from '@/contracts';
-import type { IProcessManager, ProcessHandle } from '@/contracts/platform';
+import type { IProcess, IProcessManager } from '@/contracts/platform';
 import { getNodeChildProcess } from '@/utility/nwjs/NodeUtility';
-import type { INwjsGlobal, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
-import type { INwjsProcessRegistry } from './NwjsProcessRegistry';
-
-interface IProcessSession {
-  process: ISpawnedProcess;
-}
+import { isProcessOpen, type INwjsGlobal, type ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
 
 function _createPlatformError(kind: PlatformErrorKind, operation: string, message: string, detail?: string): IPlatformError {
   return { kind, operation, message, detail };
 }
-export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry: INwjsProcessRegistry) {
+export function defineNwjsProcessManagerStore(_nw: INwjsGlobal) {
   return defineStore('nwjsProcessManager', () => {
     const childProcess = getNodeChildProcess();
-    let nextHandleId = 1;
-    const sessionByHandle = new Map<ProcessHandle, IProcessSession>();
-
-    async function spawnProcess(executablePath: string, args: string[] = []): Promise<ProcessHandle> {
-      const process = childProcess.spawn(executablePath, args, { stdio: 'pipe' }) as unknown as ISpawnedProcess;
-      const handle = `process-${nextHandleId++}`;
-      return new Promise<ProcessHandle>((resolve, reject) => {
+    async function spawnProcess(executablePath: string, args: string[] = []) {
+      const process = childProcess.spawn(executablePath, args, { stdio: 'pipe' });
+      return new Promise<ISpawnedProcess>((resolve, reject) => {
         const _handleSpawn = () => {
+          process.stdout.setEncoding('utf8');
+          process.stderr.setEncoding('utf8');
           _cleanup();
-          sessionByHandle.set(handle, { process });
-          processRegistry.set(handle, process);
-          process.once('exit', (_code: number | null, _signal: NodeJS.Signals | null) => {
-            sessionByHandle.delete(handle);
-            processRegistry.delete(handle);
-          });
-          resolve(handle);
+          resolve(markRaw(process));
         };
-        const _handleError = (error: Error & { code?: string }) => {
+        const _handleError = (error: Error) => {
           _cleanup();
-          reject(_createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', `Process failed to start: ${executablePath}.`, error.message));
+          reject(_createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', 'Process failed to start: ' + executablePath + '.', error.message));
         };
         const _cleanup = () => {
           process.removeListener('spawn', _handleSpawn);
@@ -45,29 +32,20 @@ export function defineNwjsProcessManagerStore(_nw: INwjsGlobal, processRegistry:
         process.once('error', _handleError);
       });
     }
-    function assertProcessHandleOpen(processHandle: ProcessHandle) {
-      _getSession(processHandle);
+    function assertProcessOpen(process: IProcess) {
+      if (!isProcessOpen(process as ISpawnedProcess)) throw _createPlatformError(PlatformErrorKind.InvalidProcessHandle, 'process', 'Engine process is no longer running.');
     }
-    async function stopProcess(processHandle: ProcessHandle) {
-      const session = _getSession(processHandle);
+    async function stopProcess(process: IProcess) {
+      assertProcessOpen(process);
       await new Promise<void>((resolve) => {
-        session.process.once('exit', () => resolve());
-        session.process.kill();
+        process.once('exit', () => resolve());
+        process.kill();
       });
-      sessionByHandle.delete(processHandle);
-      processRegistry.delete(processHandle);
     }
-    async function restartProcess(processHandle: ProcessHandle, executablePath: string, args: string[] = []): Promise<ProcessHandle> {
-      await stopProcess(processHandle);
+    async function restartProcess(process: IProcess, executablePath: string, args: string[] = []) {
+      await stopProcess(process);
       return spawnProcess(executablePath, args);
     }
-    function _getSession(processHandle: ProcessHandle): IProcessSession {
-      const session = sessionByHandle.get(processHandle);
-      if (session === undefined) throw _createPlatformError(PlatformErrorKind.InvalidProcessHandle, 'process', `Process handle is no longer valid: ${processHandle}.`);
-      return session;
-    }
-
-    const processManager = { spawnProcess, assertProcessHandleOpen, stopProcess, restartProcess } satisfies IProcessManager;
-    return processManager;
+    return { spawnProcess, assertProcessOpen, stopProcess, restartProcess } satisfies IProcessManager;
   });
 }

@@ -34,6 +34,7 @@ class MockNwWindow extends MockEmitter implements INwjsWindow {
   close(_force?: boolean) {}
 }
 class MockReadableStream extends MockEmitter {
+  setEncoding(_encoding: string): this { return this; }
   push(chunk: string) {
     this.emit('data', chunk);
   }
@@ -47,6 +48,9 @@ class MockWritableStream {
   }
 }
 class MockChildProcess extends MockEmitter implements ISpawnedProcess {
+  readonly pid = 1;
+  exitCode: number | null = null;
+  signalCode: NodeJS.Signals | null = null;
   readonly stdout = new MockReadableStream() as unknown as NodeJS.ReadableStream;
   readonly stderr = new MockReadableStream() as unknown as NodeJS.ReadableStream;
   readonly stdin = new MockWritableStream((chunk) => {
@@ -64,6 +68,7 @@ class MockChildProcess extends MockEmitter implements ISpawnedProcess {
   }
   kill(_signal?: NodeJS.Signals | number): boolean {
     queueMicrotask(() => {
+      this.exitCode = 0;
       this.emit('exit', 0, null);
     });
     return true;

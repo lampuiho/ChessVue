@@ -199,7 +199,7 @@ Persistent move paths are mutable, store-owned selector values. Appending a chil
 - `IGame.$` is runtime-only but expected to be explicitly initialised during game creation or hydration. Missing runtime state is a bug, not a fallback path.
 - `gameplayOptions.allowTakeback` is a persisted boolean per game and permits the confirmed rewrite of actual history; with it disabled, exploratory input requires explicit Analyse. **Why:** those are the only implemented behaviours; a policy enum would imply undefined modes and persistence/clock branches. Keeping the value on the game preserves the editing rule with the history it governs. Promote it only when another behaviour and its persisted semantics are defined.
 - Turn ownership, move waiting, and move permissions are derived from `gameState`, not stored on `IPlayer`.
-- Engine runtime details such as `processHandle`, availability, and last error live on `IEnginePlayer.assignedEngine.$`, not on `IPlayer.$`.
+- Engine runtime details such as `process`, availability, and last error live on `IEnginePlayer.assignedEngine.$`, not on `IPlayer.$`.
 - `ICapturedPieceGroup` is a derived read model for player-strip captured-material display and is not persisted on `IGame`.
 - The baseline persisted saved-game artefact reuses `IGame` directly; there is no separate persisted `IGameDocument` shape.
 - `schemaVersion` is part of `IGame`. **Why:** the persisted boundary must reject unknown formats instead of guessing their shape and needs an explicit dispatch key if a later schema is introduced. Version `1` is the first and only current schema.

@@ -1,7 +1,7 @@
 # EngineClient
 
 ## Browser Adaptation
-`defineBrowserUciEngineClientStore` provides `EngineClientType.Uci` over browser workers, including Stockfish.js, through `defineUciEngineClientStore` and its private `IUciTransport` seam. The NW.js implementation is restored to its standalone UCI state machine, using the native process registry and process-line helpers directly. It does not depend on the browser client's shared factory or transport interface. Both implementations retain the existing IEngineClient contract and EngineRuntimeService lifecycle. Browser journeys can still inject the native implementation with scripted processes.
+`defineBrowserUciEngineClientStore` provides `EngineClientType.Uci` over browser workers, including Stockfish.js, through `defineUciEngineClientStore` and its private `IUciTransport` seam. The NW.js implementation is restored to its standalone UCI state machine, reading the actual spawned process from engine.$.process and using the existing NwjsUtility for native liveness, line buffering and writes. No native registry is involved. The process manager configures stdout/stderr as UTF-8 before returning the process, so client output is string-only. It does not depend on the browser client's shared factory or transport interface. Both implementations retain the existing IEngineClient contract and EngineRuntimeService lifecycle. Browser journeys can still inject the native implementation with scripted processes.
 
 ## Purpose
 Own the full engine-protocol conversation with the engine while hiding protocol-specific details such as UCI strings, handshake ordering, and raw engine-output parsing from upper layers.
@@ -38,7 +38,7 @@ restartEngine(engine: IAssignedEngine): Promise<void>
 - The current NW.js concrete implementation is `NwjsUciEngineClient` for `EngineClientType.Uci`.
 - If another protocol is ever introduced later, the protocol switch belongs inside `EngineClient`, not in `EngineRuntimeService`, stores, or views.
 - `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires, then returns protocol-neutral player and analysis moves to the common `EngineRuntimeService` legality guards. For streamed analysis, a `false` callback result rejects the staged update so the client can retain its prior accepted lines. **Why:** duplicating chess acceptance in each protocol client would allow implementations to disagree, while exposing raw output above this layer would leak UCI parsing and state into domain/state code. A new protocol may change syntax but must preserve this boundary.
-- `EngineClient` acts on the in-game `IAssignedEngine` object and any runtime process handle already bound under `engine.$` by `EngineRuntimeService`.
+- `EngineClient` acts on the in-game `IAssignedEngine` object and any runtime process reference already bound under `engine.$` by `EngineRuntimeService`.
 - Concrete clients may narrow `IAssignedEngine` to protocol-specific subtypes and refine `engine.$` with richer client-private runtime state.
 - That client-private refinement may include a protocol session object whose discriminated context owns the current search position, expected ponder move, handshake or stop completion, or pending player move only while its corresponding state is active.
 - Those client-private fields remain internal to the concrete client implementation. They are not part of the shared `IAssignedEngineRuntime` contract and must not be relied on by upper layers.

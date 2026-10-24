@@ -1,10 +1,11 @@
 export { EngineClientType } from '../Engine';
-export type { EngineAnalysisUpdateHandler, IEngineAnalysisUpdate, ProcessHandle } from '../Engine';
+export type { EngineAnalysisUpdateHandler, IEngineAnalysisUpdate } from '../Engine';
 export * from './IEngineClient';
 export * from './IFileSystemEntry';
 export * from './IPlatformEventRegistration';
 export * from './IPlatformService';
 export * from './IProcessManager';
+export * from './IProcess';
 export * from './IStorageAdapter';
 export * from './ISystemThemeAdapter';
 export * from './IWriteTextFileOptions';

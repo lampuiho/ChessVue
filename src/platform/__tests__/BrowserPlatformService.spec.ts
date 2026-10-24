@@ -1,6 +1,7 @@
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineClientType, ResolvedThemeMode } from '@/contracts';
+import type { IProcess } from '@/contracts/platform';
 import { setBrowserPlatformOptions, useBrowserPlatformService } from '../browser/BrowserPlatformService';
 
 let pinia: Pinia;
@@ -27,7 +28,7 @@ describe('browser host services', () => {
     const platform = useBrowserPlatformService();
     expect(platform.getSystemThemeAdapter().getSystemTheme()).toBe(ResolvedThemeMode.Dark);
     await expect(platform.getProcessManager().spawnProcess('stockfish.exe')).rejects.toMatchObject({ kind: 'processStartFailed', message: expect.stringContaining('desktop') });
-    expect(() => platform.getProcessManager().assertProcessHandleOpen('missing')).toThrow();
+    expect(() => platform.getProcessManager().assertProcessOpen({} as IProcess)).toThrow();
     expect(typeof platform.getEngineClient(EngineClientType.Uci).startAnalysis).toBe('function');
   });
   it('dispatches focus/theme events, tracks copied registrations and unsubscribes', async () => {

@@ -18,7 +18,7 @@ it('JRN-RACE-08 disposes a runtime blocked on stop acknowledgement and rejects q
   api.engines.holdStops(false);
   await flushPromises();
   expect(engine.$).toMatchObject({ availability: 'unavailable', analysisNeedsStop: false });
-  expect(engine.$?.processHandle).toBeUndefined();
+  expect(engine.$?.process).toBeUndefined();
   expect(engine.$?.analysisClientWork).toBeUndefined();
   expect(engine.$?.analysisCallback).toBeUndefined();
   expect(api.engines.processes().find((entry) => entry.id === search.processId)).toMatchObject({ closed: true, pendingTimer: false, searching: false, listeners: 0 });

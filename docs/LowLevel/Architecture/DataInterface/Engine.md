@@ -72,7 +72,7 @@ interface IEngineOptionMeta {
 }
 
 interface IAssignedEngineRuntime {
-  processHandle?: ProcessHandle
+  process?: IProcess
   availability: EngineAvailability
   lastError?: string
   analysisCallback?: (update: IEngineAnalysisUpdate) => void
@@ -134,12 +134,12 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `id` is an opaque stable internal key for the saved profile record; uniqueness is not a user-facing editing rule.
 - `displayName` is the user-facing engine profile name and must be unique within the saved profile list.
 - `clientType` identifies which platform engine client is responsible for the profile or assigned-engine snapshot.
-- When a selected reusable engine profile is assigned to a game, `GamesStore` copies the display name, executable path, client type, protocol, and option values into the saved game payload. The option map is shallow-copied because it remains mutable on the source profile and every allowed value is a primitive; a deep clone provides no additional isolation. Runtime `$` data is excluded because process handles, callbacks, and protocol sessions belong to one active assignment and cannot be reused safely.
+- When a selected reusable engine profile is assigned to a game, `GamesStore` copies the display name, executable path, client type, protocol, and option values into the saved game payload. The option map is shallow-copied because it remains mutable on the source profile and every allowed value is a primitive; a deep clone provides no additional isolation. Runtime `$` data is excluded because process references, callbacks, and protocol sessions belong to one active assignment and cannot be reused safely.
 - `IAssignedEngine` is the canonical in-game engine object used by engine-backed players and persisted analysis seats.
 - The baseline permits at most four concurrent analysis engines per game.
 - `IAssignedEngineRuntime` defines the minimum shared runtime contract for an assigned engine instance.
-- `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process handle, availability, last error, active analysis callback, and cached analysis lines for that engine instance.
-- Omitted `processHandle`, `lastError`, and `bestMove` fields mean those values are currently unavailable or intentionally not supplied.
+- `IAssignedEngine.$` is the runtime-only engine namespace. It is rebuilt in memory, is never persisted, and must at minimum carry the current process reference, availability, last error, active analysis callback, and cached analysis lines for that engine instance.
+- Omitted `process`, `lastError`, and `bestMove` fields mean those values are currently unavailable or intentionally not supplied.
 - Concrete `EngineClient` implementations may refine `IAssignedEngine.$` through inherited runtime interfaces when they need client-private protocol-session state.
 - Those refinements remain private to the owning concrete client implementation. Higher layers depend only on the shared minimum runtime fields plus the documented service and client APIs.
 - Client-private runtime fields such as a concrete UCI session object, session state, current search position, expected ponder move, attached listener references, or pending player-move state are valid concrete `EngineClient` refinements and are not part of the shared contract.
@@ -150,3 +150,9 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
 - `IEngineAnalysisUpdate` contains the fixed searched `position` and every retained line in engine rank order. It has no position key or three-line cap. The client allocates a new ordered array per emission and keeps line/PV objects immutable; the game subscription selects up to three rendered lines while retaining those objects.
 - `analysisOperation`, `analysisWork`, and `analysisNeedsStop` are service-owned runtime fields. The operation holds cancellation/completion and final-update state; the work handle serialises issued operations while superseded requests skip startup; the stop flag records whether a client search needs draining. `analysisCallback` is the only stored subscriber field. The service captures its reference locally when starting analysis or disposing an engine, so old work cannot invoke or clear a replacement subscription. These fields do not expose protocol states and are never persisted.
 - `executablePath` and `options` are user-managed profile values and are not strictly validated at settings-edit time beyond being storable in the profile record.
+
+## Shared process reference
+
+IProcess, IProcessInput and IProcessOutput are defined in src/contracts/platform/IProcess.ts. The input writes string commands; optional stdout/stderr outputs deliver string chunks through data listeners. Exit listeners receive the native nullable code/signal pair; kill requests termination. Node-specific stream types and lifecycle properties remain in the native model.
+
+The process manager establishes the native UTF-8 output guarantee before handing the process to EngineRuntimeService. The runtime holds this exact raw object. Browser compatibility currently substitutes the raw Worker reference for the previous string identity in its existing registry; it does not adapt Worker to these members in this step. No process object or stream is serialised.

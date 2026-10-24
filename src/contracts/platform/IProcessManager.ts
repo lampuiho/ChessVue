@@ -1,8 +1,8 @@
-import type { ProcessHandle } from '../Engine';
+import type { IProcess } from './IProcess';
 
 export interface IProcessManager {
-  spawnProcess(executablePath: string, args?: string[]): Promise<ProcessHandle>;
-  assertProcessHandleOpen(processHandle: ProcessHandle): void;
-  stopProcess(processHandle: ProcessHandle): Promise<void>;
-  restartProcess(processHandle: ProcessHandle, executablePath: string, args?: string[]): Promise<ProcessHandle>;
+  spawnProcess(executablePath: string, args?: string[]): Promise<IProcess>;
+  assertProcessOpen(process: IProcess): void;
+  stopProcess(process: IProcess): Promise<void>;
+  restartProcess(process: IProcess, executablePath: string, args?: string[]): Promise<IProcess>;
 }

@@ -135,13 +135,17 @@ Each entry must define:
 - Validation or failure semantics: invalid highlighted or live paths, missing timed clocks, malformed UCI moves or option declarations, and unsupported option types throw rather than creating partial protocol data. Standard initial roots emit `position startpos`; one-time verification is cached under `IBoardPosition.$.isStandardInitialPosition`, while custom roots emit full FEN. `buildFindNextMoveCommands(...)` retains its contextual contract: a matching ponder returns `ponderhit`, a mismatch returns `stop`, and a normal request returns the current position plus a timed `go` or bounded untimed `go movetime 1000` (`BuildConfig.engine.untimedMoveTimeMs`). The client selects hit or miss independently, and a miss awaits its own stop boundary before rebuilding normal commands from the current game.
 
 ### NwjsUtility
-- Purpose: share typed access to the shared `nw` host object used by the concrete NW.js platform implementation.
-- Touched contract models: none directly; supports typed implementation of platform-owned contracts without extending the public abstraction surface.
+- Purpose: share typed NW.js host access and native process liveness, line-listener attachment and command writes for the independent native manager/client implementations.
+- Touched contract models: IProcess and IPlatformError, with the native ISpawnedProcess refinement kept private to host implementations.
 - Allowed importers: platform bootstrap and NW.js implementations, plus the app shell for resolved host styling.
 - Owner-private delegates:
   - `PlatformService` bootstrap
+  - `NwjsProcessManager` native liveness checks
+  - `NwjsUciEngineClient` process-listener attachment, line buffering and command writes
 - Classification: `mixed`.
 - Validation or failure semantics: the utility must return one shared typed `nw` object for the active build target, allow explicit test or bootstrap override, and fall back to the cached mock host when real NW.js bindings are unavailable. `getNwjs()` throws when the resolved target is not `PlatformTarget.Nwjs`, before resolving overrides, real bindings or fallback mocks. The `PlatformTarget` enum represents resolved targets. Automatic selection ignores the mock fallback and uses the browser platform when no real or explicitly injected NW.js runtime exists. `PlatformService` resolves that shared instance once, and the concrete NW.js store definitions receive it through injected parameters rather than resolving host globals independently.
+
+The manager owns UTF-8 configuration; line helpers consume strings and retain existing framing/trimming. These utility functions neither own process lifecycle nor retain process registries. Listener attachment returns the client-owned detacher, and writes reject exited resources or missing stdin with the existing error kinds.
 
 ### NodeUtility
 - Purpose: share access to Node modules exposed through the NW.js host and the temporary mock-module fallback required before the real desktop bootstrap is present.

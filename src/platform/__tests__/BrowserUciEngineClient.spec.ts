@@ -1,3 +1,4 @@
+import { isProxy, reactive } from 'vue';
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineAnalysisSearchMode, EngineAvailability, EngineOptionType, type IAssignedEngine } from '@/contracts';
@@ -48,12 +49,14 @@ afterEach(() => {
 async function _createEngine(): Promise<IAssignedEngine> {
   const engine = createAssignedEngine();
   engine.executablePath = 'stockfish.js';
-  engine.$ = { processHandle: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+  engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
   return engine;
 }
 describe('browser UCI transport', () => {
   it('uses the bundled worker for handshake, option discovery, analysis and stop', async () => {
-    const engine = await _createEngine();
+    const engine = reactive(await _createEngine());
+    expect(engine.$!.process).toBe(workers[0]);
+    expect(isProxy(engine.$!.process)).toBe(false);
     await client.initialiseEngine(engine);
     expect(workers[0]!.url.pathname).toBe('/engines/stockfish/stockfish-19-lite-single.js');
     expect(client.getOptions(engine)).toContainEqual({ name: 'Hash', type: EngineOptionType.Integer, defaultValue: 16, minimum: 1, maximum: 1024 });
@@ -78,7 +81,7 @@ describe('browser UCI transport', () => {
     const rejected = expect(starting).rejects.toMatchObject({ kind: 'unexpectedExit', detail: 'WASM load failed' });
     workers[0]!.crash();
     await rejected;
-    expect(() => manager.assertProcessHandleOpen(engine.$!.processHandle!)).toThrow();
+    expect(() => manager.assertProcessOpen(engine.$!.process!)).toThrow();
     expect(workers[0]!.terminated).toBe(true);
   });
   it('isolates worker lifetimes and replaces handles on restart', async () => {
@@ -86,9 +89,9 @@ describe('browser UCI transport', () => {
     const second = await manager.spawnProcess('/custom-uci.js');
     const restarted = await manager.restartProcess(first, 'stockfish.js');
     expect(restarted).not.toBe(first);
-    expect(() => manager.assertProcessHandleOpen(first)).toThrow();
+    expect(() => manager.assertProcessOpen(first)).toThrow();
     expect(workers[0]!.terminated).toBe(true);
-    expect(() => manager.assertProcessHandleOpen(second)).not.toThrow();
+    expect(() => manager.assertProcessOpen(second)).not.toThrow();
     manager.dispose();
     expect(registry.size).toBe(0);
     expect(workers.every((worker) => worker.terminated)).toBe(true);
@@ -105,7 +108,7 @@ describe('browser UCI transport', () => {
     const onUpdate = vi.fn();
     await client.startAnalysis(engine, createEngineGame(), { multiPv: 1, searchMode: EngineAnalysisSearchMode.Infinite }, onUpdate);
     const count = onUpdate.mock.calls.length;
-    await manager.stopProcess(engine.$!.processHandle!);
+    await manager.stopProcess(engine.$!.process!);
     workers[0]!.dispatchEvent(new MessageEvent('message', { data: 'info depth 9 score cp 99 pv e7e5' }));
     expect(onUpdate).toHaveBeenCalledTimes(count);
   });
