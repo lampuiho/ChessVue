@@ -6,6 +6,36 @@ The app has never been released. Update the current schemas and fixtures directl
 
 The [detailed API](#detailed-api) and [function flows](#function-flows) below define callable owners, signatures, storage mutations, cancellation and cleanup for this rework. They supplement the existing [runtime ownership flow](LowLevel/ProcessFlows/EngineRuntimeOwnership.md). Keep these details in this plan while the design is under review.
 
+## Questions to answer before implementation
+
+Decisions confirmed by the user on 24 October 2026:
+
+1. **Included engine:** load directly from app-shipped package files. Do not copy it into browser package storage. It appears as an ordinary available package/default profile and uses the matching engine client.
+2. **Import destination:** the installed engine name is its folder name. The import view has an Engine name input with folder-name character validation. The name is separate from any profile name and the vendor's archive filename.
+3. **Uniqueness:** installed engine names must be unique. Reject a duplicate name instead of silently overwriting another engine. These answers do not authorise a separate in-place replacement workflow.
+4. **Versions:** no separate version field or upstream name/version discovery. Display the folder name as the engine name. Users may include a version in that name themselves.
+5. **Stored-script loading:** use a service worker to serve browser-stored package files at ordinary same-origin URLs, preserving their relative layout.
+
+The listed questions have been answered. The [selected loading design](#stored-script-loading-options) and its function flows remain a plan for review; real-engine verification is outstanding. Implementation is stopped pending an explicit instruction to resume.
+
+## Installed engine names
+
+Use the Engine name as one folder component, preserving the entered name in storage and display. Validate before enabling Install and repeat validation in EnginePackageService; recheck uniqueness at the atomic write boundary so two imports cannot publish the same name. The built-in folder name also occupies its name in the engine list. Profile labels remain independently editable.
+
+Reject an empty/whitespace-only name, . or .., path separators, control characters, the characters `< > : " / \ | ? *`, and a trailing space or dot. Also reject reserved device names such as CON/NUL/COM1/LPT1, including their extension forms. Unicode names, spaces within names, hyphens and version text remain usable. Compare engine names without case differences so Stockfish and stockfish do not become duplicate-looking entries. These validation rules follow [Windows folder-name constraints](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file) while keeping the user-supplied name.
+
+## Stored-script loading options
+
+Selected by the user on 24 October 2026: **service-worker package URLs**. An app-owned file-serving service worker maps a reserved path under the app base, for example /engine-files/Example/engine.js, to the exact stored package file. Requests for neighbouring scripts/WASM/NNUE resolve within that same URL hierarchy, with original filenames and bytes. This is the selected architecture, not completed runtime proof.
+
+The handler responds only to the reserved stored-engine path. Ordinary app requests, including bundled engine files, keep their normal network/app-file path. Package discovery/import and profile editing do not register the service worker or start an engine; registration/control readiness belongs to resource preparation when a stored engine is actually launched. A service worker can synthesise these file responses and leave other requests alone; see [fetch events](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/fetch_event).
+
+The build must serve the app-owned service-worker script at a stable URL beneath the app base in development and production. Its registration scope covers the app page that creates engine Workers, while its fetch handler filters to engine-file URLs. Await the matching active registration and actual page control before creating a stored engine Worker. Registration requires a secure context; activation can [claim clients](https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim), and [controllerchange](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/controllerchange_event) confirms control. A bare [ready promise](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/ready) is not a bounded failure-handling strategy.
+
+Use one shared, owned readiness operation with listener/timer cleanup, a bounded wait and retry after failure. Unsupported registration, failed activation or failure to obtain control becomes the existing process-start error; do not launch through an unready virtual URL or introduce a Blob/server fallback. Host disposal settles pending readiness work. Stopping an individual engine releases its package lease and Worker, not the shared service-worker registration. No app-shell cache, offline policy, installation catalogue or additional public engine API is introduced.
+
+Keep the generic engine/package APIs and single EngineClientType selector. Real Stockfish plus an independent engine, relative assets, initial control without manual reload, reload, failed registration/read and cleanup remain required verification. Application implementation remains stopped.
+
 ## Scope
 
 Enable browser profiles to select and load other engines using their supplied entry files. Reuse the existing initialisation, getOptions, analysis/player operations and cleanup. Package import stores files; it does not launch engines or classify their capabilities. Runtime lifecycle policy is unchanged.
@@ -16,7 +46,7 @@ Desktop profiles point directly to an executable or the entry file inside a brow
 
 - Browser import stores the supplied package files, preserving their relative layout. Discover imported packages by reading those folders, without separate installation records.
 - Require neither a fixed entry filename nor a new manifest. Upstream archives do not generally contain a ChessVue manifest. Do not generate one during browser import or modify desktop folders.
-- Existing package metadata may provide a name/version. It is not guaranteed to declare a usable browser entry or its interface. Ask for missing launch information explicitly; never guess the first JavaScript file or assume an npm `main` is a Worker.
+- The engine name comes from its folder, not upstream package metadata. Ask for the entry/interface explicitly; never guess the first JavaScript file or assume an npm `main` is a Worker.
 - Proposed engine APIs and data contracts stay generic across hosts: loadPackages, refreshPackages, listPackages, getPackage, browseEngineFile and IEnginePackage. browseEngineFile(startDirectory?) chooses an executable or entry-script file and returns its path, delegating to the existing IStorageAdapter.showOpenDialog contract. Capability checks expose available operations; concrete platform implementations handle storage, pickers and resource loading. No desktop/browser API families or host-discriminated DTOs.
 - `EngineClientType` remains the single implementation selector. Remove the unused engine `protocol` field and `EngineProtocol` as part of the rework.
 - Bundled Stockfish uses an ordinary package folder and a default profile naming its actual supplied entry file. It uses the same loader as user packages.
@@ -67,7 +97,6 @@ export interface IAssignedEngine extends IEngineSelection {
 export interface IEnginePackage {
   packagePath: string;
   displayName: string;
-  version?: string;
   source: EngineInstallationSource;
   files: string[];
   warning?: string;
@@ -76,7 +105,7 @@ export interface IEnginePackage {
 
 `entryPath` is the actual launch target: native executable for Uci, supplied browser entry script for UciWorker. Desktop accepts user paths or app-relative bundled paths. Browser uses virtual file paths in its package filesystem. Other future clients interpret their entry according to that implementation. There is no additional execution-kind enum or protocol selector.
 
-`IEnginePackage` is a generic transient folder-discovery result, not a persisted record or a browser-specific type. Read existing `package.json` name/version where present; otherwise display the folder name without inventing a version. Derive source from the bundled/user storage namespace. Source uses `EngineInstallationSource` and never selects the runtime.
+`IEnginePackage` is a generic transient folder-discovery result, not a persisted record or a browser-specific type. displayName is the folder name. Derive source from the app-shipped/user storage namespace. Source uses `EngineInstallationSource` and never selects the runtime. No package name/version parsing is needed.
 
 The profile stores launch information because the user chose that target. Imported package storage holds only package files. There is no installation id, catalogue, saved entry-selection registry or generated loading descriptor. Several profiles can target one script with different options, or different builds inside the same folder.
 
@@ -86,11 +115,10 @@ Copy clientType/entryPath fields and a fresh options map into assignments. Keep 
 
 Preserve the upstream folder structure, script names and auxiliary resources. Browser import accepts the archive's actual layout; desktop users may extract it anywhere and point a profile at the executable/package entry. No required `assets` subdirectory or renamed entry is introduced.
 
-1. Read existing small metadata files where applicable to show package information. This does not prove a browser launch contract.
-2. If a supported metadata format unambiguously identifies a compatible entry, offer that file as a confirmed choice. Generic npm `main`, `browser` and `exports` fields are not automatically interchangeable or necessarily Worker-safe.
-3. Otherwise show the actual candidate files and ask the user to select the intended entry and implemented interface. Do not choose a helper worker merely because of its filename. Unsupported module APIs remain unsupported until the matching client/adaptation exists.
-4. Save the explicit entry, implemented client type, profile name and configured options. Existing option discovery continues through getOptions.
-5. Launch that entry with its required assets through the existing runtime path when the engine is used.
+1. Display the folder name and actual files, without reading package name/version metadata.
+2. Ask the user to select the intended entry and implemented interface. Do not choose a helper worker merely because of its filename. Unsupported module APIs remain unsupported until the matching client/adaptation exists.
+3. Save the explicit entry, implemented client type, profile name and configured options. Existing option discovery continues through getOptions.
+4. Launch that entry with its required assets through the existing runtime path when the engine is used.
 
 On desktop, selecting a target writes no package files. Browser import stores files without choosing an entry or client type. Create profile is a separate action that selects the entry and interface from the stored files. A package may have no profiles.
 
@@ -105,17 +133,17 @@ A real resource lease retains worker/asset URLs until their consumers terminate.
 | Desktop executable | Use the profile's exact executable entry path | Profile/assignment launch data and options |
 | Desktop browser engine | Use the profile's supplied script path; resolve its required neighbouring/package resources | Profile/assignment launch data and options; no copy or registration |
 | Bundled desktop engine | Same file reader and client, using the default profile's actual entry | Ordinary default profile |
-| Imported browser package | Enumerate package directories/file keys; read existing metadata when present, otherwise folder name | Original package files and relative layout |
+| Imported browser package | Enumerate package directories/file keys; display the folder name | Original package files and relative layout |
 | Browser engine profile | Resolve its exact virtual script path inside the discovered package folder | Profile/assignment launch data and options |
 
-Browser storage can use a dedicated `chessvue-engines` IndexedDB database, with files keyed by `[packagePath, relativePath]`. Package-root keys define folder boundaries. Enumerate distinct roots, then read existing small metadata files without loading WASM/NNUE bytes. A successful import of a valid engine contains files, so no independent folder/installation record is required. Bundled/user roots determine the source enum. See the [IndexedDB documentation](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
+Browser storage can use a dedicated `chessvue-engines` IndexedDB database, with files keyed by `[packagePath, relativePath]`. Package-root keys define folder boundaries. Enumerate distinct roots and their filenames without loading WASM/NNUE bytes. A successful import contains files, so no independent folder/installation record is required. Add the app-shipped bundled folder to discovery without copying its files into storage. App-shipped/user roots determine the source enum. See the [IndexedDB documentation](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
 
 Do not create an installations object store, catalogue singleton, generated package manifest or remembered-entry table. Desktop has no managed user-engine root to scan. Package discovery and import do not start engines. Existing option requests use getOptions; normal engine use retains existing readiness/error handling.
 
 | Boundary | Responsibility |
 | --- | --- |
 | Generic package adapter | One IEnginePackageAdapter contract for file access, discovery and optional managed storage. Concrete implementations read desktop files or browser-stored files; canInstall identifies managed-storage support. |
-| `EnginePackageService` | List package folders and candidate files; read existing metadata through the adapter, isolating unreadable folders into warnings. No native registration lookup. |
+| `EnginePackageService` | List package folders and candidate files using the folder name; isolate unreadable folders into warnings. No metadata parsing or native registration lookup. |
 | `EnginesStore.loadPackages()` / `refreshPackages()` | Own/share discovery through the same API when the package list is opened and after explicit import/removal/Refresh actions. Direct-file adapters have no managed inventory to enumerate. Preserve profile drafts; no host checks, watchers or polling. |
 | Profile/import target action | The existing file dialog returns a chosen file path; the profile form copies it into entryPath. Stored package files are selected directly from IEnginePackage.files. Archive input uses IEnginePackageFile (filename and original bytes), not File/Blob or a native picker handle. Validate archive paths/files through layer-2 services and own file-operation cancellation. |
 | Assignment | Copy the selected profile through the existing game/player/analysis handlers. No new resolution API or preflight. |
@@ -131,16 +159,14 @@ Browser profile -> stored virtual entry -> same browser client
 
 Only browser hosts need import/removal. EnginesStore coordinates file storage through EnginePackageService. EngineRuntimeService retains its existing operations for engines in use and temporary option discovery.
 
-1. An explicit import owns its picker and file operation; prevent duplicate starts.
+1. Collect the Engine name and validate its characters/uniqueness. An explicit import owns its picker and file operation; prevent duplicate starts.
 2. Decode the archive and validate its paths/files. No entry/interface choice or generated manifest is required.
 3. Publish all original files atomically in one IndexedDB transaction, preserving relative paths. No metadata/catalogue publication follows.
 4. Refresh discovery. Failed/cancelled reads publish nothing. Settle an issued publication even if the initiating UI closes. Done retains files only; Create profile opens the separate Settings draft flow.
 
 Cancel/settle superseded file reads before replacement work. Serialise conflicting publication/discovery. Browser package removal checks committed/draft profile entries, open-game assignments and active leases inside the folder. A draft-only profile deletion still blocks removal until Apply. Removal never touches desktop files or automatically rewrites profiles/games.
 
-The build supplies Stockfish's original script/assets in a normal bundled package folder. Its default profile names the actual entry and uses the same loader as user packages. This rework adds no first-database-creation marker, startup gate or new automatic restoration policy.
-
-Desktop Use included Stockfish fills the default script path. Browser Restore included engine explicitly imports the supplied files through the ordinary file-import operation. Settings reset keeps its existing settings-only behaviour.
+The build supplies Stockfish's original script/assets in a normal bundled package folder. Both hosts load that folder directly from app files. Its default profile names the actual entry and uses the matching client/resource-preparation boundary. Discovery includes it without copying, installing or restoring it into managed user storage. Managed removal applies to imported user folders. Remove the earlier proposed Restore included engine action and its restore-only APIs. Settings reset keeps its existing settings-only behaviour.
 
 ## Mixed runtime and UI
 
@@ -172,7 +198,6 @@ export interface IEnginePackageFile {
   data: Uint8Array<ArrayBuffer>;
 }
 export interface IEngineArchive {
-  packagePath: string;
   files: readonly IEnginePackageFile[];
 }
 export interface IEnginePackageUsage extends IEngineLaunch {
@@ -180,9 +205,9 @@ export interface IEnginePackageUsage extends IEngineLaunch {
 }
 ```
 
-For an archive input, path is the selected filename and data contains its original bytes. After decoding, each file path is relative to packagePath. These objects exist only for the current file action. They are not installation records, manifests or persisted editor state. DOM File/Blob objects stay in the view.
+For an archive input, path is the selected filename and data contains its original bytes. After decoding, each file path keeps its supplied relative layout inside the archive. These objects exist only for the current file action. They are not installation records, manifests or persisted editor state. DOM File/Blob objects stay in the view.
 
-IEngineArchive is the decoded file set passed to installation; despite its name, it contains no ZIP bytes. A ZIP read and a read of the supplied bundled files both produce that same input. packagePath identifies the destination folder, while each file's path is relative to it. How an ordinary import chooses that destination is an [open API decision](#open-api-decisions), not information guaranteed to exist in an upstream archive. IEnginePackageUsage contains only a reference's label and copied launch fields, so removal can explain which profile/game blocks it.
+IEngineArchive contains the decoded files only, with no ZIP bytes, destination or package metadata. readArchive does not need an engine name. At Install, the view passes its current validated Engine name separately; the service derives the managed folder from that name. installPackage returns the resulting packagePath for Create profile. This keeps renaming the form independent of ZIP decoding and avoids a destination chosen from vendor metadata. IEnginePackageUsage contains a reference label and copied launch fields for removal checks.
 
 ### EnginesStore additions
 
@@ -194,8 +219,7 @@ listPackages(): readonly IEnginePackage[];
 getPackage(packagePath: string): IEnginePackage | undefined;
 browseEngineFile(startDirectory?: string): Promise<string>;
 readArchive(file: IEnginePackageFile, signal?: AbortSignal): Promise<IEngineArchive>;
-installPackage(archive: IEngineArchive, signal?: AbortSignal): Promise<void>;
-restoreBundled(signal?: AbortSignal): Promise<void>;
+installPackage(engineName: string, archive: IEngineArchive, signal?: AbortSignal): Promise<string>;
 removePackage(packagePath: string, readReferences: () => readonly IEnginePackageUsage[]): Promise<void>;
 ```
 
@@ -208,11 +232,10 @@ removePackage(packagePath: string, readReferences: () => readonly IEnginePackage
 | `getPackage(packagePath)` | Details and Create profile look up one loaded folder | Synchronous exact-path lookup, returning undefined when absent. No discovery, registration or fallback selection. |
 | `browseEngineFile(startDirectory?)` | Profile Browse awaits the chosen executable/script path | Opens the existing file dialog through the service. Returns a path only; cancellation leaves the local form intact. |
 | `readArchive(file, signal?)` | Import view supplies the selected filename/original bytes and receives a decoded file review | Reads/validates without storage writes. Rejects invalid files or cancellation. Does not choose an entry/interface. |
-| `installPackage(archive, signal?)` | Import confirmation publishes the reviewed file set | Awaits the queued atomic write, then discovery. Returns no profile or installation id; the view already holds archive.packagePath for Create profile. |
-| `restoreBundled(signal?)` | Confirmed Restore included engine action supplies no user archive | Reads the engine files shipped with the app, installs them through the ordinary file pipeline, then refreshes. See the [complete restore flow](#leaving-import-and-restoring-the-included-package). |
+| `installPackage(engineName, archive, signal?)` | Import confirmation supplies the Engine name and decoded files | Validates the name, publishes to its unique folder, then refreshes. Returns packagePath for Create profile; creates no profile/installation record. |
 | `removePackage(packagePath, readReferences)` | Confirmed removal supplies the folder and a current-reference reader | Checks references when its queued turn starts, deletes only stored package files and refreshes. Rejects blocked/failed deletion; it never removes profiles. |
 
-Import, restore, removal and discovery share the store's package-work queue, so a refresh cannot publish a list read before an issued mutation settled. Existing option discovery is not added to that queue. listPackages/getPackage read discovery results, not a persisted catalogue.
+Import, removal and discovery share the store's package-work queue, so a refresh cannot publish a list read before an issued mutation settled. Existing option discovery is not added to that queue. listPackages/getPackage read discovery results, not a persisted catalogue.
 
 The removal caller supplies a function that reads current accepted/draft profiles and open-game assignments. Invoke it after queued work has settled, immediately before deletion, rather than keeping the list captured when Details opened. Presentation composes these inputs from SettingsStore and GamesStore; EnginesStore does not look up sibling stores. Active resource leases belong to the platform adapter/loader and are checked there.
 
@@ -223,22 +246,20 @@ canInstall(): boolean;
 listPackages(): Promise<readonly IEnginePackage[]>;
 browseEngineFile(startDirectory?: string): Promise<string>;
 readArchive(file: IEnginePackageFile, signal?: AbortSignal): Promise<IEngineArchive>;
-install(archive: IEngineArchive, signal?: AbortSignal): Promise<void>;
-readBundledFiles(signal?: AbortSignal): Promise<IEngineArchive>;
+install(engineName: string, archive: IEngineArchive, signal?: AbortSignal): Promise<string>;
 remove(packagePath: string, references: readonly IEnginePackageUsage[]): Promise<void>;
 ```
 
 | Method | Caller, result and responsibility |
 | --- | --- |
 | `canInstall()` | EnginesStore.canInstallPackages delegates to the current package adapter's capability. Does not open a database or run a probe. |
-| `listPackages()` | EnginesStore._readPackages requests folder discovery. Returns transient IEnginePackage values with optional upstream name/version and per-folder warnings; rejects failure to enumerate storage. |
+| `listPackages()` | EnginesStore._readPackages requests folder discovery. Returns transient IEnginePackage values using folder names and per-folder warnings; rejects failure to enumerate storage. |
 | `browseEngineFile(startDirectory?)` | EnginesStore.browseEngineFile delegates to IStorageAdapter.showOpenDialog, keeping the platform lookup out of the store. Propagates the existing picker result/cancellation. |
 | `readArchive(file, signal?)` | EnginesStore.readArchive requests ZIP decoding and path/file validation. Returns IEngineArchive; writes nothing and starts no engine. |
-| `install(archive, signal?)` | Queued import/restore revalidates the decoded files, checks installation support and awaits adapter.installFiles. Does not refresh state; EnginesStore owns that next step. |
-| `readBundledFiles(signal?)` | The restore action requests the original file set supplied by the app build. Delegates the host-specific byte reads to the adapter and returns the same decoded input used by install. Does not install or alter settings. |
+| `install(engineName, archive, signal?)` | Queued import validates the name/files, derives the named folder, checks installation support and awaits adapter.installFiles. Returns the folder path; EnginesStore owns discovery refresh. |
 | `remove(packagePath, references)` | Queued removal checks the supplied current references against the exact folder boundary, then awaits adapter.removeFiles. Does not read sibling stores or delete desktop files. |
 
-This layer reaches storage through IPlatformService. Thin browse/capability/bundled-read delegations maintain the existing state-to-service-to-platform boundary; they are not separate workflows. None of these operations chooses an engine entry/interface, creates profiles, launches engines or persists discovery results.
+This layer reaches storage through IPlatformService. Thin browse/capability delegations maintain the existing state-to-service-to-platform boundary; they are not separate workflows. None of these operations chooses an engine entry/interface, creates profiles, launches engines or persists discovery results.
 
 ### Generic platform package adapter
 
@@ -248,8 +269,7 @@ export interface IEnginePackageAdapter {
   listPackagePaths(): Promise<readonly string[]>;
   listFiles(packagePath: string): Promise<readonly string[]>;
   readFile(packagePath: string, relativePath: string): Promise<IEnginePackageFile>;
-  installFiles(archive: IEngineArchive, signal?: AbortSignal): Promise<void>;
-  readBundledFiles(signal?: AbortSignal): Promise<IEngineArchive>;
+  installFiles(packagePath: string, files: readonly IEnginePackageFile[], signal?: AbortSignal): Promise<void>;
   removeFiles(packagePath: string): Promise<void>;
 }
 ```
@@ -259,16 +279,15 @@ export interface IEnginePackageAdapter {
 | `canInstall()` | Service capability getter; reports whether managed import/removal is supported. A true result does not guarantee a later write succeeds. |
 | `listPackagePaths()` | Service discovery reads distinct folder roots from stored file keys, plus the supplied bundled roots where applicable. Returns paths only; does not create folder/catalogue records. |
 | `listFiles(packagePath)` | Service package reading enumerates relative filenames under one exact root. Does not load file contents or infer an entry. |
-| `readFile(packagePath, relativePath)` | Service metadata reading requests original bytes for one listed file. Rejects missing/unreadable files; never substitutes another package's contents. |
-| `installFiles(archive, signal?)` | Service install writes the decoded original files atomically to archive.packagePath. Resolves on commit; rejects on actual abort/error, without publishing a partial folder. |
-| `readBundledFiles(signal?)` | Service restore reads the distributed assets independently of the removable installed copy. Returns their intended destination root and relative files; writes nothing. |
+| `readFile(packagePath, relativePath)` | Resource preparation/serving reads original bytes for one file when needed. Discovery reads filenames only. Rejects missing/unreadable files without substituting another package. |
+| `installFiles(packagePath, files, signal?)` | Service install supplies the validated named destination and original files. The transaction rejects an existing engine name before writing. Resolves on commit; actual abort/error publishes no partial folder. |
 | `removeFiles(packagePath)` | Service removal deletes only that managed root after the platform owner checks active leases. Resolves after deletion settles; rejects unsupported, leased or failed deletion. |
 
 The browser implementation enumerates file keys and reads original bytes. Removal and resource acquisition share the actual package owner: claim deletion before asynchronous file work, reject active leases and prevent acquisition during deletion. There is no persisted lease/installation table.
 
 The desktop implementation reads actual files, including bundled files. It has no managed user-engine inventory; canInstall returns false and installFiles/removeFiles are unavailable. Pointing a profile at an external folder does not add it to listPackagePaths. Browsing a file remains the storage dialog operation below.
 
-Bundled reads mean the assets shipped by the app, not another read of the installed engine folder. The existing build already declares Stockfish's supplied JavaScript, WASM and licence assets in StockfishConfig/build asset definitions. Read those declared distribution paths as bytes (browser asset requests or desktop file reads); do not rely on HTTP directory listing, an installation catalogue or a vendor engine.json. Keep their relative filenames. The default profile supplies the intended entry path separately. How those files become available on first use remains an [open API decision](#open-api-decisions).
+The bundled folder is read directly from the app distribution on both hosts. Its filenames come from the same build asset definition that supplies Stockfish scripts/WASM/licence files; no HTTP directory scan or vendor manifest is required. listPackagePaths/listFiles expose that folder alongside imported user folders without copying it. Resource preparation uses its ordinary app URLs, while browser-stored user files use the selected service-worker URL mapping. No restore-only file-batch API is needed.
 
 ### Existing platform interfaces
 
@@ -293,16 +312,6 @@ Both enum-keyed getters use one composition table pairing IEngineClient with IPr
 
 getEngineClient(clientType) returns the protocol/session owner; getProcessManager(clientType) returns the physical process/Worker lifecycle owner from that same pair. EngineRuntimeService calls both using the assignment's copied enum value. getEnginePackageAdapter returns the current host's file adapter to EnginePackageService. These getters return composed capabilities; none installs files, starts engines or resolves a profile.
 
-Worker construction receives a private platform function with this callable type:
-
-```ts
-(entryPath: string) => Promise<{ url: URL; release(): void }>;
-```
-
-It prepares the selected entry and retains its required resources until release. Desktop resolves the actual file and neighbouring assets; browser resolves its virtual package path. The concrete browser URL-serving mechanism remains subject to the runtime proof above. This contract does not select a service worker, rewrite upstream scripts or assume Blob-relative resources work.
-
-This injected function is named prepareEntry in the flow. Its only caller is the Worker process manager at spawn time. It returns a URL usable by that Worker and a release callback for that preparation's resources. Preparation failure cleans up any resources acquired before rejecting. Successful preparation transfers ownership to the process manager, which calls release on failed construction or through the transport's onClosed callback. Neither the URL nor release callback is persisted or exposed as a profile-selection API.
-
 The shared client factory's proposed parameter addition is also composition only:
 
 ```ts
@@ -317,16 +326,32 @@ Platform composition supplies the registered enum value and matching registry lo
 
 ### Proposed private helpers
 
+BrowserProcessManager owns _prepareEntry as a private method called only by spawnProcess. It resolves the actual script URL and retains its resources: app-shipped/desktop files use their real locations, and browser-stored files use service-worker readiness plus a package lease. Its result stays inside the process manager, which transfers the release callback to its Worker-close handler and releases on failed construction. This is not an injected entry-preparation callback, an IProcessManager operation, or an API on IPlatformService, EnginesStore or EnginePackageService. Platform composition supplies the underlying file/resource capabilities without exposing a prepare operation.
+
 | Helper | Purpose and outcome |
 | --- | --- |
+| `BrowserProcessManager._prepareEntry(entryPath: string): Promise<{ url: URL; release(): void }>` | Private spawn helper. Returns the supplied entry URL and an owned resource-release callback; never persists either or chooses a profile. Preparation failure releases anything already acquired. |
 | `EnginesStore._queuePackageWork(action)` | Serialises actual package reads/writes. Returns the action's result/failure while keeping a settled queue tail for the next action. No persistent jobs or new runtime queue. |
 | `EnginesStore._readPackages()` | Calls service.listPackages and replaces the transient list only after success. Used inside queued actions so they do not queue themselves again. |
-| `EnginePackageService._readPackage(adapter, packagePath)` | Builds one transient folder result from actual filenames and optional upstream metadata; missing metadata is normal. Per-folder failures become warnings. |
-| `EnginePackageService._decodeArchive(file, signal)` | Uses the ZIP reader to turn original archive bytes into relative file paths/bytes. Does not infer a Worker or install anything. Destination selection remains open. |
+| `EnginePackageService._readPackage(adapter, packagePath)` | Builds one transient folder result from the folder name and actual filenames. Per-folder read failures become warnings. No metadata parsing. |
+| `EnginePackageService._decodeArchive(file, signal)` | Uses the ZIP reader to turn original archive bytes into relative file paths/bytes. Returns files only; it does not infer a Worker, select a destination or install anything. |
+| `EnginePackageService._validateEngineName(engineName)` | Validates the user name as one folder component using the rules above; rejects invalid names before deriving the destination. |
 | `EnginePackageService._validatePackageFiles(archive)` | Checks the decoded file set and its path boundaries. Rejects invalid/conflicting paths without adding a manifest or starting an engine. |
 | `EnginePackageService._assertPackageUnreferenced(packagePath, references)` | Rejects deletion with the names of current profile/game references inside that exact folder. Active leases are checked by the platform owner instead. |
 
-readAction, installAction, restoreAction and removeAction in the tables are local callbacks passed to _queuePackageWork, not additional public APIs. The runtime initialiseAction/startAction/stopSearchAction/disposalAction labels likewise name existing callback bodies, not new runtime methods. Existing underscore-prefixed runtime/client helpers retain their current owners and behaviour.
+readAction, installAction and removeAction in the tables are local callbacks passed to _queuePackageWork, not additional public APIs. The runtime initialiseAction/startAction/stopSearchAction/disposalAction labels likewise name existing callback bodies, not new runtime methods. Existing underscore-prefixed runtime/client helpers retain their current owners and behaviour.
+
+The service-worker additions are private platform helpers, not store/service APIs or a new implementation selector:
+
+| Helper | Caller, result and ownership |
+| --- | --- |
+| `_ensurePackageServing(): Promise<void>` | BrowserProcessManager._prepareEntry shares registration/control readiness for stored browser files. Rejects failed readiness, clearing the settled work so Retry can start a fresh attempt. |
+| `_waitForPackageControl(registration: ServiceWorkerRegistration): Promise<void>` | Readiness waits for activation and the matching document controller. Owns its bounded wait, listeners and disposal cancellation; removes them on every settlement. |
+| `_acquirePackageLease(packagePath: string): () => void` | BrowserProcessManager._prepareEntry obtains the existing package-resource ownership shared with removal. Rejects acquisition during deletion; returns the release callback passed to the Worker owner. Does not inspect an engine or create a persisted record. |
+| `_onPackageFetch(event: FetchEvent)` | App-owned service-worker event handler filters requests and synchronously supplies the response promise for stored-engine URLs. |
+| `_resolveStoredFile(url: URL): { packagePath: string; relativePath: string }` | File serving decodes/validates the reserved URL into an exact package boundary and relative filename; rejects escaping or malformed paths. |
+| `_servePackageFile(request: Request): Promise<Response>` | Fetch handling reads the original file bytes and returns the appropriate MIME/status response, without cached package copies. |
+| `_readStoredFile(packagePath: string, relativePath: string): Promise<IEnginePackageFile>` | Shared files-store reader used by the package adapter and service-worker file handler. Opens the existing files store directly; the service worker does not construct Pinia stores or application services. |
 
 ### Existing option and runtime APIs
 
@@ -356,13 +381,7 @@ IEngineClient, the remaining runtime methods and game-turn policy retain their [
 
 ### Open API decisions
 
-These gaps remain for review; the signatures/flows do not authorise a policy for them:
-
-- Import destination: how readArchive obtains archive.packagePath for an arbitrary vendor ZIP, and how Reinstall's route hint becomes that target. Neither a folder name nor an upstream package name is an installation record. No hash/id allocation or overwrite rule is selected here.
-- Pre-install metadata review: the UI shows optional package name/version, but readArchive currently returns only the destination and decoded files. The plan has not specified how domain-parsed metadata reaches that review. Do not make the view parse package metadata or imply that installation records supply it; settle the transient review result before implementing that part of the UI.
-- Existing destination: installFiles currently shows per-file puts, which alone do not define complete replacement or remove obsolete files. Decide collision, replacement and in-use-package behaviour before treating import/reinstall/restore as specified for an existing root.
-- Initial bundled availability: reading distributed files and explicitly restoring them does not explain how a fresh browser's default profile first reaches its files. No automatic copy, first-run marker or startup installation has been agreed. Explicit restore must not silently stand in for that decision.
-- Stored-file URLs: prepareEntry has an ownership contract, but the mechanism preserving the vendors' relative scripts/WASM/NNUE still needs the agreed real-engine proof.
+The first-use, naming, uniqueness, metadata and service-worker decisions are recorded in [Questions to answer before implementation](#questions-to-answer-before-implementation). The listed choices are settled. Package installation creates a unique named folder; there is no implicit replacement or separate version policy. The selected loading mechanism still requires implementation and real-engine verification after work is explicitly resumed.
 
 File-action failures also need to retain their failing operation/stage through the existing error contract. A read/validation/transaction failure leaves no new files; a discovery failure after commit leaves the files installed and offers Refresh/Retry. The same distinction applies after a successful removal. Do not report every rejected store promise as a rolled-back file operation or add another persistence/error subsystem to hide that distinction.
 
@@ -465,15 +484,7 @@ Replace the transient list only after successful discovery. Clear the actual in-
 | --- |
 | `IEnginePackageAdapter.listFiles(packagePath)` |
 
-When an existing package.json is listed:
-
-| `EnginePackageService._readPackage(adapter, packagePath)` |
-| --- |
-| `IEnginePackageAdapter.listFiles(packagePath)` |
-| `IEnginePackageAdapter.readFile(packagePath, metadataPath)` |
-| `JSON.parse(decodedMetadata)` |
-
-Construct IEnginePackage from folder identity, file paths, optional name/version and source namespace. Without metadata, use the folder name and omit version. An unreadable folder/metadata result carries a warning; failure to enumerate the store is a discovery error. Neither path loads WASM/NNUE bytes, chooses an entry nor invokes a client.
+Construct IEnginePackage from the folder name, path, filenames and source namespace. An unreadable folder carries a warning; failure to enumerate storage is a discovery error. No file contents, name/version metadata or engine client are needed for discovery.
 
 Browser adapter:
 
@@ -489,7 +500,7 @@ Browser adapter:
 | --- |
 | `IndexedDB files-store get([packagePath, relativePath])` |
 
-Distinct packagePath values in existing file keys are the folder list. Query keys for discovery, then only the small metadata file as required. The desktop adapter returns the ordinary bundled roots and reads those files; external engine paths are used directly by profiles and have no registration lookup.
+Distinct packagePath values in existing file keys are the imported folder list. Add the app-shipped bundled root and its build-declared filenames without installing it. Query keys only for discovery. The desktop adapter exposes the ordinary bundled root; external engine paths are used directly by profiles with no registration lookup. readFile is for actual resource access when needed, not metadata discovery.
 
 | `EnginesStore.canInstallPackages()` |
 | --- |
@@ -523,29 +534,32 @@ _decodeArchive uses the ZIP reader to return the supplied relative paths and byt
 
 | `EnginePackageImportView._install()` |
 | --- |
-| `EnginesStore.installPackage(archive, signal)` |
+| `EnginesStore.installPackage(engineName, archive, signal)` |
 
-| `EnginesStore.installPackage(archive, signal)` |
+| `EnginesStore.installPackage(engineName, archive, signal)` |
 | --- |
 | `EnginesStore._queuePackageWork(installAction)` |
 
 | `installAction()` |
 | --- |
-| `EnginePackageService.install(archive, signal)` |
+| `EnginePackageService.install(engineName, archive, signal)` |
 | `EnginesStore._readPackages()` |
 
-| `EnginePackageService.install(archive, signal)` |
+| `EnginePackageService.install(engineName, archive, signal)` |
 | --- |
+| `EnginePackageService._validateEngineName(engineName)` |
 | `EnginePackageService._validatePackageFiles(archive)` |
 | `IPlatformService.getEnginePackageAdapter()` |
 | `IEnginePackageAdapter.canInstall()` |
-| `IEnginePackageAdapter.installFiles(archive, signal)` |
+| `IEnginePackageAdapter.installFiles(packagePath, archive.files, signal)` |
+
+The service derives the managed root from the validated engineName. The adapter checks that no installed engine has that name at publication, including the included engine name. The store retains the returned packagePath, refreshes discovery, then returns that same path to the view for Create profile. No vendor name/version or ZIP filename determines the destination.
 
 Browser publication:
 
-| `IEnginePackageAdapter.installFiles(archive, signal)` |
+| `IEnginePackageAdapter.installFiles(packagePath, files, signal)` |
 | --- |
-| `IndexedDB readwrite transaction on original files` |
+| `IndexedDB readwrite transaction: reject an existing engine name before writes` |
 | `ObjectStore.put(file, [packagePath, relativePath])` for each supplied file |
 | `transaction completion/abort/error events` |
 
@@ -560,7 +574,7 @@ Shared sequencing helper:
 
 Keep the actual action promise for its caller, with a settled queue tail for the next action. Each owner observes its own failure. Reads and mutations use this same queue; helpers already executing inside it call _readPackages directly rather than recursively queueing and deadlocking. This is in-memory operation ownership, not a new persisted queue.
 
-### Leaving import and restoring the included package
+### Leaving import and using included app files
 
 | `EnginePackageImportView.onBeforeRouteLeave(to, from)` |
 | --- |
@@ -585,40 +599,7 @@ Issued publication branch:
 
 Expected cancellation is consumed by the read owner. Allow navigation only after settlement, including browser Back. Success leaves files only; Create profile routes to a new editor with packagePath as a hint, without auto-selecting an entry or applying settings.
 
-The proposed Restore included engine action recovers the included package's stored files, for example after the user removed that package. Bundled means the files distributed with the app build; it does not mean the default profile, settings defaults or a special runtime implementation. The source assets remain available independently of the removable installed copy. The restored destination is the bundled package path used by the ordinary default profile. This does not settle first-use or existing-destination policies above.
-
-The overview offers this action when managed package installation is supported and the included package is absent. The already proposed UI uses a simple confirmation, then the existing import route for progress. The confirmed user action starts the following view-owned operation; direct navigation/reload alone does not restore files. Keep the same file-action and route-leave ownership as a user import.
-
-| `EnginePackageImportView._restoreIncludedEngine()` |
-| --- |
-| `EnginesStore.restoreBundled(signal)` |
-
-| `EnginesStore.restoreBundled(signal)` |
-| --- |
-| `EnginesStore._queuePackageWork(restoreAction)` |
-
-| `restoreAction()` |
-| --- |
-| `EnginePackageService.canInstall()` |
-| `EnginePackageService.readBundledFiles(signal)` |
-| `EnginePackageService.install(archive, signal)` |
-| `EnginesStore._readPackages()` |
-
-| `EnginePackageService.readBundledFiles(signal)` |
-| --- |
-| `IPlatformService.getEnginePackageAdapter()` |
-| `IEnginePackageAdapter.readBundledFiles(signal)` |
-
-Browser source reads:
-
-| `IEnginePackageAdapter.readBundledFiles(signal)` |
-| --- |
-| `fetch(distributedAssetUrl, { signal })` for each build-declared bundled file |
-| `Response.arrayBuffer()` for each successful asset response |
-
-Check each response and cancellation before returning the complete file set. A failed read returns no install input and writes nothing. The declared asset paths come from the app build, not an HTTP folder scan or new vendor manifest. The returned IEngineArchive is already decoded; restore does not zip/unzip the bundled folder.
-
-Read those files, then use the same validation and atomic import as a user package. canInstall is checked before starting managed work and again by the normal install boundary. The promise resolves after publication and discovery, with failures distinguished as described above. Existing profiles, options and game assignments are untouched; completion does not launch an engine. Desktop Use included Stockfish merely fills the normal bundled entry path and does not call restoreBundled.
+The included engine has no import/restore action: its ordinary package is already available from app files. Desktop Use included Stockfish fills its supplied script path; browser profile selection offers the same included folder directly. Managed removal applies to user-imported folders.
 
 | `SettingsStore.resetSettings()` |
 | --- |
@@ -626,7 +607,7 @@ Read those files, then use the same validation and atomic import as a user packa
 | `UserSettingService.resetSettings()` |
 | `SettingsStore._acceptSettings(acceptedSettings)` |
 
-Reset remains settings-only. It does not call restoreBundled, import files or introduce first-run state.
+Reset remains settings-only. It does not import/copy engine files or introduce first-run state.
 
 ### Removing stored package files
 
@@ -847,16 +828,87 @@ Native Uci branch:
 
 The native implementation keeps its current process/transport semantics. No executable copying or package registration is added.
 
-UciWorker branch, using the existing BrowserProcessManager with injected entry preparation:
+UciWorker branch, using the existing BrowserProcessManager with private entry preparation:
 
 | `BrowserProcessManager.spawnProcess(entryPath, args)` |
 | --- |
-| `prepareEntry(entryPath)` |
+| `BrowserProcessManager._prepareEntry(entryPath)` |
 | `createWorker(prepared.url)` |
 | `new BrowserUciTransport(worker, onClosed)` |
 | `registry.set(handle, transport)` |
 
-Reject unsupported arguments before preparation. prepareEntry returns the real URL/resource release callback; the chosen entry keeps its upstream name/layout. Record ownership immediately. Failed Worker/transport construction terminates any created Worker and releases prepared resources before returning the existing process-start error. A successful spawn transfers that release callback to onClosed. Remove the old Stockfish alias/path special case.
+Reject unsupported arguments before preparation. BrowserProcessManager._prepareEntry returns the real URL/resource release callback; the chosen entry keeps its upstream name/layout. Record ownership immediately. Failed Worker/transport construction terminates any created Worker and releases prepared resources before returning the existing process-start error. A successful spawn transfers that release callback to onClosed. Remove the old Stockfish alias/path special case.
+
+App-shipped or desktop file branch:
+
+| `BrowserProcessManager._prepareEntry(entryPath)` |
+| --- |
+| `new URL(resolvedEntryPath, appBaseUrl)` |
+
+Desktop resolves external paths using its existing filesystem capabilities. Bundled entries keep their app URL. This branch needs no browser package-service registration or stored-file lease; return the resolved URL and the corresponding resource release callback.
+
+Browser-stored user package branch:
+
+| `BrowserProcessManager._prepareEntry(entryPath)` |
+| --- |
+| `_ensurePackageServing()` |
+| `_acquirePackageLease(packagePath)` |
+| `new URL(encodedPackageFilePath, appBaseUrl)` |
+
+Resolve the virtual entry into its exact user package root and relative path. Encode each path component into the reserved engine-files URL, retaining the directory hierarchy. Return that URL and the acquired lease's release callback. Release an acquired lease if later preparation fails. The lease lasts until Worker closure, covering later relative asset requests as well as initial script/WASM loading. Missing files remain normal launch errors, not installation/profile-save probes.
+
+Initial registration or retry branch:
+
+| `_ensurePackageServing()` |
+| --- |
+| `navigator.serviceWorker.register(appServiceWorkerUrl, { scope: appBaseUrl })` |
+| `_waitForPackageControl(registration)` |
+
+Share the actual pending readiness promise; do not duplicate registration waits. If the matching active registration already controls the document, return without another wait. Unsupported/failed registration rejects through existing process-start handling. A failed attempt clears its operation owner so another engine retry can try again.
+
+| `_waitForPackageControl(registration)` |
+| --- |
+| `navigator.serviceWorker.addEventListener('controllerchange', onControlChanged)` |
+| `installingWorker.addEventListener('statechange', onStateChanged)` when activation is pending |
+| `setTimeout(onReadinessTimeout, readinessTimeoutMs)` |
+
+Install listeners before checking current state to close the observation gap. Resolve only when the active worker for this registration controls the current app document; a different registration's controller is insufficient. Reject activation failure, timeout or platform-owner disposal. Remove listeners and clear the timer on every outcome. This is one bounded, event-owned wait, without polling or generation counters. spawnProcess retains its existing public signature and captures any late successful handle for normal disposal.
+
+App-owned service-worker activation:
+
+| `_onPackageActivate(event)` |
+| --- |
+| `self.clients.claim()` |
+| `event.waitUntil(claimPromise)` |
+
+Claim clients within the registration's app scope so the first stored-engine launch does not require a manual page reload. Let the browser retain the shared registration across engine stops; individual package disposal does not unregister it.
+
+Serving the engine entry and its relative assets:
+
+| `_onPackageFetch(event)` |
+| --- |
+| `new URL(event.request.url)` |
+| `_servePackageFile(event.request)` for the reserved same-origin engine-files path |
+| `event.respondWith(responsePromise)` synchronously for that path |
+
+Requests outside the reserved prefix use the ordinary network/app path, including the directly loaded bundled engine. The app page must be controlled before the dedicated Worker is created so its entry request can reach this handler. No app-shell caching or catch-all route response belongs here.
+
+| `_servePackageFile(request)` |
+| --- |
+| `new URL(request.url)` |
+| `_resolveStoredFile(url)` |
+| `_readStoredFile(packagePath, relativePath)` |
+| `new Response(file.data, responseOptions)` |
+
+| `_readStoredFile(packagePath, relativePath)` |
+| --- |
+| `IndexedDB readonly files-store get([packagePath, relativePath])` |
+
+Decode URL components once and reject invalid names, encoded separators or paths escaping the selected package. The URL maps to actual files, not an installation id or generated manifest. GET responses supply original bytes with a MIME type derived from the filename, including text/javascript for scripts and application/wasm for WASM, and no-store caching. The handler reads the existing files store directly through its shared reader; it does not initialise application stores or engine clients.
+
+Malformed paths, absent files, unsupported methods and storage failures produce explicit HTTP errors. Never substitute the app HTML page, another engine or a network-fetched replacement. The existing Worker/transport/client error flow reports loading failures and releases the package lease through onClosed. A missing sibling resource therefore fails that engine's normal startup rather than leaving a partially initialised session silently running.
+
+The build emits the service-worker handler as an app-owned asset at its stable app-relative URL for both development and production. Its filename is unrelated to vendor entry filenames. File storage schema and package names remain the current unreleased format; this adds no migration helper or persisted loading descriptor.
 
 | `defineUciEngineClientStore(storeId, clientType, resolveTransport)` |
 | --- |
@@ -1065,7 +1117,7 @@ Worker physical shutdown:
 | `registry.delete(handle)` |
 | `prepared.release()` |
 
-terminate marks the transport closed before callbacks, retains exit detail, then clears listener sets after exit notification. Repeated termination is a no-op. Existing Worker error/messageerror handlers enter this same termination path. Failed startup, normal stop, crash and restart therefore release the actual prepared resources, while other assignments keep their own handles/leases. The exact implementation of resource URLs remains the explicit runtime-proof item, not an implied completed design.
+terminate marks the transport closed before callbacks, retains exit detail, then clears listener sets after exit notification. Repeated termination is a no-op. Existing Worker error/messageerror handlers enter this same termination path. Failed startup, normal stop, crash and restart therefore release the actual prepared resources, while other assignments keep their own handles/leases. Stored-engine URLs use the selected service worker; onClosed releases the package lease without unregistering that shared handler. Runtime verification remains outstanding.
 
 ## Current contract changes and delivery
 
@@ -1077,11 +1129,11 @@ Profiles and assignments store the exact entry path, client type, label and opti
 
 | Step | Deliverable | Evidence |
 | --- | --- | --- |
-| 0. UI review | Actual entry-file selection, desktop direct paths, browser-only import | No assumed filenames/manifests or desktop installation. |
-| 1. Runtime proof | Real Stockfish plus an independent worker using upstream layouts | Different supplied entries and assets load from desktop and browser storage; normal runtime operations exercised with both engines. |
+| 0. UI review | Actual entry-file selection, desktop direct paths, browser-only import | Validated unique engine name/folder, no version field, no assumed entry filenames/manifests or desktop installation. |
+| 1. Runtime proof | Real Stockfish plus an independent worker using upstream layouts | Direct bundled files and service-worker-served imports load their actual scripts/relative assets; initial control, reload, normal runtime operations and cleanup pass. |
 | 2. Current contracts | Entry path, single client enum, source enum, protocol removal | Exact paths/options round-trip without installation ids or new package metadata. |
-| 3. Package files | Desktop reads; browser discovery/import/removal | No package writes on desktop, browser list reconstructs from files, cancelled/failed import publishes nothing. |
+| 3. Package files | Desktop reads; browser discovery/import/removal | No package writes on desktop, browser list reconstructs from files, duplicate name is rejected and cancelled/failed import publishes nothing. |
 | 4. Composition/defaults | Matching client/resource owners, ordinary bundled files/profile | Native/browser runtimes coexist with isolated stop/crash/restart; default uses same loader. |
 | 5. Acceptance | Forms, focused tests, browser/NW.js journeys and architecture docs | Exact entry selection, Apply/Cancel, recovery and reference checks; separate simulation from real runtime results. |
 
-Cover absent package metadata, ambiguous multi-build archives, Node-only metadata entries, helper-worker confusion, different layouts/names, absent scripts/assets, path traversal, external changes, missing/foreign-host paths, cancellation/disposal and ignored protocol removal. Run `npm run check:code`, focused Vitest suites, affected Playwright journeys and `npm run build` after implementation. Real NW.js mixed-engine acceptance remains required. This is a plan and simulated design, not implemented engine loading.
+Cover unique/invalid engine names, folder-name display, ambiguous multi-build archives, Node-only metadata entries, helper-worker confusion, different layouts/names, absent scripts/assets, path traversal, external changes, missing/foreign-host paths, cancellation/disposal and ignored protocol removal. Run `npm run check:code`, focused Vitest suites, affected Playwright journeys and `npm run build` after implementation. Real NW.js mixed-engine acceptance remains required. This is a plan and simulated design, not implemented engine loading.

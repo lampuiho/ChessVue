@@ -25,7 +25,7 @@ Reserve modals for simple confirmations and single-choice pickers, such as delet
 | /settings/engines/packages/import | engine-package-import | EnginePackageImportView.vue |
 | /settings/engines/packages/details?packagePath=... | engine-package-details | EnginePackageDetailsView.vue |
 
-Create profile from a package uses the new-profile route with a packagePath query hint. Reinstall can pass that folder to the import route. The path identifies original files, not an installation record. Entry/interface/options are not stored in the URL. Progress and success are states of the import view, not modal pages.
+Create profile from a package uses the new-profile route with a packagePath query hint. Import creates a folder from the user-entered unique Engine name. The path identifies original files, not an installation record. Entry/interface/options are not stored in the URL. Progress and success are states of the import view, not modal pages.
 
 Retain the existing Settings route and add engine child routes with the same category parameter, constrained to engines. Proposed registration in src/router/index.ts:
 
@@ -58,7 +58,7 @@ The documentation prototype uses the installed Vue and Vue Router, with distinct
 
 Desktop shows Engine profiles and Analysis behaviour. Profiles point to executables or the actual entry files inside browser engine packages. There is no desktop installed-engine catalogue, registration or Install engine action. Browse opens the ordinary file dialog for the executable/script; the interface is chosen separately in the profile form.
 
-Browser adds Installed browser engines above those sections. `EnginesStore.loadPackages()` owns folder discovery through `EnginePackageService`. These are proposed generic package APIs on both hosts; results use IEnginePackage. Choosing a stored file updates the local entryPath directly. Browse calls the proposed browseEngineFile(startDirectory?) action, which returns the chosen executable/script path through the existing platform file dialog. Show optional import controls from canInstallPackages(), without host-specific store/service calls. Read existing `package.json` name/version where present, otherwise display the folder name. Do not require or generate loading manifests, catalogue rows or remembered-entry metadata. A folder's presence does not prove which script is its entry.
+Browser adds Installed browser engines above those sections. `EnginesStore.loadPackages()` owns folder discovery through `EnginePackageService`. These are proposed generic package APIs on both hosts; results use IEnginePackage. Choosing a stored file updates the local entryPath directly. Browse calls the proposed browseEngineFile(startDirectory?) action, which returns the chosen executable/script path through the existing platform file dialog. Show optional import controls from canInstallPackages(), without host-specific store/service calls. Display the folder name as the engine name. There is no separate version or upstream name/version lookup. Do not require or generate loading manifests, catalogue rows or remembered-entry metadata. A folder's presence does not prove which script is its entry.
 
 ```text
 DESKTOP / Settings / Engines
@@ -80,9 +80,9 @@ Analysis behaviour
 All profile changes saved                    [Cancel] [Save] [Apply]
 ```
 
-Browser package rows show package/folder name, existing version if available, Included with ChessVue or Imported package source, file availability and Create profile/Details/Remove. Show script candidates when choosing a target; do not imply that every file is an executable engine. Refresh preserves profile edits; discovery errors show Retry rather than an empty-list success.
+Browser package rows show the engine folder name, Included with ChessVue or Imported package source, file availability and Create profile/Details. Remove is available only for imported user folders. Show script candidates when choosing a target; do not imply that every file is an executable engine. Refresh preserves profile edits; discovery errors show Retry rather than an empty-list success.
 
-Reuse the Settings shell, current palettes, serif headings, shared fields/buttons and accessible Copy/Edit/Delete controls. Source is an enum in contracts, rendered as user-facing text. No client enum values, digests or invented package versions in ordinary rows.
+Reuse the Settings shell, current palettes, serif headings, shared fields/buttons and accessible Copy/Edit/Delete controls. Source is an enum in contracts, rendered as user-facing text. No client enum values, digests or separate version field in ordinary rows.
 
 ## Desktop profile form
 
@@ -122,7 +122,7 @@ Choose the supplied engine script inside its unpacked package.
 Keep its original files and layout.
 ```
 
-There is no prescribed entry filename or app-specific manifest. Stockfish, Lozza and tomitankChess keep their supplied names. The file dialog lets the user navigate into the unpacked folder and choose the actual script. It returns a file path only. Existing metadata may suggest a compatible entry where supported; an npm `main` may be a Node wrapper and must not silently become a Worker target. If multiple builds or helper files exist, ask the user which entry to run. An unsupported module API needs another implemented client, not a rename.
+There is no prescribed entry filename or app-specific manifest. Stockfish, Lozza and tomitankChess keep their supplied names. The file dialog lets the user navigate into the unpacked folder and choose the actual script. It returns a file path only. Ask for the entry explicitly; an npm `main` may be a Node wrapper and must not silently become a Worker target. If multiple builds or helper files exist, ask the user which entry to run. An unsupported module API needs another implemented client, not a rename.
 
 Save the selected entry path, `EngineClientType`, name and options in the profile. This is launch configuration, not an installation record. No extra implementation/protocol enum is introduced. For the initial clients, labels map to Uci and UciWorker; future supported interfaces add values to that same selector. Remove the current Protocol row.
 
@@ -138,11 +138,11 @@ Choose Engine entry script from actual files grouped by imported package. Keep t
 
 Several profiles may target one entry with different options, or different entries in one package. Existing native/external-desktop paths remain visible on browser with their unavailable reason and explicit relink. Changing a profile does not rewrite existing game assignments.
 
-When no packages are stored, keep the profile form editable. Back to engines returns to the package section and its Install action. Package import and profile editing remain separate; importing does not require or remember an entry/interface choice.
+The included package is available directly from app files even when no user packages are stored. Keep the profile form editable. Back to engines returns to the package section and its Install action. Package import and profile editing remain separate; importing does not require or remember an entry/interface choice.
 
 ## Browser import
 
-Install browser engine opens the import page within Settings, with a ZIP picker and file review. There is no Desktop executable installation tab. Preserve all original package paths and files; create no new loading manifest or catalogue record.
+Install browser engine opens the import page within Settings, with an Engine name input, ZIP picker and file review. There is no Desktop executable installation tab. Preserve all original package paths and files; create no new loading manifest or catalogue record.
 
 ```text
 Settings / Engines / Install browser engine
@@ -151,12 +151,15 @@ Settings / Engines / Install browser engine
 Install browser engine
 Package imports take effect immediately. Profiles are saved separately.
 
+Engine name
+[Training engine 2                                              ]
+This is the installed folder name and must be unique.
+
 Choose an engine archive                         [Choose package]
 
 Selected file    training-engine.zip
-Package          training-engine        folder name fallback
-Version          Not supplied          when metadata is absent
-Files            Original package files and relative layout
+Folder          Training engine 2
+Files           Original package files and relative layout
 
 Create a profile after import to select its entry and interface.
 
@@ -166,16 +169,19 @@ Create a profile after import to select its entry and interface.
 | State | Content/actions |
 | --- | --- |
 | No file | Choose package; disabled Install engine |
-| File selected | Existing metadata/folder label and original files; Install engine enabled |
+| File selected | Original files and user-entered engine/folder name; Install enabled when the name is valid and unique |
+| Invalid/duplicate name | Inline field error identifying the invalid characters or existing engine; Install disabled |
 | Reading | Read and validate package paths/files; Cancel allowed, no invented percentage |
 | Publication | Save the original package files atomically; Back and Cancel are unavailable until settlement |
 | Success | Import complete; Done or Create profile |
 | Failure | Specific archive/path/storage error, Retry or another selection; no partially listed folder |
 | Files saved, refresh failed | Explain that installation completed; offer Refresh/Retry discovery instead of claiming the import rolled back |
 
+Validate Engine name using the [folder-name rules](EngineInstallationReworkPlan.md#installed-engine-names), including invalid characters and uniqueness. The folder and displayed engine name are identical; a user may include a version in that name. Repeat validation at the service/write boundary and reject collisions without overwriting files. ZIP selection/decoding is independent of this input, so editing the name does not require decoding again. This is the package installation name, not a profile label.
+
 Import stores package files without an entry/interface choice or engine execution. Entry and interface belong to the separate profile form. Engine startup and errors use the existing runtime when that profile is used.
 
-Create profile opens the profile form for the imported folder, where the user chooses its entry and interface. It does not create/apply a profile automatically. Done leaves only the imported files. Existing package metadata is read where present.
+Create profile opens the profile form for the imported folder, where the user chooses its entry and interface. It does not create/apply a profile automatically. Done leaves only the imported files. No upstream name/version metadata is read.
 
 ## Draft and storage boundaries
 
@@ -185,21 +191,21 @@ Create profile opens the profile form for the imported folder, where the user ch
 | Add/Update/Copy/Delete profile | Settings draft | No change |
 | Apply/Save | Persist draft; Save leaves via existing Settings flow | No desktop file changes |
 | Cancel/discard | Restore accepted profile/behaviour settings | Completed browser imports remain |
-| Browser import/remove/restore | Do not apply profile draft | Immediate package-file operation |
+| Browser import/remove | Do not apply profile draft | Immediate package-file operation |
 
 Dirty-leave copy explains that profile changes have not been applied and completed browser imports remain installed. Validation/persistence failures keep the draft open with a repair action. Back/Cancel in the editor discards only that local form.
 
 ## Browser details, removal and recovery
 
-Details opens a page section showing existing package metadata/folder name, source, files and referencing profiles/games. Absent version metadata stays unknown. Details reports stored files and references, without an engine-capability classification.
+Details opens a routed view showing the engine folder name, source, files and referencing profiles/games. There is no separate version field. Details reports stored files and references, without an engine-capability classification.
 
 Removal checks accepted/draft profile entries, open-game assignments and active leases under that virtual package root. A draft-only profile deletion still blocks removal until Apply. Blocked removal names references and offers Close/Show profiles. Unused removal confirms deletion of browser-stored files and explains that closed games may need reimport. Recheck references/leases at deletion; never delete profiles or retarget games automatically. Native profiles are not browser package references.
 
-Missing desktop executable/script: Edit and relink the target. Missing browser files: reimport matching contents without substituting another release silently. Browser-store failures: Retry discovery, preserving profiles. Existing native/foreign paths on browser: explain unavailability and allow explicit relink. Absent package metadata is normal; use the folder name and request entry selection.
+Missing desktop executable/script: Edit and relink the target. Missing browser files: reimport matching contents without substituting another release silently. Browser-store failures: Retry discovery, preserving profiles. Existing native/foreign paths on browser: explain unavailability and allow explicit relink. Use the folder name and request explicit entry selection; upstream name/version metadata is irrelevant.
 
-Bundled Stockfish uses an ordinary package folder and default profile. Desktop's shortcut selects its real entry. Browser Restore included engine means putting the app-supplied engine files back into managed package storage after removal. It is offered when installation is supported and the included package is absent. A simple confirmation leads to the existing import view, which owns the restore action, progress and leave settlement. Its proposed store call is restoreBundled(signal); it reads the app's distributed source files, not the missing installed copy, and uses the normal file-install pipeline. It changes no profiles/options/game assignments and starts no engine. Settings reset keeps its existing settings-only behaviour.
+Bundled Stockfish uses an ordinary app-shipped package folder and default profile on both hosts. It loads directly from app files, without an initial copy or managed-storage restore operation. It appears beside imported packages; Create profile/Details use the same views, and desktop Use included Stockfish fills the actual script path. Managed Remove applies only to imported user folders. Settings reset remains settings-only.
 
-Initial bundled-file availability, import destination selection and replacement of an existing folder remain [open API decisions](EngineInstallationReworkPlan.md#open-api-decisions). Restore is an explicit recovery action, not an agreed first-use/startup installation policy. The prototype's sample folder names and simulated Reinstall do not settle those decisions.
+The user selected [service-worker package URLs](EngineInstallationReworkPlan.md#stored-script-loading-options) for stored scripts. Resource preparation owns registration/control readiness when a stored engine is launched; installation, profile editing and bundled app-file loading do not wait for it. Runtime Starting/failure uses the existing engine UI, without a service-worker setting or new setup step. No replacement workflow or separate version policy is introduced by the unique-name requirement. The existing clickable prototype/screenshots predate these confirmed name/no-version/direct-bundled decisions; this update changes the planning specifications only. Implementation remains stopped pending an explicit instruction to resume.
 
 ## Game selection, accessibility and ownership
 
@@ -239,7 +245,7 @@ Read listPackages for stored-file choices and getPackage for an optional folder 
 | --- |
 | `EnginesStore.refreshPackages()` |
 
-canInstallPackages controls managed import/remove/restore actions; it is a capability, not a storage-health or engine-compatibility check. The [API descriptions](EngineInstallationReworkPlan.md#enginesstore-additions) explain each proposed call's return value, effects and failures.
+canInstallPackages controls managed import/remove actions; it is a capability, not a storage-health or engine-compatibility check. The [API descriptions](EngineInstallationReworkPlan.md#enginesstore-additions) explain each proposed call's return value, effects and failures.
 
 The proposed engine-facing action is browseEngineFile(startDirectory?: string): Promise<string>. It chooses the executable or entry-script file for a profile and returns its path. The underlying existing platform method remains IStorageAdapter.showOpenDialog(startDirectory?: string): Promise<string>.
 
@@ -272,9 +278,9 @@ Keep name validation and write the captured record into the Settings draft befor
 
 Browser Back/Forward instead uses router history. Unmount discards the local form; it does not reset the Settings draft.
 
-| `SettingsView._openPackageImport(packagePath)` |
+| `SettingsView._openPackageImport()` |
 | --- |
-| `Router.push(importRoute(packagePath))` |
+| `Router.push(importRoute)` |
 
 | `EnginePackageImportView._chooseArchive(file)` |
 | --- |
@@ -286,17 +292,11 @@ The view captures original bytes under its owned file action, checking cancellat
 
 | `EnginePackageImportView._install()` |
 | --- |
-| `EnginesStore.installPackage(archive, signal)` |
+| `EnginesStore.installPackage(engineName, archive, signal)` |
 
-The view retains archive.packagePath for the success page's Create profile link. installPackage returns no profile or catalogue record. It awaits the file transaction and subsequent discovery; distinguish a failed write from failed discovery after the files were saved.
+The view supplies the current Engine name separately from the decoded archive. installPackage returns the installed packagePath for the success page's Create profile link; it creates no profile or catalogue record. It awaits the file transaction and subsequent discovery; distinguish a failed write from failed discovery after the files were saved.
 
-After the explicit Restore included engine confirmation and navigation to this view:
-
-| `EnginePackageImportView._restoreIncludedEngine()` |
-| --- |
-| `EnginesStore.restoreBundled(signal)` |
-
-This uses the same file-action owner and guards as _install. It skips the user ZIP picker because the source is the app's build-supplied files. The [restore flow](EngineInstallationReworkPlan.md#leaving-import-and-restoring-the-included-package) expands the source reads and normal installation. Visiting an import URL alone does not start this operation.
+The included engine is already served from app files and has no import/restore action.
 
 | `EnginePackageImportView.onBeforeRouteLeave(to, from)` |
 | --- |
