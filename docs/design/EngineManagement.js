@@ -23,12 +23,13 @@ function _packageInfo(path) {
   if (_isBrowser()) return _findPackage(path) ?? _packageForEntry(path);
   if (!path || path.startsWith('browser-engines/')) return undefined;
   if (path.startsWith(_defaultPath)) return { ..._defaultPackage(), missing: document.querySelector('#preview-state').value === 'missing' };
-  return { packagePath: path, name: 'Training engine', version: '1.0', source: 'user' };
+  return { packagePath: path, name: path.split(/[\\/]/).filter(Boolean).at(-1), source: 'user' };
 }
 function _packageAvailability(entry) { return !entry || entry.missing ? 'Package folder or files are unavailable. Choose or restore the package.' : ''; }
 function _availability(profile) {
   if (profile.launch.clientType === 'uci') return _isBrowser() ? 'Available in the desktop app.' : profile.launch.entryPath ? '' : 'Choose an executable path.';
   if (!/\.m?js$/i.test(profile.launch.entryPath)) return 'Choose the engine entry script.';
+  if (/(?:^|[\\/])helper\.js$/i.test(profile.launch.entryPath)) return 'This is a helper script. Choose the engine entry.';
   const entry = _packageInfo(profile.launch.entryPath);
   if (_isBrowser() && entry && !entry.files.includes(profile.launch.entryPath.slice(entry.packagePath.length))) return 'This entry script is missing from the package.';
   return _packageAvailability(entry);
@@ -47,7 +48,7 @@ function _notify(message) {
 function _renderPackage(entry) {
   const unavailable = _packageAvailability(entry);
   const actions = unavailable ? _button('Reinstall', 'repair', entry.packagePath) : _button('Create profile', 'create-for', entry.packagePath);
-  return `<article class="ed-row"><span class="ed-mark" aria-hidden="true">&#9822;</span><div class="ed-row__copy"><div class="ed-row__title"><h3>${_escape(entry.name)}</h3>${entry.source === 'bundled' ? _tag('Included with ChessVue') : ''}${_tag(unavailable ? 'Files missing' : 'Ready', unavailable ? 'error' : 'ready')}</div><p>${_escape(entry.version)} &middot; ${unavailable || 'Computer play and analysis'}</p></div><div class="ed-row__actions">${actions}${_button('Details', 'details', entry.packagePath)}${_button('Remove', 'remove-package', entry.packagePath, 'text-button--ghost')}</div></article>`;
+  return `<article class="ed-row"><span class="ed-mark" aria-hidden="true">&#9822;</span><div class="ed-row__copy"><div class="ed-row__title"><h3>${_escape(entry.name)}</h3>${entry.source === 'bundled' ? _tag('Included with ChessVue') : ''}${_tag(unavailable ? 'Files missing' : 'Files available', unavailable ? 'error' : 'ready')}</div><p>${entry.version ? `${_escape(entry.version)} &middot; ` : ''}${unavailable || 'Choose an entry script when creating a profile'}</p></div><div class="ed-row__actions">${actions}${_button('Details', 'details', entry.packagePath)}${_button('Remove', 'remove-package', entry.packagePath, 'text-button--ghost')}</div></article>`;
 }
 function _renderProfile(profile) {
   const unavailable = _availability(profile);
@@ -59,7 +60,7 @@ function _render() {
   document.querySelector('#installed-engines').innerHTML = _packages.map(_renderPackage).join('') || '<div class="ed-empty"><h3>No browser engines installed</h3><p>Import a package, then create a profile to choose it in a game.</p></div>';
   document.querySelector('#engine-profiles').innerHTML = _profiles.map(_renderProfile).join('') || `<div class="ed-empty"><h3>No engine profiles</h3><p>${_isBrowser() ? 'Create a profile from an imported package.' : 'Add a profile pointing to an executable or package folder.'}</p></div>`;
   document.querySelector('#restore-default').hidden = _packages.some((entry) => entry.source === 'bundled');
-  document.querySelector('#profile-help').textContent = _isBrowser() ? 'Reusable names and options for games. Apply or Save to keep profile changes.' : 'Names, executable or package paths, and options for games. Apply or Save to keep changes.';
+  document.querySelector('#profile-help').textContent = _isBrowser() ? 'Reusable names and options for games. Apply or Save to keep profile changes.' : 'Names, executable or engine script paths, and options for games. Apply or Save to keep changes.';
   document.querySelector('#unsaved').hidden = !_dirty();
   document.querySelector('#apply-settings').disabled = !_dirty();
   document.querySelector('#save-settings').disabled = !_dirty();
@@ -108,7 +109,7 @@ function _choosePackage(repairPath) {
   }
   const files = entry?.files ?? ['training-engine.js', 'helper.js'];
   const choices = files.filter((file) => /\.m?js$/i.test(file)).map((file) => `<option value="${_escape(file)}">${_escape(file)}</option>`).join('');
-  review.innerHTML = `<div class="ed-form"><dl class="ed-metadata"><dt>Selected file</dt><dd>${repairPath ? 'stockfish-19' : 'training-engine'}.zip</dd><dt>Package</dt><dd>${_escape(entry?.name ?? 'Training engine')}</dd><dt>Version</dt><dd>${_escape(entry?.version ?? '1.0')}</dd><dt>Interface</dt><dd>Browser UCI Worker</dd></dl><div class="field-row field-row--stack"><label class="field-label" for="package-entry">Entry script to check</label><select id="package-entry" class="field-control"><option value="">Choose the engine entry script</option>${choices}</select><span class="field-help">Choose the engine entry, rather than a helper script. No standard filename or new manifest is required.</span></div><p class="ed-form__copy">ChessVue will check this entry before saving the original package files in this browser.</p></div>`;
+  review.innerHTML = `<div class="ed-form"><dl class="ed-metadata"><dt>Selected file</dt><dd>${repairPath ? 'stockfish-19' : 'training-engine'}.zip</dd><dt>Package</dt><dd>${_escape(entry?.name ?? 'training-engine')}</dd><dt>Version</dt><dd>${_escape(entry?.version ?? 'Not supplied')}</dd><dt>Interface</dt><dd>Browser UCI Worker</dd></dl><div class="field-row field-row--stack"><label class="field-label" for="package-entry">Entry script to check</label><select id="package-entry" class="field-control"><option value="">Choose the engine entry script</option>${choices}</select><span class="field-help">Choose the engine entry, rather than a helper script. The original package layout is preserved.</span></div><p class="ed-form__copy">ChessVue will check this entry before saving the original package files in this browser.</p></div>`;
   document.querySelector('#install-confirm').disabled = true;
 }
 function _delay(signal, duration) {
@@ -137,27 +138,28 @@ async function _startInstall(button) {
     await _delay(signal, 350);
     _renderProgress(1);
     await _delay(signal, 1200);
+    if (entryFile === 'helper.js') throw new Error('This helper script did not answer the engine handshake. Choose the engine entry script.');
     operation.committing = true;
     _renderProgress(2);
     await _delay(signal, 350);
     const entry = _publishPackage(button.dataset.id);
     _render();
-    _showDialog('Browser engine installed', 'The original package files are saved in this browser.', `<div class="ed-success"><h3>&#10003; ${_escape(entry.name)} is ready</h3><p>Computer play and analysis in this simulated preview.</p></div><p class="ed-form__copy">Create a profile using ${_escape(entryFile)}, or choose an entry later. The package contains no generated loading manifest.</p>`, `${_button('Done', 'close')}${_button('Create profile', 'create-for', entry.packagePath + entryFile, 'text-button--primary')}`);
+    _showDialog('Browser engine installed', 'The original package files are saved in this browser.', `<div class="ed-success"><h3>&#10003; ${_escape(entry.name)} is ready</h3><p>Computer play and analysis in this simulated preview.</p></div><p class="ed-form__copy">Create a profile using ${_escape(entryFile)}, or choose an entry later. The original package layout is preserved.</p>`, `${_button('Done', 'close')}${_button('Create profile', 'create-for', entry.packagePath + entryFile, 'text-button--primary')}`);
   } catch (error) {
-    if (!signal.aborted) _notify(`Installation could not finish: ${_escape(error.message)}`);
+    if (!signal.aborted) _showDialog('Engine check failed', 'The package has not been imported.', `<p class="inline-message inline-message--error" role="alert">${_escape(error.message)}</p>`, `${_button('Cancel', 'close')}${_button('Choose another entry', 'repair', button.dataset.id, 'text-button--primary')}`);
   } finally { _installOperation = undefined; }
 }
 function _publishPackage(path) {
   const current = _findPackage(path);
   if (current) { current.missing = false; return current; }
-  const entry = path === 'restore-stockfish' ? _defaultPackage() : { packagePath: `browser-engines/user/training-${crypto.randomUUID()}/`, name: 'Training engine', version: '1.0', source: 'user', files: ['training-engine.js', 'helper.js'] };
+  const entry = path === 'restore-stockfish' ? _defaultPackage() : { packagePath: `browser-engines/user/training-${crypto.randomUUID()}/`, name: 'training-engine', source: 'user', files: ['training-engine.js', 'helper.js'] };
   _packages.push(entry);
   return entry;
 }
 function _usesPackage(profile, path) { return profile.launch.clientType !== 'uci' && profile.launch.entryPath.startsWith(path); }
 function _showDetails(path) {
   const entry = _findPackage(path);
-  _showDialog('Browser engine details', entry.name, `<dl class="ed-metadata"><dt>Version</dt><dd>${entry.version}</dd><dt>Source</dt><dd>${entry.source === 'bundled' ? 'Included with ChessVue' : 'Imported package'}</dd><dt>Status</dt><dd>${_packageAvailability(entry) || 'Ready for computer play and analysis'}</dd><dt>Used by</dt><dd>${_acceptedProfiles.filter((profile) => _usesPackage(profile, path)).map((profile) => _escape(profile.name)).join(', ') || 'No saved profiles'}</dd></dl><p class="ed-form__copy">Package information comes from existing files where available. Entry scripts keep their supplied filenames.</p>`, `${_button('Close', 'close')}${entry.missing ? _button('Reinstall', 'repair', path, 'text-button--primary') : _button('Create profile', 'create-for', path, 'text-button--primary')}`);
+  _showDialog('Browser engine details', entry.name, `<dl class="ed-metadata"><dt>Version</dt><dd>${entry.version ?? 'Not supplied'}</dd><dt>Source</dt><dd>${entry.source === 'bundled' ? 'Included with ChessVue' : 'Imported package'}</dd><dt>Status</dt><dd>${_packageAvailability(entry) || 'Files available; check the selected entry for role support'}</dd><dt>Used by</dt><dd>${_acceptedProfiles.filter((profile) => _usesPackage(profile, path)).map((profile) => _escape(profile.name)).join(', ') || 'No saved profiles'}</dd></dl><p class="ed-form__copy">Package information comes from existing files where available. Entry scripts keep their supplied filenames.</p>`, `${_button('Close', 'close')}${entry.missing ? _button('Reinstall', 'repair', path, 'text-button--primary') : _button('Create profile', 'create-for', path, 'text-button--primary')}`);
 }
 function _uniqueName(name) {
   let proposed = name;
@@ -165,46 +167,49 @@ function _uniqueName(name) {
   while (_profiles.some((profile) => profile.name === proposed)) proposed = `${name} ${suffix++}`;
   return proposed;
 }
-function _showProfile(profileId = '', packagePath = '', copy = false) {
+function _showProfile(profileId = '', targetPath = '', copy = false) {
   const source = _profiles.find((profile) => profile.id === profileId);
   if (_isBrowser() && !source && !_packages.some((entry) => !_packageAvailability(entry))) {
     _showDialog('Add engine profile', 'Install a browser engine first.', '<p class="ed-form__copy">This browser needs a stored engine package before you can create a new profile.</p>', `${_button('Cancel', 'close')}${_button('Install browser engine', 'install', '', 'text-button--primary')}`);
     return;
   }
-  _editor = { id: source && !copy ? source.id : crypto.randomUUID(), original: !copy ? source : undefined, executablePath: source?.launch.executablePath ?? '', packagePath: packagePath || source?.launch.packagePath || (_isBrowser() ? _packages.find((entry) => !entry.missing)?.packagePath : _defaultPath) || '' };
-  const clientType = packagePath ? 'uciWorker' : source?.launch.clientType ?? (_isBrowser() ? 'uciWorker' : 'uci');
-  const name = source ? copy ? _uniqueName(`${source.name} copy`) : source.name : _uniqueName(packagePath ? _packageInfo(packagePath).name : 'My engine');
-  const typeOptions = `<option value="uci" ${clientType === 'uci' ? 'selected' : ''} ${_isBrowser() ? 'disabled' : ''}>Desktop executable</option><option value="uciWorker" ${clientType === 'uciWorker' ? 'selected' : ''}>Browser package</option>`;
+  const selectedEntry = targetPath && !targetPath.endsWith('/') ? targetPath : '';
+  _editor = { id: source && !copy ? source.id : crypto.randomUUID(), original: !copy ? source : undefined, targets: { uci: source?.launch.clientType === 'uci' ? source.launch.entryPath : '', uciWorker: selectedEntry || (source?.launch.clientType === 'uciWorker' ? source.launch.entryPath : '') } };
+  const clientType = targetPath ? 'uciWorker' : source?.launch.clientType ?? (_isBrowser() ? 'uciWorker' : 'uci');
+  const name = source ? copy ? _uniqueName(`${source.name} copy`) : source.name : _uniqueName(targetPath ? _packageInfo(targetPath).name : 'My engine');
+  const typeOptions = `<option value="uci" ${clientType === 'uci' ? 'selected' : ''} ${_isBrowser() ? 'disabled' : ''}>Desktop executable</option><option value="uciWorker" ${clientType === 'uciWorker' ? 'selected' : ''}>Browser UCI Worker</option>`;
   const body = `<form id="profile-form" class="ed-form"><div class="field-row field-row--stack"><label class="field-label" for="profile-name">Profile name</label><input id="profile-name" name="name" class="field-control" value="${_escape(name)}" required></div><div class="field-row field-row--stack"><label class="field-label" for="profile-type">Engine target</label><select id="profile-type" class="field-control">${typeOptions}</select></div><div id="profile-target"></div><div class="ed-option-heading"><h3>Options</h3>${_button('+ Add option', 'add-option')}</div><div id="profile-options" class="ed-options">${(source?.options ?? []).map(_optionRow).join('')}</div><p class="ed-form__copy">Only configured options are sent to the engine. Leave empty to use its defaults.</p><p id="profile-error" class="inline-message inline-message--error" role="alert" hidden></p><p class="ed-form__copy">Apply or Save on Settings to keep this profile. Existing games keep their assigned target and options.</p></form>`;
-  _showDialog(source && !copy ? 'Edit engine profile' : 'Add engine profile', _isBrowser() ? 'Choose a stored package and name this configuration.' : 'Choose an executable or a browser engine package folder.', body, `${_button('Cancel', 'close')}<button type="submit" form="profile-form" class="text-button text-button--primary">${source && !copy ? 'Update profile' : 'Add profile'}</button>`, '#profile-name');
+  _showDialog(source && !copy ? 'Edit engine profile' : 'Add engine profile', _isBrowser() ? 'Choose an entry script from a stored package.' : 'Choose an executable or the entry script inside a browser engine package.', body, `${_button('Cancel', 'close')}<button type="submit" form="profile-form" class="text-button text-button--primary">${source && !copy ? 'Update profile' : 'Add profile'}</button>`, '#profile-name');
   _renderProfileTarget();
 }
 function _captureTarget() {
   const path = document.querySelector('#profile-path');
-  if (path) _editor[path.dataset.target] = path.value.trim();
+  if (path) _editor.targets[path.dataset.clientType] = path.value.trim();
 }
 function _renderProfileTarget() {
   _captureTarget();
-  const native = document.querySelector('#profile-type').value === 'uci';
-  const label = native ? 'Executable path' : _isBrowser() ? 'Installed browser engine' : 'Package folder';
-  const target = native ? 'executablePath' : 'packagePath';
-  const control = !native && _isBrowser() ? _packageSelect() : `<input id="profile-path" data-target="${target}" class="field-control" value="${_escape(_editor[target])}" aria-describedby="target-help">`;
-  const actions = _isBrowser() ? '' : `<div class="ed-actions">${_button(native ? 'Browse executable' : 'Browse folder', 'browse-target')}${native ? '' : _button('Use included Stockfish', 'use-included')}</div>`;
-  document.querySelector('#profile-target').innerHTML = `<div class="ed-form"><div class="field-row field-row--stack"><label class="field-label" for="profile-path">${label}</label>${control}<span id="target-help" class="field-help">${native ? 'The executable stays in its current location.' : _isBrowser() ? 'Several profiles can share one stored package.' : 'Choose an unpacked folder containing engine.json and worker.js. Files stay in place.'}</span></div>${actions}<div id="target-review"></div></div>`;
+  const clientType = document.querySelector('#profile-type').value;
+  const native = clientType === 'uci';
+  const label = native ? 'Executable path' : 'Engine entry script';
+  const control = !native && _isBrowser() ? _entrySelect() : `<input id="profile-path" data-client-type="${clientType}" class="field-control" value="${_escape(_editor.targets[clientType])}" aria-describedby="target-help" ${_isBrowser() ? 'readonly' : ''}>`;
+  const actions = _isBrowser() ? '' : `<div class="ed-actions">${_button(native ? 'Browse executable' : 'Browse entry script', 'browse-target')}${native ? '' : _button('Use included Stockfish', 'use-included')}</div>`;
+  document.querySelector('#profile-target').innerHTML = `<div class="ed-form"><div class="field-row field-row--stack"><label class="field-label" for="profile-path">${label}</label>${control}<span id="target-help" class="field-help">${native ? 'The executable stays in its current location.' : _isBrowser() ? 'Choose the actual engine entry. Packages may contain several builds or helper scripts.' : 'Choose the supplied engine script inside its unpacked package. Keep its original files and layout.'}</span></div>${actions}<div id="target-review"></div></div>`;
   _updateTargetReview();
 }
-function _packageSelect() {
-  const currentPath = _editor.packagePath;
-  const unknown = currentPath && !_findPackage(currentPath) ? `<option value="${_escape(currentPath)}" selected>Saved package folder &middot; Unavailable</option>` : '';
-  return `<select id="profile-path" class="field-control" data-target="packagePath" aria-describedby="target-help">${unknown}${_packages.map((entry) => `<option value="${_escape(entry.packagePath)}" ${entry.packagePath === currentPath ? 'selected' : ''}>${_escape(entry.name)}${entry.missing ? ' &middot; Files missing' : ''}</option>`).join('')}</select>`;
+function _entrySelect() {
+  const currentPath = _editor.targets.uciWorker;
+  const unknown = currentPath && !_packageForEntry(currentPath) ? `<option value="${_escape(currentPath)}" selected>Saved entry script &middot; Unavailable</option>` : '';
+  const groups = _packages.map((entry) => `<optgroup label="${_escape(entry.name)}">${entry.files.filter((file) => /\.m?js$/i.test(file)).map((file) => `<option value="${_escape(entry.packagePath + file)}" ${entry.packagePath + file === currentPath ? 'selected' : ''}>${_escape(file)}${entry.missing ? ' &middot; Files missing' : ''}</option>`).join('')}</optgroup>`).join('');
+  return `<select id="profile-path" class="field-control" data-client-type="uciWorker" aria-describedby="target-help"><option value="">Choose the engine entry script</option>${unknown}${groups}</select>`;
 }
 function _updateTargetReview() {
   _captureTarget();
   const native = document.querySelector('#profile-type').value === 'uci';
-  let message = native ? _isBrowser() ? 'Available in the desktop app.' : _editor.executablePath ? 'Executable path selected. No installation is needed.' : 'Choose or paste an executable path.' : '';
+  const entryPath = _editor.targets[native ? 'uci' : 'uciWorker'];
+  let message = native ? _isBrowser() ? 'Available in the desktop app.' : entryPath ? 'Executable path selected. No installation is needed.' : 'Choose or paste an executable path.' : '';
   if (!native) {
-    const entry = _packageInfo(_editor.packagePath);
-    message = document.querySelector('#preview-state').value === 'incompatible' ? 'This package uses an unsupported engine interface. Choose another package.' : _packageAvailability(entry) || `${_escape(entry.name)} &middot; ${_escape(entry.version)} &middot; Ready`;
+    const unavailable = _availability({ launch: { clientType: 'uciWorker', entryPath } });
+    message = document.querySelector('#preview-state').value === 'incompatible' ? 'This script uses an unsupported engine interface. Choose another entry.' : unavailable || 'Entry selected. ChessVue checks this script through the selected interface.';
   }
   document.querySelector('#target-review').innerHTML = `<p class="ed-form__copy" role="status">${message}</p>`;
 }
@@ -217,7 +222,7 @@ function _saveProfile(event) {
   const form = event.target;
   const name = form.elements.name.value.trim();
   const clientType = document.querySelector('#profile-type').value;
-  const launch = clientType === 'uci' ? { clientType, executablePath: _editor.executablePath } : { clientType, packagePath: _editor.packagePath };
+  const launch = { clientType, entryPath: _editor.targets[clientType] };
   const unchangedTarget = JSON.stringify(launch) === JSON.stringify(_editor.original?.launch);
   let error = !name ? 'Enter a profile name.' : _profiles.some((profile) => profile.id !== _editor.original?.id && profile.name === name) ? 'A profile with this name already exists. Choose another name.' : '';
   if (!error && !unchangedTarget) error = _availability({ launch });
@@ -280,8 +285,8 @@ function _dispatch(action, button) {
     install: () => _showInstall(), 'choose-package': () => _choosePackage(id), 'start-install': () => _startInstall(button),
     'add-profile': () => _showProfile(), 'create-for': () => _showProfile('', id), 'edit-profile': () => _showProfile(id), 'copy-profile': () => _showProfile(id, '', true),
     'delete-profile': () => { _profiles = _profiles.filter((profile) => profile.id !== id); _render(); _notify('Profile deleted from your changes. Engine files stay in place; Apply or Save to keep this change.'); },
-    'browse-target': () => { document.querySelector('#profile-path').value = document.querySelector('#profile-type').value === 'uci' ? 'C:\\Engines\\chosen-engine.exe' : 'D:\\Chess\\Engines\\training-engine'; _updateTargetReview(); },
-    'use-included': () => { document.querySelector('#profile-path').value = _defaultPath; _updateTargetReview(); },
+    'browse-target': () => { document.querySelector('#profile-path').value = document.querySelector('#profile-type').value === 'uci' ? 'C:\\Engines\\chosen-engine.exe' : 'D:\\Chess\\Engines\\training-engine\\training-engine.js'; _updateTargetReview(); },
+    'use-included': () => { document.querySelector('#profile-path').value = _defaultPath + _defaultEntry; _updateTargetReview(); },
     'add-option': () => { document.querySelector('#profile-options').insertAdjacentHTML('beforeend', _optionRow()); document.querySelector('#profile-options .ed-option:last-child input').focus(); },
     'remove-option': () => button.closest('.ed-option').remove(),
     'remove-package': () => _removePackage(id), 'confirm-remove': () => { _packages = _packages.filter((entry) => entry.packagePath !== id); _render(); _closeDialog(); _notify('Browser package removed. The storage change is already saved.'); },
@@ -307,6 +312,7 @@ document.addEventListener('change', (event) => {
   if (event.target.id === 'resume-analysis') { _resumeAnalysis = event.target.checked; _render(); }
   if (event.target.id === 'profile-type') _renderProfileTarget();
   if (event.target.id === 'profile-path') _updateTargetReview();
+  if (event.target.id === 'package-entry') document.querySelector('#install-confirm').disabled = !event.target.value;
   if (event.target.name === 'analysis-profile') document.querySelector('#assign-confirm').disabled = false;
 });
 _dialog.addEventListener('cancel', (event) => { event.preventDefault(); _closeDialog(); });

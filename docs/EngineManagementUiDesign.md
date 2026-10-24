@@ -1,25 +1,25 @@
 # Engine management UI design
 
-Proposed on 23 October 2026; revised on 24 October 2026 for the [engine target and package rework](EngineInstallationReworkPlan.md). Status: design. The [clickable prototype](design/EngineManagement.html) uses sample data and simulated file selection, package reads and imports. It changes no application settings or engine files.
+Proposed on 23 October 2026; revised on 24 October 2026 for the [engine rework](EngineInstallationReworkPlan.md). Status: design. The [clickable prototype](design/EngineManagement.html) uses sample data and simulated file picking, package reads and imports. It does not implement real engine loading.
 
-Open the HTML file in a browser. Preview controls switch desktop/browser host, ready/missing/empty/incompatible states and light/dark/system appearance. Those controls belong to the documentation artifact, not the product.
+Open the HTML file in a browser. Documentation-only preview controls select desktop/browser, ready/missing/empty/incompatible states and light/dark/system appearance.
 
-Rendered previews: [desktop Settings](design/EngineManagementDesktop.png), [desktop package profile](design/EngineManagementPackage.png), [browser import](design/EngineManagementInstall.png), [narrow profile editor](design/EngineManagementMobile.png), [browser removal](design/EngineManagementRemoval.png), [browser analysis selector](design/EngineManagementSelection.png) and [dark desktop](design/EngineManagementDark.png).
+Previews: [desktop Settings](design/EngineManagementDesktop.png), [desktop browser-engine profile](design/EngineManagementPackage.png), [browser import](design/EngineManagementInstall.png), [narrow editor](design/EngineManagementMobile.png), [browser removal](design/EngineManagementRemoval.png), [browser analysis selector](design/EngineManagementSelection.png), [dark desktop](design/EngineManagementDark.png).
 
-## Host-specific Settings
+## Settings by host
 
-Desktop has Engine profiles followed by Analysis behaviour. There is no installed-engine catalogue or Install engine action. Add profile points at an executable or package folder directly. Existing profile rows show a name, target summary, options and Copy/Edit/Delete. The bundled Stockfish profile is an ordinary package profile.
+Desktop shows Engine profiles and Analysis behaviour. Profiles point to executables or the actual entry files inside browser engine packages. There is no desktop installed-engine catalogue, registration or Install engine action. Browse package can expose its entry candidates; the user selects the intended script and supported interface.
 
-Browser adds Installed browser engines above those sections. That list comes from reading `engine.json` in each stored package folder through `EnginePackageService.listBrowserPackages()`, owned by `EnginesStore.loadBrowserPackages()`. No persisted catalogue or installation records are read. Refresh explicitly repeats discovery while keeping profile edits; failed discovery shows Retry rather than an empty-list success state.
+Browser adds Installed browser engines above those sections. `EnginesStore.loadBrowserPackages()` owns folder discovery through `EnginePackageService`. Read existing `package.json` name/version where present, otherwise display the folder name. Do not require or generate loading manifests, catalogue rows or remembered-entry metadata. A folder's presence does not prove which script/interface/roles it supports.
 
 ```text
 DESKTOP / Settings / Engines
 
 Engine profiles                                      [+ Add profile]
-Names, executable or package paths, and options for games.
+Reusable engine targets and options for games.
 
 Stockfish                                    [Copy] [Edit] [Delete]
-Browser package / Included with ChessVue
+Browser engine / .../stockfish-19-lite-single.js
 Default engine options
 
 My desktop engine                            [Copy] [Edit] [Delete]
@@ -32,39 +32,25 @@ Analysis behaviour
 All profile changes saved                    [Cancel] [Save] [Apply]
 ```
 
-```text
-BROWSER / Settings / Engines
+Browser package rows show package/folder name, existing version if available, Included with ChessVue or Imported package source, file availability and Create profile/Details/Remove. Show script candidates when choosing a target; do not imply that every file is an executable engine. Refresh preserves profile edits; discovery errors show Retry rather than an empty-list success.
 
-Installed browser engines                    [+ Install browser engine]
-Packages stored in this browser. Imports take effect immediately.
-
-Stockfish [Included with ChessVue] [Ready]
-19.0.1 / Computer play and analysis
-                                [Create profile] [Details] [Remove]
-
-Engine profiles                                      [+ Add profile]
-...saved configurations, including unavailable desktop profiles...
-
-Analysis behaviour
-...
-```
-
-Reuse the current Settings navigation, warm light/slate dark palettes, serif headings, shared fields/buttons and restrained state badges. Do not create another settings category or an engine dashboard. The prototype uses visible text row actions for review; production may retain existing Copy/Edit/Delete icon controls with accessible names and tooltips.
+Reuse the Settings shell, current palettes, serif headings, shared fields/buttons and accessible Copy/Edit/Delete controls. Source is an enum in contracts, rendered as user-facing text. No client enum values, digests or invented package versions in ordinary rows.
 
 ## Desktop profile form
 
 ```text
 Add engine profile                                               [x]
-Choose an executable or a browser engine package folder.
+Choose an executable or the entry script inside a browser engine package.
 
 Profile name
-[My engine                                                     ]
+[My engine                                                       ]
 
-Engine target
-[Desktop executable v]       alternatives: Browser package
+Engine target / interface
+[Desktop executable v]         alternative: Browser UCI Worker
 
 Executable path
-[C:\Engines\engine.exe                             ] [Browse]
+[C:\Engines\engine.exe                                          ]
+                                              [Browse executable]
 The executable stays in its current location.
 
 Options                                            [+ Add option]
@@ -74,107 +60,102 @@ Apply or Save on Settings to keep this profile.
                                                [Cancel] [Add profile]
 ```
 
-Browser package replaces the executable field with Package folder, Browse folder and Use included Stockfish. Selecting or checking the folder reads its `engine.json` and displays engine name/version and readiness or a specific error. Do not ask users to choose StockfishJs, UciWorker or another implementation: the package manifest declares the supported client. Both forms retain a path field that the user can type or paste.
+For Browser UCI Worker, show Engine entry script, Browse entry script and Use included Stockfish:
 
 ```text
-Engine target
-[Browser package v]
+Engine entry script
+[D:\Chess\Engines\lozza\lozza.js                                ]
+                       [Browse entry script] [Use included Stockfish]
 
-Package folder
-[D:\Chess\Engines\training-engine                   ] [Browse folder]
-[Use included Stockfish]
-
-Training engine / 1.0 [Ready]
-Metadata read from this folder. Files stay in their current location.
+Choose the supplied engine script inside its unpacked package.
+Keep its original files and layout.
 ```
 
-A package is an unpacked folder containing `engine.json`, the unified `worker.js` entry and its assets. If a user has a ZIP on desktop, helper text says to extract it and choose the resulting folder. Adding a profile never copies, installs or registers that folder. Choosing the bundled package fills its normal app-relative package path; it follows the same metadata-read and runtime paths.
+There is no prescribed entry filename or app-specific manifest. Stockfish, Lozza and tomitankChess keep their supplied names. Browse can start from a package folder and list actual candidates. Existing metadata may suggest a compatible entry where supported; an npm `main` may be a Node wrapper and must not silently become a Worker target. If multiple builds or helper files exist, ask the user which entry to run. An unsupported module API needs another implemented client, not a rename.
 
-Selecting a new target cancels/settles the old target check before reading/probing the replacement. Browse cancellation leaves the form unchanged. Checking/reading changes only the local form. Editing a profile preserves its options until the user changes them; incompatible option metadata is explained rather than silently discarded. Require a nonempty unique name and a usable target for new profiles. Preserve existing unavailable targets for repair without substituting another engine.
+Save the selected entry path, `EngineClientType`, name and options in the profile. This is launch configuration, not an installation record. No extra implementation/protocol enum is introduced. For the initial clients, labels map to Uci and UciWorker; future supported interfaces add values to that same selector. Remove the current Protocol row.
 
-Copy creates a uniquely named local copy of target/options. Update/Add returns to the Settings draft. Deleting a profile removes only that draft configuration. Apply/Save persists profile changes; none of these actions deletes a desktop executable or folder. Existing games retain their copied target/options.
+Use included Stockfish fills the actual supplied script path. Adding/checking a target neither copies files nor writes metadata into its folder. ZIP users on desktop extract their package wherever they choose, then select its entry. Existing relative assets remain in their supplied layout.
 
-The current Protocol row is removed. Keep `EngineClientType` as the only persisted implementation discriminator; target-category UI introduces no second enum.
+Target changes cancel/settle the old check before a replacement starts. Browse cancellation leaves the form intact. Read/probe at an explicit action boundary through the selected client; show engine identity/options or a specific failure. Require a unique nonempty profile name and a usable target for new profiles. Preserve existing unavailable targets for repair without substituting another engine or discarding configured options silently.
 
-## Browser profile form and import
+Copy creates a local target/options copy with a unique name. Add/Update returns to the Settings draft. Delete removes that draft configuration only. Apply/Save persists profile changes; executable/package files remain user-managed and open games retain their copied configuration.
 
-Browser profile creation chooses an Installed browser engine from the manifest-derived list, then edits name/options. Several profiles may share a package. With no packages, show Install a browser engine first and a direct action into import; desktop does not have this prerequisite.
+## Browser profile form
 
-Existing desktop executable paths and external desktop package paths remain readable on browser, with Available in the desktop app or Package folder is not available in this browser. They stay in settings and saved games. Relink explicitly chooses an available package and explains that it changes this profile, not existing assignments. Unsupported or missing targets never auto-select another package.
+Choose Engine entry script from actual files grouped by imported package. Keep the supported interface selector explicit. A package may have several engine builds and helper scripts, so the folder alone is not a launch target. Show a blank Choose the engine entry script choice when no selection was provided. Do not choose the first JavaScript file automatically.
 
-Install browser engine opens a package ZIP picker, review, check and result flow. There is no Desktop executable tab or native registration step.
+Several profiles may target one entry with different options, or different entries in one package. Existing native/external-desktop paths remain visible on browser with their unavailable reason and explicit relink. Changing a profile does not rewrite existing game assignments.
 
-| State | Content and actions |
+No stored packages: Install a browser engine first opens import. Desktop has no such prerequisite. A browser import's captured choice may seed Create profile directly on success, but Done stores no remembered default entry. Returning later to create a profile asks the user again if the existing files do not identify the entry unambiguously.
+
+## Browser import
+
+Install browser engine opens a ZIP picker and review. There is no Desktop executable installation tab. Preserve all original package paths and files; create no new loading manifest or catalogue record.
+
+```text
+Install browser engine                                           [x]
+Package imports take effect immediately. Profiles are saved separately.
+
+Choose an engine archive                         [Choose package]
+
+Selected file    training-engine.zip
+Package          training-engine        folder name fallback
+Version          Not supplied          when metadata is absent
+Interface        Browser UCI Worker
+
+Entry script to check
+[Choose the engine entry script v]
+  training-engine.js
+  helper.js
+
+Choose the engine entry, rather than a helper script.
+No standard filename or new manifest is required.
+
+                                           [Cancel] [Install engine]
+```
+
+| State | Content/actions |
 | --- | --- |
 | No file | Choose package; disabled Install engine |
-| Selected | File name, manifest engine/version, compatibility; Choose another package and Install engine |
-| Reading/checking | Reading files, then Checking engine compatibility; Cancel allowed; no invented percentage |
-| Publication | Finishing installation; close/Escape/backdrop disabled until publication settles |
-| Success | Engine installed, verified roles; Done or Create profile |
-| Duplicate | Already installed; reuse existing package folder, no duplicate metadata row |
-| Failure | Stage-specific error, Retry or Choose another package; no partially listed package |
+| File selected | Existing metadata/folder label and candidate files; require an explicit valid entry/interface choice before checking |
+| Reading/checking | Read package files, check selected target and requested role; Cancel allowed, no invented percentage |
+| Publication | Save the original package files atomically; disable close/Escape/backdrop until settlement |
+| Success | Import complete; show checked entry, Done or Create profile |
+| Failure | Specific file/interface/asset/lifecycle error, Retry or another selection; no partially listed folder |
 
-Create profile replaces the result dialog with an editor seeded from the stored package folder. It does not create or apply a profile automatically. Done leaves the package imported with no new profile. Cancelling a running check publishes nothing. Once the storage transaction starts, settle it before reporting success/failure.
+The user chooses the engine entry; helpers and incompatible module APIs fail the real client probe. Passing message transport alone does not enable infinite analysis, pondering or other roles. The prototype simulates that probe and cannot establish compatibility.
 
-Bundled/imported packages have the same format, loader and row presentation. Included with ChessVue is provenance from `EngineInstallationSource.Bundled`, not a runtime implementation. Browser Restore included engine imports the supplied standard package if missing. Desktop Use included Stockfish only chooses its app-supplied folder; desktop has nothing to restore through an importer.
+Create profile replaces the success dialog and uses the action's captured entry selection. It does not automatically create/apply a profile. Done may leave a package with no profiles and no saved entry choice. A later profile stores its chosen virtual script path. Existing package metadata is read where present, not manufactured.
 
 ## Draft and storage boundaries
 
-| Action | Profiles/behaviour | Engine files |
+| Action | Profiles/settings | Engine files |
 | --- | --- | --- |
-| Desktop Browse/check target | Local form only | Read only, no install or copy |
-| Add/Update/Copy/Delete profile | Settings draft only | No filesystem change |
-| Apply | Persist draft, remain on Settings | No desktop file change |
-| Save | Persist draft, leave via existing Settings flow | No desktop file change |
+| Desktop select/check target | Local form only | Read only, no installation or metadata write |
+| Add/Update/Copy/Delete profile | Settings draft | No change |
+| Apply/Save | Persist draft; Save leaves via existing Settings flow | No desktop file changes |
 | Cancel/discard | Restore accepted profile/behaviour settings | Completed browser imports remain |
-| Browser import/remove/restore | Do not apply profile draft | Immediate atomic package storage operation |
+| Browser import/remove/restore | Do not apply profile draft | Immediate package-file operation |
 
-Dirty-leave message: Your profile and behaviour changes have not been applied. Completed browser engine installations will remain installed. Preserve the draft if validation or persistence fails, and explain the unavailable target. Closing a local form discards only that form.
+Dirty-leave copy explains that profile changes have not been applied and completed browser imports remain installed. Validation/persistence failures keep the draft open with a repair action. Closing the local form discards only that form.
 
 ## Browser details, removal and recovery
 
-These package management actions exist on browser only. Details shows manifest name/version, Included with ChessVue or Imported package provenance, verified roles, availability and saved/draft/open-game references. Source is an enum in contracts, rendered as user-facing text. Do not put client enum values, digests or vendor filenames in normal rows.
+Details displays existing package metadata/folder name, source, files and referencing profiles/games. Unknown version/roles remain unknown until the selected build is checked. Do not label an entire archive analysis-compatible because one entry was probed during an earlier import.
 
-Remove first gathers saved profiles, current draft profiles, open-game assignments and resource leases referring to that virtual package folder. If referenced, show Engine is still in use, the names/reasons and Close/Show profiles. A profile deleted only in the draft still blocks removal until Apply/Save. A newly discovered reference or lease blocks publication of the deletion. Do not delete profiles or change game assignments automatically.
+Removal checks accepted/draft profile entries, open-game assignments and active leases under that virtual package root. A draft-only profile deletion still blocks removal until Apply. Blocked removal names references and offers Close/Show profiles. Unused removal confirms deletion of browser-stored files and explains that closed games may need reimport. Recheck references/leases at deletion; never delete profiles or retarget games automatically. Native profiles are not browser package references.
 
-If unused, confirm Remove engine? with Keep engine and Remove engine. Explain that browser-stored package files will be removed and closed games may need the same package imported again. Deleting a desktop profile has no equivalent package-removal dialog because its files remain user-managed.
+Missing desktop executable/script: Edit and relink the target. Missing browser files: reimport matching contents without substituting another release silently. Browser-store failures: Retry discovery, preserving profiles. Existing native/foreign paths on browser: explain unavailability and allow explicit relink. Absent package metadata is normal; use the folder name and request entry selection.
 
-| State | Recovery |
-| --- | --- |
-| Desktop executable missing | Edit profile and choose its new path |
-| Desktop package missing/unreadable | Edit profile and choose/check the folder; preserve original path/options |
-| Package lacks `engine.json` or entry/assets | Explain the missing item; choose a valid package folder or ZIP |
-| Browser package files missing/corrupt | Reimport matching package into the same target where safe; do not silently substitute another release |
-| Browser package store read failed | Retry discovery; preserve profiles and show errors separately from an empty list |
-| Bundled browser package removed | Restore included engine via normal importer |
-| Browser sees native/foreign desktop path | Show unavailable reason and explicit relink; preserve the saved target |
-| Unknown client interface | Explain unsupported interface/version and keep repair available |
+Bundled Stockfish consists of the same supplied files used by its ordinary default profile. Desktop's shortcut selects its real entry. Browser Restore reimports those files through the normal pipeline and resets no unrelated profiles. Settings reset restores default profiles, ensures the included entry resolves and retains unrelated browser packages and external desktop files.
 
-Default settings reset restores default profiles and ensures the bundled package resolves. Browser reset retains unrelated imported packages. Desktop reset neither deletes external files nor copies packages.
+## Game selection, accessibility and ownership
 
-## Game selection
+Game/player/analysis selectors use accepted profiles, not raw paths or unsaved Settings drafts. Show profile name, target summary and role-specific availability. Preserve existing local/unassigned/keep-current choices, duplicate-assignment rules and the four-analysis-engine limit. Revalidate the chosen entry at confirmation; keep the chooser open on failure. Keep current engine retains copied launch/options even if its source profile changed or disappeared.
 
-New-game, player and analysis selectors choose accepted profiles, never raw paths or unsaved Settings drafts. Show the profile name, executable/package summary and requested-role availability. Keep unavailable choices visible and disabled, with their reasons associated using `aria-describedby`.
+At 760px use compact navigation; stack row actions, wrap paths, keep footer actions reachable and fit scrollable dialogs to the viewport. Support 390px and 200% text scale. Pair state colours with text; associate disabled choices with their reasons. Focus the profile name on editor open and the picker on import. Production uses `ModalDialog`/`vFocusScope` for containment and launcher restoration. Progress is polite status; actionable errors use alerts. CSS owns system-theme selection through `color-scheme`/`light-dark()` without subscriptions.
 
-Preserve Unassigned, Local player and Keep current engine choices where applicable. Keep current engine retains an assignment's copied configuration even if its source profile changed or disappeared. Preserve duplicate-assignment rules and the four-analysis-engine limit. Analysis availability requires working active-search interruption, not merely worker messaging.
+`SettingsView.vue` owns sections/draft/footer; `EngineProfileModal.vue` owns local entry checks; browser-only `EngineInstallationModal.vue` owns import review/check/result. Reuse shared confirmation and existing game selector components. Production styles remain global through `src/assets/main.css`/`src/assets/styles/settings.css`; documentation overrides stay under `docs/design`.
 
-With no saved profiles, explain Create a profile in Settings and Apply your changes first. Keep the existing game/modal leave and pause semantics. Revalidate the selected target at confirmation; a disappeared target keeps the chooser open with an actionable error, rather than silently choosing another profile.
-
-## Responsive layout, accessibility and ownership
-
-At 760px use the existing compact navigation. Stack row metadata/actions and wrap paths. Keep footer actions reachable while content scrolls; dialogs fit the viewport with scrollable contents. Support 390px width and 200% text scale without horizontal scrolling.
-
-Use text alongside state colours. Focus the profile name on editor open and package picker on import. Production uses the existing `ModalDialog`/`vFocusScope` ownership: Tab stays inside, Escape follows operation policy, and close restores the surviving launcher or section heading. Progress is polite status; actionable failures are alerts. Move focus for submission errors, not background checks. CSS owns system-theme selection through `color-scheme` and `light-dark()`; no OS-theme subscription.
-
-| Surface | Proposed owner |
-| --- | --- |
-| Host-specific sections, draft/footer feedback | `SettingsView.vue` and meaningful extracted `.vue` sections |
-| Executable/package path or browser-package form | Existing `EngineProfileModal.vue`, owned target checks through services |
-| Browser import/review/check/result | `EngineInstallationModal.vue`, browser-only package actions |
-| Browser package metadata/references | `EngineInstallationDetailsModal.vue`, shared confirmation for unused removal |
-| Role-aware game selectors | Existing `GameCreationModal.vue`, `PlayerSelectionModal.vue`, `AnalysisEngineSelectionModal.vue` |
-| Production styles | Shared global controls and `src/assets/styles/settings.css` via `src/assets/main.css` |
-
-Prototype layout/theme overrides live only under `docs/design`, using the app stylesheet. Its picker, metadata and import checks are simulations; screenshots do not establish actual package loading or runtime acceptance.
-
-Reviewed on 24 October 2026: 20 checks passed for the revised prototype, including direct executable/package folder profiles without desktop installation, browser import/removal and recovery, Apply/Cancel boundaries, native unavailability on browser, duplicate-name feedback, focus containment/restoration, 390px layout, 200% text scale, dark appearance and rendered symbols. No browser script errors were recorded. Seven screenshots were regenerated. The generated report is `test-results/EngineManagementDesignResults.json`; it replaces the earlier catalogue-based prototype results. JavaScript syntax, local documentation links and `npm run check:code` also passed.
+Reviewed on 24 October 2026: 17 checks passed across two review runs for the revised entry-file prototype. Coverage includes direct desktop targets, archives without metadata, explicit entry selection, simulated helper-script rejection, cancellation, profile Apply/Discard, later entry selection without remembered package metadata, reference-aware removal, repair/default restore, unavailable native profiles, keyboard focus, 390px width, 200% text scale and dark appearance. Seven screenshots were refreshed. No browser script errors were observed. The generated `test-results/EngineManagementDesignResults.json` replaces the earlier package-folder prototype results; it is simulation evidence, not actual engine compatibility. JavaScript syntax, documentation links and `npm run check:code` also passed.
