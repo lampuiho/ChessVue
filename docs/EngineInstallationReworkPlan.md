@@ -1,12 +1,14 @@
 # Engine targets, browser packages and profiles
 
-Prepared on 23 October 2026; revised on 24 October 2026. Status: proposed design for review; implementation is stopped. See the [UI specification](EngineManagementUiDesign.md) and [clickable preview](design/EngineManagement.html).
+Prepared on 23 October 2026; revised on 25 October 2026. Status: proposed design for review; implementation is stopped. See the [UI specification](EngineManagementUiDesign.md) and [clickable preview](design/EngineManagement.html).
 
-The [NW.js spawned-process correction](NwjsProcessOwnershipFixPlan.md) is implemented and verified. It removes both native process maps and moves line I/O into the existing NwjsUtility. Browser compatibility in that step is limited to a raw Worker reference asserted as the shared process type in place of the string handle; existing browser lookups, transport and lifecycle stay intact. Then revise, review and implement the separate [browser engine dependency correction](BrowserEngineDependencyFixPlan.md), which owns the actual browser process adaptation and architecture fix. Package rework follows those verified corrections and still requires an explicit instruction to resume implementation.
+The [NW.js spawned-process correction](ArchivedPlans/NwjsProcessOwnershipFixPlan.md) and [browser engine dependency correction](ArchivedPlans/BrowserEngineDependencyFixPlan.md), including the native inheritance follow-up, are implemented and verified. This plan starts from that completed runtime architecture. Package import, stored-file serving, mixed bindings and the revised UI remain proposed; implementation of this rework is stopped pending an explicit instruction to resume.
 
-NW.js has first been restored to its standalone process-based UCI implementation. Preserve that restoration: the browser correction and package rework do not authorise routing the native client through the browser UCI factory again.
+Both process managers already return an IProcess reference, stored in IAssignedEngineRuntime.process. NW.js returns the original spawned process with UTF-8 output streams. BrowserProcessManager returns markRaw(new BrowserWorkerProcess(worker)); that wrapper privately adapts Worker commands, output and managed closure to IProcess. Its constructor takes only the Worker. The manager's _processes set exists only for disposal, not reference lookup.
 
-The NW.js plan supersedes this draft's processHandle/assertProcessHandleOpen references. Rebase those references to process/assertProcessOpen when the prerequisite is implemented; the package rework must not restore the old runtime field or native registry. This changes no package, profile or UI decision below and adds no EngineRuntimeService public API.
+NwjsUciEngineClient and BrowserUciEngineClient already inherit UciEngineClientBase. The base owns UCI operations, sessions and process I/O; in the completed baseline, subclasses implement only _isProcessOpen and _getProcessExitDetail. Each platform store constructs its plain client with markRaw and returns the same instance through IEngineClient. Preserve this composition and direct process ownership: no per-client Pinia store, binding facade, transport resolver or process registry is required. NwjsUtility retains native host access/liveness; shared line I/O belongs to the base.
+
+The package rework changes the registered client enum and launch-path selection described below. It does not reintroduce handles or redo either completed correction, and adds no EngineRuntimeService public API. Existing package, profile and UI decisions remain unchanged.
 
 The app has never been released. Update the current schemas and fixtures directly, keeping the initial schema version. Do not add migrations, compatibility readers, old-field conversions or runtime aliases.
 
@@ -26,7 +28,7 @@ The listed questions have been answered. The [selected loading design](#stored-s
 
 ## Installed engine names
 
-Use the Engine name as one folder component, preserving the entered name in storage and display. The frontend import view owns both name-format and uniqueness validation, using its already loaded engine list, and enables Install only for a valid, unique name. EnginesStore and EnginePackageService receive the validated name without repeating either check. The list includes the built-in folder, whose name is also unavailable. Profile labels remain independently editable.
+Use the Engine name as one folder component, preserving the entered name in storage and display. The frontend import view owns both name-format and uniqueness validation, using its already loaded engine list, and enables Install only for a valid, unique name after successful folder discovery. The view awaits its own discovery action on direct entry and keeps Install disabled during loading or after discovery failure; an empty/stale list is not evidence that a name is available. EnginesStore and EnginePackageService receive the validated name without repeating either check. The list includes the built-in folder, whose name is also unavailable. Profile labels remain independently editable.
 
 Reject an empty/whitespace-only name, . or .., path separators, control characters, the characters `< > : " / \ | ? *`, and a trailing space or dot. Also reject reserved device names such as CON/NUL/COM1/LPT1, including their extension forms. Unicode names, spaces within names, hyphens and version text remain usable. Compare engine names without case differences so Stockfish and stockfish do not become duplicate-looking entries. These validation rules follow [Windows folder-name constraints](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file) while keeping the user-supplied name.
 
@@ -38,7 +40,7 @@ The handler responds only to the reserved stored-engine path. Ordinary app reque
 
 The build must serve the app-owned service-worker script at a stable URL beneath the app base in development and production. Its registration scope covers the app page that creates engine Workers, while its fetch handler filters to engine-file URLs. Await the matching active registration and actual page control before creating a stored engine Worker. Registration requires a secure context; activation can [claim clients](https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim), and [controllerchange](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/controllerchange_event) confirms control. A bare [ready promise](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/ready) is not a bounded failure-handling strategy.
 
-Use one shared, owned readiness operation with listener/timer cleanup, a bounded wait and retry after failure. Unsupported registration, failed activation or failure to obtain control becomes the existing process-start error; do not launch through an unready virtual URL or introduce a Blob/server fallback. Host disposal settles pending readiness work. Stopping an individual engine releases its package lease and Worker, not the shared service-worker registration. No app-shell cache, offline policy, installation catalogue or additional public engine API is introduced.
+Use one shared, owned readiness operation with listener/timer cleanup, a bounded wait and retry after failure. Unsupported registration, failed activation or failure to obtain control becomes the existing process-start error; do not launch through an unready virtual URL or introduce a Blob/server fallback. Host disposal cancels owned control waits and prevents late registration/preparation results from launching engines. Stopping an individual engine releases its package lease and Worker, not the shared service-worker registration. No app-shell cache, offline policy, installation catalogue or additional public engine API is introduced.
 
 Keep the generic engine/package APIs and single EngineClientType selector. Real Stockfish plus an independent engine, relative assets, initial control without manual reload, reload, failed registration/read and cleanup remain required verification. Application implementation remains stopped.
 
@@ -53,10 +55,14 @@ Enable browser profiles to select and load other engines using their supplied en
 EngineRuntimeService retains every existing public method, name, signature, parameter, return contract and error/cancellation/lifecycle behaviour. No new runtime API, package operation or preparation step is added to its public surface. Its only implementation edits are the existing launch-data and platform-binding substitutions required by this plan:
 
 - _createAssignedEngine copies entryPath instead of executablePath and stops copying the removed protocol field.
-- _initialiseEngine passes engine.clientType to the existing process-manager lookup and engine.entryPath to spawnProcess, including its existing invalid-handle retry.
-- _assertProcessHandleOpen, isRuntimeAlive and _releaseEngineProcess pass engine.clientType to their process-manager lookups.
+- _initialiseEngine passes engine.clientType to the existing process-manager lookup and engine.entryPath to spawnProcess, including its existing InvalidProcessHandle retry.
+- _assertProcessOpen, isRuntimeAlive and _releaseEngineProcess pass engine.clientType to their process-manager lookups.
 
 Keep their existing branching, sequencing, ownership, cancellation, error handling and cleanup intact. The client lookup already uses clientType and needs no API change. Option discovery, analysis, player turns, stop and restart continue through their existing callers and lifecycle. Implementation remains stopped pending an explicit instruction to resume.
+
+The review corrections below additionally specify manager-owned preparation/disposal, private desktop file-URL resolution, platform-scope Worker-manager disposal and frontend discovery eligibility. They add no public engine/runtime operation or persisted state. The shared UCI base still changes only for its registered enum; both subclasses retain their existing two hooks and inherited initialisation. All native protocol/client behaviour is retained.
+
+stopProcess becomes idempotent in both process managers: an already-stopped resource returns successfully. Remove its assertProcessOpen call, retaining the existing live-process exit wait and kill sequence. assertProcessOpen remains available for callers that require a running process. This changes no method signature or EngineRuntimeService implementation beyond the substitutions listed above.
 
 ## Agreed model
 
@@ -65,7 +71,7 @@ Desktop profiles point directly to an executable or the entry file inside a brow
 - Browser import stores the supplied package files, preserving their relative layout. Discover imported packages by reading those folders, without separate installation records.
 - Require neither a fixed entry filename nor a new manifest. Upstream archives do not generally contain a ChessVue manifest. Do not generate one during browser import or modify desktop folders.
 - The engine name comes from its folder, not upstream package metadata. Ask for the entry/interface explicitly; never guess the first JavaScript file or assume an npm `main` is a Worker.
-- Proposed engine APIs and data contracts stay generic across hosts: loadPackages, refreshPackages, listPackages, getPackage, browseEngineFile and IEnginePackage. browseEngineFile(startDirectory?) chooses an executable or entry-script file and returns its path, delegating to the existing IStorageAdapter.showOpenDialog contract. Capability checks expose available operations. EnginePackageService owns browser package storage directly; existing platform implementations handle file pickers and process/Worker loading. No desktop/browser API families or host-discriminated DTOs.
+- Proposed engine APIs and data contracts stay generic across hosts: refreshPackages, listPackages, getPackage, browseEngineFile and IEnginePackage. browseEngineFile(startDirectory?) chooses an executable or entry-script file and returns its path, delegating to the existing IStorageAdapter.showOpenDialog contract. Capability checks expose available operations. EnginePackageService owns browser package storage directly; existing platform implementations handle file pickers and process/Worker loading. No desktop/browser API families or host-discriminated DTOs.
 - `EngineClientType` remains the single implementation selector. Remove the unused engine `protocol` field and `EngineProtocol` as part of the rework.
 - Bundled Stockfish uses an ordinary package folder and a default profile naming its actual supplied entry file. It uses the same loader as user packages.
 - Each assignment copies the profile's entry path, client type, name and options. Profile edits/deletions do not retarget existing games.
@@ -127,7 +133,7 @@ export interface IEnginePackage {
 
 The profile stores launch information because the user chose that target. Imported package storage holds only package files. There is no installation id, catalogue, saved entry-selection registry or generated loading descriptor. Several profiles can target one script with different options, or different builds inside the same folder.
 
-Copy clientType/entryPath fields and a fresh options map into assignments. Keep the existing option-cache invalidation by client type/path, removing protocol from the comparison. Missing files use the existing runtime error handling; saving settings and assigning profiles gain no file checks.
+Copy clientType/entryPath fields and a fresh options map into assignments. IAssignedEngineRuntime.process?: IProcess is the existing runtime-only process reference and remains unchanged; do not persist it or introduce another process field. Keep the existing option-cache invalidation by client type/path, removing protocol from the comparison. Missing files use the existing runtime error handling; saving settings and assigning profiles gain no file checks.
 
 ## Package reading and entry selection
 
@@ -140,9 +146,9 @@ Preserve the upstream folder structure, script names and auxiliary resources. Br
 
 On desktop, selecting a target writes no package files. Browser import stores files without choosing an entry or client type. Create profile is a separate action that selects the entry and interface from the stored files. A package may have no profiles.
 
-The loader must preserve or explicitly support the build's relative imports, WASM/NNUE resolution, MIME types and host requirements. Do not assume every vendor entry accepts an app asset-map bootstrap or that Blob workers inherit a package directory. Prove actual Stockfish and an independent worker before fixing the serving mechanism. See [Worker construction](https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker) and [importScripts](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope/importScripts).
+The loader must preserve or explicitly support the build's relative imports, WASM/NNUE resolution, MIME types and host requirements. Do not assume every vendor entry accepts an app asset-map bootstrap or that Blob workers inherit a package directory. Verify actual Stockfish and an independent Worker through the selected serving mechanism. See [Worker construction](https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker) and [importScripts](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope/importScripts).
 
-A real resource lease retains worker/asset URLs until their consumers terminate. Release on failed startup, cancellation, crash, restart and disposal. Never save Blob URLs, workers or picker handles in profiles.
+A real resource lease retains worker/asset URLs until their consumers terminate. Release on failed startup, cancellation, crash, restart and disposal. Never save Blob URLs, process/Worker objects or picker handles in profiles.
 
 ## Retrieval without a catalogue
 
@@ -161,7 +167,7 @@ Do not create an installations object store, catalogue singleton, generated pack
 | Boundary | Responsibility |
 | --- | --- |
 | `EnginePackageService` | Own browser package discovery, file reads, import and removal directly through IndexedDB. Add bundled filenames from the app build asset definition; no desktop package implementation or new platform interface. |
-| `EnginesStore.loadPackages()` / `refreshPackages()` | Own/share discovery through the same API when the package list is opened and after explicit import/removal/Refresh actions. Desktop paths have no managed inventory to enumerate. Preserve profile drafts; no host checks, watchers or polling. |
+| `EnginesStore.refreshPackages()` | Own/share discovery through the same API when the package list is opened and after explicit import/removal/Refresh actions. Desktop paths have no managed inventory to enumerate. Preserve profile drafts; no host checks, watchers or polling. |
 | Profile/import target action | The existing file dialog returns a chosen file path; the profile form copies it into entryPath. Stored package files are selected directly from IEnginePackage.files. Archive input uses IEnginePackageFile (filename and original bytes), not File/Blob or a native picker handle. Validate archive paths/files through layer-2 services and own file-operation cancellation. |
 | Assignment | Copy the selected profile through the existing game/player/analysis handlers. No new resolution API or preflight. |
 | Asset preparation | BrowserProcessManager resolves the exact entry URL and owns the Worker lease; the service-worker entry point reads stored files through EnginePackageService. Derive the package boundary from its virtual path, not a registry id. |
@@ -195,9 +201,9 @@ EngineRuntimeService -> binding for engine.clientType
   UciWorker -> package/file loader    -> engine.entryPath
 ```
 
-Desktop offers native and supported browser bindings together, including within one game. Browser offers its implemented browser bindings. Preserve `getEngineClient(clientType)` and obtain the matching lifecycle backend from the same table, avoiding independent switches. Bind each opaque handle to its actual owner for stop/restart/disposal; do not parse handles.
+Desktop offers native and supported browser bindings together, including within one game. Browser offers its implemented browser bindings. Preserve `getEngineClient(clientType)` and obtain the matching lifecycle backend from the same table, avoiding independent switches. The assignment retains the returned IProcess reference and its copied clientType; validation, stop and restart pass that same reference to the selected pair. No process lookup or owner registry is needed.
 
-Use the private base/subclass design from the [dependency correction](BrowserEngineDependencyFixPlan.md#private-inheritance-design): UCI operations stay in the base, and the browser subclass overrides protected transport lookup. For this later package rework, parameterise the hard-coded Uci guard with the registered client enum value. The restored native UCI client keeps its own factory and direct process communication. Other interfaces can implement `IEngineClient` directly. Preserve turns, pondering, analysis stop acknowledgement, supersession, pause/deferred-result and legality semantics. Each assignment owns its runtime; share package bytes, not sessions. Verify actual [NW.js worker configuration](https://docs.nwjs.io/References/Command%20Line%20Options/) and packaging.
+Retain the shared base/subclass design completed by the [dependency correction and native follow-up](ArchivedPlans/BrowserEngineDependencyFixPlan.md#native-inheritance-follow-up). Both clients use the base's direct IProcess I/O and retain their existing _isProcessOpen/_getProcessExitDetail overrides. For this package rework, parameterise the base's hard-coded Uci assignment guard with the registered client enum value: the native subclass supplies Uci and the browser subclass supplies UciWorker. Other interfaces can implement `IEngineClient` directly. Preserve turns, pondering, analysis stop acknowledgement, supersession, pause/deferred-result and legality semantics. Each assignment owns its runtime; share package bytes, not sessions. Verify actual [NW.js worker configuration](https://docs.nwjs.io/References/Command%20Line%20Options/) and packaging.
 
 Desktop Settings shows profiles and behaviour. Add/Edit/Copy navigates to EngineProfileView through a Settings child route. Package import and details have their own routed views. SettingsView keeps the shared shell and mounts them with RouterView; the URL and route lifecycle own navigation. Direct links/reload and browser Back/Forward must work without opening the overview first. Use modals only for simple confirmations or single-choice pickers. Browse opens the existing file dialog for an executable or script. Browser adds the discovered package-folder list and import/remove controls, then profile entry selection. Both retain name/options and Apply/Save/Discard. Existing foreign-host/native targets remain visible and repairable. Profile deletion changes configuration only. Game selectors use accepted profiles and copy exact launch data/options.
 
@@ -205,7 +211,7 @@ Follow the [UI specification](EngineManagementUiDesign.md), existing `.vue` owne
 
 ## Detailed API
 
-The following additions are proposed, not existing application APIs. They implement the package-file and target-selection responsibilities above. The existing runtime API remains in place. Signatures are grouped by their actual owner, rather than introducing another facade or profile-resolution service.
+The additions below are proposed, not existing application APIs. Existing platform contracts are labelled separately for context. The additions implement the package-file and target-selection responsibilities above; the runtime API and shared IProcess contract remain unchanged. Signatures are grouped by their actual owner, rather than introducing another facade or profile-resolution service.
 
 ### Transient file inputs
 
@@ -230,7 +236,6 @@ IEngineArchive contains the decoded files only, with no ZIP bytes, destination o
 
 ```ts
 canInstallPackages(): boolean;
-loadPackages(): Promise<void>;
 refreshPackages(): Promise<void>;
 listPackages(): readonly IEnginePackage[];
 getPackage(packagePath: string): IEnginePackage | undefined;
@@ -243,8 +248,7 @@ removePackage(packagePath: string, readReferences: () => readonly IEnginePackage
 | Method | Caller and result | Effects and failure behaviour |
 | --- | --- | --- |
 | `canInstallPackages()` | Settings/import views ask whether managed package writes are available on this host | Synchronous capability only. Does not test storage health, permissions, file availability or engine compatibility. |
-| `loadPackages()` | Overview, details and stored-file profile selection await initial discovery | Shares the actual pending read, or reuses an already loaded list. Rejects discovery failure so the view can offer Retry. |
-| `refreshPackages()` | Explicit Refresh or retry rereads package folders | Replaces the transient list only on success; preserves the last successful list on failure. Does not change a profile draft. |
+| `refreshPackages()` | Overview, details, profile and import views await discovery; Refresh and discovery Retry use the same action | Reads package folders and replaces the transient list only on success; preserves the last successful list on failure. Shares the actual pending discovery where no queued mutation intervenes. Does not skip a read because an earlier list exists or change a profile draft. |
 | `listPackages()` | Overview and profile file selector read the loaded folders/files | Synchronous read of current memory; no I/O. An empty result before load is not proof that storage is empty. |
 | `getPackage(packagePath)` | Details and Create profile look up one loaded folder | Synchronous exact-path lookup, returning undefined when absent. No discovery, registration or fallback selection. |
 | `browseEngineFile(startDirectory?)` | Profile Browse awaits the chosen executable/script path | Opens the existing file dialog through the service. Returns a path only; cancellation leaves the local form intact. |
@@ -297,38 +301,48 @@ getProcessManager(clientType: EngineClientType): IProcessManager;
 // IStorageAdapter: existing contract, unchanged.
 showOpenDialog(startDirectory?: string): Promise<string>;
 
-// IProcessManager: existing lifecycle; only the path parameter wording changes.
-spawnProcess(entryPath: string, args?: string[]): Promise<ProcessHandle>;
-assertProcessHandleOpen(processHandle: ProcessHandle): void;
-stopProcess(processHandle: ProcessHandle): Promise<void>;
-restartProcess(processHandle: ProcessHandle, entryPath: string, args?: string[]): Promise<ProcessHandle>;
+// IProcessManager: existing signatures; path wording changes and stop becomes idempotent.
+spawnProcess(entryPath: string, args?: string[]): Promise<IProcess>;
+assertProcessOpen(process: IProcess): void;
+stopProcess(process: IProcess): Promise<void>;
+restartProcess(process: IProcess, entryPath: string, args?: string[]): Promise<IProcess>;
 ```
 
-Both enum-keyed getters use one composition table pairing IEngineClient with IProcessManager. Desktop registers native and Worker pairs; browser registers its supported Worker pair. Unsupported types fail explicitly through existing error handling. A handle remains opaque and is used only with the pair selected for its owning assignment.
+Both enum-keyed getters use one composition table pairing IEngineClient with IProcessManager. Desktop registers native and Worker pairs; browser registers its supported Worker pair. Unsupported types fail explicitly through existing error handling. The runtime stores the exact IProcess returned by spawnProcess and passes it to the pair selected by the assignment's copied clientType. The shared process contract, optional streams and exit-listener signatures are unchanged.
+
+stopProcess resolves when its resource is already stopped instead of throwing InvalidProcessHandle. Its implementation uses a non-throwing closed-resource check before waiting; it does not call assertProcessOpen. The required IProcess parameter is unchanged. If no process reference exists, the runtime's existing cleanup already skips the manager call.
 
 getEngineClient(clientType) returns the protocol/session owner; getProcessManager(clientType) returns the physical process/Worker lifecycle owner from that same pair. EngineRuntimeService calls both using the assignment's copied enum value. These getters return composed capabilities; none installs files, starts engines or resolves a profile.
 
 ### Platform composition only
 
-After the dependency correction introduces inheritance, this package rework gives the private UCI base its registered client enum value. The subclass supplies that value through super; transport lookup remains a protected override:
+Both clients already inherit the shared UCI base. This package rework adds only its registered client enum value; the existing protected hooks and direct process I/O remain:
 
 ```ts
-// Private implementation outline; existing operations/helpers are omitted.
-abstract class UciEngineClientBase {
+// Implementation outline; existing operations/helpers are omitted.
+abstract class UciEngineClientBase implements IEngineClient {
   protected constructor(private readonly _clientType: EngineClientType) {}
-  protected abstract _resolveTransport(handle: ProcessHandle): IUciTransport | undefined;
+  protected abstract _isProcessOpen(process: IProcess): boolean;
+  protected abstract _getProcessExitDetail(process: IProcess): string | undefined;
 }
 ```
 
-The browser subclass calls super(EngineClientType.UciWorker), and the base's private assignment guard uses that value. It receives no transport service or resolver callback. The subclass keeps the registry lookup private behind its protected hook; composition retains the existing browser Pinia façade and the matching client/process-manager pair. The restored native client factory is unchanged. This enum configuration belongs to the package rework, not the preceding dependency correction.
+NwjsUciEngineClient calls super(EngineClientType.Uci); BrowserUciEngineClient calls super(EngineClientType.UciWorker). The base's private assignment guard and corresponding private assignment type follow that registered value. The subclasses retain their two existing hook implementations and receive no process manager, transport service or resolver callback. Each platform store continues to construct markRaw(new ClientClass()) and return that actual instance through getEngineClient; its binding table pairs the instance with the appropriate manager. No separate client store, factory or method-binding object is added. Enum configuration is the only new base change in this package rework.
+
+For desktop Worker loading, use a private NwjsWorkerProcessManager implementation extending BrowserProcessManager. It overrides only the existing _resolveWorkerUrl hook, whose visibility becomes protected; lifecycle, package preparation and Worker construction stay in the parent. The NW.js implementation uses the existing NodeUtility module-loading boundary for filesystem-path conversion. BrowserProcessManager itself gains no Node imports, host switch, injected resolver or new public operation. Host composition chooses the implementation once: desktop registers this subclass for UciWorker, browser registers BrowserProcessManager. Both satisfy the unchanged IProcessManager contract.
+
+Each platform store registers its Worker manager's dispose with onScopeDispose during setup. Preserve the browser platform's existing registration; add the equivalent registration for the new desktop Worker-manager instance. This covers private preparation ownership as well as live Workers, without changing native process shutdown or application-close policy.
 
 ### Proposed private helpers
 
-BrowserProcessManager owns _prepareEntry as a private method called only by spawnProcess. It resolves the actual script URL and retains its resources: app-shipped/desktop files use their real locations, and browser-stored files use service-worker readiness plus a package lease. Its result stays inside the process manager, which transfers the release callback to its Worker-close handler and releases on failed construction. This is not an injected entry-preparation callback, an IProcessManager operation, or an API on IPlatformService, EnginesStore or EnginePackageService. File/app URL resolution stays in the process manager; stored file reads belong to EnginePackageService. No package operation is added to the platform contract.
+BrowserProcessManager owns _prepareEntry as a private method called only by spawnProcess. It resolves the actual script URL and retains its resources: app-shipped/desktop files use their real locations, and browser-stored files use service-worker readiness plus a package lease. Its result stays inside the process manager, which adds resource release to its existing process exit listener and releases directly on failed construction. BrowserWorkerProcess still takes only a Worker and knows nothing about package leases. This is not an injected entry-preparation callback, an IProcessManager operation, or an API on IPlatformService, EnginesStore or EnginePackageService. File/app URL resolution stays in the process manager; stored file reads belong to EnginePackageService. No package operation is added to the platform contract.
 
 | Helper | Purpose and outcome |
 | --- | --- |
 | `BrowserProcessManager._prepareEntry(entryPath: string): Promise<{ url: URL; release(): void }>` | Private spawn helper. Returns the supplied entry URL and an owned resource-release callback; never persists either or chooses a profile. Preparation failure releases anything already acquired. |
+| `BrowserProcessManager._resolveWorkerUrl(entryPath: string): URL` | Existing URL resolver becomes protected for the desktop override. The browser implementation retains same-origin HTTP(S) loading and rejects local executable/filesystem targets. It handles supplied filenames rather than the old Stockfish alias. |
+| `NwjsWorkerProcessManager._resolveWorkerUrl(entryPath: string): URL` | Private platform implementation of that protected hook. Converts absolute filesystem paths to file URLs and resolves bundled/app-relative entries against the real app base. Does not copy files, serve them through IndexedDB or select a profile. |
+| `NodeUtility.getNodeUrl()` | Implementation-support addition alongside getNodePath/getNodeFs, exposing the existing Node url module through the same module-loading/override mechanism. Used only by NW.js path resolution; no Node type crosses the shared process/platform contracts. |
 | `EnginesStore._queuePackageWork(action)` | Serialises actual package reads/writes. Returns the action's result/failure while keeping a settled queue tail for the next action. No persistent jobs or new runtime queue. |
 | `EnginesStore._readPackages()` | Calls service.listPackages and replaces the transient list only after success. Used inside queued actions so they do not queue themselves again. |
 | `EnginePackageService._readPackage(packagePath)` | Builds one transient stored-folder result from the folder name and actual filenames. Per-folder read failures become warnings. No metadata parsing. |
@@ -336,6 +350,7 @@ BrowserProcessManager owns _prepareEntry as a private method called only by spaw
 | `EnginePackageService._listStoredFiles(packagePath)` | Enumerates filenames under one exact stored root without loading contents. |
 | `EnginePackageService._decodeArchive(file, signal)` | Uses the ZIP reader to turn original archive bytes into relative file paths/bytes. Returns files only; it does not infer a Worker, select a destination or install anything. |
 | `EnginePackageImportView._validateEngineName(engineName)` | Private frontend form helper for name-format rules and case-insensitive uniqueness against the already loaded engine list, including the bundled folder. Supplies the inline field error and Install eligibility; submission stops on an invalid/duplicate name before calling the store. No store/service name validation is added. |
+| `EnginePackageImportView._refreshPackages()` | Private mount/Retry action. Awaits refreshPackages and marks the local folder list ready only on success. Shares its actual pending action within the view; failure retains the visible list with Retry and disables Install. No new store API or watcher. |
 | `EnginePackageService._validatePackageFiles(archive)` | Checks the decoded file set and its path boundaries. Rejects invalid/conflicting paths without adding a manifest or starting an engine. |
 | `EnginePackageService._assertPackageUnreferenced(packagePath, references)` | Rejects deletion with the names of current profile/game references inside that exact folder. Active leases are checked by the service's private deletion claim. |
 
@@ -355,6 +370,8 @@ The following helpers stay inside their named owner. EnginePackageServiceWorker 
 | `EnginePackageServiceWorker._servePackageFile(request: Request): Promise<Response>` | _onPackageFetch reads original bytes through EnginePackageService.readFile and constructs the MIME/status response. |
 
 The page's Worker manager and package service use the same implementation-only resource state already required by leases/removal, held in a shared support module rather than obtained from a platform getter. It contains the live lease objects and deletion claims, without another class, service or callable interface. BrowserProcessManager owns lease additions/releases; EnginePackageService owns deletion claims. Each checks the other's ownership synchronously before claiming its resource. The service-worker context uses only EnginePackageService.readFile and does not access page resource state, runtime state or Pinia stores. No lease or registration operation is added to the public engine/runtime APIs.
+
+BrowserProcessManager owns one private _lifetime AbortController for the manager's entire lifetime. Its signal controls preparation and the existing shared registration/control wait. It is not a per-request counter or another process registry. Disposal aborts this owner before closing existing processes; spawn checks it before preparation and immediately after awaiting preparation, releasing any returned preparation if disposal won. There is no await between that final check and Worker construction, exit-listener registration and ownership transfer. A disposed manager rejects later spawns through the existing process-start error contract.
 
 ### Existing runtime boundary
 
@@ -393,7 +410,7 @@ Edit branch:
 | `EngineProfileView._load()` |
 | --- |
 | `SettingsStore.loadSettings()` |
-| `EnginesStore.loadPackages()` |
+| `EnginesStore.refreshPackages()` |
 
 Vue invokes the private _load callback through onMounted; it is not a component API. New/edit/copy mode comes from the route. After settings load, copy the selected draft record and options into the local form, or show the missing-profile state. Then await package discovery separately; its failure offers Retry for file choices without hiding the editable form/current path. Read listPackages for the file selector, and getPackage only when resolving a packagePath hint. This also works for a direct profile URL without first visiting the overview. Stored package targets are chosen from the discovered files; selecting one changes the local entryPath only.
 
@@ -440,18 +457,25 @@ These are the existing settings calls. Their [persistence flow](LowLevel/Process
 
 | `EnginePackageDetailsView._load()` |
 | --- |
-| `EnginesStore.loadPackages()` |
+| `EnginesStore.refreshPackages()` |
 | `EnginesStore.getPackage(packagePath)` |
 
 The details view registers its private _load callback with onMounted. For the overview, SettingsView's mount/category route-update handler explicitly invokes its private _loadEnginePackages callback for the engines category. Refresh explicitly calls refreshPackages. No watcher or polling is involved.
 
-First load:
+Import owns its own initial discovery, including direct import URLs:
 
-| `EnginesStore.loadPackages()` |
+| `EnginePackageImportView setup` |
+| --- |
+| `onMounted(_refreshPackages)` |
+
+| `EnginePackageImportView._refreshPackages()` |
 | --- |
 | `EnginesStore.refreshPackages()` |
+| `EnginesStore.listPackages()` |
 
-Already loaded or loading: return the current result or actual shared discovery promise; do not start another read.
+The private action closes the view's discovery-ready gate before starting and opens it only after a successful fresh read. It keeps one actual pending read action; Retry awaits a new attempt after failure. Initial loading, a failed refresh or an outstanding package mutation disables Install, even when a previous list remains visible. The import view does not depend on SettingsView having loaded first. After discovery succeeds, name validation uses that already loaded list without another store/service name check.
+
+Initial discovery and later refreshes use the same action. Concurrent callers share the actual queued/running discovery promise when no mutation has been queued between them; a refresh requested after a mutation awaits a read after that mutation. An earlier successful list does not skip discovery.
 
 | `EnginesStore.refreshPackages()` |
 | --- |
@@ -553,9 +577,11 @@ _decodeArchive uses the ZIP reader to return the supplied relative paths and byt
 | `ObjectStore.put(file, [packagePath, relativePath])` for each supplied file |
 | `transaction completion/abort/error events` |
 
-The view stops submission if name-format or uniqueness validation fails, using its already loaded engine list. The service derives the managed root from the frontend-validated engineName and writes the files directly; it repeats neither name check. The store retains the returned packagePath, refreshes discovery, then returns that same path to the view for Create profile. No vendor name/version or ZIP filename determines the destination.
+The view stops submission unless discovery succeeded, a decoded archive is ready and no file/discovery action is outstanding, then validates name format and uniqueness against its already loaded list. Starting installation closes its local discovery-ready gate until the store's post-write discovery succeeds. The service derives the managed root from the frontend-validated engineName and writes the files directly; it repeats neither name check. The store retains the returned packagePath, refreshes discovery, then returns that same path to the view for Create profile. No vendor name/version or ZIP filename determines the destination.
 
 Reject an unsupported host and check cancellation before issuing the transaction. Once issued, the service's returned promise stays owned until the actual transaction commits or aborts. A cancellable transaction may abort, but rejecting a UI promise alone does not settle publication. Atomic commit publishes all original files; failure/abort publishes none. Discovery runs afterwards, with no catalogue or manifest publication. A discovery failure after commit reports that the files were saved and the list needs Retry; it does not claim installation rolled back.
+
+On discovery failure, the import view keeps Install disabled and offers _refreshPackages as Refresh/Retry. For a committed install, retry only discovery; do not reissue publication. After a failed write, require successful discovery and repeat frontend validation before another Install. This avoids treating the retained pre-commit list as authoritative without adding backend name validation or replacement semantics.
 
 Shared sequencing helper:
 
@@ -656,56 +682,120 @@ The runtime call-site edits are limited to those named under [Implementation bou
 | --- |
 | `same binding table lookup by clientType` |
 
-The client lookup already takes clientType. Add that argument to the manager lookup at the listed call sites so startup, handle checks and release use the same registered pair. Never infer the pair from a handle or package source.
+The client lookup already takes clientType. Add that argument to the manager lookup at the listed call sites so startup, process validation and release use the same registered pair. Keep the returned IProcess in runtime.process. Never infer the pair from a process reference or package source.
+
+Desktop Worker binding during platform-store setup:
+
+| `NwjsPlatformService setup: UciWorker binding` |
+| --- |
+| `new NwjsWorkerProcessManager()` |
+| `markRaw(new BrowserUciEngineClient())` |
+| `onScopeDispose(() => workerProcessManager.dispose())` |
+
+Browser Worker binding during platform-store setup:
+
+| `BrowserPlatformService setup: UciWorker binding` |
+| --- |
+| `new BrowserProcessManager()` |
+| `markRaw(new BrowserUciEngineClient())` |
+| `onScopeDispose(() => workerProcessManager.dispose())` |
+
+The browser registration is existing behaviour; extend the same ownership to the desktop Worker binding. The callback closes that store's exact manager instance, including pending preparation. Retain existing journey overrides and all unrelated platform subscriptions. The native Uci binding continues to use its existing process manager and NwjsUciEngineClient.
 
 ### Worker creation and stored-file serving
 
-Native Uci processes retain their existing spawn/transport implementation; only the path parameter wording follows entryPath. No executable copying, package registration or native lifecycle change is added.
+Native Uci processes retain their existing spawn implementation, original IProcess reference and shared-base client I/O; the path parameter wording follows entryPath. stopProcess gains the idempotent behaviour specified below. No executable copying, package registration or other native lifecycle change is added.
 
 UciWorker branch, using the existing BrowserProcessManager with private entry preparation:
 
 | `BrowserProcessManager.spawnProcess(entryPath, args)` |
 | --- |
+| `_lifetime.signal.throwIfAborted()` |
 | `BrowserProcessManager._prepareEntry(entryPath)` |
-| `BrowserProcessManager._createWorker(prepared.url)` |
-| `new BrowserUciTransport(worker, _onWorkerClosed)` |
+| `_lifetime.signal.throwIfAborted()` after awaiting preparation |
+| `new Worker(prepared.url, { name: 'ChessVue UCI' })` |
+| `new BrowserWorkerProcess(worker)` |
+| `markRaw(process)` |
+| `process.once('exit', _onProcessExit)` |
 
-Reject unsupported arguments before preparation. BrowserProcessManager._prepareEntry returns the real URL/resource release callback; the chosen entry keeps its upstream name/layout. Record the new handle/transport in the manager's private _registry immediately after construction. _createWorker is the existing private constructor-supplied Worker factory. _onWorkerClosed is a local closure passed to the transport's existing private _onClosed callback field; neither is another public method. Failed Worker/transport construction terminates any created Worker and releases prepared resources before returning the existing process-start error. A successful spawn transfers that release callback to _onWorkerClosed. Remove the old Stockfish alias/path special case.
+Reject unsupported arguments and a disposed lifetime before preparation. Retain the returned preparation inside the spawn's cleanup scope, then check the same lifetime immediately after the await. If disposal occurred, release that preparation and reject without creating a Worker. The chosen entry keeps its upstream name/layout. Add the raw BrowserWorkerProcess to the existing _processes disposal set and return that same reference as IProcess. _onProcessExit is the manager's local exit listener, expanded under resource release below; it removes the process from that set and releases prepared resources. It is registered on the process, not passed to its constructor. Worker construction remains a direct new Worker call, with no injected factory or transport registry.
+
+A successful spawn transfers resource-release ownership to that exit listener. If construction fails before that transfer, terminate the created Worker and release prepared resources directly before returning the existing process-start error. Do not release the same preparation through both failure cleanup and the exit listener. Remove the old Stockfish alias/path special case.
 
 App-shipped or desktop file branch:
 
 | `BrowserProcessManager._prepareEntry(entryPath)` |
 | --- |
-| `new URL(resolvedEntryPath, appBaseUrl)` |
+| `this._resolveWorkerUrl(entryPath)` |
 
-Desktop resolves external paths using its existing filesystem capabilities. Bundled entries keep their app URL. This branch needs no browser package-service registration or stored-file lease; return the resolved URL and the corresponding resource release callback.
+Return the resolved URL and a no-op release callback; these original files have no managed lease. This branch does not register a service worker, read IndexedDB or copy desktop files. appBaseUrl is the actual app base derived from document.baseURI and import.meta.env.BASE_URL, not a filesystem working directory.
+
+Resolve through the selected manager's hook before classifying a path as a stored virtual file. A native filesystem target becomes a file URL and cannot fall into the browser IndexedDB/service-worker branch because its raw path resembles the managed namespace. Bundled profiles use an app-relative filename without a leading filesystem separator, keeping POSIX absolute paths unambiguous.
+
+Browser URL branch:
+
+| `BrowserProcessManager._resolveWorkerUrl(entryPath)` |
+| --- |
+| `new URL(entryPath, appBaseUrl)` |
+
+Retain same-origin HTTP(S) checks and existing rejection of local filesystem/executable targets. Remove the Stockfish alias mapping; the default profile supplies its real app-relative script path. Browser-stored paths take the separate virtual-file branch below.
+
+Desktop absolute-filesystem branch, selected before URL parsing:
+
+| `NwjsWorkerProcessManager._resolveWorkerUrl(entryPath)` |
+| --- |
+| `NodeUtility.getNodePath()` |
+| `path.isAbsolute(entryPath)` |
+| `NodeUtility.getNodeUrl()` |
+| `nodeUrl.pathToFileURL(entryPath)` |
+
+Use the host's path rules for drive-letter, UNC and POSIX absolute paths. For example, D:/Chess Engines/lozza.js becomes file:///D:/Chess%20Engines/lozza.js on Windows. Node's [pathToFileURL](https://nodejs.org/api/url.html#urlpathtofileurlpath-options) performs path conversion and URL escaping; do not feed a Windows path directly to new URL, prepend file:// by hand or turn a POSIX path into an app HTTP request. The profile retains the original filesystem path, and sibling resources resolve against the resulting file URL.
+
+Desktop app-relative/explicit-URL branch:
+
+| `NwjsWorkerProcessManager._resolveWorkerUrl(entryPath)` |
+| --- |
+| `NodeUtility.getNodePath()` |
+| `path.isAbsolute(entryPath)` |
+| `new URL(entryPath, appBaseUrl)` |
+
+For non-filesystem input, resolve an app-relative entry against the actual app URL. Allow file URLs for local entries and the current app's chrome-extension URL for bundled files, comparing protocol and host explicitly for the extension scheme; same-origin HTTP(S) remains available when that is the app host. Reject other schemes or foreign web/extension origins through the existing process-start error. Absolute filesystem detection precedes this branch so a drive letter is never treated as a URL scheme. Keep these host details in the private desktop override; neither a host-specific public API nor a resolver callback is added.
+
+URL conversion alone does not prove Worker loading permissions. Verify original scripts and sibling WASM/importScripts resources from outside the app directory in a real packaged NW.js node frame, as well as bundled app URLs. NW.js documents [node-frame privileges](https://docs.nwjs.io/For%20Users/Advanced/Security%20in%20NW.js/); this plan does not infer that a browser HTTP development page has the same file access. Do not add a local server, copy external files or change NW.js flags as an implicit fallback. Any additional host requirement must be raised before implementation proceeds beyond this verification gate.
 
 Browser-stored user package branch:
 
 | `BrowserProcessManager._prepareEntry(entryPath)` |
 | --- |
+| `this._resolveWorkerUrl(entryPath)` |
 | `BrowserProcessManager._ensurePackageServing()` |
+| `_lifetime.signal.throwIfAborted()` after awaiting readiness |
 | `BrowserProcessManager._acquirePackageLease(packagePath)` |
 | `new URL(encodedPackageFilePath, appBaseUrl)` |
 
-Resolve the virtual entry into its exact user package root and relative path. Encode each path component into the reserved engine-files URL, retaining the directory hierarchy. Return that URL and the acquired lease's release callback. Release an acquired lease if later preparation fails. The lease lasts until Worker closure, covering later relative asset requests as well as initial script/WASM loading. Missing files remain normal launch errors, not installation/profile-save probes.
+Resolve the virtual entry into its exact user package root and relative path. Encode each path component into the reserved engine-files URL, retaining the directory hierarchy. Return that URL and the acquired lease's release callback. Release an acquired lease if later preparation fails. The lease lasts until managed process closure, covering later relative asset requests as well as initial script/WASM loading. Missing files remain normal launch errors, not installation/profile-save probes.
 
 Initial registration or retry branch:
 
 | `BrowserProcessManager._ensurePackageServing()` |
 | --- |
+| `_lifetime.signal.throwIfAborted()` |
 | `navigator.serviceWorker.register(appServiceWorkerUrl, { scope: appBaseUrl })` |
+| `_lifetime.signal.throwIfAborted()` after awaiting registration |
 | `BrowserProcessManager._waitForPackageControl(registration)` |
 
 Share the actual pending readiness promise; do not duplicate registration waits. If the matching active registration already controls the document, return without another wait. Unsupported/failed registration rejects through existing process-start handling. A failed attempt clears its operation owner so another engine retry can try again.
 
 | `BrowserProcessManager._waitForPackageControl(registration)` |
 | --- |
+| `_lifetime.signal.addEventListener('abort', _onDisposed, { once: true })` |
 | `navigator.serviceWorker.addEventListener('controllerchange', _onControlChanged)` |
 | `installingWorker.addEventListener('statechange', _onStateChanged)` when activation is pending |
 | `setTimeout(_onReadinessTimeout, readinessTimeoutMs)` |
 
-The underscore-prefixed listener/timer callbacks are local to this owned wait. Install listeners before checking current state to close the observation gap. Resolve only when the active worker for this registration controls the current app document; a different registration's controller is insufficient. Reject activation failure, timeout or platform-owner disposal. Remove listeners and clear the timer on every outcome. This is one bounded, event-owned wait, without polling or generation counters. spawnProcess retains its existing public signature and captures any late successful handle for normal disposal.
+The underscore-prefixed listener/timer callbacks are local to this owned wait. Install listeners before checking current state to close the observation gap. Resolve only when the active worker for this registration controls the current app document; a different registration's controller is insufficient. Reject activation failure, timeout or _onDisposed with the lifetime's existing process-start error. Remove all listeners, including abort, and clear the timer on every outcome. Browser registration itself is not cancellable: keep observing its actual result, but check the lifetime before starting another wait, acquiring a lease or constructing a Worker. This is one bounded, event-owned wait, without polling or generation counters.
+
+Manager disposal and ordinary runtime cancellation are distinct boundaries. Disposal prevents later Worker construction, including when _prepareEntry resolved just before disposal and its spawn continuation has not resumed. Cancellation of one runtime retains the existing late-process cleanup without cancelling the shared manager or another assignment's readiness work. No cancellation parameter is added to spawnProcess.
 
 App-owned service-worker activation:
 
@@ -746,41 +836,82 @@ Requests outside the reserved prefix use the ordinary network/app path, includin
 
 Decode URL components once and reject invalid names, encoded separators or paths escaping the selected package. The URL maps to actual files, not an installation id or generated manifest. GET responses supply original bytes with a MIME type derived from the filename, including text/javascript for scripts and application/wasm for WASM, and no-store caching. The worker entry point calls EnginePackageService.readFile, which reads IndexedDB directly. This path does not initialise page-platform composition, application stores or engine clients.
 
-Malformed paths, absent files, unsupported methods and storage failures produce explicit HTTP errors. Never substitute the app HTML page, another engine or a network-fetched replacement. The existing Worker/transport/client error flow reports loading failures and releases the package lease through the manager's _onWorkerClosed callback. A missing sibling resource therefore fails that engine's normal startup rather than leaving a partially initialised session silently running.
+Malformed paths, absent files, unsupported methods and storage failures produce explicit HTTP errors. Never substitute the app HTML page, another engine or a network-fetched replacement. Observed Worker errors use the existing process/client error flow: BrowserWorkerProcess closes and its exit notification invokes the manager's _onProcessExit listener to release the package lease. Do not add a Worker message protocol or modify served package scripts to report failures.
 
 The build emits the service-worker handler as an app-owned asset at its stable app-relative URL for both development and production. Its filename is unrelated to vendor entry filenames. File storage schema and package names remain the current unreleased format; this adds no migration helper or persisted loading descriptor.
 
-| `browser IEngineClient implementation: BrowserUciEngineClient constructor(registry)` |
+| `BrowserUciEngineClient constructor()` |
 | --- |
 | `super(EngineClientType.UciWorker)` |
 
-The preceding correction owns the private inheritance and Pinia binding design. This package change replaces its fixed Uci guard with the registered enum value supplied to the base. The concrete subclass keeps its registry private and overrides the protected lookup; no service/resolver is passed to the base. The restored native client does not inherit this base. No separate protocol discriminator is added.
+| `NwjsUciEngineClient constructor()` |
+| --- |
+| `super(EngineClientType.Uci)` |
 
-The base's only package-rework change is that enum parameter and assignment guard. Existing handshake, option application, analysis/player operations, parsing, stop acknowledgement and session cleanup remain unchanged; they are not expanded here. Worker writes still use Worker.postMessage(command), and string message events still feed the existing client parser.
+Both subclasses already exist and inherit UciEngineClientBase. Their constructors supply the new registered enum parameter; the existing _isProcessOpen and _getProcessExitDetail overrides are unchanged. Both retain inherited initialisation. The platform store constructs each client with markRaw and retains it in the corresponding enum-keyed binding. getEngineClient returns that same plain instance. No process registry, client Pinia facade, resolver injection or separate protocol discriminator is added.
+
+The base's only package-rework change is that enum parameter and its private assignment guard/type. Existing handshake, option application, analysis/player operations, parsing, stop acknowledgement and session cleanup remain unchanged; they are not expanded here. BrowserWorkerProcess still turns stdin lines into Worker.postMessage(command), and string message events into stdout chunks for the base's existing line parser. Native streams continue through that same base I/O.
 
 ### Worker resource release
 
-Existing runtime stop/restart/disposal reaches the process manager through its unchanged lifecycle. Only the enum-keyed manager lookup changes as listed above. The Worker-specific resource release added by this rework is expanded below.
+Existing runtime stop/restart/disposal reaches the process manager through its unchanged public signatures. Only its enum-keyed lookup changes in EngineRuntimeService. The manager adds preparation lifetime cancellation and prepared.release() in its existing process exit listener. stopProcess returns successfully for an already-stopped resource; its live-process shutdown sequence, restart sequencing and the wrapper's managed closure are retained.
 
-Worker physical shutdown:
+Live browser process branch:
 
-| `BrowserProcessManager.stopProcess(handle)` |
+| `BrowserProcessManager.stopProcess(process)` |
 | --- |
-| `BrowserProcessManager._requireTransport(handle)` |
-| `BrowserUciTransport.terminate()` |
+| `new Promise<void>(...)` |
 
-| `BrowserUciTransport.terminate(detail)` |
+| `BrowserProcessManager.stopProcess: Promise executor` |
 | --- |
-| `Worker.removeEventListener(...)` for message/error/messageerror |
-| `Worker.terminate()` |
-| `BrowserUciTransport._onClosed()` |
-| `registered exit listeners(detail)` |
+| `process.once('exit', () => resolve())` |
+| `process.kill()` |
 
-| `BrowserProcessManager.spawnProcess: local _onWorkerClosed()` |
+Already-stopped browser branch: if the reference is not a BrowserWorkerProcess or its closed flag is set, return successfully without installing an exit listener or calling kill. No further calls are made. The existing exit listener has already released any preparation for a closed wrapper.
+
+Native process branch:
+
+| `NwjsProcessManager.stopProcess(process)` |
+| --- |
+| `NwjsUtility.isProcessOpen(process)` |
+| `new Promise<void>(...)` when still open |
+
+| `NwjsProcessManager.stopProcess: Promise executor` |
+| --- |
+| `process.once('exit', () => resolve())` |
+| `process.kill()` |
+
+If the existing native liveness utility returns false, return successfully before constructing the promise. Neither stop implementation calls assertProcessOpen or rejects solely because its resource has already stopped. Exit events are not replayed, so the closed branch must return instead of waiting for another event. Existing runtime session cleanup continues normally, and its handling of InvalidProcessHandle elsewhere is retained.
+
+The terminal process.kill call uses the existing [BrowserWorkerProcess implementation support](LowLevel/Architecture/UtilityIndex.md#browserworkerprocess). Its private _close marks it closed, retains exit detail, detaches Worker handlers, terminates the Worker and notifies exit listeners with (null, null), then clears listeners/input. Repeated kill returns false without another notification. Observed error/messageerror and postMessage failures use that same closure. This support object is not an architecture-flow owner, so it has no separate caller tables here. Managed closure is not a physical Worker-exit acknowledgement.
+
+Manager-owned exit listener, registered during spawn:
+
+| `BrowserProcessManager.spawnProcess: local _onProcessExit()` |
 | --- |
 | `prepared.release()` |
 
-The transport invokes its private _onClosed callback field, which is the manager's passed _onWorkerClosed closure. That closure deletes the handle from the manager's private _registry before releasing prepared resources. terminate marks the transport closed before callbacks, retains exit detail, then clears listener sets after exit notification. Repeated termination is a no-op. Existing Worker error/messageerror handlers enter this same termination path. Failed startup, normal stop, crash and restart therefore release the actual prepared resources, while other assignments keep their own handles/leases. Stored-engine URLs use the selected service worker; _onWorkerClosed releases the package lease without unregistering that shared handler. Runtime verification remains outstanding.
+The listener removes the exact process from _processes before releasing its preparation. This extends the manager's existing exit listener; BrowserWorkerProcess has no release callback or package dependency. The set is used only to dispose live wrappers, never to resolve a process reference.
+
+Existing restart:
+
+| `BrowserProcessManager.restartProcess(process, entryPath, args)` |
+| --- |
+| `BrowserProcessManager.stopProcess(process)` |
+| `BrowserProcessManager.spawnProcess(entryPath, args)` |
+
+Await stop before spawning the replacement. If the old process already stopped, stop resolves and restart still spawns the replacement. A live old process releases its lease through its exit listener; a closed one has already released it. The new spawn owns a separate preparation.
+
+Platform disposal, including pending preparation:
+
+| `BrowserProcessManager.dispose()` |
+| --- |
+| `_lifetime.abort(processStartFailure)` |
+| `process.kill()` for each process in a snapshot of _processes |
+
+Create processStartFailure through the existing ProcessStartFailed/operation=spawnProcess error contract. Aborting the lifetime first settles any owned control wait and prevents resumed preparation from starting a Worker. A preparation already returned at the await boundary is released by spawn's cleanup; preparation still in progress observes the abort before claiming a lease and releases anything it has acquired. An unavoidable late registration result remains observed without starting further work; a spawn waiting on that browser call rejects when the call settles, with no Worker created. dispose remains synchronous and repeated disposal is harmless; no new public shutdown API or promise is added.
+
+Failed preparation/construction releases directly before exit-listener ownership is transferred. After successful spawn, normal stop, observed Worker failure, runtime cleanup and platform disposal release through that one exit listener. Other assignments retain their own process references and leases. Releasing one package lease does not unregister the shared service worker. Real stored-package runtime verification remains outstanding.
 
 ## Current contract changes and delivery
 
@@ -799,4 +930,15 @@ Profiles and assignments store the exact entry path, client type, label and opti
 | 4. Composition/defaults | Matching client/resource owners, ordinary bundled files/profile | Native/browser runtimes coexist with isolated stop/crash/restart; default uses same loader. |
 | 5. Acceptance | Forms, focused tests, browser/NW.js journeys and architecture docs | Exact entry selection, Apply/Cancel, recovery and reference checks; separate simulation from real runtime results. |
 
-Cover unique/invalid engine names, folder-name display, ambiguous multi-build archives, Node-only metadata entries, helper-worker confusion, different layouts/names, absent scripts/assets, path traversal, external changes, missing/foreign-host paths, cancellation/disposal and ignored protocol removal. Run `npm run check:code`, focused Vitest suites, affected Playwright journeys and `npm run build` after implementation. Real NW.js mixed-engine acceptance remains required. This is a plan and simulated design, not implemented engine loading.
+Review-fix acceptance to run after implementation; these are requirements, not completed results:
+
+| Area | Required evidence |
+| --- | --- |
+| Preparation/disposal | Dispose during registration, control wait, after preparation resolves but before its continuation, and with immediately resolved bundled preparation. No Worker is created after disposal, acquired leases release once and later spawn calls reject. Noncancellable registration results remain observed. |
+| Platform composition | Disposing either platform store closes that store's Worker manager and pending preparation; other assignments/platform instances retain their own resources. Native spawn behaviour and the two native UCI hooks are unchanged. |
+| Idempotent stop | Both managers return successfully for an already-stopped resource without waiting for another exit or killing it again. A live stop still subscribes before kill and awaits exit. Repeated stop after closure succeeds, and restart from a closed process still spawns the replacement. |
+| Desktop entry URLs | Verify drive-letter/UNC/POSIX paths, spaces, Unicode, percent/hash characters, bundled app-relative entries and rejection of unsupported URLs. Real packaged NW.js loads a supplied entry outside the app directory with sibling scripts/WASM and ordinary analysis/play; URL-unit checks alone are insufficient. |
+| Frontend discovery eligibility | A direct import URL with delayed/failed discovery cannot install. An empty successful read can enable a valid new name. A committed write followed by failed refresh keeps Install disabled; Retry only discovers files. A failed write requires discovery/name revalidation before another attempt. All name checks remain in the view. |
+| Flow ownership | Stacked tables retain manager/client/platform/view callers; BrowserWorkerProcess stays terminal implementation support. Planned API additions and the unchanged runtime boundary match their declared owners. |
+
+Cover unique/invalid engine names, folder-name display, ambiguous multi-build archives, Node-only metadata entries, helper-worker confusion, different layouts/names, absent scripts/assets, path traversal, external changes, missing/foreign-host paths, cancellation/disposal and ignored protocol removal. Run `npm run check:code`, focused Vitest suites, affected Playwright journeys and `npm run build` after implementation. Real NW.js mixed-engine acceptance remains required. The completed runtime corrections do not establish acceptance of this proposed package, mixed-binding or UI rework.
