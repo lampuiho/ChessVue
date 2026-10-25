@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, isReadonly, nextTick, toRaw } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ThemeMode, type ISettingsSnapshot } from '@/contracts';
+import { PlayerColour, ThemeMode, type IEnginePlayer, type ISettingsSnapshot } from '@/contracts';
+import { createEnginePlayer } from '@/utility/GameCreationUtility';
 import { createSettingsSnapshot, resolveWithRandomDelay } from './StateStoreTestUtility';
 let useSettingsStore: typeof import('..').useSettingsStore;
 let settingsSnapshot: ISettingsSnapshot;
@@ -34,6 +35,7 @@ describe('useSettingsStore', () => {
   it('projects the accepted policy and both configured palettes while edits stay in the draft', async () => {
     const store = useSettingsStore();
     await store.loadSettings();
+    expect(store.hasPendingChanges).toBe(false);
     expect(store.settings?.analysis.engineInventory).toHaveLength(2);
     expect(isReadonly(store.settings)).toBe(true);
     expect(store.draftSettings).not.toBe(store.settings);
@@ -95,6 +97,25 @@ describe('useSettingsStore', () => {
     expect(store.settings?.appearance.themeMode).toBe(ThemeMode.System);
     expect(store.draftSettings?.appearance.themeMode).toBe(ThemeMode.Dark);
     expect(store.hasPendingChanges).toBe(true);
+  });
+  it('isolates default player and analysis snapshots across draft, discard and acceptance', async () => {
+    const engine = settingsSnapshot.analysis.engineInventory[0]!;
+    settingsSnapshot.gameDefaults.blackPlayer = createEnginePlayer(engine, PlayerColour.Black);
+    settingsSnapshot.gameDefaults.analysisEngineProfiles = [{ ...engine, options: { ...engine.options } }];
+    const store = useSettingsStore();
+    await store.loadSettings();
+    (store.draftSettings!.gameDefaults.blackPlayer as IEnginePlayer).assignedEngine.options.Threads = 8;
+    store.draftSettings!.gameDefaults.analysisEngineProfiles[0]!.options.Threads = 4;
+    store.draftSettings!.gameDefaults.timeControl.incrementMs = 2000;
+    expect((store.settings!.gameDefaults.blackPlayer as IEnginePlayer).assignedEngine.options.Threads).toBe(1);
+    expect(store.settings!.gameDefaults.analysisEngineProfiles[0]!.options.Threads).toBe(1);
+    expect(store.settings!.gameDefaults.timeControl.incrementMs).toBe(0);
+    store.discardPendingSettings();
+    expect((store.draftSettings!.gameDefaults.blackPlayer as IEnginePlayer).assignedEngine.options.Threads).toBe(1);
+    store.draftSettings!.analysis.engineInventory.splice(0);
+    await store.applySettings();
+    expect(store.settings!.analysis.engineInventory).toEqual([]);
+    expect(store.settings!.gameDefaults.analysisEngineProfiles[0]!.entryPath).toBe(engine.entryPath);
   });
   it('loads once without querying or subscribing to the host theme', async () => {
     const store = useSettingsStore();

@@ -1,6 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlayerType, TimeControlPreset, type ICreateGameRequest, type IEngineRecord } from '@/contracts';
+import { PlayerColour, PlayerType, TimeControlPreset, type ICreateGameRequest, type IEngineRecord, type IEnginePlayer } from '@/contracts';
+import { createEnginePlayer } from '@/utility/GameCreationUtility';
 import { createEngineRecord, createGame, createSettingsSnapshot } from '@/state/__tests__/StateStoreTestUtility';
 import { reactive, nextTick } from 'vue';
 import { EngineRuntimeService } from '@/domain';
@@ -35,6 +36,22 @@ function _submitButton(): HTMLButtonElement {
   return wrapper.get<HTMLButtonElement>('[form="new-game-form"]').element;
 }
 describe('custom game validation', () => {
+  it('collects Player 1 and Player 2 with random colours and leaves the draw to creation', async () => {
+    wrapper = _mount();
+    const toggle = wrapper.findAll('.toggle-row').find(row => row.text().includes('Randomly assign colours'))!.get('input');
+    await toggle.setValue(true);
+    expect(wrapper.get('#white-player').attributes('aria-label')).toBe('Player 1');
+    expect(wrapper.get('#black-player').attributes('aria-label')).toBe('Player 2');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(dependency.games.createGame.mock.calls[0]![0]).toMatchObject({ randomiseColours: true, whitePlayer: { colour: PlayerColour.White }, blackPlayer: { colour: PlayerColour.Black } });
+  });
+  it('disables random colours when a player is unassigned', async () => {
+    wrapper = _mount();
+    await wrapper.get('#black-player').setValue('none');
+    const toggle = wrapper.findAll('.toggle-row').find(row => row.text().includes('Randomly assign colours'))!.get<HTMLInputElement>('input');
+    expect(toggle.element.disabled).toBe(true);
+  });
   it.each(['', '-1', '0', '601'])('blocks invalid custom minutes %s before starting creation', async (minutes) => {
     wrapper = _mount();
     await wrapper.get('#time-preset').setValue('custom');
@@ -61,10 +78,10 @@ describe('custom game validation', () => {
   });
   it('requires an engine selection when the default engine is missing', async () => {
     const settings = createSettingsSnapshot();
-    settings.gameDefaults.defaultWhitePlayerType = PlayerType.Engine;
+    settings.gameDefaults.whitePlayer = createEnginePlayer({ ...createEngineRecord(), entryPath: '' }, PlayerColour.White);
     wrapper = _mount(settings);
     expect(_submitButton().disabled).toBe(true);
-    expect(wrapper.get<HTMLSelectElement>('#white-player').element.value).toBe('engine:');
+    expect(wrapper.get<HTMLSelectElement>('#white-player').element.value).toBe('keep');
     const engine = createEngineRecord();
     dependency.settings.settings.analysis.engineInventory = [engine];
     await nextTick();
@@ -75,25 +92,45 @@ describe('custom game validation', () => {
     const request = dependency.games.createGame.mock.calls[0]![0];
     expect(request.whitePlayer?.type).toBe(PlayerType.Engine);
   });
-  it('keeps engine defaults assigned and rejects unavailable required profiles', async () => {
+  it('keeps the saved engine configuration after the inventory changes', async () => {
     const settings = createSettingsSnapshot();
-    settings.gameDefaults.defaultBlackPlayerType = PlayerType.Engine;
-    settings.gameDefaults.defaultTimeControl.preset = TimeControlPreset.Untimed;
+    settings.gameDefaults.timeControl.preset = TimeControlPreset.Untimed;
     const engine = createEngineRecord();
+    settings.gameDefaults.blackPlayer = createEnginePlayer(engine, PlayerColour.Black);
     wrapper = _mount(settings, [engine]);
-    expect(wrapper.get<HTMLSelectElement>('#black-player').element.value).toBe(`engine:${engine.id}`);
+    expect(wrapper.get<HTMLSelectElement>('#black-player').element.value).toBe('keep');
     dependency.settings.settings.analysis.engineInventory = [{ ...engine, entryPath: '' }];
     await nextTick();
     await wrapper.get('form').trigger('submit');
     await flushPromises();
-    expect(_submitButton().disabled).toBe(true);
-    expect(dependency.games.createGame).not.toHaveBeenCalled();
+    expect(_submitButton().disabled).toBe(false);
+    expect((dependency.games.createGame.mock.calls[0]![0].blackPlayer as IEnginePlayer).assignedEngine.entryPath).toBe(engine.entryPath);
+  });
+  it('uses accepted snapshot defaults with a custom clock and no surviving source profiles', async () => {
+    const settings = createSettingsSnapshot();
+    const engine = createEngineRecord();
+    settings.gameDefaults.blackPlayer = createEnginePlayer(engine, PlayerColour.Black);
+    settings.gameDefaults.analysisEngineProfiles = [engine];
+    settings.gameDefaults.timeControl = { initialMs: 420000, incrementMs: 3000 };
+    settings.gameDefaults.allowTakeback = false;
+    settings.gameDefaults.showLiveAnalysisMoves = true;
+    wrapper = _mount(settings);
+    dependency.settings.draftSettings = { ...settings, gameDefaults: { ...settings.gameDefaults, name: 'Unsaved name' } };
+    expect(wrapper.get<HTMLInputElement>('#game-name').element.value).toBe('New Game');
+    expect(wrapper.get<HTMLSelectElement>('#time-preset').element.value).toBe('custom');
+    await wrapper.get('input[type="number"]').setValue('8');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    const request = dependency.games.createGame.mock.calls[0]![0];
+    expect(request).toMatchObject({ allowTakeback: false, showLiveAnalysisMoves: true, timeControl: { initialMs: 480000, incrementMs: 3000 }, analysisEngineProfiles: [engine] });
+    expect(settings.gameDefaults.timeControl.initialMs).toBe(420000);
+    expect((request.blackPlayer as IEnginePlayer).assignedEngine).not.toBe((settings.gameDefaults.blackPlayer as IEnginePlayer).assignedEngine);
   });
 });
 
 it('keeps creation failures retryable without navigating or closing, then completes once', async () => {
   const settings = createSettingsSnapshot();
-  settings.gameDefaults.defaultWhitePlayerType = PlayerType.Engine;
+  settings.gameDefaults.whitePlayer = createEnginePlayer(createEngineRecord(), PlayerColour.White);
   wrapper = _mount(settings, [createEngineRecord()]);
   vi.mocked(EngineRuntimeService.getOptions).mockRejectedValueOnce(new Error('Unavailable'));
   await wrapper.get('form').trigger('submit');

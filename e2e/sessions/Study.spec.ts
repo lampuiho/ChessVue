@@ -15,7 +15,8 @@ async function _createNestedStudy(page: Page) {
   const dialog = await openCustomGame(page);
   await dialog.getByLabel('Name', { exact: false }).fill('Nested session study');
   await dialog.getByRole('button', { name: 'Free analysis', exact: true }).click();
-  await dialog.getByRole('checkbox', { name: 'Journey A', exact: true }).check();
+  await dialog.getByLabel('Add analysis engine', { exact: true }).selectOption({ label: 'Journey A' });
+  await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
   await createWorkspace(page);
   await expectOutput(page, ['Journey A']);
   await playSessionMoves(page, studyOpening, ['Journey A']);
@@ -62,7 +63,7 @@ async function _startPreparedGame(page: Page, edited: IGame) {
   const dialog = await openSetupStart(page);
   await setCustomClock(dialog, '3', '2');
   await dialog.getByLabel('Name', { exact: false }).fill('Started session study');
-  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey B' });
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Use profile: Journey B' });
   await expect(dialog.getByRole('checkbox', { name: /Show live analysis moves/ })).toBeChecked();
   await dialog.getByRole('button', { name: 'Start game', exact: true }).click();
   const search = await latestSearch(page, 'player', 'journey://b');

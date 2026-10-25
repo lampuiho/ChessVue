@@ -50,3 +50,7 @@ resetSettings(): Promise<ISettingsSnapshot>
 - Schema parsing is the accepted-settings ownership boundary. The resulting snapshot is cached and returned directly without defensive cloning; `SettingsStore` provides draft isolation through copy-on-write when editing begins. **Why:** parsing already transfers validated ownership to the service, so cloning on every read would replace stable accepted-state identity without protecting against a mutation path; the actual divergence occurs only when a draft edit starts.
 - Build config owns the concrete settings-file path. `UserSettingService` does not decide that path; it only uses it.
 - Future non-desktop implementations may persist accepted settings elsewhere without changing the shared path-based adapter contract.
+
+## Creation defaults
+
+Defaults reuse the existing creation request/schema without `rootPosition`. Built-in values are Local/Local, Untimed, takebacks enabled, live-analysis moves disabled and no analysis engines; the inventory includes bundled Stockfish. Clock, seat colour and unique analysis names are validated before persistence. Engine configurations are stored as snapshots with runtime fields removed; inventory membership is not required. No compatibility conversion is provided for the previous unpublished settings shape.

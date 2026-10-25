@@ -44,3 +44,9 @@ Render user-editable settings and engine inventory management.
 SettingsView remains mounted and renders engine child routes through RouterView. EngineProfileView owns new/edit/copy forms, EnginePackageImportView owns frontend name validation and immediate archive import, and EnginePackageDetailsView lists files and current profile/game references. These are real routes, without an editor modal or hidden full-width modal state. Only file-removal confirmation uses ConfirmationModal.
 
 Profile save changes the Settings draft; Apply/Save persists it. Import/removal changes browser files immediately and rediscovers folders. Desktop browsing points directly at existing executable/script files. See [routes and UI function flows](../../../../EngineManagementUiDesign.md).
+
+## Game defaults
+
+Gameplay edits the complete creation request snapshot without `rootPosition`. Shared GamePlayerField, GameClockFields and AnalysisSnapshotFields render explicit profile-copy/Keep/replace choices, canonical presets and Custom minutes/seconds, takebacks and live-analysis preferences. Field validation blocks invalid Apply/Save without starting engines. Profile deletion leaves copied defaults intact.
+
+Randomly assign colours changes the player labels to Player 1 and Player 2 and seeds both Quick and Custom creation. It is disabled for partial/free-analysis assignments. Applying settings saves the preference without drawing colours.

@@ -21,8 +21,8 @@ test('JRN-SETTINGS-07 stages a profile then applies it to all future assignment 
   expect((await acceptedSettings(page)).analysis.engineInventory.find((engine) => engine.displayName === 'New analyst')?.options).toEqual({ MultiPV: 3, Hash: 32 });
   await returnToGame(page);
   const custom = await openCustomGame(page);
-  await expect(custom.getByLabel('White', { exact: true }).getByRole('option', { name: 'New analyst', exact: true })).toHaveCount(1);
-  await expect(custom.getByLabel('Black', { exact: true }).getByRole('option', { name: 'New analyst', exact: true })).toHaveCount(1);
+  await expect(custom.getByLabel('White', { exact: true }).getByRole('option', { name: 'Use profile: New analyst', exact: true })).toHaveCount(1);
+  await expect(custom.getByLabel('Black', { exact: true }).getByRole('option', { name: 'Use profile: New analyst', exact: true })).toHaveCount(1);
   await custom.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.locator('.player-panel').filter({ has: page.locator('.player-avatar .piece-artwork--white') }).locator('.player-name').click();
   await expect(page.getByRole('radio', { name: /New analyst/ })).toBeVisible();

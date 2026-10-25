@@ -24,8 +24,11 @@ Capabilities, restore guarantees, and deferred ideas are not treated as settings
 | --- | --- |
 | Quick new game name seed | Default label for quick-created games. |
 | Default time control | Default quick-new-game time control. |
-| Default white player type | `local` or `engine`. |
-| Default black player type | `local` or `engine`. |
+| Default white player | Local, unassigned or a complete engine-player snapshot. |
+| Default black player | Local, unassigned or a complete engine-player snapshot. |
+| Randomly assign colours | Labels the participants Player 1 and Player 2 and draws their colours separately for each new game. Saved games retain the resulting assignment. Disabled when either player is unassigned. |
+| Default analysis engines | Up to four engine snapshots, independent of later profile edits or deletion. |
+| Default takeback and live-analysis move preferences | Copied into future games by both Quick and Custom creation. |
 | Analysis branch exit behaviour | Decides whether analysis-only history moves return to the live node or stay on the branch. |
 | Promotion policy | Baseline requires explicit promotion selection. |
 

@@ -13,7 +13,7 @@ test('JRN-SETUP-08 preserves setup after a required engine failure and retries i
   const original = await readFile(page, 'saves/setup-analysis/recoverable.json');
   const dialog = await openSetupStart(page);
   await setCustomClock(dialog, '9', '2');
-  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey unavailable' });
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Use profile: Journey unavailable' });
   await dialog.getByRole('button', { name: 'Start game', exact: true }).click();
   await expect(dialog.getByRole('alert')).toHaveText('Journey unavailable is unavailable. Choose another player engine and try again.');
   await expect(dialog).toBeVisible();
@@ -22,7 +22,7 @@ test('JRN-SETUP-08 preserves setup after a required engine failure and retries i
   await expect(square(page, 'c4')).toHaveAttribute('aria-label', 'c4 white pawn');
   expect(await managedFiles(page)).toEqual(files);
   expect(await readFile(page, 'saves/setup-analysis/recoverable.json')).toBe(original);
-  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey A' });
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Use profile: Journey A' });
   await dialog.getByRole('button', { name: 'Start game', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('.history-row')).toHaveCount(4);

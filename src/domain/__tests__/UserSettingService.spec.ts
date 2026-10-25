@@ -4,11 +4,13 @@ import {
   AnalysisBranchExitBehaviour,
   BoardOrientation,
   PlatformErrorKind,
+  PlayerColour,
   PlayerType,
   PromotionPolicy,
   ResolvedThemeMode,
   ThemeMode,
   TimeControlPreset,
+  EngineClientType,
   type ISettingsSnapshot,
 } from '@/contracts';
 import type { IStorageAdapter } from '@/contracts/platform';
@@ -29,10 +31,10 @@ function _createSettingsSnapshot(): ISettingsSnapshot {
       autoPauseOnMenu: true,
     },
     gameDefaults: {
-      quickNewGameName: 'New Game',
-      defaultTimeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
-      defaultWhitePlayerType: PlayerType.Local,
-      defaultBlackPlayerType: PlayerType.Local,
+      name: 'New Game',
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+      whitePlayer: { colour: PlayerColour.White, type: PlayerType.Local, displayName: 'White' },
+      blackPlayer: { colour: PlayerColour.Black, type: PlayerType.Local, displayName: 'Black' }, analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: false,
     },
     gameplay: {
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
@@ -111,5 +113,23 @@ describe('UserSettingService', () => {
     getSystemTheme.mockReturnValue(ResolvedThemeMode.Dark);
 
     expect(UserSettingService.getSystemTheme()).toBe(ResolvedThemeMode.Dark);
+  });
+  it('persists complete defaults independently of inventory and excludes player runtime', async () => {
+    const settings = _createSettingsSnapshot();
+    settings.gameDefaults.randomiseColours = true;
+    settings.gameDefaults.blackPlayer = { colour: PlayerColour.Black, type: PlayerType.Engine, displayName: 'Saved engine',
+      assignedEngine: { displayName: 'Saved engine', entryPath: 'saved.js', clientType: EngineClientType.UciWorker, options: { Hash: 32 }, $: { availability: 'running' } } } as unknown as ISettingsSnapshot['gameDefaults']['blackPlayer'];
+    await UserSettingService.saveSettings(settings);
+    const saved = JSON.parse(writeTextFile.mock.calls[0]![1]);
+    expect(saved.gameDefaults.randomiseColours).toBe(true);
+    expect(saved.gameDefaults.blackPlayer.assignedEngine).toEqual({ displayName: 'Saved engine', entryPath: 'saved.js', clientType: 'uciWorker', options: { Hash: 32 } });
+    expect(saved.analysis.engineInventory).toEqual([]);
+    expect(saved.gameDefaults.allowTakeback).toBe(true);
+  });
+  it.each([{ initialMs: 0, incrementMs: 0 }, { initialMs: 60000, incrementMs: 300001 }])('rejects invalid defaults clocks before writing: %j', async (clock) => {
+    const settings = _createSettingsSnapshot();
+    settings.gameDefaults.timeControl = clock;
+    await expect(UserSettingService.saveSettings(settings)).rejects.toThrow();
+    expect(writeTextFile).not.toHaveBeenCalled();
   });
 });

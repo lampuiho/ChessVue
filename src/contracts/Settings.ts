@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { themeModeSchema, type ThemeMode } from './Appearance'
 import { engineRecordSchema, type IEngineRecord } from './Engine'
-import { playerTypeSchema, type PlayerType } from './Game'
-import { timeControlSchema, type ITimeControl } from './TimeControl'
+import { createGameRequestSchema, type ICreateGameRequest } from './Game';
+import { getGameCreationError } from '@/utility/GameCreationUtility';
 
 export const enum AnalysisBranchExitBehaviour {
   ReturnToLiveNode = 'returnToLiveNode',
@@ -26,12 +26,6 @@ export interface ISettingsGameSession {
   autosaveOnClose: boolean
   autoPauseOnMenu: boolean
 }
-export interface ISettingsGameDefaults {
-  quickNewGameName: string
-  defaultTimeControl: ITimeControl
-  defaultWhitePlayerType: PlayerType
-  defaultBlackPlayerType: PlayerType
-}
 export interface ISettingsGameplay {
   analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
   promotionPolicy: PromotionPolicy
@@ -52,7 +46,7 @@ export interface ISettingsAppearance {
 export interface ISettingsSnapshot {
   schemaVersion: number
   gameSession: ISettingsGameSession
-  gameDefaults: ISettingsGameDefaults
+  gameDefaults: Omit<ICreateGameRequest, 'rootPosition'>;
   gameplay: ISettingsGameplay
   analysis: ISettingsAnalysis
   appearance: ISettingsAppearance
@@ -68,12 +62,10 @@ export const settingsGameSessionSchema = z.object({
   autoPauseOnMenu: z.boolean(),
 })
 
-export const settingsGameDefaultsSchema = z.object({
-  quickNewGameName: z.string().min(1),
-  defaultTimeControl: timeControlSchema,
-  defaultWhitePlayerType: playerTypeSchema,
-  defaultBlackPlayerType: playerTypeSchema,
-})
+export const settingsGameDefaultsSchema = createGameRequestSchema.omit({ rootPosition: true }).superRefine((request, context) => {
+  const error = getGameCreationError(request);
+  if (error) context.addIssue({ code: z.ZodIssueCode.custom, message: error });
+});
 
 export const settingsGameplaySchema = z.object({
   analysisBranchExitBehaviour: analysisBranchExitBehaviourSchema,

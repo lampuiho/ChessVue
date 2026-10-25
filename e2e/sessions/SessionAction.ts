@@ -15,8 +15,8 @@ export async function createSessionGame(page: Page, name: string, minutes?: stri
   await dialog.getByLabel('Name', { exact: false }).fill(name);
   if (minutes) await setCustomClock(dialog, minutes, '0');
   else await dialog.getByLabel('Clock', { exact: true }).selectOption('untimed');
-  await dialog.getByLabel('Black', { exact: true }).selectOption(black === 'local' ? 'local' : { label: black });
-  for (const engine of engines) await dialog.getByRole('checkbox', { name: engine, exact: true }).check();
+  await dialog.getByLabel('Black', { exact: true }).selectOption(black === 'local' ? 'local' : { label: 'Use profile: ' + black });
+  for (const engine of engines) { await dialog.getByLabel('Add analysis engine', { exact: true }).selectOption({ label: engine }); await dialog.getByRole('button', { name: 'Add engine', exact: true }).click(); }
   if (engines.length) await dialog.getByText('Show live analysis moves', { exact: true }).click();
   const id = await createWorkspace(page);
   if (engines.length) await expectOutput(page, engines);

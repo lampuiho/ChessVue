@@ -29,8 +29,8 @@ for (const change of ['rename', 'remove']) {
     await page.getByRole('button', { name: 'Assign player', exact: true }).click();
     expect((await saveCurrentGame(page, 'Kept assignment')).blackPlayer).toEqual(original.blackPlayer);
     const custom = await openCustomGame(page);
-    await expect(custom.getByLabel('Black', { exact: true }).getByRole('option', { name: 'Journey A', exact: true })).toHaveCount(0);
-    if (change === 'rename') await expect(custom.getByLabel('Black', { exact: true }).getByRole('option', { name: 'Changed profile', exact: true })).toHaveCount(1);
+    await expect(custom.getByLabel('Black', { exact: true }).getByRole('option', { name: 'Use profile: Journey A', exact: true })).toHaveCount(0);
+    if (change === 'rename') await expect(custom.getByLabel('Black', { exact: true }).getByRole('option', { name: 'Use profile: Changed profile', exact: true })).toHaveCount(1);
     await custom.getByRole('button', { name: 'Cancel', exact: true }).click();
     await playMove(page, 'g1', 'f3');
     await expect(page.locator('.history-row')).toHaveCount(4);

@@ -2,9 +2,12 @@ import { ref } from 'vue';
 import {
   GameState,
   PauseReason,
+  PlayerColour,
+  PlayerType,
   ResultState,
   type ICreateGameRequest,
   type IGame,
+  type IPlayer,
   type IStartGameFromSetupRequest,
   type MovePath,
   type ReadonlyGame,
@@ -73,6 +76,19 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     clock.refreshRuntimeRegistrations(insertedGame);
     return insertedGame;
   }
+  function _assignPlayer(player: IPlayer | undefined, colour: PlayerColour, participant: number, randomised: boolean) {
+    if (!player) return;
+    const displayName = randomised && player.type === PlayerType.Local && (player.displayName === 'White' || player.displayName === 'Black') ? `Player ${participant}` : player.displayName;
+    return playerTurn.createPlayerSnapshot({ ...player, colour, displayName });
+  }
+  function _createPlayers(request: Pick<ICreateGameRequest, 'whitePlayer' | 'blackPlayer' | 'randomiseColours'>) {
+    const randomised = !!request.randomiseColours && !!request.whitePlayer && !!request.blackPlayer;
+    const swap = randomised && Math.random() < 0.5;
+    return {
+      whitePlayer: _assignPlayer(swap ? request.blackPlayer : request.whitePlayer, PlayerColour.White, swap ? 2 : 1, randomised),
+      blackPlayer: _assignPlayer(swap ? request.whitePlayer : request.blackPlayer, PlayerColour.Black, swap ? 1 : 2, randomised),
+    };
+  }
   async function createGame(request: ICreateGameRequest): Promise<IGame> {
     const nowUtc = new Date();
     const rootPosition = request.rootPosition ?? createInitialBoardPosition();
@@ -84,8 +100,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
       metadata: _createGameMetadata(request.name, nowUtc),
       gameState: isLiveGame ? status.getLiveState(rootPosition.sideToMove) : status.getAnalysisState(rootPosition.sideToMove),
       resultState: ResultState.Ongoing,
-      whitePlayer: playerTurn.createPlayerSnapshot(request.whitePlayer),
-      blackPlayer: playerTurn.createPlayerSnapshot(request.blackPlayer),
+      ..._createPlayers(request),
       rootPosition,
       moveTree: MoveHistoryService.createMoveTree(initialClockSnapshot),
       livePath,
@@ -108,8 +123,7 @@ export function useGameWorkspace(dependency: IGameWorkspaceDependency) {
     await analysisCleanup;
     premove.clearPremoves(game);
     game.metadata.name = request.name ?? game.metadata.name;
-    game.whitePlayer = playerTurn.createPlayerSnapshot(request.whitePlayer);
-    game.blackPlayer = playerTurn.createPlayerSnapshot(request.blackPlayer);
+    Object.assign(game, _createPlayers(request));
     game.timeControl = request.timeControl;
     game.gameplayOptions = { showLiveAnalysisMoves: request.showLiveAnalysisMoves, allowTakeback: request.allowTakeback };
     const renderedPosition = position.getRenderedPosition(game);

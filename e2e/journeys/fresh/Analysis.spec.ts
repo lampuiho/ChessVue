@@ -33,8 +33,10 @@ test('JRN-FRESH-08 refreshes two analysis engines after an exploratory move', as
   await configureEngines(page, [{ name: 'Journey A', path: 'journey://a' }, { name: 'Journey B', path: 'journey://b' }]);
   const dialog = await openCustomGame(page);
   await dialog.getByRole('button', { name: 'Free analysis', exact: true }).click();
-  await dialog.getByRole('checkbox', { name: 'Journey A', exact: true }).check();
-  await dialog.getByRole('checkbox', { name: 'Journey B', exact: true }).check();
+  await dialog.getByLabel('Add analysis engine', { exact: true }).selectOption({ label: 'Journey A' });
+  await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
+  await dialog.getByLabel('Add analysis engine', { exact: true }).selectOption({ label: 'Journey B' });
+  await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
   await createWorkspace(page);
   await expect(page.locator('.analysis-line')).toHaveCount(6);
   const previous = await page.locator('.analysis-line').allTextContents();

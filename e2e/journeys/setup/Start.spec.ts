@@ -11,7 +11,7 @@ import { finishEditing, openSetupStart, selectSetupBoard } from './SetupAction';
 async function _configureStart(dialog: Locator, source: string) {
   await setCustomClock(dialog, '9', '2');
   await dialog.getByLabel('Name', { exact: false }).fill('Started study');
-  await dialog.getByLabel(source === 'edited' ? 'Black' : 'White', { exact: true }).selectOption({ label: 'Journey B' });
+  await dialog.getByLabel(source === 'edited' ? 'Black' : 'White', { exact: true }).selectOption({ label: 'Use profile: Journey B' });
   if (source === 'edited') {
     await dialog.getByText('Allow takebacks', { exact: true }).click();
     await dialog.getByText('Show live analysis moves', { exact: true }).click();

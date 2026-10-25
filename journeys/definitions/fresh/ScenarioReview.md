@@ -12,7 +12,7 @@ Expected: empty Home, Load and Settings remain usable without creating a workspa
 
 ## JRN-FRESH-02
 
-Expected: Quick game creates one local/local workspace; e2-e4 updates board, history and turn, persists through autosave and reloads through normal startup. Source inspection: both Home and menu quick actions use name/time defaults and explicit local players. Classification: aligned. SCN-GAME-01's conditional confirmation-cancel branch is not applicable because Quick game has no confirmation; custom cancellation is covered separately. Illegal-move and source-cancellation assertions remain in the Play backlog.
+Expected: Quick game creates one local/local workspace; e2-e4 updates board, history and turn, persists through autosave and reloads through normal startup. Source inspection: both Home and menu quick actions use all accepted creation snapshots; the built-in defaults remain local/local. Classification: aligned. SCN-GAME-01's conditional confirmation-cancel branch is not applicable because Quick game has no confirmation; custom cancellation is covered separately. Illegal-move and source-cancellation assertions remain in the Play backlog.
 
 ## JRN-FRESH-03
 
@@ -40,4 +40,4 @@ Expected: two configured analysis engines each show three current-position lines
 
 ## JRN-FRESH-09
 
-Expected: saved name/time defaults apply to new Quick and Custom games; the custom form uses configured player defaults; Quick remains local/local; existing saved game options remain intact. Source inspection: new requests copy defaults and existing games own their own options. Classification: aligned. The Quick-local/Custom-player distinction follows the plan and settings contract rather than assuming the player defaults alter Quick creation.
+Expected: all accepted snapshot defaults apply to new Quick and Custom games, including player engines, clocks, analysis and assistance options; existing saved game options remain intact. Source inspection: both flows copy accepted creation snapshots without inventory lookups. Profile changes/deletion leave saved snapshots intact. Classification: aligned with the revised settings contract.

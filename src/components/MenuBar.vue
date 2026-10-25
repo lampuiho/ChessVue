@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useGamesStore } from '@/state';
 import { useQuickGame } from '@/composables/QuickGameComposable';
 import { useGameTabActions } from '@/composables/GameTabActionsComposable';
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   settingsRequested: [];
 }>();
 const gamesStore = useGamesStore();
+const router = useRouter();
 const canSave = computed(() => !!gamesStore.getGame(props.gameId));
 const { start, isWorking, errorMessage: quickError } = useQuickGame();
 const tabs = useGameTabActions();
@@ -50,7 +52,7 @@ async function _closeGame() {
     <nav class="navigation-group navigation-group--secondary" aria-label="Application actions">
       <button class="menu-button" aria-label="Settings" title="Settings" @click="emit('settingsRequested')"><AppIcon name="settings" /><span>Settings</span></button>
     </nav>
-    <template #footer><p v-if="errorMessage || quickError" class="inline-message inline-message--error" role="alert">{{ errorMessage || quickError }}</p></template>
+    <template #footer><p v-if="errorMessage || quickError" class="inline-message inline-message--error" role="alert">{{ errorMessage || quickError }} <button v-if="quickError" class="text-button" @click="router.push('/settings/gameplay')">Edit game defaults</button></p></template>
   </NavigationFrame>
 </template>
 

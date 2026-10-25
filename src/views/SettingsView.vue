@@ -6,10 +6,9 @@ import {
   EngineClientType,
   EngineInstallationSource,
   BoardOrientation,
-  PlayerType,
+  PlayerColour,
   SettingsCategory,
   ThemeMode,
-  TimeControlPreset,
   type IEngineRecord,
 } from '@/contracts';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
@@ -18,6 +17,10 @@ import { useModal } from '@/composables/ModalComposable';
 import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import NavigationFrame from '@/components/NavigationFrame.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
+import GamePlayerField from '@/components/GamePlayerField.vue';
+import GameClockFields from '@/components/GameClockFields.vue';
+import AnalysisSnapshotFields from '@/components/AnalysisSnapshotFields.vue';
+import { getGameCreationError } from '@/utility/GameCreationUtility';
 
 const emit = defineEmits<{ appearanceChanged: [] }>();
 const modal = useModal();
@@ -28,6 +31,8 @@ const enginesStore = useEnginesStore();
 const uiStateStore = useUiStateStore();
 const category = computed(() => route.params.category as SettingsCategory);
 const draft = computed(() => settingsStore.draftSettings);
+const defaultsError = computed(() => draft.value ? getGameCreationError(draft.value.gameDefaults) : '');
+const liveDefaults = computed(() => !!draft.value?.gameDefaults.whitePlayer && !!draft.value.gameDefaults.blackPlayer);
 const errorMessage = ref('');
 const successMessage = ref('');
 const hasEngineView = computed(() => route.matched.length > 1);
@@ -99,6 +104,7 @@ async function _resetSettings() {
 async function _applySettings(leave: boolean) {
   errorMessage.value = '';
   successMessage.value = '';
+  if (defaultsError.value) { errorMessage.value = defaultsError.value; return; }
   try {
     if (leave) await settingsStore.saveSettings();
     else await settingsStore.applySettings();
@@ -132,6 +138,11 @@ function _loadEnginePackages() {
 function _removeEngine(index: number) {
   draft.value?.analysis.engineInventory.splice(index, 1);
 }
+function _useFreeAnalysis() {
+  if (!draft.value) return;
+  draft.value.gameDefaults.whitePlayer = undefined;
+  draft.value.gameDefaults.blackPlayer = undefined;
+}
 </script>
 
 <template>
@@ -159,13 +170,23 @@ function _removeEngine(index: number) {
             </section>
           </template>
           <template v-else-if="category === SettingsCategory.Gameplay">
-            <section class="form-section form-section--settings"><h3 class="form-section__heading">Quick game defaults</h3><p class="form-section__description">Used by the one-click Quick game action.</p>
-              <div class="field-row"><label class="field-label" for="quick-name">Game name</label><input id="quick-name" v-model="draft.gameDefaults.quickNewGameName" class="field-control"></div>
-              <div class="field-row"><label class="field-label" for="white-default">White player</label><select id="white-default" v-model="draft.gameDefaults.defaultWhitePlayerType" class="field-control"><option :value="PlayerType.Local">Local</option><option :value="PlayerType.Engine">Engine</option></select></div>
-              <div class="field-row"><label class="field-label" for="black-default">Black player</label><select id="black-default" v-model="draft.gameDefaults.defaultBlackPlayerType" class="field-control"><option :value="PlayerType.Local">Local</option><option :value="PlayerType.Engine">Engine</option></select></div>
-              <div class="field-row"><label class="field-label" for="clock-preset">Clock preset</label><select id="clock-preset" v-model="draft.gameDefaults.defaultTimeControl.preset" class="field-control"><option :value="TimeControlPreset.Untimed">Untimed</option><option :value="TimeControlPreset.Bullet">Bullet</option><option :value="TimeControlPreset.Blitz">Blitz</option><option :value="TimeControlPreset.Rapid">Rapid</option><option :value="TimeControlPreset.Classical">Classical</option></select></div>
-              <div v-if="draft.gameDefaults.defaultTimeControl.preset !== TimeControlPreset.Untimed" class="field-row"><label class="field-label" for="initial-time">Initial time (milliseconds)</label><input id="initial-time" v-model.number="draft.gameDefaults.defaultTimeControl.initialMs" class="field-control" type="number" min="1000" step="1000"></div>
-              <div class="field-row"><label class="field-label" for="increment">Increment (milliseconds)</label><input id="increment" v-model.number="draft.gameDefaults.defaultTimeControl.incrementMs" class="field-control" type="number" min="0" step="1000"></div>
+            <section class="form-section form-section--settings"><h3 class="form-section__heading">Quick game defaults</h3><p class="form-section__description">Used by Quick game and as the starting options for Custom game.</p>
+              <h4 class="form-section__subheading">Game</h4>
+              <div class="field-row"><label class="field-label" for="quick-name">Game name</label><input id="quick-name" v-model="draft.gameDefaults.name" class="field-control"></div>
+              <h4 class="form-section__subheading">Players</h4>
+              <label class="toggle-row"><input v-model="draft.gameDefaults.randomiseColours" :disabled="!liveDefaults" type="checkbox"><span class="toggle-track"></span><span><strong>Randomly assign colours</strong><small>Assign Player 1 and Player 2 to White or Black when the game starts.</small></span></label>
+              <GamePlayerField id="white-default" v-model="draft.gameDefaults.whitePlayer" :label="draft.gameDefaults.randomiseColours ? 'Player 1' : 'White player'" :colour="PlayerColour.White" :engines="draft.analysis.engineInventory" />
+              <GamePlayerField id="black-default" v-model="draft.gameDefaults.blackPlayer" :label="draft.gameDefaults.randomiseColours ? 'Player 2' : 'Black player'" :colour="PlayerColour.Black" :engines="draft.analysis.engineInventory" />
+              <p v-if="liveDefaults" class="field-help">{{ draft.gameDefaults.randomiseColours ? 'Player colours are drawn separately for each new game.' : 'Starts a game with ' + draft.gameDefaults.whitePlayer!.displayName + ' playing White and ' + draft.gameDefaults.blackPlayer!.displayName + ' playing Black.' }}</p>
+              <p v-else class="field-help">Starts a free analysis workspace. Unassigned seats do not take live turns.</p>
+              <div class="engine-editor__actions"><button class="text-button" @click="_useFreeAnalysis">Use free analysis</button></div>
+              <h4 class="form-section__subheading">Time &amp; assistance</h4>
+              <GameClockFields id="clock-preset" v-model="draft.gameDefaults.timeControl" label="Clock preset" />
+              <label class="toggle-row"><input v-model="draft.gameDefaults.allowTakeback" type="checkbox"><span class="toggle-track"></span><span><strong>Allow takebacks</strong><small>Rewind the played line when needed.</small></span></label>
+              <label class="toggle-row"><input v-model="draft.gameDefaults.showLiveAnalysisMoves" :disabled="!liveDefaults" type="checkbox"><span class="toggle-track"></span><span><strong>Show live analysis moves</strong><small>{{ liveDefaults ? 'Engine continuations become playable suggestions.' : 'Analysis moves are available in free analysis.' }}</small></span></label>
+              <AnalysisSnapshotFields v-model="draft.gameDefaults.analysisEngineProfiles" :engines="draft.analysis.engineInventory" />
+              <div class="engine-editor__actions"><button class="text-button" @click="_changeCategory(SettingsCategory.Engines)">Manage engine profiles</button></div>
+              <p v-if="defaultsError" class="inline-message inline-message--error" role="alert">{{ defaultsError }}</p>
             </section>
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Move behaviour</h3>
               <div class="field-row"><label class="field-label" for="branch-exit">After exploring history<span class="field-help">Where the board settles after an analysis move</span></label><select id="branch-exit" v-model="draft.gameplay.analysisBranchExitBehaviour" class="field-control"><option :value="AnalysisBranchExitBehaviour.ReturnToLiveNode">Return to live position</option><option :value="AnalysisBranchExitBehaviour.StayOnBranch">Stay on analysis branch</option></select></div>
@@ -202,7 +223,7 @@ function _removeEngine(index: number) {
             </section>
           </template>
         </div>
-        <footer v-if="!hasEngineView" class="settings-actions"><span v-if="errorMessage" class="settings-feedback settings-feedback--error">{{ errorMessage }}</span><span v-else-if="successMessage" class="settings-feedback">{{ successMessage }}</span><button class="text-button text-button--ghost text-button--settings-mobile" @click="_requestReturn">Cancel</button><button class="text-button text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(true)">Save</button><button class="text-button text-button--primary text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(false)">Apply changes</button></footer>
+        <footer v-if="!hasEngineView" class="settings-actions"><span v-if="errorMessage" class="settings-feedback settings-feedback--error">{{ errorMessage }}</span><span v-else-if="successMessage" class="settings-feedback">{{ successMessage }}</span><button class="text-button text-button--ghost text-button--settings-mobile" @click="_requestReturn">Cancel</button><button class="text-button text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges || !!defaultsError" @click="_applySettings(true)">Save</button><button class="text-button text-button--primary text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges || !!defaultsError" @click="_applySettings(false)">Apply changes</button></footer>
       </section>
     </div>
   </main>

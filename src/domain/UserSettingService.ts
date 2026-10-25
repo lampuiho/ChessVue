@@ -3,6 +3,8 @@ import { BuildConfig } from '@/config/BuildConfig';
 import { StockfishConfig } from '@/config/StockfishConfig';
 import { EngineClientType } from '@/contracts/Engine';
 import { usePlatformService } from '@/platform';
+import { createLocalPlayer } from '@/utility/GameCreationUtility';
+import { PlayerColour } from '@/contracts/Chess';
 
 let _cachedSettings: ISettingsSnapshot | undefined;
 let _loadWarning = '';
@@ -21,10 +23,11 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
       autoPauseOnMenu: true,
     },
     gameDefaults: {
-      quickNewGameName: 'New Game',
-      defaultTimeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
-      defaultWhitePlayerType: PlayerType.Local,
-      defaultBlackPlayerType: PlayerType.Local,
+      name: 'New Game',
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+      whitePlayer: createLocalPlayer(PlayerColour.White),
+      blackPlayer: createLocalPlayer(PlayerColour.Black),
+      analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: false, randomiseColours: false,
     },
     gameplay: {
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
@@ -47,6 +50,9 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
 }
 function _coerceSettingsSnapshot(snapshot: ISettingsSnapshot): ISettingsSnapshot {
   if (snapshot.gameSession.restorePreviousSession) snapshot.gameSession.autosaveOnClose = true;
+  snapshot.gameDefaults.name = snapshot.gameDefaults.name.trim();
+  snapshot.gameDefaults.allowTakeback ??= true;
+  snapshot.gameDefaults.showLiveAnalysisMoves ??= false;
   return snapshot;
 }
 function _cacheAcceptedSettings(snapshot: ISettingsSnapshot): ISettingsSnapshot {

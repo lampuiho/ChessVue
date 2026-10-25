@@ -4,6 +4,7 @@ import { computed, readonly, ref, shallowRef, toRaw } from 'vue';
 import type { DeepReadonly, IAppearanceProjection, ISettingsSnapshot } from '@/contracts';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
 import { UserSettingService } from '@/domain';
+import { copyGameRequest } from '@/utility/GameCreationUtility';
 
 function _mergeSettings(currentSettings: ISettingsSnapshot, patch: Partial<ISettingsSnapshot>): ISettingsSnapshot {
   return {
@@ -20,7 +21,7 @@ function _cloneSettings(settings: ISettingsSnapshot): ISettingsSnapshot {
   return {
     ...settings,
     gameSession: { ...settings.gameSession },
-    gameDefaults: { ...settings.gameDefaults, defaultTimeControl: { ...settings.gameDefaults.defaultTimeControl } },
+    gameDefaults: { ...settings.gameDefaults, ...copyGameRequest(settings.gameDefaults) },
     gameplay: { ...settings.gameplay },
     analysis: { ...settings.analysis, engineInventory: settings.analysis.engineInventory.map((engine) => ({ ...engine, options: { ...engine.options } })) },
     appearance: { ...settings.appearance },

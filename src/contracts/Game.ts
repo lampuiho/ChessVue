@@ -149,6 +149,7 @@ export interface ICreateGameRequest {
   name: string
   whitePlayer?: IPlayer
   blackPlayer?: IPlayer
+  randomiseColours?: boolean;
   analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves?: boolean;
   allowTakeback?: boolean;
@@ -159,6 +160,7 @@ export interface IStartGameFromSetupRequest {
   name?: string
   whitePlayer?: IPlayer
   blackPlayer?: IPlayer
+  randomiseColours?: boolean;
   analysisEngineProfiles: IEngineRecord[]
   showLiveAnalysisMoves?: boolean
   allowTakeback?: boolean;
@@ -235,6 +237,7 @@ export const createGameRequestSchema = z.object({
   name: z.string().min(1),
   whitePlayer: playerSchema.optional(),
   blackPlayer: playerSchema.optional(),
+  randomiseColours: z.boolean().optional(),
   analysisEngineProfiles: z.array(engineRecordSchema).max(4),
   showLiveAnalysisMoves: z.boolean().optional(),
   allowTakeback: z.boolean().optional(),
@@ -246,6 +249,7 @@ export const startGameFromSetupRequestSchema = z.object({
   name: z.string().min(1).optional(),
   whitePlayer: playerSchema.optional(),
   blackPlayer: playerSchema.optional(),
+  randomiseColours: z.boolean().optional(),
   analysisEngineProfiles: z.array(engineRecordSchema).max(4),
   showLiveAnalysisMoves: z.boolean().optional(),
   allowTakeback: z.boolean().optional(),

@@ -11,10 +11,10 @@ async function _changeDefaults(page: Page) {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Gameplay', exact: true }).click();
   await page.getByLabel('Game name', { exact: true }).fill('Default match');
-  await page.getByLabel('Black player', { exact: true }).selectOption('engine');
-  await page.getByLabel('Clock preset', { exact: true }).selectOption('blitz');
-  await page.getByLabel('Initial time (milliseconds)', { exact: true }).fill('300000');
-  await page.getByLabel('Increment (milliseconds)', { exact: true }).fill('2000');
+  await page.getByLabel('Black player', { exact: true }).selectOption({ label: 'Use profile: Journey A' });
+  await page.getByLabel('Clock preset', { exact: true }).selectOption('custom');
+  await page.getByLabel('Minutes', { exact: true }).fill('5');
+  await page.getByLabel('Increment (seconds)', { exact: true }).fill('2');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
 }
 test('JRN-FRESH-09 applies defaults to future games and preserves an existing game', async ({ page }) => {
@@ -29,11 +29,11 @@ test('JRN-FRESH-09 applies defaults to future games and preserves an existing ga
   await page.getByRole('button', { name: 'Quick game', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Default match', exact: true })).toBeVisible();
   const quick = await saveCurrentGame(page, 'Quick defaults');
-  expect([quick.whitePlayer?.type, quick.blackPlayer?.type]).toEqual(['local', 'local']);
-  expect(quick.timeControl).toEqual({ preset: 'blitz', initialMs: 300000, incrementMs: 2000 });
+  expect([quick.whitePlayer?.type, quick.blackPlayer?.type]).toEqual(['local', 'engine']);
+  expect(quick.timeControl).toEqual({ initialMs: 300000, incrementMs: 2000 });
   const dialog = await openCustomGame(page);
   await expect(dialog.getByLabel('Name')).toHaveValue('Default match');
-  await expect(dialog.getByLabel('Black', { exact: true }).locator('option:checked')).toHaveText('Journey A');
+  await expect(dialog.getByLabel('Black', { exact: true }).locator('option:checked')).toHaveText('Keep Journey A (saved configuration)');
   await createWorkspace(page);
   const custom = await saveCurrentGame(page, 'Custom defaults');
   expect(custom.blackPlayer?.type).toBe('engine');

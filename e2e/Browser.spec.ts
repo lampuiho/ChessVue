@@ -10,7 +10,7 @@ test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await configureStockfish(page);
-  await page.locator('#black-player').selectOption({ label: 'Browser Stockfish' });
+  await page.locator('#black-player').selectOption({ label: 'Use profile: Browser Stockfish' });
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Engines', exact: true }).click();

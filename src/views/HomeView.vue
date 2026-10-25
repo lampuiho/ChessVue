@@ -69,7 +69,7 @@ async function _openRecent(entry: IRecentGameEntry) {
         <button class="home-action" @click="router.push('/saved-games/load')"><span class="home-action__icon"><AppIcon name="folder" /></span><strong>Load game</strong><small>Return to a saved board</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
         <button class="home-action" @click="router.push('/settings/session')"><span class="home-action__icon"><AppIcon name="settings" /></span><strong>Settings</strong><small>Make the board yours</small><AppIcon class="home-action__arrow" name="arrow-right" /></button>
       </div>
-      <p v-if="errorMessage || quickGameError" class="inline-message inline-message--error home-error">{{ quickGameError || errorMessage }}</p>
+      <p v-if="errorMessage || quickGameError" class="inline-message inline-message--error home-error">{{ quickGameError || errorMessage }} <button v-if="quickGameError" class="text-button" @click="router.push('/settings/gameplay')">Edit game defaults</button></p>
       <section v-if="recentGames.length" class="recent-section">
         <div class="recent-section__heading"><div><p class="page-kicker page-kicker--flush">Continue</p><h2>Recent games</h2></div><button class="text-button text-button--ghost" @click="router.push('/saved-games/load')">View all <AppIcon name="arrow-right" /></button></div>
         <div class="recent-grid">

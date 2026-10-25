@@ -9,7 +9,7 @@ Define the authoritative persisted settings schema from the baseline settings co
 - `enum PromotionPolicy`
 - `enum BoardOrientation`
 - `interface ISettingsGameSession`
-- `interface ISettingsGameDefaults`
+- `ICreateGameRequest` supplies the defaults type and schema, excluding `rootPosition`
 - `interface ISettingsGameplay`
 - `interface ISettingsAnalysis`
 - `interface ISettingsAppearance`
@@ -45,13 +45,6 @@ interface ISettingsGameSession {
   autoPauseOnMenu: boolean
 }
 
-interface ISettingsGameDefaults {
-  quickNewGameName: string
-  defaultTimeControl: ITimeControl
-  defaultWhitePlayerType: PlayerType
-  defaultBlackPlayerType: PlayerType
-}
-
 interface ISettingsGameplay {
   analysisBranchExitBehaviour: AnalysisBranchExitBehaviour
   promotionPolicy: PromotionPolicy
@@ -75,7 +68,7 @@ interface ISettingsAppearance {
 interface ISettingsSnapshot {
   schemaVersion: number
   gameSession: ISettingsGameSession
-  gameDefaults: ISettingsGameDefaults
+  gameDefaults: Omit<ICreateGameRequest, 'rootPosition'>;
   gameplay: ISettingsGameplay
   analysis: ISettingsAnalysis
   appearance: ISettingsAppearance
@@ -84,3 +77,7 @@ interface ISettingsSnapshot {
 
 ## Exclusions
 The baseline schema does not include user-created custom themes, sound settings, panel visibility or fold preferences, variant preferences, recent-game preferences, or mobile layout preferences.
+
+The settings defaults schema derives from `createGameRequestSchema.omit({ rootPosition: true })`, with clock, seat and analysis-name refinements. Player/engine schemas strip runtime state. Default snapshots remain independent of reusable inventory entries; analysis profile IDs are copied metadata, not references.
+
+Optional `gameDefaults.randomiseColours` defaults to false. The saved white/black slots are Player 1/Player 2 inputs when enabled; creation resolves their colours and persists those assignments in the game. Settings keep their original input snapshots for the next draw.

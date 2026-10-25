@@ -25,7 +25,7 @@ describe('JRN-SETUP-07/08 start transition', () => {
     await nextTick();
     setField('input[type="number"]', '9');
     setField('.time-fields label:nth-child(2) input', '2');
-    setField('.toggle-row input', false);
+    setField('#new-game-form .form-section:last-child .toggle-row input', false);
     setField('.toggle-row:nth-of-type(2) input', true);
     await nextTick();
     await _submitStart();

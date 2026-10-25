@@ -7,6 +7,7 @@ import { useEnginesStore, useGamesStore, useSettingsStore } from '@/state';
 import { useModal } from '@/composables/ModalComposable';
 import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
+import { getGameEngineUsage } from '@/utility/GameCreationUtility';
 
 const route = useRoute();
 const router = useRouter();
@@ -29,6 +30,8 @@ async function _load() {
 }
 function _readReferences(): IEnginePackageUsage[] {
   const result: IEnginePackageUsage[] = [];
+  if (settingsStore.settings) result.push(...getGameEngineUsage(settingsStore.settings.gameDefaults, 'Game defaults'));
+  if (settingsStore.draftSettings) result.push(...getGameEngineUsage(settingsStore.draftSettings.gameDefaults, 'Draft game defaults'));
   for (const profile of settingsStore.settings?.analysis.engineInventory ?? []) result.push({ displayName: 'Profile: ' + profile.displayName, entryPath: profile.entryPath, clientType: profile.clientType });
   for (const profile of settingsStore.draftSettings?.analysis.engineInventory ?? []) result.push({ displayName: 'Draft profile: ' + profile.displayName, entryPath: profile.entryPath, clientType: profile.clientType });
   for (const game of gamesStore.listGames()) {
@@ -67,7 +70,7 @@ async function _confirmRemovePackage(signal: AbortSignal) {
       <header class="engine-editor__header"><h2 class="engine-editor__title">{{ engine.displayName }}</h2><p class="form-section__description">{{ engine.source === EngineInstallationSource.Bundled ? 'Included with ChessVue' : 'Imported package' }}</p></header>
       <p v-if="engine.warning" class="inline-message inline-message--error" role="alert">{{ engine.warning }}</p>
       <section class="form-section form-section--settings"><h3 class="form-section__heading">Package files</h3><ul class="engine-package-files"><li v-for="file in engine.files" :key="file">{{ file }}</li></ul></section>
-      <section class="form-section form-section--settings"><h3 class="form-section__heading">Profiles and open games</h3><ul v-if="references.length" class="engine-package-files"><li v-for="reference in references" :key="reference.displayName + reference.entryPath">{{ reference.displayName }}</li></ul><p v-else class="inline-message">No profiles or open games reference this folder.</p></section>
+      <section class="form-section form-section--settings"><h3 class="form-section__heading">Profiles, game defaults and open games</h3><ul v-if="references.length" class="engine-package-files"><li v-for="reference in references" :key="reference.displayName + reference.entryPath">{{ reference.displayName }}</li></ul><p v-else class="inline-message">No profiles, game defaults or open games reference this folder.</p></section>
       <p class="inline-message">Create a profile to choose the supplied entry script and engine interface.</p>
       <footer class="engine-editor__actions"><button class="text-button text-button--primary" @click="_createProfile">Create profile</button><button v-if="engine.source === EngineInstallationSource.User && enginesStore.canInstallPackages()" class="text-button text-button--danger" :disabled="loading" @click="_removePackage">Remove files</button></footer>
     </template>

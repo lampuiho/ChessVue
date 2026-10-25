@@ -47,3 +47,7 @@ resetSettings(): Promise<void>
 - The `restorePreviousSession => autosaveOnClose` rule is enforced by `UserSettingService`, so `SettingsStore` always edits and displays an already-coerced accepted snapshot.
 - The two semantic CSS-variable maps in `IAppearanceProjection` keep the integration profile-shaped. A future profile setting can change where the projection obtains each snapshot without replacing the presentation contract.
 - `_buildAppearanceProjection` remains store-private. CSS owns effective light/dark selection, so no JavaScript theme resolver is needed.
+
+## Creation default snapshots
+
+`gameDefaults` derives from the creation request without `rootPosition`. Draft creation and discard copy players, assigned engine option maps, the clock and analysis profile snapshots through the creation schema. Accepted defaults remain unchanged during edits; failed persistence retains both the accepted snapshot and full draft.

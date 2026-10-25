@@ -4,7 +4,7 @@
 Own the custom creation/setup form, validation and submission in one mounted component. Props are `gameId?` and the provider's `signal`; its only event is `dismissed`.
 
 ## Consumes
-- draft defaults from `SettingsStore`
+- accepted default snapshots from `SettingsStore`
 - engine inventory choices from `EnginesStore`
 - `ModalDialog` and shared button classes for dialog and action presentation
 - local named form sections with global field and button classes
@@ -23,3 +23,9 @@ Own the custom creation/setup form, validation and submission in one mounted com
 - `_submit` builds the request, validates required player-engine launch readiness, and calls `GamesStore.createGame` or `startGameFromSetup` directly. No child form or create/cancel relay remains.
 - `useModalAction(signal)` prevents duplicate submission and owns busy/error/retry feedback. Successful creation checks the opening's signal before opening its tab and navigating. Closing or replacement suppresses late UI delivery without rolling back a started domain mutation.
 - Every opening mounts a fresh local form. Setup captures the prepared game before awaiting engine validation. Cancel and shell dismissal remain disabled while the form is working.
+
+## Accepted creation defaults
+
+Each new form copies accepted `gameDefaults`, including optional player and analysis snapshots, clocks and assistance flags. Saved configurations remain available through Keep after profile edits/deletion. Choosing an inventory profile explicitly replaces that snapshot. Shared clock fields initialise omitted-preset clocks as Custom and replace named presets with canonical values. The form validates the effective request and checks required live player engines before insertion. Start-from-setup retains game-owned options and analysis payloads, local player selectors and the accepted default clock.
+
+Randomly assign colours is seeded from accepted defaults in both creation modes. When selected, the inputs read Player 1 and Player 2; the request retains canonical white/black input slots and passes `randomiseColours` to the store. The checkbox is disabled when either player is unassigned. Form rendering, edits and engine readiness checks do not draw colours.

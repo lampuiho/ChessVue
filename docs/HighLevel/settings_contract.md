@@ -24,14 +24,18 @@ Only the user-editable choices listed below and the explicitly reserved appearan
 | `gameSession.autosaveAfterMoveCount` | Write/update the internal autosave entry after this many committed ply | `1` | Non-negative integer; `0` disables move-count autosave | Settings snapshot |
 | `gameSession.autosaveOnClose` | Write/update the internal autosave entry when closing the app or game shell | `true` | Boolean | Settings snapshot |
 | `gameSession.autoPauseOnMenu` | Pause timed live games during interrupting menu flows | `true` | Boolean | Settings snapshot |
-| `gameDefaults.quickNewGameName` | Default display name seed for quick new game | `New Game` | Non-empty string | Settings snapshot |
-| `gameDefaults.defaultTimeControl` | Default time control used by quick new game | `untimed` | Built-in preset or valid custom time control object | Settings snapshot |
-| `gameDefaults.defaultWhitePlayerType` | Default player type for white in new game setup | `local` | `local` or `engine` | Settings snapshot |
-| `gameDefaults.defaultBlackPlayerType` | Default player type for black in new game setup | `local` | `local` or `engine` | Settings snapshot |
+| `gameDefaults.name` | Name seed for Quick and Custom game | `New Game` | Non-empty trimmed string | Settings snapshot |
+| `gameDefaults.timeControl` | Clock for Quick and Custom game | `untimed` | Named preset or valid custom clock; UI uses minutes/seconds | Settings snapshot |
+| `gameDefaults.whitePlayer` | White player configuration snapshot | Local White | Optional player payload; omission means Unassigned | Settings snapshot |
+| `gameDefaults.blackPlayer` | Black player configuration snapshot | Local Black | Optional player payload; omission means Unassigned | Settings snapshot |
+| `gameDefaults.randomiseColours` | Randomly assign the two participants to White and Black at creation | `false` | Optional boolean; omitted means fixed colours | Settings snapshot |
+| `gameDefaults.analysisEngineProfiles` | Analysis engine configuration snapshots | `[]` | Up to four complete profile snapshots with unique names | Settings snapshot |
+| `gameDefaults.allowTakeback` | Takeback preference copied into new games | `true` | Boolean; omitted uses built-in default | Settings snapshot |
+| `gameDefaults.showLiveAnalysisMoves` | Live-game analysis move preference copied into new games | `false` | Boolean; free analysis uses playable analysis moves | Settings snapshot |
 | `gameplay.analysisBranchExitBehaviour` | Decide what happens after analysis-only branch creation from history | `returnToLiveNode` | `returnToLiveNode` or `stayOnBranch` | Settings snapshot |
 | `gameplay.promotionPolicy` | Decide how promotion is resolved | `requireExplicitSelection` | `requireExplicitSelection` only in baseline | Settings snapshot |
 | `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
-| `analysis.engineInventory` | User-managed engine profile registry | `[]` | Unique profile names only; remaining profile fields are user-managed values | Settings snapshot |
+| `analysis.engineInventory` | User-managed engine profile registry | Bundled Stockfish | Unique profile names only; remaining profile fields are user-managed values | Settings snapshot |
 | `appearance.themeMode` | Decide whether app chrome follows the OS colour scheme or forces light or dark | `system` | `system`, `light`, or `dark` | Settings snapshot |
 | `appearance.uiScalePercent` | Global UI scale for desktop layout | `100` | Integer from `75` to `200` | Settings snapshot |
 | `appearance.boardOrientation` | Default board orientation | `white` | `white` or `black` | Settings snapshot |
@@ -82,8 +86,13 @@ The following are intentionally excluded from the baseline settings contract and
 
 ## Ownership Notes
 - Settings are stored in the user settings snapshot defined in [persistence_contract.md](persistence_contract.md).
-- Per-game engine assignment belongs to the saved game payload, not to the global settings schema.
-- The per-game `showLiveAnalysisMoves` preference also belongs to the saved game payload, not to the global settings schema.
-- The per-game `allowTakeback` boolean also belongs to the saved game payload, not to the global settings schema.
+- Game defaults reuse `ICreateGameRequest` and `createGameRequestSchema`, omitting `rootPosition`. Player and analysis engine values are complete configuration snapshots; copied analysis profile IDs are never resolved against the inventory at creation.
+- Selecting a profile copies it into defaults. Editing or deleting the source profile leaves defaults unchanged; each created game receives its own configuration.
+- With `randomiseColours`, the white and black input slots represent Player 1 and Player 2. Creation or start-from-setup draws their colours once when both are assigned, copying each participant's engine configuration with them. Partial/free-analysis requests do not draw. Games save the resolved assignments; restoring a game never draws again.
+- Package removal includes accepted and draft default engine paths in its existing usage check.
+- `showLiveAnalysisMoves` is persisted in each game; its global creation default only seeds future games.
+- `allowTakeback` is persisted in each game; its global creation default only seeds future games.
 - Session shell restoration belongs to session persistence, even when the behaviour is controlled by settings.
 - Remembered panel visibility and foldable-section state belong to persisted UI/session state, not to the consciously saved settings schema.
+
+Quick game from Home and the game menu uses every accepted creation default. Custom game begins with an isolated copy of those accepted defaults. Unsaved settings drafts do not initialise either creation flow. Either unassigned player produces free analysis. Required player-engine readiness failure prevents insertion; optional analysis engine failures retain the existing per-engine error behaviour.

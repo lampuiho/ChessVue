@@ -33,11 +33,14 @@
 .form-section { display: grid; gap: 1rem; }
 .form-section + .form-section { margin-top: 1.6rem; padding-top: 1.5rem; border-top: 0.0625rem solid var(--border-subtle); }
 .form-section__heading { margin: 0; font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; }
+.form-section__subheading { margin: 0; font-family: var(--font-display); font-size: 1rem; font-weight: 700; }
 .form-section__description { margin: -0.75rem 0 0; color: var(--text-muted); font-size: 0.8rem; }
 .field-row { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); align-items: center; gap: 1.25rem; }
 .field-row--stack { grid-template-columns: 1fr; gap: 0.45rem; }
 .field-label { display: grid; gap: 0.15rem; font-size: 0.82rem; font-weight: 700; }
 .field-help { color: var(--text-muted); font-size: 0.72rem; font-weight: 400; }
+.field-help--path { overflow-wrap: anywhere; }
+.time-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
 .field-control { width: 100%; min-height: 2.6rem; padding: 0.55rem 0.7rem; color: var(--text-primary); border: 0.0625rem solid var(--border-subtle); border-radius: var(--radius-sm); outline: 0; background: var(--surface-dialog); transition: border 120ms ease, box-shadow 120ms ease; }
 .field-control:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 0.1875rem var(--focus-ring-soft); }
 .toggle-row { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; }
@@ -73,6 +76,10 @@
 .form-section--compact .form-section__description { margin: 0; font-size: 0.7rem; }
 .form-section--compact .field-row { gap: 0.5rem; }
 .form-section__description--inline { margin: 0.15rem 0 0; }
+.analysis-snapshots { display: grid; min-width: 0; gap: 0.65rem; }
+.analysis-snapshots__row { display: flex; min-width: 0; align-items: flex-end; gap: 0.5rem; }
+.analysis-snapshots__row .field-label { min-width: 0; flex: 1; }
+.analysis-snapshots__row .field-help { overflow-wrap: anywhere; }
 .toggle-copy { color: var(--text-muted); font-size: 0.76rem; }
 @media (max-width: 760px) {
   .text-button--compact-mobile { --button-height: 2rem; --button-padding: 0.3rem 0.5rem; --button-font-size: 0.7rem; }

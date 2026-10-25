@@ -47,10 +47,10 @@ function _createSettingsSnapshot(): ISettingsSnapshot {
       autoPauseOnMenu: true,
     },
     gameDefaults: {
-      quickNewGameName: 'New Game',
-      defaultTimeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
-      defaultWhitePlayerType: PlayerType.Local,
-      defaultBlackPlayerType: PlayerType.Local,
+      name: 'New Game',
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+      whitePlayer: { colour: PlayerColour.White, type: PlayerType.Local, displayName: 'White' },
+      blackPlayer: { colour: PlayerColour.Black, type: PlayerType.Local, displayName: 'Black' }, analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: false,
     },
     gameplay: {
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,

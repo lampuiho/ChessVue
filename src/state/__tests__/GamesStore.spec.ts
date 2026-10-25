@@ -503,6 +503,47 @@ describe('useGamesStore', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+  it.each([0.25, 0.75])('assigns each participant a colour at creation and preserves it on restore (draw %s)', async (draw) => {
+    const store = useGamesStore();
+    const request = { name: 'Random colours', whitePlayer: _createLocalPlayer(PlayerColour.White, 'Alice'), blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Bob'),
+      randomiseColours: true, analysisEngineProfiles: [], timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 } };
+    const random = vi.spyOn(Math, 'random').mockReturnValue(draw);
+    const game = await store.createGame(request);
+    const expected = draw < 0.5 ? ['Bob', 'Alice'] : ['Alice', 'Bob'];
+    expect([game.whitePlayer?.displayName, game.blackPlayer?.displayName]).toEqual(expected);
+    expect([game.whitePlayer?.colour, game.blackPlayer?.colour]).toEqual([PlayerColour.White, PlayerColour.Black]);
+    expect(request.whitePlayer).toMatchObject({ colour: PlayerColour.White, displayName: 'Alice' });
+    expect(request.blackPlayer).toMatchObject({ colour: PlayerColour.Black, displayName: 'Bob' });
+    const payload = stripRuntimeMetadata(game);
+    expect(payload).not.toHaveProperty('randomiseColours');
+    random.mockReturnValue(1 - draw);
+    const restored = await store.insertGame(payload);
+    expect([restored.whitePlayer?.displayName, restored.blackPlayer?.displayName]).toEqual(expected);
+  });
+  it('keeps fixed seats and partial analysis assignments when randomisation does not apply', async () => {
+    const store = useGamesStore();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const whitePlayer = _createLocalPlayer(PlayerColour.White, 'White');
+    const blackPlayer = _createLocalPlayer(PlayerColour.Black, 'Black');
+    const fixed = await store.createGame({ name: 'Fixed', whitePlayer, blackPlayer, analysisEngineProfiles: [], timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 } });
+    expect([fixed.whitePlayer?.displayName, fixed.blackPlayer?.displayName]).toEqual(['White', 'Black']);
+    const partial = await store.createGame({ name: 'Analysis', whitePlayer, randomiseColours: true, analysisEngineProfiles: [], timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 } });
+    expect(partial.whitePlayer).toMatchObject({ colour: PlayerColour.White, displayName: 'White' });
+    expect(partial.blackPlayer).toBeUndefined();
+    expect(partial.gameState).toBe(GameState.AnalysisWhiteMove);
+  });
+  it('draws colours when starting a prepared board without changing the board or its turn', async () => {
+    const store = useGamesStore();
+    const game = await store.createGame({ name: 'Prepared', rootPosition: createBoardPosition(PlayerColour.Black), analysisEngineProfiles: [], timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 } });
+    const board = JSON.stringify(game.rootPosition);
+    vi.spyOn(Math, 'random').mockReturnValue(0.25);
+    await store.startGameFromSetup(game, { whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'), blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'), randomiseColours: true,
+      analysisEngineProfiles: [], timeControl: { preset: TimeControlPreset.Blitz, initialMs: 300000, incrementMs: 0 } });
+    expect([game.whitePlayer?.displayName, game.blackPlayer?.displayName]).toEqual(['Player 2', 'Player 1']);
+    expect(JSON.stringify(game.rootPosition)).toBe(board);
+    expect(game.gameState).toBe(GameState.LiveBlackTurn);
+    expect(game.clockSnapshot.activeColour).toBe(PlayerColour.Black);
+  });
 
   it('creates, inserts, and mutates live games through mocked domain services', async () => {
     const store = useGamesStore();

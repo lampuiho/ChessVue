@@ -10,7 +10,7 @@ test('JRN-FRESH-06 creates a timed game with one legal engine reply', async ({ p
   await configureEngines(page, [{ name: 'Journey A', path: 'journey://a' }]);
   const dialog = await openCustomGame(page);
   await setCustomClock(dialog);
-  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey A' });
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Use profile: Journey A' });
   const gameId = await createWorkspace(page);
   await playMove(page, 'e2', 'e4');
   await expect(page.locator('.history-row')).toHaveCount(2);
@@ -29,7 +29,7 @@ test('JRN-FRESH-06 rejects an unavailable engine and recovers in the same form',
   const before = await managedFiles(page);
   const dialog = await openCustomGame(page);
   await setCustomClock(dialog);
-  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Journey unavailable' });
+  await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Use profile: Journey unavailable' });
   await dialog.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(dialog.getByRole('alert')).toHaveText('Journey unavailable is unavailable. Choose another player engine and try again.');
   await expect(dialog).toBeVisible();

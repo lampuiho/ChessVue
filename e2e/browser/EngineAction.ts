@@ -23,7 +23,7 @@ export async function configureStockfish(page: Page, engineCount = 1) {
 }
 export async function createAnalysis(page: Page, names: string[]) {
   await page.getByRole('button', { name: 'Free analysis', exact: true }).click();
-  for (const name of names) await page.getByRole('checkbox', { name, exact: true }).check();
+  for (const name of names) { await page.getByLabel('Add analysis engine', { exact: true }).selectOption({ label: name }); await page.getByRole('button', { name: 'Add engine', exact: true }).click(); }
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page).toHaveURL(/\/game\/.+/);
 }

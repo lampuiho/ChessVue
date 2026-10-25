@@ -8,13 +8,13 @@ import { browserReplyReloads } from '../../journeys/definitions/browser/data/Bro
 
 async function _createTimedGame(page: import('@playwright/test').Page) {
   await configureStockfish(page);
-  await page.locator('#black-player').selectOption({ label: 'Browser Stockfish' });
-  await page.getByLabel('Clock', { exact: true }).selectOption('blitz');
+  await page.locator('#black-player').selectOption({ label: 'Use profile: Browser Stockfish' });
+  await page.getByLabel('Clock', { exact: true }).selectOption('custom');
   await page.getByLabel('Minutes', { exact: true }).fill('1');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
 }
 function _expectReply(game: IGame) {
-  expect(game.timeControl).toMatchObject({ preset: 'blitz', initialMs: 60000 });
+  expect(game.timeControl).toEqual({ initialMs: 60000, incrementMs: 0 });
   expect(game.livePath).toEqual([0, 0]);
   expect(game.renderedPath).toEqual(game.livePath);
   const white = game.moveTree.root.children[0]!;
