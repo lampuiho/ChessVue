@@ -7,7 +7,7 @@ import { createAnalysis, expectAnalysis } from './EngineAction';
 function _archive(files: Record<string, Uint8Array>) {
   return { name: 'engine.zip', mimeType: 'application/zip', buffer: Buffer.from(zipSync(files)) };
 }
-test('imports original Stockfish files and runs a routed profile through service-worker URLs across reload', async ({ page }) => {
+test('imports original Stockfish files and runs a routed profile through self-contained Blob Workers across reload', async ({ page }) => {
   test.setTimeout(90000);
   const errors: string[] = [];
   const workers: string[] = [];
@@ -28,7 +28,7 @@ test('imports original Stockfish files and runs a routed profile through service
   await expect(page.getByRole('button', { name: 'Install engine', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Install engine', exact: true }).click();
   await expect(page.getByText('Import complete.', { exact: true })).toBeVisible();
-  expect(workers.filter(url => url.includes('/engine-files/'))).toEqual([]);
+  const afterImport = workers.length;
   await page.getByRole('button', { name: 'Create profile', exact: true }).click();
   await expect(page).toHaveURL(/\/profiles\/new\?packagePath=/);
   await expect(page.locator('#engine-path')).toHaveValue('');
@@ -39,8 +39,8 @@ test('imports original Stockfish files and runs a routed profile through service
   await page.getByRole('button', { name: /Custom game/ }).click();
   await createAnalysis(page, ['Imported Stockfish']);
   await expectAnalysis(page, ['Imported Stockfish']);
-  expect(workers.some(url => url.includes('/engine-files/Stockfish%20test/vendor/build/'))).toBe(true);
-  expect(await page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  expect(workers.slice(afterImport).some(url => url.startsWith('blob:'))).toBe(true);
+  expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(registrations => registrations.length))).toBe(0);
   const stores = await page.evaluate(() => new Promise<string[]>((resolve, reject) => {
     const request = indexedDB.open('chessvue-engines', 1);
     request.onerror = () => reject(request.error);
@@ -81,17 +81,16 @@ test('serves sibling scripts, checks profile references only and stops closed pr
     await manager.stopProcess(first);
     manager.assertProcessOpen(second);
     const secondOptions = client.getOptions(b);
-    const absent = await fetch(new URL('engine-files/Script%20A%20%25%20%23/scripts/start.js', document.baseURI));
-    const body = await absent.text();
+    let missing = '';
+    try { await manager.spawnProcess('engine-files/Script A % #/scripts/start.js'); } catch (error) { missing = String((error as { detail: string }).detail); }
     await manager.stopProcess(second);
     await service.remove('engine-files/Script B', []);
-    manager.dispose();
-    return { blocked, secondOptions, status: absent.status, html: body.includes('<html'), packages: (await service.listPackages()).map((engine: { displayName: string }) => engine.displayName) };
+    await manager.dispose();
+    return { blocked, secondOptions, missing, packages: (await service.listPackages()).map((engine: { displayName: string }) => engine.displayName) };
   });
   expect(result.blocked).toContain('Configured profile');
   expect(result.secondOptions).toContainEqual(expect.objectContaining({ name: 'Marker', defaultValue: 'beta' }));
-  expect(result.status).toBe(404);
-  expect(result.html).toBe(false);
+  expect(result.missing).toContain('Stored worker entry not found');
   expect(result.packages).toEqual(['stockfish']);
 });
 test('direct import keeps installation disabled when folder discovery fails', async ({ page }) => {

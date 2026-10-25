@@ -5,9 +5,9 @@ import { PlatformError, PlatformErrorKind } from '@/contracts/PlatformError';
 import { EnginePackageConfig } from '@/config/EnginePackageConfig';
 import { StockfishConfig } from '@/config/StockfishConfig';
 import { getPlatformTarget, PlatformTarget } from '@/utility/nwjs/NwjsUtility';
-import { StoredWorkerUtility } from '@/utility/StoredWorkerUtility';
+import { WorkerScriptLoader } from '@/utility/WorkerScriptLoader';
 
-const _storedFiles = new StoredWorkerUtility(EnginePackageConfig);
+const _storedFiles = new WorkerScriptLoader(EnginePackageConfig);
 function _error(operation: string, error: unknown) {
   if (error instanceof PlatformError) return error;
   return new PlatformError({ kind: PlatformErrorKind.InvalidDocument, operation, message: error instanceof Error ? error.message : 'Engine package files could not be accessed.' });

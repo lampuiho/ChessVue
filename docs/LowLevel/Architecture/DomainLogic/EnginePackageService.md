@@ -19,6 +19,6 @@ The import view owns name-character and case-insensitive uniqueness validation a
 
 Removal checks supplied accepted/draft profiles and open-game assignments at exact package boundaries, then directly awaits atomic deletion. Temporary operations add no check, lease or registry. Bundled files and desktop targets are outside removal.
 
-StoredWorkerUtility is private reusable support, with no engine contracts or policy. The service imports its file operations; it exposes no readFile or serving API. The manager-owned execution loader registers the generic library entry; its worker-side object serves original bytes independently of this domain service. Runtime APIs and UCI sequencing are unchanged.
+WorkerScriptLoader is private reusable support, with no engine contracts or policy. The service uses its file operations; it exposes no readFile or serving API. The manager-owned loader reads stored files, constructs the dedicated Worker and makes that Worker own/release its Blob assets. There is no serving service or service-worker entry. Runtime APIs and UCI sequencing are unchanged.
 
 Detailed API and stacked function flows: [engine installation rework](../../../EngineInstallationReworkPlan.md#function-flows).

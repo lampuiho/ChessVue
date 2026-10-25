@@ -39,7 +39,7 @@ The NW.js storage and system-theme adapter factories use the injected nw instanc
 
 NW.js constructs two raw instances of NwjsProcessManager, configured by EngineClientType.Uci and EngineClientType.UciWorker, paired with NwjsUciEngineClient and BrowserUciEngineClient respectively. Browser uses BrowserProcessManager for UciWorker; the existing journey seam directly constructs the scripted native pair after setting Node overrides. Both concrete managers derive private shared implementation. Process-manager and client lookups use the same single enum.
 
-Platform-scope disposal starts cleanup of its exact manager instances and observes rejected cleanup promises through logging. Concrete manager disposal cancels pending stored launches, closes its own Workers and awaits stored-file service-worker unregistration. The public IProcessManager contract and existing native-process/app-close ownership stay unchanged.
+Platform-scope disposal starts cleanup of its exact manager instances and observes rejected cleanup promises through logging. Concrete manager disposal cancels pending stored launches, closes its own Workers, whose termination releases their Blob assets. There is no service-worker registration. The public IProcessManager contract and existing native-process/app-close ownership stay unchanged.
 
 ## Notes
 - `usePlatformService()` is the composition-root boundary for the active host implementation.

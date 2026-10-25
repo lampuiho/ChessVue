@@ -1,8 +1,8 @@
 # Engine targets, browser packages and profiles
 
-Prepared on 23 October 2026; revised on 25 October 2026. Status: architecture correction implemented and verified in the working tree. External-file Worker loading in NW.js remains blocked by the host. See the [UI specification](EngineManagementUiDesign.md) and [clickable preview](design/EngineManagement.html).
+Prepared on 23 October 2026; revised on 25 October 2026. Status: self-contained Blob-loader correction implemented and verified in the working tree. See the [UI specification](EngineManagementUiDesign.md) and [clickable preview](design/EngineManagement.html).
 
-The [NW.js spawned-process correction](ArchivedPlans/NwjsProcessOwnershipFixPlan.md) and [browser engine dependency correction](ArchivedPlans/BrowserEngineDependencyFixPlan.md), including the native inheritance follow-up, are implemented and verified. This plan starts from that completed runtime architecture. The working tree contains the earlier package implementation. This plan itself introduced the invalid concrete-manager inheritance and platform-owned service-worker entry; the defect was not only implementation drift. The user rejected those additions and requested a redesign on 25 October 2026, then explicitly instructed cleanup and implementation. The corrected architecture is now implemented; its own verification evidence and the independent external desktop Worker host limitation are recorded below.
+The [NW.js spawned-process correction](ArchivedPlans/NwjsProcessOwnershipFixPlan.md) and [browser engine dependency correction](ArchivedPlans/BrowserEngineDependencyFixPlan.md), including native inheritance, are implemented. On 25 October 2026 the user authorised replacing the stored-file service-worker mechanism with the tested Blob bootstrap and local asset mapping. The user also required one self-contained loader, normal Worker lifecycle cleanup, and removal of the separate serving classes and entry. This document records that implementation without changing the agreed runtime APIs, package model or UI.
 
 Both process managers already return an IProcess reference, stored in IAssignedEngineRuntime.process. NW.js returns the original spawned process with UTF-8 output streams. BrowserProcessManager returns markRaw(new BrowserWorkerProcess(worker)); that wrapper privately adapts Worker commands, output and managed closure to IProcess. Its constructor takes only the Worker. The manager's _processes set exists only for disposal, not reference lookup.
 
@@ -16,24 +16,19 @@ The [detailed API](#detailed-api) and [function flows](#function-flows) below de
 
 ## Architecture correction: explicit changes for review
 
-The user directed that NwjsProcessManager build on private shared implementation, with no separate NwjsWorkerProcessManager. Stored-file loading must stay local to the process manager. On disposal, unregister its stored-file service worker. These choices supersede the earlier concrete inheritance and retained-registration policy.
-
-The earlier plan added both rejected structures without properly surfacing their architectural impact in conversation. They are explicit removals below, not silently renamed target services.
+The process manager owns its private loader and the processes it creates. WorkerScriptLoader is self-contained implementation support: it reads stored files, creates their Blob URLs and bootstrap, creates a normal Worker and makes termination release that Worker's URLs. No serving object, service-worker registration, global listener or separate execution entry is retained.
 
 | Change | Implementation delta |
 | --- | --- |
-| Add private shared implementation | src/platform/base/WorkerProcessManagerBase.ts holds existing Worker mechanics. Both concrete managers derive independently. No new architectural interface/service. |
-| Change existing NW.js implementation | src/platform/nwjs/NwjsProcessManager.ts becomes a plain class supporting native and Worker bindings through EngineClientType. Remove defineNwjsProcessManagerStore and update platform/journey construction directly. |
-| Remove extra desktop manager | Delete src/platform/nwjs/NwjsWorkerProcessManager.ts. Move its URL hook into NwjsProcessManager. No concrete NW.js-to-browser-manager dependency. |
-| Keep each loader local | A private StoredWorkerUtility instance owns that manager's native registration operation, registration reference and temporary control listeners. No global loader singleton/registry. |
-| Change concrete disposal | dispose becomes awaitable: cancel startup, close its Workers, await loader cleanup/unregistration, including late native registration results. IProcessManager/EngineRuntimeService gain no API. |
-| Encapsulate worker-side events in the library | Add src/utility/StoredWorkerServer.ts, a library-private class with start/dispose and stable instance-owned activate/fetch handlers. No platform-layer serving service. |
-| Remove platform bootstrap | Delete src/platform/browser/StoredFileServiceWorker.ts. Minimal src/utility/StoredWorkerEntry.ts starts the generic binding only inside the browser-created context. Main-app imports attach no worker-global handlers. |
-| Generalise build integration | Replace the engine-specific dev asset helper with configured build/StoredWorkerAssets.ts. Both builds emit the generic library entry; worker source imports no app configuration. |
+| Keep private shared implementation | BrowserProcessManager and NwjsProcessManager independently derive WorkerProcessManagerBase. No concrete manager calls another concrete manager. |
+| Keep the existing desktop owner | NwjsProcessManager remains the single class configured by EngineClientType for native/Worker bindings. Its native process method bodies remain unchanged. |
+| Replace the old utility | Rename src/utility/StoredWorkerUtility.ts to src/utility/WorkerScriptLoader.ts and its configuration/file types accordingly. EnginePackageService retains a storage-only instance; each manager owns its own loader. |
+| Encapsulate Worker loading | createWorker reads a stored package atomically, maps original assets to Blob URLs and imports the original entry through a generated bootstrap. It returns a standard Worker whose terminate releases its own URLs. |
+| Remove serving files | Delete src/utility/StoredWorkerServer.ts, src/utility/StoredWorkerEntry.ts and build/StoredWorkerAssets.ts, their tests and Vite wiring. Remove serviceWorkerPath from configuration. The earlier platform service-worker entry and separate desktop Worker manager stay deleted. |
+| Simplify spawn/disposal | Remove _packageRegistration and _registerPackageServiceWorker. spawnProcess resolves the host URL, awaits createWorker, checks manager lifetime and wraps the Worker. Disposal cancels pending reads and kills this manager's Workers; their normal termination releases their assets. |
+| Load external desktop scripts | The same loader uses a Blob bootstrap for file URLs, resolving importScripts/fetch/XHR against the original file entry. This avoids constructing a Worker directly from an external file URL. No flags, localhost server or copied engine package. |
 
-The private library adds dispose; its worker-side object has start/dispose. Configuration transport passes the existing databaseName/storeName/rootPath as registration-script URL parameters. The worker reads its browser registration scope for the app base. This crosses the native execution boundary without app-config imports, a new record or a message handshake; it changes no engine protocol.
-
-All additions/removals and implementation-level API changes are listed here. The user authorised their implementation on 25 October 2026. Package names, frontend checks, storage keys, routed UI and EngineRuntimeService boundaries remain unchanged. The affected implementation, tests/build wiring and low-level ownership notes now reflect this correction.
+The loader imports no app configuration, engine contracts, domain services, platform implementations or stores. Its generated bootstrap runs only inside the dedicated Worker it creates. Original engine JS/WASM bytes and filenames are preserved. No public process/runtime API, persistence schema, catalogue, migration, protocol or UI change accompanies this correction.
 
 ## Questions to answer before implementation
 
@@ -43,14 +38,14 @@ Decisions confirmed by the user on 24 and 25 October 2026:
 2. **Import destination:** the installed engine name is its folder name. The import view has an Engine name input with folder-name character validation. The name is separate from any profile name and the vendor's archive filename.
 3. **Uniqueness:** installed engine names must be unique. The frontend checks its loaded engine list and blocks a duplicate name. These answers do not authorise a separate in-place replacement workflow.
 4. **Versions:** no separate version field or upstream name/version discovery. Display the folder name as the engine name. Users may include a version in that name themselves.
-5. **Stored-script loading:** use a service worker to serve browser-stored package files at ordinary same-origin URLs, preserving their relative layout.
+5. **Stored-script loading:** use the tested Blob bootstrap and local asset mapping. This supersedes the earlier service-worker choice; the static app host receives no imported engine files.
 6. **Removal protection:** check accepted profiles, draft profiles and open-game assignments only. Temporary engine operations do not add a removal guard or tracking subsystem.
 7. **Reusable library:** a generic capability for loading locally stored JavaScript and assets in Workers is valid private utility support. It must contain no chess-engine policy or engine-specific dependency.
 8. **Desktop manager:** no NwjsWorkerProcessManager; NwjsProcessManager can derive private shared implementation.
-9. **Local ownership:** the process manager owns its private loader and registration lifecycle, without an independently initialised platform service-worker module.
-10. **Disposal:** unregister the stored-file service worker on process-manager disposal.
+9. **Local ownership:** the process manager owns a private WorkerScriptLoader. The loader returns a Worker that owns its Blob URLs; separate serving objects and global listeners are removed.
+10. **Disposal:** stopping a process releases that Worker and its URLs. Manager disposal cancels pending reads and stops its live Workers. There is no registration to unregister.
 
-The listed questions have been answered. The user explicitly resumed implementation on 25 October 2026. The selected service-worker URL mechanism now has local ownership and awaited unregistration on manager disposal.
+The listed questions have been answered. The user explicitly authorised the Blob-loader correction on 25 October 2026. Long-wait handling and retry UI remain deferred.
 
 ## Installed engine names
 
@@ -60,19 +55,13 @@ Reject an empty/whitespace-only name, . or .., path separators, control characte
 
 ## Stored-script loading options
 
-The selected mechanism remains service-worker package URLs. Stored original JS/WASM/neighbouring assets are served under the reserved app-relative namespace, for example /engine-files/Example/main.js. IndexedDB bytes have no ordinary fetchable path by themselves; the generic library answers these requests without changing filenames, layout or bytes. Ordinary app/bundled files retain their current paths.
+The selected mechanism is a Blob bootstrap with a local asset URL map. For a stored entry, WorkerScriptLoader reads that package's original files from IndexedDB in one readonly transaction, creates correctly typed Blob URLs and maps their virtual package URLs to those local resources. The bootstrap gives the entry its original virtual location and resolves importScripts, fetch (strings, URLs and Requests) and XMLHttpRequest.open against that location. Original scripts are imported without rewriting their bytes. Query/hash variants of a mapped asset resolve to that same stored file.
 
-The process manager owns a private loader instance. The first stored launch starts it lazily, sharing one _packageRegistration readiness promise with concurrent/later launches on that manager. Discovery/import/profile editing create no registration or engine Worker. Successful readiness is reused until manager disposal. Actual failure reaches its callers and permits a later explicit attempt. Add no timer, process-ready wait or automatic long-wait cleanup.
+The creating page may be hosted as a static HTTPS site, including a GitHub Pages project subpath. Engine files stay in the browser. There is no user-run server, engine upload, service-worker registration, activation/control wait or build-time serving entry. Ordinary bundled/app URLs still use an ordinary Worker. Desktop external file URLs use the same bootstrap with direct file resource URLs and no IndexedDB read.
 
-A generic library object owns the fetch/activate handlers in the browser's service-worker context. Its minimal entry imports only library code and obtains plain configuration from registration; it imports no app config, engine contract or platform/domain/store module. The build emits the generic asset at the configured app-base URL.
+Every call creates an independent Worker and independent asset URLs. Its normal terminate API releases those URLs. Construction failure releases already allocated URLs; cancellation is checked before allocation. The manager checks lifetime after awaiting the loader and terminates a Worker delivered after disposal before returning a process. Normal process stop, observed Worker errors and manager disposal reach this same termination path.
 
-Await matching activation and control of the creating document before constructing a stored engine Worker. The loader owns temporary state/controller listeners and detaches them when control, actual failure or cancellation settles the wait. Worker-side object handlers filter the reserved namespace and synchronously provide response promises. See the [native fetch-event boundary](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/fetch_event).
-
-An individual stop closes only that engine Worker. Manager disposal aborts startup, closes its own live Workers and awaits loader unregistration. Native register is not cancellable: observe a late result, unregister it and prevent any engine Worker from starting after disposal.
-
-Unregister is a browser-level request, not synchronous destruction of another JavaScript context. Existing controlled clients can delay clearing the worker. Do not promise instant removal of all browser-owned listeners/controllers. The user-selected policy still requests and awaits unregistration instead of deliberately retaining it after manager disposal. No cross-tab registry, reference-count system or broadcast shutdown protocol is added. See the [unregister/clear lifecycle](https://www.w3.org/TR/service-workers/#try-clear-registration-algorithm).
-
-Keep the served script filename under the app base and the initial files-store format. Add no app-shell cache, offline policy, metadata catalogue, server fallback or Blob rewriting.
+The bootstrap supports the tested classic single-Worker engines, including Stockfish lite with WASM and Lozza. It does not add support for module imports or nested Workers; the tested nested-Worker fixture fails under Blob loading. Do not describe arbitrary multithreaded engine builds as supported. Package-specific URL manipulation may still impose engine limitations. No timeout, readiness callback, automatic slow-start cleanup or retry UI is added. Existing UCI initialisation and the native Worker message queue remain responsible for startup commands.
 
 ## Scope
 
@@ -176,9 +165,9 @@ Preserve the upstream folder structure, script names and auxiliary resources. Br
 
 On desktop, selecting a target writes no package files. Browser import stores files without choosing an entry or client type. Create profile is a separate action that selects the entry and interface from the stored files. A package may have no profiles.
 
-The loader must preserve or explicitly support the build's relative imports, WASM/NNUE resolution, MIME types and host requirements. Do not assume every vendor entry accepts an app asset-map bootstrap or that Blob workers inherit a package directory. Verify actual Stockfish and an independent Worker through the selected serving mechanism. See [Worker construction](https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker) and [importScripts](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope/importScripts).
+The loader must preserve or explicitly support the build's relative imports, WASM/NNUE resolution, MIME types and host requirements. Do not assume every vendor entry accepts an app asset-map bootstrap or that Blob workers inherit a package directory. Verify actual Stockfish and an independent Worker through the selected loading mechanism. See [Worker construction](https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker) and [importScripts](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope/importScripts).
 
-Load original app/file URLs and service-worker-served file URLs directly. The process manager owns each Worker and its closure. Never save process/Worker objects or picker handles in profiles.
+Load app URLs directly. The self-contained loader uses a Blob bootstrap for stored packages and desktop file entries, preserving original entry/asset bytes and resolving relative resources. The process manager owns each Worker process and its closure. Never save process/Worker objects, Blob URLs or picker handles in profiles.
 
 ## Retrieval without a catalogue
 
@@ -200,7 +189,7 @@ Do not create an installations object store, catalogue singleton, generated pack
 | `EnginesStore.refreshPackages()` | Own/share discovery through the same API when the package list is opened and after explicit import/removal/Refresh actions. Desktop paths have no managed inventory to enumerate. Preserve profile drafts; no host checks, watchers or polling. |
 | Profile/import target action | The existing file dialog returns a chosen file path; the profile form copies it into entryPath. Stored package files are selected directly from IEnginePackage.files. Archive input uses IEnginePackageFile (filename and original bytes), not File/Blob or a native picker handle. Validate archive paths/files through layer-2 services and own file-operation cancellation. |
 | Assignment | Copy the selected profile through the existing game/player/analysis handlers. No new resolution API or preflight. |
-| Asset preparation | The concrete manager resolves the exact entry URL and owns the Worker and its private stored-file loader. The generic library owns byte-serving support inside the browser-created context. Derive the package boundary from its virtual path, not a registry id. |
+| Asset preparation | The concrete manager resolves the exact entry URL and owns the Worker process and private loader. WorkerScriptLoader owns stored-file reading, asset mapping, bootstrap construction and Worker creation; the returned Worker's terminate owns URL cleanup. Derive the package boundary from its virtual path, not a registry id. |
 
 ```text
 Desktop profile -> executable entry -> native client/process
@@ -316,7 +305,7 @@ The private library owns generic IndexedDB operations using the existing databas
 
 The bundled definition comes from the same build asset definition supplying Stockfish's original scripts/WASM/licence. It is not copied into managed storage or discovered through an HTTP directory listing.
 
-The file-serving service worker now reads through the generic library directly, so remove the proposed EnginePackageService.readFile API. Resolve the existing picker dependency only inside browseEngineFile. This adds no runtime/platform API or dependency from the generic library into an engine service.
+WorkerScriptLoader reads stored bytes directly, so there is no EnginePackageService.readFile API. Resolve the existing picker dependency only inside browseEngineFile. This adds no runtime/platform API or dependency from the generic library into an engine service.
 
 ### Existing platform interfaces
 
@@ -373,9 +362,7 @@ declare abstract class WorkerProcessManagerBase implements IProcessManager {
   protected _resolveWorkerUrl(entryPath: string): URL;
   private readonly _processes: Set<BrowserWorkerProcess>;
   private readonly _lifetime: AbortController;
-  private readonly _storedFiles: StoredWorkerUtility;
-  private _packageRegistration?: Promise<void>;
-  private _registerPackageServiceWorker(): Promise<void>;
+  private readonly _scripts: WorkerScriptLoader;
 }
 declare class BrowserProcessManager extends WorkerProcessManagerBase {}
 declare class NwjsProcessManager extends WorkerProcessManagerBase {
@@ -391,125 +378,77 @@ declare class NwjsProcessManager extends WorkerProcessManagerBase {
 
 This outline omits bodies and repeats no architecture-level API. Only NwjsProcessManager imports existing NodeUtility access for native spawn and file URLs. Its Worker URL hook receives the existing native-path implementation. Preserve ChildProcess identity, UTF-8 setup, liveness and once-exit/kill semantics; add no native registry or shutdown policy.
 
-The base is private implementation support, not another composed platform interface or flow owner. It imports no concrete host manager/client/store. Keep its process set, lifetime signal, loader and readiness promise private. Only the existing URL hook is protected. BrowserProcessManager inherits the current same-origin default; NwjsProcessManager overrides native/app URL conversion.
+The base is private implementation support, not another composed platform interface or flow owner. It imports no concrete host manager/client/store. Keep its process set, lifetime signal and loader private. Only the existing URL hook is protected. BrowserProcessManager inherits the current same-origin default; NwjsProcessManager overrides native/app URL conversion.
 
-Each platform store registers cleanup of its exact manager instances with onScopeDispose. Concrete dispose becomes awaitable for registration cleanup; it is not added to IProcessManager. The callback starts that work and explicitly observes rejection; Vue/Pinia does not await scope callbacks. Tests await the returned promise. Native shutdown and unrelated close policy remain unchanged.
+Each platform store registers cleanup of its exact manager instances with onScopeDispose. Concrete dispose retains its existing promise contract for lifecycle cleanup; it is not added to IProcessManager. The callback starts that work and explicitly observes rejection; Vue/Pinia does not await scope callbacks. Tests await the returned promise. Native shutdown and unrelated close policy remain unchanged.
 
 ### Private call-depth correction
 
-The call-depth correction remains required. The preceding implementation was rejected for ownership and inheritance violations. The user subsequently authorised this correction; application changes are limited to the explicit implementation delta and corresponding ownership notes.
+Public actions orchestrate their own work. spawnProcess directly resolves the host URL, awaits the self-contained loader, checks lifetime, wraps the returned Worker and registers the process for disposal. There is no preparation object, registration helper, readiness cache or cleanup relay in the manager.
 
-Have public actions orchestrate the work and call leaf helpers directly. spawnProcess owns the lazy-registration cache branch and each process's launch. _registerPackageServiceWorker is a leaf adaptation of generic library work, without another manager-private method. Count protected overrides, module helpers and delegating local callbacks when reviewing call depth; moving a relay elsewhere does not flatten it. Do not introduce private-to-private delegation solely to meet the preferred function length, or add forwarding methods and cleanup relays.
+WorkerScriptLoader.createWorker selects stored/app/file loading, reads stored files when needed, then calls its construction leaf. That leaf creates the asset URLs and bootstrap and returns the Worker; construction failure releases those same URLs. The returned Worker's terminate directly calls native termination and revokes its owned URLs. Storage operations retain direct database/transaction leaves. Do not introduce extra routing methods to shorten an already shallow operation.
 
-spawnProcess resolves the entry, lazily creates or reuses _packageRegistration for a stored entry, awaits that shared promise, then constructs the Worker. _registerPackageServiceWorker is called only when no cached operation exists; the generic library observes service-worker control.
+Package list/install/remove, frontend validation, store queueing and reference-only removal remain as previously agreed. Removal protects accepted/draft profiles and open games only. No lease or temporary-operation registry is added.
 
-Planned changes to the partial implementation:
-
-- Remove _prepareEntry and its returned preparation object. spawnProcess directly sequences URL resolution, stored-path detection, lazy shared registration and Worker construction.
-- Remove _ensurePackageServing, _registerPackageServing and _waitForPackageControl. spawnProcess directly owns lazy creation/reuse of _packageRegistration. One leaf _registerPackageServiceWorker operation adapts generic library registration to the existing platform-error contract.
-- Replace manager-level _serving/_registration fields with _packageRegistration?: Promise<void>. The private loader retains the actual native registration operation/reference for disposal; the manager caches readiness for subsequent processes.
-- Remove EnginePackageUtility and its _leases/_deletions sets, acquisition/deletion claims and release callbacks from the partial implementation. Keep profile/game reference checks only, without a replacement tracking owner or API. Reusable pure path transformations may remain private library support, without flow-owner rows.
-- Remove _startError and _invalidEntry wrappers. Construct the existing PlatformError at the failure site, retaining its error contract.
-- Put generic registration/control observation and listener cleanup inside the reusable library. Keep lazy promise ownership and platform-error adaptation in the manager. No engine-ready callback or cleanup relay.
-- Remove the readiness timer and controlWaitMs configuration from the partial implementation. A pending control wait stays pending until readiness, an observed failure or manager disposal.
-- Keep listPackages/install/remove as engine-specific orchestration points that issue private generic library file operations directly. Remove _withFiles, _listStoredPackagePaths, _readPackage and _listStoredFiles. The reusable library owns generic database/transaction details while preserving storage format and completion semantics.
-- Remove the _readAction forwarding callback from package refresh. Pass _readPackages directly to the existing queue helper.
-
-| Retained owner/helper | Direct responsibility |
+| Owner | Direct responsibility |
 | --- | --- |
-| `BrowserProcessManager.spawnProcess(entryPath, args)` | Orchestrates URL resolution, lazy creation/reuse of the shared registration promise, then this process's Worker. Owns construction failure cleanup and removal from the disposal set on exit. Returns without waiting for engine initialisation. |
-| `BrowserProcessManager._resolveWorkerUrl(entryPath)` | Protected host hook resolving and validating the actual URL. No preparation, registration or error-factory calls. |
-| `NwjsProcessManager._resolveWorkerUrl(entryPath)` | Uses existing NodeUtility path/URL access for native paths and the actual app URL. No copying, installation or injected resolver. |
-| `BrowserProcessManager._registerPackageServiceWorker()` inherited privately | Adapts its own loader's registration to app base, lifetime and error contract. The same inherited body serves NwjsProcessManager's Worker binding, without a concrete peer call. |
-| `NodeUtility.getNodeUrl()` | Exposes the Node url module through the existing loading/override boundary, alongside getNodePath/getNodeFs. |
-| `EnginesStore._queuePackageWork(action)` | Serialises actual package reads/writes with a settled queue tail. |
-| `EnginesStore._readPackages()` | Calls service.listPackages and replaces the transient list after success. Called directly inside queued actions. |
-| `EnginePackageService._decodeArchive(file, signal)` | Decodes original ZIP paths/bytes. No entry selection, destination or writes; keep validation/cancellation callbacks shallow. |
-| `EnginePackageService._validatePackageFiles(archive)` | Validates the decoded file set and path boundaries/conflicts. No name validation or manifest. |
-| `EnginePackageService._assertPackageUnreferenced(packagePath, references)` | Reports current profile/game reference names. remove issues its file transaction after this check. |
-| `EnginePackageImportView._validateEngineName(name)` | Frontend format and uniqueness checks against the loaded list. |
-| `EnginePackageImportView._refreshPackages()` | Owns the discovery-ready gate and actual pending read; calls the store action directly. |
+| BrowserProcessManager.spawnProcess | Resolve URL, await loader, check lifetime, wrap/retain process; terminate on failure. |
+| BrowserProcessManager._resolveWorkerUrl | Validate/encode the browser entry through the loader's generic URL operation. |
+| NwjsProcessManager._resolveWorkerUrl | Existing Node path/URL conversion and host allow-list; no installation or file copy. |
+| WorkerScriptLoader | Self-contained generic storage and Worker creation; no engine or platform owner references. |
+| EnginePackageService | Engine package policy and direct generic storage operations. |
+| EnginesStore | Existing package-work queue, rediscovery and transient list. |
+| EnginePackageImportView | Name characters/uniqueness, discovery eligibility and import action lifecycle. |
 
 ### Reusable stored-file Worker library
 
-This is self-contained implementation support for ordinary stored JS/assets, with no app contracts/configuration/services/stores or concrete platform-manager imports. Retain IndexedDB's existing database/store/compound keys and initial schema. The manager owns its execution loader as a private instance field; importing the library or constructing it performs no IO and installs no global listeners.
+The class is WorkerScriptLoader, not a static Utility object. Construct it with plain storage values; construction/import performs no IO and attaches no listeners.
 
 ~~~ts
-interface IStoredWorkerConfig {
+interface IWorkerScriptLoaderConfig {
   databaseName: string;
   storeName: string;
   rootPath: string;
-  serviceWorkerPath: string;
 }
-interface IStoredWorkerFile {
+interface IWorkerScriptFile {
   path: string;
   data: Uint8Array<ArrayBuffer>;
 }
-class StoredWorkerUtility {
-  constructor(config: IStoredWorkerConfig);
-  listRoots(): Promise<readonly string[]>;
-  listFiles(root: string): Promise<readonly string[]>;
-  writeFiles(root: string, files: readonly IStoredWorkerFile[], signal?: AbortSignal): Promise<void>;
+class WorkerScriptLoader {
+  constructor(config: IWorkerScriptLoaderConfig);
+  listRoots(): Promise<string[]>;
+  listFiles(root: string): Promise<string[]>;
+  writeFiles(root: string, files: readonly IWorkerScriptFile[], signal?: AbortSignal): Promise<void>;
   removeFiles(root: string): Promise<void>;
   resolveUrl(entryPath: string, appBaseUrl: URL): URL;
   isStoredUrl(url: URL, appBaseUrl: URL): boolean;
-  register(appBaseUrl: URL, signal?: AbortSignal): Promise<void>;
-  respond(request: Request, appBaseUrl: URL): Promise<Response>;
-  dispose(): Promise<void>;
+  createWorker(entryUrl: URL, appBaseUrl: URL, signal?: AbortSignal, options?: WorkerOptions): Promise<Worker>;
 }
 ~~~
 
-| Library operation | Generic responsibility |
+| Library operation | Responsibility |
 | --- | --- |
-| listRoots/listFiles | Read file keys only, projecting opaque roots and original relative paths. |
-| writeFiles/removeFiles | Validate generic paths, await atomic transaction completion/abort and close database connections. No engine name/reference rules. |
-| resolveUrl/isStoredUrl | Encode components, retain hierarchy and identify the configured namespace. NW.js file conversion stays in its manager. |
-| register | Retain this instance's actual native registration promise before awaiting it; configure the generic entry and await matching document control. Cancel/detach only its owned temporary listeners. No global cache or timer. |
-| respond | Return exact original bytes with MIME/no-store and explicit malformed/missing/method/storage errors. No app HTML, substitutions or engine startup bridge. |
-| dispose | Cancel this instance's control wait, detach its owned listeners, observe in-flight native registration and await unregister on its resulting registration. No registration means no registration/file work. |
+| listRoots/listFiles | Read original roots/relative file names from existing compound keys. No catalogue. |
+| writeFiles/removeFiles | Validate generic file paths, await atomic completion/abort and close the database. Engine-name/reference rules stay outside. |
+| resolveUrl/isStoredUrl | Encode stored path components and recognise the configured namespace with protocol/host/path checks, including nested app bases. |
+| createWorker | Read one stored package in one transaction, preserving file-key/data pairing. Map JS/WASM/binary MIME types to Blob resources and construct the dedicated Worker. Ordinary app URLs use the native constructor directly; file URLs use the same bootstrap with original file paths. |
+| Returned Worker.terminate | Terminate that Worker and revoke its own asset/bootstrap URLs. Repeated termination does not revoke them again. No loader-level registry or separate disposal API. |
 
-Instance state may include a lifetime AbortController and the actual Promise<ServiceWorkerRegistration> returned by native register. That promise retains a resource operation for late-result cleanup; it is not a second readiness cache. The manager owns the shared readiness promise. A rejected native registration creates nothing to unregister and remains a launch failure. Preserve the owned registration reference if unregister itself rejects so an explicit cleanup retry can still reach it; repeated cleanup is harmless.
+The private bootstrap function is serialised into the Worker Blob. It uses only native APIs and its entry/asset arguments, with no outer-module references. Its replacements are local to that dedicated Worker's global object. It supplies an entry location, importScripts/fetch/XHR resolution, then imports the original entry. It installs no application-global fetch/activate/message listener. Nested Worker/module loading remains outside the selected implementation.
 
-The existing optional signal still cancels the registration/control wait. Loader disposal settles its wait even when no external signal was passed. Use one terminal state callback to detach that wait's listeners and settle; no finish/cleanup relay, generation guard or deadline. Native register cannot be cancelled: retain its actual promise and unregister a result delivered after disposal.
-
-The worker-side binding is an object inside the same private library:
-
-~~~ts
-class StoredWorkerServer {
-  constructor(config: IStoredWorkerConfig, scope: IStoredWorkerScope);
-  start(): void;
-  dispose(): void;
-  // Private scope, byte responder and stable instance-owned activate/fetch handlers.
-}
-~~~
-
-IStoredWorkerScope is a library-private description of the native event target, clients and registration scope. start attaches this object's handlers once. Its activate handler supplies clients.claim through waitUntil. Its fetch handler filters the namespace and synchronously supplies the response promise. dispose removes those exact handlers from that same scope. Serving has no free module-level handler functions or module-level addEventListener effects.
-
-The minimal src/utility/StoredWorkerEntry.ts runs only when the browser creates the service-worker context. It reads and validates databaseName/storeName/rootPath from its script URL, uses self.registration.scope for the app base and starts one StoredWorkerServer. It imports no application module, creates no registration and is not imported by the main app. Its only role is the native execution entry into that library object.
-
-The manager's loader and the worker-side binding live in separate JavaScript contexts. They are not one synchronously callable object. Manager disposal releases its registration through the loader; the browser determines when an already-controlled worker context can terminate. Do not add a global message listener or claim that the manager directly calls the remote object's dispose. Object ownership encapsulates handlers; unregister requests browser-resource release.
-
-The register implementation sets URLSearchParams on the configured script URL for the three existing storage values. The worker reconstructs them whenever the browser starts it. No application config import, saved configuration catalogue or message-initialisation queue is added. Invalid/missing generic configuration fails actual registration. serviceWorkerPath stays a normal caller-supplied value; inside the worker its own current URL supplies that field.
-
-Generalise build/StoredWorkerAssets.ts to accept the served script path and serve/emit the generic entry for dev/production. Keep the configured app-base filename so no extra hosting-scope policy is required. This is build integration with a library asset, not an application/platform serving module.
-
-EnginePackageService uses its own storage-only instance for discovery/import/removal; these paths never register anything. The manager keeps its execution loader private. Neither instance refers to the other. Engine policy remains in the domain service; package APIs gain no prepare/serve/register operation.
-
-The library retains generic database/transaction leaves and shallow URL/file helpers. Under the [utility contract](LowLevel/Architecture/UtilityIndex.md#purpose), neither library class nor its native entry is an architectural flow owner. Review their private operations here; concrete service/manager/platform callbacks remain the owners in the stacked function tables.
+EnginePackageService uses a storage-only loader instance for discovery/import/removal. The manager owns its independent loader instance. No instance depends on another or shares a runtime registry. The existing database/store/compound-key schema and transaction completion/cancellation rules are unchanged.
 
 ### Corrective review before resuming
 
-Review the whole rework as one design against every newly introduced manager/service/store/view helper and meaningful local callback. Verify public orchestration in spawnProcess, listPackages, install, remove and refreshPackages together; individual cleanup decisions do not replace that review. Do not limit review to _resolveWorkerUrl or refactor existing EngineRuntimeService/UciEngineClientBase.
+Review the full rework against its explicit scope and the user-owned decisions. No runtime/client APIs or unrelated function bodies change. Keep detailed flows for architectural callers and meaningful callbacks in the stacked single-column format below; library internals are terminal implementation support rather than extra architectural flow owners.
 
-| Entry | Deepest intended internal path |
+| Entry | Intended internal path |
 | --- | --- |
-| Worker spawn | spawnProcess orchestrates lazy registration and creation; _registerPackageServiceWorker is a leaf adaptation of private library work; later spawns reuse the promise |
-| Host URL resolution | spawnProcess -> _resolveWorkerUrl -> existing path/module support |
-| Package storage/discovery | public package action owns engine rules and issues private library file operations directly, without engine-specific storage helper chains |
-| Package refresh | refreshPackages passes _readPackages directly to _queuePackageWork; _readPackages calls the public service boundary |
-| Stored-file serving | The concrete manager owns its loader; worker-side instance handlers stay inside private library/native-boundary support, with no platform service-worker flow owner |
-
-Promise executors/continuations stay with their actual operation; do not extract extra routing helpers around them or hide further chains inside callback rows. The terminal readiness/transaction callbacks remove listeners and settle themselves. Preserve the agreed public APIs, storage model, host bindings and runtime behaviour. The implementation and verification follow the paths above.
+| Worker spawn | spawnProcess -> host URL hook; spawnProcess -> createWorker; then process construction and tracking. |
+| Stored Worker loading | createWorker -> readonly file transaction; createWorker -> construction leaf. No registration/control branch. |
+| Package storage/discovery | Public package action -> generic file operation; no domain-specific storage relay chain. |
+| Package refresh | refreshPackages passes _readPackages directly to _queuePackageWork, which calls the existing public service boundary. |
+| Resource release | Process closure -> Worker.terminate -> native terminate and local URL revocation. |
 
 ### Existing runtime boundary
 
@@ -519,7 +458,7 @@ Existing EnginesStore profile-selection and option-discovery APIs also retain th
 
 ### Open API decisions
 
-The first-use, naming, uniqueness, metadata and service-worker decisions are recorded in [Questions to answer before implementation](#questions-to-answer-before-implementation). The listed choices are settled. The removal decision is also settled: accepted/draft profiles and open games are the only removal checks. Package installation creates a unique named folder; there is no implicit replacement or separate version policy. The selected loading mechanism and ownership correction are implemented. The external desktop Worker host limitation remains recorded below.
+The first-use, naming, uniqueness, metadata and Blob-loading decisions are recorded in [Questions to answer before implementation](#questions-to-answer-before-implementation). The listed choices are settled. The removal decision is also settled: accepted/draft profiles and open games are the only removal checks. Package installation creates a unique named folder; there is no implicit replacement or separate version policy. The selected loading mechanism and ownership correction are implemented. The tested engine/build limitations remain recorded below.
 
 File-action failures also need to retain their failing operation/stage through the existing error contract. A read/validation/transaction failure leaves no new files; a discovery failure after commit leaves the files installed and offers Refresh/Retry. The same distinction applies after a successful removal. Do not report every rejected store promise as a rolled-back file operation or add another persistence/error subsystem to hide that distinction.
 
@@ -843,151 +782,76 @@ Each callback immediately observes the returned promise's rejection through the 
 
 Concrete manager headers below include inherited methods. WorkerProcessManagerBase is private implementation support and gets no separate architectural flow tables.
 
-### Worker creation and stored-file serving
+### Worker creation and local script loading
 
-The native-configured NwjsProcessManager retains its actual spawn/UTF-8/liveness/exit-wait bodies. Refactoring its implementation ownership does not change those operations. The Worker-configured instance delegates to the shared base on this same object, with its native URL hook. No concrete browser manager is constructed or called by NwjsProcessManager.
+The native-configured NwjsProcessManager retains its exact spawn/UTF-8/liveness/exit-wait operations. The Worker-configured instance delegates to the shared base on this same object. No concrete browser manager is constructed or called by NwjsProcessManager.
 
 | `NwjsProcessManager.spawnProcess(entryPath, args): Uci branch` |
 | --- |
-| `childProcess.spawn(entryPath, args, { stdio: 'pipe' })` |
-| `process.once('spawn', _handleSpawn)` |
-| `process.once('error', _handleError)` |
+| childProcess.spawn(entryPath, args, { stdio: 'pipe' }) |
+| process.once('spawn', _handleSpawn) |
+| process.once('error', _handleError) |
 
-| `NwjsProcessManager.spawnProcess: existing _handleSpawn callback` |
+| `NwjsProcessManager.spawnProcess: _handleSpawn callback` |
 | --- |
-| `process.stdout.setEncoding('utf8')` |
-| `process.stderr.setEncoding('utf8')` |
-| `_cleanup()` |
-| `markRaw(process)` |
+| process.stdout.setEncoding('utf8') |
+| process.stderr.setEncoding('utf8') |
+| _cleanup() |
+| markRaw(process) |
 
-The existing startup callback resolves with that exact native process. _handleError removes those temporary startup listeners and rejects through the existing native process-start contract. Retain both callback bodies; introduce no new native flow or registry.
+The callback resolves with the exact ChildProcess. Its existing _handleError/_cleanup callbacks remove temporary startup listeners and preserve the current error contract.
 
 | `NwjsProcessManager.spawnProcess(entryPath, args): UciWorker branch` |
 | --- |
-| `super.spawnProcess(entryPath, args)` |
+| super.spawnProcess(entryPath, args) |
 
-This calls inherited code on the same instance. It does not call BrowserProcessManager. Its URL hook is NwjsProcessManager._resolveWorkerUrl; its loader, readiness promise, lifetime and Worker disposal set belong to this instance. The inherited implementation is expanded using the browser concrete-owner headers below, without introducing the base as another architectural flow owner.
-
-| Resource | Scope and owner |
+| Resource | Owner |
 | --- | --- |
-| Stored-file loader | One private instance field per manager; no module/global singleton. Owns native registration work, the resulting reference and its temporary control callbacks. |
-| Browser registration | Native resource reached through that loader. It may be reused by the browser for the app scope; the manager explicitly requests unregistration on disposal. |
-| _packageRegistration?: Promise<void> | One private readiness promise on this manager. Concurrent stored launches await it; success is reused only during this manager's lifetime. |
-| Engine Worker/process | One per spawn. Each process closes independently and removes itself from its manager's disposal set through its exit listener. |
-| UCI initialisation | Existing client/runtime ownership; spawn adds no script/WASM/UCI readiness wait. |
-
-Browser scope sharing does not create an app-global loader owner. Local pending waits/process sets remain independent; unregistration is still a browser-scope operation, with native effects described in the loading section. No registry/ref-count layer is introduced to disguise that boundary.
-
-Individual engine stop retains this manager's loader for remaining/later engines. Manager disposal ends that ownership, cancels startup and awaits unregistration, including a native registration result delivered late. Replacing/reloading a manager creates a new local owner; it does not reuse a JavaScript singleton.
-
-Public orchestration. Resolve/classify the target within spawnProcess using private path-mapping details, await shared registration for stored files, then construct and return this process.
+| Loader | Private field on this manager; configuration and generic operations only. No shared registration or Worker registry. |
+| Pending read | This launch's IndexedDB transaction, cancelled by manager-lifetime abort. Independent launches do not wait for another launch. |
+| Worker and Blob URLs | One returned Worker owns its own assets/bootstrap. Its normal terminate releases them. |
+| Process | One BrowserWorkerProcess per spawn; its managed exit removes it from this manager's disposal set. |
+| UCI startup | Existing client/runtime. No new process-ready wait, timeout or message queue. |
 
 | `BrowserProcessManager.spawnProcess(entryPath, args)` |
 | --- |
-| `_lifetime.signal.throwIfAborted()` |
-| `this._resolveWorkerUrl(entryPath)` |
-| `this._registerPackageServiceWorker()` only for a stored entry when _packageRegistration is absent |
-| `await _packageRegistration` for a stored entry |
-| `_lifetime.signal.throwIfAborted()` after the shared registration wait |
-| `new Worker(url, { name: 'ChessVue UCI' })` |
-| `new BrowserWorkerProcess(worker)` |
-| `markRaw(process)` |
-| `process.once('exit', _onProcessExit)` |
+| _lifetime.signal.throwIfAborted() |
+| this._resolveWorkerUrl(entryPath) |
+| await _scripts.createWorker(url, appBaseUrl, _lifetime.signal, { name: 'ChessVue UCI' }) |
+| _lifetime.signal.throwIfAborted() |
+| new BrowserWorkerProcess(worker) |
+| markRaw(process) |
+| _processes.add(process) |
+| process.once('exit', _onProcessExit) |
 
-Reject unsupported arguments before work. Resolve the URL before deciding whether it belongs to stored files. spawnProcess directly owns the lazy-cache branch: assign the complete registration promise before yielding, await it, then create this process. The registration helper performs the one registration operation; it does not select an entry, check the cache or construct an engine Worker.
+Reject unsupported arguments first. The loader completely owns file reading, bootstrap and native Worker construction. After awaiting it, check manager disposal before wrapping/retaining the result. The action's catch terminates any returned Worker and translates the failure into the existing ProcessStartFailed contract. No extra creation/preparation API is added to the platform or runtime.
 
-Retain successful _packageRegistration completion for the manager's remaining lifetime. Further stored launches use it without calling register again or attaching another control listener. If registration genuinely rejects, clear the cached promise in its rejection continuation and propagate that error to all current callers. Only a later explicit launch starts another attempt. The shared operation cannot be replaced while pending, so no sequence counter or promise-identity guard is needed.
-
-After the last shared wait, check disposal before Worker construction. There is no further await before registering its exit listener and adding it to the disposal set. Construction failure terminates any created Worker. Return the same raw IProcess. Worker construction remains direct, without an injected factory, preparation object or creation helper.
-
-Return after creating the process; do not wait for the engine script, WASM or UCI handshake to finish. The [Worker's built-in message queue](https://html.spec.whatwg.org/multipage/workers.html#worker-processing-model) accepts commands while its script starts, and the unchanged UCI client/runtime retains its existing initialisation sequencing. No application command queue or process-ready callback is added.
-
-App-shipped or desktop file branch:
-
-| `BrowserProcessManager.spawnProcess(entryPath, args): ordinary-file branch` |
-| --- |
-| `_lifetime.signal.throwIfAborted()` |
-| `this._resolveWorkerUrl(entryPath)` |
-| `new Worker(url, { name: 'ChessVue UCI' })` |
-| `new BrowserWorkerProcess(worker)` |
-| `markRaw(process)` |
-| `process.once('exit', _onProcessExit)` |
-
-Use the actual URL directly, skipping the lazy registration promise. No service-worker registration, IndexedDB read or desktop file copy occurs. appBaseUrl derives from document.baseURI and import.meta.env.BASE_URL, not the filesystem working directory.
-
-The host hook resolves native paths to file URLs before stored-path classification, so a path cannot enter IndexedDB merely because its text resembles the managed namespace. Bundled profiles use app-relative filenames without a leading filesystem separator. Remove the old Stockfish alias.
-
-Browser URL branch:
+A stored launch reads all files for that package in a single transaction, derives virtual paths under the app base, then creates its own Blob resources and Worker. Concurrent/later launches repeat that process independently. An ordinary app launch performs no stored-file read or Blob allocation. A desktop file launch uses the generic Blob bootstrap with direct file import/fetch/XHR resolution. All three return the same process contract.
 
 | `BrowserProcessManager._resolveWorkerUrl(entryPath)` |
 | --- |
-| `new URL(entryPath, appBaseUrl)` |
+| _scripts.resolveUrl(entryPath, appBaseUrl) |
 
-Retain same-origin HTTP(S) checks and existing rejection of local filesystem/executable targets. Remove the Stockfish alias mapping; the default profile supplies its real app-relative script path. Browser-stored paths take the separate virtual-file branch below.
+Validate same-origin HTTP(S) and reject native executable/filesystem targets in the browser. Stored paths encode each component, preserving spaces, percent/hash characters and nested filenames. Profiles retain their actual entry paths.
 
-Desktop absolute-filesystem branch, selected before URL parsing:
-
-| `NwjsProcessManager._resolveWorkerUrl(entryPath)` |
+| `NwjsProcessManager._resolveWorkerUrl(entryPath): absolute filesystem branch` |
 | --- |
-| `NodeUtility.getNodePath()` |
-| `path.isAbsolute(entryPath)` |
-| `NodeUtility.getNodeUrl()` |
-| `nodeUrl.pathToFileURL(entryPath)` |
+| NodeUtility.getNodePath() |
+| path.isAbsolute(entryPath) |
+| NodeUtility.getNodeUrl() |
+| nodeUrl.pathToFileURL(entryPath) |
 
-Use the host's path rules for drive-letter, UNC and POSIX absolute paths. For example, D:/Chess Engines/lozza.js becomes file:///D:/Chess%20Engines/lozza.js on Windows. Node's [pathToFileURL](https://nodejs.org/api/url.html#urlpathtofileurlpath-options) performs path conversion and URL escaping; do not feed a Windows path directly to new URL, prepend file:// by hand or turn a POSIX path into an app HTTP request. The profile retains the original filesystem path, and sibling resources resolve against the resulting file URL.
+Use existing host path rules and Node URL escaping for drive-letter, UNC and POSIX paths. The loader receives the resulting file URL; it never constructs a dedicated Worker directly from that external URL.
 
-Desktop app-relative/explicit-URL branch:
-
-| `NwjsProcessManager._resolveWorkerUrl(entryPath)` |
+| `NwjsProcessManager._resolveWorkerUrl(entryPath): app-relative/explicit URL branch` |
 | --- |
-| `NodeUtility.getNodePath()` |
-| `path.isAbsolute(entryPath)` |
-| `new URL(entryPath, appBaseUrl)` |
+| NodeUtility.getNodePath() |
+| path.isAbsolute(entryPath) |
+| new URL(entryPath, appBaseUrl) |
 
-For non-filesystem input, resolve an app-relative entry against the actual app URL. Allow file URLs for local entries and the current app's chrome-extension URL for bundled files, comparing protocol and host explicitly for the extension scheme; same-origin HTTP(S) remains available when that is the app host. Reject other schemes or foreign web/extension origins through the existing process-start error. Absolute filesystem detection precedes this branch so a drive letter is never treated as a URL scheme. Keep these host details in the private desktop override; neither a host-specific public API nor a resolver callback is added.
+Retain current file/current-extension/same-origin HTTP(S) validation. Bundled entries use their actual app URLs. No copied files, changed flags, injected resolver or localhost server is introduced.
 
-URL conversion alone does not prove Worker loading permissions. Verify original scripts and sibling WASM/importScripts resources from outside the app directory in a real packaged NW.js node frame, as well as bundled app URLs. NW.js documents [node-frame privileges](https://docs.nwjs.io/For%20Users/Advanced/Security%20in%20NW.js/); this plan does not infer that a browser HTTP development page has the same file access. Do not add a local server, copy external files or change NW.js flags as an implicit fallback. Any additional host requirement must be raised before implementation proceeds beyond this verification gate.
-
-Browser-stored user package branch:
-
-| `BrowserProcessManager.spawnProcess(entryPath, args): first stored launch` |
-| --- |
-| `this._resolveWorkerUrl(entryPath)` |
-| `this._registerPackageServiceWorker()` |
-| `await _packageRegistration` |
-| `_lifetime.signal.throwIfAborted()` |
-| `new Worker(url, { name: 'ChessVue UCI' })` |
-| `new BrowserWorkerProcess(worker)` |
-| `markRaw(process)` |
-| `process.once('exit', _onProcessExit)` |
-
-Assign the helper's promise, including its rejection cleanup, to _packageRegistration before awaiting it. Encode virtual path components during URL resolution, preserving the package boundary and relative hierarchy. Missing resources use normal launch errors; import and profile save do not probe them.
-
-| `BrowserProcessManager.spawnProcess(entryPath, args): concurrent or later stored launch` |
-| --- |
-| `this._resolveWorkerUrl(entryPath)` |
-| `await _packageRegistration` |
-| `_lifetime.signal.throwIfAborted()` |
-| `new Worker(url, { name: 'ChessVue UCI' })` |
-| `new BrowserWorkerProcess(worker)` |
-| `markRaw(process)` |
-| `process.once('exit', _onProcessExit)` |
-
-A concurrent launch waits on the same outstanding promise. A later launch reuses its successful completion. Neither repeats registration, creates its own registration owner or installs per-process service-worker listeners. After the shared prerequisite, launches proceed independently; they are not serialised behind other engine processes.
-
-Lazy registration operation, called only by the public action's first-use branch:
-
-This manager leaf awaits the generic library's register operation using its app base and lifetime signal, and translates actual failures into the existing ProcessStartFailed contract. It does not select the cache, construct an engine Worker or add another private method. spawnProcess owns the one cached promise and all subsequent launch steps.
-
-Registration, activation/control observation and listener cleanup are generic library internals, not engine-process callbacks. One register invocation uses one terminal local state callback. If the matching activated worker already controls the document, it completes without listeners. Otherwise it stays pending until control, an actual failure or owner disposal, and removes its listeners when settling. There is no timer or wait-helper relay.
-
-Native registration is not cancellable: the local loader retains its actual promise, observes the result and releases a registration received after disposal. Cancelling an engine assignment does not dispose the manager's shared loader. spawnProcess checks disposal after its readiness await and before construction. No process-manager/runtime cancellation parameter is added.
-
-The public manager action owns the stored-file serving capability through its private loader. The generic library's object-owned worker-side handlers and bootstrap are specified under [Reusable stored-file Worker library](#reusable-stored-file-worker-library); they are terminal implementation support here, with no StoredFileServiceWorker flow owner or free module-level listeners.
-
-The build only makes that library asset available at its configured URL. It starts no resource on import. The first stored spawn registers it through this manager's loader. Responses preserve original bytes, paths, MIME/no-store and explicit HTTP failures. Ordinary requests are not intercepted. No engine-domain read API, app-shell cache, file substitution, script rewriting or UCI bridge is added.
-
-Observed engine Worker errors continue through BrowserWorkerProcess and the unchanged client/runtime. Its existing manager-owned exit callback removes the closed process from the local set. The shared browser registration is released at manager disposal, not individual process closure.
+Worker creation returns before script/WASM/UCI readiness. The native Worker message queue accepts commands while its scripts start. Existing client initialisation sequencing stays unchanged. Observed errors close the wrapper and reach Worker.terminate, which releases this Worker's Blob URLs.
 
 | `BrowserUciEngineClient constructor()` |
 | --- |
@@ -1003,7 +867,7 @@ The base's only package-rework change is that enum parameter and its private ass
 
 ### Worker resource release
 
-Existing runtime stop/restart/disposal reaches the process manager through its unchanged public signatures. Only its enum-keyed lookup changes in EngineRuntimeService. The manager adds cancellation for its shared registration/control wait. The existing process exit listener removes the closed process from the disposal set. stopProcess returns successfully for an already-stopped resource; its live-process shutdown sequence, restart sequencing and the wrapper's managed closure are retained.
+Existing runtime stop/restart/disposal reaches the process manager through its unchanged public signatures. Only its enum-keyed lookup changes in EngineRuntimeService. The manager lifetime cancels pending local file reads. The existing process exit listener removes the closed process from the disposal set. stopProcess returns successfully for an already-stopped resource; its live-process shutdown sequence, restart sequencing and the wrapper's managed closure are retained.
 
 Live browser process branch:
 
@@ -1071,41 +935,29 @@ Platform disposal releases the manager-owned loader as well as its Workers:
 | `_lifetime.abort(processStartFailure)` |
 | `process.kill() for each process in a snapshot of this._processes` |
 
-After those synchronous steps, each action directly awaits its own private loader's dispose operation. That operation cancels/detaches its control listeners, awaits any actual native registration attempt and calls unregister on its result. Private imported-library work is terminal here, not another architectural caller table. The returned manager promise settles only after that resource cleanup. It does not acquire a public runtime/API role.
+Those synchronous steps cancel pending stored reads and close this manager's live Workers. Worker termination immediately revokes the URLs owned by that Worker. A loader result delivered after disposal is terminated by spawnProcess's catch before a process is returned. There is no shared registration or remote-context disposal to await. Concrete dispose retains its promise signature; platform scope callbacks keep observing its rejection.
 
-Construct processStartFailure directly with the existing ProcessStartFailed/operation=spawnProcess contract. Pending launch continues to observe its real native operation and rejects on disposal without constructing an engine Worker. Loader cleanup reaches a late registration result; it cannot lose the reference simply because the readiness cache's rejection continuation cleared _packageRegistration.
+Stopping one process leaves the other Workers and their assets intact. Constructor failure releases any URLs allocated before the native constructor threw. Missing files and storage failures reject the current launch through the existing error boundary. Repeated stop/disposal remains harmless. No timeout, generation guard, global registry, migration or retry UI is introduced.
 
-No registration attempt means no unregister call. Native register rejection means no acquired resource. An actual unregister rejection reaches the cleanup owner and leaves the reference available for explicit retry. Repeated disposal remains harmless. Platform scope callbacks observe cleanup rejection; tests await disposal directly. No timer, generation guard, shutdown broadcast, global lease or new store is added.
-
-The native-configured instance does not add native child-process tracking or kill policy; existing runtime owners still release native processes. The inherited disposal set contains only Worker wrappers created by that instance.
-
-Failed construction terminates any created engine Worker. Normal stop, observed failure and runtime cleanup retain the wrapper's managed exit behaviour. An individual stop does not unregister serving needed by other engines on this manager; manager disposal does. Awaiting unregister is not a guarantee that an already-controlled browser client loses its controller immediately.
+The native-configured instance gains no child-process registry or shutdown policy. Existing runtime owners still release native children. Its inherited disposal set contains only Worker wrappers created by that instance.
 
 ## Current verification limits
 
-The user authorised cleanup and implementation on 25 October 2026. The correction passes 925 unit/mounted-application tests across 106 files, all 27 normal-browser cases, and five affected scripted-engine journeys covering cleanup, crash/retry recovery, out-of-order analysis, malformed output and typed/empty options. The build passes the code audit, TypeScript projects and production bundling.
+The Blob-loader correction passes 919 unit/application tests across 105 files, all 28 normal-browser tests and npm run build, including the code audit and TypeScript projects. Removal of the server/registration tests and their replacement with loader/resource tests accounts for the changed unit count.
 
-Focused coverage verifies local handler ownership, matching control/listener cleanup, manager-local startup sharing, disposal during native registration, awaited late unregistration, observable/retryable unregister failure and no late engine Worker creation. Tests also verify that both NW.js bindings use distinct raw instances of the same concrete class while retaining native process identity and shutdown behaviour. No new runtime API is introduced.
+Generic browser checks use an independent database/store/root and make service-worker access throw. They verify original sibling scripts, binary assets, fetch URL/Request handling, XHR, special-character names, independent Workers, exact script bytes, transaction rollback/cancellation, missing entries and constructor-failure cleanup. Repeated normal termination revokes each Worker's URLs once and leaves another Worker running. The browser package UI also imports original Stockfish/WASM and resumes analysis across reload with no registration.
 
-Real NW.js SDK v0.119.2 passes both UCI handshakes, exact native ChildProcess identity, UTF-8 streams, simultaneous native/bundled Worker analysis, independent Worker stop/restart with renewed analysis and awaited final disposal. The external-file restriction below remains separate; no workaround is added.
+The minified production app was built with base /chess-vue/ and served through a simulated static HTTPS origin, https://owner.github.io/chess-vue/. Original Lozza and Stockfish/WASM each produced three analysis lines concurrently. SHA-256 comparisons confirm original JS/WASM bytes were present unchanged in the created Blobs. No imported-engine request reached the host, no file bytes were uploaded and service-worker access was prohibited. This is a normal Chromium static-host simulation, not a deployed GitHub Pages site.
 
-The production-preview check imports original Lozza, creates a routed profile and produces three analysis lines with unchanged served bytes and no page errors. The generic browser proof uses a different database, object store and URL namespace with original sibling scripts/binary assets, confirming configuration reaches the generic worker entry.
+Real NW.js SDK 0.119.2 passes native, bundled and original external Lozza/Stockfish handshakes and simultaneous four-engine analysis. Native ChildProcess identity and UTF-8 streams remain unchanged. External Lozza stops/recreates and resumes analysis while the other engines remain alive. Raw Workers created only through WorkerScriptLoader also load external sibling importScripts, binary fetch and XHR assets. Final runtime stop/manager disposal completes; a process check finds no test NW.js or native Stockfish process left running.
 
-Current reports are under ignored node_modules/.cache/codex: EngineInstallationArchitectureUnit.json, EngineInstallationArchitectureBrowserSummary.json, EngineInstallationArchitectureJourneys.json, EngineInstallationArchitectureProduction.json and EngineInstallationArchitectureNwjs.json.
+Reports: ignored node_modules/.cache/codex/WorkerScriptLoaderUnit.json, WorkerScriptLoaderHosted.json and WorkerScriptLoaderNwjs.json; the browser run is recorded in test-results/JourneyResults.json. The build emits no stored-file service-worker entry. Detailed API and stacked function flows above retain the agreed presentation and existing runtime/client boundaries.
+
+The selected bootstrap does not support nested Workers or module-worker imports. Earlier experiments and the direct external-file Chromium origin failure are documented in [External Worker loading experiments](ExternalWorkerLoadingExperiments.md). The loader uses a Blob bootstrap for file entries to avoid direct external-file Worker construction; it does not change the host's flags or start a server.
 
 ### Earlier verification
 
-The following results describe the preceding implementation and are retained as historical evidence; the runs above verify the correction.
-
-The earlier implementation passed the full 914-test unit/mounted-application suite with the repository's documented single-worker thread setup. Its final 18-test package/library/manager/store rerun passed before this architecture revision. The earlier code audit, TypeScript projects and production build passed. The 27-test normal-browser project passed, including original Stockfish import/reload, generic sibling scripts/assets, reference-only removal, failed discovery and actual transaction rollback. The affected journey run passed 52 of 55 cases; the two outdated default-inventory expectations were corrected, and the final seven-case targeted rerun passes, including all three previously failing cases. The analysis snapshot test now excludes runtime-only $ fields rather than serialising native timer/process state.
-
-The earlier real NW.js SDK v0.119.2 run passed native Stockfish and bundled Stockfish Worker handshakes and simultaneous analysis, independent Worker stop while native analysis remains alive, Worker restart and final cleanup. External-file Worker creation is blocked: Chromium terminates the renderer with DWH_INVALID_SCRIPT_URL_ORIGIN (bad IPC reason 123). Reproduction with an external original Lozza script isolates the problem from Stockfish/WASM. External-file/WASM acceptance remains blocked; no host flags, copying, Blob bootstrap or local-server workaround is adopted without a separate user decision.
-
-Stockfish's upstream entry decodes its own URL in a way that breaks its WASM request when the package name contains a hash character. Generic encoded names passed with the independent scripted Worker. Preserve original engine bytes and the agreed frontend name rules; this engine-specific limitation is not permission to rewrite entries or silently restrict names.
-
-Verification artifacts are generated under ignored test-results: EngineInstallationUnit.json, NwjsEngineInstallationVerification.json, LozzaEngineInstallationVerification.json and ProductionEngineInstallationVerification.json. Original Lozza 12 HCE passes stored-browser handshake, analysis, stop/restart and a legal player move. A production-preview UI run imports its original ZIP, creates a routed profile and produces three analysis lines through the stable built service-worker URL, with unchanged served script bytes and no page errors.
-
-The earlier implementation removed EnginePackageUtility/EngineArchiveUtility and the engine-domain service-worker dependency, but still introduced the platform bootstrap and concrete-manager dependency now rejected. The new target removes those structures, keeps local object ownership and unregisters on manager disposal. No leases, deletion claims, preparation object, timer, migration, catalogue or new EngineRuntimeService API is introduced.
+Before this Blob replacement, the service-worker correction passed 925 unit/application tests across 106 files, 27 browser tests, five affected scripted journeys, production Lozza and real NW.js native/bundled Worker checks. Those results describe the preceding mechanism; they do not verify the new loader. Existing package/profile/runtime contracts and routed UI remain unchanged. Reports from that implementation remain under ignored node_modules/.cache/codex and test-results.
 
 ## Current contract changes and delivery
 
@@ -1118,23 +970,23 @@ Profiles and assignments store the exact entry path, client type, label and opti
 | Step | Deliverable | Evidence |
 | --- | --- | --- |
 | 0. UI review | Actual entry-file selection, desktop direct paths, browser-only import | Validated unique engine name/folder, no version field, no assumed entry filenames/manifests or desktop installation. |
-| 1. Runtime proof | Real Stockfish plus an independent worker using upstream layouts | Direct bundled files and service-worker-served imports load their actual scripts/relative assets; initial control, reload, normal runtime operations and cleanup pass. |
+| 1. Runtime proof | Real Stockfish plus an independent worker using upstream layouts | Bundled files and Blob-loaded imports execute original entries/assets; reload, normal runtime operations and per-Worker cleanup pass. |
 | 2. Current contracts | Entry path, single client enum, source enum, protocol removal | Exact paths/options round-trip without installation ids or new package metadata. |
 | 3. Package files | Generic stored-file library plus engine folder discovery/import/removal | No package writes on desktop, browser list reconstructs from files, the frontend blocks duplicate names using that list and cancelled/failed import publishes nothing. |
 | 4. Composition/defaults | Matching client/resource owners, ordinary bundled files/profile | Native/browser runtimes coexist with isolated stop/crash/restart; default uses same loader. |
 | 5. Acceptance | Forms, focused tests, browser/NW.js journeys and architecture docs | Exact entry selection, Apply/Cancel, recovery and reference checks; separate simulation from real runtime results. |
 
-Acceptance criteria remain below. Current correction evidence, historical results and the independent external desktop Worker blocker are recorded above:
+Acceptance criteria remain below. Current correction evidence, historical results and the nested/module Worker limitations are recorded above:
 
 | Area | Required evidence |
 | --- | --- |
-| Reusable library and object ownership | Run a non-UCI Worker with stored sibling scripts/binary assets. Library/worker entry imports contain no app configuration, engine contracts, platform implementations, services or stores. Import/construct attaches no global listeners. start/dispose attach/remove only the worker-side object's own stable handlers. Verify configuration transport and original bytes. |
-| Lazy registration | Concurrent stored spawns start exactly one registration/control operation and await the same promise. Later spawns retain successful completion without another register call or control listener. Actual rejection reaches current callers and clears the cache for a later explicit launch. Bundled/native-file entries skip it. |
-| Manager-owned disposal | Dispose during native register, control wait or the continuation before spawn. No late engine Worker starts; own Workers close and local listeners settle/detach. Await unregister for a successful or late-delivered registration; no acquisition means no unregister. Keep actual cleanup failure observable/retryable. An individual stop keeps this manager's loader. No timer or global tracking. |
-| Platform composition and native parity | No NwjsWorkerProcessManager remains. Both concrete managers derive only the private base; NW.js imports no concrete browser manager. Its existing enum configures native/Worker instances. Remove the Pinia manager factory and update journeys directly. Preserve native method bodies, raw process/UTF-8 guarantee and both UCI hooks. Await/observe concrete disposal; do not claim unregister gives cross-tab resource isolation. |
+| Reusable library and object ownership | Run a non-UCI Worker with stored sibling scripts/binaries using only WorkerScriptLoader. No engine/platform imports or separate serving entry. Preserve original bytes; Worker.terminate releases its own Blob URLs. |
+| Independent loading | Concurrent stored launches create independent reads/Workers/assets. One failure or stop does not affect another. Ordinary app entries skip storage and Blob allocation. No service-worker access or host engine request. |
+| Manager-owned disposal | Cancel pending reads and stop only owned Workers. A result delivered after disposal is terminated. Verify asset release on constructor failure, normal stop, observed errors and repeated cleanup; no timeout or global registry. |
+| Platform composition and native parity | No extra desktop Worker manager or concrete peer dependency. Existing enum selects native/Worker instances of NwjsProcessManager. Preserve native bodies, exact process/UTF-8 guarantees and UCI hooks. |
 | Idempotent stop | Both managers return successfully for an already-stopped resource without waiting for another exit or killing it again. A live stop still subscribes before kill and awaits exit. Repeated stop after closure succeeds, and restart from a closed process still spawns the replacement. |
 | Desktop entry URLs | Verify drive-letter/UNC/POSIX paths, spaces, Unicode, percent/hash characters, bundled app-relative entries and rejection of unsupported URLs. Real packaged NW.js loads a supplied entry outside the app directory with sibling scripts/WASM and ordinary analysis/play; URL-unit checks alone are insufficient. |
 | Frontend discovery eligibility | A direct import URL with delayed/failed discovery cannot install. An empty successful read can enable a valid new name. A committed write followed by failed refresh keeps Install disabled; Retry only discovers files. A failed write requires discovery/name revalidation before another attempt. All name checks remain in the view. |
 | Flow ownership, utilities and depth | Stacked tables retain architectural callers and meaningful callbacks; utilities are not flow owners or hidden coordination boundaries. Verify that removal uses only current accepted/draft profiles and open-game references; temporary work adds no tracking. Check the shallow call paths without forwarding/error/cleanup relays; runtime APIs remain unchanged. |
 
-Cover unique/invalid engine names, folder-name display, ambiguous multi-build archives, Node-only metadata entries, helper-worker confusion, different layouts/names, absent scripts/assets, path traversal, external changes, missing/foreign-host paths, cancellation/disposal and ignored protocol removal. Run `npm run check:code`, focused Vitest suites, affected Playwright journeys and `npm run build` after implementation. These checks and real NW.js native/bundled mixed-engine acceptance pass for this correction. The external-file NW.js acceptance criterion remains blocked. Earlier results remain historical; the current runs above verify this architecture correction.
+Cover unique/invalid engine names, folder-name display, ambiguous multi-build archives, Node-only metadata entries, helper-worker confusion, different layouts/names, absent scripts/assets, path traversal, external changes, missing/foreign-host paths, cancellation/disposal and ignored protocol removal. Run `npm run check:code`, focused Vitest suites, affected Playwright journeys and `npm run build` after implementation. Record actual Blob-loader results separately from the earlier service-worker results; do not treat the historical runs as verification of this implementation.

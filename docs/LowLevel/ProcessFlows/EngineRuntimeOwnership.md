@@ -213,13 +213,12 @@ The platform store constructs the implementations independently and returns the 
 | BrowserProcessManager.spawnProcess(entryPath, args) |
 | --- |
 | _resolveWorkerUrl(entryPath) |
-| _registerPackageServiceWorker() only for a stored entry without a cached registration |
-| await the shared registration/control promise only for stored files |
-| new Worker(url, { name: 'ChessVue UCI' }) |
+| await _scripts.createWorker(url, appBaseUrl, _lifetime.signal, { name: 'ChessVue UCI' }) |
+| _lifetime.signal.throwIfAborted() |
 | Construct the Worker-backed process and markRaw |
 | process.once('exit', removeClosedProcess) |
 
-The manager checks disposal after registration and before construction, then adds the returned object to its private disposal Set before registering the listener. No process/script/WASM readiness wait or timer is introduced. That listener deletes the same object on closure; it is independent of client-session callbacks. No registry lookup or injected constructor callback is involved. The runtime retains the exact process reference, including a late result awaiting disposal.
+The private WorkerScriptLoader owns storage reads, the Blob bootstrap, asset mapping and Worker creation. Its returned Worker releases its own Blob URLs through normal terminate. After awaiting the loader, the manager checks disposal before wrapping, then adds the returned process object to its private disposal Set before registering the listener. No process/script/WASM readiness wait or timer is introduced. That listener deletes the same object on closure; it is independent of client-session callbacks. No registry lookup or injected constructor callback is involved. The runtime retains the exact process reference, including a late result awaiting disposal.
 
 | BrowserUciEngineClient.initialiseEngine(engine) |
 | --- |
@@ -247,6 +246,7 @@ The one-shot callback resolves the stop promise. kill closes the managed channel
 
 | BrowserProcessManager.dispose() |
 | --- |
+| _lifetime.abort(processStartFailure) |
 | process.kill() - for each object in a snapshot of the manager's live-process Set |
 
-Worker error/messageerror and postMessage failures close only the affected object, retain its diagnostic and notify the client to reject its session-owned wait. Every closure route removes Worker handlers and triggers the manager's independent disposal listener. UCI-session detach never terminates the Worker or removes that manager listener.
+Worker error/messageerror and postMessage failures close only the affected object, retain its diagnostic and notify the client to reject its session-owned wait. Every closure route removes Worker handlers, terminates the Worker (releasing its Blob URLs) and triggers the manager's independent disposal listener. UCI-session detach never terminates the Worker or removes that manager listener.
