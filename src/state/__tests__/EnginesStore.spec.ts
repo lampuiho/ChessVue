@@ -1,7 +1,8 @@
+import { Deferred } from '@/utility/async/Deferred';
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EngineOptionType } from '@/contracts';
+import { EngineClientType, EngineOptionType, type IEnginePackage } from '@/contracts';
 import { createEngineRecord, createSettingsSnapshot } from './StateStoreTestUtility';
 
 let useEnginesStore: typeof import('..').useEnginesStore;
@@ -84,13 +85,13 @@ describe('useEnginesStore', () => {
   it('invalidates cached metadata when the engine launch identity changes', async () => {
     const store = useEnginesStore();
     await store.loadOptionMeta('engine-a');
-    store.getEngine('engine-a')!.executablePath = 'stockfish-next.exe';
+    store.getEngine('engine-a')!.entryPath = 'stockfish-next.exe';
 
     expect(store.getOptionMeta('engine-a')).toBeUndefined();
     await store.loadOptionMeta('engine-a');
 
     expect(domain.EngineRuntimeService.getOptions).toHaveBeenCalledTimes(2);
-    expect(domain.EngineRuntimeService.getOptions).toHaveBeenLastCalledWith(expect.objectContaining({ executablePath: 'stockfish-next.exe' }));
+    expect(domain.EngineRuntimeService.getOptions).toHaveBeenLastCalledWith(expect.objectContaining({ entryPath: 'stockfish-next.exe' }));
   });
 
   it('rejects option metadata loading for an unknown profile', async () => {
@@ -99,5 +100,57 @@ describe('useEnginesStore', () => {
     await expect(store.loadOptionMeta('missing')).rejects.toThrow('Configured engine not found');
 
     expect(domain.EngineRuntimeService.getOptions).not.toHaveBeenCalled();
+  });
+});
+
+describe('package discovery queue', () => {
+  let service: typeof import('@/domain/EnginePackageService').EnginePackageService;
+  beforeEach(async () => {
+    vi.resetModules();
+    setActivePinia(createPinia());
+    vi.doMock('@/domain', () => domain);
+    ({ EnginePackageService: service } = await import('@/domain/EnginePackageService'));
+    ({ useEnginesStore } = await import('..'));
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+  it('shares an outstanding read and queues a fresh read behind an intervening installation', async () => {
+    const pending = new Deferred<readonly IEnginePackage[]>();
+    const list = vi.spyOn(service, 'listPackages').mockReturnValueOnce(pending).mockResolvedValue([]);
+    const install = vi.spyOn(service, 'install').mockResolvedValue('engine-files/Test');
+    const store = useEnginesStore();
+    const first = store.refreshPackages();
+    void store.refreshPackages();
+    await Promise.resolve();
+    expect(list).toHaveBeenCalledOnce();
+    const mutation = store.installPackage('Test', { files: [] });
+    const later = store.refreshPackages();
+    expect(install).not.toHaveBeenCalled();
+    pending.resolve([]);
+    await Promise.all([first, mutation, later]);
+    expect(install).toHaveBeenCalledOnce();
+    expect(list).toHaveBeenCalledTimes(3);
+  });
+  it('reports committed installation separately from failed rediscovery and recovers on refresh', async () => {
+    vi.spyOn(service, 'install').mockResolvedValue('engine-files/Test');
+    const list = vi.spyOn(service, 'listPackages').mockRejectedValueOnce(new Error('Read failed.')).mockResolvedValue([]);
+    const store = useEnginesStore();
+    await expect(store.installPackage('Test', { files: [] })).rejects.toMatchObject({ operation: 'refreshEnginePackagesAfterInstall', detail: 'engine-files/Test' });
+    await store.refreshPackages();
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+  it('reads removal references when its queued mutation starts', async () => {
+    const pending = new Deferred<readonly IEnginePackage[]>();
+    vi.spyOn(service, 'listPackages').mockReturnValueOnce(pending).mockResolvedValue([]);
+    const remove = vi.spyOn(service, 'remove').mockResolvedValue(undefined);
+    const references = [{ displayName: 'Draft', clientType: EngineClientType.UciWorker, entryPath: 'engine-files/Test/main.js' }];
+    const read = vi.fn(() => references);
+    const store = useEnginesStore();
+    const refresh = store.refreshPackages();
+    const mutation = store.removePackage('engine-files/Test', read);
+    expect(read).not.toHaveBeenCalled();
+    pending.resolve([]);
+    await Promise.all([refresh, mutation]);
+    expect(read).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledWith('engine-files/Test', references);
   });
 });

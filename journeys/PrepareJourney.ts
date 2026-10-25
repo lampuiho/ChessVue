@@ -1,11 +1,11 @@
 import { markRaw } from 'vue';
-import { PlatformErrorKind } from '@/contracts';
+import { EngineClientType, PlatformErrorKind } from '@/contracts';
 import type { IStorageAdapter } from '@/contracts/platform';
 import { setNodeModuleOverrides } from '@/utility/nwjs/NodeUtility';
-import { getMockNodePath, getMockNwjs } from '@/utility/nwjs/NwjsMockUtility';
+import { getMockNodePath } from '@/utility/nwjs/NwjsMockUtility';
 import { setBrowserPlatformOptions } from '@/platform/browser/BrowserPlatformService';
 import { BrowserFileSystem } from '@/platform/browser/BrowserFileSystem';
-import { defineNwjsProcessManagerStore } from '@/platform/nwjs/NwjsProcessManager';
+import { NwjsProcessManager } from '@/platform/nwjs/NwjsProcessManager';
 import { NwjsUciEngineClient } from '@/platform/nwjs/NwjsUciEngineClient';
 import { JourneyFileSystem } from './JourneyFileSystem';
 import { changeManagedFile } from './JourneyStorageControl';
@@ -33,7 +33,6 @@ function _createDialogs(api: IJourneyApi, fs: BrowserFileSystem) {
   };
 }
 function _installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileSystem, engines: JourneyEngineBarrier) {
-  const nw = getMockNwjs();
   setNodeModuleOverrides({
     fs: fs as unknown as typeof import('node:fs'), path: getMockNodePath(),
     childProcess: { spawn: ((path: string) => new ScriptedEngine(path, engines)) as unknown as typeof import('node:child_process')['spawn'] },
@@ -41,7 +40,7 @@ function _installBrowserPlatform(storage: Storage, key: string, fs: JourneyFileS
   setBrowserPlatformOptions({
     storage, storageKey: key,
     createEngineServices: () => {
-      return { processManager: defineNwjsProcessManagerStore(nw)(), engineClient: markRaw(new NwjsUciEngineClient()) };
+      return { processManager: markRaw(new NwjsProcessManager(EngineClientType.Uci)), engineClient: markRaw(new NwjsUciEngineClient()) };
     },
   });
 }

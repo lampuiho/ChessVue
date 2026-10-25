@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
-import { EngineClientType, EngineProtocol, PlayerColour, PlayerType, type IEnginePlayer, type IGame, type IPlayer } from '@/contracts';
+import { EngineClientType, PlayerColour, PlayerType, type IEnginePlayer, type IGame, type IPlayer } from '@/contracts';
 import { useEnginesStore, useGamesStore, useSettingsStore } from '@/state';
 import { useModalAction } from '@/composables/ModalActionComposable';
 import ModalDialog from './ModalDialog.vue';
@@ -25,12 +25,12 @@ function _assignedPlayer(selection: string, colour: PlayerColour): IPlayer | und
   if (selection === 'none') return;
   if (selection === 'local') return { colour, type: PlayerType.Local, displayName: colour === PlayerColour.White ? 'White' : 'Black' };
   const engine = engines.value.find((candidate) => candidate.id === selection.slice('engine:'.length));
-  if (!engine?.executablePath.trim()) throw new Error('Choose an available engine profile.');
+  if (!engine?.entryPath.trim()) throw new Error('Choose an available engine profile.');
   const enginePlayer: IEnginePlayer = {
     colour,
     type: PlayerType.Engine,
     displayName: engine.displayName,
-    assignedEngine: { displayName: engine.displayName, executablePath: engine.executablePath, clientType: engine.clientType ?? EngineClientType.Uci, protocol: engine.protocol ?? EngineProtocol.Uci, options: { ...engine.options } },
+    assignedEngine: { displayName: engine.displayName, entryPath: engine.entryPath, clientType: engine.clientType ?? EngineClientType.Uci, options: { ...engine.options } },
   };
   return enginePlayer;
 }

@@ -82,7 +82,7 @@ describe('custom game validation', () => {
     const engine = createEngineRecord();
     wrapper = _mount(settings, [engine]);
     expect(wrapper.get<HTMLSelectElement>('#black-player').element.value).toBe(`engine:${engine.id}`);
-    dependency.settings.settings.analysis.engineInventory = [{ ...engine, executablePath: '' }];
+    dependency.settings.settings.analysis.engineInventory = [{ ...engine, entryPath: '' }];
     await nextTick();
     await wrapper.get('form').trigger('submit');
     await flushPromises();

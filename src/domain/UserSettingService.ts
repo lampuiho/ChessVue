@@ -1,5 +1,7 @@
 import { AnalysisBranchExitBehaviour, BoardOrientation, PlatformErrorKind, PlayerType, PromotionPolicy, ResolvedThemeMode, ThemeMode, TimeControlPreset, settingsSnapshotSchema, type IPlatformError, type ISettingsSnapshot } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
+import { StockfishConfig } from '@/config/StockfishConfig';
+import { EngineClientType } from '@/contracts/Engine';
 import { usePlatformService } from '@/platform';
 
 let _cachedSettings: ISettingsSnapshot | undefined;
@@ -30,7 +32,7 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
     },
     analysis: {
       resumeLiveAnalysisAfterRestore: true,
-      engineInventory: [],
+      engineInventory: [{ id: 'stockfish', displayName: 'Stockfish', clientType: EngineClientType.UciWorker, entryPath: StockfishConfig.entryPath, options: {} }],
     },
     appearance: {
       themeMode: ThemeMode.System,

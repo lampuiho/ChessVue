@@ -17,7 +17,7 @@ validateAnalysisSelection(engineIds: string[]): void
 - read configured engine profiles when creating or validating selection options for assigned engine participants
 - cache protocol-neutral option metadata by engine profile id for the profile configuration view
 - load or explicitly refresh option metadata through `EngineRuntimeService`
-- invalidate cached metadata when the profile executable path, client type, or protocol changes
+- invalidate cached metadata when the profile entry path or client type changes
 - enforce the four-engine analysis cap
 - leave copied player-engine and analysis-engine assignment ownership to `GamesStore` once the UI has selected a reusable profile
 
@@ -31,6 +31,7 @@ validateAnalysisSelection(engineIds: string[]): void
 ## Dependencies
 - `UserSettingService`
 - `EngineRuntimeService`
+- `EnginePackageService`
 
 ## Scenario Coverage
 - `SCN-GAME-02`
@@ -46,3 +47,9 @@ validateAnalysisSelection(engineIds: string[]): void
 - Temporary discovery runtimes are owned and closed by `EngineRuntimeService`; the store retains only the copied metadata returned after closure.
 - `GamesStore` remains responsible for analysis coordination and non-local move waiting on the current game.
 - Presentation bridges `EnginesStore` profile selection into `GamesStore` assignment flows so the no-sibling-store-call rule stays intact.
+
+## Package actions
+
+canInstallPackages, refreshPackages, listPackages, getPackage, browseEngineFile, readArchive, installPackage and removePackage delegate to EnginePackageService. The store owns a transient folder list and a settled queue for reads/mutations. Concurrent refresh callers share the outstanding read; a mutation intervening in the queue requires a new read. Installation/removal rediscover after commit and report discovery failure separately from failed file mutation.
+
+Removal reads supplied references when its queued action starts. Presentation supplies accepted/draft profiles and open-game assignments; no temporary-process tracking exists. Name character/uniqueness checks belong to the import view. No catalogue or installation records are persisted. Detailed signatures and stacked function flows are in [the rework plan](../../../EngineInstallationReworkPlan.md#detailed-api).

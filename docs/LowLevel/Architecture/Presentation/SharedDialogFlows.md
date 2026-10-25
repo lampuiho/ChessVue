@@ -19,7 +19,6 @@ Each opening receives its own signal and emits `dismissed` to that owner. The pr
 | Player selection | PlayerSelectionModal, PlayerPanel | gameId and colour; derive the opening's initial seat locally and preserve copied engine assignments. |
 | Analysis selection | AnalysisEngineSelectionModal, AnalysisPanel | gameId; filter canonical assignments, add the chosen engine and retry the captured seat when eligible. |
 | Save overwrite/deletion/history continuation | ConfirmationModal, owning route view | Await the captured target action; overwrite retains its dismissal lock while writing. |
-| Engine profile | EngineProfileModal, SettingsView | Editable seed and optional replacement index distinguish Copy from Edit. |
 | Mobile navigation | NavigationMenuModal, NavigationFrame | Shared slot closures and the opening's lifetime; selection/dismissal closes only that owner. |
 
 Player and analysis configuration stay available during genuine pauses; ordinary gameplay input remains locked. Non-local draw offer accept/withdraw stays in GameControlPanel. In-game analysis exit remains prompt-free.

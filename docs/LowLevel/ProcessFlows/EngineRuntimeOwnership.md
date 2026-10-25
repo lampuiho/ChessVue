@@ -146,7 +146,7 @@ Analysis and ponder searches share `StoppingSearch` because their stop protocol 
 
 | `EngineRuntimeService._initialiseEngine(engine, runtime, signal): process absent` |
 | --- |
-| `ProcessManager.spawnProcess(engine.executablePath)` - await |
+| `ProcessManager.spawnProcess(engine.entryPath)` - await |
 | `_runAnalysisClientWork(runtime, initialiseClient)` - await unless cancelled |
 
 The service stores the exact returned process under engine.$.process, including a late result after cancellation so terminal disposal can release it. The existing initialiseClient callback calls the selected EngineClient.initialiseEngine(engine). Existing-process checks call assertProcessOpen with the same object; only the existing invalid-process recovery path respawns.
@@ -160,9 +160,9 @@ The service stores the exact returned process under engine.$.process, including 
 
 The native platform getter returns that same class instance. No native client store or binding object is created. Browser journey injection likewise constructs a raw NwjsUciEngineClient alongside its scripted native manager.
 
-| `NwjsProcessManager.spawnProcess(executablePath, args)` |
+| `NwjsProcessManager.spawnProcess(entryPath, args)` |
 | --- |
-| `childProcess.spawn(executablePath, args, { stdio: 'pipe' })` |
+| `childProcess.spawn(entryPath, args, { stdio: 'pipe' })` |
 | `process.once('spawn', onSpawn)` |
 | `process.once('error', onStartError)` |
 
@@ -192,15 +192,14 @@ Both write methods are inherited from the unchanged UciEngineClientBase, retaini
 | `_stopClientSession(engine)` - await |
 | `_clearAnalysisState(runtime)` |
 
-Capture the process before awaiting. An already-exited resource follows the same client cleanup through the existing invalidProcessHandle handling. Clear runtime.process after client cleanup, before clearing analysis state. Other physical-stop failures propagate without dropping the resource. Existing analysisShutdownWork shares an issued stop between terminal requests.
+Capture the process before awaiting. An already-exited resource follows the same client cleanup after the manager returns successfully. Clear runtime.process after client cleanup, before clearing analysis state. Other physical-stop failures propagate without dropping the resource. Existing analysisShutdownWork shares an issued stop between terminal requests.
 
 | `NwjsProcessManager.stopProcess(process)` |
 | --- |
-| `assertProcessOpen(process)` |
 | `process.once('exit', onExit)` |
 | `process.kill()` |
 
-The one-shot exit listener resolves the stop promise, preserving the original shutdown behaviour. The shared runtime passes process references to the selected implementations and never invokes process members directly.
+For a live resource, the one-shot exit listener resolves the stop promise, preserving the original shutdown behaviour. An already-stopped resource returns before installing any listener. The shared runtime passes process references to the selected implementations and never invokes process members directly.
 
 ## Browser process reference boundaries
 
@@ -211,14 +210,16 @@ The one-shot exit listener resolves the stop promise, preserving the original sh
 
 The platform store constructs the implementations independently and returns the raw client instance through getEngineClient. The client is a plain class inheriting the protocol implementation; there is no client store or method-binding object. Custom engine-services injection and existing platform-scope disposal remain unchanged.
 
-| BrowserProcessManager.spawnProcess(executablePath, args) |
+| BrowserProcessManager.spawnProcess(entryPath, args) |
 | --- |
-| _resolveWorkerUrl(executablePath) |
+| _resolveWorkerUrl(entryPath) |
+| _registerPackageServiceWorker() only for a stored entry without a cached registration |
+| await the shared registration/control promise only for stored files |
 | new Worker(url, { name: 'ChessVue UCI' }) |
 | Construct the Worker-backed process and markRaw |
 | process.once('exit', removeClosedProcess) |
 
-The manager adds the returned object to its private disposal Set before registering the listener. That listener deletes the same object on closure; it is independent of client-session callbacks. No registry lookup or injected constructor callback is involved. The runtime retains the exact process reference, including a late result awaiting disposal.
+The manager checks disposal after registration and before construction, then adds the returned object to its private disposal Set before registering the listener. No process/script/WASM readiness wait or timer is introduced. That listener deletes the same object on closure; it is independent of client-session callbacks. No registry lookup or injected constructor callback is involved. The runtime retains the exact process reference, including a late result awaiting disposal.
 
 | BrowserUciEngineClient.initialiseEngine(engine) |
 | --- |
@@ -234,16 +235,15 @@ Both native and browser clients inherit these same method bodies, verified again
 
 | BrowserProcessManager.stopProcess(process): open channel |
 | --- |
-| assertProcessOpen(process) |
 | process.once('exit', onExit) |
 | process.kill() |
 
-The one-shot callback resolves the stop promise. kill closes the managed channel, terminates its Worker and emits one exit notification; the callback is not a physical-exit acknowledgement. A closed/wrong object rejects with invalidProcessHandle before waiting, reaching the existing runtime already-closed cleanup. Client stop remains a presence-only session cleanup after physical stop.
+The one-shot callback resolves the stop promise. kill closes the managed channel, terminates its Worker and emits one exit notification; the callback is not a physical-exit acknowledgement. A closed/wrong concrete resource returns successfully before waiting. Client stop remains a presence-only session cleanup after physical stop.
 
-| BrowserProcessManager.restartProcess(process, executablePath, args) |
+| BrowserProcessManager.restartProcess(process, entryPath, args) |
 | --- |
 | stopProcess(process) - await |
-| spawnProcess(executablePath, args) - await |
+| spawnProcess(entryPath, args) - await |
 
 | BrowserProcessManager.dispose() |
 | --- |

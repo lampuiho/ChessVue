@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
-import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+import { computed, onMounted, ref } from 'vue';
+import { onBeforeRouteLeave, onBeforeRouteUpdate, RouterView, useRoute, useRouter } from 'vue-router';
 import {
   AnalysisBranchExitBehaviour,
+  EngineClientType,
+  EngineInstallationSource,
   BoardOrientation,
   PlayerType,
   SettingsCategory,
@@ -11,24 +13,28 @@ import {
   type IEngineRecord,
 } from '@/contracts';
 import { defaultDarkThemeProfile, defaultLightThemeProfile } from '@/config/AppearanceConfig';
-import { useSettingsStore, useUiStateStore } from '@/state';
-import { useModal, type IModalHandle } from '@/composables/ModalComposable';
+import { useEnginesStore, useSettingsStore, useUiStateStore } from '@/state';
+import { useModal } from '@/composables/ModalComposable';
 import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import NavigationFrame from '@/components/NavigationFrame.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
-import EngineProfileModal from '@/components/modals/EngineProfileModal.vue';
 
 const emit = defineEmits<{ appearanceChanged: [] }>();
 const modal = useModal();
 const route = useRoute();
 const router = useRouter();
 const settingsStore = useSettingsStore();
+const enginesStore = useEnginesStore();
 const uiStateStore = useUiStateStore();
 const category = computed(() => route.params.category as SettingsCategory);
 const draft = computed(() => settingsStore.draftSettings);
 const errorMessage = ref('');
 const successMessage = ref('');
-let engineEditor: IModalHandle | undefined;
+const hasEngineView = computed(() => route.matched.length > 1);
+const packages = computed(() => enginesStore.listPackages());
+const packagesLoading = ref(false);
+const packageError = ref('');
+let _packageRead: Promise<void> | undefined;
 const categories = [
   { id: SettingsCategory.Session, label: 'Session', icon: 'save' },
   { id: SettingsCategory.Gameplay, label: 'Gameplay', icon: 'sliders' },
@@ -36,10 +42,9 @@ const categories = [
   { id: SettingsCategory.Engines, label: 'Engines', icon: 'activity' },
 ];
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` as const : '/home' as const);
-onBeforeUnmount(_closeEngineEditor);
-onBeforeRouteUpdate(_closeEngineEditor);
+onMounted(() => { if (category.value === SettingsCategory.Engines) void _loadEnginePackages(); });
+onBeforeRouteUpdate(to => { if (to.params.category === SettingsCategory.Engines) void _loadEnginePackages(); });
 onBeforeRouteLeave((to) => {
-  _closeEngineEditor();
   if (!settingsStore.hasPendingChanges) return true;
   _requestDiscardChanges(to.fullPath);
   return false;
@@ -104,20 +109,25 @@ async function _applySettings(leave: boolean) {
     errorMessage.value = error instanceof Error ? error.message : 'Settings could not be saved.';
   }
 }
-function _openEngineEditor(engine?: IEngineRecord, index?: number) {
-  engineEditor = modal.open(EngineProfileModal, { engine, index });
-}
-function _closeEngineEditor() {
-  const current = engineEditor;
-  engineEditor = undefined;
-  void current?.close();
+function _openEngineEditor(engine?: IEngineRecord) {
+  return router.push({ name: engine ? 'engine-profile-edit' : 'engine-profile-new', params: { category: 'engines', ...(engine ? { profileId: engine.id } : {}) } });
 }
 function _copyEngine(engine: IEngineRecord) {
-  const names = new Set(draft.value?.analysis.engineInventory.map((candidate) => candidate.displayName));
-  let displayName = `${engine.displayName} copy`;
-  let suffix = 2;
-  while (names.has(displayName)) displayName = `${engine.displayName} copy ${suffix++}`;
-  _openEngineEditor({ ...engine, id: crypto.randomUUID(), displayName, options: { ...engine.options } });
+  return router.push({ name: 'engine-profile-copy', params: { category: 'engines', profileId: engine.id } });
+}
+function _openImport() { return router.push({ name: 'engine-package-import', params: { category: 'engines' } }); }
+function _openPackage(packagePath: string) { return router.push({ name: 'engine-package-details', params: { category: 'engines' }, query: { packagePath } }); }
+function _createPackageProfile(packagePath: string) { return router.push({ name: 'engine-profile-new', params: { category: 'engines' }, query: { packagePath } }); }
+function _loadEnginePackages() {
+  if (_packageRead) return _packageRead;
+  packagesLoading.value = true;
+  packageError.value = '';
+  _packageRead = (async () => {
+    try { await enginesStore.refreshPackages(); }
+    catch (error) { packageError.value = error instanceof Error ? error.message : 'Engine folders could not be read.'; }
+    finally { packagesLoading.value = false; _packageRead = undefined; }
+  })();
+  return _packageRead;
 }
 function _removeEngine(index: number) {
   draft.value?.analysis.engineInventory.splice(index, 1);
@@ -136,7 +146,8 @@ function _removeEngine(index: number) {
       <section v-if="draft" class="settings-content surface">
         <header class="settings-content__header"><div><p class="page-kicker page-kicker--flush">{{ category }}</p><h2>{{ categories.find((item) => item.id === category)?.label }}</h2></div><span v-if="settingsStore.hasPendingChanges" class="unsaved-badge"><i></i>Unsaved changes</span></header>
         <div class="settings-content__body">
-          <template v-if="category === SettingsCategory.Session">
+          <RouterView v-if="hasEngineView" :key="route.fullPath" />
+          <template v-else-if="category === SettingsCategory.Session">
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Startup</h3><p class="form-section__description">Choose what ChessVue restores when the application opens.</p>
               <div class="field-row"><span class="field-label">Previous session<span class="field-help">Reopen active game tabs after launch</span></span><label class="toggle-row"><input v-model="draft.gameSession.restorePreviousSession" aria-label="Restore previous session" type="checkbox"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.gameSession.restorePreviousSession ? 'Restore my workspace' : 'Always open home' }}</span></label></div>
               <div class="field-row"><span class="field-label">Auto-pause on menu<span class="field-help">Stops timed games while using app screens</span></span><label class="toggle-row"><input v-model="draft.gameSession.autoPauseOnMenu" aria-label="Pause on menus" type="checkbox"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.gameSession.autoPauseOnMenu ? 'Enabled' : 'Disabled' }}</span></label></div>
@@ -174,18 +185,24 @@ function _removeEngine(index: number) {
             </section>
           </template>
           <template v-else>
+            <section v-if="enginesStore.canInstallPackages()" class="form-section form-section--settings">
+              <div class="engine-heading"><div><h3 class="form-section__heading">Installed browser engines</h3><p class="form-section__description">Stored package folders and included engine files.</p></div><div class="engine-editor__actions"><button class="text-button" :disabled="packagesLoading" @click="_loadEnginePackages">Refresh</button><button class="text-button text-button--primary" @click="_openImport">Install browser engine</button></div></div>
+              <p v-if="packagesLoading" class="inline-message" role="status">Reading engine folders?</p>
+              <p v-if="packageError" class="inline-message inline-message--error" role="alert">{{ packageError }}</p>
+              <div class="engine-package-list"><article v-for="engine in packages" :key="engine.packagePath" class="engine-package-list__item"><div class="engine-package-list__description"><strong class="engine-package-list__name">{{ engine.displayName }}</strong><span class="engine-package-list__meta">{{ engine.source === EngineInstallationSource.Bundled ? 'Included with ChessVue' : 'Imported package' }} &middot; {{ engine.files.length }} files</span><p v-if="engine.warning" class="inline-message inline-message--error">{{ engine.warning }}</p></div><div class="engine-editor__actions"><button class="text-button" @click="_createPackageProfile(engine.packagePath)">Create profile</button><button class="text-button" @click="_openPackage(engine.packagePath)">Details</button></div></article></div>
+            </section>
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Analysis behaviour</h3>
               <div class="field-row"><span class="field-label">Resume after restore<span class="field-help">Restart assigned analysis engines with the session</span></span><label class="toggle-row"><input v-model="draft.analysis.resumeLiveAnalysisAfterRestore" aria-label="Resume after restore" type="checkbox"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.analysis.resumeLiveAnalysisAfterRestore ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
-            <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Engine profiles</h3><p class="form-section__description form-section__description--inline">Reusable UCI engine configurations.</p></div><button class="text-button text-button--primary" @click="_openEngineEditor()"><AppIcon name="plus" />Add engine</button></div>
+            <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Engine profiles</h3><p class="form-section__description form-section__description--inline">Reusable engine configurations.</p></div><button class="text-button text-button--primary" @click="_openEngineEditor()"><AppIcon name="plus" />Add profile</button></div>
               <div v-if="draft.analysis.engineInventory.length" class="engine-list">
-                <article v-for="(engine, index) in draft.analysis.engineInventory" :key="engine.id"><span class="engine-list__mark">♞</span><div><strong>{{ engine.displayName }}</strong><small>{{ engine.executablePath || 'No engine location selected' }}</small></div><span class="engine-list__protocol">UCI</span><button class="icon-button" title="Copy" @click="_copyEngine(engine)"><AppIcon name="copy" /></button><button class="icon-button" title="Edit" @click="_openEngineEditor(engine, index)"><AppIcon name="edit" /></button><button class="icon-button icon-button--danger" title="Delete" @click="_removeEngine(index)"><AppIcon name="trash" /></button></article>
+                <article v-for="(engine, index) in draft.analysis.engineInventory" :key="engine.id"><span class="engine-list__mark">♞</span><div><strong>{{ engine.displayName }}</strong><small>{{ engine.entryPath || 'No engine location selected' }}</small></div><span class="engine-list__interface">{{ engine.clientType === EngineClientType.UciWorker ? 'Browser UCI Worker' : 'Desktop executable' }}</span><button class="icon-button" title="Copy" @click="_copyEngine(engine)"><AppIcon name="copy" /></button><button class="icon-button" title="Edit" @click="_openEngineEditor(engine)"><AppIcon name="edit" /></button><button class="icon-button icon-button--danger" title="Delete" @click="_removeEngine(index)"><AppIcon name="trash" /></button></article>
               </div>
               <div v-else class="empty-state empty-state--engine engine-empty"><AppIcon name="activity" /><strong>No engines configured</strong><span>Add a UCI engine to use computer opponents and live analysis.</span></div>
             </section>
           </template>
         </div>
-        <footer class="settings-actions"><span v-if="errorMessage" class="settings-feedback settings-feedback--error">{{ errorMessage }}</span><span v-else-if="successMessage" class="settings-feedback">{{ successMessage }}</span><button class="text-button text-button--ghost text-button--settings-mobile" @click="_requestReturn">Cancel</button><button class="text-button text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(true)">Save</button><button class="text-button text-button--primary text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(false)">Apply changes</button></footer>
+        <footer v-if="!hasEngineView" class="settings-actions"><span v-if="errorMessage" class="settings-feedback settings-feedback--error">{{ errorMessage }}</span><span v-else-if="successMessage" class="settings-feedback">{{ successMessage }}</span><button class="text-button text-button--ghost text-button--settings-mobile" @click="_requestReturn">Cancel</button><button class="text-button text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(true)">Save</button><button class="text-button text-button--primary text-button--settings-mobile" :disabled="!settingsStore.hasPendingChanges" @click="_applySettings(false)">Apply changes</button></footer>
       </section>
     </div>
   </main>

@@ -18,6 +18,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "pinia": "^3.0.4",
     "sass": "^1.97.2",
     "stockfish": "19.0.1",

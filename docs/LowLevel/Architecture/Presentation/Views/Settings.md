@@ -38,3 +38,9 @@ Render user-editable settings and engine inventory management.
 - The primary settings action row sits at the bottom-right of the settings surface and contains `Cancel`, `Save`, and `Apply`.
 - `Reset` stays outside that primary row in a separate secondary settings action area and always routes through a confirmation dialog before defaults are restored.
 - `SettingsView` contains no HTML or template markup and delegates rendering to common form and list components.
+
+## Routed engine management
+
+SettingsView remains mounted and renders engine child routes through RouterView. EngineProfileView owns new/edit/copy forms, EnginePackageImportView owns frontend name validation and immediate archive import, and EnginePackageDetailsView lists files and current profile/game references. These are real routes, without an editor modal or hidden full-width modal state. Only file-removal confirmation uses ConfirmationModal.
+
+Profile save changes the Settings draft; Apply/Save persists it. Import/removal changes browser files immediately and rediscovers folders. Desktop browsing points directly at existing executable/script files. See [routes and UI function flows](../../../../EngineManagementUiDesign.md).

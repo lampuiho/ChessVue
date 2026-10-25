@@ -17,9 +17,8 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
   function _createAssignedEngine(engineProfile: IEngineRecord): IAssignedEngine {
     return {
       displayName: engineProfile.displayName,
-      executablePath: engineProfile.executablePath,
+      entryPath: engineProfile.entryPath,
       clientType: engineProfile.clientType,
-      protocol: engineProfile.protocol,
       options: { ...engineProfile.options },
     };
   }

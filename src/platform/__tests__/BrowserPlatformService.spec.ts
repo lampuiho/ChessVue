@@ -29,12 +29,12 @@ describe('browser host services', () => {
   it('exposes UCI support while rejecting native executables through typed errors', async () => {
     const platform = useBrowserPlatformService();
     expect(platform.getSystemThemeAdapter().getSystemTheme()).toBe(ResolvedThemeMode.Dark);
-    await expect(platform.getProcessManager().spawnProcess('stockfish.exe')).rejects.toMatchObject({ kind: 'processStartFailed', message: expect.stringContaining('desktop') });
-    expect(() => platform.getProcessManager().assertProcessOpen({} as IProcess)).toThrow();
-    const client = platform.getEngineClient(EngineClientType.Uci);
+    await expect(platform.getProcessManager(EngineClientType.UciWorker).spawnProcess('stockfish.exe')).rejects.toMatchObject({ kind: 'processStartFailed', message: expect.stringContaining('desktop') });
+    expect(() => platform.getProcessManager(EngineClientType.UciWorker).assertProcessOpen({} as IProcess)).toThrow();
+    const client = platform.getEngineClient(EngineClientType.UciWorker);
     expect(client).toBeInstanceOf(BrowserUciEngineClient);
     expect(isProxy(client)).toBe(false);
-    expect(platform.getEngineClient(EngineClientType.Uci)).toBe(client);
+    expect(platform.getEngineClient(EngineClientType.UciWorker)).toBe(client);
     expect(typeof client.startAnalysis).toBe('function');
   });
   it('dispatches focus/theme events, tracks copied registrations and unsubscribes', async () => {
@@ -97,7 +97,7 @@ describe('browser host services', () => {
     };
     setBrowserPlatformOptions({ storage: sessionStorage, createEngineServices: () => ({ processManager, engineClient }) });
     const platform = useBrowserPlatformService();
-    expect(platform.getProcessManager()).toBe(processManager);
+    expect(platform.getProcessManager(EngineClientType.Uci)).toBe(processManager);
     expect(platform.getEngineClient(EngineClientType.Uci)).toBe(engineClient);
   });
 });

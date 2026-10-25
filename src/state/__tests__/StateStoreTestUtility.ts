@@ -5,7 +5,6 @@ import {
   DrawOfferDirection,
   EngineAvailability,
   EngineClientType,
-  EngineProtocol,
   GameState,
   MoveNodeKind,
   MoveKind,
@@ -54,18 +53,16 @@ export function createEngineRecord(id: string = 'engine-a', displayName: string 
   return {
     id,
     displayName,
-    executablePath: `${displayName.toLowerCase().replace(/\s+/g, '-')}.exe`,
+    entryPath: `${displayName.toLowerCase().replace(/\s+/g, '-')}.exe`,
     clientType: EngineClientType.Uci,
-    protocol: EngineProtocol.Uci,
     options: { Threads: 1 },
   };
 }
 export function createAssignedEngine(engine: IEngineRecord = createEngineRecord()): IAssignedEngine {
   return {
     displayName: engine.displayName,
-    executablePath: engine.executablePath,
+    entryPath: engine.entryPath,
     clientType: engine.clientType,
-    protocol: engine.protocol,
     options: structuredClone(engine.options),
     $: {
       availability: EngineAvailability.Unavailable,

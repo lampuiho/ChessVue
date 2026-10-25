@@ -6,7 +6,6 @@ import { useGamesStore, useSettingsStore, useEnginesStore, useUiStateStore } fro
 import { useModalAction } from '@/composables/ModalActionComposable';
 import {
   EngineClientType,
-  EngineProtocol,
   PlayerColour,
   PlayerType,
   TimeControlPreset,
@@ -49,10 +48,10 @@ const validationMessage = computed(() => {
   if (form.mode === 'live') {
     for (const selection of [form.white, form.black]) {
       if (selection === 'none' && !setupGame.value || selection === 'local') continue;
-      if (!engines.value.find((engine) => `engine:${engine.id}` === selection)?.executablePath.trim()) return 'Choose an available engine for each required seat.';
+      if (!engines.value.find((engine) => `engine:${engine.id}` === selection)?.entryPath.trim()) return 'Choose an available engine for each required seat.';
     }
   }
-  if (form.analysisEngineIds.length > 4 || form.analysisEngineIds.some((id) => !engines.value.find((engine) => engine.id === id)?.executablePath.trim())) return 'Choose up to four available analysis engines.';
+  if (form.analysisEngineIds.length > 4 || form.analysisEngineIds.some((id) => !engines.value.find((engine) => engine.id === id)?.entryPath.trim())) return 'Choose up to four available analysis engines.';
   return '';
 });
 const canCreate = computed(() => !isWorking.value && !validationMessage.value);
@@ -72,9 +71,8 @@ function _createPlayer(selection: string, colour: PlayerColour): IPlayer | undef
     displayName: engine.displayName,
     assignedEngine: {
       displayName: engine.displayName,
-      executablePath: engine.executablePath,
+      entryPath: engine.entryPath,
       clientType: engine.clientType ?? EngineClientType.Uci,
-      protocol: engine.protocol ?? EngineProtocol.Uci,
       options: { ...engine.options },
     },
   };

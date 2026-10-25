@@ -30,8 +30,8 @@ export async function applySettings(page: Page) {
 }
 export async function editProfile(page: Page, name?: string): Promise<Locator> {
   if (name) await profileRow(page, name).getByTitle('Edit', { exact: true }).click();
-  else await page.getByRole('button', { name: 'Add engine', exact: true }).click();
-  return page.getByRole('dialog', { name: name ? 'Edit engine profile' : 'Add engine profile', exact: true });
+  else await page.getByRole('button', { name: 'Add profile', exact: true }).click();
+  return page.locator('.engine-editor');
 }
 export async function addOption(dialog: Locator, name: string, value: string) {
   await dialog.getByRole('button', { name: 'Add option', exact: true }).click();
@@ -40,6 +40,6 @@ export async function addOption(dialog: Locator, name: string, value: string) {
   await row.getByPlaceholder('Value', { exact: true }).fill(value);
 }
 export async function saveProfile(dialog: Locator) {
-  await dialog.getByRole('button', { name: 'Save profile', exact: true }).click();
+  await dialog.getByRole('button', { name: /^(Add|Update) profile$/ }).click();
   await expect(dialog).toHaveCount(0);
 }

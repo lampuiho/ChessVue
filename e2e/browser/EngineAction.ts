@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { gameSchema, type IGame, type IMove } from '../../src/contracts';
+import { StockfishConfig } from '../../src/config/StockfishConfig';
 import { applyMove, isMoveLegal } from '../../src/utility/chess/GameRuleUtility';
 
 export interface IBrowserEngineProfile { name: string; path: string; }
@@ -7,17 +8,18 @@ export async function configureEngines(page: Page, profiles: IBrowserEngineProfi
   await page.goto('/');
   await page.getByRole('button', { name: /Settings/ }).click();
   await page.getByRole('button', { name: 'Engines', exact: true }).click();
+  while (await page.getByRole('button', { name: 'Delete', exact: true }).count()) await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
   for (const profile of profiles) {
-    await page.getByRole('button', { name: 'Add engine', exact: true }).click();
-    await page.getByLabel('Display name').fill(profile.name);
+    await page.getByRole('button', { name: 'Add profile', exact: true }).click();
+    await page.getByLabel('Profile name').fill(profile.name);
     await page.locator('#engine-path').fill(profile.path);
-    await page.getByRole('button', { name: 'Save profile', exact: true }).click();
+    await page.getByRole('button', { name: 'Add profile', exact: true }).click();
   }
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('button', { name: /Custom game/ }).click();
 }
 export async function configureStockfish(page: Page, engineCount = 1) {
-  await configureEngines(page, Array.from({ length: engineCount }, (_, index) => ({ name: index ? `Browser Stockfish ${index + 1}` : 'Browser Stockfish', path: 'stockfish.js' })));
+  await configureEngines(page, Array.from({ length: engineCount }, (_, index) => ({ name: index ? `Browser Stockfish ${index + 1}` : 'Browser Stockfish', path: StockfishConfig.entryPath })));
 }
 export async function createAnalysis(page: Page, names: string[]) {
   await page.getByRole('button', { name: 'Free analysis', exact: true }).click();

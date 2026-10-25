@@ -6,12 +6,13 @@ Define the host contract exposed through the platform Pinia store and injected i
 ## Public Interface
 ```ts
 enum EngineClientType {
-  Uci
+  Uci = "uci",
+  UciWorker = "uciWorker",
 }
 
 interface IPlatformService {
   getStorageAdapter(): StorageAdapter
-  getProcessManager(): ProcessManager
+  getProcessManager(engineClientType: EngineClientType): IProcessManager
   getSystemThemeAdapter(): SystemThemeAdapter
   getEngineClient(engineClientType: EngineClientType): EngineClient
   subscribeToAppCloseRequested(owner: string, onCloseRequested: () => Promise<void> | void, debugLabel?: string): () => void
@@ -34,9 +35,11 @@ usePlatformService(): IPlatformService
 ## Current Host Note
 The default build target is `auto`: use NW.js when its runtime exists, otherwise browser. `CHESSVUE_PLATFORM=browser` and `CHESSVUE_PLATFORM=nwjs` explicitly force a host; invalid values fail configuration. Explicit NW.js selection retains the mock host fallback when the desktop runtime is missing, so the NW.js implementation can be tested without installing NW.js. Automatic detection ignores that fallback and selects browser when no real or explicitly injected NW.js runtime exists. Resolved targets use the shared `PlatformTarget` enum. `getNwjs()` rejects calls for non-NW.js targets; browser composition never calls it.
 
-The platform stores are built from one shared injected `nw` instance. Any required Node modules are resolved separately through implementation-support utilities because NW.js exposes them differently from hosts such as Electron.
+The NW.js storage and system-theme adapter factories use the injected nw instance. Process managers and engine clients are plain raw class instances owned by the platform store. Any required Node modules are resolved separately through implementation-support utilities because NW.js exposes them differently from hosts such as Electron.
 
-The current NW.js host exposes `EngineClientType.Uci` through the concrete `NwjsUciEngineClient`.
+NW.js constructs two raw instances of NwjsProcessManager, configured by EngineClientType.Uci and EngineClientType.UciWorker, paired with NwjsUciEngineClient and BrowserUciEngineClient respectively. Browser uses BrowserProcessManager for UciWorker; the existing journey seam directly constructs the scripted native pair after setting Node overrides. Both concrete managers derive private shared implementation. Process-manager and client lookups use the same single enum.
+
+Platform-scope disposal starts cleanup of its exact manager instances and observes rejected cleanup promises through logging. Concrete manager disposal cancels pending stored launches, closes its own Workers and awaits stored-file service-worker unregistration. The public IProcessManager contract and existing native-process/app-close ownership stay unchanged.
 
 ## Notes
 - `usePlatformService()` is the composition-root boundary for the active host implementation.

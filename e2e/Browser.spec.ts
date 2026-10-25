@@ -1,3 +1,4 @@
+import { StockfishConfig } from '../src/config/StockfishConfig';
 import { expect, test, type Page } from '@playwright/test';
 import type { IEnginePlayer, IGame } from '../src/contracts';
 import { playMove, square } from './support/BoardInteraction';
@@ -22,7 +23,7 @@ test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile
   const game = await exportGame(page);
   expect(game.timeControl.preset).toBe('untimed');
   expect(game.clockSnapshot.white.remainingMs).toBeUndefined();
-  expect((game.blackPlayer as IEnginePlayer).assignedEngine.executablePath).toBe('stockfish.js');
+  expect((game.blackPlayer as IEnginePlayer).assignedEngine.entryPath).toBe(StockfishConfig.entryPath);
   expect(errors).toEqual([]);
 });
 async function _importStockfishPuzzle(page: Page) {
@@ -54,7 +55,7 @@ async function _expectStockfishMate(page: Page, engineColour: 'White' | 'Black')
   expect(game.resultReason).toBe('ruleResolved');
   expect(game.livePath).toEqual([0, 0, 0, 0, 0]);
   const player = engineColour === 'White' ? game.whitePlayer : game.blackPlayer;
-  expect((player as IEnginePlayer).assignedEngine.executablePath).toBe('stockfish.js');
+  expect((player as IEnginePlayer).assignedEngine.entryPath).toBe(StockfishConfig.entryPath);
   expect(game.clockSnapshot.white.isRunning).toBe(false);
   expect(game.clockSnapshot.black.isRunning).toBe(false);
   await page.getByRole('button', { name: 'Close', exact: true }).click();

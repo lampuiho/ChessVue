@@ -6,7 +6,6 @@ import {
   EngineAvailability,
   EngineClientType,
   EngineOptionType,
-  EngineProtocol,
   MoveKind,
   PieceKind,
   PlatformErrorKind,
@@ -48,9 +47,8 @@ const _boardId = (file: number, rank: number) => file + (rank * 8);
 function _createAssignedEngine(): IAssignedEngine {
   return {
     displayName: 'Stockfish',
-    executablePath: 'stockfish.exe',
+    entryPath: 'stockfish.exe',
     clientType: EngineClientType.Uci,
-    protocol: EngineProtocol.Uci,
     options: { Threads: 1 },
     $: {
       availability: EngineAvailability.Unavailable,
@@ -62,9 +60,8 @@ function _createEngineRecord(): IEngineRecord {
   return {
     id: 'engine-a',
     displayName: 'Stockfish',
-    executablePath: 'stockfish.exe',
+    entryPath: 'stockfish.exe',
     clientType: EngineClientType.Uci,
-    protocol: EngineProtocol.Uci,
     options: { Threads: 4 },
   };
 }
@@ -206,9 +203,8 @@ describe('EngineRuntimeService', () => {
     expect(runtimeEngine).not.toBe(engineProfile);
     expect(runtimeEngine).toMatchObject({
       displayName: engineProfile.displayName,
-      executablePath: engineProfile.executablePath,
+      entryPath: engineProfile.entryPath,
       clientType: engineProfile.clientType,
-      protocol: engineProfile.protocol,
       options: engineProfile.options,
     });
     expect(runtimeEngine.options).not.toBe(engineProfile.options);

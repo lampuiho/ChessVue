@@ -75,7 +75,7 @@ interface IAssignedUciEngineRuntime extends IAssignedEngineRuntime {
   session?: IUciSession;
 }
 type IAssignedUciEngine = IAssignedEngine & {
-  clientType: EngineClientType.Uci;
+  clientType: EngineClientType;
   $?: IAssignedUciEngineRuntime;
 };
 type IRuntimeAssignedEngine = IAssignedEngine & {
@@ -86,6 +86,7 @@ type IRuntimeAssignedUciEngine = IAssignedUciEngine & {
 };
 
 export abstract class UciEngineClientBase implements IEngineClient {
+  protected constructor(private readonly _clientType: EngineClientType) {}
   protected abstract _isProcessOpen(process: IProcess): boolean;
   protected abstract _getProcessExitDetail(process: IProcess): string | undefined;
   async awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove> {
@@ -201,7 +202,7 @@ export abstract class UciEngineClientBase implements IEngineClient {
     return this._replaceAssignedEngineSession(engine);
   }
   private _isAssignedEngineUci(engine: IAssignedEngine): engine is IAssignedUciEngine {
-    return engine.clientType === EngineClientType.Uci;
+    return engine.clientType === this._clientType;
   }
   private _isInitialisedState(state: UciSessionState): boolean {
     return state === UciSessionState.Ready || state === UciSessionState.Analysing || state === UciSessionState.FindingMove || state === UciSessionState.PlayerMoveReady || state === UciSessionState.Pondering || state === UciSessionState.StoppingSearch;

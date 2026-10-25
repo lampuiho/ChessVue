@@ -24,8 +24,11 @@ export function setBrowserPlatformOptions(options: IBrowserPlatformOptions = {})
 }
 export const useBrowserPlatformService = defineStore('platformService', () => {
   const storageAdapter = defineBrowserStorageAdapterStore(_options.storage, _options.storageKey)();
-  const browserProcessManager = new BrowserProcessManager();
-  const { processManager, engineClient } = _options.createEngineServices?.() ?? { processManager: browserProcessManager, engineClient: markRaw(new BrowserUciEngineClient()) };
+  const browserProcessManager = markRaw(new BrowserProcessManager());
+  const bindings = new Map<EngineClientType, { processManager: IProcessManager; engineClient: IEngineClient }>([
+    [EngineClientType.UciWorker, { processManager: browserProcessManager, engineClient: markRaw(new BrowserUciEngineClient()) }],
+  ]);
+  if (_options.createEngineServices) bindings.set(EngineClientType.Uci, _options.createEngineServices());
   const systemThemeAdapter = new BrowserSystemThemeAdapter();
   const closeRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
   const focusRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
@@ -53,10 +56,12 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
     }
     return failures;
   }
-  function getEngineClient(clientType: EngineClientType): IEngineClient {
-    if (clientType !== EngineClientType.Uci) throw new Error(`Unsupported engine client type: ${String(clientType)}.`);
-    return engineClient;
+  function _getEngineBinding(clientType: EngineClientType) {
+    const binding = bindings.get(clientType);
+    if (!binding) throw new Error('Unsupported engine client type: ' + String(clientType) + '.');
+    return binding;
   }
+  function getEngineClient(clientType: EngineClientType) { return _getEngineBinding(clientType).engineClient; }
   function getEventRegistrationSnapshot(): IPlatformEventRegistration[] {
     return [...closeRegistrations, ...focusRegistrations, ...themeRegistrations].map(({ registration }) => ({ ...registration, registeredAtUtc: new RegistrationTimestamp(registration.registeredAtUtc) })).sort((left, right) => left.registeredAtUtc.getTime() - right.registeredAtUtc.getTime() || left.registrationId.localeCompare(right.registrationId));
   }
@@ -103,12 +108,12 @@ export const useBrowserPlatformService = defineStore('platformService', () => {
     window.removeEventListener('focus', _onFocus);
     document.removeEventListener('visibilitychange', _onVisibility);
     _themeMediaQuery?.removeEventListener('change', _onTheme);
-    browserProcessManager.dispose();
+    void browserProcessManager.dispose().catch(error => console.error('[browser] Worker process-manager cleanup failed.', error));
     reset();
   });
   const platformService = {
     getStorageAdapter: () => storageAdapter,
-    getProcessManager: () => processManager,
+    getProcessManager: (clientType: EngineClientType) => _getEngineBinding(clientType).processManager,
     getSystemThemeAdapter: () => systemThemeAdapter,
     getEngineClient, getEventRegistrationSnapshot,
     subscribeToAppCloseRequested: (owner, callback, debugLabel?: string) => _register(closeRegistrations, PlatformEventKey.AppCloseRequested, owner, callback, debugLabel),

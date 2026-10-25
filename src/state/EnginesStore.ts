@@ -1,14 +1,16 @@
 import { defineStore } from 'pinia';
-import { shallowReactive } from 'vue';
+import { shallowReactive, shallowRef } from 'vue';
 
-import { type EngineClientType, type EngineProtocol, type IEngineOptionMeta, type IEngineRecord } from '@/contracts';
+import { type EngineClientType, type IEngineOptionMeta, type IEngineRecord } from '@/contracts';
 import { EngineRuntimeService, UserSettingService } from '@/domain';
+import { EnginePackageService } from '@/domain/EnginePackageService';
+import { PlatformError, PlatformErrorKind } from '@/contracts/PlatformError';
+import type { IEngineArchive, IEnginePackage, IEnginePackageFile, IEnginePackageUsage } from '@/contracts/Engine';
 
 interface IEngineOptionMetaCacheEntry {
   clientType: EngineClientType;
-  executablePath: string;
+  entryPath: string;
   options: readonly IEngineOptionMeta[];
-  protocol: EngineProtocol;
 }
 
 function _getInventory(): IEngineRecord[] {
@@ -19,10 +21,10 @@ export const useEnginesStore = defineStore('enginesStore', () => {
   const _optionMetaByEngineId = shallowReactive(new Map<string, IEngineOptionMetaCacheEntry>());
 
   function _isCacheEntryCurrent(entry: IEngineOptionMetaCacheEntry, engine: IEngineRecord): boolean {
-    return entry.clientType === engine.clientType && entry.executablePath === engine.executablePath && entry.protocol === engine.protocol;
+    return entry.clientType === engine.clientType && entry.entryPath === engine.entryPath;
   }
   function _createCacheEntry(engine: IEngineRecord, options: readonly IEngineOptionMeta[]): IEngineOptionMetaCacheEntry {
-    return { clientType: engine.clientType, executablePath: engine.executablePath, options, protocol: engine.protocol };
+    return { clientType: engine.clientType, entryPath: engine.entryPath, options };
   }
   function _resolveEngine(engine: IEngineRecord | string): IEngineRecord | undefined {
     return typeof engine === 'string' ? getEngine(engine) : engine;
@@ -65,5 +67,44 @@ export const useEnginesStore = defineStore('enginesStore', () => {
     return options;
   }
 
-  return { listConfiguredEngines, getEngine, getOptionMeta, loadOptionMeta, refreshOptionMeta, validateAnalysisSelection };
+  const _packages = shallowRef<readonly IEnginePackage[]>([]);
+  let _packageWork: Promise<unknown> = Promise.resolve();
+  let _packageRead: { completion?: Promise<void> } | undefined;
+  function _queuePackageWork<T>(action: () => Promise<T>) {
+    const work = _packageWork.then(action);
+    _packageWork = work.then(() => {}, () => {});
+    return work;
+  }
+  async function _readPackages() { _packages.value = await EnginePackageService.listPackages(); }
+  function refreshPackages() {
+    if (_packageRead?.completion) return _packageRead.completion;
+    const owner: { completion?: Promise<void> } = { completion: _queuePackageWork(_readPackages) };
+    const work = owner.completion!;
+    _packageRead = owner;
+    void work.then(() => { owner.completion = undefined; }, () => { owner.completion = undefined; });
+    return work;
+  }
+  function canInstallPackages() { return EnginePackageService.canInstall(); }
+  function listPackages() { return _packages.value; }
+  function getPackage(packagePath: string) { return _packages.value.find(engine => engine.packagePath === packagePath); }
+  function browseEngineFile(startDirectory?: string) { return EnginePackageService.browseEngineFile(startDirectory); }
+  function readArchive(file: IEnginePackageFile, signal?: AbortSignal) { return EnginePackageService.readArchive(file, signal); }
+  function installPackage(engineName: string, archive: IEngineArchive, signal?: AbortSignal) {
+    _packageRead = undefined;
+    return _queuePackageWork(async () => {
+      const packagePath = await EnginePackageService.install(engineName, archive, signal);
+      try { _packages.value = await EnginePackageService.listPackages(); }
+      catch { throw new PlatformError({ kind: PlatformErrorKind.InvalidDocument, operation: 'refreshEnginePackagesAfterInstall', message: 'Engine files were saved, but the folder list could not be refreshed. Refresh the list before continuing.', detail: packagePath }); }
+      return packagePath;
+    });
+  }
+  function removePackage(packagePath: string, readReferences: () => readonly IEnginePackageUsage[]) {
+    _packageRead = undefined;
+    return _queuePackageWork(async () => {
+      await EnginePackageService.remove(packagePath, readReferences());
+      try { _packages.value = await EnginePackageService.listPackages(); }
+      catch { throw new PlatformError({ kind: PlatformErrorKind.InvalidDocument, operation: 'refreshEnginePackagesAfterRemove', message: 'Engine files were removed, but the folder list could not be refreshed.', detail: packagePath }); }
+    });
+  }
+  return { canInstallPackages, refreshPackages, listPackages, getPackage, browseEngineFile, readArchive, installPackage, removePackage, listConfiguredEngines, getEngine, getOptionMeta, loadOptionMeta, refreshOptionMeta, validateAnalysisSelection };
 });

@@ -5,7 +5,7 @@ import { PassThrough, Writable } from 'node:stream';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, vi } from 'vitest';
 
-import { EngineClientType, EngineProtocol, GameState, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IGame } from '@/contracts';
+import { EngineClientType, GameState, PlayerColour, PlayerType, ResultState, TimeControlPreset, type IAssignedEngine, type IGame } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService, TimeControlService } from '@/domain';
 import { createInitialBoardPosition, toDetailedMove } from '@/utility/chess';
 import type { INwjsGlobal, INwjsWindow, ISpawnedProcess } from '@/utility/nwjs/NwjsUtility';
@@ -225,9 +225,8 @@ export class FakeNwjsEnvironment {
 export function createAssignedEngine(): IAssignedEngine {
   return {
     displayName: 'Stockfish',
-    executablePath: 'stockfish.exe',
+    entryPath: 'stockfish.exe',
     clientType: EngineClientType.Uci,
-    protocol: EngineProtocol.Uci,
     options: { Threads: 1 },
   };
 }

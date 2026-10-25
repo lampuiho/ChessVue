@@ -9,7 +9,6 @@ import {
   EngineAnalysisSearchMode,
   EngineAvailability,
   EngineClientType,
-  EngineProtocol,
   GameState,
   MoveNodeKind,
   PauseReason,

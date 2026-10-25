@@ -1,16 +1,18 @@
 import { expect, type Page } from '@playwright/test';
+import type { ISettingsSnapshot } from '../../src/contracts';
+import { waitForJourney } from './JourneyBootstrap';
 
 export async function configureEngines(page: Page, profiles: { name: string; path: string }[]) {
-  const returnPath = new URL(page.url()).pathname;
-  await page.getByRole('button', { name: /Settings/ }).click();
-  await page.getByRole('button', { name: 'Engines', exact: true }).click();
-  for (const profile of profiles) {
-    await page.getByRole('button', { name: 'Add engine', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Add engine profile', exact: true });
-    await dialog.getByLabel('Display name', { exact: true }).fill(profile.name);
-    await dialog.getByLabel('Engine location').fill(profile.path);
-    await dialog.getByRole('button', { name: 'Save profile', exact: true }).click();
-  }
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(returnPath.startsWith('/game/') ? returnPath + '$' : '/home$'));
+  // Scripted native profiles are fixture data; the browser editor offers Worker profiles.
+  await page.evaluate(async profiles => {
+    const modulePath = '/src/domain/UserSettingService.ts';
+    const { UserSettingService } = await import(modulePath);
+    const settings = structuredClone(UserSettingService.getSettings()) as ISettingsSnapshot;
+    settings.analysis.engineInventory = settings.analysis.engineInventory.filter(profile => profile.id !== 'stockfish');
+    for (const profile of profiles) settings.analysis.engineInventory.push({ id: crypto.randomUUID(), displayName: profile.name, entryPath: profile.path, clientType: 'uci' as ISettingsSnapshot['analysis']['engineInventory'][number]['clientType'], options: {} });
+    await UserSettingService.saveSettings(settings);
+  }, profiles);
+  await page.reload();
+  await waitForJourney(page);
+  await expect(page).toHaveURL(/\/(home|game\/[^/]+)$/);
 }

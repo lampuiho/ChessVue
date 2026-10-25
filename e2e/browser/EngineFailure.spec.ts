@@ -23,7 +23,7 @@ for (const failure of browserEngineFailures) {
       await page.route(`**/engines/broken/${StockfishConfig.workerFile}`, (route) => route.fulfill({ contentType: 'text/javascript', body: script }));
       await page.route('**/engines/broken/*.wasm', (route) => route.abort('failed'));
     }
-    await configureEngines(page, [{ name: 'Healthy Stockfish', path: 'stockfish.js' }, { name: 'Faulty engine', path: failure.path }]);
+    await configureEngines(page, [{ name: 'Healthy Stockfish', path: StockfishConfig.entryPath }, { name: 'Faulty engine', path: failure.path }]);
     await createAnalysis(page, ['Healthy Stockfish', 'Faulty engine']);
     const faulty = engineSection(page, 'Faulty engine');
     await expect(faulty.locator('.engine-error')).toContainText(failure.error, { timeout: 20000 });

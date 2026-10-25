@@ -6,11 +6,13 @@ import type { DeepReadonly } from './Readonly'
 import type { Deferred } from '@/utility/async/Deferred';
 import type { IProcess } from './platform/IProcess';
 
-export const enum EngineProtocol {
-  Uci = 'uci',
-}
 export const enum EngineClientType {
   Uci = 'uci',
+  UciWorker = 'uciWorker',
+}
+export const enum EngineInstallationSource {
+  Bundled = 'bundled',
+  User = 'user',
 }
 export const enum EngineAvailability {
   Ready = 'ready',
@@ -29,8 +31,7 @@ export const enum EngineOptionType {
   Integer = 'integer',
   Text = 'text',
 }
-export const engineProtocols = [EngineProtocol.Uci] as const
-export const engineClientTypes = [EngineClientType.Uci] as const
+export const engineClientTypes = [EngineClientType.Uci, EngineClientType.UciWorker] as const;
 export const engineAvailabilities = [EngineAvailability.Ready, EngineAvailability.Starting, EngineAvailability.Running, EngineAvailability.Unavailable, EngineAvailability.Failed] as const
 export const engineAnalysisSearchModes = [EngineAnalysisSearchMode.Infinite] as const
 
@@ -45,13 +46,32 @@ export interface IEngineOptionMeta {
   maximum?: number;
   choices?: string[];
 }
-export interface IEngineRecord {
-  id: string
-  displayName: string
-  executablePath: string
-  clientType: EngineClientType
-  protocol: EngineProtocol
-  options: IEngineOptionMap
+export interface IEngineLaunch {
+  clientType: EngineClientType;
+  entryPath: string;
+}
+export interface IEngineRecord extends IEngineLaunch {
+  id: string;
+  displayName: string;
+  options: IEngineOptionMap;
+}
+export type IEngineSelection = Omit<IEngineRecord, 'id'>;
+export interface IEnginePackage {
+  packagePath: string;
+  displayName: string;
+  source: EngineInstallationSource;
+  files: string[];
+  warning?: string;
+}
+export interface IEnginePackageFile {
+  path: string;
+  data: Uint8Array<ArrayBuffer>;
+}
+export interface IEngineArchive {
+  files: readonly IEnginePackageFile[];
+}
+export interface IEnginePackageUsage extends IEngineLaunch {
+  displayName: string;
 }
 export interface IEngineAnalysisOperation {
   abortController: AbortController;
@@ -72,13 +92,8 @@ export interface IAssignedEngineRuntime {
   analysisShutdownWork?: Promise<void>;
   analysisNeedsStop?: boolean;
 }
-export interface IAssignedEngine {
-  displayName: string
-  executablePath: string
-  clientType: EngineClientType
-  protocol: EngineProtocol
-  options: IEngineOptionMap
-  $?: IAssignedEngineRuntime
+export interface IAssignedEngine extends IEngineSelection {
+  $?: IAssignedEngineRuntime;
 }
 export interface IEngineAnalysisRequest {
   multiPv: number
@@ -92,7 +107,6 @@ export interface IEngineAnalysisUpdate {
   readonly isFinal: boolean
 }
 export type EngineAnalysisUpdateHandler = (update: IEngineAnalysisUpdate) => boolean | void;
-export const engineProtocolSchema = z.enum(engineProtocols)
 export const engineClientTypeSchema = z.enum(engineClientTypes)
 export const engineAvailabilitySchema = z.enum(engineAvailabilities)
 export const engineAnalysisSearchModeSchema = z.enum(engineAnalysisSearchModes)
@@ -102,17 +116,15 @@ export const engineOptionMapSchema = z.record(z.string(), engineOptionValueSchem
 export const engineRecordSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
-  executablePath: z.string(),
+  entryPath: z.string(),
   clientType: engineClientTypeSchema.default(EngineClientType.Uci),
-  protocol: engineProtocolSchema,
   options: engineOptionMapSchema,
 })
 
 export const assignedEngineSchema = z.object({
   displayName: z.string().min(1),
-  executablePath: z.string(),
+  entryPath: z.string(),
   clientType: engineClientTypeSchema.default(EngineClientType.Uci),
-  protocol: engineProtocolSchema,
   options: engineOptionMapSchema,
 })
 

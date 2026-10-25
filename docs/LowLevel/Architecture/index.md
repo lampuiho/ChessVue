@@ -31,6 +31,7 @@ It derives only from the high-level baseline documents in `docs/HighLevel`:
 - [PositionIdentityService](DomainLogic/PositionIdentityService.md)
 - [TimeControlService](DomainLogic/TimeControlService.md)
 - [EngineRuntimeService](DomainLogic/EngineRuntimeService.md)
+- [EnginePackageService](DomainLogic/EnginePackageService.md)
 - [SavedGameIndexService](DomainLogic/SavedGameIndexService.md)
 - [SerializationService](DomainLogic/SerializationService.md)
 - [PlatformEventService](DomainLogic/PlatformEventService.md)

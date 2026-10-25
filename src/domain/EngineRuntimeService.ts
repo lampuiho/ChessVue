@@ -33,9 +33,8 @@ function _createBaseRuntime(engine: IAssignedEngine): IAssignedEngineRuntime {
 function _createAssignedEngine(engineProfile: IEngineRecord): IAssignedEngine {
   return {
     displayName: engineProfile.displayName,
-    executablePath: engineProfile.executablePath,
+    entryPath: engineProfile.entryPath,
     clientType: engineProfile.clientType,
-    protocol: engineProfile.protocol,
     options: { ...engineProfile.options },
   };
 }
@@ -132,21 +131,21 @@ function _createEngineNotInitialisedError(engine: IAssignedEngine): IPlatformErr
   return new PlatformError({ kind: PlatformErrorKind.ProcessStartFailed, operation: 'engineRuntime', message: `Engine process is not initialised for ${engine.displayName}.` });
 }
 async function _initialiseEngine(engine: IAssignedEngine, runtimeState: IAssignedEngineRuntime, signal?: AbortSignal) {
-  const processManager = usePlatformService().getProcessManager();
+  const processManager = usePlatformService().getProcessManager(engine.clientType);
   _setRuntimeAvailability(runtimeState, EngineAvailability.Starting);
   try {
-    if (!runtimeState.process) runtimeState.process = await processManager.spawnProcess(engine.executablePath);
+    if (!runtimeState.process) runtimeState.process = await processManager.spawnProcess(engine.entryPath);
     else processManager.assertProcessOpen(runtimeState.process);
   } catch (error) {
     if (!_isInvalidProcessHandleError(error)) throw error;
-    runtimeState.process = await processManager.spawnProcess(engine.executablePath);
+    runtimeState.process = await processManager.spawnProcess(engine.entryPath);
   }
   if (!signal?.aborted) await _runAnalysisClientWork(runtimeState, () => _getEngineClient(engine).initialiseEngine(engine));
 }
 function _assertProcessOpen(engine: IAssignedEngine, runtimeState: IAssignedEngineRuntime) {
   const process = runtimeState.process;
   if (!process) throw _createEngineNotInitialisedError(engine);
-  usePlatformService().getProcessManager().assertProcessOpen(process);
+  usePlatformService().getProcessManager(engine.clientType).assertProcessOpen(process);
 }
 function _getEngineClient(engine: IAssignedEngine) {
   return usePlatformService().getEngineClient(engine.clientType);
@@ -195,7 +194,7 @@ async function _releaseEngineProcess(engine: IAssignedEngine, runtimeState: IAss
   const process = runtimeState.process;
   if (process) {
     try {
-      await usePlatformService().getProcessManager().stopProcess(process);
+      await usePlatformService().getProcessManager(engine.clientType).stopProcess(process);
     } catch (error) {
       if (!_isInvalidProcessHandleError(error)) throw error;
     }
@@ -362,7 +361,7 @@ export const EngineRuntimeService = {
     const runtimeState = _getRuntimeState(engine);
     if (!runtimeState || !runtimeState.process || runtimeState.availability === EngineAvailability.Unavailable || runtimeState.availability === EngineAvailability.Failed) return false;
     try {
-      usePlatformService().getProcessManager().assertProcessOpen(runtimeState.process);
+      usePlatformService().getProcessManager(engine.clientType).assertProcessOpen(runtimeState.process);
       return true;
     } catch (error) {
       if (!_isInvalidProcessHandleError(error)) throw error;

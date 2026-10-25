@@ -15,8 +15,8 @@ for (const change of ['rename', 'remove']) {
     await openSettings(page);
     if (change === 'rename') {
       const dialog = await editProfile(page, 'Journey A');
-      await dialog.getByLabel('Display name', { exact: true }).fill('Changed profile');
-      await dialog.getByLabel('Engine location').fill('journey://b');
+      await dialog.getByLabel('Profile name', { exact: true }).fill('Changed profile');
+      await dialog.locator('#engine-path').fill('journey://b');
       await dialog.getByPlaceholder('Value', { exact: true }).nth(1).fill('64');
       await saveProfile(dialog);
     } else await profileRow(page, 'Journey A').getByTitle('Delete', { exact: true }).click();

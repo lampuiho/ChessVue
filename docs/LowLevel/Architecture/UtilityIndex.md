@@ -166,3 +166,13 @@ The native manager owns UTF-8 configuration. The inherited UCI base owns string 
   - `NwjsProcessManager._resolveChildProcess`
 - Classification: `mixed`.
 - Validation or failure semantics: the utility must resolve each required Node-backed dependency separately from the active NW.js host when available, and fall back to temporary mock implementations only when the real NW.js-exposed Node environment is unavailable.
+
+## Stored Worker files
+
+StoredWorkerUtility is a self-contained private library for making stored JavaScript and neighbouring binary/script assets executable by Workers. It accepts database/store/root/service-worker paths as configuration and owns generic IndexedDB transactions, path/URL handling, registration/control observation and HTTP responses. It imports no app configuration, contracts, services or stores and owns no engine policy or shared application registry.
+
+EnginePackageService owns a storage-only instance. Each concrete process manager privately owns an execution-loader instance through shared implementation; the manager caches readiness, while its loader retains the actual native registration operation/reference and temporary listeners. Loader disposal settles its control wait and awaits unregister, including late registration results. A failed unregister retains the reference for an explicit cleanup retry. There is no global loader or registration cache.
+
+StoredWorkerServer is library-private support inside the browser-created service-worker context. start/dispose attach/remove its own stable activate/fetch handlers. Construction/import has no global listener effects. StoredWorkerEntry only reads/validates plain storage values from its script URL, obtains the app base from registration.scope and starts that object; it imports no app configuration or platform/domain module. Configured build/StoredWorkerAssets serves/emits the generic entry at the existing URL in development/production. Manager disposal requests native unregistration; it does not pretend to synchronously dispose an object in another context.
+
+Engine names, profile/game references and lazy readiness ownership stay with their callers. No library class/entry appears as an architectural flow owner. Non-UCI Worker reuse with an independent database/store/root and actual transaction rollback are verified in e2e/browser/StoredWorker.spec.ts.

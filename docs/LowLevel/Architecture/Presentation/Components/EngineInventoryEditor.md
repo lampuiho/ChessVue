@@ -1,30 +1,9 @@
-# EngineInventoryEditor
+# Engine inventory presentation
 
-## Purpose
-Render the engine-inventory list and edit surface inside settings.
+SettingsView renders the engine list and navigates through Router to EngineProfileView for new/edit/copy. EnginePackageImportView and EnginePackageDetailsView are separate Settings child views. No EngineInventoryEditor component or EngineProfileModal is part of the implementation.
 
-## Consumes
-- configured engine records
-- cached discovered option metadata for the selected profile
-- validation state for the active editor
-- available settings actions
-- per-profile copy, edit, and delete actions
-- editable option rows for the selected profile
+Each profile form owns its fields and option rows. Add/Update writes the Settings draft and returns to the overview; Apply/Save persists the draft. Copy uses a new profile identity and a distinct proposed display name. The entry path is explicit and no helper filename or entry is inferred.
 
-## Emits
-- `engineAddRequested`
-- `engineCopyRequested`
-- `engineEditRequested`
-- `engineRemoveRequested`
-- `engineOptionRowAdded`
-- `engineOptionRowUpdated`
-- `engineOptionRowRemoved`
-- `engineOptionMetaRefreshRequested`
+Import validates the unique engine folder name on the frontend and preserves original ZIP files. Details lists files and accepted/draft profile/open-game references. Only simple file-removal confirmation is a modal.
 
-## Notes
-- `SettingsView` delegates engine-specific list and edit markup to this component.
-- The profile list uses one row per engine profile with the name on the left and icon-only `copy`, `edit`, and `delete` actions aligned on the right.
-- The profile editor presents general profile fields plus a simple options table with one row per option name/value pair.
-- Option metadata is loaded through `EnginesStore` for rendering appropriate profile controls. The saved option map remains authoritative and is not reconciled during discovery.
-- `EngineInventoryEditor` can compose `SettingsSection`, `ItemList`, `FieldRow`, and `SettingsActionButton`.
-- `EngineInventoryEditor` contains no HTML or template markup and adapts engine-inventory workflows into common form, list, and message components.
+See the [engine UI design and routed function flows](../../../../EngineManagementUiDesign.md).

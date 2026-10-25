@@ -1,3 +1,4 @@
+import { EngineClientType } from '@/contracts/Engine';
 import { createPinia, disposePinia } from 'pinia';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getNwjs, getPlatformTarget, PlatformTarget, setNwjsOverride } from '@/utility/nwjs/NwjsUtility';
@@ -34,7 +35,7 @@ describe('platform selection', () => {
       await storage.writeTextFile('mock-platform-check.json', 'mocked NW.js', { overwrite: true });
       expect(await storage.readTextFile('mock-platform-check.json')).toBe('mocked NW.js');
       await storage.deleteFile('mock-platform-check.json');
-      const processes = platform.getProcessManager();
+      const processes = platform.getProcessManager(EngineClientType.Uci);
       const handle = await processes.spawnProcess('mock-engine');
       expect(() => processes.assertProcessOpen(handle)).not.toThrow();
       await processes.stopProcess(handle);

@@ -4,7 +4,6 @@ import {
   BoardOrientation,
   EngineAvailability,
   EngineClientType,
-  EngineProtocol,
   GameState,
   PlayerColour,
   PlayerType,
@@ -62,9 +61,8 @@ function _createSettingsSnapshot(): ISettingsSnapshot {
       engineInventory: [{
         id: 'engine-1',
         displayName: 'Stockfish',
-        executablePath: 'stockfish.exe',
+        entryPath: 'stockfish.exe',
         clientType: EngineClientType.Uci,
-        protocol: EngineProtocol.Uci,
         options: { Threads: 1 },
       }],
     },

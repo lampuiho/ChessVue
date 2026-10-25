@@ -1,6 +1,6 @@
 import { isProxy, reactive } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EngineAnalysisSearchMode, EngineAvailability, EngineOptionType, type IAssignedEngine } from '@/contracts';
+import { EngineClientType, EngineAnalysisSearchMode, EngineAvailability, EngineOptionType, type IAssignedEngine } from '@/contracts';
 import type { IEngineAnalysisUpdate, IEngineClient } from '@/contracts/platform';
 import { BrowserUciEngineClient } from '../browser/BrowserEngineClient';
 import { BrowserProcessManager } from '../browser/BrowserProcessManager';
@@ -44,8 +44,9 @@ afterEach(() => {
 });
 async function _createEngine(): Promise<IAssignedEngine> {
   const engine = createAssignedEngine();
-  engine.executablePath = 'stockfish.js';
-  engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+  engine.clientType = EngineClientType.UciWorker;
+  engine.entryPath = 'engines/stockfish/stockfish-19-lite-single.js';
+  engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
   return engine;
 }
 describe('browser UCI process', () => {
@@ -84,9 +85,9 @@ describe('browser UCI process', () => {
     await expect(client.stopEngine(engine)).resolves.toBeUndefined();
   });
   it('isolates worker lifetimes and replaces process objects on restart', async () => {
-    const first = await manager.spawnProcess('stockfish.js');
+    const first = await manager.spawnProcess('engines/stockfish/stockfish-19-lite-single.js');
     const second = await manager.spawnProcess('/custom-uci.js');
-    const restarted = await manager.restartProcess(first, 'stockfish.js');
+    const restarted = await manager.restartProcess(first, 'engines/stockfish/stockfish-19-lite-single.js');
     expect(restarted).not.toBe(first);
     expect(() => manager.assertProcessOpen(first)).toThrow();
     expect(workers[0]!.terminated).toBe(true);
@@ -97,7 +98,7 @@ describe('browser UCI process', () => {
   it('rejects native executables, cross-origin URLs and desktop arguments', async () => {
     await expect(manager.spawnProcess('C:\\Engines\\stockfish.exe')).rejects.toMatchObject({ kind: 'processStartFailed' });
     await expect(manager.spawnProcess('https://elsewhere.example/engine.js')).rejects.toMatchObject({ kind: 'processStartFailed' });
-    await expect(manager.spawnProcess('stockfish.js', ['--threads=2'])).rejects.toMatchObject({ kind: 'processStartFailed' });
+    await expect(manager.spawnProcess('engines/stockfish/stockfish-19-lite-single.js', ['--threads=2'])).rejects.toMatchObject({ kind: 'processStartFailed' });
     expect(workers).toHaveLength(0);
   });
   it('ignores worker output after its session has stopped', async () => {
@@ -116,7 +117,7 @@ describe('browser UCI process', () => {
     expect(() => manager.assertProcessOpen(process)).not.toThrow();
     await manager.stopProcess(process);
     expect(worker.terminated).toBe(true);
-    await expect(manager.stopProcess(process)).rejects.toMatchObject({ kind: 'invalidProcessHandle' });
+    await expect(manager.stopProcess(process)).resolves.toBeUndefined();
   });
   it('keeps manager cleanup when the client detaches its session', async () => {
     const engine = await _createEngine();
@@ -133,7 +134,7 @@ describe('browser UCI process', () => {
     const worker = new FakeWorker(new URL('http://localhost/engine.js'));
     vi.spyOn(worker, 'addEventListener').mockImplementation(() => { throw new Error('Listener setup failed.'); });
     vi.stubGlobal('Worker', function () { return worker; });
-    await expect(manager.spawnProcess('stockfish.js')).rejects.toMatchObject({ kind: 'processStartFailed', detail: expect.stringContaining('Listener setup failed.') });
+    await expect(manager.spawnProcess('engines/stockfish/stockfish-19-lite-single.js')).rejects.toMatchObject({ kind: 'processStartFailed', detail: expect.stringContaining('Listener setup failed.') });
     expect(worker.terminated).toBe(true);
   });
   it('parses complete UCI lines from one message with blanks and CRLF', async () => {

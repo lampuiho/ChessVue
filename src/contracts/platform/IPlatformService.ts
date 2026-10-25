@@ -8,7 +8,7 @@ import type { ISystemThemeAdapter } from './ISystemThemeAdapter';
 
 export interface IPlatformService {
   getStorageAdapter(): IStorageAdapter;
-  getProcessManager(): IProcessManager;
+  getProcessManager(clientType: EngineClientType): IProcessManager;
   getSystemThemeAdapter(): ISystemThemeAdapter;
   getEngineClient(engineClientType: EngineClientType): IEngineClient;
   subscribeToAppCloseRequested(owner: string, onCloseRequested: () => Promise<void> | void, debugLabel?: string): () => void;

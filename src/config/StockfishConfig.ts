@@ -1,6 +1,8 @@
+const workerFile = 'stockfish-19-lite-single.js';
+const wasmFile = 'stockfish-19-lite-single.wasm';
+const directory = 'engines/stockfish';
 export const StockfishConfig = {
-  alias: 'stockfish.js',
-  directory: 'engines/stockfish',
-  workerFile: 'stockfish-19-lite-single.js',
-  wasmFile: 'stockfish-19-lite-single.wasm',
+  directory, workerFile, wasmFile,
+  entryPath: directory + '/' + workerFile,
+  files: [workerFile, wasmFile, 'Copying.txt'],
 } as const;

@@ -2,6 +2,7 @@ import { getMockNodeChildProcess, getMockNodeFs, getMockNodePath } from './NwjsM
 
 type NodeRequire = <T = unknown>(moduleName: string) => T;
 interface INodeModuleOverrides {
+  url?: typeof import('node:url');
   fs: typeof import('node:fs');
   path: typeof import('node:path');
   childProcess: Pick<typeof import('node:child_process'), 'spawn'>;
@@ -34,4 +35,10 @@ export function getNodePath(): typeof import('node:path') {
 }
 export function getNodeChildProcess(): Pick<typeof import('node:child_process'), 'spawn'> {
   return _overrides?.childProcess ?? _getNodeModule<typeof import('node:child_process')>('child_process') ?? getMockNodeChildProcess();
+}
+
+export function getNodeUrl(): typeof import('node:url') {
+  const module = _overrides?.url ?? _getNodeModule<typeof import('node:url')>('url');
+  if (!module) throw new Error('Node URL support is unavailable on this host.');
+  return module;
 }

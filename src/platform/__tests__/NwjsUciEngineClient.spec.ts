@@ -164,10 +164,10 @@ describe('NwjsUciEngineClient', () => {
   });
   it('collects engine option metadata during initialisation', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     const process = getEnvironment().latestProcess();
     process.queueResponse('uci', [
       'option name Ponder type check default false',
@@ -184,12 +184,12 @@ describe('NwjsUciEngineClient', () => {
   });
   it('routes analysis, player, ponder-hit, and ponder-miss output through session states', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const game = createEngineGame();
     const updates: IEngineAnalysisUpdate[] = [];
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
 
     await client.initialiseEngine(engine);
     const process = getEnvironment().latestProcess();
@@ -248,12 +248,12 @@ describe('NwjsUciEngineClient', () => {
   });
   it('discards malformed and runtime-rejected analysis messages without replacing valid output or failing the session', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const game = createEngineGame();
     const updates: IEngineAnalysisUpdate[] = [];
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     await client.initialiseEngine(engine);
     const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, (update) => updates.push(update));
     const process = getEnvironment().latestProcess();
@@ -278,11 +278,11 @@ describe('NwjsUciEngineClient', () => {
   });
   it('rebuilds a missed ponder search from the current game after stop completes', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const game = createEngineGame();
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     await client.initialiseEngine(engine);
     const process = getEnvironment().latestProcess();
     const timedGo = 'go wtime 60000 btime 60000 winc 1000 binc 1000';
@@ -316,11 +316,11 @@ describe('NwjsUciEngineClient', () => {
   });
   it('reinitialises through EngineRuntimeService when a stored process handle becomes stale', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
     const game = createEngineGame();
-    const staleHandle = await manager.spawnProcess(engine.executablePath);
+    const staleHandle = await manager.spawnProcess(engine.entryPath);
     engine.$ = { process: staleHandle, availability: EngineAvailability.Ready, analysisLines: new Map() };
 
     await client.initialiseEngine(engine);
@@ -334,23 +334,23 @@ describe('NwjsUciEngineClient', () => {
   });
   it('rebuilds an initialised session when its process handle is replaced', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     await client.initialiseEngine(engine);
 
-    engine.$.process = await manager.spawnProcess(engine.executablePath);
+    engine.$.process = await manager.spawnProcess(engine.entryPath);
     await client.initialiseEngine(engine);
 
     expect(getEnvironment().latestProcess().getCommandLog()).toContain('uci');
   });
   it('throws when a session-dependent action runs before initialiseEngine creates a session', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     const game = createEngineGame();
     const engineMove: IMove = { from: getBoardId(4, 6), to: getBoardId(4, 4), kind: MoveKind.Normal, movingColour: PlayerColour.Black, movingPiece: PieceKind.Pawn };
     const ponderMove: IMove = { from: getBoardId(6, 0), to: getBoardId(5, 2), kind: MoveKind.Normal, movingColour: PlayerColour.White, movingPiece: PieceKind.Knight };
@@ -374,10 +374,10 @@ describe('NwjsUciEngineClient', () => {
   });
   it('throws when the game runtime has no position for the requested search', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     const game = createEngineGame();
     await client.initialiseEngine(engine);
     game.$!.renderedPosition = undefined;
@@ -389,10 +389,10 @@ describe('NwjsUciEngineClient', () => {
   });
   it('re-emits ucinewgame when the board root is edited in place', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
     const game = createEngineGame();
 
     await client.initialiseEngine(engine);
@@ -410,10 +410,10 @@ describe('NwjsUciEngineClient', () => {
   });
   it('defers registration when the engine reports a registration error', async () => {
     const platform = getPlatformService();
-    const manager = platform.getProcessManager();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
     const client = platform.getEngineClient(EngineClientType.Uci);
     const engine = createAssignedEngine();
-    engine.$ = { process: await manager.spawnProcess(engine.executablePath), availability: EngineAvailability.Ready, analysisLines: new Map() };
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Ready, analysisLines: new Map() };
     const process = getEnvironment().latestProcess();
     process.queueResponse('uci', ['registration error', 'uciok']);
 
@@ -423,7 +423,7 @@ describe('NwjsUciEngineClient', () => {
   });
   it.each([[1, null], [null, 'SIGTERM']] as const)('retains native exit detail for code %s and signal %s', async (code, signal) => {
     const platform = getPlatformService();
-    const process = await platform.getProcessManager().spawnProcess('stockfish.exe');
+    const process = await platform.getProcessManager(EngineClientType.Uci).spawnProcess('stockfish.exe');
     const native = getEnvironment().latestProcess();
     native.queueResponse('uci', []);
     const engine = createAssignedEngine();

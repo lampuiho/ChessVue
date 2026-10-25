@@ -1,3 +1,4 @@
+import { StockfishConfig } from '../../../src/config/StockfishConfig';
 import { expectTheme } from '../../support/Appearance';
 import { test, expect } from './SettingsTest';
 import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
@@ -61,10 +62,11 @@ test('JRN-SETTINGS-06 cancels then confirms a persisted reset including engine p
   await page.getByRole('button', { name: 'Reset to defaults', exact: true }).click();
   await page.getByRole('button', { name: 'Reset settings', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('No engines configured', { exact: true })).toBeVisible();
+  await expect(page.locator('.engine-list article')).toHaveCount(1);
+  await expect(page.locator('.engine-list article')).toContainText('Stockfish');
   const reset = await acceptedSettings(page);
   expect(reset.appearance).toMatchObject({ themeMode: 'system', uiScalePercent: 100, boardOrientation: 'white', showCoordinates: true, highlightLastMove: true });
-  expect(reset.analysis.engineInventory).toEqual([]);
+  expect(reset.analysis.engineInventory).toEqual([{ id: 'stockfish', displayName: 'Stockfish', clientType: 'uciWorker', entryPath: StockfishConfig.entryPath, options: {} }]);
   expect(reset.gameSession).toEqual({ restorePreviousSession: true, saveRootPath: 'saves', autosaveAfterMoveCount: 1, autosaveOnClose: true, autoPauseOnMenu: true });
   await expectTheme(page, 'light');
   await page.reload();

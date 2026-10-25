@@ -2,14 +2,15 @@ import { test, expect } from './SettingsTest';
 import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
 import { openCustomGame } from '../../support/GameCreation';
 import { saveCurrentGame } from '../../support/GameSave';
-import { acceptedSettings, addOption, applySettings, editProfile, profileRow, returnToGame, saveProfile } from './SettingsAction';
+import { acceptedSettings, applySettings, editProfile, profileRow, returnToGame, saveProfile } from './SettingsAction';
 test('JRN-SETTINGS-07 stages a profile then applies it to all future assignment choices @smoke', async ({ page }) => {
   await openJourney(page, 'settings');
   const original = await acceptedSettings(page);
-  const editor = await editProfile(page);
-  await editor.getByLabel('Display name', { exact: true }).fill('New analyst');
-  await editor.getByLabel('Engine location').fill('journey://a');
-  await addOption(editor, 'Hash', '32');
+  await profileRow(page, 'Journey A').getByTitle('Copy', { exact: true }).click();
+  const editor = page.locator('.engine-editor');
+  await editor.getByLabel('Profile name', { exact: true }).fill('New analyst');
+  await editor.getByPlaceholder('Value', { exact: true }).nth(1).fill('32');
+
   await saveProfile(editor);
   await expect(profileRow(page, 'New analyst')).toBeVisible();
   expect(await acceptedSettings(page)).toEqual(original);
@@ -17,7 +18,7 @@ test('JRN-SETTINGS-07 stages a profile then applies it to all future assignment 
   await applySettings(page);
   await page.reload();
   await waitForJourney(page);
-  expect((await acceptedSettings(page)).analysis.engineInventory.find((engine) => engine.displayName === 'New analyst')?.options).toEqual({ Hash: 32 });
+  expect((await acceptedSettings(page)).analysis.engineInventory.find((engine) => engine.displayName === 'New analyst')?.options).toEqual({ MultiPV: 3, Hash: 32 });
   await returnToGame(page);
   const custom = await openCustomGame(page);
   await expect(custom.getByLabel('White', { exact: true }).getByRole('option', { name: 'New analyst', exact: true })).toHaveCount(1);
@@ -35,34 +36,34 @@ test('JRN-SETTINGS-07 stages a profile then applies it to all future assignment 
   await expect(seat.locator('.engine-section__name')).toHaveAttribute('title', 'Evaluating position');
   await expect(seat.locator('.engine-section__score')).toHaveText('+0.24');
   const saved = await saveCurrentGame(page, 'New profile seat');
-  expect(saved.analysis.seats[0]!.assignedEngine.options).toEqual({ Hash: 32 });
+  expect(saved.analysis.seats[0]!.assignedEngine.options).toEqual({ MultiPV: 3, Hash: 32 });
   expect(saved.analysis.seats[0]!.lines).toHaveLength(3);
 });
 test('JRN-SETTINGS-08 rejects invalid names gives copies distinct identities and cancels edits', async ({ page }) => {
   await openJourney(page, 'settings');
   const original = await acceptedSettings(page);
   const editor = await editProfile(page);
-  await editor.getByLabel('Display name', { exact: true }).fill('   ');
-  await editor.getByRole('button', { name: 'Save profile', exact: true }).click();
-  await expect(editor.locator('.editor-error')).toHaveText('Engine name is required.');
-  await editor.getByLabel('Display name', { exact: true }).fill('Journey A');
-  await editor.getByRole('button', { name: 'Save profile', exact: true }).click();
-  await expect(editor.locator('.editor-error')).toContainText('already exists');
+  await editor.getByLabel('Profile name', { exact: true }).fill('   ');
+  await editor.getByRole('button', { name: 'Add profile', exact: true }).click();
+  await expect(editor.getByRole('alert')).toHaveText('Profile name is required.');
+  await editor.getByLabel('Profile name', { exact: true }).fill('Journey A');
+  await editor.getByRole('button', { name: 'Add profile', exact: true }).click();
+  await expect(editor.getByRole('alert')).toContainText('already exists');
   await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
   for (const copy of ['Journey A copy', 'Journey A copy 2']) {
     await profileRow(page, 'Journey A').getByTitle('Copy', { exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Add engine profile', exact: true });
-    await expect(dialog.getByLabel('Display name', { exact: true })).toHaveValue(copy);
+    const dialog = page.locator('.engine-editor');
+    await expect(dialog.getByLabel('Profile name', { exact: true })).toHaveValue(copy);
     if (copy.endsWith('2')) {
-      await dialog.getByLabel('Display name', { exact: true }).fill('Journey A copy');
-      await dialog.getByRole('button', { name: 'Save profile', exact: true }).click();
-      await expect(dialog.locator('.editor-error')).toContainText('already exists');
-      await dialog.getByLabel('Display name', { exact: true }).fill(copy);
+      await dialog.getByLabel('Profile name', { exact: true }).fill('Journey A copy');
+      await dialog.getByRole('button', { name: 'Add profile', exact: true }).click();
+      await expect(dialog.getByRole('alert')).toContainText('already exists');
+      await dialog.getByLabel('Profile name', { exact: true }).fill(copy);
     }
     await saveProfile(dialog);
   }
   const editing = await editProfile(page, 'Journey A');
-  await editing.getByLabel('Display name', { exact: true }).fill('Cancelled rename');
+  await editing.getByLabel('Profile name', { exact: true }).fill('Cancelled rename');
   await editing.getByPlaceholder('Value', { exact: true }).first().fill('99');
   await editing.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(profileRow(page, 'Journey A')).toBeVisible();
