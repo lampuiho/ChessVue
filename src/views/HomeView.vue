@@ -55,7 +55,7 @@ async function _openRecent(entry: IRecentGameEntry) {
         <span class="app-brand__mark">♞</span>
         <span class="app-brand__text"><span class="app-brand__name">ChessVue</span><span class="app-brand__sub">Study · Play · Analyse</span></span>
       </div>
-      <span class="home-header__note">A quiet place for serious chess</span>
+      <span class="home-header__note">A modern responsive chess app</span>
     </header>
     <section class="home-hero" :class="{ 'home-hero--compact': recentGames.length > 0 }">
       <div class="home-intro">
@@ -82,7 +82,7 @@ async function _openRecent(entry: IRecentGameEntry) {
       </section>
       <p v-else-if="isLoadingRecent" class="home-loading">Looking for recent games…</p>
     </section>
-    <footer class="home-footer"><span>ChessVue</span><span>Local-first desktop chess</span></footer>
+    <footer class="home-footer"><span>ChessVue</span><span>A modern chess app built with Vue</span></footer>
   </main>
 </template>
 
