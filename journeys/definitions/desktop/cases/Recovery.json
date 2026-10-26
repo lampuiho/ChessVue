@@ -1,0 +1,31 @@
+[
+  {
+    "id": "JRN-DESKTOP-04",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-ANALYSIS-02",
+      "SCN-ANALYSIS-03"
+    ],
+    "branches": [
+      "BR-ANALYSIS-02-PARTIAL-FAIL",
+      "BR-ANALYSIS-03-RETRY-SUCCESS"
+    ],
+    "fixture": "desktop",
+    "lane": "native-desktop",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/desktop/ScenarioReview.md#jrn-desktop-04",
+    "data": [
+      "journeys/definitions/desktop/data/DesktopScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/desktop/Engine.spec.ts",
+        "project": "desktop",
+        "titles": [
+          "JRN-DESKTOP-04 isolates a killed native engine and retries with a new owned process"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

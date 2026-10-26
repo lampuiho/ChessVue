@@ -107,4 +107,75 @@ describe('NwjsProcessManager', () => {
       await nativeManager.stopProcess(restarted);
     } finally { vi.unstubAllGlobals(); }
   });
+
+  it('disposes only owned native processes, awaits their exit and rejects later starts', async () => {
+    const manager = getPlatformService().getProcessManager(EngineClientType.Uci) as IProcessManager & { dispose(): Promise<void> };
+    const unrelated = getEnvironment().spawn();
+    const first = await manager.spawnProcess('stockfish.exe');
+    const second = await manager.spawnProcess('stockfish.exe');
+    const native = getEnvironment().latestProcess();
+    const kill = vi.spyOn(native, 'kill').mockReturnValue(true);
+    let settled = false;
+    const closing = manager.dispose().then(() => { settled = true; });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(kill).toHaveBeenCalledOnce();
+    native.emit('exit', 0, null);
+    await closing;
+    await manager.dispose();
+    expect(kill).toHaveBeenCalledOnce();
+    expect(() => manager.assertProcessOpen(first)).toThrow();
+    expect(() => manager.assertProcessOpen(second)).toThrow();
+    expect(() => manager.assertProcessOpen(unrelated)).not.toThrow();
+    await expect(manager.spawnProcess('late.exe')).rejects.toMatchObject({ kind: 'processStartFailed' });
+    unrelated.kill();
+  });
+  it('settles disposal silently when owned processes refuse or throw during termination', async () => {
+    const manager = getPlatformService().getProcessManager(EngineClientType.Uci) as IProcessManager & { dispose(): Promise<void> };
+    await manager.spawnProcess('first.exe');
+    const first = getEnvironment().latestProcess();
+    await manager.spawnProcess('second.exe');
+    const second = getEnvironment().latestProcess();
+    const refused = vi.spyOn(first, 'kill').mockReturnValue(false);
+    const thrown = vi.spyOn(second, 'kill').mockImplementation(() => { throw new Error('Permission denied.'); });
+    await expect(manager.dispose()).resolves.toBeUndefined();
+    expect(refused).toHaveBeenCalledOnce();
+    expect(thrown).toHaveBeenCalledOnce();
+    expect(first.listenerCount('exit')).toBe(1);
+    expect(second.listenerCount('exit')).toBe(1);
+    first.emit('exit', 0, null);
+    second.emit('exit', 0, null);
+  });
+  it('settles a native start cancelled by manager disposal before spawn delivery', async () => {
+    const manager = getPlatformService().getProcessManager(EngineClientType.Uci) as IProcessManager & { dispose(): Promise<void> };
+    const starting = manager.spawnProcess('stockfish.exe');
+    const rejected = expect(starting).rejects.toMatchObject({ kind: 'processStartFailed' });
+    await manager.dispose();
+    await rejected;
+    expect(getEnvironment().latestProcess().exitCode).toBe(0);
+  });
+  it('silently settles a thrown termination signal and allows retry without leaking listeners', async () => {
+    const manager = getPlatformService().getProcessManager(EngineClientType.Uci);
+    const process = await manager.spawnProcess('stockfish.exe');
+    const native = getEnvironment().latestProcess();
+    vi.spyOn(native, 'kill').mockImplementationOnce(() => { throw new Error('Permission denied.'); });
+    await expect(manager.stopProcess(process)).resolves.toBeUndefined();
+    expect(native.listenerCount('exit')).toBe(1);
+    await manager.stopProcess(process);
+    expect(native.listenerCount('exit')).toBe(0);
+  });
+  it('silently retries a refused signal and settles concurrent stops without leaking listeners', async () => {
+    const manager = getPlatformService().getProcessManager(EngineClientType.Uci);
+    const process = await manager.spawnProcess('stockfish.exe');
+    const native = getEnvironment().latestProcess();
+    const kill = vi.spyOn(native, 'kill').mockReturnValueOnce(false);
+    await expect(manager.stopProcess(process)).resolves.toBeUndefined();
+    expect(native.listenerCount('exit')).toBe(1);
+    kill.mockReturnValue(true);
+    const first = manager.stopProcess(process);
+    const second = manager.stopProcess(process);
+    native.emit('exit', 0, null);
+    await Promise.all([first, second]);
+    expect(native.listenerCount('exit')).toBe(0);
+  });
 });

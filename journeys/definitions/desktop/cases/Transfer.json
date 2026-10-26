@@ -1,0 +1,33 @@
+[
+  {
+    "id": "JRN-DESKTOP-02",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-EXPORT-01",
+      "SCN-IMPORT-01"
+    ],
+    "branches": [
+      "BR-EXPORT-01-CANCEL",
+      "BR-IMPORT-01-CANCEL"
+    ],
+    "fixture": "desktop",
+    "lane": "native-desktop",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/desktop/ScenarioReview.md#jrn-desktop-02",
+    "data": [
+      "journeys/definitions/desktop/data/DesktopScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/desktop/Transfer.spec.ts",
+        "project": "desktop",
+        "titles": [
+          "JRN-DESKTOP-02 cancels the native Export picker without a write or false success",
+          "JRN-DESKTOP-02 cancels the native Import file picker without a write or false success",
+          "JRN-DESKTOP-02 exports imports and confirms native overwrite while preserving managed saves"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

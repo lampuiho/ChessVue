@@ -1,0 +1,32 @@
+[
+  {
+    "id": "JRN-DESKTOP-05",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SAVE-01",
+      "SCN-SESSION-02"
+    ],
+    "branches": [
+      "BR-SAVE-01-CLOSE-DISABLED",
+      "BR-SAVE-01-MOVE-COUNT-DISABLED"
+    ],
+    "fixture": "desktop",
+    "lane": "native-desktop",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/desktop/ScenarioReview.md#jrn-desktop-05",
+    "data": [
+      "journeys/definitions/desktop/data/DesktopScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/desktop/Close.spec.ts",
+        "project": "desktop",
+        "titles": [
+          "JRN-DESKTOP-05 awaits native close checkpoints with autosave enabled",
+          "JRN-DESKTOP-05 awaits native close checkpoints with autosave disabled"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

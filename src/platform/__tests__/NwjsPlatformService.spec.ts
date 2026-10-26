@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isProxy } from 'vue';
 import { EngineClientType } from '@/contracts/platform';
 
@@ -52,5 +52,65 @@ describe('usePlatformService', () => {
     expect(callbackOrder).toContain('close:first');
     expect(environment.nwWindow.closeCalls).toContain(true);
     expect(platform.getEventRegistrationSnapshot()).toHaveLength(3);
+  });
+
+  it.each([false, true])('awaits checkpoints and native exit before shutdown (App.quit=%s)', async (appQuit) => {
+    const platform = getPlatformService();
+    const environment = getEnvironment();
+    const process = await platform.getProcessManager(EngineClientType.Uci).spawnProcess('stockfish.exe');
+    const quit = vi.fn();
+    if (appQuit) environment.nw.App = { quit };
+    let release!: () => void;
+    const checkpoint = new Promise<void>(resolve => { release = resolve; });
+    let checkpoints = 0;
+    platform.subscribeToAppCloseRequested('saved-games', async () => { checkpoints += 1; await checkpoint; });
+    environment.nwWindow.emit('close');
+    environment.nwWindow.emit('close');
+    await Promise.resolve();
+    expect(checkpoints).toBe(1);
+    expect(environment.nwWindow.closeCalls).toEqual([]);
+    platform.getProcessManager(EngineClientType.Uci).assertProcessOpen(process);
+    release();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(environment.nwWindow.closeCalls).toEqual(appQuit ? [] : [true]);
+    expect(quit).toHaveBeenCalledTimes(appQuit ? 1 : 0);
+    expect(() => platform.getProcessManager(EngineClientType.Uci).assertProcessOpen(process)).toThrow();
+  });
+  it('finishes the remaining cleanup and exits after a checkpoint or process stop fails', async () => {
+    const platform = getPlatformService();
+    const environment = getEnvironment();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
+    await manager.spawnProcess('first.exe');
+    const failed = environment.latestProcess();
+    await manager.spawnProcess('second.exe');
+    const remaining = environment.latestProcess();
+    vi.spyOn(failed, 'kill').mockReturnValue(false);
+    const stopRemaining = vi.spyOn(remaining, 'kill').mockReturnValue(true);
+    const quit = vi.fn();
+    environment.nw.App = { quit };
+    platform.subscribeToAppCloseRequested('saved-games', () => { throw new Error('Save failed.'); });
+    environment.nwWindow.emit('close');
+    environment.nwWindow.emit('close');
+    await vi.waitFor(() => expect(stopRemaining).toHaveBeenCalledOnce());
+    expect(quit).not.toHaveBeenCalled();
+    remaining.emit('exit', 0, null);
+    await vi.waitFor(() => expect(quit).toHaveBeenCalledOnce());
+    failed.emit('exit', 0, null);
+  });
+  it('detaches native window event listeners with the owning store scope', async () => {
+    const platform = getPlatformService();
+    const environment = getEnvironment();
+    let focusCalls = 0;
+    platform.subscribeToAppFocusReturned('game', () => { focusCalls += 1; });
+    platform.subscribeToAppCloseRequested('saved-games', () => {});
+    platform.subscribeToSystemThemeChanged('settings', () => {});
+    expect(environment.nwWindow.listenerCount('focus')).toBe(1);
+    expect(environment.nwWindow.listenerCount('close')).toBe(1);
+    platform.$dispose();
+    expect(environment.nwWindow.listenerCount('focus')).toBe(0);
+    expect(environment.nwWindow.listenerCount('close')).toBe(0);
+    expect(platform.getEventRegistrationSnapshot()).toEqual([]);
+    environment.nwWindow.emit('focus');
+    expect(focusCalls).toBe(0);
   });
 });

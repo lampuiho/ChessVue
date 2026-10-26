@@ -1,0 +1,33 @@
+[
+  {
+    "id": "JRN-DESKTOP-07",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-TIME-01",
+      "SCN-SETTINGS-01",
+      "SCN-ANALYSIS-03",
+      "SCN-ANALYSIS-05"
+    ],
+    "branches": [
+      "BR-TIME-01-BACKGROUND-THROTTLE"
+    ],
+    "fixture": "desktop",
+    "lane": "native-desktop",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/desktop/ScenarioReview.md#jrn-desktop-07",
+    "data": [
+      "journeys/definitions/desktop/data/DesktopScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/desktop/Lifecycle.spec.ts",
+        "project": "desktop",
+        "titles": [
+          "JRN-DESKTOP-07 stops searches removes owned processes and drains remaining processes on exit",
+          "JRN-DESKTOP-07 reconciles native focus and physical OS theme without persisting host changes"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

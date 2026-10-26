@@ -1,0 +1,35 @@
+[
+  {
+    "id": "JRN-DESKTOP-06",
+    "priority": "P1",
+    "scenarios": [
+      "SCN-SAVE-03",
+      "SCN-LOAD-01"
+    ],
+    "branches": [
+      "BR-SAVE-03-COLLISION-CANCEL",
+      "BR-SAVE-03-IO-ERROR",
+      "BR-LOAD-01-IO-ERROR"
+    ],
+    "fixture": "desktop",
+    "lane": "native-desktop",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/desktop/ScenarioReview.md#jrn-desktop-06",
+    "data": [
+      "journeys/definitions/desktop/data/DesktopScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/desktop/Storage.spec.ts",
+        "project": "desktop",
+        "titles": [
+          "JRN-DESKTOP-06 reads external changes at a Unicode path and preserves a declined overwrite",
+          "JRN-DESKTOP-06 recovers when a selected native save disappears before load",
+          "JRN-DESKTOP-06 reports missing and unwritable native targets and allows an explicit retry",
+          "JRN-DESKTOP-06 exclusively creates native files when an external writer races the save"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

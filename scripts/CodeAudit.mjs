@@ -25,7 +25,7 @@ export function auditRepository(root = path.resolve(path.dirname(fileURLToPath(i
       else if (/\.(?:ts|vue|mjs|css)$/.test(entry.name)) _inspect(filename);
     }
   }
-  for (const directory of ['src', 'journeys', 'e2e', 'scripts']) _walk(directory);
+  for (const directory of ['src', 'journeys', 'e2e', 'scripts', 'desktop']) _walk(directory);
   for (const filename of fs.readdirSync(root).filter((name) => /config\.(?:ts|mjs)$/.test(name))) _inspect(filename);
   for (const [kind, exceptions] of Object.entries(policy)) for (const key of Object.keys(exceptions)) {
     if (!observed.has(key)) findings.push({ kind, key, file: 'scripts/CodeAuditPolicy.json', line: 1, message: 'Remove unused audit exception.' });

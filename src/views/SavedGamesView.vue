@@ -13,6 +13,7 @@ import AppIcon from '@/components/common/AppIcon.vue';
 import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import { OperationOwner } from '@/utility/async/OperationOwner';
 import { abortable } from '@/utility/async/Abortable';
+import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
 
 const modal = useModal();
 const route = useRoute();
@@ -67,7 +68,7 @@ function _loadDetails(entry?: ISavedGameFileEntry) {
       signal.throwIfAborted();
       selectedDocument.value = game;
     } catch (error) {
-      if (!signal.aborted) detailError.value = error instanceof Error ? error.message : 'This snapshot could not be read.';
+      if (!signal.aborted) detailError.value = error instanceof Error || isPlatformError(error) ? error.message : 'This snapshot could not be read.';
     }
   });
 }
@@ -94,7 +95,7 @@ async function _refreshGroups() {
     gameNames.value = new Map(entries);
   } catch (error) {
     groups.value = [];
-    if (!String(error).includes('not found')) errorMessage.value = error instanceof Error ? error.message : 'Saved games could not be listed.';
+    if (!String(error).includes('not found')) errorMessage.value = error instanceof Error || isPlatformError(error) ? error.message : 'Saved games could not be listed.';
   } finally {
     isLoading.value = false;
     _initialiseRoute();
@@ -163,7 +164,7 @@ async function _confirmOverwrite(target: { game: IGame; saveName: string }, sign
   errorMessage.value = '';
   message.value = '';
   try { await _writeSave(target.game, target.saveName, true, signal); } catch (error) {
-    if (!signal.aborted) errorMessage.value = error instanceof Error ? error.message : 'The action could not be completed.';
+    if (!signal.aborted) errorMessage.value = error instanceof Error || isPlatformError(error) ? error.message : 'The action could not be completed.';
     throw error;
   } finally { isWorking.value = false; }
 }
@@ -207,7 +208,7 @@ async function _run(action: () => Promise<void>, importAction: boolean = false) 
   try {
     await action();
   } catch (error) {
-    const text = error instanceof Error ? error.message : 'The action could not be completed.';
+    const text = error instanceof Error || isPlatformError(error) ? error.message : 'The action could not be completed.';
     if (importAction) modal.open(MessageModal, { title: 'Could not import game', subtitle: 'The selected document is unsupported or incomplete.', message: text, error: true });
     else errorMessage.value = text;
   } finally {

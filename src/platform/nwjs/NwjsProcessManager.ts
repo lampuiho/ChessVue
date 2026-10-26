@@ -11,18 +11,26 @@ function _createPlatformError(kind: PlatformErrorKind, operation: string, messag
 }
 export class NwjsProcessManager extends WorkerProcessManagerBase {
   private readonly _childProcess = getNodeChildProcess();
+  private readonly _nativeProcesses = new Set<ISpawnedProcess>();
+  private _disposeWork?: Promise<void>;
+  private _disposed = false;
   constructor(private readonly _clientType: EngineClientType) { super(); }
   override async spawnProcess(entryPath: string, args: string[] = []) {
     if (this._clientType === EngineClientType.UciWorker) return super.spawnProcess(entryPath, args);
+    if (this._disposed) throw _createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', 'The engine process manager was disposed.');
     const process = this._childProcess.spawn(entryPath, args, { stdio: 'pipe' });
+    this._nativeProcesses.add(process);
+    process.once('exit', () => { this._nativeProcesses.delete(process); });
     return new Promise<ISpawnedProcess>((resolve, reject) => {
       const _handleSpawn = () => {
         process.stdout.setEncoding('utf8');
         process.stderr.setEncoding('utf8');
         _cleanup();
+        if (this._disposed) return reject(_createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', 'The engine process manager was disposed.'));
         resolve(markRaw(process));
       };
       const _handleError = (error: Error) => {
+        this._nativeProcesses.delete(process);
         _cleanup();
         reject(_createPlatformError(PlatformErrorKind.ProcessStartFailed, 'spawnProcess', 'Process failed to start: ' + entryPath + '.', error.message));
       };
@@ -42,9 +50,22 @@ export class NwjsProcessManager extends WorkerProcessManagerBase {
     if (this._clientType === EngineClientType.UciWorker) return super.stopProcess(process);
     if (!isProcessOpen(process as ISpawnedProcess)) return;
     await new Promise<void>((resolve) => {
-      process.once('exit', () => resolve());
-      process.kill();
+      const _finish = () => {
+        process.removeListener('exit', _finish);
+        resolve();
+      };
+      process.once('exit', _finish);
+      try { if (!process.kill()) _finish(); }
+      catch { _finish(); }
     });
+  }
+  override dispose() {
+    this._disposed = true;
+    return this._disposeWork ??= this._disposeProcesses();
+  }
+  private async _disposeProcesses() {
+    const nativeStops = Array.from(this._nativeProcesses, process => this.stopProcess(process));
+    await Promise.allSettled([super.dispose(), ...nativeStops]);
   }
   protected override _resolveWorkerUrl(entryPath: string): URL {
     const failure = { kind: PlatformErrorKind.ProcessStartFailed, operation: 'spawnProcess', message: 'The engine entry must be a local script or an app URL.' };

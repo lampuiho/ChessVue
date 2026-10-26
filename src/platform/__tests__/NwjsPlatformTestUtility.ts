@@ -168,10 +168,11 @@ class FakeFileSystemModule {
     }
     return [...childEntries.entries()].sort((left, right) => left[0].localeCompare(right[0])).map(([name, isDirectory]) => new FakeDirent(name, isDirectory));
   }
-  private async _writeFile(targetPath: string, raw: string) {
+  private async _writeFile(targetPath: string, raw: string, options?: { flag?: string }) {
     const normalisedPath = this._normalise(targetPath);
     const parentPath = this._normalise(path.dirname(targetPath));
     if (!this._directories.has(parentPath)) throw this._createNodeError('ENOENT');
+    if (options?.flag === 'wx' && this._files.has(normalisedPath)) throw this._createNodeError('EEXIST');
     this._files.set(normalisedPath, { raw, mtime: new Date(this._tick++ * 1000) });
   }
   private async _readFile(targetPath: string): Promise<Buffer> {

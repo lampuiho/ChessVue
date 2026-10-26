@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-DESKTOP-01",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-SESSION-01",
+      "SCN-SESSION-02",
+      "SCN-MOVE-01",
+      "SCN-SAVE-03"
+    ],
+    "branches": [],
+    "fixture": "desktop",
+    "lane": "native-desktop",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/desktop/ScenarioReview.md#jrn-desktop-01",
+    "data": [
+      "journeys/definitions/desktop/data/DesktopScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/desktop/Persistence.spec.ts",
+        "project": "desktop",
+        "titles": [
+          "JRN-DESKTOP-01 auto-detects native storage and restores a played saved session after restart"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

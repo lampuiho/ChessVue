@@ -37,6 +37,7 @@ coverage
 # Playwright
 /test-results/
 /playwright-report/
+/.desktop/
 
 # Vitest
 __screenshots__/

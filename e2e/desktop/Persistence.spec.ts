@@ -1,0 +1,31 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { test, expect } from './DesktopTest';
+import { createLocalGame, diskGame, playOpening, saveNamed } from './DesktopAction';
+import { desktopSaveName } from '../../journeys/definitions/desktop/data/DesktopScenario';
+import { currentGame } from './NativeInspection';
+import { expectCanonical } from '../browser/BrowserAction';
+
+test('JRN-DESKTOP-01 auto-detects native storage and restores a played saved session after restart', async ({ desktop }) => {
+  const page = desktop.page;
+  const id = await createLocalGame(page);
+  await playOpening(page);
+  await expect.poll(async () => (await diskGame(desktop.directory, id))?.livePath).toEqual([0]);
+  await saveNamed(page, desktopSaveName);
+  const namedPath = resolve(desktop.directory, 'saves', id, desktopSaveName + '.json');
+  const bytes = await readFile(namedPath, 'utf8');
+  const saved = JSON.parse(bytes);
+  expect(saved.metadata.id).toBe(id);
+  expect(saved.livePath).toEqual([0]);
+  expect(bytes).not.toContain('"$"');
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect.poll(async () => JSON.parse(await readFile(resolve(desktop.directory, 'game-session.json'), 'utf8')).activeRoute).toBe('/game/' + id);
+  await desktop.close();
+  await desktop.start();
+  await expect(desktop.page).toHaveURL(new RegExp('/game/' + id + '$'));
+  await expect(desktop.page.locator('.history-row')).toHaveCount(1);
+  await expect(desktop.page.getByRole('button', { name: /^e4 white pawn$/i })).toBeVisible();
+  await expect(desktop.page.locator('.result-badge')).toHaveText('black to move');
+  expectCanonical(await currentGame(desktop.page), saved);
+  expect(await readFile(namedPath, 'utf8')).toBe(bytes);
+});

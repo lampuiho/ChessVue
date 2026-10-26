@@ -47,4 +47,11 @@ describe('journey coverage execution evidence', () => {
     repeated.suites.push(...failed.suites);
     expect(aggregateCaseResults([entry], repeated, '/repo')[0]!.execution).toBe('failed');
   });
+
+  it('keeps native evidence in the desktop project and skipped operator checks unverified', () => {
+    const native: IJourneyCase = { ...entry, lane: 'native-desktop', fixture: 'desktop', tests: entry.tests.map(test => ({ ...test, project: 'desktop' as const })) };
+    expect(aggregateCaseResults([native], _report(), '/repo')[0]!.execution).toBe('unverified');
+    expect(aggregateCaseResults([native], _report('expected', [{ status: 'passed' }], 'desktop'), '/repo')[0]!.execution).toBe('passed');
+    expect(aggregateCaseResults([native], _report('skipped', [{ status: 'skipped' }], 'desktop'), '/repo')[0]!.execution).toBe('unverified');
+  });
 });

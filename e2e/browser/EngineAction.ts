@@ -4,8 +4,8 @@ import { StockfishConfig } from '../../src/config/StockfishConfig';
 import { applyMove, isMoveLegal } from '../../src/utility/chess/GameRuleUtility';
 
 export interface IBrowserEngineProfile { name: string; path: string; }
-export async function configureEngines(page: Page, profiles: IBrowserEngineProfile[]) {
-  await page.goto('/');
+export async function configureEngines(page: Page, profiles: IBrowserEngineProfile[], baseUrl?: string) {
+  await page.goto(baseUrl ? new URL('/', baseUrl).href : '/');
   await page.getByRole('button', { name: /Settings/ }).click();
   await page.getByRole('button', { name: 'Engines', exact: true }).click();
   while (await page.getByRole('button', { name: 'Delete', exact: true }).count()) await page.getByRole('button', { name: 'Delete', exact: true }).first().click();

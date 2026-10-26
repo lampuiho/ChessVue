@@ -153,10 +153,11 @@ class MockFsModule {
     }
     return [...childEntries.entries()].map(([name, isDirectory]) => new MockDirent(name, isDirectory));
   }
-  private async _writeFile(targetPath: string, raw: string) {
+  private async _writeFile(targetPath: string, raw: string, options?: { flag?: string }) {
     const normalisedPath = this._normalise(targetPath);
     const parentPath = this._path.dirname(normalisedPath);
     if (!this._directories.has(parentPath)) throw this._createNodeError('ENOENT');
+    if (options?.flag === 'wx' && this._files.has(normalisedPath)) throw this._createNodeError('EEXIST');
     this._files.set(normalisedPath, { raw, mtime: new Date(this._tick++ * 1000) });
   }
   private async _readFile(targetPath: string): Promise<Buffer> {

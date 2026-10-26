@@ -33,14 +33,14 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
       [EngineClientType.Uci, { processManager, engineClient: markRaw(new NwjsUciEngineClient()) }],
       [EngineClientType.UciWorker, { processManager: workerProcessManager, engineClient: markRaw(new BrowserUciEngineClient()) }],
     ]);
-    onScopeDispose(() => { void processManager.dispose().catch(error => console.error('[nwjs] Native process-manager cleanup failed.', error)); });
-    onScopeDispose(() => { void workerProcessManager.dispose().catch(error => console.error('[nwjs] Worker process-manager cleanup failed.', error)); });
     const appCloseRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
     const appFocusRegistrations: IEventRegistration<() => Promise<void> | void>[] = [];
     const themeRegistrations: IEventRegistration<(theme: ResolvedThemeMode) => void>[] = [];
     let hasAttachedWindowClose = false;
     let hasAttachedWindowFocus = false;
     let hasAttachedThemeListener = false;
+    const _windowCleanups: (() => void)[] = [];
+    onScopeDispose(_dispose);
 
     function getStorageAdapter() {
       return storageAdapter;
@@ -93,28 +93,47 @@ export function defineNwjsPlatformServiceStore(nw: INwjsGlobal) {
       appFocusRegistrations.length = 0;
       themeRegistrations.length = 0;
     }
+    async function _dispose() {
+      for (const cleanup of _windowCleanups.splice(0)) cleanup();
+      reset();
+      await _disposeProcessManagers();
+    }
+    async function _disposeProcessManagers() {
+      await Promise.allSettled([processManager.dispose(), workerProcessManager.dispose()]);
+    }
     function _attachWindowCloseListener() {
       if (hasAttachedWindowClose) return;
       hasAttachedWindowClose = true;
-      nw.Window.get(window).on('close', async () => {
+      const nativeWindow = nw.Window.get(window);
+      let closing = false;
+      async function _close() {
+        if (closing) return;
+        closing = true;
         await triggerAppCloseRequested();
-        nw.Window.get(window).close(true);
-      });
+        await _disposeProcessManagers();
+        if (nw.App) nw.App.quit();
+        else nativeWindow.close(true);
+      }
+      nativeWindow.on('close', _close);
+      _windowCleanups.push(() => nativeWindow.removeListener('close', _close));
     }
     function _attachWindowFocusListener() {
       if (hasAttachedWindowFocus) return;
       hasAttachedWindowFocus = true;
-      nw.Window.get(window).on('focus', () => {
-        void triggerAppFocusReturned();
-      });
+      const nativeWindow = nw.Window.get(window);
+      const _focus = () => { void triggerAppFocusReturned(); };
+      nativeWindow.on('focus', _focus);
+      _windowCleanups.push(() => nativeWindow.removeListener('focus', _focus));
     }
     function _attachThemeListener() {
       if (hasAttachedThemeListener) return;
       hasAttachedThemeListener = true;
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      mediaQuery.addEventListener('change', (event) => {
+      const _changed = (event: MediaQueryListEvent) => {
         triggerSystemThemeChanged(event.matches ? ResolvedThemeMode.Dark : ResolvedThemeMode.Light);
-      });
+      };
+      mediaQuery.addEventListener('change', _changed);
+      _windowCleanups.push(() => mediaQuery.removeEventListener('change', _changed));
     }
     function _registerCallback<TCallback>(registrations: IEventRegistration<TCallback>[], eventKey: PlatformEventKey, owner: string, callback: TCallback, debugLabel?: string): () => void {
       const registrationId = `platform-registration-${nextRegistrationId++}`;

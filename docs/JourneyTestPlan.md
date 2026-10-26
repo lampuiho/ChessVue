@@ -26,7 +26,7 @@ Exclude ideas without a current user flow: premoves, bookmarks, evaluation expla
 
 ## Completion tracking
 
-Updated 20 October 2026 from the [implementation record and verified runs](JourneyImplementation.md#usability-verification). Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
+Updated 26 October 2026 from [native execution evidence](ArchivedPlans/JourneyImplementation.md#real-host-follow-up), retaining the earlier accepted tranches. Counts refer to the 147 named case groups, not individual parameterised tests. **Complete** means the group's required assertions, review and owned metadata have passing evidence; **Partial** retains outstanding acceptance work; **Backlog** has no completed group acceptance yet, even where existing fixtures, unit tests or smoke checks cover some behaviour.
 
 | Area / case range | Total | Complete | Partial | Backlog | Evidence or next work |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -44,14 +44,14 @@ Updated 20 October 2026 from the [implementation record and verified runs](Journ
 | Engine races — `JRN-RACE-01–08` | 8 | 8 | 0 | 0 | [15 browser variants](../e2e/journeys/engine-races/), [three control/disposal checks](../journeys/__tests__/engine-races/), [owned metadata and scenario review](../journeys/definitions/engine-races/ScenarioReview.md) |
 | Storage failures — `JRN-IO-01–08` | 8 | 8 | 0 | 0 | [21 seeded variants](../e2e/journeys/storage-failures/), [one real browser storage rejection](../e2e/browser/Storage.spec.ts), [nine adapter/fixture checks](../journeys/__tests__/storage-failures/), [owned metadata and review](../journeys/definitions/storage-failures/ScenarioReview.md) |
 | Ordinary browser — `JRN-BROWSER-01–07` | 7 | 7 | 0 | 0 | [18 ordinary-browser variants](../e2e/browser/), [owned case metadata and scenario review](../journeys/definitions/browser/ScenarioReview.md), real Stockfish/file transfer and lifecycle/storage acceptance |
-| NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 0 | 0 | 7 | Native runtime verification remains outstanding |
+| NW.js desktop — `JRN-DESKTOP-01–07` | 7 | 6 | 1 | 0 | [Thirteen native variants pass across recorded runs](ArchivedPlans/JourneyImplementation.md#window-and-interactive-follow-up) on NW.js 0.111.1/Stockfish 15.1; physical focus/theme in 07 is unverified under the user's waiver. [Metadata/review](../journeys/definitions/desktop/ScenarioReview.md), [procedure](../e2e/desktop/README.md) |
 | Complete sessions — `JRN-SESSION-01–04` | 4 | 4 | 0 | 0 | [Four complete browser sessions](../e2e/sessions/), [owned metadata](../journeys/coverage/sessions/) and [scenario review](../journeys/definitions/sessions/ScenarioReview.md) |
 | Usability — `JRN-UX-01–04` | 4 | 4 | 0 | 0 | [39 browser variants](../e2e/journeys/usability/), [owned metadata](../journeys/coverage/usability/), [fixture](../journeys/definitions/usability/data/UsabilityWorkload.ts), [review](../journeys/definitions/usability/ScenarioReview.md) and measured resource baseline |
-| **Total** | **147** | **140** | **0** | **7** | **Seven native-desktop groups still need acceptance work** |
+| **Total** | **147** | **146** | **1** | **0** | **One native-desktop group retains unverified physical interaction under the user's waiver** |
 
-Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all fifteen journeys, including Rules, Engine races, Storage failures, Sessions and Usability. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [usability verification](JourneyImplementation.md#usability-verification) records keyboard/dialog acceptance, the desktop matrix, exploratory review and sustained workload; the earlier [complete-session verification](JourneyImplementation.md#complete-session-verification) retains its separate evidence. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
+Foundation work has started in Phases 1 and 2: baseline evidence, the description registry, focused builders, browser helpers and distributed metadata/reporting are in place for all fifteen journeys, including Rules, Engine races, Storage failures, Sessions and Usability. The full scenario/branch register and remaining runtime/support migrations are outstanding; no phase is complete yet. The latest [usability verification](ArchivedPlans/JourneyImplementation.md#usability-verification) records keyboard/dialog acceptance, the desktop matrix, exploratory review and sustained workload; the earlier [complete-session verification](ArchivedPlans/JourneyImplementation.md#complete-session-verification) retains its separate evidence. Earlier tranches retain their dated evidence; filtered reports do not mark unexecuted cases passed. These totals do not imply completion of additional case groups.
 
-Update this table with each accepted work package, using owned case metadata and `npm run journey -- report` for execution evidence. Keep detailed results in the [implementation record](JourneyImplementation.md) and scenario reviews; a passing bootstrap or a filtered run must not mark unexecuted cases complete.
+Update this table with each accepted work package, using owned case metadata and `npm run journey -- report` for execution evidence. Keep detailed results in the [implementation record](ArchivedPlans/JourneyImplementation.md) and scenario reviews; a passing bootstrap or a filtered run must not mark unexecuted cases complete.
 
 ## Product intent and usability baseline
 
@@ -558,7 +558,7 @@ The five original browser checks have been strengthened into 18 focused variants
 
 ### NW.js desktop
 
-Use a real host and a dedicated disposable save root. Mock-NW.js unit tests and journey mode are not substitutes. Record runtime, OS and engine version; the current repository does not provide a real NW.js end-to-end launch/project, so first establish and document a repeatable desktop harness or manual procedure.
+Use a real host and a dedicated disposable save root. Mock-NW.js unit tests and journey mode are not substitutes. Record runtime, OS and engine version; the repository now provides a separate [native SDK launch/project and interactive procedure](../e2e/desktop/README.md). It defines 14 variants across these seven groups. Five groups now have [recorded real-host acceptance](ArchivedPlans/JourneyImplementation.md#real-host-follow-up); native pickers and physical focus/theme remain unverified.
 
 | Case | Priority | Actions and required result |
 | --- | --- | --- |

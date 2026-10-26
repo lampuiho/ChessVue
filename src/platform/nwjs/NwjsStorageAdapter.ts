@@ -18,6 +18,7 @@ function _normalisePath(path: string): string {
 }
 function _mapNodeError(error: unknown, operation: string, fallbackMessage: string): IPlatformError {
   const code = typeof error === 'object' && error !== null && 'code' in error ? String((error as { code: unknown }).code) : undefined;
+  if (code === 'EEXIST') return _createPlatformError(PlatformErrorKind.AlreadyExists, operation, fallbackMessage);
   if (code === 'ENOENT') return _createPlatformError(PlatformErrorKind.NotFound, operation, fallbackMessage);
   if (code === 'EACCES' || code === 'EPERM') return _createPlatformError(PlatformErrorKind.PermissionDenied, operation, fallbackMessage);
   return _createPlatformError(PlatformErrorKind.InvalidDocument, operation, fallbackMessage, error instanceof Error ? error.message : undefined);
@@ -88,15 +89,8 @@ export function defineNwjsStorageAdapterStore(_nw: INwjsGlobal) {
     async function writeTextFile(targetPath: string, raw: string, options: IWriteTextFileOptions = {}) {
       const { overwrite = false, ensureParentDirectory = false } = options;
       try {
-        if (!overwrite) await fs.promises.access(targetPath).then(() => {
-          throw _createPlatformError(PlatformErrorKind.AlreadyExists, 'writeTextFile', `File already exists: ${targetPath}.`);
-        }).catch((error) => {
-          if (typeof error === 'object' && error !== null && 'kind' in error) throw error;
-          if (typeof error === 'object' && error !== null && 'code' in error && String((error as { code: unknown }).code) === 'ENOENT') return;
-          throw error;
-        });
         if (ensureParentDirectory) await fs.promises.mkdir(pathModule.dirname(targetPath), { recursive: true });
-        await fs.promises.writeFile(targetPath, raw, 'utf8');
+        await fs.promises.writeFile(targetPath, raw, { encoding: 'utf8', flag: overwrite ? 'w' : 'wx' });
       } catch (error) {
         if (typeof error === 'object' && error !== null && 'kind' in error) throw error;
         throw _mapNodeError(error, 'writeTextFile', `File could not be written: ${targetPath}.`);

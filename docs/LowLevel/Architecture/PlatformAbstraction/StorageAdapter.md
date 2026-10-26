@@ -41,7 +41,7 @@ deleteFile(path: string): Promise<void>
 - `showSaveDialog` and `showOpenDialog` reject with `IPlatformError` of kind `cancelled` when the user dismisses the host dialog without choosing a path.
 - `listDirectory` rejects with `notFound` or `permissionDenied` when the requested path cannot be enumerated.
 - `ensureDirectory` rejects with `permissionDenied` when the requested directory cannot be created or confirmed.
-- `writeTextFile` rejects with `alreadyExists` when overwrite is required but not permitted by the caller.
+- `writeTextFile` rejects with `alreadyExists` when overwrite is required but not permitted by the caller. Native non-overwrite writes use exclusive creation (`wx`) so an external writer cannot be silently overwritten between an existence check and the write.
 - `writeTextFile` rejects with `permissionDenied` when the selected destination cannot be written.
 - `writeTextFile` creates the parent directory only when `ensureParentDirectory = true`; otherwise a missing parent path remains a write failure.
 - `readTextFile` rejects with `invalidDocument` when the selected file cannot be read as a raw text document.

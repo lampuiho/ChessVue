@@ -4,11 +4,11 @@ export interface IJourneyCase {
   scenarios: string[];
   branches: string[];
   fixture: string;
-  lane: 'seeded-browser' | 'ordinary-browser';
+  lane: 'seeded-browser' | 'ordinary-browser' | 'native-desktop';
   implementation: 'available' | 'partial' | 'backlog';
   scenarioReview: string;
   data: string[];
-  tests: { spec: string; titles: string[]; project?: 'journeys' | 'browser' }[];
+  tests: { spec: string; titles: string[]; project?: 'journeys' | 'browser' | 'desktop' }[];
   remaining: string[];
 }
 export interface IJourneyCaseResult {

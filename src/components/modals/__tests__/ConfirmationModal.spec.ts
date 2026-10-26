@@ -48,3 +48,18 @@ it('blocks every dismissal while an overwrite is working and unlocks after failu
   expect(wrapper.emitted('dismissed')).toHaveLength(1);
   wrapper.unmount();
 });
+
+it('preserves a typed native permission failure and permits confirmation retry', async () => {
+  const message = 'File could not be written: protected.json.';
+  const confirm = vi.fn().mockRejectedValueOnce({ kind: 'permissionDenied', operation: 'writeTextFile', message }).mockResolvedValue(undefined);
+  const wrapper = mount(ConfirmationModal, { props: { title: 'Overwrite', confirmLabel: 'Replace', confirm, signal: new AbortController().signal } });
+  const replace = wrapper.findAll('button').find(button => button.text() === 'Replace')!;
+  await replace.trigger('click');
+  await flushPromises();
+  expect(wrapper.get('[role="alert"]').text()).toBe(message);
+  expect(wrapper.emitted('dismissed')).toBeUndefined();
+  await replace.trigger('click');
+  await flushPromises();
+  expect(wrapper.emitted('dismissed')).toHaveLength(1);
+  wrapper.unmount();
+});

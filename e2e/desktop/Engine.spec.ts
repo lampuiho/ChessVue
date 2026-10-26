@@ -1,0 +1,72 @@
+import { test, expect } from './DesktopTest';
+import { configureNativeEngines, createNativeAnalysis, engineSection, expectAnalysis } from './EngineAction';
+import { nativeProcesses, currentGame, processExists } from './NativeInspection';
+import { playOpening, setToggle } from './DesktopAction';
+import { setCustomClock } from '../support/GameCreation';
+import { playMove } from '../support/BoardInteraction';
+import { expectCurrentAnalysis, replayLegalMoves } from '../browser/EngineAction';
+import { desktopEngineNames } from '../../journeys/definitions/desktop/data/DesktopScenario';
+
+test('JRN-DESKTOP-03 owns independent native opponent and concurrent analysis processes with legal output', async ({ desktop }, testInfo) => {
+  test.skip(!process.env.CHESSVUE_UCI_EXECUTABLE, 'Set CHESSVUE_UCI_EXECUTABLE to a real native UCI engine.');
+  const page = desktop.page;
+  await configureNativeEngines(page, testInfo);
+  const dialog = page.getByRole('dialog', { name: 'Set up a new board', exact: true });
+  await dialog.locator('#black-player').selectOption({ label: 'Use profile: Native A' });
+  await setCustomClock(dialog, '1', '0');
+  await setToggle(dialog.getByRole('checkbox', { name: /^Show live analysis moves/ }), true);
+  for (const name of desktopEngineNames) {
+    await dialog.getByLabel('Add analysis engine', { exact: true }).selectOption({ label: name });
+    await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
+  }
+  await dialog.getByRole('button', { name: 'Create workspace', exact: true }).click();
+  await playOpening(page);
+  await expect(page.locator('.history-row')).toHaveCount(2, { timeout: 30000 });
+  await expectAnalysis(page, [...desktopEngineNames]);
+  const processes = await nativeProcesses(page);
+  const pids = processes.map(engine => engine.pid!);
+  expect(pids).toHaveLength(3);
+  expect(new Set(pids).size).toBe(3);
+  expect(pids.every(pid => Number.isInteger(pid) && processExists(pid))).toBe(true);
+  const game = await currentGame(page);
+  expectCurrentAnalysis(game);
+  const white = game.moveTree.root.children[0]!;
+  const black = white.children[0]!;
+  expect(white.children).toHaveLength(1);
+  expect(black.children).toHaveLength(0);
+  expect(replayLegalMoves(game, [white.move!, black.move!]).sideToMove).toBe('white');
+  expect(game.livePath).toEqual([0, 0]);
+  expect(game.resultState).toBe('ongoing');
+  await desktop.close();
+  await expect.poll(() => pids.some(processExists)).toBe(false);
+});
+
+test('JRN-DESKTOP-04 isolates a killed native engine and retries with a new owned process', async ({ desktop }, testInfo) => {
+  test.skip(!process.env.CHESSVUE_UCI_EXECUTABLE, 'Set CHESSVUE_UCI_EXECUTABLE to a real native UCI engine.');
+  const page = desktop.page;
+  await createNativeAnalysis(page, testInfo);
+  const initial = await nativeProcesses(page);
+  const failed = initial.find(engine => engine.name === 'Native A')!;
+  const healthy = initial.find(engine => engine.name === 'Native B')!;
+  expect(failed.pid).not.toBe(healthy.pid);
+  process.kill(failed.pid!);
+  await expect.poll(() => processExists(failed.pid!)).toBe(false);
+  await engineSection(page, 'Native A').getByRole('button', { name: 'Stop engine', exact: true }).click();
+  await expect(engineSection(page, 'Native A').locator('.engine-error')).toBeVisible();
+  await expect(engineSection(page, 'Native A').getByRole('button', { name: 'Retry engine', exact: true })).toBeVisible();
+  expect(processExists(healthy.pid!)).toBe(true);
+  await engineSection(page, 'Native A').getByRole('button', { name: 'Retry engine', exact: true }).click();
+  await expectAnalysis(page, [...desktopEngineNames]);
+  const replacement = await nativeProcesses(page);
+  expect(replacement.find(engine => engine.name === 'Native A')!.pid).not.toBe(failed.pid);
+  expect(replacement.find(engine => engine.name === 'Native B')!.pid).toBe(healthy.pid);
+  await playMove(page, 'e2', 'e4');
+  await expect(page.locator('.history-row')).toHaveCount(1);
+  await expectAnalysis(page, [...desktopEngineNames]);
+  expectCurrentAnalysis(await currentGame(page));
+  await page.getByRole('button', { name: 'Quick game', exact: true }).click();
+  await playOpening(page);
+  await expect(page.locator('.result-badge')).toHaveText('black to move');
+  await desktop.close();
+  await expect.poll(() => replacement.some(engine => processExists(engine.pid!))).toBe(false);
+});

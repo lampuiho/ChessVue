@@ -73,4 +73,15 @@ describe('NwjsStorageAdapter', () => {
 
     expect(await getPlatformService().getStorageAdapter().readTextFile(savePath)).toContain('"schemaVersion": 1');
   });
+
+  it('preserves the first writer when two exclusive native creates race', async () => {
+    const storage = getPlatformService().getStorageAdapter();
+    const target = path.join(getTestEnvironment().rootPath, 'collision.json');
+    const outcomes = await Promise.allSettled([storage.writeTextFile(target, 'first'), storage.writeTextFile(target, 'second')]);
+    expect(outcomes[0]).toEqual({ status: 'fulfilled', value: undefined });
+    expect(outcomes[1]).toMatchObject({ status: 'rejected', reason: { kind: PlatformErrorKind.AlreadyExists } });
+    expect(await storage.readTextFile(target)).toBe('first');
+    await storage.writeTextFile(target, 'explicit replacement', { overwrite: true });
+    expect(await storage.readTextFile(target)).toBe('explicit replacement');
+  });
 });

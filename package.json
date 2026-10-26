@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "desktop": "node desktop/RunDesktop.mjs",
     "journey": "node journeys/RunJourney.mjs",
     "build": "run-p check:code type-check \"build-only {@}\" --",
     "check:code": "node scripts/CodeAudit.mjs",
@@ -15,7 +16,8 @@
     "test:unit": "vitest",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:desktop": "playwright test --config=playwright.desktop.config.ts"
   },
   "dependencies": {
     "fflate": "^0.8.3",

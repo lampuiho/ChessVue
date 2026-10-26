@@ -1,0 +1,30 @@
+[
+  {
+    "id": "JRN-DESKTOP-03",
+    "priority": "P0",
+    "scenarios": [
+      "SCN-MOVE-01",
+      "SCN-ANALYSIS-01",
+      "SCN-ANALYSIS-02",
+      "SCN-ENGINE-01"
+    ],
+    "branches": [],
+    "fixture": "desktop",
+    "lane": "native-desktop",
+    "implementation": "available",
+    "scenarioReview": "journeys/definitions/desktop/ScenarioReview.md#jrn-desktop-03",
+    "data": [
+      "journeys/definitions/desktop/data/DesktopScenario.ts"
+    ],
+    "tests": [
+      {
+        "spec": "e2e/desktop/Engine.spec.ts",
+        "project": "desktop",
+        "titles": [
+          "JRN-DESKTOP-03 owns independent native opponent and concurrent analysis processes with legal output"
+        ]
+      }
+    ],
+    "remaining": []
+  }
+]

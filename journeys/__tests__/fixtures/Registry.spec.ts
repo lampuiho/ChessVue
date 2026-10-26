@@ -23,6 +23,7 @@ describe('modular journey discovery', () => {
       ...Array.from({ length: 12 }, (_, index) => `JRN-ANALYSIS-${String(index + 1).padStart(2, '0')}`),
       ...Array.from({ length: 7 }, (_, index) => `JRN-BROWSER-0${index + 1}`),
       ...Array.from({ length: 12 }, (_, index) => `JRN-CLOCK-${String(index + 1).padStart(2, '0')}`),
+      ...Array.from({ length: 7 }, (_, index) => `JRN-DESKTOP-0${index + 1}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-FRESH-0${index + 1}`),
       ...Array.from({ length: 9 }, (_, index) => `JRN-HIST-0${index + 1}`),
       ...Array.from({ length: 8 }, (_, index) => `JRN-IO-0${index + 1}`),
@@ -42,6 +43,9 @@ describe('modular journey discovery', () => {
         expect(entry.fixture).toBe('browser');
         expect(entry.tests.every((test) => test.project === 'browser')).toBe(true);
         expect(entry.tests.every((test) => !test.spec.startsWith('e2e/journeys/'))).toBe(true);
+      } else if (entry.lane === 'native-desktop') {
+        expect(entry.fixture).toBe('desktop');
+        expect(entry.tests.every(test => test.project === 'desktop' && test.spec.startsWith('e2e/desktop/'))).toBe(true);
       } else expect(Object.keys(registry)).toContain(entry.fixture);
       for (const scenario of entry.scenarios) expect(source).toContain(`### ${scenario} -`);
       for (const branch of entry.branches) {
