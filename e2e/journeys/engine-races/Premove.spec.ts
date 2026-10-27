@@ -1,8 +1,41 @@
 import { test, expect } from './RaceTest';
-import { heldPlayer, latestSearch, openRace, playerSearchCount, release } from './RaceAction';
+import { emit, heldPlayer, latestSearch, openRace, playerSearchCount, release } from './RaceAction';
 import { playMove, square } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 test.setTimeout(60000);
+for (const orientation of ['white', 'black'] as const) for (const gesture of ['click', 'drag'] as const) {
+  test(`queues every piece in one sequence using ${gesture} with ${orientation} orientation`, async ({ page }) => {
+    await openRace(page);
+    if (orientation === 'black') {
+      await page.getByRole('button', { name: 'Settings', exact: true }).click();
+      await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+      await page.getByLabel('Orientation', { exact: true }).selectOption('black');
+      await page.getByRole('button', { name: 'Apply changes', exact: true }).click();
+      await page.getByRole('button', { name: 'Back to game', exact: true }).click();
+    }
+    const first = await heldPlayer(page);
+    const moves = [['d2', 'd4', 'pawn'], ['c1', 'f4', 'bishop'], ['d1', 'd2', 'queen'],
+      ['e1', 'd1', 'king'], ['b1', 'c3', 'knight'], ['a1', 'b1', 'rook']] as const;
+    for (const [from, to, kind] of moves) {
+      if (gesture === 'drag') await square(page, from).locator('.chess-piece').dragTo(square(page, to));
+      else await playMove(page, from, to);
+      await expect(square(page, from)).toHaveAttribute('aria-label', from);
+      await expect(square(page, to)).toHaveAttribute('aria-label', `${to} white ${kind}`);
+      await expect(square(page, to)).toHaveClass(/board-square--premove/);
+      await expect(page.locator('.history-row')).toHaveCount(1);
+    }
+    let search = first;
+    const replies = ['e7e5', 'b8c6', 'g8f6', 'd7d6', 'c8e6', 'f8e7'];
+    for (let index = 0; index < moves.length; index += 1) {
+      await emit(page, search.id, `bestmove ${replies[index]}`);
+      await expect(page.locator('.history-row')).toHaveCount(3 + index * 2);
+      search = await latestSearch(page, 'player', 'journey://a', search.id);
+    }
+    await expect(page.locator('.board-square--premove')).toHaveCount(0);
+    for (const [, to, kind] of moves) await expect(square(page, to)).toHaveAttribute('aria-label', `${to} white ${kind}`);
+    expect(await playerSearchCount(page)).toBe(7);
+  });
+}
 for (const orientation of ['white', 'black'] as const) {
   test(`JRN-RACE-09 PRE-S01 PRE-S02 PRE-S03 projects, consumes and cancels a chain with ${orientation} orientation`, async ({ page }) => {
     await openRace(page);

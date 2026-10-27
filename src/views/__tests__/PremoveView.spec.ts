@@ -179,6 +179,30 @@ describe('premove scenarios at the mounted input boundary', () => {
     await _click(wrapper, 'g5', 'h7');
     expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove('g5h7'));
   });
+  it.each([PieceKind.Pawn, PieceKind.Knight, PieceKind.Bishop, PieceKind.Rook, PieceKind.Queen, PieceKind.King].flatMap((kind) => [PlayerColour.White, PlayerColour.Black].flatMap((local) =>
+    ['click', 'drag'].flatMap((gesture) => [false, true].map((capture) => ({ kind, local, gesture, capture }))))))(
+    'submits $local $kind premove by $gesture with capture $capture', async ({ kind, local, gesture, capture }) => {
+      const opponent = local === PlayerColour.White ? PlayerColour.Black : PlayerColour.White;
+      const rank = local === PlayerColour.White ? '5' : '3';
+      const to = kind === PieceKind.Knight ? `f${rank}` : kind === PieceKind.Rook || kind === PieceKind.Pawn && !capture ? `d${rank}` : `e${rank}`;
+      const kings: IPositionFixture['pieces'] = [
+        ['a1', PlayerColour.White, PieceKind.King], ['h8', PlayerColour.Black, PieceKind.King],
+      ];
+      const pieces = kings.filter(([, colour]) => kind !== PieceKind.King || colour !== local);
+      pieces.push(['d4', local, kind]);
+      if (capture) pieces.push([to, opponent, PieceKind.Pawn]);
+      const game = _game({ root: { side: opponent, pieces }, local, queue: [] });
+      const before = buildFen(_position(game));
+      const wrapper = _mount(game);
+      await flushPromises();
+      if (gesture === 'drag') await _square(wrapper, 'd4').get('.chess-piece').trigger('dragstart');
+      else await _square(wrapper, 'd4').trigger('click');
+      expect(_square(wrapper, to).classes()).toContain('board-square--target');
+      await _square(wrapper, to).trigger(gesture === 'drag' ? 'drop' : 'click');
+      await flushPromises();
+      expect(dependency.store.makeMove).toHaveBeenCalledExactlyOnceWith(game, premove(`d4${to}`));
+      expect(buildFen(_position(game))).toBe(before);
+    });
   it.each([PlayerColour.White, PlayerColour.Black])('PRE-S17 cannot drag the engine piece while %s queues', async (local) => {
     const game = _game({ played: local === PlayerColour.White ? ['e2e4'] : [], queue: [], local });
     const wrapper = _mount(game);
