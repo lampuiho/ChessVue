@@ -18,12 +18,9 @@
 .control-button--primary > .app-icon, .control-button--primary small { color: var(--text-on-accent-muted); }
 .control-button--primary:hover:not(:disabled) { background: var(--accent); }
 .control-button--wide { grid-column: 1 / -1; }
-.control-panel__secondary { display: flex; margin-top: 0.25rem; justify-content: flex-end; gap: 0.25rem; }
-.quiet-action { display: flex; min-height: 1.9rem; padding: 0.3rem 0.5rem; align-items: center; gap: 0.35rem; color: var(--text-muted); border-radius: var(--radius-sm); background: transparent; font-size: 0.6rem; font-weight: 700; }
-.quiet-action:hover { color: var(--text-primary); background: var(--accent-soft); }
-.quiet-action--danger:hover { color: var(--danger); background: var(--danger-soft); }
-.quiet-action > i { width: 0.38rem; height: 0.38rem; border-radius: 50%; background: transparent; box-shadow: 0 0 0 0.0625rem var(--text-muted); }
-.quiet-action > i.active { background: var(--accent); box-shadow: 0 0 0 0.18rem var(--accent-soft); }
+.control-panel__secondary { margin-top: 0.4rem; }
+.control-button__indicator { width: 0.38rem; height: 0.38rem; flex: 0 0 auto; border-radius: 50%; background: transparent; box-shadow: 0 0 0 0.0625rem var(--text-muted); }
+.control-button__indicator.active { background: var(--accent); box-shadow: 0 0 0 0.18rem var(--accent-soft); }
 .control-note { margin: 0; padding: 0.55rem; color: var(--text-muted); border: 0; border-radius: 0.25rem; background: var(--surface-panel); font-size: 0.62rem; }
 @media (max-width: 760px) {
   .control-panel__heading, .control-button small { display: none; }

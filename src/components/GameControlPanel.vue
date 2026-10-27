@@ -98,9 +98,9 @@ async function _offerDraw(currentGame: IGame, signal: AbortSignal) {
       </template>
     </div>
     <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }}</p>
-    <div v-if="mode === 'live'" class="control-panel__secondary">
-      <button class="quiet-action" @click="_handleDraw()"><i :class="{ active: drawPending }"></i><AppIcon name="handshake" />{{ drawPending ? 'Resolve draw' : 'Offer draw' }}</button>
-      <button class="quiet-action quiet-action--danger" @click="_requestResignation()"><AppIcon name="flag" />Resign</button>
+    <div v-if="mode === 'live'" class="control-grid control-panel__secondary">
+      <button class="control-button" @click="_handleDraw()"><AppIcon name="handshake" /><span><strong>{{ drawPending ? 'Resolve draw' : 'Offer draw' }}</strong></span><i class="control-button__indicator" :class="{ active: drawPending }"></i></button>
+      <button class="control-button" @click="_requestResignation()"><AppIcon name="flag" /><span><strong>Resign</strong></span></button>
     </div>
     <p v-if="mode === 'finished'" class="control-note">The result is recorded. You can review the history or rewind where takebacks are allowed.</p>
   </section>
