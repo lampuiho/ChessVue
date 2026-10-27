@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineAvailability, PauseReason, PlayerColour, PlayerType, TimeControlPreset } from '@/contracts';
 import { EngineRuntimeService, SerializationService } from '@/domain';
 import { createInitialBoardPosition, getUci } from '@/utility/chess';
+import { buildPositionCommand } from '@/utility/UciUtility';
 import HistoryPanel from '@/components/HistoryPanel.vue';
 import { useGamesStore } from '../GamesStore';
 import { useGamePosition } from '../game/GamePositionComposable';
@@ -118,6 +119,25 @@ describe('game data drives Vue without publication counters', () => {
     seat.assignedEngine.$!.availability = EngineAvailability.Failed;
     expect(availability.value).toBe(EngineAvailability.Failed);
     expect(vi.mocked(EngineRuntimeService.startAnalysis).mock.calls[0]![1]).toBe(game);
+  });
+  it('refreshes analysis for the opponent after each live move', async () => {
+    const game = await _start();
+    await store.addAnalysisEngine(game, createEngineRecord());
+    const searches: { command: string; colour: PlayerColour }[] = [];
+    vi.mocked(EngineRuntimeService.startAnalysis).mockImplementationOnce(async (_engine, currentGame) => {
+      searches.push({ command: buildPositionCommand(currentGame), colour: position.getRenderedPosition(currentGame).sideToMove });
+    });
+    await store.makeMove(game, { from: 12, to: 28 });
+    await flushPromises();
+    vi.mocked(EngineRuntimeService.startAnalysis).mockImplementationOnce(async (_engine, currentGame) => {
+      searches.push({ command: buildPositionCommand(currentGame), colour: position.getRenderedPosition(currentGame).sideToMove });
+    });
+    await store.makeMove(game, { from: 52, to: 36 });
+    await flushPromises();
+    expect(searches).toEqual([
+      { command: 'position startpos moves e2e4', colour: PlayerColour.Black },
+      { command: 'position startpos moves e2e4 e7e5', colour: PlayerColour.White },
+    ]);
   });
   it('PUB-S09 PUB-S11 observes pause ownership and preserves work across timestamp-only updates', async () => {
     const game = await _start();

@@ -33,7 +33,7 @@ test('JRN-ANALYSIS-01 supersedes two pending searches with three current PVs per
   await expect(page.locator('.analysis-line')).toHaveCount(0);
   await playMove(page, 'g1', 'f3');
   await page.clock.runFor(200);
-  await expectOutput(page);
+  await expectOutput(page, undefined, 'black');
   const saved = await saveCurrentGame(page, 'current-output');
   expect(saved.renderedPath).toEqual([0, 0, 0]);
   expect(saved.livePath).toBeUndefined();
@@ -104,7 +104,7 @@ test('JRN-ANALYSIS-12 clears unevaluated history selections and rejects supersed
   await page.locator('.history-row').filter({ has: page.locator('strong').getByText('e4', { exact: true }) }).click();
   await expect(page.locator('.analysis-line')).toHaveCount(0);
   await page.clock.runFor(200);
-  await expectOutput(page);
+  await expectOutput(page, undefined, 'black');
   await expect(page.locator('.history-row--selected')).toContainText('e4');
   const selected = await saveCurrentGame(page, 'selected-node');
   expect(selected.renderedPath).toEqual([0]);
@@ -112,3 +112,21 @@ test('JRN-ANALYSIS-12 clears unevaluated history selections and rejects supersed
   expect(nodeAt(selected, [0]).recordedAnalysis).toBeUndefined();
   for (const seat of selected.analysis.seats) for (const line of seat.lines) expect(line.pv[0]!.movingColour).toBe('black');
 });
+for (const showMoves of [false, true]) {
+  test(`keeps White's score perspective after live moves with suggestions ${showMoves ? 'enabled' : 'disabled'}`, async ({ page }) => {
+    await openJourney(page, 'analysis');
+    await selectAnalysisGame(page, showMoves);
+    await expect(analysisSeat(page).locator('.engine-section__score')).toHaveText('+0.24');
+    await expect(page.locator('.analysis-panel .side-panel__meta')).toContainText('White perspective');
+    await playMove(page, 'g1', 'f3');
+    await expect(page.locator('.result-badge')).toHaveText('black to move');
+    await expect(analysisSeat(page).locator('.engine-section__score')).toHaveText('−0.24');
+    if (showMoves) await expect(analysisSeat(page).locator('.analysis-line__score')).toHaveText(['−0.24', '−0.06', '+0.12']);
+    const saved = await saveCurrentGame(page, 'black-to-move-scores');
+    expect(saved.analysis.seats[0]!.lines[0]!.scoreCp).toBe(24);
+    expect(saved.analysis.seats[0]!.lines[0]!.pv[0]!.movingColour).toBe('black');
+    await playMove(page, 'b8', 'c6');
+    await expect(page.locator('.result-badge')).toHaveText('white to move');
+    await expect(analysisSeat(page).locator('.engine-section__score')).toHaveText('+0.24');
+  });
+}

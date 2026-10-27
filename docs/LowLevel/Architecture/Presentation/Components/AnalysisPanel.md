@@ -14,6 +14,7 @@ Props are `gameId` and `disabled` (the view-owned move/playback permission). The
 ## Rendering and permissions
 
 - With move suggestions enabled, render `seat.lines` directly with a score and depth on each line. The subscription has already selected at most three entries in engine rank order; there is no template slice or frontend ranking.
+- All displayed scores use White's perspective: positive favours White, negative favours Black. The panel converts the stored UCI side-to-move scores using the root side and rendered path's ply count, including custom Black-to-move roots and historical selections. Centipawn and mate scores use the same perspective in summaries, evaluations and all PV rows. This conversion does not mutate engine output or persisted lines; the header labels the display perspective.
 - Show assignment metadata, score, and runtime availability even when no line exists. Only an empty seat list means no engine is assigned.
 - Missing runtime is unavailable, not Starting. Ready with an incomplete result is stopped; `isComplete` describes natural completion rather than runtime availability.
 - Keep accepted lines visible alongside failure feedback. Explicit Stop preserves the current result. Restored lines can display without a process.

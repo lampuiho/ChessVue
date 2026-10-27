@@ -3,7 +3,7 @@ import { computed, onScopeDispose, ref } from 'vue';
 import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import { useModal } from '@/composables/ModalComposable';
 import AnalysisEngineSelectionModal from './modals/AnalysisEngineSelectionModal.vue';
-import { GameState, type IGame, EngineAvailability, type IAnalysisLine, type ReadonlyAnalysisSeat, type IMoveRaw } from '@/contracts';
+import { GameState, PlayerColour, type IGame, EngineAvailability, type IAnalysisLine, type ReadonlyAnalysisSeat, type IMoveRaw } from '@/contracts';
 import { getSan } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 
@@ -15,6 +15,12 @@ const uiStateStore = useUiStateStore();
 const modal = useModal();
 const game = computed(() => gamesStore.getGame(props.gameId) as IGame | undefined);
 const seats = computed(() => game.value ? gamesStore.getVisibleAnalysis(game.value)?.engineSeats ?? [] : []);
+const scoreDirection = computed(() => {
+  const currentGame = game.value;
+  if (!currentGame) return 1;
+  const rootDirection = currentGame.rootPosition.sideToMove === PlayerColour.White ? 1 : -1;
+  return currentGame.renderedPath.length % 2 === 0 ? rootDirection : -rootDirection;
+});
 const collapsed = computed(() => uiStateStore.layoutState?.analysisCollapsed ?? false);
 const expandedByIndex = computed(() => uiStateStore.layoutState?.analysisEngineExpandedByIndex ?? []);
 const showMoves = computed(() => !game.value?.livePath || !!game.value.gameplayOptions.showLiveAnalysisMoves);
@@ -72,9 +78,12 @@ function _selectMoves(line: IAnalysisLine, moveIndex: number) {
   emit('moveSelected', line.pv.slice(0, moveIndex + 1));
 }
 function _score(line?: IAnalysisLine): string {
-  if (line?.scoreMate !== undefined) return line.scoreMate > 0 ? `M${line.scoreMate}` : `−M${Math.abs(line.scoreMate)}`;
+  if (line?.scoreMate !== undefined) {
+    const whiteWins = (line.scoreMate > 0) === (scoreDirection.value === 1);
+    return `${whiteWins ? '' : '−'}M${Math.abs(line.scoreMate)}`;
+  }
   if (line?.scoreCp !== undefined) {
-    const value = line.scoreCp / 100;
+    const value = line.scoreCp * scoreDirection.value / 100;
     return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(2)}`;
   }
   return '—';
@@ -97,7 +106,7 @@ function _summary(seat: ReadonlyAnalysisSeat): string {
   <section v-if="game" class="side-panel analysis-panel" :class="{ 'analysis-panel--evaluations': !showMoves }">
     <header class="side-panel__header">
       <button v-if="showMoves" class="side-panel__collapse" :aria-label="collapsed ? 'Expand analysis' : 'Collapse analysis'" @click="_toggleSection()"><AppIcon :name="collapsed ? 'chevron-right' : 'chevron-down'" /></button>
-      <div class="side-panel__heading"><h2 class="side-panel__title">{{ showMoves ? 'Analysis' : 'Evaluations' }}</h2><span v-if="!showMoves || !collapsed" class="side-panel__meta">{{ seats.length ? `${seats.length} engine${seats.length === 1 ? '' : 's'}` : 'engine lines' }}</span></div>
+      <div class="side-panel__heading"><h2 class="side-panel__title">{{ showMoves ? 'Analysis' : 'Evaluations' }}</h2><span v-if="!showMoves || !collapsed" class="side-panel__meta" title="Positive favours White; negative favours Black">{{ seats.length ? `${seats.length} engine${seats.length === 1 ? '' : 's'} · White perspective` : 'engine lines' }}</span></div>
       <div v-if="!showMoves || !collapsed" class="panel-actions"><button class="icon-button icon-button--panel" title="Refresh analysis" :disabled="startDisabled || !seats.length" @click="_run((currentGame) => gamesStore.refreshAnalysis(currentGame))"><AppIcon name="rotate" /></button><button class="icon-button icon-button--panel" title="Add engine" :disabled="!canAdd" @click="_addEngine()"><AppIcon name="plus" /></button></div>
     </header>
     <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }}</p>

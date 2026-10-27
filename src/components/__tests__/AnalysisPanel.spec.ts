@@ -144,6 +144,50 @@ describe('AnalysisPanel seats', () => {
     expect(wrapper.findAll('.analysis-line small').map((depth) => depth.text())).toEqual(['d32', 'd30', 'd29']);
     wrapper.unmount();
   });
+  it.each([false, true])('keeps a fixed score perspective across turn changes with move suggestions %s', async (showMoves) => {
+    const seat = reactive(createAnalysisSeat());
+    seat.lines = [{ depth: 12, scoreCp: 24, pv: [createMove(PlayerColour.White)] }];
+    const wrapper = _mount([seat], { showMoves });
+    expect(wrapper.get('.engine-section__score').text()).toBe('+0.24');
+    expect(wrapper.get('.side-panel__meta').text()).toContain('White perspective');
+    expect(wrapper.get('.side-panel__meta').attributes('title')).toBe('Positive favours White; negative favours Black');
+    dependency.game.renderedPath.push(0);
+    dependency.game.gameState = GameState.LiveBlackTurn;
+    seat.lines = [{ depth: 12, scoreCp: -24, pv: [createMove(PlayerColour.Black)] }];
+    await nextTick();
+    expect(wrapper.get('.engine-section__score').text()).toBe('+0.24');
+    if (showMoves) expect(wrapper.get('.analysis-line__score').text()).toBe('+0.24');
+    seat.lines = [{ depth: 13, scoreCp: 50, pv: [createMove(PlayerColour.Black)] }];
+    await nextTick();
+    expect(wrapper.get('.engine-section__score').text()).toBe('−0.50');
+    expect(seat.lines[0]!.scoreCp).toBe(50);
+    dependency.game.renderedPath.push(0);
+    seat.lines = [{ depth: 14, scoreCp: -50, pv: [createMove(PlayerColour.White)] }];
+    await nextTick();
+    expect(wrapper.get('.engine-section__score').text()).toBe('−0.50');
+  });
+  it('uses the selected position rather than the live turn, including a Black-to-move root', async () => {
+    dependency.game.rootPosition.sideToMove = PlayerColour.Black;
+    const seat = createAnalysisSeat();
+    seat.lines = [{ depth: 12, scoreCp: 25, pv: [] }];
+    const wrapper = _mount([seat], { showMoves: true });
+    expect(wrapper.get('.engine-section__score').text()).toBe('−0.25');
+    dependency.game.renderedPath.push(0);
+    await nextTick();
+    expect(wrapper.get('.engine-section__score').text()).toBe('+0.25');
+    expect(wrapper.get('.analysis-line__score').text()).toBe('+0.25');
+  });
+  it.each([
+    [PlayerColour.White, 3, 'M3'], [PlayerColour.White, -3, '−M3'], [PlayerColour.White, 0, '−M0'],
+    [PlayerColour.Black, 3, '−M3'], [PlayerColour.Black, -3, 'M3'], [PlayerColour.Black, 0, 'M0'],
+  ] as const)('shows mate %s %s from White\'s perspective', (colour, scoreMate, expected) => {
+    dependency.game.rootPosition.sideToMove = colour;
+    const seat = createAnalysisSeat();
+    seat.lines = [{ depth: 12, scoreMate, pv: [] }];
+    const wrapper = _mount([seat], { showMoves: true });
+    expect(wrapper.get('.engine-section__score').text()).toBe(expected);
+    expect(wrapper.get('.analysis-line__score').text()).toBe(expected);
+  });
 });
 it('saves a collapsed section locally and keeps a rejected save visible', async () => {
   const wrapper = _mount([createAnalysisSeat()], { showMoves: true });

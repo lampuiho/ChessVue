@@ -42,6 +42,7 @@ interface IVisibleAnalysis {
 - Runtime operation identity and subscription membership reject stale output, including A -> B -> A and replaced assignments with the same name.
 - The seat schema limits persisted rendered lines to three. Their position is the root/rendered selection saved in the same game document; no compatibility reader or migration is provided for the former analysis shape.
 - Missing score or best-move fields indicate unavailable values; an empty result does not remove an assignment. At most four analysis engines may be assigned to one game.
+- `scoreCp` and `scoreMate` retain the UCI side-to-move perspective for the analysed position, including persisted and recorded lines. A positive mate distance means the side to move delivers mate; zero means that side is already mated. Presentation converts scores to White's perspective using the rendered position.
 - Fold state remains UI-owned in `IUiLayoutState.analysisEngineExpandedByIndex`, indexed by seat order. Removing a seat reconciles that array in the view.
 
 See [Engine](Engine.md), [GamesStore](../StateManagement/GamesStore.md), and the [runtime flow](../../ProcessFlows/EngineRuntimeOwnership.md).

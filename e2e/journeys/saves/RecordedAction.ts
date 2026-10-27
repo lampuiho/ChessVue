@@ -8,11 +8,12 @@ async function _addEngine(page: Page, name: string) {
   await dialog.getByRole('radio', { name: new RegExp(name + ' ') }).check();
   await dialog.getByRole('button', { name: 'Add engine', exact: true }).click();
 }
-export async function expectRecordedOutput(page: Page) {
+export async function expectRecordedOutput(page: Page, sideToMove: 'white' | 'black' = 'white') {
   for (const name of ['Journey A', 'Journey B']) {
     const seat = page.locator('.analysis-panel .engine-section').filter({ has: page.getByText(name, { exact: true }) });
     await expect(seat.locator('.engine-section__name')).toHaveAttribute('title', 'Evaluating position');
-    await expect(seat.locator('.engine-section__score')).toHaveText(name === 'Journey A' ? '+0.24' : '+0.36');
+    const score = name === 'Journey A' ? '0.24' : '0.36';
+    await expect(seat.locator('.engine-section__score')).toHaveText(`${sideToMove === 'white' ? '+' : '−'}${score}`);
   }
 }
 async function _stopOutput(page: Page) {
@@ -30,7 +31,7 @@ export async function createRecordedWorkspace(page: Page) {
   await _stopOutput(page);
   const parent = await saveCurrentGame(page, 'Evaluated parent');
   await playMove(page, 'f1', 'b5');
-  await expectRecordedOutput(page);
+  await expectRecordedOutput(page, 'black');
   await playMove(page, 'a7', 'a6');
   await expectRecordedOutput(page);
   const recorded = await saveCurrentGame(page, 'Recorded moves');
@@ -57,7 +58,7 @@ async function _exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof 
   await page.getByRole('button', { name: /^Exit analysis/ }).click();
   await expectRecordedOutput(page);
   await playMove(page, 'd2', 'd3');
-  await expectRecordedOutput(page);
+  await expectRecordedOutput(page, 'black');
 }
 export async function reviewRecordedMove(page: Page) {
   await page.locator('.history-row').filter({ has: page.locator('strong').getByText('Bb5', { exact: true }) }).click();

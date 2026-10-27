@@ -18,13 +18,13 @@ test('JRN-SAVE-07 round-trips actual-move records after continued play and explo
   await page.evaluate(() => window.chessVueJourney.chooseImport('exports/round-trip.json'));
   await page.getByRole('button', { name: 'Import file', exact: true }).click();
   await expect(page).toHaveURL(/\/game\/(?!save-library$).+/);
-  await expectRecordedOutput(page);
+  await expectRecordedOutput(page, 'black');
   const imported = await saveCurrentGame(page, 'Round trip');
   expect(imported.metadata.id).not.toBe(original.metadata.id);
   expectCanonical(imported, original);
   await page.reload();
   await waitForJourney(page);
-  await expectRecordedOutput(page);
+  await expectRecordedOutput(page, 'black');
   expectCanonical(await saveCurrentGame(page, 'Restored transfer'), imported);
   await reviewRecordedMove(page);
 });

@@ -9,7 +9,9 @@ export interface IAnalysisLineRuntime {
 }
 export interface IAnalysisLine {
   depth: number;
+  /** Centipawns relative to the side to move in the analysed position. */
   scoreCp?: number;
+  /** Mate distance in moves, positive for the side to move; zero means it is mated. */
   scoreMate?: number;
   pv: readonly IMove[];
   $?: IAnalysisLineRuntime;

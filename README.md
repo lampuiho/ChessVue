@@ -22,6 +22,26 @@ Browser games, settings, session and layout use localStorage for the current ori
 
 Browser visibility-hidden and page-hide events request autosave checkpoints. Browsers cannot await asynchronous shutdown handlers, so a final tab-close autosave is best effort. Explicit saves and move-count autosaves complete during normal use.
 
+## GitHub Pages
+
+The [Pages workflow](.github/workflows/deploy-pages.yml) builds the browser app and publishes `dist/` whenever `master` is pushed. It can also be started manually from the Actions tab. The repository can remain private with a GitHub plan that supports Pages for private repositories; free Pages hosting requires a public repository.
+
+In the repository's **Settings > Pages**, set **Build and deployment > Source** to **GitHub Actions**, then push the workflow to `master`. For this repository, the default site address is <https://lampuiho.github.io/ChessVue/>. Check **Actions > Deploy to GitHub Pages** for build and deployment results.
+
+The workflow reads the site's base path from GitHub, forces the browser platform and includes the bundled Stockfish worker, WASM and licence files. Browser saves and settings stay in each visitor's browser; native executable engines require the desktop app.
+
+The deployed `404.html` is a copy of the built app entry point, so refreshed and bookmarked routes work with the existing history router. GitHub still returns HTTP 404 for those direct route requests; navigation within the app works normally.
+
+To check the project-site build locally in PowerShell:
+
+```powershell
+$env:CHESSVUE_PLATFORM = 'browser'
+$env:CHESSVUE_BASE_PATH = '/ChessVue/'
+npm run build
+Copy-Item -LiteralPath dist/index.html -Destination dist/404.html
+npm run preview
+```
+
 ## NW.js desktop
 
 Install the supported Node version, run `npm install`, then download and extract the [NW.js SDK](https://nwjs.io/downloads/) for your OS. Keep its extracted files together. Set the executable path and launch ChessVue:

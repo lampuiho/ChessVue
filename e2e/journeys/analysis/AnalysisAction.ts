@@ -6,14 +6,17 @@ import { openCustomGame, setCustomClock, createWorkspace } from '../../support/G
 export function analysisSeat(page: Page, name = 'Journey A') {
   return page.locator('.analysis-panel .engine-section').filter({ has: page.getByText(name, { exact: true }) });
 }
-export async function expectOutput(page: Page, names = ['Journey A', 'Journey B']) {
+export async function expectOutput(page: Page, names = ['Journey A', 'Journey B'], sideToMove: 'white' | 'black' = 'white') {
   for (const name of names) {
     const seat = analysisSeat(page, name);
+    const whiteScores = name === 'Journey B' ? ['+0.36', '+0.18', '+0.00'] : ['+0.24', '+0.06', '−0.12'];
+    const blackScores = name === 'Journey B' ? ['−0.36', '−0.18', '+0.00'] : ['−0.24', '−0.06', '+0.12'];
+    const scores = sideToMove === 'white' ? whiteScores : blackScores;
     await expect(seat.locator('.engine-section__status--running')).toHaveCount(1);
     await expect(seat.locator('.analysis-line')).toHaveCount(3);
     await expect(seat.locator('.analysis-line').first().getByRole('button')).toHaveCount(4);
-    await expect(seat.locator('.engine-section__score')).toHaveText(name === 'Journey B' ? '+0.36' : '+0.24');
-    await expect(seat.locator('.analysis-line__score')).toHaveText(name === 'Journey B' ? ['+0.36', '+0.18', '+0.00'] : ['+0.24', '+0.06', '−0.12']);
+    await expect(seat.locator('.engine-section__score')).toHaveText(scores[0]!);
+    await expect(seat.locator('.analysis-line__score')).toHaveText(scores);
   }
 }
 export async function selectAnalysisGame(page: Page, moves = true) {
