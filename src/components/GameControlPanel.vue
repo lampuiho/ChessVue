@@ -109,7 +109,7 @@ async function _offerDraw(currentGame: IGame, signal: AbortSignal) {
 </script>
 <template>
   <section v-if="game" class="control-panel">
-    <div class="control-panel__heading"><div><span class="control-panel__eyebrow">{{ mode === 'live' ? 'Your move' : 'Workspace' }}</span><h2>{{ title }}</h2></div><span v-if="mode === 'live'" class="turn-indicator"><i></i>Live</span><span v-else-if="mode === 'paused'" class="turn-indicator turn-indicator--paused"><i></i>Paused</span></div>
+    <div class="control-panel__heading"><div class="heading-stack"><span class="control-panel__eyebrow">{{ mode === 'live' ? 'Your move' : 'Workspace' }}</span><h2>{{ title }}</h2></div><span v-if="mode === 'live'" class="turn-indicator"><i></i>Live</span><span v-else-if="mode === 'paused'" class="turn-indicator turn-indicator--paused"><i></i>Paused</span></div>
     <div class="control-grid">
       <template v-if="isAnalysisMode">
         <ControlButton icon="skip-back" label="First move" :disabled="!canRewind" @click="_navigate('first')" />

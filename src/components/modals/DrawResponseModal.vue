@@ -24,7 +24,7 @@ async function _respond(accept: boolean) {
 <template>
   <ModalDialog v-if="canRespond" title="Draw offered" :subtitle="`${offer?.respondingColour} to respond.`" :dismissible="false">
     <p class="modal-copy">Accept the draw and finish the game?</p>
-    <p v-if="errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="inline-message inline-message--error">{{ errorMessage }}</p>
     <template #actions><button class="text-button" :disabled="isWorking || !canRespond" @click="_respond(false)">Decline</button><button class="text-button text-button--primary" :disabled="isWorking || !canRespond" @click="_respond(true)">Accept</button></template>
   </ModalDialog>
 </template>

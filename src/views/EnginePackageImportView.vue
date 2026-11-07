@@ -97,7 +97,7 @@ function _createProfile() { return router.push({ name: 'engine-profile-new', par
 <template>
   <section class="engine-editor">
     <button class="text-button text-button--ghost" :disabled="installing" @click="_back"><AppIcon name="chevron-left" />Back to engines</button>
-    <header class="engine-editor__header"><h2 class="engine-editor__title">Install browser engine</h2><p class="form-section__description">Package files are saved immediately. Profiles are configured separately.</p></header>
+    <header class="heading-stack"><h2 class="engine-editor__title">Install browser engine</h2><p class="form-section__description">Package files are saved immediately. Profiles are configured separately.</p></header>
     <p v-if="!canInstall" class="inline-message">Package import is available in the browser app. On desktop, add a profile pointing to your executable or unpacked script.</p>
     <template v-else-if="savedPath">
       <p class="inline-message" role="status">{{ packagesReady ? 'Import complete.' : 'Engine files were saved. Refresh the folder list to continue.' }}</p>

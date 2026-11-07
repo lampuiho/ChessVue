@@ -26,9 +26,9 @@ Only the user-editable choices listed below and the explicitly reserved appearan
 | `gameSession.autoPauseOnMenu` | Pause timed live games during interrupting menu flows | `true` | Boolean | Settings snapshot |
 | `gameDefaults.name` | Name seed for Quick and Custom game | `New Game` | Non-empty trimmed string | Settings snapshot |
 | `gameDefaults.timeControl` | Clock for Quick and Custom game | `untimed` | Named preset or valid custom clock; UI uses minutes/seconds | Settings snapshot |
-| `gameDefaults.whitePlayer` | White player configuration snapshot | Local White | Optional player payload; omission means Unassigned | Settings snapshot |
-| `gameDefaults.blackPlayer` | Black player configuration snapshot | Local Black | Optional player payload; omission means Unassigned | Settings snapshot |
-| `gameDefaults.randomiseColours` | Randomly assign the two participants to White and Black at creation | `false` | Optional boolean; omitted means fixed colours | Settings snapshot |
+| `gameDefaults.whitePlayer` | White player configuration snapshot | Local Player 1 | Optional player payload; omission means Unassigned | Settings snapshot |
+| `gameDefaults.blackPlayer` | Black player configuration snapshot | Bundled Stockfish engine | Optional player payload; omission means Unassigned | Settings snapshot |
+| `gameDefaults.randomiseColours` | Randomly assign the two participants to White and Black at creation | `true` | Optional boolean; omitted means fixed colours | Settings snapshot |
 | `gameDefaults.analysisEngineProfiles` | Analysis engine configuration snapshots | `[]` | Up to four complete profile snapshots with unique names | Settings snapshot |
 | `gameDefaults.allowTakeback` | Takeback preference copied into new games | `true` | Boolean; omitted uses built-in default | Settings snapshot |
 | `gameDefaults.showLiveAnalysisMoves` | Live-game analysis move preference copied into new games | `false` | Boolean; free analysis uses playable analysis moves | Settings snapshot |

@@ -70,7 +70,7 @@ async function _validateRequiredEngines(request: ICreateGameRequest) {
 </script>
 <template>
   <ModalDialog v-if="settingsStore.settings && (!gameId || setupGame)" :title="setupGame ? 'Start from this position' : 'Set up a new board'" :subtitle="setupGame ? 'Choose players, clocks and analysis for the board you prepared.' : 'Choose a quick match or open a free analysis study.'" :dismissible="!isWorking" wide @dismissed="_dismiss()">
-    <form id="new-game-form" @submit.prevent="_submit">
+    <form id="new-game-form" class="form-stack" @submit.prevent="_submit">
       <section class="form-section">
         <h3 class="form-section__heading">Game</h3>
         <div class="field-row"><label class="field-label" for="game-name">Name<span class="field-help">Shown in the workspace tab</span></label><input id="game-name" v-model="form.name" class="field-control" autocomplete="off" autofocus></div>

@@ -67,7 +67,7 @@ async function _confirmRemovePackage(signal: AbortSignal) {
     <p v-if="loading" class="inline-message" role="status">Reading engine folder...</p>
     <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }} <button class="text-button" @click="_load">Refresh folders</button></p>
     <template v-if="engine">
-      <header class="engine-editor__header"><h2 class="engine-editor__title">{{ engine.displayName }}</h2><p class="form-section__description">{{ engine.source === EngineInstallationSource.Bundled ? 'Included with ChessVue' : 'Imported package' }}</p></header>
+      <header class="heading-stack"><h2 class="engine-editor__title">{{ engine.displayName }}</h2><p class="form-section__description">{{ engine.source === EngineInstallationSource.Bundled ? 'Included with ChessVue' : 'Imported package' }}</p></header>
       <p v-if="engine.warning" class="inline-message inline-message--error" role="alert">{{ engine.warning }}</p>
       <section class="form-section form-section--settings"><h3 class="form-section__heading">Package files</h3><ul class="engine-package-files"><li v-for="file in engine.files" :key="file">{{ file }}</li></ul></section>
       <section class="form-section form-section--settings"><h3 class="form-section__heading">Profiles, game defaults and open games</h3><ul v-if="references.length" class="engine-package-files"><li v-for="reference in references" :key="reference.displayName + reference.entryPath">{{ reference.displayName }}</li></ul><p v-else class="inline-message">No profiles, game defaults or open games reference this folder.</p></section>

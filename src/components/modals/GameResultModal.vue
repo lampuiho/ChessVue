@@ -58,6 +58,6 @@ async function _analyse() {
       <button class="action-card action-card--primary" :disabled="isWorking" @click="_analyse"><span class="action-card__icon"><AppIcon name="activity" /></span><strong>Start analysis</strong><small>Run the engines on this game</small><AppIcon class="action-card__arrow" name="arrow-right" /></button>
       <button class="action-card" :disabled="isWorking" @click="_save"><span class="action-card__icon"><AppIcon name="save" /></span><strong>Save for analysis</strong><small>Store it to revisit later</small><AppIcon class="action-card__arrow" name="arrow-right" /></button>
     </div>
-    <p v-if="errorMessage" class="inline-message inline-message--error inline-message--spaced" role="alert">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }}</p>
   </ModalDialog>
 </template>

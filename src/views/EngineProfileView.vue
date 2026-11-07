@@ -88,7 +88,7 @@ async function _saveEngine() {
     <button class="text-button text-button--ghost" @click="_back"><AppIcon name="chevron-left" />Back to engines</button>
     <template v-if="missing"><h2 class="engine-editor__title">Profile not found</h2><p class="inline-message">This profile is no longer in the Settings draft.</p></template>
     <template v-else-if="ready">
-      <header class="engine-editor__header"><h2 class="engine-editor__title">{{ editing ? 'Edit engine profile' : copying ? 'Copy engine profile' : 'Add engine profile' }}</h2><p class="form-section__description">Choose an executable or the supplied script inside an engine package.</p></header>
+      <header class="heading-stack"><h2 class="engine-editor__title">{{ editing ? 'Edit engine profile' : copying ? 'Copy engine profile' : 'Add engine profile' }}</h2><p class="form-section__description">Choose an executable or the supplied script inside an engine package.</p></header>
       <section class="form-section form-section--settings">
         <div class="field-row"><label class="field-label" for="engine-name">Profile name</label><input id="engine-name" v-model="form.displayName" class="field-control" autofocus></div>
         <div class="field-row"><label class="field-label" for="engine-interface">Engine interface</label><select id="engine-interface" v-model="form.clientType" class="field-control"><option :value="EngineClientType.Uci" :disabled="managedPackages">Desktop executable{{ managedPackages ? ' (requires desktop app)' : '' }}</option><option :value="EngineClientType.UciWorker">Browser UCI Worker</option></select></div>

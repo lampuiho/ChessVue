@@ -10,7 +10,7 @@ const emit = defineEmits<{ dismissed: [] }>();
   <div class="modal-backdrop" role="presentation" @mousedown.self.prevent="dismissible && emit('dismissed')">
     <section v-focus-scope class="modal-card" :class="{ 'modal-card--wide': wide }" role="dialog" aria-modal="true" :aria-label="title" tabindex="-1" @keydown.esc.stop.prevent="dismissible && emit('dismissed')">
       <header class="modal-card__header">
-        <div>
+        <div class="heading-stack">
           <h2 class="modal-card__title">{{ title }}</h2>
           <p v-if="subtitle" class="modal-card__subtitle">{{ subtitle }}</p>
         </div>

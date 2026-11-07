@@ -1,5 +1,5 @@
 .home-page { display: flex; height: 100%; min-height: 0; flex-direction: column; background: var(--surface-app); }
-.home-header { display: flex; min-height: 4rem; padding: 0.5rem 1.5rem; flex-shrink: 0; align-items: center; justify-content: space-between; }
+.home-header { display: flex; min-height: 4rem; padding: 0.5rem 1.5rem; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .home-header__note { color: var(--text-muted); font-size: 0.75rem; }
 .home-hero { display: flex; width: min(65rem, 100%); min-height: 0; margin: auto; padding: 1rem 1.5rem; flex-direction: column; gap: 1.5rem; overflow: auto; }
 .home-intro { text-align: center; }
@@ -8,7 +8,7 @@
 .home-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
 .home-error { margin: 0; }
 .recent-section { display: grid; gap: 0.5rem; }
-.recent-section__heading { display: flex; align-items: end; justify-content: space-between; }
+.recent-section__heading { display: flex; align-items: end; justify-content: space-between; gap: 0.5rem; }
 .recent-section__heading h2 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
 .recent-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
 .recent-card { display: flex; min-width: 0; padding: 0.5rem; align-items: center; gap: 0.5rem; color: var(--text-primary); background: transparent; text-align: left; }
@@ -19,7 +19,7 @@
 .recent-card strong { font-size: 0.75rem; }
 .recent-card small { color: var(--text-muted); font-size: 0.6rem; }
 .home-loading { margin: 0; color: var(--text-muted); font-size: 0.75rem; text-align: center; }
-.home-footer { display: flex; padding: 0.75rem 1.5rem; flex-shrink: 0; justify-content: space-between; color: var(--text-muted); font-size: 0.6rem; }
+.home-footer { display: flex; padding: 0.75rem 1.5rem; flex-shrink: 0; justify-content: space-between; gap: 0.5rem; color: var(--text-muted); font-size: 0.6rem; }
 @media (max-width: 760px) {
   .home-header { min-height: 3rem; padding: 0.5rem 1rem; }
   .home-header__note { display: none; }

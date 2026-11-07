@@ -3,9 +3,9 @@
 .modal-card--wide { width: min(48rem, 100%); }
 .modal-card__header { display: flex; padding: 1.25rem 1.35rem 1rem; align-items: flex-start; gap: 1rem; border-bottom: 0.0625rem solid var(--border-subtle); }
 .modal-card__title { margin: 0; font-family: var(--font-display); font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; }
-.modal-card__subtitle { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.8rem; }
+.modal-card__subtitle { margin: 0; color: var(--text-muted); font-size: 0.8rem; }
 .modal-card__close { margin-left: auto; }
-.modal-card__body { padding: 1.35rem; }
+.modal-card__body { display: grid; padding: 1.35rem; align-content: start; gap: 1rem; }
 .modal-card__actions { display: flex; padding: 1rem 1.35rem 1.25rem; justify-content: flex-end; gap: 0.6rem; border-top: 0.0625rem solid var(--border-subtle); }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes lift-in { from { opacity: 0; transform: translateY(0.6rem) scale(0.985); } }
@@ -28,7 +28,7 @@
 .promotion-row button:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .modal-copy { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
 .modal-copy--result { color: var(--text-primary); font-family: var(--font-display); font-size: 1.15rem; }
-.result-actions { display: grid; margin-top: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.result-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
 @media (max-width: 760px) {
   .result-actions { grid-template-columns: 1fr; }
 }

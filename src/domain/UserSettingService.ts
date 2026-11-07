@@ -1,9 +1,9 @@
 import { AnalysisBranchExitBehaviour, BoardOrientation, PlatformErrorKind, PlayerType, PromotionPolicy, ResolvedThemeMode, ThemeMode, TimeControlPreset, settingsSnapshotSchema, type IPlatformError, type ISettingsSnapshot } from '@/contracts';
 import { BuildConfig } from '@/config/BuildConfig';
 import { StockfishConfig } from '@/config/StockfishConfig';
-import { EngineClientType } from '@/contracts/Engine';
+import { EngineClientType, type IEngineRecord } from '@/contracts/Engine';
 import { usePlatformService } from '@/platform';
-import { createLocalPlayer } from '@/utility/GameCreationUtility';
+import { createEnginePlayer, createLocalPlayer } from '@/utility/GameCreationUtility';
 import { PlayerColour } from '@/contracts/Chess';
 
 let _cachedSettings: ISettingsSnapshot | undefined;
@@ -11,6 +11,9 @@ let _loadWarning = '';
 
 function _isPlatformError(error: unknown): error is IPlatformError {
   return typeof error === 'object' && error !== null && 'kind' in error && 'message' in error;
+}
+function _createBuiltInEngineRecord(): IEngineRecord {
+  return { id: 'stockfish', displayName: 'Stockfish', clientType: EngineClientType.UciWorker, entryPath: StockfishConfig.entryPath, options: {} };
 }
 function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
   return _coerceSettingsSnapshot({
@@ -26,8 +29,8 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
       name: 'New Game',
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
       whitePlayer: createLocalPlayer(PlayerColour.White),
-      blackPlayer: createLocalPlayer(PlayerColour.Black),
-      analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: false, randomiseColours: false,
+      blackPlayer: createEnginePlayer(_createBuiltInEngineRecord(), PlayerColour.Black),
+      analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: false, randomiseColours: true,
     },
     gameplay: {
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
@@ -35,7 +38,7 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
     },
     analysis: {
       resumeLiveAnalysisAfterRestore: true,
-      engineInventory: [{ id: 'stockfish', displayName: 'Stockfish', clientType: EngineClientType.UciWorker, entryPath: StockfishConfig.entryPath, options: {} }],
+      engineInventory: [_createBuiltInEngineRecord()],
     },
     appearance: {
       themeMode: ThemeMode.System,

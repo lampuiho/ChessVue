@@ -43,7 +43,7 @@ function _assignedPlayer(selection: string, colour: PlayerColour): IPlayer | und
       <label class="choice-card"><input v-model="form.selectedPlayer" type="radio" value="local"><span class="choice-card__piece">♙</span><span><strong>Local player</strong><small>Moves are entered on this board.</small></span></label>
       <label v-for="engine in engines" :key="engine.id" class="choice-card"><input v-model="form.selectedPlayer" type="radio" :value="`engine:${engine.id}`"><span class="choice-card__piece">♞</span><span><strong>{{ engine.displayName }}</strong><small>Configured UCI engine.</small></span></label>
     </div>
-    <p v-if="errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="inline-message inline-message--error">{{ errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="emit('dismissed')">Cancel</button><button class="text-button text-button--primary" :disabled="isWorking" @click="_confirmPlayerSelection">Assign player</button></template>
   </ModalDialog>
 </template>

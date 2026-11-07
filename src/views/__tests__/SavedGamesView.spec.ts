@@ -11,12 +11,14 @@ const dependency = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn(), afterEach: vi.fn(() => () => {}) },
   gamesStore: { getGame: vi.fn() },
   savedGamesStore: { listSavedGames: vi.fn(), loadGame: vi.fn(), saveGame: vi.fn() },
+  settingsStore: { settings: undefined },
   uiStateStore: { gameSession: { activeGameId: 'game-a' } },
 }));
 vi.mock('vue-router', () => ({ useRoute: () => dependency.route, useRouter: () => dependency.router }));
 vi.mock('@/state', () => ({
   useGamesStore: () => dependency.gamesStore,
   useSavedGamesStore: () => dependency.savedGamesStore,
+  useSettingsStore: () => dependency.settingsStore,
   useUiStateStore: () => dependency.uiStateStore,
 }));
 let wrapper: VueWrapper;

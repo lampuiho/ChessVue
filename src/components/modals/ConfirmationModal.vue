@@ -19,7 +19,7 @@ async function _confirm() {
 <template>
   <ModalDialog :title="title" :subtitle="subtitle" :dismissible="canDismiss" @dismissed="_dismiss">
     <p v-if="message" class="modal-copy">{{ message }}</p>
-    <p v-if="errorMessage" class="inline-message inline-message--error inline-message--spaced" role="alert">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" :disabled="!canDismiss" @click="_dismiss">{{ cancelLabel }}</button><button class="text-button" :class="danger ? 'text-button--danger' : 'text-button--primary'" :disabled="isWorking" @click="_confirm">{{ confirmLabel }}</button></template>
   </ModalDialog>
 </template>

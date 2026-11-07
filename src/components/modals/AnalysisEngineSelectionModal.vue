@@ -32,7 +32,7 @@ async function _confirmAnalysisEngine() {
       <label v-for="engine in availableAnalysisEngines" :key="engine.id" class="choice-card"><input v-model="form.selectedEngineId" type="radio" :value="engine.id"><span class="choice-card__piece">♝</span><span><strong>{{ engine.displayName }}</strong><small>{{ engine.entryPath || 'Executable not selected' }}</small></span></label>
     </div>
     <p v-else class="inline-message">Add an engine profile in Settings before assigning analysis.</p>
-    <p v-if="errorMessage" class="inline-message inline-message--error inline-message--spaced">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="inline-message inline-message--error">{{ errorMessage }}</p>
     <template #actions><button class="text-button text-button--ghost" @click="emit('dismissed')">Cancel</button><button class="text-button text-button--primary" :disabled="isWorking || !form.selectedEngineId" @click="_confirmAnalysisEngine">Add engine</button></template>
   </ModalDialog>
 </template>

@@ -58,7 +58,7 @@ async function _openRecent(entry: IRecentGameEntry) {
       <span class="home-header__note">A modern responsive chess app</span>
     </header>
     <section class="home-hero" :class="{ 'home-hero--compact': recentGames.length > 0 }">
-      <div class="home-intro">
+      <div class="home-intro heading-stack heading-stack--centred">
         <p class="page-kicker">Your next move</p>
         <h1 class="home-title">Play the position.<br><em>See the whole game.</em></h1>
         <p class="page-description page-description--home">Open a fresh board, continue a saved game, or settle in for analysis.</p>
@@ -71,7 +71,7 @@ async function _openRecent(entry: IRecentGameEntry) {
       </div>
       <p v-if="errorMessage || quickGameError" class="inline-message inline-message--error home-error">{{ quickGameError || errorMessage }} <button v-if="quickGameError" class="text-button" @click="router.push('/settings/gameplay')">Edit game defaults</button></p>
       <section v-if="recentGames.length" class="recent-section">
-        <div class="recent-section__heading"><div><p class="page-kicker page-kicker--flush">Continue</p><h2>Recent games</h2></div><button class="text-button text-button--ghost" @click="router.push('/saved-games/load')">View all <AppIcon name="arrow-right" /></button></div>
+        <div class="recent-section__heading"><div class="heading-stack"><p class="page-kicker">Continue</p><h2>Recent games</h2></div><button class="text-button text-button--ghost" @click="router.push('/saved-games/load')">View all <AppIcon name="arrow-right" /></button></div>
         <div class="recent-grid">
           <button v-for="entry in recentGames.slice(0, 3)" :key="entry.gameId" class="recent-card" :disabled="pendingGameId === entry.gameId" @click="_openRecent(entry)">
             <span class="recent-card__piece">♟</span>

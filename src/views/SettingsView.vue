@@ -155,22 +155,22 @@ function _useFreeAnalysis() {
     </NavigationFrame>
     <div class="settings-layout">
       <section v-if="draft" class="settings-content surface">
-        <header class="settings-content__header"><div><p class="page-kicker page-kicker--flush">{{ category }}</p><h2>{{ categories.find((item) => item.id === category)?.label }}</h2></div><span v-if="settingsStore.hasPendingChanges" class="unsaved-badge"><i></i>Unsaved changes</span></header>
-        <div class="settings-content__body">
+        <header class="settings-content__header"><div class="heading-stack"><p class="page-kicker">{{ category }}</p><h2>{{ categories.find((item) => item.id === category)?.label }}</h2></div><span v-if="settingsStore.hasPendingChanges" class="unsaved-badge"><i></i>Unsaved changes</span></header>
+        <div class="settings-content__body form-stack">
           <RouterView v-if="hasEngineView" :key="route.fullPath" />
           <template v-else-if="category === SettingsCategory.Session">
-            <section class="form-section form-section--settings"><h3 class="form-section__heading">Startup</h3><p class="form-section__description">Choose what ChessVue restores when the application opens.</p>
+            <section class="form-section form-section--settings"><header class="heading-stack"><h3 class="form-section__heading">Startup</h3><p class="form-section__description">Choose what ChessVue restores when the application opens.</p></header>
               <div class="field-row"><span class="field-label">Previous session<span class="field-help">Reopen active game tabs after launch</span></span><label class="toggle-row"><input v-model="draft.gameSession.restorePreviousSession" aria-label="Restore previous session" type="checkbox"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.gameSession.restorePreviousSession ? 'Restore my workspace' : 'Always open home' }}</span></label></div>
               <div class="field-row"><span class="field-label">Auto-pause on menu<span class="field-help">Stops timed games while using app screens</span></span><label class="toggle-row"><input v-model="draft.gameSession.autoPauseOnMenu" aria-label="Pause on menus" type="checkbox"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.gameSession.autoPauseOnMenu ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
-            <section class="form-section form-section--settings"><h3 class="form-section__heading">Saving</h3><p class="form-section__description">Games remain local to this desktop.</p>
+            <section class="form-section form-section--settings"><header class="heading-stack"><h3 class="form-section__heading">Saving</h3><p class="form-section__description">Games remain local to this desktop.</p></header>
               <div class="field-row"><label class="field-label" for="save-root">Save folder<span class="field-help">Relative or absolute local path</span></label><input id="save-root" v-model="draft.gameSession.saveRootPath" class="field-control"></div>
               <div class="field-row"><label class="field-label" for="autosave-count">Autosave interval<span class="field-help">Moves between automatic snapshots; 0 disables</span></label><input id="autosave-count" v-model.number="draft.gameSession.autosaveAfterMoveCount" class="field-control" type="number" min="0"></div>
               <div class="field-row"><span class="field-label">Save on close</span><label class="toggle-row"><input v-model="draft.gameSession.autosaveOnClose" aria-label="Save on close" type="checkbox" :disabled="draft.gameSession.restorePreviousSession"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.gameSession.autosaveOnClose ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
           </template>
           <template v-else-if="category === SettingsCategory.Gameplay">
-            <section class="form-section form-section--settings"><h3 class="form-section__heading">Quick game defaults</h3><p class="form-section__description">Used by Quick game and as the starting options for Custom game.</p>
+            <section class="form-section form-section--settings"><header class="heading-stack"><h3 class="form-section__heading">Quick game defaults</h3><p class="form-section__description">Used by Quick game and as the starting options for Custom game.</p></header>
               <h4 class="form-section__subheading">Game</h4>
               <div class="field-row"><label class="field-label" for="quick-name">Game name</label><input id="quick-name" v-model="draft.gameDefaults.name" class="field-control"></div>
               <h4 class="form-section__subheading">Players</h4>
@@ -193,7 +193,7 @@ function _useFreeAnalysis() {
             </section>
           </template>
           <template v-else-if="category === SettingsCategory.Appearance">
-            <section class="form-section form-section--settings"><h3 class="form-section__heading">Theme</h3><p class="form-section__description">Choose how the app chrome responds to your desktop.</p>
+            <section class="form-section form-section--settings"><header class="heading-stack"><h3 class="form-section__heading">Theme</h3><p class="form-section__description">Choose how the app chrome responds to your desktop.</p></header>
               <div class="theme-picker"><label v-for="theme in [ThemeMode.System, ThemeMode.Light, ThemeMode.Dark]" :key="theme" :class="{ active: draft.appearance.themeMode === theme }"><input v-model="draft.appearance.themeMode" type="radio" :value="theme"><span class="theme-preview" :style="_themePreviewStyle(theme)"><i></i><b></b><em></em></span><strong>{{ theme }}</strong></label></div>
             </section>
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Board</h3>
@@ -207,7 +207,7 @@ function _useFreeAnalysis() {
           </template>
           <template v-else>
             <section v-if="enginesStore.canInstallPackages()" class="form-section form-section--settings">
-              <div class="engine-heading"><div><h3 class="form-section__heading">Installed browser engines</h3><p class="form-section__description form-section__description--inline">Stored package folders and included engine files.</p></div><div class="engine-editor__actions"><button class="text-button" :disabled="packagesLoading" @click="_loadEnginePackages">Refresh</button><button class="text-button text-button--primary" @click="_openImport">Install browser engine</button></div></div>
+              <div class="engine-heading"><div class="heading-stack"><h3 class="form-section__heading">Installed browser engines</h3><p class="form-section__description">Stored package folders and included engine files.</p></div><div class="engine-editor__actions"><button class="text-button" :disabled="packagesLoading" @click="_loadEnginePackages">Refresh</button><button class="text-button text-button--primary" @click="_openImport">Install browser engine</button></div></div>
               <p v-if="packagesLoading" class="inline-message" role="status">Reading engine folders?</p>
               <p v-if="packageError" class="inline-message inline-message--error" role="alert">{{ packageError }}</p>
               <div class="engine-package-list"><article v-for="engine in packages" :key="engine.packagePath" class="engine-package-list__item"><div class="engine-package-list__description"><strong class="engine-package-list__name">{{ engine.displayName }}</strong><span class="engine-package-list__meta">{{ engine.source === EngineInstallationSource.Bundled ? 'Included with ChessVue' : 'Imported package' }} &middot; {{ engine.files.length }} files</span><p v-if="engine.warning" class="inline-message inline-message--error">{{ engine.warning }}</p></div><div class="engine-editor__actions"><button class="text-button" @click="_createPackageProfile(engine.packagePath)">Create profile</button><button class="text-button" @click="_openPackage(engine.packagePath)">Details</button></div></article></div>
@@ -215,7 +215,7 @@ function _useFreeAnalysis() {
             <section class="form-section form-section--settings"><h3 class="form-section__heading">Analysis behaviour</h3>
               <div class="field-row"><span class="field-label">Resume after restore<span class="field-help">Restart assigned analysis engines with the session</span></span><label class="toggle-row"><input v-model="draft.analysis.resumeLiveAnalysisAfterRestore" aria-label="Resume after restore" type="checkbox"><span class="toggle-track"></span><span class="toggle-copy">{{ draft.analysis.resumeLiveAnalysisAfterRestore ? 'Enabled' : 'Disabled' }}</span></label></div>
             </section>
-            <section class="form-section form-section--settings"><div class="engine-heading"><div><h3 class="form-section__heading">Engine profiles</h3><p class="form-section__description form-section__description--inline">Reusable engine configurations.</p></div><button class="text-button text-button--primary" @click="_openEngineEditor()"><AppIcon name="plus" />Add profile</button></div>
+            <section class="form-section form-section--settings"><div class="engine-heading"><div class="heading-stack"><h3 class="form-section__heading">Engine profiles</h3><p class="form-section__description">Reusable engine configurations.</p></div><button class="text-button text-button--primary" @click="_openEngineEditor()"><AppIcon name="plus" />Add profile</button></div>
               <div v-if="draft.analysis.engineInventory.length" class="engine-list">
                 <article v-for="(engine, index) in draft.analysis.engineInventory" :key="engine.id"><span class="engine-list__mark">♞</span><div><strong>{{ engine.displayName }}</strong><small>{{ engine.entryPath || 'No engine location selected' }}</small></div><span class="engine-list__interface">{{ engine.clientType === EngineClientType.UciWorker ? 'Browser UCI Worker' : 'Desktop executable' }}</span><button class="icon-button" title="Copy" @click="_copyEngine(engine)"><AppIcon name="copy" /></button><button class="icon-button" title="Edit" @click="_openEngineEditor(engine)"><AppIcon name="edit" /></button><button class="icon-button icon-button--danger" title="Delete" @click="_removeEngine(index)"><AppIcon name="trash" /></button></article>
               </div>

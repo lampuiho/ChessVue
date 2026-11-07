@@ -1,28 +1,33 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, markRaw, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { PlatformErrorKind, type IGame } from '@/contracts';
+import { PlatformErrorKind, type IBoardPosition, type IGame } from '@/contracts';
 import type { ISavedGameFileEntry, ISavedGameGroup } from '@/contracts/domain';
 import { SaveGameTargetKind } from '@/contracts/state';
-import { SavedGameIndexService } from '@/domain';
-import { useGamesStore, useSavedGamesStore, useUiStateStore } from '@/state';
+import { MoveApplicationService, MoveHistoryService, SavedGameIndexService } from '@/domain';
+import { createSparseBoard } from '@/utility/chess';
+import { useGamesStore, useSavedGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import { useModal, type IModalHandle } from '@/composables/ModalComposable';
 import MessageModal from '@/components/modals/MessageModal.vue';
 import NavigationFrame from '@/components/NavigationFrame.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
+import Chessboard from '@/components/Chessboard.vue';
 import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
 import { OperationOwner } from '@/utility/async/OperationOwner';
 import { abortable } from '@/utility/async/Abortable';
 import { isPlatformError } from '@/utility/errors/StandardErrorHandlingUtility';
 
+interface IGameSummary { name: string; position?: IBoardPosition; plies?: number }
+const emptyPosition = markRaw(createSparseBoard([]));
 const modal = useModal();
 const route = useRoute();
 const router = useRouter();
 const gamesStore = useGamesStore();
 const savedGamesStore = useSavedGamesStore();
+const settingsStore = useSettingsStore();
 const uiStateStore = useUiStateStore();
 const groups = ref<ISavedGameGroup[]>([]);
-const gameNames = ref(new Map<string, string>());
+const gameSummaries = shallowRef(new Map<string, IGameSummary>());
 const selectedGameId = ref('');
 const selectedSaveName = ref('');
 const selectedDocument = shallowRef<IGame>();
@@ -41,6 +46,15 @@ const activeGame = computed(() => gamesStore.getGame(routeGameId.value) as unkno
 const selectedGroup = computed(() => groups.value.find((group) => group.gameId === routeGameId.value));
 const orderedSaves = computed(() => [...(selectedGroup.value?.saves ?? [])].sort((left, right) => Number(right.isAutosave) - Number(left.isAutosave)));
 const selectedEntry = computed(() => selectedGroup.value?.saves.find((entry) => entry.saveName === selectedSaveName.value));
+const selectedSummary = computed(() => gameSummaries.value.get(selectedGameId.value));
+const boardOrientation = computed(() => settingsStore.settings?.appearance.boardOrientation);
+const snapshotPreviewPosition = computed(() => (selectedDocument.value ? _genPreviewPosition(selectedDocument.value) : undefined) ?? emptyPosition);
+const gamePreviewPosition = computed(() => selectedSummary.value?.position ?? emptyPosition);
+const gamePreviewCaption = computed(() => {
+  const summary = selectedSummary.value;
+  if (!summary) return 'Choose a game to preview its latest position.';
+  return summary.position ? `${summary.plies} ${summary.plies === 1 ? 'ply' : 'plies'} · latest save` : 'This position could not be read.';
+});
 const saveNameError = computed(() => {
   const value = saveName.value.trim();
   if (!value) return 'Enter a save name.';
@@ -72,6 +86,14 @@ function _loadDetails(entry?: ISavedGameFileEntry) {
     }
   });
 }
+function _genPreviewPosition(game: IGame) {
+  // Saved documents carry no board runtime, so the preview position is projected from the stored tree.
+  try { return markRaw(MoveApplicationService.genPosition(game.rootPosition, MoveHistoryService.getMoveSequence(game.moveTree, game.renderedPath))); }
+  catch { return; }
+}
+function _summariseGame(game: IGame): IGameSummary {
+  return { name: game.metadata.name, position: _genPreviewPosition(game), plies: game.renderedPath.length };
+}
 function _refreshSelection() {
   const group = selectedGroup.value;
   const entry = group?.saves.find((candidate) => candidate.saveName === selectedSaveName.value)
@@ -86,13 +108,12 @@ async function _refreshGroups() {
     groups.value = await savedGamesStore.listSavedGames();
     const entries = await Promise.all(groups.value.map(async (group) => {
       try {
-        const game = await savedGamesStore.loadGame(group.gameId);
-        return [group.gameId, game.metadata.name] as const;
+        return [group.gameId, _summariseGame(await savedGamesStore.loadGame(group.gameId))] as const;
       } catch {
-        return [group.gameId, `Game ${group.gameId.slice(0, 8)}`] as const;
+        return [group.gameId, { name: `Game ${group.gameId.slice(0, 8)}` }] as const;
       }
     }));
-    gameNames.value = new Map(entries);
+    gameSummaries.value = new Map<string, IGameSummary>(entries);
   } catch (error) {
     groups.value = [];
     if (!String(error).includes('not found')) errorMessage.value = error instanceof Error || isPlatformError(error) ? error.message : 'Saved games could not be listed.';
@@ -210,7 +231,7 @@ function _requestDeleteGame(gameId: string) {
   if (!group) return;
   const saveCount = `${group.saves.length} ${group.saves.length === 1 ? 'snapshot' : 'snapshots'}`;
   confirmation = modal.open(ConfirmationModal, {
-    title: 'Delete this game?', subtitle: `“${gameNames.value.get(gameId) ?? gameId}” will be permanently removed from your library.`,
+    title: 'Delete this game?', subtitle: `“${gameSummaries.value.get(gameId)?.name ?? gameId}” will be permanently removed from your library.`,
     message: `All ${saveCount} of this game will be deleted. Games open in your workspace stay open.`, confirmLabel: 'Delete game', danger: true,
     confirm: (signal) => _confirmDeleteGame(gameId, signal),
   });
@@ -258,7 +279,7 @@ function _formatDate(entry: ISavedGameFileEntry): string {
       <template #footer><button class="menu-button" aria-label="Close" title="Close" @click="router.push(returnRoute)"><AppIcon name="x" /><span>Close</span></button></template>
     </NavigationFrame>
     <div class="library-shell">
-      <section class="library-heading"><p class="page-kicker page-kicker--compact">Local library</p><h1 class="page-heading page-heading--library">{{ isSaveMode ? 'Save your game' : isDetailMode ? gameNames.get(routeGameId) ?? 'Saved game' : 'Saved games' }}</h1><p class="page-description page-description--library">{{ isSaveMode ? 'Create a named snapshot of the current board.' : isDetailMode ? 'Choose a snapshot to return to.' : 'Every game and analysis study saved on this desktop.' }}</p></section>
+      <section class="library-heading heading-stack"><p class="page-kicker">Local library</p><h1 class="page-heading page-heading--library">{{ isSaveMode ? 'Save your game' : isDetailMode ? gameSummaries.get(routeGameId)?.name ?? 'Saved game' : 'Saved games' }}</h1><p class="page-description page-description--library">{{ isSaveMode ? 'Create a named snapshot of the current board.' : isDetailMode ? 'Choose a snapshot to return to.' : 'Every game and analysis study saved on this desktop.' }}</p></section>
       <section class="library-surface surface">
         <div v-if="!isLoading && isDetailMode && selectedGroup" class="snapshot-browser">
           <div class="save-list" aria-label="Saved snapshots">
@@ -267,13 +288,13 @@ function _formatDate(entry: ISavedGameFileEntry): string {
               <article class="save-row" :class="{ selected: entry.saveName === selectedSaveName }"><span class="save-row__icon"><AppIcon :name="entry.isAutosave ? 'clock' : 'save'" /></span><button class="save-row__content" :aria-pressed="entry.saveName === selectedSaveName" @click="_selectSave(entry)" @dblclick="!isSaveMode && _loadGame(entry.gameId, entry.saveName)"><strong>{{ entry.isAutosave ? 'Automatic save' : entry.saveName }}</strong><small>{{ _formatDate(entry) }}</small></button><span v-if="entry.isAutosave" class="auto-badge">Auto</span><button class="icon-button icon-button--danger" title="Delete save" :disabled="isWorking" @click="_requestDelete(entry)"><AppIcon name="trash" /></button><button v-if="!isSaveMode" class="text-button text-button--compact-mobile" :disabled="isWorking" @click="_loadGame(entry.gameId, entry.saveName)">Load</button></article>
             </template>
           </div>
-          <aside class="snapshot-details" aria-label="Selected save details"><h2>{{ selectedEntry?.isAutosave ? 'Automatic save' : selectedEntry?.saveName }}</h2><p v-if="detailError" class="library-feedback--error">{{ detailError }}</p><template v-else-if="selectedDocument"><strong>{{ selectedDocument.metadata.name }}</strong><dl><dt>Saved</dt><dd>{{ selectedEntry && _formatDate(selectedEntry) }}</dd><dt>Position</dt><dd>{{ selectedDocument.renderedPath.length }} plies</dd><dt>White</dt><dd>{{ selectedDocument.whitePlayer?.displayName ?? 'Unassigned' }}</dd><dt>Black</dt><dd>{{ selectedDocument.blackPlayer?.displayName ?? 'Unassigned' }}</dd><dt>Clock</dt><dd>{{ selectedDocument.timeControl.initialMs === undefined ? 'Untimed' : `${selectedDocument.timeControl.initialMs / 60000} minutes + ${selectedDocument.timeControl.incrementMs / 1000} seconds` }}</dd><dt>Result</dt><dd>{{ selectedDocument.resultState }}{{ selectedDocument.resultReason ? ` (${selectedDocument.resultReason})` : '' }}</dd></dl></template><p v-else>Reading snapshot…</p></aside>
+          <aside class="snapshot-details" aria-label="Selected save details"><Chessboard class="library-preview" :position="snapshotPreviewPosition" :orientation="boardOrientation" :show-coordinates="false" :highlight-last-move="false" input-disabled /><h2>{{ selectedEntry?.isAutosave ? 'Automatic save' : selectedEntry?.saveName }}</h2><p v-if="detailError" class="library-feedback--error">{{ detailError }}</p><template v-else-if="selectedDocument"><strong>{{ selectedDocument.metadata.name }}</strong><dl><dt>Saved</dt><dd>{{ selectedEntry && _formatDate(selectedEntry) }}</dd><dt>Position</dt><dd>{{ selectedDocument.renderedPath.length }} plies</dd><dt>White</dt><dd>{{ selectedDocument.whitePlayer?.displayName ?? 'Unassigned' }}</dd><dt>Black</dt><dd>{{ selectedDocument.blackPlayer?.displayName ?? 'Unassigned' }}</dd><dt>Clock</dt><dd>{{ selectedDocument.timeControl.initialMs === undefined ? 'Untimed' : `${selectedDocument.timeControl.initialMs / 60000} minutes + ${selectedDocument.timeControl.incrementMs / 1000} seconds` }}</dd><dt>Result</dt><dd>{{ selectedDocument.resultState }}{{ selectedDocument.resultReason ? ` (${selectedDocument.resultReason})` : '' }}</dd></dl></template><p v-else>Reading snapshot…</p></aside>
         </div>
         <div v-if="isLoading" class="empty-state empty-state--fill"><span class="library-spinner">♞</span><strong>Opening your library…</strong></div>
         <template v-else-if="isSaveMode">
           <div v-if="activeGame" class="save-layout">
             <div class="save-game-card"><span>♞</span><div><small>Current workspace</small><strong>{{ activeGame.metadata.name }}</strong><p>{{ activeGame.renderedPath.length }} moves · Updated {{ activeGame.metadata.updatedAt.toLocaleString() }}</p></div></div>
-            <section class="form-section form-section--compact"><h2 class="form-section__heading">Named save</h2><p class="form-section__description form-section__description--desktop">Use a short, recognisable name for this point in the game.</p><div class="field-row"><label class="field-label" for="save-name">Save name<span class="field-help">Stored as a JSON game document</span></label><div><input id="save-name" v-model="saveName" class="field-control" autofocus @keydown.enter="_saveGame"><p v-if="saveNameError" class="field-error">{{ saveNameError }}</p></div></div></section>
+            <section class="form-section form-section--compact"><header class="heading-stack"><h2 class="form-section__heading">Named save</h2><p class="form-section__description form-section__description--desktop">Use a short, recognisable name for this point in the game.</p></header><div class="field-row"><label class="field-label" for="save-name">Save name<span class="field-help">Stored as a JSON game document</span></label><div class="field-stack"><input id="save-name" v-model="saveName" class="field-control" autofocus @keydown.enter="_saveGame"><p v-if="saveNameError" class="field-error">{{ saveNameError }}</p></div></div></section>
           </div>
           <div v-else class="empty-state empty-state--fill"><AppIcon name="info" /><strong>No active game</strong><span>Open a game before creating a save.</span></div>
         </template>
@@ -281,10 +302,13 @@ function _formatDate(entry: ISavedGameFileEntry): string {
           <div v-if="!selectedGroup" class="empty-state empty-state--fill"><AppIcon name="folder" /><strong>Saved game not found</strong><span>This game may have been moved or deleted.</span></div>
         </template>
         <template v-else>
-          <div v-if="groups.length" class="game-list">
-            <article v-for="group in groups" :key="group.gameId" class="game-row" :class="{ selected: selectedGameId === group.gameId }"><button class="game-row__content" :aria-pressed="selectedGameId === group.gameId" @click="selectedGameId = group.gameId" @dblclick="_loadGame(group.gameId)"><span class="game-row__piece">♟</span><span class="game-row__copy"><strong>{{ gameNames.get(group.gameId) ?? `Game ${group.gameId.slice(0, 8)}` }}</strong><small>{{ group.saves.length }} {{ group.saves.length === 1 ? 'snapshot' : 'snapshots' }} · {{ _formatDate(group.saves[0]!) }}</small></span></button><span class="game-row__latest">{{ group.saves[0]?.isAutosave ? 'Autosaved' : 'Saved' }}</span><button class="icon-button game-row__open" :aria-label="`Open snapshots for ${gameNames.get(group.gameId) ?? group.gameId}`" title="Open snapshots" @click="_openGroup(group.gameId)"><AppIcon name="chevron-right" /></button></article>
+          <div class="library-browser">
+            <div v-if="groups.length" class="game-list">
+              <article v-for="group in groups" :key="group.gameId" class="game-row" :class="{ selected: selectedGameId === group.gameId }"><button class="game-row__content" :aria-pressed="selectedGameId === group.gameId" @click="selectedGameId = group.gameId" @dblclick="_loadGame(group.gameId)"><span class="game-row__piece">♟</span><span class="game-row__copy"><strong>{{ gameSummaries.get(group.gameId)?.name ?? `Game ${group.gameId.slice(0, 8)}` }}</strong><small>{{ group.saves.length }} {{ group.saves.length === 1 ? 'snapshot' : 'snapshots' }} · {{ _formatDate(group.saves[0]!) }}</small></span></button><span class="game-row__latest">{{ group.saves[0]?.isAutosave ? 'Autosaved' : 'Saved' }}</span><button class="icon-button game-row__open" :aria-label="`Open snapshots for ${gameSummaries.get(group.gameId)?.name ?? group.gameId}`" title="Open snapshots" @click="_openGroup(group.gameId)"><AppIcon name="chevron-right" /></button></article>
+            </div>
+            <div v-else class="empty-state empty-state--fill library-empty"><AppIcon name="folder" /><strong>No saved games yet</strong><span>Your named saves and automatic snapshots will appear here.</span><button class="text-button text-button--primary" @click="router.push(returnRoute)">Return to your board</button></div>
+            <aside class="game-preview" aria-label="Selected game preview"><Chessboard class="library-preview" :position="gamePreviewPosition" :orientation="boardOrientation" :show-coordinates="false" :highlight-last-move="false" input-disabled /><p class="game-preview__caption"><strong>{{ selectedSummary?.name ?? 'No game selected' }}</strong><small>{{ gamePreviewCaption }}</small></p></aside>
           </div>
-          <div v-else class="empty-state empty-state--fill library-empty"><AppIcon name="folder" /><strong>No saved games yet</strong><span>Your named saves and automatic snapshots will appear here.</span><button class="text-button text-button--primary" @click="router.push(returnRoute)">Return to your board</button></div>
         </template>
         <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="!isSaveMode && route.name !== 'load-game'" class="text-button text-button--danger" :disabled="!selectedGameId || isWorking" @click="selectedGameId && _requestDeleteGame(selectedGameId)"><AppIcon name="trash" />Delete game</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="_saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedEntry || isWorking" @click="selectedEntry && _loadGame(selectedEntry.gameId, selectedEntry.saveName)">Load selected</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && _openGroup(selectedGameId)">Select game<AppIcon name="arrow-right" /></button></footer>
       </section>
