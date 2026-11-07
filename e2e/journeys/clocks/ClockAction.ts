@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { dismissGameResult, expectGameResult } from '../../support/GameResultDialog';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { openCustomGame, createWorkspace } from '../../support/GameCreation';
 import type { ClockMenu } from '../../../journeys/definitions/clocks/data/ClockScenario';
@@ -45,11 +46,9 @@ export async function createUntimedClock(page: Page) {
   await createWorkspace(page);
 }
 export async function expectTimeout(page: Page, winner = 'Black') {
-  const dialog = page.getByRole('dialog', { name: 'Time has expired', exact: true });
-  await expect(dialog).toHaveCount(1);
-  await expect(dialog).toContainText(`${winner} wins on time.`);
+  await expectGameResult(page, `${winner} wins on time.`);
 }
 export async function dismissTimeout(page: Page) {
-  await page.getByRole('dialog').getByRole('button', { name: 'Review game', exact: true }).click();
+  await dismissGameResult(page);
   await expect(page.getByRole('heading', { name: 'Game review', exact: true })).toBeVisible();
 }

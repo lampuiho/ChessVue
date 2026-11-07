@@ -1,6 +1,7 @@
 import { test, expect } from './HistoryTest';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { saveCurrentGame } from '../../support/GameSave';
+import { dismissGameResult } from '../../support/GameResultDialog';
 
 for (const mode of ['analysis', 'finished']) {
   test(`JRN-HIST-08 keeps free-board editing unavailable in ${mode} game controls`, async ({ page }) => {
@@ -9,6 +10,7 @@ for (const mode of ['analysis', 'finished']) {
     else {
       await page.getByRole('button', { name: 'Resign', exact: true }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Resign', exact: true }).click();
+      await dismissGameResult(page);
     }
     const before = await saveCurrentGame(page, 'before-inspection');
     await expect(page.getByRole('heading', { name: mode === 'analysis' ? 'Analysis mode' : 'Game review', exact: true })).toBeVisible();

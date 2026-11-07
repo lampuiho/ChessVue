@@ -8,7 +8,6 @@ import {
   PieceKind,
   PlayerColour,
   PlayerType,
-  ResultReason,
   ResultState,
   type BoardId,
   type IBoardPosition,
@@ -28,7 +27,7 @@ import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import { useModal, type IModalHandle } from '@/composables/ModalComposable';
 import GameCreationModal from '@/components/modals/GameCreationModal.vue';
 import ConfirmationModal from '@/components/modals/ConfirmationModal.vue';
-import MessageModal from '@/components/modals/MessageModal.vue';
+import GameResultModal from '@/components/modals/GameResultModal.vue';
 import MenuBar from '@/components/MenuBar.vue';
 import GameTabs from '@/components/GameTabs.vue';
 import Chessboard from '@/components/Chessboard.vue';
@@ -192,7 +191,7 @@ onMounted(() => {
   });
   clockTimer = setInterval(() => {
     now.value = Date.now();
-    void _reconcileTimeout();
+    void _reconcileGameEnd();
   }, 250);
 });
 onBeforeRouteUpdate((to) => _activateGame(String(to.params.id)));
@@ -214,18 +213,18 @@ async function _activateGame(id: string) {
   const fallbackId = uiStateStore.gameSession?.openGameIds.find((id) => gamesStore.getGame(id));
   return fallbackId ? `/game/${fallbackId}` : '/home';
 }
-async function _reconcileTimeout() {
+async function _reconcileGameEnd() {
   const currentGame = game.value;
   const runtime = currentGame?.$;
   if (!currentGame || !runtime) return;
-  if (runtime.timeoutNotificationShown && currentGame.resultState !== ResultState.Ongoing) return;
-  if (currentGame.resultReason !== ResultReason.Timeout && currentGame.resultState !== ResultState.Ongoing) return;
-  if ((remainingTime.value.white ?? 1) > 0 && (remainingTime.value.black ?? 1) > 0) return;
-  if (currentGame.resultState === ResultState.Ongoing) await gamesStore.syncClock(currentGame, new ClockTimestamp());
-  if (game.value !== currentGame || runtime.timeoutNotificationShown) return;
-  if (currentGame.resultReason !== ResultReason.Timeout) return;
-  runtime.timeoutNotificationShown = true;
-  modal.open(MessageModal, { title: 'Time has expired', subtitle: 'The game is finished, but the position remains available for review.', message: `${currentGame.resultState === ResultState.WhiteWon ? 'White wins' : 'Black wins'} on time.`, closeLabel: 'Review game' });
+  if (currentGame.resultState === ResultState.Ongoing) {
+    if ((remainingTime.value.white ?? 1) > 0 && (remainingTime.value.black ?? 1) > 0) return;
+    await gamesStore.syncClock(currentGame, new ClockTimestamp());
+    if (game.value !== currentGame) return;
+  }
+  if (!runtime.resultNotificationPending) return;
+  runtime.resultNotificationPending = false;
+  modal.open(GameResultModal, { gameId: currentGame.metadata.id });
 }
 async function _handleMenuInterruptionRequested(action: () => Promise<unknown> | unknown) {
   await playback.cancel();

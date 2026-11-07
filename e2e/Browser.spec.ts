@@ -5,6 +5,7 @@ import { playMove, square } from './support/BoardInteraction';
 import { choosePlayer } from './journeys/play/PlaySetup';
 import { exportGame, playOpening } from './browser/BrowserAction';
 import { configureStockfish } from './browser/EngineAction';
+import { settleGameResult } from './support/GameResultDialog';
 
 test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile is removed', async ({ page }) => {
   const errors: string[] = [];
@@ -47,12 +48,13 @@ async function _importStockfishPuzzle(page: Page) {
   await page.getByRole('button', { name: /Resume game/ }).click();
 }
 async function _expectStockfishMate(page: Page, engineColour: 'White' | 'Black') {
+  await settleGameResult(page, 'White wins by checkmate.');
   await expect(page.locator('.result-badge')).toHaveText('white won');
   await expect(page.locator('.history-row').last()).toContainText('Nf7#');
   await expect(page.locator('.engine-error')).toHaveCount(0);
   const game = await exportGame(page);
   expect(game.resultState).toBe('whiteWon');
-  expect(game.resultReason).toBe('ruleResolved');
+  expect(game.resultReason).toBe('checkmate');
   expect(game.livePath).toEqual([0, 0, 0, 0, 0]);
   const player = engineColour === 'White' ? game.whitePlayer : game.blackPlayer;
   expect((player as IEnginePlayer).assignedEngine.entryPath).toBe(StockfishConfig.entryPath);

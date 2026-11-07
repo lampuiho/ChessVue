@@ -70,6 +70,12 @@ export async function clickButton(label: string, selector = 'button') {
   button.click();
   await flushPromises();
 }
+export async function dismissDialog() {
+  const button = document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label="Close dialog"]');
+  if (!button) throw new Error('Missing regression control: Close dialog');
+  button.click();
+  await flushPromises();
+}
 export function setField(selector: string, value: string | boolean) {
   const field = document.querySelector<HTMLInputElement | HTMLSelectElement>(selector);
   if (!field) throw new Error('Missing regression field: ' + selector);

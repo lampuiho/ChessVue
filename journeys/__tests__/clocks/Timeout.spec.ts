@@ -12,13 +12,13 @@ describe('JRN-CLOCK-06/09/12 timeout finalisation', () => {
     expect(game.clockSnapshot.white).toEqual({ remainingMs: 0, isRunning: false });
     expect(game.$?.focusReturnUnsubscribe).toBeUndefined();
     await vi.advanceTimersByTimeAsync(1000);
-    expect(show.mock.calls.filter(([, props]) => props.title === 'Time has expired')).toHaveLength(1);
+    expect(show.mock.calls.filter(([, props]) => props.gameId === game.metadata.id)).toHaveLength(1);
     await show.mock.results[0]!.value.close();
     await router.push('/settings/session');
     await router.push('/game/' + game.metadata.id);
     window.dispatchEvent(new Event('focus'));
     await vi.advanceTimersByTimeAsync(1000);
-    expect(show.mock.calls.filter(([, props]) => props.title === 'Time has expired')).toHaveLength(1);
+    expect(show.mock.calls.filter(([, props]) => props.gameId === game.metadata.id)).toHaveLength(1);
   });
   it('settles expiry before a menu pause can hide a finished turn', async () => {
     const { games, game } = await createTimedContext();

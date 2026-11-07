@@ -589,13 +589,13 @@ export function genDetailedMoves(position: IBoardPosition, rawMoves: readonly IM
   return moves;
 }
 export function resolveGameResult(position: IBoardPosition): { resultState: ResultState; resultReason: ResultReason | undefined } {
-  if (_hasInsufficientMaterial(position)) return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
+  if (_hasInsufficientMaterial(position)) return { resultState: ResultState.Drawn, resultReason: ResultReason.InsufficientMaterial };
   const kingBoardId = findKingBoardId(position, position.sideToMove);
-  if (kingBoardId === undefined) return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
+  if (kingBoardId === undefined) return { resultState: ResultState.Drawn, resultReason: undefined };
   const attackState = _genKingMoveAttackState(position, kingBoardId, getOpponentColour(position.sideToMove));
   if (_genLegalRawMoves(position, attackState).length) return { resultState: ResultState.Ongoing, resultReason: undefined };
-  if (!attackState.kingAttacks.length) return { resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved };
-  return { resultState: position.sideToMove === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon, resultReason: ResultReason.RuleResolved };
+  if (!attackState.kingAttacks.length) return { resultState: ResultState.Drawn, resultReason: ResultReason.Stalemate };
+  return { resultState: position.sideToMove === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon, resultReason: ResultReason.Checkmate };
 }
 export function createInitialBoardPosition(): IBoardPosition {
   return { board: [...standardInitialBoard], sideToMove: PlayerColour.White, castlingAvailability: { whiteKingSide: true, whiteQueenSide: true, blackKingSide: true, blackQueenSide: true }, halfMoveClock: 0, fullMoveNumber: 1, $: { isStandardInitialPosition: true } };

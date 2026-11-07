@@ -124,7 +124,7 @@ for (const [width, height] of [[1024, 768], [375, 667]] as const) {
     await page.setViewportSize({ width, height });
     await openJourney(page, 'sessions');
     await expectReachable(page, page.locator('.home-title'));
-    for (const action of await page.locator('.home-action').all()) await expectReachable(page, action);
+    for (const action of await page.locator('.action-card').all()) await expectReachable(page, action);
     await expectReachable(page, page.locator('.home-footer'));
   });
 }

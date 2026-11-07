@@ -62,7 +62,7 @@ describe('useGameStatus', () => {
     const { position, store, timestampGame, clearPlayerTurnRuntime, refreshRuntimeRegistrations } = _createSubject();
     const game = position.hydrateGame(createGame({
       resultState: ResultState.WhiteWon,
-      resultReason: ResultReason.RuleResolved,
+      resultReason: ResultReason.Checkmate,
       gameState: GameState.AnalysisBlackMove,
       drawOfferState: createOutgoingDrawOffer(PlayerColour.White),
     }));
@@ -77,7 +77,7 @@ describe('useGameStatus', () => {
     for (const action of actions) await expect(action()).rejects.toThrow('ongoing game at its live position');
 
     expect(game.resultState).toBe(ResultState.WhiteWon);
-    expect(game.resultReason).toBe(ResultReason.RuleResolved);
+    expect(game.resultReason).toBe(ResultReason.Checkmate);
     expect(game.drawOfferState).toEqual(createOutgoingDrawOffer(PlayerColour.White));
     expect(clearPlayerTurnRuntime).not.toHaveBeenCalled();
     expect(refreshRuntimeRegistrations).not.toHaveBeenCalled();

@@ -5,6 +5,7 @@ import { playMove, square } from '../../support/BoardInteraction';
 import { selectGame } from '../../support/GameNavigation';
 import { saveCurrentGame } from '../../support/GameSave';
 import { createTimedPlay, expectStoppedClock } from './PlaySetup';
+import { settleGameResult } from '../../support/GameResultDialog';
 
 async function _prepareMate(page: Page, mode: string) {
   await openJourney(page, 'play');
@@ -20,6 +21,7 @@ for (const mode of ['seeded', 'timed']) {
   test(`JRN-PLAY-03 @smoke records ${mode} checkmate and preserves it through review and reload`, async ({ page }) => {
     await _prepareMate(page, mode);
     await playMove(page, 'd8', 'h4');
+    await settleGameResult(page, 'Black wins by checkmate.');
     await expect(page.locator('.result-badge')).toHaveText('black won');
     await expect(page.locator('.history-row--selected')).toContainText('Qh4#');
     await expect(square(page, 'h4')).toHaveAttribute('aria-label', 'h4 black queen');
@@ -27,13 +29,14 @@ for (const mode of ['seeded', 'timed']) {
     await playMove(page, 'e2', 'e4');
     await expect(page.locator('.history-row')).toHaveCount(4);
     const saved = await saveCurrentGame(page, 'mate');
-    expect(saved.resultReason).toBe('ruleResolved');
+    expect(saved.resultReason).toBe('checkmate');
     expect(saved.moveTree.root.children[0]!.children[0]!.children[0]!.children[0]!.move?.checkState).toBe('checkmate');
     expect(saved.clockSnapshot.white.isRunning).toBe(false);
     expect(saved.clockSnapshot.black.isRunning).toBe(false);
     if (mode === 'timed') await expectStoppedClock(page);
     await page.reload();
     await waitForJourney(page);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('.result-badge')).toHaveText('black won');
     await expect(page.locator('.history-row').last()).toContainText('Qh4#');
     await page.locator('.history-row').first().click();
@@ -42,6 +45,6 @@ for (const mode of ['seeded', 'timed']) {
     const explored = await saveCurrentGame(page, 'mate-reviewed');
     expect(explored.livePath).toEqual(saved.livePath);
     expect(explored.resultState).toBe('blackWon');
-    expect(explored.resultReason).toBe('ruleResolved');
+    expect(explored.resultReason).toBe('checkmate');
   });
 }

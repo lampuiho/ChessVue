@@ -7,6 +7,7 @@ import { getCheckState, genLegalMoves } from '../../../src/utility/chess';
 import { playMove } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 import { expectSameGame, openRules, reloadRules } from './RuleAction';
+import { settleGameResult } from '../../support/GameResultDialog';
 for (const colour of ruleColours) for (const scenario of drawScenarios) {
   test(`JRN-RULE-05 records ${colour} ${scenario.name} once and stops live clocks through review and reload`, async ({ page }) => {
     await openRules(page, `${scenario.name}-${colour}`);
@@ -16,13 +17,14 @@ for (const colour of ruleColours) for (const scenario of drawScenarios) {
     await advanceClock(page, 3000);
     await expect(playerClock(page, colour)).toHaveText('1:57');
     await playMove(page, _sq(scenario.from), _sq(scenario.to));
+    await settleGameResult(page, scenario.name === 'stalemate' ? 'Draw by stalemate.' : 'Draw by insufficient material.');
     await expect(page.locator('.result-badge')).toHaveText('drawn');
     await expect(page.getByRole('heading', { name: 'Game review', exact: true })).toBeVisible();
     await expect(page.locator('.history-row')).toHaveCount(1);
     await expect(page.locator('.history-row--selected strong')).toHaveText(scenario.san.replace(scenario.to, _sq(scenario.to)));
     await expect(page.getByRole('button', { name: /^(Resign|Offer draw|Resume game)/ })).toHaveCount(0);
     const saved = await saveCurrentGame(page, 'drawn');
-    expect(saved).toMatchObject({ resultState: 'drawn', resultReason: 'ruleResolved', livePath: [0], renderedPath: [0] });
+    expect(saved).toMatchObject({ resultState: 'drawn', resultReason: scenario.name === 'stalemate' ? 'stalemate' : 'insufficientMaterial', livePath: [0], renderedPath: [0] });
     expect(saved.clockSnapshot.white.isRunning).toBe(false);
     expect(saved.clockSnapshot.black.isRunning).toBe(false);
     expect(saved.clockSnapshot[colour].remainingMs).toBe(119000);

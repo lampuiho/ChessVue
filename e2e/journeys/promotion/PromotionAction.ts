@@ -3,6 +3,7 @@ import { CheckState, GameState, MoveKind, PieceKind, ResultReason, ResultState, 
 import { promotionPieces, type IPromotionScenario } from '../../../journeys/definitions/promotion/data/PromotionScenario';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove, square } from '../../support/BoardInteraction';
+import { settleGameResult } from '../../support/GameResultDialog';
 import { selectGame } from '../../support/GameNavigation';
 export function promotionChooser(page: Page): Locator {
   return page.getByRole('dialog', { name: 'Choose promotion', exact: true });
@@ -38,9 +39,11 @@ export function promotionSan(scenario: IPromotionScenario, kind: PieceKind, capt
   const check = capture && (kind === PieceKind.Queen || kind === PieceKind.Rook);
   return `${capture ? scenario.from[0] + 'x' : ''}${target}=${letter}${check ? '+' : ''}`;
 }
-export async function expectPromotedBoard(page: Page, scenario: IPromotionScenario, kind: PieceKind, capture: boolean) {
+export async function expectPromotedBoard(page: Page, scenario: IPromotionScenario, kind: PieceKind, capture: boolean, restored = false) {
   const target = capture ? scenario.capture : scenario.quiet;
   const drawn = capture && (kind === PieceKind.Bishop || kind === PieceKind.Knight);
+  // A restored finished game never re-announces its result.
+  if (drawn && !restored) await settleGameResult(page, 'Draw by insufficient material.');
   await expect(square(page, scenario.from)).toHaveAttribute('aria-label', scenario.from);
   await expect(square(page, target)).toHaveAttribute('aria-label', `${target} ${scenario.colour} ${kind}`);
   await expect(page.locator('.board-square .chess-piece')).toHaveCount(capture ? 3 : 4);
@@ -69,7 +72,7 @@ export function expectPromotedGame(game: IGame, before: IGame, scenario: IPromot
   expect(game.livePath).toEqual([0]);
   expect(game.renderedPath).toEqual([0]);
   expect(game.resultState).toBe(drawn ? ResultState.Drawn : ResultState.Ongoing);
-  expect(game.resultReason).toBe(drawn ? ResultReason.RuleResolved : undefined);
+  expect(game.resultReason).toBe(drawn ? ResultReason.InsufficientMaterial : undefined);
   expect(game.gameState).toBe(scenario.opponent === 'white'
     ? drawn ? GameState.AnalysisWhiteMove : GameState.LiveWhiteTurn
     : drawn ? GameState.AnalysisBlackMove : GameState.LiveBlackTurn);

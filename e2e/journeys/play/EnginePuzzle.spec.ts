@@ -3,6 +3,7 @@ import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
 import { playMove, square } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 import { choosePlayer } from './PlaySetup';
+import { settleGameResult } from '../../support/GameResultDialog';
 
 const line = ['f7h6', 'g8h8', 'e6g8', 'f8g8', 'h6f7'];
 for (const engineColour of ['Black', 'White'] as const) {
@@ -19,12 +20,13 @@ for (const engineColour of ['Black', 'White'] as const) {
       await expect(page.locator('.history-row')).toHaveCount(index + 1);
       await expect(square(page, uci.slice(2))).toHaveAttribute('aria-label', new RegExp(`${index % 2 === 0 ? 'white' : 'black'} `));
     }
+    await settleGameResult(page, 'White wins by checkmate.');
     await expect(page.locator('.result-badge')).toHaveText('white won');
     await expect(page.locator('.history-row').last()).toContainText('Nf7#');
     await expect(page.getByRole('button', { name: /^(Resign|Offer draw|Pause|Analyse)$/ })).toHaveCount(0);
     const saved = await saveCurrentGame(page, 'engine-puzzle');
     expect(saved.resultState).toBe('whiteWon');
-    expect(saved.resultReason).toBe('ruleResolved');
+    expect(saved.resultReason).toBe('checkmate');
     expect(saved.livePath).toEqual([0, 0, 0, 0, 0]);
     expect(saved.clockSnapshot.white.isRunning).toBe(false);
     expect(saved.clockSnapshot.black.isRunning).toBe(false);

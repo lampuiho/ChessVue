@@ -3,6 +3,7 @@ import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 import { choosePlayer, createTimedPlay, expectStoppedClock } from './PlaySetup';
+import { settleGameResult } from '../../support/GameResultDialog';
 
 for (const outcome of ['Cancel', 'Decline', 'Accept']) {
   test(`JRN-PLAY-05 resolves a local draw using ${outcome}`, async ({ page }) => {
@@ -19,6 +20,7 @@ for (const outcome of ['Cancel', 'Decline', 'Accept']) {
       await expect(response).toBeVisible();
       await response.getByRole('button', { name: outcome, exact: true }).click();
     }
+    if (outcome === 'Accept') await settleGameResult(page, 'Draw by agreement.');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     const saved = await saveCurrentGame(page, 'draw-' + outcome.toLowerCase());
     expect(saved.drawOfferState).toBeUndefined();

@@ -27,7 +27,7 @@ it('prevents duplicate quick creation and cancels its UI delivery when leaving H
   const created = await games.createGame({ name: 'Late result', analysisEngineProfiles: [], timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 } });
   const pending = new Deferred<IGame>();
   const create = vi.spyOn(games, 'createGame').mockImplementationOnce(() => pending);
-  const button = document.querySelector<HTMLButtonElement>('.home-action--primary')!;
+  const button = document.querySelector<HTMLButtonElement>('.action-card--primary')!;
   button.click();
   button.click();
   await flushPromises();
@@ -76,7 +76,7 @@ it('settles issued Quick engine readiness on route cancellation without creating
   const pending = new Deferred<readonly []>();
   const ready = vi.spyOn(domain.EngineRuntimeService, 'getOptions').mockReturnValueOnce(pending);
   const create = vi.spyOn(games, 'createGame');
-  const button = document.querySelector<HTMLButtonElement>('.home-action--primary')!;
+  const button = document.querySelector<HTMLButtonElement>('.action-card--primary')!;
   button.click(); button.click();
   await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce());
   await router.push('/settings/gameplay');

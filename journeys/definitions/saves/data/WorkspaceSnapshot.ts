@@ -19,7 +19,7 @@ export function createWorkspaceSnapshots() {
   setPausedClock(timed, 117000, Date.parse(fixtureTimestamp));
   const finished = createGame('snapshot-finished', 'Finished game', ['f2f3', 'e7e5', 'g2g4', 'd8h4']);
   finished.resultState = ResultState.BlackWon;
-  finished.resultReason = ResultReason.RuleResolved;
+  finished.resultReason = ResultReason.Checkmate;
   return [free, edit, nested, promotion, timed, finished];
 }
 function _createPromotionSnapshot() {

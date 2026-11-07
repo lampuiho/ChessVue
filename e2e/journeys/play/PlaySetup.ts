@@ -27,5 +27,5 @@ export async function expectStoppedClock(page: Page) {
   await page.clock.setFixedTime(new Date(playTime.getTime() + 60000));
   await page.clock.runFor(1000);
   await expect.poll(() => page.locator('.player-clock').allTextContents()).toEqual(clocks);
-  await expect(page.getByRole('dialog', { name: 'Time has expired' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Game over' })).toHaveCount(0);
 }

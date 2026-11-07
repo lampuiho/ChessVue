@@ -34,7 +34,8 @@ for (const scenario of promotionScenarios) for (const capture of [false, true]) 
     await page.reload();
     await waitForJourney(page);
     await expect(page).toHaveURL(new RegExp('/game/promotion-' + scenario.colour + '$'));
-    await expectPromotedBoard(page, scenario, kind, capture);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expectPromotedBoard(page, scenario, kind, capture, true);
     const restored = await saveCurrentGame(page, 'restored');
     expect({ ...restored, metadata: saved.metadata }).toEqual(saved);
     await _takeBackPromotion(page, scenario, before);

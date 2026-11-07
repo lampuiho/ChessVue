@@ -37,7 +37,9 @@ export const enum ResultState {
   Abandoned = 'abandoned',
 }
 export const enum ResultReason {
-  RuleResolved = 'ruleResolved',
+  Checkmate = 'checkmate',
+  Stalemate = 'stalemate',
+  InsufficientMaterial = 'insufficientMaterial',
   Timeout = 'timeout',
   Resignation = 'resignation',
   DrawAgreement = 'drawAgreement',
@@ -73,7 +75,7 @@ export const gameStates = [
   GameState.BoardEdit,
 ] as const
 export const resultStates = [ResultState.Ongoing, ResultState.Drawn, ResultState.WhiteWon, ResultState.BlackWon, ResultState.Abandoned] as const
-export const resultReasons = [ResultReason.RuleResolved, ResultReason.Timeout, ResultReason.Resignation, ResultReason.DrawAgreement, ResultReason.Abandoned] as const
+export const resultReasons = [ResultReason.Checkmate, ResultReason.Stalemate, ResultReason.InsufficientMaterial, ResultReason.Timeout, ResultReason.Resignation, ResultReason.DrawAgreement, ResultReason.Abandoned] as const
 export const playerTypes = [PlayerType.Local, PlayerType.Engine] as const
 export const playerActivityStates = [PlayerActivityState.Active, PlayerActivityState.NonActive] as const
 export const drawOfferDirections = [DrawOfferDirection.Incoming, DrawOfferDirection.Outgoing] as const
@@ -112,7 +114,7 @@ export interface IGameplayOptions {
 }
 export interface IGameRuntime {
   premoveQueue?: IPremoveQueue;
-  timeoutNotificationShown?: boolean;
+  resultNotificationPending?: boolean;
   renderedPosition?: IBoardPosition;
   renderedNode?: IMoveNode;
   livePosition?: IBoardPosition;

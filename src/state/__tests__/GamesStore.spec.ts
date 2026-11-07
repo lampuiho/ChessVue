@@ -151,7 +151,7 @@ function _installScholarMateRules() {
   });
   domain.MoveApplicationService.applyMove.mockImplementation((position: IGame['rootPosition'], move: IMove) => _applyScholarMateMove(position, move));
   utility.resolveGameResult.mockImplementation((position: IGame['rootPosition']): IResolvedResult => {
-    if (position.$?.checkState === CheckState.Checkmate) return { resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved };
+    if (position.$?.checkState === CheckState.Checkmate) return { resultState: ResultState.WhiteWon, resultReason: ResultReason.Checkmate };
     return _createOngoingResult();
   });
 }
@@ -198,7 +198,7 @@ async function _playEngineOnlyGame(game: IGame, maxTurns: number = scholarMateSe
 }
 function _expectScholarMateFinished(game: IGame) {
   expect(game.resultState).toBe(ResultState.WhiteWon);
-  expect(game.resultReason).toBe(ResultReason.RuleResolved);
+  expect(game.resultReason).toBe(ResultReason.Checkmate);
   expect(game.gameState).toBe(GameState.AnalysisBlackMove);
   expect(game.livePath).toEqual([0, 0, 0, 0, 0, 0, 0]);
   expect(game.renderedPath).toEqual([0, 0, 0, 0, 0, 0, 0]);
@@ -893,7 +893,7 @@ describe('useGamesStore', () => {
       showLiveAnalysisMoves: false,
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
     });
-    utility.resolveGameResult.mockReturnValueOnce({ resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved });
+    utility.resolveGameResult.mockReturnValueOnce({ resultState: ResultState.WhiteWon, resultReason: ResultReason.Checkmate });
     utility.resolveGameResult.mockClear();
 
     await store.makeMove(game, createMove(PlayerColour.White));

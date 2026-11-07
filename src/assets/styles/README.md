@@ -5,7 +5,7 @@
 | Stylesheet | Owns |
 | --- | --- |
 | `../base.css` | Theme tokens, document sizing, reset and native focus rules |
-| `shared.css` | Icons, buttons, tabs, page primitives, forms, toggles and their explicit variants |
+| `shared.css` | Icons, buttons, action cards, tabs, page primitives, forms, toggles and their explicit variants |
 | `app.css` | Loading, recovery notices and toasts |
 | `navigation.css` | Content-sized rail/drawer, groups, brand, menu buttons and responsive navigation states |
 | `dialogs.css` | Modal shell, dialog copy, choices and new-game controls |
@@ -14,7 +14,7 @@
 | `player.css` | Player rows, clocks, captured material and the player error variant |
 | `game-controls.css` | Gameplay actions and their mobile presentation |
 | `workspace.css` | Game layout and board/sidebar sizing |
-| `home.css` | Home layout and its action/recent-game cards |
+| `home.css` | Home layout and its recent-game cards |
 | `library.css` | Library layout, snapshot list/details and save form placement |
 | `settings.css` | Settings layout, theme previews and engine profile editor |
 

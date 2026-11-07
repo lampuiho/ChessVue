@@ -88,6 +88,10 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     else if (isAnyLiveAnalysisState(game.gameState)) game.gameState = getLiveAnalysisState(getLiveAnchorColour(game), positionColour, isPausedLiveAnalysisState(game.gameState));
     else game.gameState = getAnalysisState(positionColour);
   }
+  /** Arms the one-shot game-end announcement consumed by the game view. */
+  function flagResultNotification(game: IGame) {
+    position.requireGameRuntime(game).resultNotificationPending = true;
+  }
   function updateGameResultFromLivePosition(game: IGame, boardPosition: IBoardPosition) {
     const resolvedResult = resolveGameResult(boardPosition);
     game.resultState = resolvedResult.resultState;
@@ -95,6 +99,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     if (game.resultState !== ResultState.Ongoing) {
       game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, new ClockTimestamp());
       game.drawOfferState = undefined;
+      flagResultNotification(game);
     }
   }
   function assertNotPausedForAction(game: IGame, action: string) {
@@ -142,6 +147,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     game.resultReason = ResultReason.Resignation;
     game.gameState = getAnalysisState(getOpponentColour(colour));
     game.drawOfferState = undefined;
+    flagResultNotification(game);
     record.timestampGame(game);
   }
   async function offerDraw(game: IGame) {
@@ -157,6 +163,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     game.resultReason = ResultReason.DrawAgreement;
     game.gameState = getAnalysisState(position.getRenderedPosition(game).sideToMove);
     game.drawOfferState = undefined;
+    flagResultNotification(game);
     record.timestampGame(game);
   }
   async function declineDrawOffer(game: IGame) {
@@ -185,6 +192,7 @@ export function useGameStatus(dependency: IGameStatusDependency) {
     getLiveAnchorColour,
     updateGameStateAfterPosition,
     updateGameResultFromLivePosition,
+    flagResultNotification,
     assertNotPausedForAction,
     canExploreAnalysis,
     assertExplorationAllowed,

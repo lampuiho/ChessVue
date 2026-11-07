@@ -511,7 +511,7 @@ describe('GameRuleUtility', () => {
         { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ]);
 
-      expect(resolveGameResult(checkmate)).toEqual({ resultState: ResultState.WhiteWon, resultReason: ResultReason.RuleResolved });
+      expect(resolveGameResult(checkmate)).toEqual({ resultState: ResultState.WhiteWon, resultReason: ResultReason.Checkmate });
       expect(getCheckState(checkmate)).toBe(CheckState.Checkmate);
       expect(toDetailedMove(beforeMate, { from: _boardId(6, 5), to: _boardId(6, 6) }).checkState).toBe(CheckState.Checkmate);
     });
@@ -523,7 +523,7 @@ describe('GameRuleUtility', () => {
         { boardId: _boardId(7, 7), piece: { kind: PieceKind.King, colour: PlayerColour.Black } },
       ], PlayerColour.Black);
 
-      expect(resolveGameResult(position)).toEqual({ resultState: ResultState.Drawn, resultReason: ResultReason.RuleResolved });
+      expect(resolveGameResult(position)).toEqual({ resultState: ResultState.Drawn, resultReason: ResultReason.Stalemate });
       expect(getCheckState(position)).toBeUndefined();
       expect(position.$?.isCheckStateCached).toBe(true);
     });

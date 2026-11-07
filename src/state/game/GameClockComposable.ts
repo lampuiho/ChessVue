@@ -68,11 +68,11 @@ export function useGameClock(dependency: IGameClockDependency) {
   }
   function _finaliseTimeout(game: IGame, nowUtc: ClockTimestamp, expiredColour: PlayerColour) {
     premove.clearPremoves(game);
-    position.requireGameRuntime(game).timeoutNotificationShown = false;
     game.clockSnapshot = TimeControlService.pauseClock(game.clockSnapshot, nowUtc);
     game.resultState = expiredColour === PlayerColour.White ? ResultState.BlackWon : ResultState.WhiteWon;
     game.resultReason = ResultReason.Timeout;
     game.gameState = status.getAnalysisState(getOpponentColour(expiredColour));
+    status.flagResultNotification(game);
     record.timestampGame(game);
     refreshRuntimeRegistrations(game);
   }

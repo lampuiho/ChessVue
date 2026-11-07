@@ -3,6 +3,7 @@ import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove, square } from '../../support/BoardInteraction';
 import { saveCurrentGame } from '../../support/GameSave';
 import { createTimedPlay, expectStoppedClock } from './PlaySetup';
+import { settleGameResult } from '../../support/GameResultDialog';
 
 test('JRN-PLAY-04 cancels resignation without changing the game', async ({ page }) => {
   await openJourney(page, 'play');
@@ -29,6 +30,7 @@ for (const colour of ['white', 'black']) {
     await expect(dialog).toContainText(`${colour} resigns`);
     await dialog.getByRole('button', { name: 'Resign', exact: true }).dblclick();
     const winner = colour === 'white' ? 'black' : 'white';
+    await settleGameResult(page, `${winner === 'white' ? 'White' : 'Black'} wins by resignation.`);
     await expect(page.locator('.result-badge')).toHaveText(`${winner} won`);
     await expect(page.getByRole('button', { name: /^(Resign|Offer draw)$/ })).toHaveCount(0);
     const saved = await saveCurrentGame(page, 'resigned');

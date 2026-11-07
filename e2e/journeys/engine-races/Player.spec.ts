@@ -3,6 +3,7 @@ import { openRace, heldPlayer, release, emit, latestSearch } from './RaceAction'
 import { playMove } from '../../support/BoardInteraction';
 import { choosePlayer } from '../play/PlaySetup';
 import { saveCurrentGame } from '../../support/GameSave';
+import { dismissGameResult } from '../../support/GameResultDialog';
 import { waitForJourney } from '../../support/JourneyBootstrap';
 import { readFile } from '../../support/SaveInspection';
 for (const replacement of ['Local player', 'Journey B', 'Unassigned']) {
@@ -33,12 +34,12 @@ for (const ending of ['timeout', 'resignation', 'draw'] as const) {
     const search = await heldPlayer(page);
     if (ending === 'timeout') {
       await page.clock.setFixedTime(new Date(raceTime.getTime() + 61000));
-      await page.clock.runFor(250);
-      await page.getByRole('dialog', { name: 'Time has expired', exact: true }).getByRole('button', { name: 'Review game', exact: true }).click();
     } else if (ending === 'resignation') {
       await page.getByRole('button', { name: 'Resign', exact: true }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Resign', exact: true }).click();
     } else await page.getByRole('button', { name: 'Resolve draw', exact: true }).click();
+    await page.clock.runFor(250);
+    await dismissGameResult(page);
     const before = await saveCurrentGame(page, 'ended-before');
     await release(page, search.id);
     await page.clock.runFor(1000);
