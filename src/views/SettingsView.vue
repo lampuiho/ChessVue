@@ -45,7 +45,7 @@ const categories = [
   { id: SettingsCategory.Gameplay, label: 'Gameplay', icon: 'sliders' },
   { id: SettingsCategory.Appearance, label: 'Appearance', icon: 'sparkles' },
   { id: SettingsCategory.Engines, label: 'Engines', icon: 'activity' },
-];
+] as const;
 const returnRoute = computed(() => uiStateStore.gameSession?.activeGameId ? `/game/${uiStateStore.gameSession.activeGameId}` as const : '/home' as const);
 onMounted(() => { if (category.value === SettingsCategory.Engines) void _loadEnginePackages(); });
 onBeforeRouteUpdate(to => { if (to.params.category === SettingsCategory.Engines) void _loadEnginePackages(); });

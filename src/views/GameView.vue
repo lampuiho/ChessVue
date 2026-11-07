@@ -36,6 +36,7 @@ import HistoryPanel from '@/components/HistoryPanel.vue';
 import AnalysisPanel from '@/components/AnalysisPanel.vue';
 import GameControlPanel from '@/components/GameControlPanel.vue';
 import AppIcon from '@/components/common/AppIcon.vue';
+import ControlButton from '@/components/common/ControlButton.vue';
 
 interface IRenderedBoard {
   game: IGame; node: IMoveNode; position: IBoardPosition; analysis: boolean; inputAllowed: boolean; ongoing: boolean; boardEdit: boolean;
@@ -167,7 +168,7 @@ const canTakeBack = computed(() => {
   const hasMove = gamesStore.getTakeBackMoveCount(currentGame) > 0;
   return hasMove && (!currentGame.livePath || !!currentGame.gameplayOptions.allowTakeback);
 });
-const showAnalysisMoves = computed(() => !game.value?.livePath || !!game.value.gameplayOptions.showLiveAnalysisMoves);
+const showAnalysisMoves = computed(() => !game.value?.livePath || game.value.resultState !== ResultState.Ongoing || !!game.value.gameplayOptions.showLiveAnalysisMoves);
 const topColour = computed(() => settings.value?.appearance.boardOrientation === BoardOrientation.Black ? PlayerColour.White : PlayerColour.Black);
 const bottomColour = computed(() => topColour.value === PlayerColour.White ? PlayerColour.Black : PlayerColour.White);
 const capturedByColour = computed(() => {
@@ -386,9 +387,9 @@ async function _run(action: () => Promise<void> | void) {
           <div class="game-sidebar__title"><div><p>{{ game.livePath ? 'Game workspace' : 'Analysis study' }}</p><h1 :title="game.metadata.name">{{ game.metadata.name }}</h1></div><span class="result-badge" :class="{ 'result-badge--finished': game.resultState !== ResultState.Ongoing }">{{ game.resultState === ResultState.Ongoing ? (livePosition?.sideToMove ?? position.sideToMove) + ' to move' : game.resultState.replace('Won', ' won') }}</span></div>
           <HistoryPanel v-if="layout?.showHistoryPanel" :game-id="game.metadata.id" :disabled="isHistoryInputDisabled" @node-selected="_navigateToNode" />
           <AnalysisPanel v-if="layout?.showAnalysisPanel" :game-id="game.metadata.id" :disabled="isBoardInputDisabled || controlMode === 'boardEdit'" @move-selected="inputActions.line" />
-          <button v-if="controlMode === 'paused'" class="control-button" @click="isInGameAnalysis ? inputActions.exit() : inputActions.analyse()"><AppIcon name="activity" /><span><strong>{{ isInGameAnalysis ? 'Exit analysis' : 'Analyse' }}</strong><small>The game stays paused</small></span></button>
-          <GameControlPanel class="game-sidebar__controls" :game-id="game.metadata.id" :mode="controlMode" :can-take-back="canTakeBack"
-            @take-back-requested="inputActions.takeBack" @analysis-requested="inputActions.analyse" @exit-analysis-requested="inputActions.exit" />
+          <div v-if="controlMode === 'paused'" class="control-grid"><ControlButton icon="activity" :label="isInGameAnalysis ? 'Exit analysis' : 'Analyse'" @click="isInGameAnalysis ? inputActions.exit() : inputActions.analyse()" /></div>
+          <GameControlPanel class="game-sidebar__controls" :game-id="game.metadata.id" :mode="controlMode" :can-take-back="canTakeBack" :navigation-disabled="isHistoryInputDisabled"
+            @take-back-requested="inputActions.takeBack" @analysis-requested="inputActions.analyse" @exit-analysis-requested="inputActions.exit" @node-selected="_navigateToNode" />
         </aside>
       </div>
     </div>

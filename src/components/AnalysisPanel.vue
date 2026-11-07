@@ -3,7 +3,7 @@ import { computed, onScopeDispose, ref } from 'vue';
 import { useGamesStore, useSettingsStore, useUiStateStore } from '@/state';
 import { useModal } from '@/composables/ModalComposable';
 import AnalysisEngineSelectionModal from './modals/AnalysisEngineSelectionModal.vue';
-import { GameState, PlayerColour, type IGame, EngineAvailability, type IAnalysisLine, type ReadonlyAnalysisSeat, type IMoveRaw } from '@/contracts';
+import { GameState, PlayerColour, ResultState, type IGame, EngineAvailability, type IAnalysisLine, type ReadonlyAnalysisSeat, type IMoveRaw } from '@/contracts';
 import { getSan } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
 
@@ -23,7 +23,7 @@ const scoreDirection = computed(() => {
 });
 const collapsed = computed(() => uiStateStore.layoutState?.analysisCollapsed ?? false);
 const expandedByIndex = computed(() => uiStateStore.layoutState?.analysisEngineExpandedByIndex ?? []);
-const showMoves = computed(() => !game.value?.livePath || !!game.value.gameplayOptions.showLiveAnalysisMoves);
+const showMoves = computed(() => !game.value?.livePath || game.value.resultState !== ResultState.Ongoing || !!game.value.gameplayOptions.showLiveAnalysisMoves);
 const startDisabled = computed(() => game.value?.gameState === GameState.BoardEdit);
 const canAdd = computed(() => !!game.value && game.value.analysis.seats.length < 4 && (settingsStore.settings?.analysis.engineInventory.length ?? 0) > game.value.analysis.seats.length);
 const errorMessage = ref('');

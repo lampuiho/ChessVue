@@ -93,7 +93,7 @@ function _mountView(game: IGame = _createTimedGame()): VueWrapper {
   games.set(game.metadata.id, game);
   dependency.route.params.id = game.metadata.id;
   dependency.uiStateStore.gameSession = createGameSessionSnapshot({ openGameIds: [...games.keys()], activeGameId: game.metadata.id, activeRoute: `/game/${game.metadata.id}` });
-  const wrapper = shallowMount(GameView, { global: { stubs: { AnalysisPanel: false, ModalDialog: {
+  const wrapper = shallowMount(GameView, { global: { stubs: { AnalysisPanel: false, ControlButton: false, ModalDialog: {
     name: 'ModalDialog', template: '<div><slot /><slot name="actions" /></div>',
   } } } });
   wrappers.push(wrapper);
@@ -248,7 +248,7 @@ describe('GameView menu interruptions', () => {
     game.gameState = GameState.PausedWhiteTurn;
     const wrapper = _mountView(game);
     await flushPromises();
-    const action = wrapper.findAll('button').find((button) => button.text().includes('Analyse'));
+    const action = wrapper.findAll('button').find((button) => button.attributes('aria-label') === 'Analyse');
     expect(action).toBeDefined();
     await action!.trigger('click');
     expect(dependency.gamesStore.enterInGameAnalysis).toHaveBeenCalledWith(game);
@@ -259,7 +259,7 @@ describe('GameView menu interruptions', () => {
     expect(wrapper.getComponent({ name: 'HistoryPanel' }).props('disabled')).toBe(false);
     expect(wrapper.getComponent({ name: 'AnalysisPanel' }).props('disabled')).toBe(false);
     expect(wrapper.getComponent({ name: 'GameControlPanel' }).props('canTakeBack')).toBe(false);
-    const exit = wrapper.findAll('button').find((button) => button.text().includes('Exit analysis'));
+    const exit = wrapper.findAll('button').find((button) => button.attributes('aria-label') === 'Exit analysis');
     expect(exit).toBeDefined();
     await exit!.trigger('click');
     expect(dependency.gamesStore.exitInGameAnalysis).toHaveBeenCalledWith(game);

@@ -3,16 +3,13 @@ import { computed } from 'vue';
 import { ResultReason, ResultState, type IGame } from '@/contracts';
 import { useGamesStore } from '@/state';
 import { useGameTabActions } from '@/composables/GameTabActionsComposable';
-import { useModal } from '@/composables/ModalComposable';
 import { useModalAction } from '@/composables/ModalActionComposable';
 import { useRouter } from 'vue-router';
-import AnalysisEngineSelectionModal from './AnalysisEngineSelectionModal.vue';
 import ModalDialog from './ModalDialog.vue';
 import AppIcon from '../common/AppIcon.vue';
 const props = defineProps<{ gameId: string; signal: AbortSignal }>();
 const emit = defineEmits<{ dismissed: [] }>();
 const router = useRouter();
-const modal = useModal();
 const gamesStore = useGamesStore();
 const tabActions = useGameTabActions();
 const game = gamesStore.getGame(props.gameId) as IGame | undefined;
@@ -50,12 +47,11 @@ async function _save() {
 }
 async function _analyse() {
   if (!game) { emit('dismissed'); return; }
-  if (!game.analysis.seats.length) { modal.open(AnalysisEngineSelectionModal, { gameId: props.gameId }); return; }
   if (await run(() => gamesStore.refreshAnalysis(game))) emit('dismissed');
 }
 </script>
 <template>
-  <ModalDialog v-if="game" title="Game over" subtitle="The result is recorded. The position remains available for review." @dismissed="emit('dismissed')">
+  <ModalDialog v-if="game" :dismissible="false" title="Game over" subtitle="The result is recorded. The position remains available for review." @dismissed="emit('dismissed')">
     <p class="modal-copy modal-copy--result">{{ sentence }}</p>
     <div class="result-actions">
       <button class="action-card" :disabled="isWorking" @click="_exit"><span class="action-card__icon"><AppIcon name="home" /></span><strong>Exit</strong><small>Close this game</small><AppIcon class="action-card__arrow" name="arrow-right" /></button>

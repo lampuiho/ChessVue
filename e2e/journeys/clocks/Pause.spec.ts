@@ -7,7 +7,7 @@ for (const colour of ['white', 'black'] as const) {
     await openRunningClock(page);
     if (colour === 'black') await playMove(page, 'g1', 'f3');
     await advanceClock(page, 1000);
-    await page.getByRole('button', { name: /^Pause Stop/ }).click();
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
     const before = await saveCurrentGame(page, 'paused-before');
     await expect(page.getByRole('heading', { name: 'Game paused', exact: true })).toBeVisible();
     await expect(square(page, colour === 'white' ? 'g1' : 'b8')).toBeDisabled();

@@ -33,7 +33,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const renderedPosition = position.getRenderedPosition(game);
     const renderedPath = game.renderedPath;
     await playerTurn.clearPlayerTurnRuntime(game);
-    if (game.resultState !== ResultState.Ongoing || game.renderedPath !== renderedPath || position.getRenderedNode(game) !== renderedNode
+    if (game.resultState != ResultState.Ongoing || game.renderedPath != renderedPath || position.getRenderedNode(game) != renderedNode
       || status.isAnyLiveAnalysisState(game.gameState) || status.isPausedState(game.gameState) || !game.gameplayOptions.allowTakeback) {
       playerTurn.requestPlayerMoveIfNeeded(game);
       return;
@@ -46,18 +46,18 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const parentPosition = position.getRenderedPosition(game);
     const live = status.isOngoingLiveGame(game);
     const analysing = status.isAnyLiveAnalysisState(game.gameState);
-    if (live && !analysing && game.renderedPath === game.livePath) {
+    if (live && !analysing && game.renderedPath == game.livePath) {
       const player = playerTurn.getSideToMovePlayer(game, parentPosition.sideToMove);
-      const localPlayer = game.whitePlayer?.type === PlayerType.Local && game.blackPlayer?.type !== PlayerType.Local ? game.whitePlayer
-        : game.blackPlayer?.type === PlayerType.Local && game.whitePlayer?.type !== PlayerType.Local ? game.blackPlayer : undefined;
+      const localPlayer = game.whitePlayer?.type == PlayerType.Local && game.blackPlayer?.type != PlayerType.Local ? game.whitePlayer
+        : game.blackPlayer?.type == PlayerType.Local && game.whitePlayer?.type != PlayerType.Local ? game.blackPlayer : undefined;
       if (player?.type != PlayerType.Local && localPlayer) { premove.appendPremove(game, localPlayer, rawMove); return; }
-      if (player?.type !== PlayerType.Local) throw new Error('This move does not belong to the current local turn.');
+      if (player?.type != PlayerType.Local) throw new Error('This move does not belong to the current local turn.');
     }
     const detailedMove = move.resolveMove(parentPosition, rawMove, parentNode.move);
     if (!live) move.commitStandaloneAnalysisMove(game, parentNode, parentPosition, detailedMove);
     else if (analysing) move.commitLiveAnalysisMove(game, parentNode, parentPosition, detailedMove);
     else if (status.isLiveHistoryReview(game) && game.gameplayOptions.allowTakeback) await _commitHistoryRewriteMove(game, detailedMove);
-    else if (game.renderedPath !== game.livePath) throw new Error('Enter analysis to explore this historical position.');
+    else if (game.renderedPath != game.livePath) throw new Error('Enter analysis to explore this historical position.');
     else await playerTurn.attemptPlayerMove(game, detailedMove);
   }
   async function takeBack(game: IGame, moveCount: number = move.getTakeBackMoveCount(game)) {
@@ -80,7 +80,7 @@ export const useGamesStore = defineStore('gamesStore', () => {
     if (move.exitInGameAnalysis(game)) playerTurn.requestPlayerMoveIfNeeded(game);
   }
   async function resumeGame(game: IGame, reason: PauseReason) {
-    if (!status.isPausedState(game.gameState) || game.resultState !== ResultState.Ongoing) return;
+    if (!status.isPausedState(game.gameState) || game.resultState != ResultState.Ongoing) return;
     const nowUtc = new ClockTimestamp();
     if (clock.getExpiredColour(game, nowUtc)) return clock.syncClock(game, nowUtc);
     if (clock.resumeClockState(game, reason, nowUtc)) {

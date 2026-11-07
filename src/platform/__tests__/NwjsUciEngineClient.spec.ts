@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineAnalysisSearchMode, EngineAvailability, EngineClientType, EngineOptionType, MoveKind, PieceKind, PlatformErrorKind, PlayerColour, type IGame, type IMove } from '@/contracts';
 import type { IEngineAnalysisUpdate } from '@/contracts/platform';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
+import { genLegalMoves, toDetailedMove } from '@/utility/chess';
 import { flushPromises } from '@vue/test-utils';
 import { createAssignedEngine, createEngineGame, getBoardId, registerNwjsPlatformTestEnvironment } from './NwjsPlatformTestUtility';
 
@@ -275,6 +276,32 @@ describe('NwjsUciEngineClient', () => {
     expect(updates[1]!.lines[1]!.pv.map((move) => move.$?.uci)).toEqual(['c7c5', 'g1f3']);
     expect(engine.$?.availability).toBe(EngineAvailability.Ready);
     expect(engine.$?.lastError).toBeUndefined();
+  });
+  it('completes analysis of a finished game when the engine answers bestmove (none)', async () => {
+    const platform = getPlatformService();
+    const manager = platform.getProcessManager(EngineClientType.Uci);
+    const client = platform.getEngineClient(EngineClientType.Uci);
+    const engine = createAssignedEngine();
+    const game = createEngineGame();
+    const updates: IEngineAnalysisUpdate[] = [];
+    // 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6 4.Qxf7# reaches a mate, where the engine reports no best move at all.
+    for (const [fromFile, fromRank, toFile, toRank] of [[4, 6, 4, 4], [5, 0, 2, 3], [1, 7, 2, 5], [3, 0, 7, 4], [6, 7, 5, 5], [7, 4, 5, 6]] as const)
+      _appendLiveMove(game, toDetailedMove(game.$!.livePosition!, { from: getBoardId(fromFile, fromRank), to: getBoardId(toFile, toRank) }));
+    expect(genLegalMoves(game.$!.livePosition!)).toHaveLength(0);
+    engine.$ = { process: await manager.spawnProcess(engine.entryPath), availability: EngineAvailability.Unavailable, analysisLines: new Map() };
+    await client.initialiseEngine(engine);
+    const unsubscribe = EngineRuntimeService.subscribeToAnalysis(engine, (update) => updates.push(update));
+    const process = getEnvironment().latestProcess();
+    process.queueResponse('go infinite', ['info depth 0 score mate 0', 'bestmove (none)']);
+    await EngineRuntimeService.startAnalysis(engine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite });
+    await vi.waitFor(() => expect(updates).toHaveLength(1));
+    unsubscribe();
+
+    expect(updates[0]).toMatchObject({ isFinal: true, lines: [] });
+    expect(updates[0]!.bestMove).toBeUndefined();
+    expect(engine.$?.availability).toBe(EngineAvailability.Ready);
+    expect(engine.$?.lastError).toBeUndefined();
+    await EngineRuntimeService.stopEngine(engine);
   });
   it('rebuilds a missed ponder search from the current game after stop completes', async () => {
     const platform = getPlatformService();

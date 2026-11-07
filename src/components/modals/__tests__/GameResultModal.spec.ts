@@ -8,9 +8,8 @@ const dependency = vi.hoisted(() => ({})) as ReturnType<typeof _dependencies>;
 vi.mock('@/state', () => ({ useGamesStore: () => dependency.games }));
 vi.mock('vue-router', () => ({ useRouter: () => dependency.router }));
 vi.mock('@/composables/GameTabActionsComposable', () => ({ useGameTabActions: () => dependency.tabActions }));
-vi.mock('@/composables/ModalComposable', () => ({ useModal: () => dependency.modal }));
 function _dependencies(game: IGame = createGame()) {
-  return { game, router: { push: vi.fn(async () => {}) }, modal: { open: vi.fn() },
+  return { game, router: { push: vi.fn(async () => {}) },
     tabActions: { close: vi.fn(async () => {}), select: vi.fn(async () => {}) },
     games: { getGame: vi.fn(() => game), refreshAnalysis: vi.fn(async () => {}) },
   };
@@ -53,22 +52,15 @@ it('routes to the save surface for the finished game', async () => {
   expect(dependency.router.push).toHaveBeenCalledWith('/saved-games/save/game-1');
   expect(wrapper.emitted('dismissed')).toHaveLength(1);
 });
-it('refreshes the assigned engines when analysis is requested', async () => {
+it('refreshes the engines and closes, leaving the final position on the board', async () => {
   wrapper = _mount({ resultState: ResultState.WhiteWon, resultReason: ResultReason.Checkmate });
   dependency.game.analysis.seats.push({} as never);
   await _button('Start analysis').trigger('click');
   await flushPromises();
   expect(dependency.games.refreshAnalysis).toHaveBeenCalledWith(dependency.game);
-  expect(dependency.modal.open).not.toHaveBeenCalled();
+  expect(dependency.router.push).not.toHaveBeenCalled();
+  expect(dependency.tabActions.close).not.toHaveBeenCalled();
   expect(wrapper.emitted('dismissed')).toHaveLength(1);
-});
-it('offers engine selection instead of a dead refresh when no engine is assigned', async () => {
-  wrapper = _mount({ resultState: ResultState.WhiteWon, resultReason: ResultReason.Checkmate });
-  await _button('Start analysis').trigger('click');
-  await flushPromises();
-  expect(dependency.games.refreshAnalysis).not.toHaveBeenCalled();
-  expect(dependency.modal.open).toHaveBeenCalledOnce();
-  expect(wrapper.emitted('dismissed')).toBeUndefined();
 });
 it('surfaces a failed analysis refresh inline and keeps the dialog open', async () => {
   wrapper = _mount({ resultState: ResultState.WhiteWon, resultReason: ResultReason.Checkmate });
@@ -77,5 +69,12 @@ it('surfaces a failed analysis refresh inline and keeps the dialog open', async 
   await _button('Start analysis').trigger('click');
   await flushPromises();
   expect(wrapper.text()).toContain('Engine unavailable');
+  expect(wrapper.emitted('dismissed')).toBeUndefined();
+});
+it('offers no stray exit: the backdrop, Escape and the header close are all absent', async () => {
+  wrapper = _mount({ resultState: ResultState.WhiteWon, resultReason: ResultReason.Checkmate });
+  await wrapper.get('.modal-backdrop').trigger('mousedown');
+  await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
+  expect(wrapper.find('[aria-label="Close dialog"]').exists()).toBe(false);
   expect(wrapper.emitted('dismissed')).toBeUndefined();
 });

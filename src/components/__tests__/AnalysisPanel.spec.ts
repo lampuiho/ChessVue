@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick, reactive } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EngineAvailability, GameState, PlayerColour, type IAnalysisSeat, type IGame, type IUiLayoutState } from '@/contracts';
+import { EngineAvailability, GameState, PlayerColour, ResultState, type IAnalysisSeat, type IGame, type IUiLayoutState } from '@/contracts';
 import { createAnalysisSeat, createEngineRecord, createGame, createMove, createSettingsSnapshot, createUiLayoutState } from '@/state/__tests__/StateStoreTestUtility';
 import AnalysisPanel from '@/components/AnalysisPanel.vue';
 import { Deferred } from '@/utility/async/Deferred';
@@ -112,6 +112,19 @@ describe('AnalysisPanel seats', () => {
     await nextTick();
     expect(wrapper.get('.engine-section__name').attributes('title')).toBe('Analysis stopped');
     expect(wrapper.text()).not.toContain('Analysis complete');
+    wrapper.unmount();
+  });
+  it('reveals engine lines once the game is finished even while live analysis moves stay hidden', async () => {
+    const seat = createAnalysisSeat();
+    seat.lines = [{ depth: 18, scoreCp: 35, pv: [createMove(PlayerColour.White)] }];
+    const wrapper = _mount([seat], { showMoves: false });
+    expect(wrapper.get('h2').text()).toBe('Evaluations');
+    expect(wrapper.findAll('.analysis-lines')).toHaveLength(0);
+    dependency.game.resultState = ResultState.WhiteWon;
+    await nextTick();
+
+    expect(wrapper.get('h2').text()).toBe('Analysis');
+    expect(wrapper.findAll('.analysis-lines button')).toHaveLength(1);
     wrapper.unmount();
   });
   it('shows compact evaluations without folds, status text or move lists despite saved collapse state', async () => {

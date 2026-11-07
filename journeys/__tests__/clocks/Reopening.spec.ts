@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ResultReason, ResultState } from '@/contracts';
-import { createTimedContext, dismissDialog, legalMove } from '../support/UiHarness';
+import { createTimedContext, dismissGameResult, legalMove } from '../support/UiHarness';
 describe('JRN-CLOCK-07/08 original UI-06 timeout regressions', () => {
   it('adjudicates another timeout after reopening the same game with takeback', async () => {
     const context = await createTimedContext();
@@ -10,7 +10,7 @@ describe('JRN-CLOCK-07/08 original UI-06 timeout regressions', () => {
     expect(game.resultState).toBe(ResultState.WhiteWon);
     expect(game.resultReason).toBe(ResultReason.Timeout);
     expect(document.querySelector('[role=dialog]')?.textContent).toContain('White wins on time.');
-    await dismissDialog();
+    await dismissGameResult();
     await games.takeBack(game);
     expect(game.resultState).toBe(ResultState.Ongoing);
     expect(game.livePath).toEqual([]);
@@ -24,7 +24,7 @@ describe('JRN-CLOCK-07/08 original UI-06 timeout regressions', () => {
     const { game, games, stores, router } = await createTimedContext();
     await vi.advanceTimersByTimeAsync(3250);
     expect(game.resultReason).toBe(ResultReason.Timeout);
-    await dismissDialog();
+    await dismissGameResult();
     const second = await games.createGame({ name: 'Second timed tab', whitePlayer: game.whitePlayer, blackPlayer: game.blackPlayer, timeControl: { ...game.timeControl }, analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: false });
     stores.useUiStateStore().openTab(second.metadata.id);
     await router.push('/game/' + second.metadata.id);

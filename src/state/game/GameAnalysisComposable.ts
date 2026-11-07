@@ -1,5 +1,5 @@
 import { shallowReactive, toRaw } from 'vue';
-import { EngineAnalysisSearchMode, GameState, analysisSeatSchema, type IAnalysisSeat, type IAssignedEngine, type IEngineRecord, type IGame, type IRecordedAnalysis, type IVisibleAnalysis } from '@/contracts';
+import { EngineAnalysisSearchMode, GameState, ResultReason, analysisSeatSchema, type IAnalysisSeat, type IAssignedEngine, type IEngineRecord, type IGame, type IRecordedAnalysis, type IVisibleAnalysis } from '@/contracts';
 import Aborted from '@/contracts/errors/Aborted';
 import { EngineRuntimeService } from '@/domain';
 import { logHandledError } from '@/utility/errors';
@@ -84,7 +84,10 @@ export function useGameAnalysis(dependency: IGameAnalysisDependency) {
       _clearAnalysisSeatLines(seat);
     }
     position.getRenderedPosition(game);
-    const work = game.gameState === GameState.BoardEdit ? stopAnalysis(game, engineIndex) : Promise.all(seats.map((seat) => _startAnalysisSeat(game, seat)));
+    // Checkmate and stalemate are the results that leave the live position with no move for an engine to search.
+    const renderedResultReason = position.pathsEqual(game.renderedPath, game.livePath) ? game.resultReason : undefined;
+    const analysable = game.gameState !== GameState.BoardEdit && renderedResultReason !== ResultReason.Checkmate && renderedResultReason !== ResultReason.Stalemate;
+    const work = analysable ? Promise.all(seats.map((seat) => _startAnalysisSeat(game, seat))) : stopAnalysis(game, engineIndex);
     record.timestampGame(game);
     return work.then(() => undefined);
   }

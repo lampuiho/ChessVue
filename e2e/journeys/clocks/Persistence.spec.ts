@@ -9,7 +9,7 @@ for (const policy of ['running', 'paused', 'expired'] as const) {
     await openRunningClock(page);
     await disableMenuPause(page);
     await advanceClock(page, 1000);
-    if (policy === 'paused') await page.getByRole('button', { name: /^Pause Stop/ }).click();
+    if (policy === 'paused') await page.getByRole('button', { name: 'Pause', exact: true }).click();
     const saved = await saveCurrentGame(page, 'clock-restore');
     const now = await page.evaluate(() => Date.now());
     await page.clock.setFixedTime(new Date(now + (policy === 'expired' ? 125000 : 30000)));
@@ -43,7 +43,7 @@ for (const policy of ['running', 'paused', 'expired'] as const) {
 test('JRN-CLOCK-10 restores genuinely paused analysis and resumes actual time before Exit', async ({ page }) => {
   await openRunningClock(page);
   await advanceClock(page, 1000);
-  await page.getByRole('button', { name: /^Pause Stop/ }).click();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await page.getByRole('button', { name: /^Analyse/ }).click();
   await saveCurrentGame(page, 'analysis-restore');
   const now = await page.evaluate(() => Date.now());

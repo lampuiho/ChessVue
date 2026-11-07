@@ -62,7 +62,8 @@ export function legalMove(context: Awaited<ReturnType<typeof boot>>, game: IGame
   return context.rules.toDetailedMove(position, raw);
 }
 export function findButton(label: string, selector = 'button'): HTMLButtonElement | undefined {
-  return [...document.querySelectorAll<HTMLButtonElement>(selector)].find((button) => button.textContent?.includes(label));
+  // Icon-only controls carry their label on aria-label rather than in text.
+  return [...document.querySelectorAll<HTMLButtonElement>(selector)].find((button) => button.textContent?.includes(label) || button.getAttribute('aria-label') === label);
 }
 export async function clickButton(label: string, selector = 'button') {
   const button = findButton(label, selector);
@@ -75,6 +76,10 @@ export async function dismissDialog() {
   if (!button) throw new Error('Missing regression control: Close dialog');
   button.click();
   await flushPromises();
+}
+/** The game-result dialog has no close affordance; Start analysis is its stay-on-the-board exit. */
+export async function dismissGameResult() {
+  await clickButton('Start analysis', '[role="dialog"] button');
 }
 export function setField(selector: string, value: string | boolean) {
   const field = document.querySelector<HTMLInputElement | HTMLSelectElement>(selector);

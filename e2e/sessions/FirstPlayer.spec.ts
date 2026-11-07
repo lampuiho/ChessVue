@@ -26,7 +26,7 @@ async function _playRecordedOpening(page: Page) {
   return saved;
 }
 async function _exploreAndContinue(page: Page, opening: IGame) {
-  await page.getByRole('button', { name: /^Analyse Explore/ }).click();
+  await page.getByRole('button', { name: 'Analyse', exact: true }).click();
   await playSessionMoves(page, [['g8', 'f6'], ['g1', 'f3']], ['Journey A', 'Journey B']);
   await advanceClock(page, 30000);
   const explored = await saveCurrentGame(page, 'Temporary exploration');

@@ -1490,6 +1490,26 @@ describe('useGamesStore', () => {
     expect(domain.EngineRuntimeService.startPlayerTurn).not.toHaveBeenCalled();
     expect(domain.EngineRuntimeService.awaitPlayerTurnMove).not.toHaveBeenCalled();
   });
+  it('stops analysing once a played game reaches a position without legal moves', async () => {
+    _installScholarMateRules();
+    const store = useGamesStore();
+    const game = await store.createGame({
+      name: 'Scholar Mate Analysis',
+      whitePlayer: _createLocalPlayer(PlayerColour.White, 'White'),
+      blackPlayer: _createLocalPlayer(PlayerColour.Black, 'Black'),
+      analysisEngineProfiles: [createEngineRecord('analysis', 'Analysis engine')],
+      showLiveAnalysisMoves: false,
+      timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
+    });
+    for (const move of scholarMateSequence.slice(0, -1)) await store.makeMove(game, move);
+    const startsBeforeMate = domain.EngineRuntimeService.startAnalysis.mock.calls.length;
+    await store.makeMove(game, scholarMateSequence[scholarMateSequence.length - 1]!);
+
+    _expectScholarMateFinished(game);
+    expect(startsBeforeMate).toBeGreaterThan(0);
+    expect(domain.EngineRuntimeService.startAnalysis).toHaveBeenCalledTimes(startsBeforeMate);
+    expect(game.analysis.seats[0]!.lines).toEqual([]);
+  });
   it('preserves resignation, agreed-draw, and checkmate results during later analysis', async () => {
     const store = useGamesStore();
     async function _expectResultPreserved(game: IGame) {

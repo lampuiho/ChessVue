@@ -9,7 +9,7 @@ for (const mode of ['untimed', 'timed', 'paused']) {
     await openJourney(page, 'history');
     await createTimedHistory(page, mode !== 'untimed');
     await addAnalysisEngine(page);
-    if (mode === 'paused') await page.getByRole('button', { name: /^Pause Stop/ }).click();
+    if (mode === 'paused') await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await page.getByRole('button', { name: /Analyse/ }).click();
     const before = await saveCurrentGame(page, 'analysis-anchor');
     if (mode === 'paused') await expect(page.getByRole('button', { name: /^Resume game/ })).toBeVisible();

@@ -18,7 +18,7 @@ test('JRN-SETTINGS-10 preserves typed and empty options through reload and engin
   await expect(reopened.getByPlaceholder('Value', { exact: true }).last()).toHaveValue('');
   await reopened.getByRole('button', { name: 'Cancel', exact: true }).click();
   await returnToGame(page);
-  await page.getByRole('button', { name: /^Analyse Explore/ }).click();
+  await page.getByRole('button', { name: 'Analyse', exact: true }).click();
   await page.getByRole('button', { name: 'Add engine', exact: true }).first().click();
   await page.getByRole('radio', { name: /Journey A/ }).check();
   await page.getByRole('dialog').getByRole('button', { name: 'Add engine', exact: true }).click();

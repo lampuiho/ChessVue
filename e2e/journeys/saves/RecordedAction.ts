@@ -48,7 +48,7 @@ export async function createRecordedWorkspace(page: Page) {
   return saved;
 }
 async function _exploreAndPrune(page: Page, recorded: Awaited<ReturnType<typeof saveCurrentGame>>) {
-  await page.getByRole('button', { name: /^Analyse Explore/ }).click();
+  await page.getByRole('button', { name: 'Analyse', exact: true }).click();
   await playMove(page, 'b5', 'a4');
   await playMove(page, 'g8', 'f6');
   const explored = await saveCurrentGame(page, 'Temporary exploration');

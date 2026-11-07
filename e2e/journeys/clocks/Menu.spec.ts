@@ -24,7 +24,7 @@ for (const menu of clockMenus) {
       if (owner !== 'restored manual') {
         await resumeClock(page);
         await advanceClock(page, 1000);
-        await page.getByRole('button', { name: owner === 'manual' ? /^Pause Stop/ : /^Analyse Explore/ }).click();
+        await page.getByRole('button', { name: owner === 'manual' ? 'Pause' : 'Analyse', exact: true }).click();
       }
       await openClockMenu(page, menu);
       await advanceClock(page, 30000);
@@ -64,7 +64,7 @@ for (const menu of clockMenus) {
     await advanceClock(page, 60000);
     await closeClockMenu(page, menu);
     await expect(page.getByRole('heading', { name: 'Game controls', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Resume game|^Pause Stop/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^(Resume game|Pause)$/ })).toHaveCount(0);
     await expect(page.locator('.player-clock--untimed')).toHaveCount(2);
     await playMove(page, 'e2', 'e4');
     const saved = await saveCurrentGame(page, 'untimed');

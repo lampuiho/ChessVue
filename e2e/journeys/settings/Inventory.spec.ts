@@ -27,7 +27,7 @@ test('JRN-SETTINGS-07 stages a profile then applies it to all future assignment 
   await page.locator('.player-panel').filter({ has: page.locator('.player-avatar .piece-artwork--white') }).locator('.player-name').click();
   await expect(page.getByRole('radio', { name: /New analyst/ })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
-  await page.getByRole('button', { name: /^Analyse Explore/ }).click();
+  await page.getByRole('button', { name: 'Analyse', exact: true }).click();
   await page.getByRole('button', { name: 'Add engine', exact: true }).first().click();
   const assignment = page.getByRole('dialog', { name: 'Add analysis engine', exact: true });
   await assignment.getByRole('radio', { name: /New analyst/ }).check();

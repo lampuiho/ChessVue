@@ -9,7 +9,7 @@ test('JRN-ANALYSIS-10 finishes pending output while paused and permits analysis 
   await page.clock.pauseAt(new Date(analysisTime.getTime() + 60000));
   await page.getByRole('button', { name: 'Refresh analysis', exact: true }).click();
   await expect(page.locator('.analysis-line')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Pause Stop the clock', exact: true }).click();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Game paused', exact: true })).toBeVisible();
   await page.clock.runFor(200);
   await expectOutput(page);

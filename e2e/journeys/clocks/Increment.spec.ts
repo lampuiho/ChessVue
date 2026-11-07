@@ -23,7 +23,7 @@ for (const increment of [0, 2000]) {
     await disableMenuPause(page);
     for (let cycle = 0; cycle < 3; cycle += 1) {
       await advanceClock(page, 250);
-      await page.getByRole('button', { name: /^Pause Stop/ }).click();
+      await page.getByRole('button', { name: 'Pause', exact: true }).click();
       await advanceClock(page, 10000);
       await resumeClock(page);
     }

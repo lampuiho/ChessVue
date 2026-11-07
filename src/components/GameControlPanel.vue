@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref } from 'vue';
-import { DrawOfferDirection, PauseReason, PlayerType, type IGame } from '@/contracts';
+import { DrawOfferDirection, PauseReason, PlayerType, type IGame, type IMoveNode, type MovePath } from '@/contracts';
 import { MoveApplicationService, MoveHistoryService } from '@/domain';
 import { useGamesStore } from '@/state';
 import { useModal } from '@/composables/ModalComposable';
@@ -8,13 +8,14 @@ import ConfirmationModal from './modals/ConfirmationModal.vue';
 import DrawResponseModal from './modals/DrawResponseModal.vue';
 import GameCreationModal from './modals/GameCreationModal.vue';
 import MessageModal from './modals/MessageModal.vue';
-import AppIcon from './common/AppIcon.vue';
+import ControlButton from './common/ControlButton.vue';
 const props = withDefaults(defineProps<{
   gameId: string;
   mode: 'live' | 'paused' | 'inGameAnalysis' | 'freeAnalysis' | 'boardEdit' | 'finished';
   canTakeBack?: boolean;
-}>(), { canTakeBack: false });
-const emit = defineEmits<{ takeBackRequested: []; analysisRequested: []; exitAnalysisRequested: [] }>();
+  navigationDisabled?: boolean;
+}>(), { canTakeBack: false, navigationDisabled: false });
+const emit = defineEmits<{ takeBackRequested: []; analysisRequested: []; exitAnalysisRequested: []; nodeSelected: [node: IMoveNode] }>();
 const gamesStore = useGamesStore();
 const modal = useModal();
 const game = computed(() => gamesStore.getGame(props.gameId) as IGame | undefined);
@@ -31,6 +32,32 @@ async function _run(action: (currentGame: IGame) => unknown) {
   try { await action(currentGame); } catch (error) {
     if (!_disposed && game.value === currentGame) errorMessage.value = error instanceof Error ? error.message : 'The action could not be completed.';
   }
+}
+function _nodeAtPath(currentGame: IGame, path: MovePath) {
+  let node = currentGame.moveTree.root;
+  for (const index of path) node = node.children[index]!;
+  return node;
+}
+function _mainlineChild(node: IMoveNode) {
+  return node.children[node.mainlineChildIndex ?? 0];
+}
+const renderedNode = computed(() => game.value ? _nodeAtPath(game.value, game.value.renderedPath) : undefined);
+const isAnalysisMode = computed(() => props.mode === 'inGameAnalysis' || props.mode === 'freeAnalysis' || props.mode === 'finished');
+const canRewind = computed(() => !props.navigationDisabled && !!game.value?.renderedPath.length);
+const canAdvance = computed(() => !props.navigationDisabled && !!renderedNode.value && !!_mainlineChild(renderedNode.value));
+function _lastNode(from: IMoveNode) {
+  let node = from;
+  for (let next = _mainlineChild(node); next; next = _mainlineChild(node)) node = next;
+  return node;
+}
+function _navigate(target: 'first' | 'previous' | 'next' | 'last') {
+  const currentGame = game.value;
+  const current = renderedNode.value;
+  if (!currentGame || !current) return;
+  if (target === 'first') return emit('nodeSelected', currentGame.moveTree.root);
+  if (target === 'previous') return emit('nodeSelected', _nodeAtPath(currentGame, currentGame.renderedPath.slice(0, -1)));
+  const next = _mainlineChild(current);
+  if (next) emit('nodeSelected', target === 'next' ? next : _lastNode(next));
 }
 function _setPaused(paused: boolean) {
   return _run((currentGame) => paused ? gamesStore.pauseGame(currentGame, PauseReason.Manual) : gamesStore.resumeGame(currentGame, PauseReason.Manual));
@@ -84,25 +111,27 @@ async function _offerDraw(currentGame: IGame, signal: AbortSignal) {
   <section v-if="game" class="control-panel">
     <div class="control-panel__heading"><div><span class="control-panel__eyebrow">{{ mode === 'live' ? 'Your move' : 'Workspace' }}</span><h2>{{ title }}</h2></div><span v-if="mode === 'live'" class="turn-indicator"><i></i>Live</span><span v-else-if="mode === 'paused'" class="turn-indicator turn-indicator--paused"><i></i>Paused</span></div>
     <div class="control-grid">
-      <button v-if="mode === 'paused'" class="control-button control-button--primary control-button--wide" @click="_setPaused(false)"><AppIcon name="play" /><span><strong>Resume game</strong><small>Restart the clock</small></span></button>
-      <template v-else-if="mode === 'boardEdit'">
-        <button class="control-button control-button--primary control-button--wide" @click="_toggleBoardEdit()"><AppIcon name="check" /><span><strong>Finish editing</strong><small>Return to analysis</small></span></button>
+      <template v-if="isAnalysisMode">
+        <ControlButton icon="skip-back" label="First move" :disabled="!canRewind" @click="_navigate('first')" />
+        <ControlButton icon="chevron-left" label="Previous move" :disabled="!canRewind" @click="_navigate('previous')" />
+        <ControlButton icon="chevron-right" label="Next move" :disabled="!canAdvance" @click="_navigate('next')" />
+        <ControlButton icon="skip-forward" label="Last move" :disabled="!canAdvance" @click="_navigate('last')" />
       </template>
+      <ControlButton v-if="mode === 'paused'" icon="play" label="Resume game" variant="primary" @click="_setPaused(false)" />
+      <ControlButton v-else-if="mode === 'boardEdit'" icon="check" label="Finish editing" variant="primary" @click="_toggleBoardEdit()" />
       <template v-else>
-        <button class="control-button" :disabled="!canTakeBack" @click="emit('takeBackRequested')"><AppIcon name="undo" /><span><strong>Takeback</strong><small>Undo your last move</small></span></button>
-        <button v-if="(mode === 'live' || mode === 'inGameAnalysis') && canPause" class="control-button" @click="_setPaused(true)"><AppIcon name="pause" /><span><strong>Pause</strong><small>Stop the clock</small></span></button>
-        <button v-if="mode === 'live'" class="control-button" @click="emit('analysisRequested')"><AppIcon name="activity" /><span><strong>Analyse</strong><small>Explore from here</small></span></button>
-        <button v-if="mode === 'inGameAnalysis'" class="control-button control-button--primary" @click="emit('exitAnalysisRequested')"><AppIcon name="play" /><span><strong>Exit analysis</strong><small>Return to live play</small></span></button>
-        <button v-if="mode === 'freeAnalysis'" class="control-button" @click="_toggleBoardEdit()"><AppIcon name="edit" /><span><strong>Edit board</strong><small>Build a position</small></span></button>
-        <button v-if="mode === 'freeAnalysis'" class="control-button control-button--primary" @click="_requestSetupStart()"><AppIcon name="play" /><span><strong>Start game</strong><small>Play this position</small></span></button>
+        <ControlButton v-if="mode !== 'finished'" icon="undo" label="Takeback" :disabled="!canTakeBack" @click="emit('takeBackRequested')" />
+        <ControlButton v-if="(mode === 'live' || mode === 'inGameAnalysis') && canPause" icon="pause" label="Pause" @click="_setPaused(true)" />
+        <ControlButton v-if="mode === 'live'" icon="activity" label="Analyse" @click="emit('analysisRequested')" />
+        <ControlButton v-if="mode === 'inGameAnalysis'" icon="play" label="Exit analysis" variant="primary" @click="emit('exitAnalysisRequested')" />
+        <ControlButton v-if="mode === 'freeAnalysis'" icon="edit" label="Edit board" @click="_toggleBoardEdit()" />
+        <ControlButton v-if="mode === 'freeAnalysis'" icon="play" label="Start game" variant="primary" @click="_requestSetupStart()" />
+        <ControlButton v-if="mode === 'live'" icon="handshake" :label="drawPending ? 'Resolve draw' : 'Offer draw'" @click="_handleDraw()"><i class="control-button__indicator" :class="{ active: drawPending }"></i></ControlButton>
+        <ControlButton v-if="mode === 'live'" icon="flag" label="Resign" variant="danger" @click="_requestResignation()" />
       </template>
     </div>
     <p v-if="errorMessage" class="inline-message inline-message--error" role="alert">{{ errorMessage }}</p>
-    <div v-if="mode === 'live'" class="control-grid control-panel__secondary">
-      <button class="control-button" @click="_handleDraw()"><AppIcon name="handshake" /><span><strong>{{ drawPending ? 'Resolve draw' : 'Offer draw' }}</strong></span><i class="control-button__indicator" :class="{ active: drawPending }"></i></button>
-      <button class="control-button" @click="_requestResignation()"><AppIcon name="flag" /><span><strong>Resign</strong></span></button>
-    </div>
-    <p v-if="mode === 'finished'" class="control-note">The result is recorded. You can review the history or rewind where takebacks are allowed.</p>
+    <p v-if="mode === 'finished'" class="control-note">The result is recorded. Step through the moves to review how the game went.</p>
   </section>
 </template>
 

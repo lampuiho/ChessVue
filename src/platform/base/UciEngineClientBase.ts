@@ -1,7 +1,7 @@
 import { EngineAnalysisSearchMode, EngineClientType, PlatformErrorKind, type IAnalysisLine, type IAssignedEngine, type IAssignedEngineRuntime, type IBoardPosition, type IEngineAnalysisRequest, type IEngineOptionMeta, type IGame, type IMove, type IMoveRaw, type IPlatformError } from '@/contracts';
 import type { EngineAnalysisUpdateHandler, IEngineAnalysisUpdate, IEngineClient, IProcess } from '@/contracts/platform';
 import { Deferred } from '@/utility/async/Deferred';
-import { cloneBoardPosition, genDetailedMoves } from '@/utility/chess/GameRuleUtility';
+import { cloneBoardPosition, genDetailedMoves, genLegalMoves } from '@/utility/chess/GameRuleUtility';
 import { buildFen } from '@/utility/chess/MoveNotationUtility';
 import { buildAnalysisCommands, buildFindNextMoveCommands, buildIsReadyCommand, buildPonderMoveCommands, buildRegisterCommand, buildSetOptionCommand, buildStopCommand, buildUciCommand, buildUciNewGameCommand, isPonderHit, parseBestMoveLine, parseInfoLine, parseOptionLines } from '@/utility/UciUtility';
 
@@ -282,7 +282,7 @@ export abstract class UciEngineClientBase implements IEngineClient {
   }
   private _completeAnalysis(engine: IAssignedEngine, session: IUciSession, context: IUciAnalysingSessionContext, line: string) {
     const bestMove = this._parseDetailedBestMove(context.position, line);
-    if (!bestMove) throw new Error(`Expected UCI bestmove while analysing: ${line}.`);
+    if (!bestMove && genLegalMoves(context.position).length) throw new Error(`Expected UCI bestmove while analysing: ${line}.`);
     session.current = { state: UciSessionState.Ready };
     context.onUpdate(this._buildAnalysisUpdate(context.position, this._requireRuntimeState(engine).analysisLines, true, bestMove));
   }

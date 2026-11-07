@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PlayerColour, ResultReason, ResultState } from '@/contracts';
-import { createTimedContext, dismissDialog, legalMove } from '../support/UiHarness';
+import { createTimedContext, dismissGameResult, legalMove } from '../support/UiHarness';
 function _dialogText() {
   return document.querySelector('[role=dialog]')?.textContent ?? '';
 }
@@ -33,7 +33,7 @@ describe('game-end announcement', () => {
     const { game, games, stores, router, domain } = context;
     await games.resignGame(game, PlayerColour.White);
     await vi.advanceTimersByTimeAsync(250);
-    await dismissDialog();
+    await dismissGameResult();
     const restored = domain.SerializationService.deserialiseGame(domain.SerializationService.serialiseGame(game));
     restored.metadata.id = 'restored-finished-game';
     await games.insertGame(restored);
