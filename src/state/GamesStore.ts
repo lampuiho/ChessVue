@@ -48,9 +48,9 @@ export const useGamesStore = defineStore('gamesStore', () => {
     const analysing = status.isAnyLiveAnalysisState(game.gameState);
     if (live && !analysing && game.renderedPath === game.livePath) {
       const player = playerTurn.getSideToMovePlayer(game, parentPosition.sideToMove);
-      const local = game.whitePlayer?.type === PlayerType.Local && game.blackPlayer?.type === PlayerType.Engine ? game.whitePlayer
-        : game.blackPlayer?.type === PlayerType.Local && game.whitePlayer?.type === PlayerType.Engine ? game.blackPlayer : undefined;
-      if (player?.type === PlayerType.Engine && local) { premove.appendPremove(game, local, rawMove); return; }
+      const localPlayer = game.whitePlayer?.type === PlayerType.Local && game.blackPlayer?.type !== PlayerType.Local ? game.whitePlayer
+        : game.blackPlayer?.type === PlayerType.Local && game.whitePlayer?.type !== PlayerType.Local ? game.blackPlayer : undefined;
+      if (player?.type != PlayerType.Local && localPlayer) { premove.appendPremove(game, localPlayer, rawMove); return; }
       if (player?.type !== PlayerType.Local) throw new Error('This move does not belong to the current local turn.');
     }
     const detailedMove = move.resolveMove(parentPosition, rawMove, parentNode.move);
