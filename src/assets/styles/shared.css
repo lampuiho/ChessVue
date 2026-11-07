@@ -9,6 +9,9 @@
 .text-button--ghost { border-color: transparent; background: transparent; box-shadow: none; }
 .text-button--danger { color: var(--danger); border-color: var(--danger); }
 .text-button--danger:hover:not(:disabled) { border-color: var(--danger); background: var(--danger-soft); }
+.expandable-text { display: block; min-width: 0; padding: 0.2rem; overflow: hidden; color: var(--text-primary); border: 0; border-radius: var(--radius-sm); background: transparent; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.expandable-text:hover, .expandable-text--open { background: var(--accent-soft); }
+.expandable-text__overlay { position: fixed; z-index: 110; top: var(--expandable-top); left: var(--expandable-left); width: var(--expandable-width); max-height: var(--expandable-max-height); padding: var(--expandable-padding, 0); overflow-y: auto; border: 0; border-radius: var(--expandable-radius, 0); background: var(--expandable-background, var(--surface-panel)); color: var(--expandable-colour, var(--text-primary)); font-family: var(--expandable-family, inherit); font-size: var(--expandable-size, inherit); font-weight: var(--expandable-weight, inherit); line-height: var(--expandable-line-height, normal); letter-spacing: var(--expandable-letter-spacing, normal); word-spacing: var(--expandable-word-spacing, normal); overflow-wrap: anywhere; white-space: normal; }
 .tab-strip { display: flex; min-height: 2.5rem; padding: 0; flex-shrink: 0; align-items: end; gap: 0.15rem; border-bottom: 0.0625rem solid var(--border-subtle); background: var(--surface-app); overflow-x: auto; }
 .tab-button { position: relative; display: flex; min-width: 8rem; max-width: 14rem; height: 2.5rem; padding: 0 0.65rem 0 0.9rem; align-items: center; gap: 0.45rem; color: var(--text-muted); border-radius: 0.5rem 0.5rem 0 0; background: transparent; font-size: 0.78rem; }
 .tab-button:hover { color: var(--text-primary); background: var(--surface-panel); }

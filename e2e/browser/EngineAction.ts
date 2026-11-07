@@ -35,7 +35,7 @@ export async function expectAnalysis(page: Page, names: string[]) {
     const section = engineSection(page, name);
     await expect(section.locator('.engine-section__status--running')).toBeVisible();
     await expect(section.locator('.analysis-line')).toHaveCount(3, { timeout: 20000 });
-    await expect(section.locator('.analysis-line__moves button').first()).toBeVisible();
+    await expect(section.locator('.analysis-line .expandable-text').first()).toBeVisible();
   }
 }
 export function replayLegalMoves(game: IGame, moves: readonly IMove[]) {

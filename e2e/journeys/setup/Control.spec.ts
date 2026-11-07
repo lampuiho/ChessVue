@@ -15,7 +15,7 @@ test('JRN-SETUP-05 blocks history, players, gameplay and analysis starts while e
   await expect(page.getByTitle('Retry engine', { exact: true })).toHaveCount(0);
   await expect(page.locator('.control-grid .control-button')).toHaveCount(1);
   await expect(page.getByRole('button', { name: /Takeback|Start game|Resign|Offer draw|Pause|Analyse/ })).toHaveCount(0);
-  await expect(page.locator('.analysis-line__moves button')).toHaveCount(0);
+  await expect(page.locator('.analysis-line .expandable-text')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const after = await saveCurrentGame(page, 'still-locked');
   expect(after.moveTree).toEqual(before.moveTree);

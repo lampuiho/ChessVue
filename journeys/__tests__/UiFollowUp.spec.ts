@@ -3,6 +3,14 @@ import { nextTick } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 import { GameState, PauseReason, PlayerColour, PlayerType, ResultReason, ResultState, TimeControlPreset, type IGame } from '@/contracts';
 import { boot, createTimedContext, legalMove, findButton, clickButton, setField, clickSquare } from './support/UiHarness';
+// Analysis moves live in the expandable line's overlay, so the line must be opened before they can be clicked.
+async function analysisMoves(): Promise<HTMLButtonElement[]> {
+  if (!document.querySelector('.expandable-text__overlay')) {
+    document.querySelector<HTMLButtonElement>('.analysis-line .expandable-text')?.click();
+    await nextTick();
+  }
+  return [...document.querySelectorAll<HTMLButtonElement>('.expandable-text__overlay .analysis-line__move')];
+}
 describe('UI-02 in-game analysis permissions', () => {
   it('allows paused analysis exploration while actual play stays paused', async () => {
     const context = await createTimedContext();
@@ -90,8 +98,8 @@ describe('UI-09 suggested move-prefix playback', () => {
     const { games, router } = await boot('analysis');
     await router.push('/game/analysis-live-moves');
     const game = games.getGame('analysis-live-moves') as unknown as IGame;
-    await vi.waitFor(() => expect(document.querySelectorAll('.analysis-line__moves button').length).toBeGreaterThanOrEqual(4));
-    document.querySelectorAll<HTMLButtonElement>('.analysis-line__moves button')[2]!.click();
+    await vi.waitFor(async () => expect((await analysisMoves()).length).toBeGreaterThanOrEqual(4));
+    (await analysisMoves())[2]!.click();
     await flushPromises();
     expect(game.livePath).toHaveLength(3);
     expect(game.renderedPath).toBe(game.livePath);
@@ -101,14 +109,13 @@ describe('UI-09 suggested move-prefix playback', () => {
     const source = games.getGame('analysis-free') as unknown as IGame;
     await vi.waitFor(() => expect(source.analysis.seats[0]?.lines[0]?.pv.length).toBeGreaterThanOrEqual(4));
     const oldMoves = [...source.analysis.seats[0]!.lines[0]!.pv];
-    const view = document.querySelector<HTMLButtonElement>('.analysis-line__moves button');
-    expect(view).not.toBeNull();
+    expect(document.querySelector('.analysis-line .expandable-text')).not.toBeNull();
     // History selection changes the side to move, invalidating the previous line.
     games.navigateToNode(source, source.moveTree.root.children[0]!);
     await games.stopAnalysis(source);
     source.analysis.seats[0]!.lines = [{ depth: 12, pv: oldMoves }];
     await nextTick();
-    document.querySelectorAll<HTMLButtonElement>('.analysis-line__moves button')[2]!.click();
+    (await analysisMoves())[2]!.click();
     await flushPromises();
     expect(source.renderedPath).toEqual([0]);
     expect(document.querySelector('.toast')?.textContent).toContain('stale');
@@ -117,10 +124,10 @@ describe('UI-09 suggested move-prefix playback', () => {
   it('plays only the selected prefix one move at a time', async () => {
     const { games } = await boot('analysis');
     const game = games.getGame('analysis-free') as unknown as IGame;
-    await vi.waitFor(() => expect(document.querySelectorAll('.analysis-line__moves button').length).toBeGreaterThanOrEqual(4));
+    await vi.waitFor(async () => expect((await analysisMoves()).length).toBeGreaterThanOrEqual(4));
     await games.stopAnalysis(game);
     await nextTick();
-    const buttons = document.querySelectorAll<HTMLButtonElement>('.analysis-line__moves button');
+    const buttons = await analysisMoves();
     expect(buttons.length).toBeGreaterThanOrEqual(4);
     buttons[2]!.click();
     await flushPromises();

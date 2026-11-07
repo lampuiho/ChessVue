@@ -13,6 +13,7 @@
 .save-separator { padding: 0.5rem; color: var(--text-muted); font-size: 0.65rem; }
 .game-row { display: flex; min-width: 0; min-height: 4rem; padding: 0.5rem; flex-shrink: 0; align-items: center; gap: 0.75rem; background: transparent; text-align: left; }
 .game-row:hover, .game-row.selected, .save-row.selected { background: var(--accent-soft); }
+.game-row__content { display: flex; min-width: 0; padding: 0; flex: 1; align-items: center; gap: 0.75rem; background: transparent; text-align: left; }
 .game-row__piece { display: grid; width: 2.5rem; height: 2.5rem; flex-shrink: 0; place-items: center; color: var(--accent-strong); font-size: 1.7rem; }
 .game-row__copy { min-width: 0; flex: 1; }
 .game-row__copy strong, .game-row__copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

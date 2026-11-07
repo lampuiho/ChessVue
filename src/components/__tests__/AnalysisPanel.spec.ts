@@ -23,6 +23,12 @@ function _dependencies() {
       setLayoutState: vi.fn((value: IUiLayoutState) => { Object.assign(layout, value); }) },
   };
 }
+// Analysis moves live in the expandable line's teleported overlay, so the line must be opened to reach them.
+async function _openLine(wrapper: VueWrapper) {
+  await wrapper.get('.analysis-lines .expandable-text').trigger('click');
+  await nextTick();
+  return [...document.querySelectorAll<HTMLButtonElement>('.expandable-text__overlay .analysis-line__move')];
+}
 function _mount(seats: IAnalysisSeat[], options: { showMoves?: boolean; disabled?: boolean; collapsed?: boolean; expandedByIndex?: boolean[]; startDisabled?: boolean } = {}) {
   dependency.game.analysis.seats = seats;
   dependency.game.gameplayOptions.showLiveAnalysisMoves = options.showMoves ?? false;
@@ -42,9 +48,10 @@ describe('AnalysisPanel seats', () => {
     for (const move of moves) Object.freeze(move);
     seat.lines = [{ depth: 12, pv: moves }];
     const wrapper = _mount([seat], { showMoves: true });
-    const buttons = wrapper.findAll('.analysis-lines button');
-    await buttons[0]!.trigger('click');
-    await buttons[1]!.trigger('click');
+    (await _openLine(wrapper))[0]!.click();
+    await nextTick();
+    (await _openLine(wrapper))[1]!.click();
+    await nextTick();
     expect(wrapper.emitted('moveSelected')).toEqual([[[moves[0]]], [moves]]);
     const prefix = wrapper.emitted('moveSelected')![1]![0] as typeof moves;
     expect(prefix).not.toBe(moves);
@@ -74,7 +81,7 @@ describe('AnalysisPanel seats', () => {
     running.assignedEngine.$ = { availability: EngineAvailability.Running, analysisLines: new Map() };
     failed.assignedEngine.$ = { availability: EngineAvailability.Failed, lastError: 'Engine failed', analysisLines: new Map() };
     const wrapper = _mount([running, failed], { showMoves: true, disabled: true });
-    expect(wrapper.get<HTMLButtonElement>('.analysis-lines button').element.disabled).toBe(true);
+    expect((await _openLine(wrapper))[0]!.disabled).toBe(true);
     for (const title of ['Refresh analysis', 'Retry engine', 'Stop engine', 'Remove engine']) {
       const button = wrapper.find<HTMLButtonElement>(`[title="${title}"]`);
       expect(button.element.disabled).toBe(false);

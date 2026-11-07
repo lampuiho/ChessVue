@@ -85,6 +85,11 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
   async function deleteSave(gameId: string, saveName?: string) {
     await SerializationService.deleteDocument(_getTargetEntry(await listSavedGames(), gameId, saveName).filePath);
   }
+  async function deleteGame(gameId: string) {
+    const group = (await listSavedGames()).find((candidate) => candidate.gameId === gameId);
+    if (!group) throw new Error(`Saved game group not found for ${gameId}.`);
+    for (const entry of group.saves) await SerializationService.deleteDocument(entry.filePath);
+  }
   async function exportGame(game: IGame): Promise<string | undefined> {
     let filePath: string;
     try {
@@ -109,5 +114,5 @@ export const useSavedGamesStore = defineStore('savedGamesStore', () => {
     return game;
   }
 
-  return { listSavedGames, restoreGames, loadGame, loadRecentGame, saveGame, registerAutosaveOnClose, disposeAutosaveOnClose, deleteSave, exportGame, importGame };
+  return { listSavedGames, restoreGames, loadGame, loadRecentGame, saveGame, registerAutosaveOnClose, disposeAutosaveOnClose, deleteSave, deleteGame, exportGame, importGame };
 });

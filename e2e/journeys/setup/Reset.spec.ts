@@ -30,7 +30,8 @@ test('JRN-SETUP-04 clears and resets the board and restarts analysis on the init
   await finishEditing(page);
   await expect(page.locator('.result-badge')).toHaveText('white to move');
   await expect(page.locator('.analysis-line')).toHaveCount(3);
-  await page.locator('.analysis-line__moves button').first().click();
+  await page.locator('.analysis-line .expandable-text').first().click();
+  await page.locator('.expandable-text__overlay .analysis-line__move').first().click();
   await expect(page.locator('.history-row')).toHaveCount(1);
   const continued = await saveCurrentGame(page, 'reset-analysis');
   expect(continued.moveTree.root.children[0]!.move?.movingColour).toBe('white');

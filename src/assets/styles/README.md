@@ -5,7 +5,7 @@
 | Stylesheet | Owns |
 | --- | --- |
 | `../base.css` | Theme tokens, document sizing, reset and native focus rules |
-| `shared.css` | Icons, buttons, action cards, tabs, page primitives, forms, toggles and their explicit variants |
+| `shared.css` | Icons, buttons, action cards, tabs, expandable text and its popover, page primitives, forms, toggles and their explicit variants |
 | `app.css` | Loading, recovery notices and toasts |
 | `navigation.css` | Content-sized rail/drawer, groups, brand, menu buttons and responsive navigation states |
 | `dialogs.css` | Modal shell, dialog copy, choices and new-game controls |

@@ -6,6 +6,7 @@ import AnalysisEngineSelectionModal from './modals/AnalysisEngineSelectionModal.
 import { GameState, PlayerColour, ResultState, type IGame, EngineAvailability, type IAnalysisLine, type ReadonlyAnalysisSeat, type IMoveRaw } from '@/contracts';
 import { getSan } from '@/utility/chess';
 import AppIcon from './common/AppIcon.vue';
+import ExpandableText from './common/ExpandableText.vue';
 
 const props = defineProps<{ gameId: string; disabled?: boolean }>();
 const emit = defineEmits<{ moveSelected: [moves: readonly IMoveRaw[]] }>();
@@ -77,6 +78,9 @@ function _remove(seat: ReadonlyAnalysisSeat) {
 function _selectMoves(line: IAnalysisLine, moveIndex: number) {
   emit('moveSelected', line.pv.slice(0, moveIndex + 1));
 }
+function _lineText(line: IAnalysisLine): string {
+  return line.pv.map((move) => getSan(move)).join(' ');
+}
 function _score(line?: IAnalysisLine): string {
   if (line?.scoreMate !== undefined) {
     const whiteWins = (line.scoreMate > 0) === (scoreDirection.value === 1);
@@ -130,8 +134,10 @@ function _summary(seat: ReadonlyAnalysisSeat): string {
           <div class="engine-summary"><span>{{ _summary(seat) }}</span><small>{{ seat.lines[0] ? `Depth ${seat.lines[0].depth}` : 'No principal variation yet' }}</small></div>
           <div v-if="seat.lines.length" class="analysis-lines">
             <div v-for="(line, lineIndex) in seat.lines" :key="lineIndex" class="analysis-line">
-              <span>{{ lineIndex + 1 }}</span><strong class="analysis-line__score">{{ _score(line) }}</strong>
-              <div class="analysis-line__moves"><button v-for="(move, moveIndex) in line.pv" :key="moveIndex" class="analysis-line__move" :disabled="disabled" :aria-label="`Play through ${getSan(move)}`" @click="_selectMoves(line, moveIndex)">{{ getSan(move) }}</button></div>
+              <strong class="analysis-line__score">{{ _score(line) }}</strong>
+              <ExpandableText class="analysis-line__preview" :text="_lineText(line)" label="Show the full line">
+                <div class="analysis-line__moves"><template v-for="(move, moveIndex) in line.pv" :key="moveIndex"><button class="analysis-line__move" :disabled="disabled" :aria-label="`Play through ${getSan(move)}`" @click="_selectMoves(line, moveIndex)">{{ getSan(move) }}</button>{{ ' ' }}</template></div>
+              </ExpandableText>
               <small>d{{ line.depth }}</small>
             </div>
           </div>

@@ -107,6 +107,10 @@ function _initialiseRoute() {
   if (route.name === 'load-game') selectedGameId.value = routeGameId.value;
   else if (!isSaveMode.value && !groups.value.some((group) => group.gameId === selectedGameId.value)) selectedGameId.value = groups.value.find((group) => group.gameId === uiStateStore.gameSession?.activeGameId)?.gameId ?? groups.value[0]?.gameId ?? '';
 }
+function _openGroup(gameId: string) {
+  selectedGameId.value = gameId;
+  return router.push(`/saved-games/load/${gameId}`);
+}
 function _selectSave(entry: ISavedGameFileEntry) {
   selectedSaveName.value = entry.saveName;
   if (isSaveMode.value && !entry.isAutosave) saveName.value = entry.saveName;
@@ -201,6 +205,27 @@ async function _confirmDelete(target: ISavedGameFileEntry, signal: AbortSignal) 
     }
   });
 }
+function _requestDeleteGame(gameId: string) {
+  const group = groups.value.find((candidate) => candidate.gameId === gameId);
+  if (!group) return;
+  const saveCount = `${group.saves.length} ${group.saves.length === 1 ? 'snapshot' : 'snapshots'}`;
+  confirmation = modal.open(ConfirmationModal, {
+    title: 'Delete this game?', subtitle: `“${gameNames.value.get(gameId) ?? gameId}” will be permanently removed from your library.`,
+    message: `All ${saveCount} of this game will be deleted. Games open in your workspace stay open.`, confirmLabel: 'Delete game', danger: true,
+    confirm: (signal) => _confirmDeleteGame(gameId, signal),
+  });
+}
+async function _confirmDeleteGame(gameId: string, signal: AbortSignal) {
+  signal.throwIfAborted();
+  await _run(async () => {
+    try { await savedGamesStore.deleteGame(gameId); } finally {
+      if (!signal.aborted) {
+        if (selectedGameId.value === gameId) selectedGameId.value = '';
+        await _refreshGroups();
+      }
+    }
+  });
+}
 async function _run(action: () => Promise<void>, importAction: boolean = false) {
   isWorking.value = true;
   errorMessage.value = '';
@@ -257,11 +282,11 @@ function _formatDate(entry: ISavedGameFileEntry): string {
         </template>
         <template v-else>
           <div v-if="groups.length" class="game-list">
-            <button v-for="group in groups" :key="group.gameId" class="game-row" :class="{ selected: selectedGameId === group.gameId }" @click="selectedGameId = group.gameId" @dblclick="_loadGame(group.gameId)"><span class="game-row__piece">♟</span><span class="game-row__copy"><strong>{{ gameNames.get(group.gameId) ?? `Game ${group.gameId.slice(0, 8)}` }}</strong><small>{{ group.saves.length }} {{ group.saves.length === 1 ? 'snapshot' : 'snapshots' }} · {{ _formatDate(group.saves[0]!) }}</small></span><span class="game-row__latest">{{ group.saves[0]?.isAutosave ? 'Autosaved' : 'Saved' }}</span><AppIcon name="chevron-right" /></button>
+            <article v-for="group in groups" :key="group.gameId" class="game-row" :class="{ selected: selectedGameId === group.gameId }"><button class="game-row__content" :aria-pressed="selectedGameId === group.gameId" @click="selectedGameId = group.gameId" @dblclick="_loadGame(group.gameId)"><span class="game-row__piece">♟</span><span class="game-row__copy"><strong>{{ gameNames.get(group.gameId) ?? `Game ${group.gameId.slice(0, 8)}` }}</strong><small>{{ group.saves.length }} {{ group.saves.length === 1 ? 'snapshot' : 'snapshots' }} · {{ _formatDate(group.saves[0]!) }}</small></span></button><span class="game-row__latest">{{ group.saves[0]?.isAutosave ? 'Autosaved' : 'Saved' }}</span><button class="icon-button game-row__open" :aria-label="`Open snapshots for ${gameNames.get(group.gameId) ?? group.gameId}`" title="Open snapshots" @click="_openGroup(group.gameId)"><AppIcon name="chevron-right" /></button></article>
           </div>
           <div v-else class="empty-state empty-state--fill library-empty"><AppIcon name="folder" /><strong>No saved games yet</strong><span>Your named saves and automatic snapshots will appear here.</span><button class="text-button text-button--primary" @click="router.push(returnRoute)">Return to your board</button></div>
         </template>
-        <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="_saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedEntry || isWorking" @click="selectedEntry && _loadGame(selectedEntry.gameId, selectedEntry.saveName)">Load selected</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && router.push(`/saved-games/load/${selectedGameId}`)">Select game<AppIcon name="arrow-right" /></button></footer>
+        <footer class="library-actions"><span v-if="errorMessage" class="library-feedback library-feedback--error">{{ errorMessage }}</span><span v-else-if="message" class="library-feedback">{{ message }}</span><span v-else class="library-count">{{ groups.length }} {{ groups.length === 1 ? 'game' : 'games' }} in library</span><button class="text-button text-button--ghost" @click="router.push(returnRoute)">Cancel</button><button v-if="!isSaveMode && route.name !== 'load-game'" class="text-button text-button--danger" :disabled="!selectedGameId || isWorking" @click="selectedGameId && _requestDeleteGame(selectedGameId)"><AppIcon name="trash" />Delete game</button><button v-if="isSaveMode" class="text-button text-button--primary" :disabled="!!saveNameError || !activeGame || isWorking" @click="_saveGame"><AppIcon name="save" />Save game</button><button v-else-if="route.name === 'load-game'" class="text-button text-button--primary" :disabled="!selectedEntry || isWorking" @click="selectedEntry && _loadGame(selectedEntry.gameId, selectedEntry.saveName)">Load selected</button><button v-else class="text-button text-button--primary" :disabled="!selectedGameId || isWorking" @click="selectedGameId && _openGroup(selectedGameId)">Select game<AppIcon name="arrow-right" /></button></footer>
       </section>
     </div>
   </main>
