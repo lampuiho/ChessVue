@@ -4,10 +4,12 @@ import { playMove } from '../support/BoardInteraction';
 import { expectAnalysis } from './EngineAction';
 import type { ISettingsSnapshot } from '../../src/contracts';
 import { exportGame } from './BrowserAction';
+import { useFixedColours } from '../support/GameCreation';
 
 test('saved snapshots start a real Stockfish opponent and analysis after profile deletion and reload', async ({ page }) => {
   test.setTimeout(60000);
   await page.goto('/settings/gameplay');
+  await useFixedColours(page);
   await page.getByLabel('Black player', { exact: true }).selectOption('engine:stockfish');
   await page.getByLabel('Add analysis engine', { exact: true }).selectOption('stockfish');
   await page.getByRole('button', { name: 'Add engine', exact: true }).click();
@@ -15,7 +17,7 @@ test('saved snapshots start a real Stockfish opponent and analysis after profile
   await page.getByLabel('Minutes', { exact: true }).fill('3');
   await page.getByLabel('Increment (seconds)', { exact: true }).fill('2');
   await page.getByText('Allow takebacks', { exact: true }).click();
-  await page.getByText('Show live analysis moves', { exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: /^Show live analysis moves/ })).toBeChecked();
   await page.getByRole('button', { name: 'Engines', exact: true }).click();
   await page.getByTitle('Delete', { exact: true }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -58,6 +60,7 @@ test('package removal sees saved default paths after their reusable profile is d
   await page.locator('#engine-entry-file').selectOption('engine-files/Default package/engine.js');
   await page.getByRole('button', { name: 'Add profile', exact: true }).click();
   await page.getByRole('button', { name: 'Gameplay', exact: true }).click();
+  await useFixedColours(page);
   await page.getByLabel('Black player', { exact: true }).selectOption({ label: 'Use profile: Saved package' });
   await page.getByRole('button', { name: 'Engines', exact: true }).click();
   await page.locator('.engine-list article').filter({ hasText: 'Saved package' }).getByTitle('Delete', { exact: true }).click();
@@ -100,8 +103,8 @@ for (const draw of [0.25, 0.75]) {
     test.setTimeout(60000);
     await page.addInitScript(value => { Math.random = () => value; }, draw);
     await page.goto('/settings/gameplay');
-    await page.getByLabel('Black player', { exact: true }).selectOption('engine:stockfish');
-    await page.getByText('Randomly assign colours', { exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: /^Randomly assign colours/ })).toBeChecked();
+    await page.getByLabel('Player 2', { exact: true }).selectOption('engine:stockfish');
     await expect(page.getByLabel('Player 1', { exact: true })).toHaveValue('local');
     await expect(page.getByLabel('Player 2', { exact: true })).toHaveValue('keep');
     await page.getByRole('button', { name: 'Save', exact: true }).click();

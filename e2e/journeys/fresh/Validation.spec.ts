@@ -1,6 +1,6 @@
 import { test, expect } from '../../support/TestEvidence';
 import { openJourney } from '../../support/JourneyBootstrap';
-import { createWorkspace, openCustomGame, setCustomClock } from '../../support/GameCreation';
+import { createWorkspace, openCustomGame, setCustomClock, useLocalPlayers } from '../../support/GameCreation';
 import { managedFiles, readSession } from '../../support/SaveInspection';
 import { saveCurrentGame } from '../../support/GameSave';
 import validation from '../../../journeys/definitions/fresh/data/Validation.json' with { type: 'json' };
@@ -29,6 +29,7 @@ for (const variant of validation.valid) {
     await openJourney(page, 'fresh');
     const dialog = await openCustomGame(page);
     await dialog.getByLabel('Name').fill('  Boundary game  ');
+    await useLocalPlayers(dialog);
     await setCustomClock(dialog, variant.minutes, variant.increment);
     const gameId = await createWorkspace(page);
     await expect(page.getByRole('heading', { name: 'Boundary game', exact: true })).toBeVisible();

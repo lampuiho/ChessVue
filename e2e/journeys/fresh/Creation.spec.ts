@@ -1,7 +1,7 @@
 import { test, expect } from '../../support/TestEvidence';
 import { openJourney, waitForJourney } from '../../support/JourneyBootstrap';
 import { playMove } from '../../support/BoardInteraction';
-import { openCustomGame, setCustomClock } from '../../support/GameCreation';
+import { openCustomGame, setCustomClock, useLocalPlayers } from '../../support/GameCreation';
 import { managedFiles, readGame, readSession } from '../../support/SaveInspection';
 
 test('JRN-FRESH-01 opens empty screens without creating a game', async ({ page }) => {
@@ -20,31 +20,37 @@ test('JRN-FRESH-01 opens empty screens without creating a game', async ({ page }
   expect((await readSession(page)).openGameIds).toEqual([]);
   expect(await managedFiles(page)).toEqual([]);
 });
-test('JRN-FRESH-02 @smoke creates a quick local game and restores e4', async ({ page }) => {
+test('JRN-FRESH-02 @smoke creates a quick engine game and restores e4', async ({ page }) => {
+  test.setTimeout(60000);
+  // Fix the colour draw so the local player keeps White and opens the game.
+  await page.addInitScript(() => { Math.random = () => 0.75; });
   await openJourney(page, 'fresh');
   await page.getByRole('button', { name: /Quick game/ }).click();
   await expect(page).toHaveURL(/\/game\/[^/]+$/);
   const gameId = page.url().split('/').pop()!;
   await playMove(page, 'e2', 'e4');
   await expect(page.getByRole('button', { name: /^e4 white pawn$/i })).toBeVisible();
-  await expect(page.locator('.history-row')).toHaveCount(1);
-  await expect(page.locator('.result-badge')).toHaveText('black to move');
+  await expect(page.locator('.history-row')).toHaveCount(2, { timeout: 20000 });
+  await expect(page.locator('.result-badge')).toHaveText('white to move');
+  await expect.poll(async () => (await readGame(page, `saves/${gameId}/auto.json`)).livePath).toEqual([0, 0]);
   const game = await readGame(page, `saves/${gameId}/auto.json`);
+  expect(game.whitePlayer?.displayName).toBe('Player 1');
   expect(game.whitePlayer?.type).toBe('local');
-  expect(game.blackPlayer?.type).toBe('local');
-  expect(game.livePath).toEqual([0]);
+  expect(game.blackPlayer?.displayName).toBe('Stockfish');
+  expect(game.blackPlayer?.type).toBe('engine');
   expect((await readSession(page)).openGameIds).toEqual([gameId]);
   await page.reload();
   await waitForJourney(page);
   await expect(page).toHaveURL(new RegExp('/game/' + gameId + '$'));
   await expect(page.getByRole('button', { name: /^e4 white pawn$/i })).toBeVisible();
   await expect(page.locator('.history-list')).toContainText('e4');
-  await expect(page.locator('.result-badge')).toHaveText('black to move');
+  await expect(page.locator('.result-badge')).toHaveText('white to move');
 });
 test('JRN-FRESH-04 creates one named timed game with takebacks disabled', async ({ page }) => {
   await openJourney(page, 'fresh');
   const dialog = await openCustomGame(page);
   await dialog.getByLabel('Name', { exact: false }).fill('Friday match');
+  await useLocalPlayers(dialog);
   await setCustomClock(dialog);
   await dialog.getByText('Allow takebacks', { exact: true }).click();
   await expect(dialog.getByRole('checkbox', { name: /Allow takebacks/ })).not.toBeChecked();
@@ -56,7 +62,7 @@ test('JRN-FRESH-04 creates one named timed game with takebacks disabled', async 
   await expect(page.getByRole('button', { name: /Takeback/ })).toBeDisabled();
   const game = await readGame(page, `saves/${gameId}/auto.json`);
   expect(game.timeControl).toEqual({ initialMs: 300000, incrementMs: 2000 });
-  expect(game.gameplayOptions).toEqual({ allowTakeback: false, showLiveAnalysisMoves: false });
+  expect(game.gameplayOptions).toEqual({ allowTakeback: false, showLiveAnalysisMoves: true });
   expect([game.whitePlayer?.type, game.blackPlayer?.type]).toEqual(['local', 'local']);
   expect((await readSession(page)).openGameIds).toEqual([gameId]);
   await page.reload();

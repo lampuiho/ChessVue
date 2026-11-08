@@ -1,7 +1,7 @@
 import { test, expect } from '../../support/TestEvidence';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove } from '../../support/BoardInteraction';
-import { createWorkspace, openCustomGame, setCustomClock } from '../../support/GameCreation';
+import { createWorkspace, openCustomGame, setCustomClock, useLocalPlayers } from '../../support/GameCreation';
 import { configureEngines } from '../../support/EngineInventory';
 import { saveCurrentGame } from '../../support/GameSave';
 
@@ -9,6 +9,7 @@ for (const mode of ['Free analysis', 'White unassigned', 'Black unassigned']) {
   test(`JRN-FRESH-07 explores without live work using ${mode}`, async ({ page }) => {
     await openJourney(page, 'fresh');
     const dialog = await openCustomGame(page);
+    await useLocalPlayers(dialog);
     await setCustomClock(dialog);
     if (mode === 'Free analysis') await dialog.getByRole('button', { name: mode, exact: true }).click();
     else await dialog.getByLabel(mode.split(' ')[0]!, { exact: true }).selectOption('none');

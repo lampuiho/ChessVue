@@ -2,12 +2,14 @@ import { expect, type Page, type FileChooser } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import type { IGame, IGameSessionSnapshot } from '../../src/contracts';
 import { playMove } from '../support/BoardInteraction';
+import { createWorkspace, openCustomGame, useLocalPlayers } from '../support/GameCreation';
 import { browserDocument } from './BrowserStorage';
 
 export async function createGame(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: /Quick game/ }).click();
-  await expect(page).toHaveURL(/\/game\/.+/);
+  // Quick game defaults to a built-in engine opponent, so ask for two local seats explicitly.
+  await useLocalPlayers(await openCustomGame(page));
+  await createWorkspace(page);
   await expect(page.locator('html')).toHaveAttribute('data-app-mode', 'false');
   expect(await page.evaluate(() => window.chessVueJourney)).toBeUndefined();
 }

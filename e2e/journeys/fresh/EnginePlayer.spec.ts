@@ -1,7 +1,7 @@
 import { test, expect } from '../../support/TestEvidence';
 import { openJourney } from '../../support/JourneyBootstrap';
 import { playMove } from '../../support/BoardInteraction';
-import { createWorkspace, openCustomGame, setCustomClock } from '../../support/GameCreation';
+import { createWorkspace, openCustomGame, setCustomClock, useFixedColours } from '../../support/GameCreation';
 import { configureEngines } from '../../support/EngineInventory';
 import { managedFiles, readGame, readSession } from '../../support/SaveInspection';
 
@@ -9,6 +9,7 @@ test('JRN-FRESH-06 creates a timed game with one legal engine reply', async ({ p
   await openJourney(page, 'fresh');
   await configureEngines(page, [{ name: 'Journey A', path: 'journey://a' }]);
   const dialog = await openCustomGame(page);
+  await useFixedColours(dialog);
   await setCustomClock(dialog);
   await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Use profile: Journey A' });
   const gameId = await createWorkspace(page);
@@ -28,6 +29,7 @@ test('JRN-FRESH-06 rejects an unavailable engine and recovers in the same form',
   await configureEngines(page, [{ name: 'Journey unavailable', path: 'journey://unavailable' }]);
   const before = await managedFiles(page);
   const dialog = await openCustomGame(page);
+  await useFixedColours(dialog);
   await setCustomClock(dialog);
   await dialog.getByLabel('Black', { exact: true }).selectOption({ label: 'Use profile: Journey unavailable' });
   await dialog.getByRole('button', { name: 'Create workspace', exact: true }).click();

@@ -1,8 +1,8 @@
 import { test, expect } from './DesktopTest';
 import { configureNativeEngines, createNativeAnalysis, engineSection, expectAnalysis } from './EngineAction';
 import { nativeProcesses, currentGame, processExists } from './NativeInspection';
-import { playOpening, setToggle } from './DesktopAction';
-import { setCustomClock } from '../support/GameCreation';
+import { createLocalGame, playOpening, setToggle } from './DesktopAction';
+import { setCustomClock, useFixedColours } from '../support/GameCreation';
 import { playMove } from '../support/BoardInteraction';
 import { expectCurrentAnalysis, replayLegalMoves } from '../browser/EngineAction';
 import { desktopEngineNames } from '../../journeys/definitions/desktop/data/DesktopScenario';
@@ -12,6 +12,7 @@ test('JRN-DESKTOP-03 owns independent native opponent and concurrent analysis pr
   const page = desktop.page;
   await configureNativeEngines(page, testInfo);
   const dialog = page.getByRole('dialog', { name: 'Set up a new board', exact: true });
+  await useFixedColours(dialog);
   await dialog.locator('#black-player').selectOption({ label: 'Use profile: Native A' });
   await setCustomClock(dialog, '1', '0');
   await setToggle(dialog.getByRole('checkbox', { name: /^Show live analysis moves/ }), true);
@@ -64,7 +65,7 @@ test('JRN-DESKTOP-04 isolates a killed native engine and retries with a new owne
   await expect(page.locator('.history-row')).toHaveCount(1);
   await expectAnalysis(page, [...desktopEngineNames]);
   expectCurrentAnalysis(await currentGame(page));
-  await page.getByRole('button', { name: 'Quick game', exact: true }).click();
+  await createLocalGame(page);
   await playOpening(page);
   await expect(page.locator('.result-badge')).toHaveText('black to move');
   await desktop.close();

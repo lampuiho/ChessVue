@@ -2,17 +2,16 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { IGame } from '../../src/contracts';
-import { openCustomGame, setCustomClock } from '../support/GameCreation';
+import { createWorkspace, openCustomGame, setCustomClock, useLocalPlayers } from '../support/GameCreation';
 import { playMove } from '../support/BoardInteraction';
 
 export async function createLocalGame(page: Page, timed = false) {
   await page.getByRole('button', { name: /Quick game/ }).waitFor();
-  if (timed) {
-    const dialog = await openCustomGame(page);
-    await setCustomClock(dialog, '5', '0');
-    await dialog.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  } else await page.getByRole('button', { name: /^Quick game/ }).click();
-  await expect(page).toHaveURL(/\/game\/.+/);
+  // Quick game defaults to a built-in engine opponent, so ask for two local seats explicitly.
+  const dialog = await openCustomGame(page);
+  await useLocalPlayers(dialog);
+  if (timed) await setCustomClock(dialog, '5', '0');
+  await createWorkspace(page);
   return new URL(page.url()).pathname.split('/').pop()!;
 }
 export async function playOpening(page: Page) {

@@ -5,9 +5,11 @@ import { browserGame, gameId } from './BrowserStorage';
 import type { IGame, IMove } from '../../src/contracts';
 import { StockfishConfig } from '../../src/config/StockfishConfig';
 import { browserReplyReloads } from '../../journeys/definitions/browser/data/BrowserScenario';
+import { useFixedColours } from '../support/GameCreation';
 
 async function _createTimedGame(page: import('@playwright/test').Page) {
   await configureStockfish(page);
+  await useFixedColours(page);
   await page.locator('#black-player').selectOption({ label: 'Use profile: Browser Stockfish' });
   await page.getByLabel('Clock', { exact: true }).selectOption('custom');
   await page.getByLabel('Minutes', { exact: true }).fill('1');

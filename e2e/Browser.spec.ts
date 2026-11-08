@@ -6,11 +6,13 @@ import { choosePlayer } from './journeys/play/PlaySetup';
 import { exportGame, playOpening } from './browser/BrowserAction';
 import { configureStockfish } from './browser/EngineAction';
 import { settleGameResult } from './support/GameResultDialog';
+import { useFixedColours, useLocalPlayers } from './support/GameCreation';
 
 test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile is removed', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await configureStockfish(page);
+  await useFixedColours(page);
   await page.locator('#black-player').selectOption({ label: 'Use profile: Browser Stockfish' });
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -29,6 +31,7 @@ test('JRN-SETTINGS-09 real Stockfish continues an untimed game after its profile
 });
 async function _importStockfishPuzzle(page: Page) {
   await configureStockfish(page);
+  await useLocalPlayers(page);
   await page.getByLabel('Clock', { exact: true }).selectOption('custom');
   await page.getByLabel('Minutes', { exact: true }).fill('1');
   await page.getByLabel('Increment (seconds)', { exact: true }).fill('2');

@@ -1,13 +1,14 @@
 import { expectTheme } from '../support/Appearance';
 import { test, expect } from '@playwright/test';
 import { playMove } from '../support/BoardInteraction';
+import { createWorkspace, openCustomGame, useLocalPlayers } from '../support/GameCreation';
 test('JRN-IO-03 rejects a real browser storage write without accepting preferences and persists the retry', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
-  await page.getByRole('button', { name: /Quick game/ }).click();
-  await expect(page).toHaveURL(/\/game\/.+/);
+  await useLocalPlayers(await openCustomGame(page));
+  await createWorkspace(page);
   await playMove(page, 'e2', 'e4');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Appearance', exact: true }).click();

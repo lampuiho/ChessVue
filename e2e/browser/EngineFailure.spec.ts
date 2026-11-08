@@ -2,13 +2,15 @@ import { test, expect } from './BrowserTest';
 import { configureEngines, createAnalysis, engineSection, expectAnalysis, expectCurrentAnalysis } from './EngineAction';
 import { exportGame, playOpening } from './BrowserAction';
 import { playMove } from '../support/BoardInteraction';
+import { createWorkspace, openCustomGame, useLocalPlayers } from '../support/GameCreation';
 import { StockfishConfig } from '../../src/config/StockfishConfig';
 import { browserEngineFailures } from '../../journeys/definitions/browser/data/BrowserScenario';
 
 async function _expectLocalPlay(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL(/\/game\/.+/);
-  await page.getByRole('button', { name: 'Quick game', exact: true }).click();
+  await useLocalPlayers(await openCustomGame(page));
+  await createWorkspace(page);
   await playOpening(page);
   await expect(page.locator('.history-row')).toHaveCount(1);
   await expect(page.locator('.result-badge')).toHaveText('black to move');

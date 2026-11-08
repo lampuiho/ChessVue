@@ -16,7 +16,8 @@ function _createBuiltInEngineRecord(): IEngineRecord {
   return { id: 'stockfish', displayName: 'Stockfish', clientType: EngineClientType.UciWorker, entryPath: StockfishConfig.entryPath, options: {} };
 }
 function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
-  return _coerceSettingsSnapshot({
+  // Parse like every other accepted snapshot so a draft clone of these defaults compares equal.
+  return _coerceSettingsSnapshot(settingsSnapshotSchema.parse({
     schemaVersion: 1,
     gameSession: {
       restorePreviousSession: true,
@@ -30,7 +31,7 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
       timeControl: { preset: TimeControlPreset.Untimed, incrementMs: 0 },
       whitePlayer: createLocalPlayer(PlayerColour.White),
       blackPlayer: createEnginePlayer(_createBuiltInEngineRecord(), PlayerColour.Black),
-      analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: false, randomiseColours: true,
+      analysisEngineProfiles: [], allowTakeback: true, showLiveAnalysisMoves: true, randomiseColours: true,
     },
     gameplay: {
       analysisBranchExitBehaviour: AnalysisBranchExitBehaviour.ReturnToLiveNode,
@@ -49,7 +50,7 @@ function _createDefaultSettingsSnapshot(): ISettingsSnapshot {
       showCoordinates: true,
       highlightLastMove: true,
     },
-  });
+  }));
 }
 function _coerceSettingsSnapshot(snapshot: ISettingsSnapshot): ISettingsSnapshot {
   if (snapshot.gameSession.restorePreviousSession) snapshot.gameSession.autosaveOnClose = true;

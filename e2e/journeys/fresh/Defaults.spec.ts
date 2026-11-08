@@ -11,6 +11,8 @@ async function _changeDefaults(page: Page) {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Gameplay', exact: true }).click();
   await page.getByLabel('Game name', { exact: true }).fill('Default match');
+  await page.getByText('Randomly assign colours', { exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: /^Randomly assign colours/ })).not.toBeChecked();
   await page.getByLabel('Black player', { exact: true }).selectOption({ label: 'Use profile: Journey A' });
   await page.getByLabel('Clock preset', { exact: true }).selectOption('custom');
   await page.getByLabel('Minutes', { exact: true }).fill('5');
@@ -18,6 +20,9 @@ async function _changeDefaults(page: Page) {
   await page.getByRole('button', { name: 'Save', exact: true }).click();
 }
 test('JRN-FRESH-09 applies defaults to future games and preserves an existing game', async ({ page }) => {
+  test.setTimeout(60000);
+  // Fix the colour draw so the built-in default opponent takes Black and never moves first.
+  await page.addInitScript(() => { Math.random = () => 0.75; });
   await openJourney(page, 'fresh');
   await configureEngines(page, [{ name: 'Journey A', path: 'journey://a' }]);
   await page.getByRole('button', { name: /Quick game/ }).click();

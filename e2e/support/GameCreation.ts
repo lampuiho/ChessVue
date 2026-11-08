@@ -6,6 +6,17 @@ export async function openCustomGame(page: Page): Promise<Locator> {
   await expect(dialog).toBeVisible();
   return dialog;
 }
+/** The creation dialog and the settings form both own a colour toggle, so either surface works here. */
+export async function useFixedColours(surface: Page | Locator) {
+  const toggle = surface.getByRole('checkbox', { name: /^Randomly assign colours/ });
+  // The styled track covers the input, so the toggle is driven through its label text.
+  if (await toggle.isChecked()) await surface.getByText('Randomly assign colours', { exact: true }).click();
+  await expect(toggle).not.toBeChecked();
+}
+export async function useLocalPlayers(surface: Page | Locator, blackLabel = 'Black') {
+  await useFixedColours(surface);
+  await surface.getByLabel(blackLabel, { exact: true }).selectOption('local');
+}
 export async function setCustomClock(dialog: Locator, minutes = '5', increment = '2') {
   await dialog.getByLabel('Clock', { exact: true }).selectOption('custom');
   await dialog.getByLabel('Minutes', { exact: true }).fill(minutes);

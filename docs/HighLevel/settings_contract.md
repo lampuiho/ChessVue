@@ -31,7 +31,7 @@ Only the user-editable choices listed below and the explicitly reserved appearan
 | `gameDefaults.randomiseColours` | Randomly assign the two participants to White and Black at creation | `true` | Optional boolean; omitted means fixed colours | Settings snapshot |
 | `gameDefaults.analysisEngineProfiles` | Analysis engine configuration snapshots | `[]` | Up to four complete profile snapshots with unique names | Settings snapshot |
 | `gameDefaults.allowTakeback` | Takeback preference copied into new games | `true` | Boolean; omitted uses built-in default | Settings snapshot |
-| `gameDefaults.showLiveAnalysisMoves` | Live-game analysis move preference copied into new games | `false` | Boolean; free analysis uses playable analysis moves | Settings snapshot |
+| `gameDefaults.showLiveAnalysisMoves` | Live-game analysis move preference copied into new games | `true` | Boolean; free analysis uses playable analysis moves | Settings snapshot |
 | `gameplay.analysisBranchExitBehaviour` | Decide what happens after analysis-only branch creation from history | `returnToLiveNode` | `returnToLiveNode` or `stayOnBranch` | Settings snapshot |
 | `gameplay.promotionPolicy` | Decide how promotion is resolved | `requireExplicitSelection` | `requireExplicitSelection` only in baseline | Settings snapshot |
 | `analysis.resumeLiveAnalysisAfterRestore` | Restart live analysis after saved-game restore when engines are available | `true` | Boolean | Settings snapshot |
