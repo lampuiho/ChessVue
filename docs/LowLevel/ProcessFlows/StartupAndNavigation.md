@@ -1,396 +1,714 @@
 # Startup And Navigation Flows
 
 ## Scope
-This document covers `SCN-SESSION-01` to `SCN-NAV-03`.
+This document covers `SCN-SESSION-01` to `SCN-NAV-03` together with the shared shell flows they depend on: application bootstrap, platform selection, the session route checkpoint, the navigation frame and the game menu interruption boundary.
+
+Storage calls are written against `IStorageAdapter`; their NW.js and browser implementations diverge only below that interface and are expanded in [Platform Storage Branches](PersistenceAndAdministration.md#platform-storage-branches). Engine-turn and analysis expansion after a game is inserted lives in [GameplayAndControl.md](GameplayAndControl.md), [AnalysisAndSetup.md](AnalysisAndSetup.md) and [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md). Route shape and view ownership are described in [Router](../Architecture/Presentation/Router.md) and the [view documents](../Architecture/Presentation/Views/index.md).
+
+## Shared Startup And Shell Flows
+
+### Bootstrap
+
+#### Flow A - Create And Mount The Application
+| `main.ts` bootstrap |
+| --- |
+| `createApp(App)` |
+| `app.use(createPinia())` |
+| `app.use(router)` |
+| `app.mount('#app')` |
+
+| `App` setup |
+| --- |
+| `useModalProvider` |
+| `App._applyAppearance` |
+| `onMounted(App startup callback)` |
+| `router.afterEach(App route checkpoint)` |
+| `onScopeDispose(removeRouteCheckpoint)` |
+
+| `App._applyAppearance` |
+| --- |
+| `SettingsStore.appearanceProjection` |
+| `App._applyThemeProfile` (light profile) |
+| `App._applyThemeProfile` (dark profile) |
+
+- `App` renders only a loading mark until `startupComplete`, `settings`, `gameSession` and `layoutState` all exist, so no route component mounts before the startup callback below has finished. The first `_applyAppearance` call runs during setup with `defaultLightThemeProfile`, `defaultDarkThemeProfile` and `ThemeMode.System`, so the loading surface is already themed.
+- `_applyAppearance` writes both `--theme-light-*` and `--theme-dark-*` variable banks, the three root font-size variables from `appearance.uiScalePercent`, `data-theme-mode`, `data-app-mode` (true only for the NW.js target) and the `color-scheme` and `theme-color` meta tags. CSS `color-scheme` and `light-dark()` select the bank in system mode; neither `App` nor `SettingsStore` queries or subscribes to the host theme. The rationale for replacing the earlier appearance `watchEffect` with explicit calls is recorded in the [watcher disposition](../../ArchivedPlans/CodeCleanupPlan.md#watcher-disposition).
+
+#### Flow B - Select The Platform Service
+| `PlatformService.ts` `usePlatformService` initialiser |
+| --- |
+| `getPlatformTarget` |
+| `defineNwjsPlatformServiceStore(getNwjs())` (NW.js target) |
+
+| `PlatformService.ts` `usePlatformService` initialiser |
+| --- |
+| `getPlatformTarget` |
+| `useBrowserPlatformService` (browser target) |
+
+- `getPlatformTarget` returns the build-time `__CHESSVUE_PLATFORM__` value when `CHESSVUE_PLATFORM` is `nwjs` or `browser`; with the default `auto` it selects NW.js only when a real or injected `nw.Window` exists. The selection happens once at module evaluation; every layer-2 service then calls `usePlatformService()` to reach the single Pinia platform store.
+- The NW.js store composes `NwjsStorageAdapter`, `NwjsSystemThemeAdapter` and two `NwjsProcessManager` instances (`EngineClientType.Uci` with `NwjsUciEngineClient`, `EngineClientType.UciWorker` with `BrowserUciEngineClient`). The browser store composes `BrowserStorageAdapter` over `BrowserFileSystem`, `BrowserSystemThemeAdapter` and `BrowserProcessManager` for `EngineClientType.UciWorker` only. The browser build is the GitHub Pages deployment. There is no packaged NW.js build: `npm run desktop` runs NW.js against a loopback Vite development server, and `auto` detection selects the NW.js store.
+
+### Application Startup
+
+#### Flow A - Load, Restore And Checkpoint
+| `App` startup callback (`onMounted`) |
+| --- |
+| `SettingsStore.loadSettings` |
+| `UiStateStore.loadGameSession` |
+| `UiStateStore.loadLayoutState` |
+| `App._applyAppearance` |
+| `App._restoreWorkspace` |
+| `SavedGamesStore.registerAutosaveOnClose` |
+| `UiStateStore.setActiveGame` or `UiStateStore.setActiveRoute` |
+| `App._saveSession` |
+
+| `SettingsStore.loadSettings` |
+| --- |
+| `UserSettingService.getSettingsOrDefault` |
+| `UserSettingService.getLoadWarning` |
+| `SettingsStore._acceptSettings` |
+
+| `UserSettingService.getSettingsOrDefault` |
+| --- |
+| `UserSettingService._readSettingsDocument` |
+| `UserSettingService._cacheAcceptedSettings` |
+
+| `UserSettingService._readSettingsDocument` |
+| --- |
+| `IStorageAdapter.readTextFile(BuildConfig.persistence.settingsPath)` |
+| `UserSettingService._deserialiseSettings` |
+
+| `UiStateStore.loadGameSession` |
+| --- |
+| `SerializationService.readGameSessionDocument(BuildConfig.persistence.gameSessionPath)` |
+| `UiStateStore._coerceGameSessionSnapshot` |
+
+| `SerializationService.readGameSessionDocument` |
+| --- |
+| `IStorageAdapter.readTextFile` |
+| `SerializationService.deserialiseGameSession` |
+
+| `UiStateStore.loadLayoutState` |
+| --- |
+| `SerializationService.readUiLayoutDocument(BuildConfig.persistence.layoutStatePath)` |
+
+| `SerializationService.readUiLayoutDocument` |
+| --- |
+| `IStorageAdapter.readTextFile` |
+| `SerializationService.deserialiseUiLayoutState` |
+
+| `SavedGamesStore.registerAutosaveOnClose` |
+| --- |
+| `SavedGamesStore.disposeAutosaveOnClose` |
+| `PlatformEventService.subscribeToAppCloseRequested` |
+
+| `UiStateStore.setActiveGame` |
+| --- |
+
+| `UiStateStore.setActiveRoute` |
+| --- |
+
+| `App._saveSession` |
+| --- |
+| `UiStateStore.saveGameSession` |
+
+| `UiStateStore.saveGameSession` |
+| --- |
+| `UiStateStore.loadGameSession` |
+| `SerializationService.writeGameSessionDocument(BuildConfig.persistence.gameSessionPath)` |
+
+| `SerializationService.writeGameSessionDocument` |
+| --- |
+| `SerializationService.serialiseGameSession` |
+| `IStorageAdapter.writeTextFile` (`overwrite: true`) |
+
+- The three loads run together through `Promise.all`. Each is idempotent: it returns immediately once loaded and shares its in-flight promise, so a later caller such as `EngineProfileView._load` never triggers a second read. `UserSettingService` reads and writes the settings document itself through its private helpers; `SerializationService.readSettingsDocument` and `writeSettingsDocument` are not on this path.
+- `_isCommittedRoute` accepts `/home`, `/game/:id`, `/saved-games/load`, `/saved-games/load/:name`, `/saved-games/save/:name` and the four `/settings/:category` paths. A `/game/:id` path calls `setActiveGame`; any other committed path calls `setActiveRoute`. Engine child routes under `/settings/engines/...` are not committed routes, so they are never written to the session snapshot.
+- Startup restore, the remembered-route branch and the invalid direct-game branch are split out under `SCN-SESSION-02` and `SCN-NAV-02`. Close-trigger autosave registration is expanded under [SCN-SAVE-01](PersistenceAndAdministration.md#scn-save-01---autosave-internal-save-entry).
+
+### Session Route Checkpoint
+
+#### Flow A - Checkpoint A Committed Game Route
+| `App` route checkpoint (`router.afterEach` callback) |
+| --- |
+| `UiStateStore.setActiveGame` |
+| `App._saveSession` |
+
+#### Flow B - Checkpoint Any Other Committed Route
+| `App` route checkpoint (`router.afterEach` callback) |
+| --- |
+| `UiStateStore.setActiveRoute` |
+| `App._saveSession` |
+
+- The callback returns without effect for a navigation failure, an unchanged path (duplicate or query-only navigation), any navigation before startup is ready, and any path `_isCommittedRoute` rejects. Startup performs its own initial checkpoint, so each successful committed path change is written exactly once.
+- `App._saveSession` clears `sessionSaveError` after a successful write. A rejected write sets a recoverable notice and reopens the dismissed warning; the in-memory session and open games stay usable and the next successful checkpoint clears the notice. The router hook replaced an earlier session-route watcher; see the [watcher disposition](../../ArchivedPlans/CodeCleanupPlan.md#watcher-disposition).
+
+### Navigation Frame
+
+#### Flow A - Toggle Desktop Expansion
+| `NavigationFrame` desktop toggle click handler |
+| --- |
+| `UiStateStore.toggleNavigationExpanded` |
+
+#### Flow B - Open The Mobile Navigation Drawer
+| `NavigationFrame._openDrawer` |
+| --- |
+| `useModal().open(NavigationMenuModal, { content }, onClosed)` |
+
+| `NavigationMenuModal` click, overlay or Escape handler |
+| --- |
+| `emit('dismissed')` |
+
+| `NavigationFrame` `onBeforeUnmount` |
+| --- |
+| `IModalHandle.close` |
+
+- `NavigationFrame` owns layout only. `MenuBar` (inside `GameView`), `SavedGamesView` and `SettingsView` supply its `brand`, default and `footer` slots; `HomeView` uses its own action cards and has no frame. The drawer renders the same slot functions, so every action keeps its owning handler, and any click inside the drawer dismisses it after that handler runs. `UiStateStore.navigationExpanded` is a transient preference shared across views and is not persisted.
+
+### Game Menu Interruption
+
+#### Flow A - Leave The Board From The Game Menu
+| `GameView` menu-event handler (`homeRequested`, `loadGameRequested`, `saveGameRequested` or `settingsRequested`) |
+| --- |
+| `GameView._run` |
+| `GameView._handleMenuInterruptionRequested` |
+
+| `GameView._handleMenuInterruptionRequested` |
+| --- |
+| `OperationOwner.cancel` (analysis-line playback) |
+| `GamesStore.pauseGame(game, PauseReason.Menu)` |
+| `router.push(target)` |
+
+#### Flow B - Complete The Menu Pause On Activation
+| `GameView._activateGame` |
+| --- |
+| `OperationOwner.cancel` (analysis-line playback) |
+| `GameView._closeContinuation` |
+| `GamesStore.getGame` |
+| `GameView._handleMenuInterruptionCompleted` |
+
+| `GameView._handleMenuInterruptionCompleted` |
+| --- |
+| `GamesStore.resumeGame(game, PauseReason.Menu)` |
+
+- `GamesStore.pauseGame` runs only when the accepted `gameSession.autoPauseOnMenu` is true, and `GameClockComposable.pauseGame` then pauses only an ongoing timed game with a running clock, or adds `PauseReason.Menu` to a game that is already paused; untimed games keep running. The clock rules for timed live states and the paused-turn deferral are expanded in [SCN-TIME-05](GameplayAndControl.md#scn-time-05---menu-actions-auto-pause-timed-games). Targets are `/home`, `/saved-games/load`, `/saved-games/save/:id` and `/settings/session`.
+- `GameView` calls `_activateGame` from `onMounted` and from `onBeforeRouteUpdate`, so returning to a game from any route, or switching tabs, completes only a pause whose reason list contains `PauseReason.Menu`. Manual pauses and pauses restored from a saved document (which `GameWorkspaceComposable._hydrateAndInsertGame` marks `PauseReason.Manual`) remain paused. The activation action replaced the earlier game-ID watcher.
+
+## App And Session Start
 
 ### SCN-SESSION-01 - Fresh Launch with No Saved State
 
-#### Flow A - Home Route Setup
-| `HomeView.setup` |
-| --- |
-| `SettingsStore.loadSettings` |
-| `SettingsStore.appearanceProjection` |
-| `UiStateStore.loadLayoutState` |
-| `RecentGameStore.getRecentGames` |
-
-| `SettingsStore.appearanceProjection` |
-| --- |
-| `SettingsStore._buildAppearanceProjection` |
-
-| `SettingsStore.loadSettings` |
-| --- |
-| `UserSettingService.getSettingsOrDefault` |
-| `SettingsStore._acceptSettings` |
-
-| `UiStateStore.loadLayoutState` |
-| --- |
-| `SerializationService.readUiLayoutDocument` |
-| `UiStateStore._coerceLayoutState` |
-
-| `RecentGameStore.getRecentGames` |
-| --- |
-| `SerializationService.listManagedSaveEntries` |
-| `SavedGameIndexService.projectSaveGroups` |
-| `RecentGameStore._projectRecentEntries` |
-| `RecentGameStore._sortMostRecentFirst` |
-
-- UI surface coverage: startup lands on a centred `HomeView`, which exposes one single-row group of large square action buttons for quick new, custom new, load, and settings without auto-creating a workspace. Because this scenario starts with no saved games, the recent games list remains hidden.
-- State/settings coverage: there is no eager bootstrap hydration phase. `HomeView.setup` uses the same lazy read path regardless of whether backing files exist; missing files simply resolve to defaults or empty projections. The root installs both configured profile snapshots, and `appearance.themeMode = ThemeMode.System` lets CSS follow the system colour scheme without writing a new settings snapshot.
-- Requirement verification: `Pass`. Fresh launch uses the same route and setup path as any other home-screen entry, theme and layout are resolved only when needed, and an empty install still lands on `/home` without special-case bootstrap logic.
-
-### SCN-SESSION-02 - Restore Previous Session
-
-#### Flow A - Restore Saved Tabs And Route
-| `HomeView.setup` |
+#### Flow A - Start With Empty Storage
+| `App` startup callback (`onMounted`) |
 | --- |
 | `SettingsStore.loadSettings` |
 | `UiStateStore.loadGameSession` |
-| `Router._restoreReturnRoute` |
-
-| `SettingsStore.loadSettings` |
-| --- |
-| `UserSettingService.getSettingsOrDefault` |
-| `SettingsStore._acceptSettings` |
-
-| `UiStateStore.loadGameSession` |
-| --- |
-| `SerializationService.readGameSessionDocument` |
-| `UiStateStore._coerceOpenTabs` |
-| `UiStateStore._coerceActiveRoute` |
-
-#### Flow B - Restore The Routed Game Lazily
-| `GameView.setup` |
-| --- |
-| `SavedGamesStore.restoreGames` |
-| `GamesStore.insertGame` |
-| `UiStateStore.setActiveGame` |
-
-| `SavedGamesStore.restoreGames` |
-| --- |
-| `SerializationService.listManagedSaveEntries` |
-| `SavedGameIndexService.projectSaveGroups` |
-| `SavedGameIndexService.getLatestSaveEntryForGame` |
-| `SerializationService.readGameDocument` |
-
-| `GamesStore.insertGame` |
-| --- |
-| `GameWorkspaceComposable.repairDuplicateGameId` |
-| `GameWorkspaceComposable.hydrateAndInsertGame` |
-
-| `UiStateStore.setActiveGame` |
-| --- |
-
-#### Flow C - Resume Continuous Analysis After Restore
-| `GameView._resumeVisibleAnalysisIfAllowed` |
-| --- |
-| `GamesStore.refreshAnalysis` |
-
-| `GamesStore.refreshAnalysis` |
-| --- |
-| `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable.startAnalysisSeat` |
-| `GameAnalysisComposable.subscribeToAnalysis` |
-
-| `GameAnalysisComposable.startAnalysisSeat` |
-| --- |
-| `EngineRuntimeService.ensureReady` |
-| `EngineRuntimeService.startAnalysis` |
-
-| `GameView._handleAnalysisRuntimeUpdate` |
-| --- |
-| `GameAnalysisComposable.subscribeToAnalysis callback` |
-
-#### Flow D - Request Engine Turn After Restore
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
-| --- |
-| `GamePlayerTurnComposable.requestPlayerMove` |
-| `GamePlayerTurnComposable.playerMoveHandler` |
-
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
-| --- |
-| `GamePlayerTurnComposable.requestPlayerMove` |
-| `GamePlayerTurnComposable.playerMoveHandler` |
-
-| `GamePlayerTurnComposable.requestEngineMove` |
-| --- |
-| `EngineRuntimeService.ensureReady` |
-| `EngineRuntimeService.startPlayerTurn` |
-| `EngineRuntimeService.awaitPlayerTurnMove` |
-
-| `GamePlayerTurnComposable.playerMoveHandler` |
-| --- |
-| `GameMoveComposable.commitLiveMove` |
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
-
-- State/settings coverage: `gameSession.restorePreviousSession` is the gate for reusing the stored game-session snapshot and active route, but the read happens lazily from `HomeView.setup` rather than a startup bootstrap. Because session restore depends on prior tabs being reopenable, accepted settings coerce `gameSession.autosaveOnClose = true` whenever `gameSession.restorePreviousSession = true`. When the restored route resolves to a game, `GameView.setup` lazily restores only the requested remembered `gameId` values from that session snapshot, asks `SavedGamesStore.restoreGames(...)` for an isolated outcome for each latest managed save target, then feeds each successful payload into `GamesStore.insertGame(...)` and retains failures for reporting. `analysis.resumeLiveAnalysisAfterRestore` still gates whether continuous analysis restarts after the restored game state is visible.
-- Restore ownership coverage: `SerializationService.deserialiseGame` validates the canonical persisted shape and selector paths only. `SavedGamesStore.restoreGames(...)` owns restore lookup and document reads, while `GamesStore.insertGame(...)` rebuilds `$.parent` and resolves the current hydrated live or visible nodes before any node-based runtime interaction can resume.
-- Requirement verification: `Pass`. Session restore is lazy, route-driven, respects the restore setting, repairs invalid `activeGameId` values before the game view binds, and falls back deterministically to `/home` when restore cannot succeed.
-
-### SCN-SESSION-03 - Startup with Corrupt Persisted Data
-
-#### Flow A - Home Route Setup With Corrupt Optional Data
-| `HomeView.setup` |
-| --- |
-| `SettingsStore.loadSettings` |
-| `SettingsStore.appearanceProjection` |
 | `UiStateStore.loadLayoutState` |
-| `UiStateStore.loadGameSession` |
-| `RecentGameStore.getRecentGames` |
-
-| `SettingsStore.appearanceProjection` |
-| --- |
-| `SettingsStore._buildAppearanceProjection` |
-
-| `SettingsStore.loadSettings` |
-| --- |
-| `UserSettingService.getSettingsOrDefault` |
-| `SettingsStore._acceptSettings` |
+| `App._applyAppearance` |
+| `App._restoreWorkspace` |
+| `SavedGamesStore.registerAutosaveOnClose` |
+| `UiStateStore.setActiveRoute('/home')` |
+| `App._saveSession` |
 
 | `UserSettingService.getSettingsOrDefault` |
 | --- |
-| `SerializationService.readSettingsDocument` |
+| `UserSettingService._readSettingsDocument` |
 | `UserSettingService._createDefaultSettingsSnapshot` |
 | `UserSettingService._cacheAcceptedSettings` |
 
-| `UiStateStore.loadLayoutState` |
-| --- |
-| `SerializationService.readUiLayoutDocument` |
-| `UiStateStore._resetInvalidLayoutState` |
-
 | `UiStateStore.loadGameSession` |
 | --- |
 | `SerializationService.readGameSessionDocument` |
-| `UiStateStore._resetInvalidGameSession` |
+| `UiStateStore._createDefaultGameSession` |
+
+| `UiStateStore.loadLayoutState` |
+| --- |
+| `SerializationService.readUiLayoutDocument` |
+| `UiStateStore._createDefaultLayoutState` |
+
+| `App._restoreWorkspace` |
+| --- |
+| `SavedGamesStore.restoreGames([])` |
+| `GamesStore.listGames` |
+
+#### Flow B - Home Route Setup
+| `HomeView` `onMounted` |
+| --- |
+| `HomeView._refreshRecentGames` |
+
+| `HomeView._refreshRecentGames` |
+| --- |
+| `RecentGameStore.getRecentGames` |
 
 | `RecentGameStore.getRecentGames` |
 | --- |
+| `UserSettingService.getSettingsOrDefault` |
+| `RecentGameStore._listManagedSaveGroups` |
+| `SavedGameIndexService.getLatestSaveEntry` |
+| `SerializationService.readGameDocument` |
+
+| `RecentGameStore._listManagedSaveGroups` |
+| --- |
 | `SerializationService.listManagedSaveEntries` |
 | `SavedGameIndexService.projectSaveGroups` |
-| `RecentGameStore._skipInvalidRecentTarget` |
 
-#### Flow B - Corrupt Restored Game Payload
-| `GameView.setup` |
+| `SerializationService.listManagedSaveEntries` |
 | --- |
-| `SavedGamesStore.restoreGames` |
+| `IStorageAdapter.listDirectory(saveRootPath)` |
+| `IStorageAdapter.listDirectory(gameFolderPath)` |
+
+- A missing settings, session or layout document is a `PlatformErrorKind.NotFound` read, which resolves to the built-in default without a recovery warning. The default settings enable session restore, set `saveRootPath = 'saves'`, `autosaveAfterMoveCount = 1`, `autosaveOnClose = true` and `autoPauseOnMenu = true`, seed the engine inventory and the Black default player with the bundled Stockfish worker profile, enable random colours, and use `ThemeMode.System`. Defaults are cached in memory only; nothing is written until an explicit settings Apply, Save or Reset.
+- A missing save root makes `listManagedSaveEntries` return an empty map, so `projectSaveGroups` yields no groups and no game documents are read. The session snapshot is the only document written by a fresh launch, through the startup checkpoint.
+- UI surface coverage: `HomeView` shows four action cards: Quick game (`useQuickGame.start`), Custom game (`HomeView._openCustomGame`), Load game (`router.push('/saved-games/load')`) and Settings (`router.push('/settings/session')`). It shows "Looking for recent games…" while the first query runs, and the Recent games section only when at least one entry exists.
+- Requirement verification: `Pass`. Fresh launch uses the ordinary startup path with no special-case bootstrap branch, the empty install lands on `/home` without creating a workspace, and every read reaches storage through layer-2 services.
+
+### SCN-SESSION-02 - Restore Previous Session
+
+#### Flow A - Reopen The Remembered Games
+| `App._restoreWorkspace` |
+| --- |
+| `SavedGamesStore.restoreGames(openGameIds)` |
+| `GamesStore.insertGame` (each restored outcome) |
+| `UiStateStore.addRecoveryWarning` (insert rejected) |
+| `GamesStore.listGames` |
+| `UiStateStore.closeTab` (each unrestored id) |
+| `UiStateStore.addRecoveryWarning` (each unrestored id) |
 
 | `SavedGamesStore.restoreGames` |
+| --- |
+| `SavedGamesStore.listSavedGames` |
+| `SavedGamesStore._restoreGame` (each id) |
+
+| `SavedGamesStore.listSavedGames` |
+| --- |
+| `SavedGamesStore._getSaveRootPath` |
+| `SavedGamesStore._listManagedSaveGroups` |
+
+| `SavedGamesStore._getSaveRootPath` |
+| --- |
+| `UserSettingService.getSettingsOrDefault` |
+
+| `SavedGamesStore._listManagedSaveGroups` |
+| --- |
+| `SerializationService.listManagedSaveEntries` |
+| `SavedGameIndexService.projectSaveGroups` |
+
+| `SavedGamesStore._restoreGame` |
 | --- |
 | `SavedGameIndexService.getLatestSaveEntryForGame` |
 | `SerializationService.readGameDocument` |
-| `SavedGamesStore.restoreGames` |
 
-- Requirement verification: `Pass`. Corrupt settings, game-session, UI-layout, recent-save targets, or game payloads fall back independently through lazy reads, and corrupt core game payloads are isolated instead of crashing app entry.
+| `SerializationService.readGameDocument` |
+| --- |
+| `IStorageAdapter.readTextFile` |
+| `SerializationService.deserialiseGame` |
+
+| `GamesStore.insertGame` |
+| --- |
+| `GameWorkspaceComposable.insertGame` |
+
+| `GameWorkspaceComposable.insertGame` |
+| --- |
+| `GameWorkspaceComposable._hydrateAndInsertGame` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `UserSettingService.getSettingsOrDefault` |
+| `GameAnalysisComposable.refreshAnalysisForGame` |
+
+| `GameWorkspaceComposable._hydrateAndInsertGame` |
+| --- |
+| `GameWorkspaceComposable._repairDuplicateGameId` |
+| `GamePositionComposable.hydrateGame` |
+| `GamePlayerTurnComposable.normalisePlayers` |
+| `GameWorkspaceComposable._replaceGame` |
+| `GameClockComposable.refreshRuntimeRegistrations` |
+
+| `UiStateStore.closeTab` |
+| --- |
+
+| `UiStateStore.addRecoveryWarning` |
+| --- |
+
+#### Flow B - Restore Disabled
+| `App._restoreWorkspace` |
+| --- |
+| `UiStateStore.closeTab` (each remembered id) |
+| `UiStateStore.setActiveRoute('/home')` |
+
+#### Flow C - Return To The Remembered Route
+| `App` startup callback (`onMounted`) |
+| --- |
+| `router.replace(restoredRoute)` |
+| `UiStateStore.setActiveGame` or `UiStateStore.setActiveRoute` |
+| `App._saveSession` |
+
+- Restore gate: `settings.gameSession.restorePreviousSession`. Accepted settings coerce `gameSession.autosaveOnClose = true` whenever restore is enabled, so every reopenable tab also has a close-trigger autosave; `SettingsView` disables that toggle accordingly. When restore is disabled, tabs are removed from the session but saved documents remain loadable from the library.
+- Restore ownership: `SavedGamesStore.restoreGames` lists the save root once and returns one isolated `GameRestoreOutcome` per id (`restored` with the latest document, or `failed` with its error); a rejection of the whole call is treated as no outcomes. `App` feeds each restored payload to `GamesStore.insertGame` in session order, then closes any requested id that is not in `GamesStore.listGames()` and adds a warning naming it. `UiStateStore.closeTab` repairs `activeGameId` and `activeRoute`, so the persisted session no longer references a game that failed to load.
+- Insertion: `_hydrateAndInsertGame` rebuilds parent links and node caches through `GamePositionComposable.hydrateGame`, replaces a saved paused state's missing runtime owner with `PauseReason.Manual` so a restored pause needs an explicit resume, normalises player runtime and registers focus-return clock reconciliation. `insertGame` then requests the next live turn (expanded in [Live Player Turn Request And Engine Moves](GameplayAndControl.md#live-player-turn-request-and-engine-moves)) and refreshes analysis only when `analysis.resumeLiveAnalysisAfterRestore` is true, the game is not in `GameState.BoardEdit` and it has analysis seats (expanded in [SCN-ANALYSIS-01](AnalysisAndSetup.md#scn-analysis-01---start-single-engine-analysis)). It resolves only after those seats have started; each seat's start failure is caught and shown on that seat. Startup therefore keeps the loading surface until every restored game's analysis engines have started.
+- Remembered route: `App` replaces the current route with the restored `activeRoute` only when the browser path is `/` or `/home`, the restored route is committed and it is not `/home`. A direct link to any other path therefore wins over the remembered route. The restored route has already been coerced by `UiStateStore` against the surviving tabs.
+- Requirement verification: `Pass`. Restore is gated by the accepted setting, isolates every game, repairs the session before the first checkpoint, and reaches storage only through `SavedGamesStore` and layer-2 services.
+
+### SCN-SESSION-03 - Startup with Corrupt Persisted Data
+
+#### Flow A - Corrupt Settings Document
+| `UserSettingService.getSettingsOrDefault` |
+| --- |
+| `UserSettingService._readSettingsDocument` |
+| `UserSettingService._createDefaultSettingsSnapshot` |
+| `UserSettingService._cacheAcceptedSettings` |
+
+| `SettingsStore.loadSettings` |
+| --- |
+| `UserSettingService.getSettingsOrDefault` |
+| `UserSettingService.getLoadWarning` |
+| `SettingsStore._acceptSettings` |
+
+#### Flow B - Corrupt Session Or Layout Document
+| `UiStateStore.loadGameSession` |
+| --- |
+| `SerializationService.readGameSessionDocument` |
+| `UiStateStore.addRecoveryWarning` |
+| `UiStateStore._createDefaultGameSession` |
+
+| `UiStateStore.loadLayoutState` |
+| --- |
+| `SerializationService.readUiLayoutDocument` |
+| `UiStateStore.addRecoveryWarning` |
+| `UiStateStore._createDefaultLayoutState` |
+
+#### Flow C - Corrupt Remembered Game
+| `App._restoreWorkspace` |
+| --- |
+| `SavedGamesStore.restoreGames` |
+| `GamesStore.listGames` |
+| `UiStateStore.closeTab` |
+| `UiStateStore.addRecoveryWarning` |
+
+| `SavedGamesStore._restoreGame` |
+| --- |
+| `SavedGameIndexService.getLatestSaveEntryForGame` |
+| `SerializationService.readGameDocument` |
+
+#### Flow D - Corrupt Recent Target
+| `RecentGameStore.getRecentGames` |
+| --- |
+| `RecentGameStore._listManagedSaveGroups` |
+| `SavedGameIndexService.getLatestSaveEntry` |
+| `SerializationService.readGameDocument` |
+
+| `HomeView._refreshRecentGames` |
+| --- |
+| `RecentGameStore.getRecentGames` |
+
+#### Flow E - Present The Recovery Notice
+| `App` recovery-notice "Saved games" click handler |
+| --- |
+| `router.push('/saved-games/load')` |
+
+| `App` recovery-notice "Settings" click handler |
+| --- |
+| `router.push('/settings/session')` |
+
+- Settings: any read failure other than `NotFound` logs, records `UserSettingService.getLoadWarning()` and caches the defaults. The corrupt file is retained until an explicit Apply, Save or Reset writes a new document. `_deserialiseSettings` validates with `settingsSnapshotSchema` before coercion.
+- Session and layout: `SerializationService` rejects malformed JSON, `schemaVersion` other than 1, schema failures and an `activeGameId` missing from `openGameIds`. `UiStateStore` logs, adds a warning and uses the default snapshot; the default session is written by the startup checkpoint, while the corrupt layout file stays until a fold change writes a new layout.
+- Games: `SerializationService.deserialiseGame` validates the canonical schema, the move-tree `mainlineChildIndex` values and that `renderedPath` and `livePath` resolve. A failed remembered game closes its tab with a warning. An insert rejection adds its own warning; when the game never entered the workspace, the following membership check also closes the tab and adds the second, generic warning. A corrupt recent target is logged and skipped, and a failed listing makes `HomeView` show an empty list.
+- The notice concatenates `SettingsStore.recoveryWarning`, `UiStateStore.recoveryWarnings` and the session-write error, and offers Saved games, Settings and Dismiss. On the browser target an invalid `chessvue:files:v1` index fails every read with `PlatformErrorKind.InvalidDocument`, so all three warnings appear and the libraries are empty until the index is repaired; the adapter never rewrites it implicitly.
+- Requirement verification: `Pass`. Each artefact falls back independently, valid documents remain usable, and no corrupt source file is silently overwritten except the session snapshot repaired by the checkpoint.
+
+## Game Creation And Navigation
 
 ### SCN-GAME-01 - Quick New Game from Menu
 
-#### Flow
-| `useQuickGame.start` (Home and MenuBar) |
+#### Flow A - Create From Accepted Defaults
+| `useQuickGame.start` (HomeView Quick game card, MenuBar Quick game button) |
 | --- |
+| `SettingsStore.settings` (accepted `gameDefaults`) |
+| `OperationOwner.run` |
+| `useQuickGame._validateRequiredEngines` |
 | `GamesStore.createGame` |
 | `UiStateStore.openTab` |
-| `router.push` |
-| committed route: App.afterEach sets active game and saves session |
+| `router.push('/game/' + id)` |
+
+| `useQuickGame._validateRequiredEngines` |
+| --- |
+| `EngineRuntimeService.getOptions` (each engine player) |
 
 | `GamesStore.createGame` |
 | --- |
 | `GameWorkspaceComposable.createGame` |
+
+| `GameWorkspaceComposable.createGame` |
+| --- |
+| `GameWorkspaceComposable._createGameMetadata` |
 | `GameClockComposable.initialiseClockSnapshot` |
-| `GameWorkspaceComposable.hydrateAndInsertGame` |
+| `GameWorkspaceComposable._createPlayers` |
+| `MoveHistoryService.createMoveTree` |
+| `GameClockComposable.startClock` (live request) |
+| `GameAnalysisComposable.createAnalysisSeat` (each analysis profile) |
+| `GameWorkspaceComposable._hydrateAndInsertGame` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `GameAnalysisComposable.refreshAnalysisForGame` (seats exist) |
+
+| `GameWorkspaceComposable._createPlayers` |
+| --- |
+| `Math.random` (random-colour request) |
+| `GameWorkspaceComposable._assignPlayer` (White seat) |
+| `GameWorkspaceComposable._assignPlayer` (Black seat) |
+
+| `GameWorkspaceComposable._assignPlayer` |
+| --- |
+| `GamePlayerTurnComposable.createPlayerSnapshot` |
 
 | `UiStateStore.openTab` |
 | --- |
-| `UiStateStore._coerceOpenTabs` |
 
-| `UiStateStore.setActiveGame` |
+#### Flow B - Required Engine Unavailable
+| `useQuickGame.start` |
 | --- |
+| `useQuickGame._validateRequiredEngines` |
+| `EngineRuntimeService.getOptions` |
 
-| `UiStateStore.saveGameSession` |
+| `HomeView` or `MenuBar` "Edit game defaults" click handler |
 | --- |
-| `SerializationService.writeGameSessionDocument` |
+| `router.push('/settings/gameplay')` |
 
-- Requirement verification: `Pass`. The game becomes active immediately, and session-route persistence remains decoupled from workspace creation.
+#### Flow C - Leave While Creation Is Pending
+| `useQuickGame._cancel` (`onBeforeRouteLeave`, `onBeforeRouteUpdate`) |
+| --- |
+| `OperationOwner.cancel` |
+
+- Request construction: `start` returns immediately while `isWorking` or before settings exist, then validates and copies the accepted defaults with `getGameCreationError` and `copyGameRequest` from `GameCreationUtility`. When either seat is unassigned the copied request sets `showLiveAnalysisMoves = true`; the user's live-game preference in settings is unchanged. A validation or readiness failure sets `errorMessage`, creates nothing, and shows the "Edit game defaults" link.
+- Random player side: `_createPlayers` swaps the two requested players with probability one half when `randomiseColours` is true and both seats are assigned. Local players still carrying the default names White and Black are renamed Player 1 and Player 2 after the participant who was entered in each slot, so the labels do not contradict the drawn colours. Unassigned or single-seat requests never swap.
+- Readiness and cancellation: required live player engines are checked with `EngineRuntimeService.getOptions` using a temporary seat id equal to the player colour; its temporary session owns its own cleanup. The `OperationOwner` prevents duplicate starts and is cancelled when the hosting route is left or updated and disposed with the component scope. `abortable` stops waiting for `createGame` on cancellation, and the signal checks prevent tab opening and navigation; a creation that had already started still inserts its game into `GamesStore`, matching the post-insertion semantics recorded in [QuickGameDefaultsDesign](../../ArchivedPlans/QuickGameDefaultsDesign.md#ownership-and-creation-flows).
+- Engine startup: `createGame` awaits `refreshAnalysisForGame` when the request has analysis profiles, so navigation follows analysis-seat start; the opening player turn is requested without waiting.
+- Route checkpoint: `router.push` commits `/game/:id`, `GameView` activates the game, and the [route checkpoint](#session-route-checkpoint) calls `UiStateStore.setActiveGame` and saves the session.
+- Requirement verification: `Pass (layer exception)`. The game is created from accepted snapshots and becomes the active tab after routing. The readiness check is a deliberate presentation-to-domain call to `EngineRuntimeService.getOptions`, reused instead of adding a store pass-through; its rationale is in [QuickGameDefaultsDesign](../../ArchivedPlans/QuickGameDefaultsDesign.md#ownership-and-creation-flows).
 
 ### SCN-GAME-02 - Custom New Game with User Options
 
-#### Flow A - Create The Requested Workspace
-
-Home or the captured Game menu action opens GameCreationModal through useModal. The mounted form's _submit validates its local request and required engines, then awaits GamesStore.createGame. After checking its signal, it opens the returned game's tab, requests the game route and emits dismissed to its captured provider owner. Setup submission instead awaits GamesStore.startGameFromSetup for the captured prepared game. No child createRequested/cancelRequested relay remains.
-
-#### Flow B - Start Continuous Analysis For The New Workspace
-
-The existing GameWorkspaceComposable creation/setup action owns analysis seat initialisation and analysis refresh through the store's composed dependencies. AnalysisPanel reads reactive accepted lines/status directly; no GameView runtime-update callback or publication counter is involved.
-
-#### Flow C - Request The Opening Engine Turn
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+#### Flow A - Open From Home
+| `HomeView._openCustomGame` |
 | --- |
-| `GamePlayerTurnComposable.requestPlayerMove` |
-| `GamePlayerTurnComposable.playerMoveHandler` |
+| `useModal().open(GameCreationModal, {})` |
 
-| `GamePlayerTurnComposable.requestEngineMove` |
+#### Flow B - Open From The Game Menu
+| `GameView` `customNewGameRequested` handler |
 | --- |
-| `EngineRuntimeService.ensureReady` |
-| `EngineRuntimeService.startPlayerTurn` |
-| `EngineRuntimeService.awaitPlayerTurnMove` |
+| `GameView._run` |
+| `GameView._openCustomGame` |
 
-- UI surface coverage: the custom creation flow uses `GameCreationModal` inside the shared dialog shell, with named form sections, shared dialog-row create or cancel actions, and a live-game-only `Show Live Analysis Moves` toggle.
-- State/settings coverage: any request with both sides assigned becomes a live state, while any request with either side unassigned becomes a non-live analysis state. At the low-level request boundary, that unassigned state is encoded by omitting the relevant player-type or engine-id field. When the request creates a live game, it also captures the per-game `showLiveAnalysisMoves` choice. `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` is evaluated immediately after creation for every playable live turn, including `PlayerType.Engine/PlayerType.Engine`.
-- Requirement verification: `Pass`. Partially or fully unassigned player requests resolve into non-live analysis, and `PlayerType.Engine/PlayerType.Engine` reuses the same live engine-turn gate as any other engine-controlled start.
+| `GameView._openCustomGame` |
+| --- |
+| `GameView._handleMenuInterruptionRequested` |
+| `useModal().open(GameCreationModal, {}, onClosed)` |
+
+| `GameView._openCustomGame` `onClosed` callback |
+| --- |
+| `GameView._handleMenuInterruptionCompleted` |
+
+#### Flow C - Submit The Creation Form
+| `GameCreationModal._submit` |
+| --- |
+| `useModalAction.run` |
+| `GameCreationModal._validateRequiredEngines` |
+| `GamesStore.createGame` |
+| `UiStateStore.openTab` |
+| `router.push('/game/' + id)` |
+| `emit('dismissed')` |
+
+| `GameCreationModal._validateRequiredEngines` |
+| --- |
+| `EngineRuntimeService.getOptions` (each engine player) |
+
+| `GamesStore.createGame` |
+| --- |
+| `GameWorkspaceComposable.createGame` |
+
+- Form ownership: each opening mounts a fresh `GameCreationModal` whose `_initialForm` copies the accepted `SettingsStore.settings.gameDefaults`; an unsaved settings draft never seeds a game. Player and analysis choices come from `EnginesStore.listConfiguredEngines`, which reads the accepted engine inventory. The live/analysis mode switch and `_effectiveRequest` omit both players in analysis mode, which makes `GameWorkspaceComposable.createGame` start a free-analysis workspace with `showLiveAnalysisMoves = true`; the random-colour toggle is disabled until both seats are assigned.
+- Async ownership: `useModalAction.run` rejects duplicate submissions, disables dismissal while working and shows failures inline. The modal checks its `signal` after readiness and after creation, so a dismissal or replacement prevents tab opening and navigation. `dismissed` is emitted only after a successful action, and `ModalComposable` then unmounts the owner and runs its `onClosed` callback once. The design is recorded in [ModalComponentDesign](../../ArchivedPlans/ModalComponentDesign.md).
+- Menu pause: the game-menu entry pauses the displayed game before the modal opens. Its `onClosed` callback resumes that game only when it is still displayed; creating a game navigates away, and returning to the interrupted game later completes the pause through `GameView._activateGame`.
+- Setup branch: `GameControlPanel` opens the same modal with a `gameId` for a prepared board, and `_submit` then calls `GamesStore.startGameFromSetup` instead of creating a game. That flow belongs to [SCN-FREE-ANALYSIS-03](AnalysisAndSetup.md#scn-free-analysis-03---start-a-real-game-from-free-analysis--setup).
+- Opening engine turn: `GameWorkspaceComposable.createGame` calls `requestPlayerMoveIfNeeded` immediately after insertion for every live game, including engine against engine; see [Live Player Turn Request And Engine Moves](GameplayAndControl.md#live-player-turn-request-and-engine-moves).
+- Requirement verification: `Pass (layer exception)`. Validation blocks invalid clocks, names, missing engine paths and more than four or duplicate analysis engines before creation; unassigned seats produce free analysis. The required-engine readiness call is the same recorded presentation-to-domain exception as `SCN-GAME-01`.
 
 ### SCN-GAME-03 - Multi-Game Tab Navigation and Visibility
 
-#### Flow
+#### Flow A - Select A Tab
+| `GameTabs._run` (tab click) |
+| --- |
 | `useGameTabActions.select(id)` |
+
+| `useGameTabActions.select` |
 | --- |
 | `router.push('/game/' + id)` |
-| successful route activation and App.afterEach checkpoint |
+
+| `GameView` `onBeforeRouteUpdate` |
+| --- |
+| `GameView._activateGame` |
+
+| `App` route checkpoint (`router.afterEach` callback) |
+| --- |
 | `UiStateStore.setActiveGame` |
-| `GamesStore.getGame` |
+| `App._saveSession` |
 
-Selection is published only after a successful committed route; a rejected route retains the previous selected tab. GameTabs reads existing canonical names and open-game membership without props/events. Explicit close, shared with MenuBar, resolves the closing game, clears only its premoves, closes its session tab and navigates to the existing fallback. Switching retains queues; closing does not dispose the canonical game/turn or delete saves.
+#### Flow B - Close A Tab Or The Displayed Game
+| `GameTabs._run` (tab close), `MenuBar._closeGame` or `GameResultModal._exit` |
+| --- |
+| `useGameTabActions.close(id)` |
 
+| `useGameTabActions.close` |
+| --- |
+| `UiStateStore.gameSession` (open-tab membership) |
 | `GamesStore.getGame` |
+| `GamesStore.clearPremoves` |
+| `UiStateStore.closeTab` |
+| `router.push('/game/' + activeGameId)` or `router.push('/home')` |
+
+| `GamesStore.clearPremoves` |
+| --- |
+| `GamePremoveComposable.clearPremoves` |
+
+| `UiStateStore.closeTab` |
 | --- |
 
-| `GamesStore.listGames` |
-| --- |
-
-- Requirement verification: `Pass`. Tab visibility is derived from `openGameIds`, and invalid targets fall back deterministically.
+- Visibility: `GameTabs` derives its tabs from `GamesStore.listGames()` filtered by `UiStateStore.gameSession.openGameIds` and renders the strip only when more than one tab exists. The active tab is the routed `id`, so selection is published only after a successful route commit; a rejected or redirected navigation leaves the previous tab selected.
+- Close: the tab close button, the menu's Close game action and the game-over prompt's Exit action share this action. `close` ignores an id that is not open or already closing. `closeTab` removes the id, re-selects the first remaining tab when the active tab closed, and coerces `activeRoute`; the view then routes to the new active game or `/home`, and the route checkpoint saves the session. Closing does not delete saves and does not remove or dispose the canonical game: it stays in `GamesStore.listGames()` with its turn and analysis runtime, is still included in close-trigger autosave and package-reference checks, and is reused by a Home recent-game reopen.
+- Requirement verification: `Pass`. Tab membership and selection are derived from the session snapshot and route, `MenuBar` and `GameTabs` share one close action, and invalid targets fall back through `SCN-NAV-02`.
 
 ### SCN-NAV-01 - Route to Settings and Back to Active Game
 
-#### Flow A - Enter Settings
-| `MenuBar.settingsRequested` |
+#### Flow A - Enter Settings From A Game
+| `GameView` `settingsRequested` handler |
 | --- |
-| `GamesStore.pauseGame` |
-| `Router.navigateToSettings` |
-| `UiStateStore.setActiveRoute` |
-| `SettingsView.setup` |
+| `GameView._run` |
+| `GameView._handleMenuInterruptionRequested` |
+| `router.push('/settings/session')` |
 
-| `GamesStore.pauseGame` |
-| --- |
-| `GameClockComposable.pauseGame` |
-| `GameClockComposable.pauseGame` |
-
-| `UiStateStore.setActiveRoute` |
-| --- |
-| `UiStateStore._rememberReturnRoute` |
-
-| `SettingsView.setup` |
-| --- |
-| `SettingsStore.loadSettings` |
-
-| `SettingsStore.loadSettings` |
-| --- |
-| `UserSettingService.getSettingsOrDefault` |
-| `SettingsStore._acceptSettings` |
-
-#### Flow B - Leave Settings And Return
-| `SettingsView.returnRequested` |
+| `App` route checkpoint (`router.afterEach` callback) |
 | --- |
 | `UiStateStore.setActiveRoute` |
-| `Router._restoreReturnRoute` |
-| `GamesStore.resumeGame` |
+| `App._saveSession` |
 
-| `UiStateStore.setActiveRoute` |
+#### Flow B - Switch Settings Category
+| `SettingsView._changeCategory` |
 | --- |
-| `UiStateStore._coerceActiveRoute` |
+| `router.push('/settings/' + category)` |
 
-| `GamesStore.resumeGame` |
+| `SettingsView` `onBeforeRouteUpdate` |
 | --- |
-| `GameClockComposable.resumeGame` |
-| `GameClockComposable.resumeGame` |
-| `GameView._resumeIfMenuOwnedPause` |
+| `SettingsView._loadEnginePackages` (engines category) |
 
-- UI surface coverage: `SettingsView` keeps category switching in a tab-style top strip, a secondary reset action area, and a primary bottom-right action row for `Cancel`, `Save`, and `Apply`.
-- Route coverage: settings category tabs map to `/settings/session`, `/settings/gameplay`, `/settings/appearance`, and `/settings/engines`, while invalid settings routes fall back to `/settings/session`.
-- State/settings coverage: `gameSession.autoPauseOnMenu` applies only to timed `LiveWhiteTurn` and `LiveBlackTurn` contexts with `resultState = ongoing`. The stored pause owner prevents settings return from auto-resuming a manually paused game or a game paused for another reason such as live analysis. While that menu-owned pause is active, the game surface is interaction-locked and any already validated player-engine move that becomes ready remains deferred until the return path confirms that the live turn is ready; legality and pondering are not repeated because menu pause cannot mutate the live position. Accepted appearance updates refresh both root profile banks immediately; in system mode CSS follows later colour-scheme changes without rewriting settings.
-- Requirement verification: `Pass`. Auto-pause remains policy-driven, dirty-form prompts use `ConfirmationModal` through `SettingsView._requestDiscardChanges` and `useModal().open`, the paused game surface stays inert during the interruption, and return routing does not depend on a still-valid game always existing.
+| `SettingsView._loadEnginePackages` |
+| --- |
+| `EnginesStore.refreshPackages` |
+
+#### Flow C - Return Without Pending Changes
+| `SettingsView._requestReturn` |
+| --- |
+| `router.push(returnRoute)` |
+
+| `GameView` `onMounted` |
+| --- |
+| `GameView._run` |
+| `GameView._activateGame` |
+
+| `GameView._activateGame` |
+| --- |
+| `GameView._handleMenuInterruptionCompleted` |
+
+| `GameView._handleMenuInterruptionCompleted` |
+| --- |
+| `GamesStore.resumeGame(game, PauseReason.Menu)` |
+
+#### Flow D - Leave With Pending Changes
+| `SettingsView._requestReturn` or `SettingsView` `onBeforeRouteLeave` |
+| --- |
+| `SettingsView._requestDiscardChanges` |
+
+| `SettingsView._requestDiscardChanges` |
+| --- |
+| `useModal().open(ConfirmationModal, …)` |
+
+| `SettingsView._discardChangesAndNavigate` (confirm callback) |
+| --- |
+| `SettingsStore.discardPendingSettings` |
+| `router.push(targetRoute)` |
+
+- Entry points: Home's Settings card and the recovery notice route to `/settings/session` without a pause; the Quick game error routes to `/settings/gameplay`. `/settings` redirects to `/settings/session`, and the route pattern accepts only `session`, `gameplay`, `appearance` and `engines`; anything else falls through to the catch-all `/home` redirect.
+- Settings were loaded during startup, so `SettingsView` reads `SettingsStore.draftSettings` immediately. The draft is shared across category route updates; `onBeforeRouteLeave` fires only when the Settings route record itself is left, and engine child routes keep the parent mounted. Apply, Save and Reset are expanded in [SCN-SETTINGS-01](PersistenceAndAdministration.md#scn-settings-01---update-visualui-preferences) and [SCN-SETTINGS-02](PersistenceAndAdministration.md#scn-settings-02---reset-settings-to-defaults).
+- Return: `returnRoute` is `/game/:activeGameId` when the session has an active game, otherwise `/home`. The returned `GameView` activation completes only a `PauseReason.Menu` pause; with `autoPauseOnMenu` disabled, or for an untimed game, no pause was taken. While the menu pause is active the board is interaction-locked and a player-engine move that becomes ready is held in `deferredPlayerMove` until `resumeGame` flushes it, as described in [SCN-TIME-05](GameplayAndControl.md#scn-time-05---menu-actions-auto-pause-timed-games).
+- Dirty leave: the guard cancels the navigation and opens a confirmation offering Keep editing or Discard changes. Discard restores the draft from the accepted snapshot and repeats the navigation, which the guard then allows. No implicit Save choice is offered.
+- Requirement verification: `Pass`. Pause and resume are owned by `GameView` actions rather than settings code, dirty leave is explicit, and return routing falls back to Home when no active game remains.
 
 ### SCN-NAV-02 - Invalid Game Route Handling
 
-#### Flow
-| `Router.gameRouteGuard` |
+#### Flow A - Direct Link At Startup
+| `App` startup callback (`onMounted`) |
 | --- |
-| `Router._validateGameRoute` |
-| `GamesStore.getGame` |
-| `GamesStore.listGames` |
-| `Router._selectFallbackRoute` |
-| `UiStateStore.setActiveGame` |
+| `GamesStore.getGame(routeId)` |
+| `GamesStore.getGame` (each remembered open id) |
+| `router.replace('/game/' + fallbackId)` or `router.replace('/home')` |
 
-| `GamesStore.getGame` |
+#### Flow B - Mount On An Unknown Game
+| `GameView` `onMounted` |
 | --- |
+| `GameView._run` |
+| `GameView._activateGame` |
+| `router.replace(fallback)` |
 
-| `GamesStore.listGames` |
+| `GameView._activateGame` |
 | --- |
+| `GamesStore.getGame(id)` |
+| `UiStateStore.gameSession` (open ids) |
+| `GamesStore.getGame` (each open id) |
 
-| `UiStateStore.setActiveGame` |
+#### Flow C - Route Update To An Unknown Game
+| `GameView` `onBeforeRouteUpdate` |
 | --- |
-| `UiStateStore._coerceActiveRoute` |
+| `GameView._activateGame` |
 
-- Requirement verification: `Pass`. Unknown `/game/:id` routes are rejected before `GameView` binds to missing state.
+- The fallback is the first remembered open id that is still in `GamesStore`, otherwise `/home`. In a route update the returned fallback path is the guard's redirect result; a known game returns nothing and the navigation proceeds. `GameView` renders nothing until both the game and its position exist, so it never binds to missing state.
+- Unknown paths of any other shape hit the router's `/:pathMatch(.*)*` redirect to `/home`. If a checkpoint still receives a `/game/:id` whose id is not an open tab, `UiStateStore.setActiveGame` clears `activeGameId` and coerces the stored route.
+- Requirement verification: `Pass`. Unknown game routes are redirected before the view binds, both at startup and during in-app navigation.
 
 ### SCN-NAV-03 - Reopen Recent Game from Home
 
-#### Flow A - Reopen An Autosaved Recent Game
-| `HomeView.onRecentGameSelected` |
+#### Flow A - Reactivate A Game Already In The Workspace
+| `HomeView._openRecent` |
 | --- |
+| `GamesStore.getGame` |
+| `UiStateStore.openTab` |
+| `router.push('/game/' + id)` |
+
+#### Flow B - Load The Latest Managed Save
+| `HomeView._openRecent` |
+| --- |
+| `GamesStore.getGame` |
 | `SavedGamesStore.loadRecentGame` |
 | `GamesStore.insertGame` |
 | `UiStateStore.openTab` |
-| `UiStateStore.setActiveGame` |
+| `router.push('/game/' + id)` |
 
 | `SavedGamesStore.loadRecentGame` |
 | --- |
-| `SavedGamesStore.loadRecentGame` |
+| `SavedGamesStore.listSavedGames` |
+| `SavedGameIndexService.getLatestSaveEntryForGame` |
+| `SavedGamesStore._readManagedGame` |
+
+| `SavedGamesStore._readManagedGame` |
+| --- |
 | `SerializationService.readGameDocument` |
 
 | `GamesStore.insertGame` |
 | --- |
-| `GameWorkspaceComposable.repairDuplicateGameId` |
-| `GameWorkspaceComposable.hydrateAndInsertGame` |
+| `GameWorkspaceComposable.insertGame` |
 
-| `UiStateStore.openTab` |
-| --- |
-| `UiStateStore._coerceOpenTabs` |
-
-| `UiStateStore.setActiveGame` |
-| --- |
-| `UiStateStore._coerceActiveRoute` |
-
-#### Flow B - Reopen A Saved-File Recent Game
-| `HomeView.onRecentGameSelected` |
+#### Flow C - Recent Target No Longer Opens
+| `HomeView._openRecent` |
 | --- |
 | `SavedGamesStore.loadRecentGame` |
-| `GamesStore.insertGame` |
-| `UiStateStore.openTab` |
-| `UiStateStore.setActiveGame` |
+| `HomeView._refreshRecentGames` |
 
-| `SavedGamesStore.loadRecentGame` |
-| --- |
-| `SavedGamesStore.loadRecentGame` |
-| `SerializationService.readGameDocument` |
-
-| `GamesStore.insertGame` |
-| --- |
-| `GameWorkspaceComposable.repairDuplicateGameId` |
-| `GameWorkspaceComposable.hydrateAndInsertGame` |
-
-| `UiStateStore.openTab` |
-| --- |
-| `UiStateStore._coerceOpenTabs` |
-
-| `UiStateStore.setActiveGame` |
-| --- |
-| `UiStateStore._coerceActiveRoute` |
-
-#### Flow C - Remove A Stale Recent Entry
-| `HomeView.onRecentGameSelected` |
-| --- |
-| `RecentGameStore.getRecentGames` |
-
-- UI surface coverage: `HomeView` keeps the centred primary action row and renders a recent games list below it only when recent entries exist. Selecting one recent entry reuses the normal restore pipeline for whichever backing source won the latest-save dedupe rule.
-- Ownership coverage: `SavedGamesStore` owns recent-target resolution and saved-document load, `GamesStore.insertGame(...)` owns turning that payload into the live session workspace, and `RecentGameStore` remains limited to on-demand recent-list projection.
-- Requirement verification: `Pass`. Recent selection stays optional, hidden when empty, autosave and manual-file entries share one deduped list, and stale references disappear on the next recent-list query without needing eager cleanup writes.
-
-
-
+- Projection: `RecentGameStore.getRecentGames` reads the latest entry of each managed save group, takes the display name from that document and its `lastSavedAtUtc` from the file timestamp (falling back to `metadata.updatedAt`), and sorts newest first. Autosave and named saves compete in one list per game; `sourceKind` records which won. `HomeView` shows at most three entries, labelled Autosaved or Saved, and a View all link to `/saved-games/load`.
+- Reopen: a game already in `GamesStore`, including one whose tab was closed, is reactivated without reading storage, so unsaved in-memory progress is never replaced. Otherwise the managed group's folder name is written into the loaded document's `metadata.id` before insertion. While one entry is opening, its card is disabled.
+- Failure: a missing or unreadable target shows the error and re-queries the list, so a stale entry disappears without any cleanup write.
+- Requirement verification: `Pass`. Recent entries are query-derived, `SavedGamesStore` owns the document read, and `GamesStore.insertGame` owns workspace insertion.

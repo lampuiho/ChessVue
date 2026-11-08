@@ -2,7 +2,7 @@
 
 Reviewed on 18 October 2026 against source/document revision `e6231ac` and the existing Settings changes in the working tree. The default seed retains `recovery-valid`, its e4 opening, corrupt settings/layout, missing game and version-99 save. Reviewed SCN-SESSION-01/02/03, SCN-NAV-02 and SCN-IMPORT-02, the persistence/settings/state contracts, App startup, UiStateStore, SettingsStore, SavedGamesStore, game hydration and engine runtime ownership. The priorities are usable recovery, preserved games/preferences and independent multi-engine work; recorded analysis and exploratory pruning retain their established contracts.
 
-Execution evidence belongs in [Recovery verification](../../../docs/JourneyImplementation.md#recovery-verification). Owned metadata lists the executable browser variants. The integration suite preserves UI-13 and observes document reads, engine search counts and pending-turn identity. Native storage faults, NW.js execution and production worker failures remain in their respective lanes.
+Execution evidence belongs in [Recovery verification](../../../docs/ArchivedPlans/JourneyImplementation.md#recovery-verification). Owned metadata lists the executable browser variants. The integration suite preserves UI-13 and observes document reads, engine search counts and pending-turn identity. Native storage faults, NW.js execution and production worker failures remain in their respective lanes.
 
 ## JRN-RECOVERY-01
 

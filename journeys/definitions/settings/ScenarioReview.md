@@ -1,8 +1,8 @@
 # Settings scenario review
 
-Reviewed on 18 October 2026 against source/document revision `cf38d92` and this tranche's working-tree changes. The owned seed preserves `settings-game`, its e4/e5 opening, dark chrome, Black orientation, three profiles and autosave interval 3. Reviewed complete SCN-SETTINGS-01/02, SCN-ENGINE-01/02/03 and SCN-NAV-01, the settings/persistence contracts, SettingsView, SettingsStore, EnginesStore, ModalHost, App and browser/UCI platform paths. The product priorities are [ease of use, interactive analysis and multiple engines](../../../docs/JourneyTestPlan.md#product-intent-and-usability-baseline). Actual-move recording and exploratory pruning are unchanged.
+Reviewed on 18 October 2026 against source/document revision `cf38d92` and this tranche's working-tree changes. The owned seed preserves `settings-game`, its e4/e5 opening, dark chrome, Black orientation, three profiles and autosave interval 3. Reviewed complete SCN-SETTINGS-01/02, SCN-ENGINE-01/02/03 and SCN-NAV-01, the settings/persistence contracts, SettingsView, SettingsStore, EnginesStore, ModalHost, App and browser/UCI platform paths. The product priorities are [ease of use, interactive analysis and multiple engines](../../../docs/ArchivedPlans/JourneyTestPlan.md#product-intent-and-usability-baseline). Actual-move recording and exploratory pruning are unchanged.
 
-Execution evidence and limitations are recorded in [Settings verification](../../../docs/JourneyImplementation.md#settings-verification). Case metadata names every browser variant; discovery alone is not a pass. UI-04/UI-14 retain their original assertions in focused integration suites, alongside subscription ownership and configured UCI command checks.
+Execution evidence and limitations are recorded in [Settings verification](../../../docs/ArchivedPlans/JourneyImplementation.md#settings-verification). Case metadata names every browser variant; discovery alone is not a pass. UI-04/UI-14 retain their original assertions in focused integration suites, alongside subscription ownership and configured UCI command checks.
 
 ## JRN-SETTINGS-01
 

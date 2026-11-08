@@ -2,7 +2,7 @@
 
 Reviewed on 17 October 2026 against the scenarios, clock/state contracts and application. The owned seed preserves all three original game IDs, moves, players, takeback permissions and paused 120-second/+2-second and three-second controls. Browser time is installed before bootstrap, including the Date subclasses used by persisted timestamps. Execution evidence belongs to generated Playwright reports; case metadata carries no pass flags.
 
-The [Clocks verification record](../../../docs/JourneyImplementation.md#clocks-verification) links the full unit/browser run and exact title audit for all twelve groups.
+The [Clocks verification record](../../../docs/ArchivedPlans/JourneyImplementation.md#clocks-verification) links the full unit/browser run and exact title audit for all twelve groups.
 
 Explicit Analyse retains its independent pause owner; ordinary review and game-tab selection keep existing live timing. This preserves the documented progression matrix in [Q-PLAY-001](../../../docs/questions/play/Q-PLAY-001-LiveProgressDuringAnalysis.md). Engine-finish-during-pause permutations remain in JRN-RACE. No new delay, background opponent scheduling or timeout-material adjudication policy is introduced.
 

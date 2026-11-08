@@ -7,6 +7,7 @@
 | Classification | Open persistence scope / potential product gap |
 | Raised | 15 October 2026 |
 | Reviewed revision | Source inspection based on `2d693f7`; no new browser run |
+| Last reviewed | 8 November 2026 against `30e9ed6`, source inspection only |
 | Related questions | [Q-ANALYSIS-001](../analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) |
 
 This is a planning review prompt, not a question currently awaiting an answer or blocking journey work. Investigate it when implementing/testing the relevant journeys; raise a concrete question only if that work reveals a real unresolved issue.
@@ -36,7 +37,7 @@ Proposed starting point: verify the existing independent multi-engine experience
 
 ## Journey impact
 
-The 16 October 2026 History implementation adds per-actual-move snapshots of all available engine seats, including copied identities/options, timestamps, depth, scores, principal variations and best moves. A separate Recorded analysis panel identifies the pre-move context. JRN-HIST-06 has two-engine integration coverage for independent copies and canonical serialisation; this does not complete the separate comparison UI or save/import acceptance groups below.
+The 16 October 2026 History implementation adds per-actual-move snapshots of all available engine seats, including copied identities/options, timestamps, depth, scores, principal variations and best moves. A separate Recorded analysis panel initially identified the pre-move context; it was removed on 21 October 2026 (`20d6d4b`), so recorded comparisons are currently persisted but not displayed. JRN-HIST-06 has two-engine integration coverage for independent copies and canonical serialisation; this does not complete the separate comparison UI or save/import acceptance groups below.
 
 Affected cases: JRN-ANALYSIS-01/07/09/11/12, JRN-SAVE-07/15 and JRN-SESSION-02. Existing concurrent output, scoped failure and seat restore tests can proceed independently.
 
@@ -47,3 +48,5 @@ Test actual-move identity/provenance, later live moves, recomputation, explorati
 The 16 October 2026 Analysis tranche independently exercises current multi-engine output, position supersession, scoped failure, roster limits, restore policy and rapid history navigation. It preserves the distinction between current seats and actual-move records; exploratory prefixes have no records, and selecting unevaluated history does not invent one. [The scenario review](../../../journeys/definitions/analysis/ScenarioReview.md) links these cases without claiming completion of the remaining actual-move save/import/session groups.
 
 Inspect and test actual-move recording and engine comparison behaviour during the relevant journeys. If the work exposes a specific payload/persistence ambiguity, record the evidence and ask then; this prompt is not a prerequisite to implementation.
+
+Review on 8 November 2026 (source inspection only): the capture still records every seat with output when the live position is selected ([GameAnalysisComposable](../../../src/state/game/GameAnalysisComposable.ts) `captureMoveAnalysis`), and up to four analysis seats remain the limit. With no recorded-analysis view, the comparison-presentation part of this prompt is coordinated with [Q-ANALYSIS-001](../analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md). The status stays `Review prompt`.

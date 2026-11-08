@@ -1,7 +1,7 @@
 # Appearance Types
 
 ## Purpose
-Define the low-level appearance contracts that turn persisted theme preferences into presentation-safe theme state.
+Define the low-level appearance contracts that turn persisted theme preferences into presentation-safe theme state. Sources: `contracts/Appearance.ts` and the built-in profiles in `config/AppearanceConfig.ts`.
 
 ## Interfaces
 - `enum ThemeMode`
@@ -12,13 +12,13 @@ Define the low-level appearance contracts that turn persisted theme preferences 
 
 ## Data Structures
 ```ts
-enum ThemeMode {
+const enum ThemeMode {
   System = "system",
   Light = "light",
   Dark = "dark"
 }
 
-enum ResolvedThemeMode {
+const enum ResolvedThemeMode {
   Light = "light",
   Dark = "dark"
 }
@@ -73,9 +73,18 @@ interface IAppearanceProjection {
 }
 ```
 
+## Schemas
+- `themeModes` and `resolvedThemeModes` feed `themeModeSchema` and `resolvedThemeModeSchema`.
+- `appearanceCssVariableMapSchema` requires every semantic variable as a string. `themeProfileSnapshotSchema` adds a non-empty `displayName` and a resolved `colourScheme`. `appearanceProjectionSchema` validates the projection.
+
+## Built-In Profiles
+`config/AppearanceConfig.ts` exports `defaultLightThemeProfile` (`displayName: "Light"`, `colourScheme: light`) and `defaultDarkThemeProfile` (`displayName: "Dark"`, `colourScheme: dark`), each with a complete `IAppearanceCssVariableMap`. They are the only profiles in the baseline: `SettingsStore.appearanceProjection` pairs them with the accepted `themeMode`, `App.vue` falls back to them before settings load, and the Settings theme picker previews their colours.
+
 ## Rules
 - `themeMode` is the persisted user choice from settings.
 - System mode leaves CSS `color-scheme: light dark` active. Explicit light/dark settings override the colour scheme; `light-dark()` selects the corresponding palette without JavaScript OS-theme resolution.
+- `App.vue` applies an accepted projection through an explicit appearance action: it writes each profile's map as `--theme-light-<name>` and `--theme-dark-<name>` properties on the document root, sets `data-theme-mode` (which the global stylesheet uses to force `color-scheme: light` or `dark`), and updates the `color-scheme` and `theme-color` meta tags. `base.css` defines each semantic variable as `light-dark(var(--theme-light-<name>), var(--theme-dark-<name>))`.
+- `ResolvedThemeMode` is also the result type of the platform system-theme adapter and `SystemThemeChanged` event. App styling does not query or subscribe to them; CSS owns system-theme selection.
 - The configured light and dark profile snapshots each contain the complete semantic app-chrome variable map for their declared colour scheme.
 - Theme profiles are not part of the baseline user-settings snapshot. `IAppearanceProjection` is the seam that can later receive independently selected light and dark snapshots without changing presentation components.
 - A profile snapshot has no profile ID and requires no registry lookup to render.

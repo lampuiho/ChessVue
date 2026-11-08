@@ -1,32 +1,43 @@
 # GameControlPanel
 
+Source: [`src/components/GameControlPanel.vue`](../../../../../src/components/GameControlPanel.vue)
+
 ## Purpose
-Render context-sensitive controls for live play, analysis transitions, setup, and lifecycle actions.
+Render context-sensitive controls for live play, analysis, study, board editing, review and lifecycle actions.
 
 ## Inputs and action ownership
+- Props: `gameId: string`; `mode: 'live' | 'paused' | 'inGameAnalysis' | 'freeAnalysis' | 'boardEdit' | 'finished'`; `canTakeBack?: boolean` [`false`]; `navigationDisabled?: boolean` [`false`].
+- Emits: `takeBackRequested()`, `analysisRequested()`, `exitAnalysisRequested()`, `nodeSelected(node: IMoveNode)`.
+- Slots: none.
+- Stores: `GamesStore` (`getGame`, `pauseGame`, `resumeGame`, `enterBoardEdit`, `resignGame`, `offerDraw`, `acceptDrawOffer`, `withdrawDrawOffer`).
+- Composables: `useModal`. Domain reads: `MoveApplicationService`, `MoveHistoryService` for the actual live side.
+- Children: `ControlButton`; mounted `ConfirmationModal`, `DrawResponseModal`, `GameCreationModal`, `MessageModal`.
+- Styles: `game-controls.css` (`.control-panel`, `.control-grid`, `.turn-indicator`, `.control-note`, `.control-button__indicator`).
 
-Props are `gameId`, `mode` and `canTakeBack`. The view retains the common mode and playback-sensitive takeback permission; the panel derives pause eligibility and draw status from its canonical game.
+`GameView` supplies the shared `mode`, the playback-sensitive takeback permission and the history navigation lock; the panel derives pause eligibility (a timed clock) and draw status from its canonical game.
 
-Only `takeBackRequested`, `analysisRequested` and `exitAnalysisRequested` remain emitted. They cross GameView's captured rendered-input owner, which drains playback and closes continuation before mutation.
+Only `takeBackRequested`, `analysisRequested` and `exitAnalysisRequested` cross into `GameView`'s captured rendered-input owner, which drains playback and closes a continuation before mutating. `nodeSelected` carries the move-step target into `GameView._navigateToNode`, the same workflow history rows use.
 
-Pause/resume, board-edit entry/finish, setup start, resignation confirmation and draw negotiation run locally through the existing public GamesStore methods. Manual resume preserves other pause owners. Resign/draw use the actual live-side colour, including while a historical position is displayed. Failures stay in the control panel.
+Pause and resume, board-edit entry and finish, setup start, resignation and draw negotiation run locally through public `GamesStore` methods. Manual pause and resume use `PauseReason.Manual`, so resuming preserves other pause owners such as Menu. Resignation and draw use the actual live side's colour, even while a historical position is displayed. Failures appear inline in the panel.
 
 ## Mode Matrix
-| Context | Control surface |
+| Mode | Controls |
 | --- | --- |
-| Live play | Show `Takeback`, timed `Pause` when applicable, `Resign`, and `Draw`. In local-local games the draw action opens the offer dialog. Against a non-local opponent, `Draw` sends an offer while `drawOfferState` is omitted; when the LED-like pending-offer dot is lit, the same `Draw` control accepts immediately for `drawOfferState.direction = "incoming"` or withdraws the outstanding offer for `drawOfferState.direction = "outgoing"`. Hide setup-only actions. |
-| Paused live play | Keep the existing paused panel and `Resume`; GameView adds the contextual `Analyse`/`Exit analysis` action beside it using existing actions and global classes. Explicit paused analysis allows board/PV/history input while actual `Takeback`, `Resign`, `Draw` and setup remain blocked. If a non-local draw-offer indicator is still surfaced elsewhere, it is read-only while paused. |
-| In-game analysis | Keep policy-permitted `Takeback` on actual live history, replace `Analysis Mode` entry with `Exit Analysis`, and hide `Pause`, `Resume`, `Resign`, `Draw`, and setup-only actions. |
-| Free analysis/setup | Show `Takeback`, `Enter Board Edit`, and `Start Game From Setup`. Hide live-game-only actions such as `Pause`, `Resume`, `Resign`, `Draw`, and in-game analysis entry. |
-| Free analysis board edit | Replace normal setup actions with `Exit Board Edit` on the same board-edit control path. Hide live-game-only actions and `Start Game From Setup` until board edit finishes. |
-| Finished game review | Keep `Takeback` only when the active policy still allows rewind or review-driven correction. Hide `Pause`, `Resume`, `Resign`, `Draw`, board-edit entry, and start-from-setup actions. |
-| Post-timeout analysis | Replace `Analysis Mode` entry with `Exit Analysis`, keep review-safe `Takeback` only when the analysis branch itself can rewind, and hide all live-result-changing actions plus setup-only actions. |
+| `live` | *Takeback*, *Pause* when the clock is timed, *Analyse*, *Offer draw* / *Resolve draw* with a pending-offer indicator, *Resign*. Heading *Game controls* with a Live indicator. |
+| `paused` | *Resume game* only (manual resume). `GameView` adds the contextual *Analyse* or *Exit analysis* button above the panel using its captured input actions. Explicit paused analysis allows board, PV and history exploration while actual takeback, resign, draw and setup stay blocked. Heading *Game paused* with a Paused indicator. |
+| `inGameAnalysis` | *First move*, *Previous move*, *Next move*, *Last move*; *Takeback* on actual live history when permitted; *Pause* when timed; *Exit analysis*. Resign, draw and setup actions are hidden. |
+| `freeAnalysis` | Move-step buttons, *Takeback*, *Edit board* and *Start game*. Live-only actions are hidden. |
+| `boardEdit` | *Finish editing* only. |
+| `finished` | Move-step buttons and a note that the result is recorded. Takeback, pause, resign, draw, board edit and setup are hidden. |
+
+Move-step buttons follow the mainline: First selects the root, Previous the parent of the rendered node, Next its mainline child and Last the end of the mainline. They are disabled by `navigationDisabled` and when there is nowhere to move.
 
 ## Notes
-- `GameControlPanel` is the primary source of committed gameplay actions from the scenarios.
-- Centralising these actions in one component keeps control logic discoverable and avoids duplicating buttons across panels.
-- The panel stays panel-neutral: entering analysis mode, resolving draw flow, and dirty-exit handling do not implicitly change sidebar visibility.
-- Local-local draw negotiation is dialog-driven, while non-local draw negotiation uses the control's LED-like pending-offer indicator instead of a dialog-hosted response step.
-- For non-local opponents, the unlit `Draw` control means offer draw, while the lit state means accept when `drawOfferState.direction = "incoming"` and withdraw when `drawOfferState.direction = "outgoing"`.
-- Paused live play is intentionally treated as a locked state rather than a reduced-action variant of live play.
+- **Draw.** With an incoming non-local offer the draw button accepts it; with an outgoing one it withdraws it; in a local-versus-local game it opens the offer confirmation, which hands over to `DrawResponseModal`; against a non-local opponent with no pending offer it sends an offer. The lit indicator dot shows a pending offer, and the label reads *Resolve draw*. Non-local negotiation uses this indicator rather than a dialog.
+- **Board edit.** *Edit board* and *Finish editing* both call `GamesStore.enterBoardEdit`, which toggles board edit for a free-analysis workspace. If the game is in in-game analysis the panel shows a `MessageModal` explaining that board editing needs a free analysis workspace; the button is offered only in free analysis, so this is a defensive guard.
+- **Start game** opens `GameCreationModal` with the prepared `gameId`.
+- **Resign** opens a destructive `ConfirmationModal` that awaits `resignGame` for the captured game and live colour.
+- `GameControlPanel` centralises committed gameplay actions so they are discoverable and not duplicated across panels. It stays panel-neutral: entering analysis, resolving a draw and dirty-exit handling do not change sidebar visibility.
+- A paused live game is a locked state rather than a reduced live-play variant; see [Q-PLAY-003](../../../../questions/play/Q-PLAY-003-PausedAnalysisEntry.md) for the paused analysis entry decision.
+- The six local flows moved here from `GameView` in the [component simplification](../../../../ArchivedPlans/ComponentSimplificationPlan.md#4-let-the-player-strip-and-control-panel-own-their-independent-flows); the three retained events need `GameView`'s captured input owner.
 - The component owns its control markup and uses global CSS classes; no watcher or second game controller is added.

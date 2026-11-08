@@ -5,6 +5,7 @@ Own canonical persisted payload validation, the future schema-version dispatch b
 
 ## Public Interface
 ```ts
+// src/domain/SerializationService.ts
 readSettingsDocument(path: string): Promise<ISettingsSnapshot>
 writeSettingsDocument(path: string, snapshot: ISettingsSnapshot): Promise<void>
 readGameSessionDocument(path: string): Promise<IGameSessionSnapshot>
@@ -29,7 +30,7 @@ deserialiseGame(raw: string): IGame
 
 ## Responsibilities
 - keep one canonical JSON wire shape per persisted artefact
-- own file-backed settings, game-session, UI-layout, and saved-game reads or writes behind explicit caller-supplied paths
+- own file-backed game-session, UI-layout and saved-game reads or writes behind explicit caller-supplied paths. Settings document methods exist with the same contract, but accepted settings are currently read and written by `UserSettingService` directly (see Notes)
 - own managed-save directory enumeration and external import or export picker access behind the same layer-2 persistence boundary
 - own saved-game document conversion for internal save/load flows and external import/export flows
 - require the canonical schema version before deserialisation; version `1` is the first and only schema, so there are no historical payload shapes to migrate and unsupported versions are rejected rather than guessed
@@ -38,11 +39,17 @@ deserialiseGame(raw: string): IGame
 - reject incomplete, unsupported, or incompatible saved-game payloads rather than inventing detached UI restore sections or partial-recovery import paths
 - project values through the canonical Zod persistence schemas so runtime-only `$` metadata and unknown fields are omitted before any write path reaches `StorageAdapter`. **Why:** direct serialisation would leak callbacks, maps, class instances, and unknown runtime fields into the wire format and turn them into accidental compatibility obligations
 - treat the schema-created copy as validation and ownership transfer at the persistence trust boundary, not as a precedent for defensive cloning in ordinary live-state workflows. **Why:** the writer needs a canonical persistence-owned model, while live workflows rely on deliberate identity and would be broken by indiscriminate clones; the same schema accepts hydrated timestamps on write and wire strings on read
-- validate board-root consistency through structural position identity rather than stored FEN
-- validate nested move-tree structure, `mainlineChildIndex`, and persisted `livePath` / `renderedPath`
+- validate `rootPosition` structurally through the board-position schema. Saved games store no FEN or position key, so there is no separate root-identity cross-check
+- validate nested move-tree structure, `mainlineChildIndex`, and that persisted `renderedPath` and any `livePath` address existing nodes
+- validate that a game session's `activeGameId`, when present, is one of its `openGameIds`, both before writing and after reading
 - validate persisted `IGame.analysis`, including ordered seat shape and embedded copied-engine payload shape
 - stop at canonical payload validation, future version conversion, and schema projection; rebuilding runtime-only move-tree references, `$.parent`, and store-usable current-node selection belongs to `GamesStore` after successful deserialisation. **Why:** those values depend on active-workspace ownership; hydrating during a pure document read would introduce state-layer assumptions, while omitting insertion-time hydration leaves loaded node traversal silently broken
 - remain path-agnostic in the sense that callers supply the concrete file path; `SerializationService` never decides which specific file is being read or written
+
+## Callers
+- `UiStateStore`: game-session and UI-layout documents at `BuildConfig.persistence` paths.
+- `SavedGamesStore`: saved-game reads and writes, deletion, managed-save enumeration, and import or export picker selection.
+- `RecentGameStore`: managed-save enumeration and saved-game reads for home recents.
 
 ## Scenario Coverage
 - `SCN-SESSION-01`
@@ -58,7 +65,12 @@ deserialiseGame(raw: string): IGame
 - `SCN-IMPORT-02`
 
 ## Notes
-- `SerializationService` depends on `StorageAdapter` for raw file and dialog access, but stores still depend only on this layer-2 boundary rather than on the adapter directly.
+- `SerializationService` depends on `IStorageAdapter`, resolved through `usePlatformService()`, for raw file and dialog access; stores depend only on this layer-2 boundary.
+- Settings, session and layout writes overwrite their file. `writeGameDocument(...)` creates the game folder when needed and does not overwrite unless `overwrite` is `true`; `SavedGamesStore` decides when overwrite is allowed. Failures from the adapter propagate unchanged.
+- `listManagedSaveEntries(rootPath)` lists the root and each direct subdirectory, keyed by directory path. A missing root (`notFound`) yields an empty map; other failures propagate.
+- `selectImportFile` and `selectExportFile` return the adapter's selected path or browser token unchanged. In the browser the following `readGameDocument` or `writeGameDocument` consumes that token; see [StorageAdapter](../PlatformAbstraction/StorageAdapter.md#import-and-export).
+- Failures in JSON parsing, schema version, schema shape or structural validation throw `SerializationError` with a cause detail.
+- `UserSettingService` currently reads and writes the accepted settings file through `IStorageAdapter` itself, parsing with the same `settingsSnapshotSchema` (whose `schemaVersion` is the literal `1`). `readSettingsDocument`, `writeSettingsDocument`, `serialiseSettings` and `deserialiseSettings` therefore have no production caller.
 - `SerializationService` accepts explicit file paths from callers. Build config supplies app-owned settings, session, and layout file paths, while `SavedGameIndexService` supplies managed save or load file paths beneath user-configurable `gameSession.saveRootPath`.
 - Recent-game history remains query-derived from available save targets and is not a serialised persisted artefact owned by this service.
 - All runtime-only `$` members are omitted from persisted output, including `IGame.$`, `IPlayer.$`, `IAssignedEngine.$`, `IMove.$`, `IMoveNode.$`, and any later runtime-only helpers added under that namespace.

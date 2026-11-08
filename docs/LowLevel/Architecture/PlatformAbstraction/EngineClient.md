@@ -1,84 +1,95 @@
 # EngineClient
 
-## Concrete Implementations
-BrowserPlatformService constructs markRaw(new BrowserUciEngineClient()) and returns that same instance through getEngineClient(EngineClientType.UciWorker). The platform service is the store; the browser client has no separate Pinia store, factory or bound-method object. Its existing IEngineClient operations are called on the instance. It reads BrowserWorkerProcess directly from engine.$.process through the shared IProcess streams/events, with no manager import, registry or transport resolver.
-
-BrowserUciEngineClient and NwjsUciEngineClient both inherit src/platform/base/UciEngineClientBase.ts. An AST comparison against the former standalone native implementation verified all 53 method bodies and state declarations after the documented type/hook substitutions; adopting it for NW.js left the base unchanged. Only _isProcessOpen and _getProcessExitDetail are protected host hooks. The shared constructor records the registered EngineClientType for its existing assignment guard; native uses Uci and Worker uses UciWorker. The native hooks use NwjsUtility.isProcessOpen and format the process exitCode/signalCode; the browser hooks read its managed closure state/detail. Both platform stores construct the concrete client with markRaw and return the same instance through IEngineClient, with no client-specific Pinia store or bound-method facade. The base privately owns session state, line buffering, listener cleanup and writes, preserving both write await boundaries. Native stdout/stderr still arrive as strings after manager-owned UTF-8 setup. EngineRuntimeService APIs and lifecycle are unchanged; launch fields and the client enum follow the engine rework plan. Journeys inject a raw native client with scripted processes. The shared missing-stdin error retains ProcessStartFailed and omits the former native PID in its message.
-
 ## Purpose
-Own the full engine-protocol conversation with the engine while hiding protocol-specific details such as UCI strings, handshake ordering, and raw engine-output parsing from upper layers.
+Own the full engine-protocol conversation while hiding protocol-specific details such as UCI strings, handshake ordering and raw engine-output parsing from upper layers.
 
 ## Public Interface
 ```ts
-getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[]
-initialiseEngine(engine: IAssignedEngine): Promise<void>
-startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest, onUpdate: (update: IEngineAnalysisUpdate) => void): Promise<void>
-stopAnalysis(engine: IAssignedEngine): Promise<void>
-startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void>
-startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMove, ponderMove: IMove): Promise<void>
-awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>
-stopEngine(engine: IAssignedEngine): Promise<void>
-restartEngine(engine: IAssignedEngine): Promise<void>
+// src/contracts/platform/IEngineClient.ts
+interface IEngineClient {
+  getOptions(engine: IAssignedEngine): readonly IEngineOptionMeta[];
+  initialiseEngine(engine: IAssignedEngine): Promise<void>;
+  startAnalysis(engine: IAssignedEngine, game: IGame, request: IEngineAnalysisRequest, onUpdate: EngineAnalysisUpdateHandler): Promise<void>;
+  stopAnalysis(engine: IAssignedEngine): Promise<void>;
+  startPlayerTurn(engine: IAssignedEngine, game: IGame): Promise<void>;
+  startPondering(engine: IAssignedEngine, game: IGame, engineMove: IMoveRaw, ponderMove: IMoveRaw): Promise<void>;
+  awaitPlayerTurnMove(engine: IAssignedEngine): Promise<IMove>;
+  stopEngine(engine: IAssignedEngine): Promise<void>;
+  restartEngine(engine: IAssignedEngine): Promise<void>;
+}
+
+// src/contracts/Engine.ts
+type EngineAnalysisUpdateHandler = (update: IEngineAnalysisUpdate) => boolean | void;
 ```
 
 ## Responsibilities
-- own protocol-specific session initialisation, ready handshakes, fixed unlicensed registration deferral, option discovery and application, position commands, and search start or stop
-- talk to the engine through its own engine-communication boundary so upper layers never build or parse raw protocol strings
-- translate ChessVue board and move structures into engine-facing protocol payloads internally
-- translate engine output into app-meaningful analysis updates and awaited player moves before anything crosses the layer boundary
+- own protocol session initialisation, readiness handshakes, fixed unlicensed registration deferral, option discovery and application, position commands, and search start or stop
+- talk to the engine only through the `IProcess` stored on `engine.$.process`, so upper layers never build or parse raw protocol strings
+- translate ChessVue board and move structures into protocol payloads, and engine output into detailed moves and analysis updates, before anything crosses the layer boundary
 - return decoded player-search moves and analysis updates to the common `EngineRuntimeService` guards without duplicating application legality checks
-- isolate protocol-specific handshakes, move encoding, principal-variation parsing, and new-game-boundary rules from the rest of the architecture
-- keep each per-engine protocol conversation deterministic through explicit session states that define which output is currently valid
-- own client-private runtime state for the concrete engine conversation, including session initialisation, process-listener attachment, and a discriminated state context containing only the data valid for that protocol state
+- keep each per-engine conversation deterministic through explicit session states that define which output is currently valid
+- own client-private runtime state, including the session, its process-listener attachment and a discriminated state context holding only the data valid in that state
 
 ## Dependencies
-- host-specific engine communication capability
+- the `IProcess` stream and event subset
+- `UciUtility` command builders and parsers
+- `GameRuleUtility` (`cloneBoardPosition`, `genDetailedMoves`, `genLegalMoves`) and `MoveNotationUtility.buildFen`
+- `Deferred` for state-owned completions
 
-## Notes
-- `PlatformService` selects the concrete implementation through `EngineClientType`.
-- The baseline implementation targets `UCI`, but callers never compose or parse UCI strings directly.
-- The current NW.js concrete implementation is `NwjsUciEngineClient` for `EngineClientType.Uci`.
-- If another protocol is ever introduced later, the protocol switch belongs inside `EngineClient`, not in `EngineRuntimeService`, stores, or views.
-- `EngineClient` owns conversion between `IBoardPosition` / `IMove` and whatever position or move encoding the engine protocol requires, then returns protocol-neutral player and analysis moves to the common `EngineRuntimeService` legality guards. For streamed analysis, a `false` callback result rejects the staged update so the client can retain its prior accepted lines. **Why:** duplicating chess acceptance in each protocol client would allow implementations to disagree, while exposing raw output above this layer would leak UCI parsing and state into domain/state code. A new protocol may change syntax but must preserve this boundary.
-- `EngineClient` acts on the in-game `IAssignedEngine` object and any runtime process reference already bound under `engine.$` by `EngineRuntimeService`.
-- Concrete clients may narrow `IAssignedEngine` to protocol-specific subtypes and refine `engine.$` with richer client-private runtime state.
-- That client-private refinement may include a protocol session object whose discriminated context owns the current search position, expected ponder move, handshake or stop completion, or pending player move only while its corresponding state is active.
-- Those client-private fields remain internal to the concrete client implementation. They are not part of the shared `IAssignedEngineRuntime` contract and must not be relied on by upper layers.
-- `session` is optional until `initialiseEngine(...)` creates and initialises it after base runtime state already exists.
-- `initialiseEngine(...)` collects option declarations emitted during the protocol handshake. `getOptions(...)` exposes the cached declarations only after that explicit initialisation completes.
-- Returned option metadata uses the protocol-neutral `IEngineOptionMeta` contract. It is not automatically copied into engine records or configured option maps.
-- `EngineRuntimeService.getOptions(...)` is the layer-2 discovery boundary. It initialises a temporary profile copy, reads this cached client metadata, copies it, and closes the temporary runtime before returning it to `EnginesStore`.
-- `startAnalysis(...)`, `startPlayerTurn(...)`, and `startPondering(...)` receive the canonical `IGame`, derive their purpose-specific position and search commands, and require an already initialised session. They must not initialise the engine implicitly.
-- Licensed-engine credentials are out of scope. When a UCI engine reports `registration error`, the UCI client responds with `register later` without exposing registration through the generic client API.
-- Client-private runtime state is created only through explicit mutation steps. The concrete UCI client uses session-state transitions, process-listener attachment, analysis-line storage, state-owned completions, and terminal-session replacement rather than clearing a bag of optional fields.
-- The default runtime design here is explicit object-attached state. It does not use hidden side tables.
-- The runtime ownership breakdown and state-mutation order are defined in [../../ProcessFlows/EngineRuntimeOwnership.md](../../ProcessFlows/EngineRuntimeOwnership.md).
-- `startAnalysis(...)` uses the rendered path and player-turn search uses the live path. The client privately decides whether a changed game id or root position requires a fresh protocol game boundary.
-- Analysis startup captures a detached rendered board, purpose-level command array, game ID, root FEN, and MultiPV option command together before its first await. The captured board is the parsing input throughout that search, including after the canonical board changes. Boundary helpers use captured values across readiness waits. Client signatures and protocol states are unchanged; cancellation of service requests belongs to `EngineRuntimeService`.
-- Runtime analysis lines retain every reported rank. Updates order them by engine rank without selecting the three rendered lines; the game subscription performs that selection. Terminal-state checks prevent a delayed command write or readiness continuation from reviving a disposed session.
-- The UCI new-game boundary compares the game id and the root position's FEN value, not the `rootPosition` object identity. **Why:** board editing mutates the root in place, so reference equality cannot detect an effective change. FEN is appropriate here as the protocol projection, but remains unsuitable as the application's general structural identity because it also carries notation counters.
-- `startPondering(...)` receives both the guarded engine move and its supplied ponder move. It builds the position from `game.rootPosition`, every move already represented by `game.livePath`, then the two supplied moves; it does not require commit first. **Why:** pause permits an accepted engine move to remain uncommitted, so waiting for `livePath` would prevent immediate pondering, while retaining the best move privately could outlive its turn and compete with game history.
-- The transient array containing the preceding live sequence plus the two supplied moves is an intentional command-construction copy. **Why:** the protocol needs one stable payload without mutating the authoritative path or tree. The client retains only the expected opponent reply needed for the next hit comparison, not a player-search best move or committed-move history.
-- Pondering uses the current `game.clockSnapshot`, which may still be pre-commit because the runtime begins the search immediately. On the next turn, `isPonderHit(game, expectedMove)` selects the path from the `Pondering` state. A hit selects the contextual `buildFindNextMoveCommands(game, expectedMove)` result. A miss awaits `_stopSearch(...)`, which sends `stop` and consumes the terminating stale `bestmove`, then follows the normal boundary path and calls `buildFindNextMoveCommands(game)` against the current root and live path. Both paths then use one shared `FindingMove` setup and result handler.
-- Raw output is routed by session state rather than by whichever parser happens to accept the line. Expected handshake, analysis, player-move, and search-stop responses complete only their matching state transition. **Why:** UCI reuses shapes such as `bestmove` for analysis completion, player turns, ponder stops, and continuations; syntax alone cannot identify which pending operation may settle. Separate state-owned deferreds prevent a stale speculative result from satisfying a new turn.
-- Command builders produce contextual payloads and do not decide session transitions. The UCI player-turn path selects hit or miss from the current state and `isPonderHit(...)`; it never inspects `ponderhit`, `stop`, or a command-array position to infer state.
-- `EngineClient` owns the full protocol conversation over `NW.js`-style engine communication hooks.
-- `EngineClient` does not call `ProcessManager`; layer-2 composition keeps process lifecycle and protocol conversation separate so layer-1 modules do not call one another.
-- UCI move strings and engine-facing FEN are engine-boundary details only. Move strings are read from or lazily cached in `IMove.$.uci`; FEN is derived when the position command is built.
-- Flow docs never expose `EngineClient` private helpers directly. If `_mapBoardPositionToProtocolPosition` or `_shouldReuseCurrentGameLine` ever become meaningfully shared with higher-level engine-position preparation, that shared behaviour should be documented in [UtilityIndex.md](../UtilityIndex.md); until then those helpers remain owner-private.
+## Concrete Implementations
+| Class | Location | Registered `EngineClientType` | Host hooks |
+| --- | --- | --- | --- |
+| `UciEngineClientBase` (abstract) | `src/platform/base/UciEngineClientBase.ts` | Supplied by the subclass constructor | Declares `_isProcessOpen` and `_getProcessExitDetail` |
+| `NwjsUciEngineClient` | `src/platform/nwjs/NwjsUciEngineClient.ts` | `Uci` | `NwjsUtility.isProcessOpen`; exit detail formats `exitCode` and `signalCode` |
+| `BrowserUciEngineClient` | `src/platform/browser/BrowserEngineClient.ts` | `UciWorker` | `BrowserWorkerProcess.closed`; exit detail is its retained `exitDetail` |
 
-Example internal protocol responsibilities:
+- Both clients inherit the same base. The base owns every protocol operation, session state, line buffering, listener cleanup and command writes. Only the two protected hooks differ. **Why:** the browser client previously kept a second copy of the UCI logic and reached its Worker through a transport registry exported by the sibling process manager, which crossed the layer-1 boundary. One base lets both clients read the shared process directly and keeps UCI behaviour identical for both process kinds; parity with the former standalone native client was verified before adoption. A replacement must keep host differences confined to process liveness and exit detail. See [BrowserEngineDependencyFixPlan](../../../ArchivedPlans/BrowserEngineDependencyFixPlan.md#private-inheritance-design).
+- The base constructor records the registered `EngineClientType`, and every operation rejects an assignment whose `clientType` differs with `processStartFailed` ("Engine client type is not UCI.").
+- The desktop `UciWorker` binding uses `BrowserUciEngineClient` with Worker processes from `NwjsProcessManager`. The client reads the process directly; it imports no process manager, registry or transport.
+- Each platform store constructs its clients with `markRaw(new ...)` and returns the same instance through `getEngineClient(...)`. Journeys construct `NwjsUciEngineClient` directly over scripted processes.
+- Another protocol or Worker message interface, such as a module API, needs another `EngineClientType` member and its own `IEngineClient` implementation. The protocol switch belongs inside this layer, not in `EngineRuntimeService`, stores or views.
 
-```text
-_sendUciHandshake
-_sendSetOption
-_sendRegisterLater
-_sendPosition
-_sendGoInfinite
-_sendGoMove
-_readAnalysisStream
-_readBestMove
-_mapProtocolMoveToMove
-_mapProtocolPrincipalVariationToMoves
-_shouldReuseCurrentGameLine
-```
+## Session States
+The UCI session lives at `engine.$.session` and is private to the client.
+
+| State | Valid output | Completed by |
+| --- | --- | --- |
+| `Created` | none | `initialiseEngine` sending `uci` |
+| `AwaitingUciOk` | `option ...`, `registration error`, `uciok` | `uciok` returns to `Created` while initialisation continues |
+| `AwaitingReadyOk` | `readyok` | `readyok` enters `Ready` |
+| `Ready` | none | a search or boundary command |
+| `Analysing` | `info ...`, `bestmove ...` | final `bestmove` enters `Ready` and emits a final update |
+| `FindingMove` | `bestmove ...` | enters `PlayerMoveReady` and resolves the player-move completion |
+| `PlayerMoveReady` | none | `awaitPlayerTurnMove` returns the move and enters `Ready` |
+| `Pondering` | none; `bestmove` here is a protocol error | `ponderhit` or a stopped search |
+| `StoppingSearch` | `bestmove ...` | consuming the stale `bestmove` enters `Ready` |
+| `Stopped`, `Failed` | none | terminal; replaced on the next `initialiseEngine` |
+
+- Raw output is routed by session state rather than by whichever parser accepts the line. **Why:** UCI reuses shapes such as `bestmove` for analysis completion, player turns, ponder stops and continuations; syntax alone cannot identify which pending operation may settle. State-owned `Deferred` completions prevent a stale speculative result from satisfying a new turn.
+- Positively identified control lines (`bestmove`, `option`, `readyok`, `registration`, `uciok`) that are invalid for the current state set `engine.$.lastError` and fail the session. Unrecognised ancillary output is ignored. An unparsable `info` line during analysis is skipped.
+- A terminal transition rejects the pending completion of the current state, clears the game boundary and options, detaches process listeners and clears the session's process reference.
+- The client's own process exit listener fails the session with `unexpectedExit`, carrying the host's exit detail, unless the session was already stopped. One process exiting does not affect another assignment.
+
+## Operation Notes
+- `initialiseEngine(...)` requires an open process. An initialised session on the same process returns immediately; a session on a replaced process is stopped; a terminal session is replaced. It then attaches listeners, sends `uci`, collects `option` lines until `uciok`, writes each saved option with `setoption`, sends `isready` and waits for `readyok`. Option declarations are parsed into `IEngineOptionMeta` and cached on the session.
+- Licensed-engine credentials are out of scope. When a UCI engine reports `registration error`, the client sends `register later` without exposing registration through the generic API.
+- `getOptions(...)` returns the cached declarations only after explicit initialisation. They are not copied into engine records or configured option maps. `EngineRuntimeService.getOptions(...)` is the layer-2 discovery boundary that copies them.
+- `startAnalysis(...)`, `startPlayerTurn(...)` and `startPondering(...)` require an already initialised session and never initialise implicitly.
+- The client decides privately whether a changed game id or root position requires `ucinewgame` followed by `isready`. It compares the game id and the root position's FEN, not the `rootPosition` object identity. **Why:** board editing mutates the root in place, so reference equality cannot detect an effective change. FEN is the protocol projection here; it is unsuitable as the application's structural identity because it also carries move counters.
+- `startAnalysis(...)` accepts only `EngineAnalysisSearchMode.Infinite`. Before its first await it captures a detached clone of the rendered position, the analysis commands built from `renderedPath`, the game id, root FEN and the `MultiPV` option command. If analysis is already running it stops that search first. It then applies any game boundary, clears `engine.$.analysisLines`, writes `setoption name MultiPV`, enters `Analysing` and writes `position ...` and `go infinite`. The captured board is the parsing input for the whole search, even after the canonical board changes.
+- Analysis updates retain every reported rank in `engine.$.analysisLines`, ordered by engine rank, without selecting the rendered lines; the game subscription performs that selection. When the guarded callback returns `false`, the client restores the previous line for that rank. **Why:** duplicating chess acceptance in each protocol client would let implementations disagree, while exposing raw output would leak UCI parsing upward. `EngineRuntimeService` owns the single acceptance guard.
+- `startPlayerTurn(...)` searches the live path. From `Pondering`, `isPonderHit(game, expectedMove)` selects the path: a hit sends `ponderhit`; a miss awaits `_stopSearch(...)`, which sends `stop` and consumes the stale `bestmove`, applies any game boundary and then sends the normal `position ...` and `go ...` commands from `buildFindNextMoveCommands(game)`. Both paths enter one shared `FindingMove` state. The client never inspects a command array to infer state.
+- `startPondering(...)` receives the guarded engine move and its ponder move. It builds the position from `game.rootPosition`, every move on `game.livePath`, then those two moves, and sends `go ponder` using the current `game.clockSnapshot`. It does not wait for the engine move to be committed. **Why:** pause may hold an accepted engine move uncommitted, so waiting for `livePath` would block immediate pondering, while retaining a private best move could outlive its turn and compete with game history. The transient move array is an intentional command-construction copy; the client retains only the expected reply for the next hit comparison.
+- Untimed games search with `go movetime` using `BuildConfig.engine.untimedMoveTimeMs`; timed games send both clocks and any increment.
+- `stopAnalysis(...)` is a no-op in `Ready`; otherwise it requires `Analysing` and drains the search through `StoppingSearch`.
+- `stopEngine(...)` requires only that a process reference exists, not that it is open, then stops the session and rejects pending completions. **Why:** it must still clear the session after the physical process has already exited. It never kills the process or clears `engine.$.process`; physical shutdown belongs to `EngineRuntimeService` through `ProcessManager`.
+- `restartEngine(...)` stops the session and initialises it again on the current process.
+- Every command write checks process liveness through `_isProcessOpen` and rejects a missing `stdin` with `processStartFailed`. Terminal-state checks between writes prevent a delayed write or readiness continuation from reviving a disposed session.
+
+## Ownership Notes
+- `EngineClient` acts on the in-game `IAssignedEngine` and the process already bound under `engine.$` by `EngineRuntimeService`. It does not call `ProcessManager`; layer-2 composition keeps process lifecycle and protocol conversation separate so layer-1 modules do not call one another.
+- The concrete client refines `engine.$` with a private `session`. The session field is optional until `initialiseEngine(...)` creates it after the base runtime exists. Client-private fields are not part of `IAssignedEngineRuntime` and must not be relied on by upper layers. The shared `analysisLines` map is written by the client and cleared by both the client and `EngineRuntimeService`.
+- State is explicit object-attached state on `engine.$`; there are no hidden side tables.
+- UCI move strings and engine-facing FEN are engine-boundary details. Move strings are read from or lazily cached in `IMoveRaw.$.uci`; FEN is cached in the position's runtime metadata when the position command is built.
+- The runtime ownership breakdown and state-mutation order are defined in [EngineRuntimeOwnership](../../ProcessFlows/EngineRuntimeOwnership.md).
+- Flow docs never expose the client's private helpers. Representative private steps are `_attachToProcess`, `_awaitUciOk`, `_awaitReadyOk`, `_prepareGameBoundaryIfNewGame`, `_writeSearchCommands`, `_stopSearch`, `_consumeLine`, `_completeAnalysis`, `_completePlayerMove`, `_parseDetailedBestMove` and `_parseDetailedAnalysisLine`. Protocol encoding shared between clients lives in [UciUtility](../UtilityIndex.md#uciutility).

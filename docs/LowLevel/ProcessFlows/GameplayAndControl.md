@@ -1,666 +1,1105 @@
 # Gameplay And Control Flows
 
 ## Scope
-This document covers `SCN-MOVE-01` to `SCN-CTRL-05` and `SCN-ENGINE-03`, including `SCN-MOVE-04` premoves.
+This document covers `SCN-MOVE-01` to `SCN-MOVE-04`, `SCN-HIST-01` to `SCN-HIST-04`, `SCN-TIME-01` to `SCN-TIME-05`, `SCN-CTRL-01` to `SCN-CTRL-06` and `SCN-ENGINE-03`, plus the live player-turn request that drives Local, premove and Engine turns. `SCN-CTRL-06` is the game-end prompt raised after any result. Analysis seats, board editing, setup and analysis after a result are in [AnalysisAndSetup.md](AnalysisAndSetup.md). Engine process and protocol ownership are in [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md).
 
-Persistence note: this document focuses on active-game mutation. When a flow needs the resulting workspace persisted, presentation follows up with `SavedGamesStore.saveGame(...)`; that caller-owned save step is shown only where persistence behaviour is itself part of the scenario or materially affects the branch.
+Reading notes:
+
+- `GamesStore` composes the per-concern composables in `src/state/game/` and exposes most actions as direct aliases. Tables name the defining module, for example `GameMoveComposable.commitLiveMove`. Only `makeMove`, `_commitHistoryRewriteMove`, `takeBack`, `navigateToNode`, `exitInGameAnalysis`, `resumeGame`, `resignGame` and `acceptDrawOffer` have store bodies. **Why:** those actions must cancel the player turn before a lower mutation or request a successor turn after it. Coordinating them in the store keeps `GameMoveComposable`, `GameClockComposable` and `GameStatusComposable` free of upward calls into `GamePlayerTurnComposable`, which was the dependency cycle removed by the [store dependency restructuring](../../ArchivedPlans/StoreDependencyFunctionFlows.md). Moving such a call back into a lower composable reintroduces that cycle; a replacement must keep the dependency direction one-way.
+- Shared utilities from `src/utility`, such as the chess rule functions, stay out of the tables; the flow notes name them. See [UtilityIndex](../Architecture/UtilityIndex.md). `OperationOwner` appears in tables because it is the ownership boundary of view playback.
+- *(background)* marks work that the caller starts but does not await.
+
+Persistence note: no gameplay action in this document writes a save directly. `GameRecordComposable.moveCommitted` queues `SavedGamesStore.saveGame(game, { targetKind: Autosave })` every `gameSession.autosaveAfterMoveCount` committed moves, counting actual and analysis moves. The app-close autosave covers the rest; see [PersistenceAndAdministration.md](PersistenceAndAdministration.md). Resignation, draw agreement and timeout do not trigger a save themselves. Their result reaches disk through the next autosave, the close autosave or an explicit save from the game-end prompt.
 
 ## Move Execution
 
 ### SCN-MOVE-01 - Legal Move on Board
 
-#### Flow A - Live Move At The Current Position
-| `Chessboard.moveSubmitted` |
+#### Flow A - Local Move At The Live Position
+| `Chessboard._commitTarget(boardId)` |
 | --- |
-| `GamesStore.makeMove` |
-| `GameView._handleCommittedMoveResult` |
+| `legalMoves` computed: legal targets of the selected piece |
+| `Chessboard._emitMove(rawMove)` |
 
-| `GamesStore.makeMove` |
+`_commitTarget` is reached from `Chessboard._selectSquare` (click on a target after selecting an own piece) and `Chessboard._onDrop` (drag). A target with several promotion candidates goes through SCN-MOVE-03 instead.
+
+| `Chessboard._emitMove(rawMove)` |
 | --- |
-| `GameMoveComposable.makeMove` |
-| `GameStatusComposable.assertMoveAllowed` |
-| `GamePlayerTurnComposable.attemptPlayerMove` |
-| `GamePlayerTurnComposable.playerMoveHandler` |
-| `GameMoveComposable.commitLiveMove` |
-| `GameClockComposable.applyMove` |
-| `GameAnalysisComposable.refreshAnalysisForGame` *(background)* |
+| emit `moveAttempted(rawMove)` |
+| `Chessboard._clearSelection()` |
 
-| `MoveApplicationService.applyMove` |
+| `GameView.inputActions.move(rawMove)` |
 | --- |
+| ignore when `renderedBoard` is no longer the publication the action was created for |
+| `GameView._makeMove(rawMove)` |
+| `GameView._requestMoves([rawMove])` |
 
-| `TimeControlService.applyMove` |
+| `GameView._requestMoves(moves)` |
 | --- |
-| `TimeControlService._applyIncrement` |
-| `TimeControlService._switchActiveColour` |
+| return unless `canInput`, no line is playing and the game is not in `BoardEdit` |
+| no `premoveColour` (SCN-MOVE-04) and no history confirmation (SCN-HIST-02): `GameView._run(() => GameView._applyMoves(game, moves))` |
 
-| `MoveHistoryService.addMainlineMove` |
+| `GameView._applyMoves(game, moves)` |
 | --- |
+| `MoveApplicationService.genPosition(position, [])` |
+| preflight every move on that detached preview, advancing it with `MoveApplicationService.applyMove` |
+| `OperationOwner.run(action)` (the view's `playback` owner) |
+| per move: wait 350 ms from the second move, then check game, tree, mode, result, input and path |
+| `GamesStore.makeMove(game, rawMove)` |
 
-| `GameView._handleCommittedMoveResult` |
+| `GamesStore.makeMove(game, rawMove)` |
 | --- |
-| `GamesStore.getGame` |
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `GameStatusComposable.assertMoveAllowed(game)` |
+| `GamePositionComposable.getRenderedNode(game)` / `getRenderedPosition(game)` |
+| `GameStatusComposable.isOngoingLiveGame(game)` / `isAnyLiveAnalysisState(game.gameState)` |
+| `GamePlayerTurnComposable.getSideToMovePlayer(game, parentPosition.sideToMove)` |
+| `GameMoveComposable.resolveMove(parentPosition, rawMove, parentNode.move)` |
+| `GamePlayerTurnComposable.attemptPlayerMove(game, detailedMove)` |
 
-| `GamesStore.refreshAnalysis` |
+| `GameMoveComposable.resolveMove(parentPosition, rawMove, lastMove)` |
 | --- |
-| `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable._startAnalysisSeat` |
-| `GameAnalysisComposable._subscribeToAnalysis` |
+| reject `from`/`to` outside `0..63` |
+| match a legal candidate from `rawMove.from` on `to` and exact `promotionPiece`, using the parent node's last move |
+| enrich that candidate into a fresh `IMove` for `parentPosition` |
 
-| `GameAnalysisComposable._startAnalysisSeat` |
+| `GamePlayerTurnComposable.attemptPlayerMove(game, move)` |
 | --- |
-| `EngineRuntimeService.ensureReady` |
-| `EngineRuntimeService.startAnalysis` |
+| `game.$.pendingPlayerTurnPromise.resolve(move)` |
+| await `game.$.pendingPlayerTurnHandlePromise` (`GamePlayerTurnComposable._playerMoveHandler`) |
 
-| `GameView._handleAnalysisRuntimeUpdate` |
+| `GamePlayerTurnComposable._playerMoveHandler(pendingPlayerMove)` |
 | --- |
-| `GameAnalysisComposable._subscribeToAnalysis callback` |
+| `finally`: clear `pendingPlayerTurnPromise`, `pendingPlayerTurnHandlePromise` and `pendingPlayerTurnAbortController` |
+| `GameMoveComposable.commitLiveMove(game, move)` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` when the commit finalised |
 
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `GameMoveComposable.commitLiveMove(game, move)` |
 | --- |
-| `GamePlayerTurnComposable.requestPlayerMove` |
+| `GameClockComposable.reconcileTimeout(game, moveTimestamp)`; expired: return without committing |
+| `MoveHistoryService.pruneFutureMoves(liveNode)` when the live node has children and the selection is not beneath it (SCN-HIST-04) |
+| `GameMoveComposable._applyLiveMove(game, move, moveTimestamp)` |
+| `GameMoveComposable._finaliseLiveMove(game, livePosition, isLivePositionRendered)` |
 
-#### Flow B - Analysis-Only Move
-| `Chessboard.moveSubmitted` |
+| `GameMoveComposable._applyLiveMove(game, move, moveTimestamp)` |
 | --- |
-| `GamesStore.makeMove` |
-| `GameView._refreshVisibleAnalysisAfterCommittedMove` |
+| `GamePositionComposable.getLiveNode(game)` / `getLivePosition(game)` |
+| `GameClockComposable.applyMove(game, move.movingColour, moveTimestamp)` |
+| `GameAnalysisComposable.captureMoveAnalysis(game)` |
+| `MoveApplicationService.applyMove(livePosition, move)` |
+| `MoveHistoryService.addMainlineMove(liveNode, move, nextClockSnapshot)` |
+| `GamePositionComposable.appendLivePath(game, nextNode)` |
+| `GameRecordComposable.moveCommitted(game)` |
 
-| `GamesStore.makeMove` |
+| `GameClockComposable.applyMove(game, movingColour, nowUtc)` |
 | --- |
-| `GameStatusComposable.assertMoveAllowed` |
-| `GameMoveComposable.makeMove` |
-| `GameMoveComposable.makeMove` |
-| `GameMoveComposable.commitStandaloneAnalysisMove` |
-| `GameAnalysisComposable.refreshAnalysisForGame` *(background)* |
+| `TimeControlService.applyMove(game.clockSnapshot, movingColour, nowUtc, game.timeControl)` |
 
-| `MoveApplicationService.applyMove` |
+| `GameMoveComposable._finaliseLiveMove(game, livePosition, isLivePositionRendered)` |
 | --- |
+| `GameStatusComposable.updateGameResultFromLivePosition(game, livePosition)` |
+| state: `getAnalysisState` after a result, `getLiveAnalysisState` during explicit analysis, otherwise `getLiveState` |
+| `GamePremoveComposable.revalidatePremoves(game)` |
+| `GameMoveComposable._refreshRenderedAnalysis(game, isLivePositionRendered)` *(background)* |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
 
-| `MoveHistoryService.addAnalysisMove` |
+| `GameStatusComposable.updateGameResultFromLivePosition(game, boardPosition)` |
 | --- |
+| resolve checkmate, stalemate or insufficient material on the live position |
+| terminal result: `TimeControlService.pauseClock`, clear `drawOfferState`, `GameStatusComposable.flagResultNotification(game)` |
 
-| `GameView._refreshVisibleAnalysisAfterCommittedMove` |
+| `GameMoveComposable._refreshRenderedAnalysis(game, changed)` |
 | --- |
-| `GamesStore.getGame` |
+| changed: `GameAnalysisComposable.refreshAnalysisForGame(game)` ([shared refresh](AnalysisAndSetup.md#shared-rendered-analysis-refresh)) |
+| unchanged: `GameRecordComposable.timestampGame(game)` |
 
-| `GamesStore.refreshAnalysis` |
+- Turn ownership: an ordinary live move does not commit directly. It resolves the game-level `Deferred<IMove>` that `requestPlayerMoveIfNeeded` registered for the Local seat, and the handler commits it. **Why:** Local input, a premove head and an engine result all complete the same turn owner, so pause holding, cancellation and the successor request behave identically for every source. A direct commit would bypass the paused-output slot and leave a stale pending turn registered. `attemptPlayerMove` throws `ReferenceError` when no turn is armed.
+- Successor request: `commitLiveMove` returns `true` only when `_finaliseLiveMove` ran, and the handler then calls `requestPlayerMoveIfNeeded`. A timeout found by `reconcileTimeout` returns `undefined` and requests nothing.
+- Background selection: `_finaliseLiveMove` passes `isLivePositionRendered`, so an actual move while the user reviews history or explicit analysis leaves that rendered analysis running and only timestamps the game.
+- Game end: a checkmate, stalemate or insufficient-material result is recorded on the completed move, stops both clocks, moves the game to non-live analysis and arms the one-shot result prompt. See [Game End](#game-end).
+- Utilities: `legalMoves` and `resolveMove` use `genLegalMovesForPiece`; `resolveMove` enriches with `toDetailedMove`; `_applyMoves` preflights with `isMoveLegal` and `toDetailedMove` and waits with `abortableDelay`; `updateGameResultFromLivePosition` uses `resolveGameResult`.
+- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for analysis start and streaming below `refreshAnalysisForGame`.
+- Requirement verification: `Pass`. The move is resolved against the canonical selection once and fans out to history, clock, analysis capture, premove revalidation and analysis refresh from one store boundary.
+
+#### Flow B - Move In Free Analysis Or After A Result
+| `GamesStore.makeMove(game, rawMove)` |
 | --- |
-| `GameAnalysisComposable.refreshAnalysisForGame` |
-| `GameAnalysisComposable._startAnalysisSeat` |
-| `GameAnalysisComposable._subscribeToAnalysis` |
+| `GameStatusComposable.assertMoveAllowed(game)` |
+| `GamePositionComposable.getRenderedNode(game)` / `getRenderedPosition(game)` |
+| `GameStatusComposable.isOngoingLiveGame(game)` is false |
+| `GameMoveComposable.resolveMove(parentPosition, rawMove, parentNode.move)` |
+| `GameMoveComposable.commitStandaloneAnalysisMove(game, parentNode, parentPosition, detailedMove)` |
 
-| `GameView._handleAnalysisRuntimeUpdate` |
+| `GameMoveComposable.commitStandaloneAnalysisMove(game, parentNode, parentPosition, move)` |
 | --- |
-| `GameAnalysisComposable._subscribeToAnalysis callback` |
+| `GameMoveComposable._advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move)` |
+| `GameStatusComposable.updateGameStateAfterPosition(game, renderedPosition.sideToMove)` |
+| `GameMoveComposable._refreshRenderedAnalysis(game)` *(background)* |
 
-- State/settings coverage: `makeMove` dispatches by `gameState`. `LiveWhiteTurn` and `LiveBlackTurn` commit live moves and may trigger a player-engine reply. `AnalysisWhiteMove`, `AnalysisBlackMove`, and `LiveAnalysisFrom*` stay analysis-only. `BoardEdit` and ordinary paused states block move submission; explicit analysis, including paused analysis, permits rendered-branch moves while actual turn/clock ownership remains independent; terminal results transition to non-live analysis and `resultState` prevents further live progression. Checkmate remains `CheckState.Checkmate` on the completed move and as a derived position cache, not a `GameState`.
-- Continuous analysis update loop: `GameAnalysisComposable.refreshAnalysisForGame` -> `GameAnalysisComposable._startAnalysisSeat` -> `GameAnalysisComposable._subscribeToAnalysis` -> `EngineRuntimeService.startAnalysis(engine, game, request)` (owns `ensureReady` and cancellation) -> client state-machine updates -> guarded subscription callback selects three rendered lines -> `timestampGame` -> `AnalysisPanel` rerenders the affected seat. A live move while browsing history preserves the unchanged rendered analysis.
-- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the lower-layer state transitions behind analysis start, streamed updates, player turns, and pondering.
-- Requirement verification: `Pass`. The move commits once and fans out to history, clocks, and analysis from one store boundary.
-
-### SCN-MOVE-02 - Legal Move Filtering
-
-#### Flow A - App Move Selection
-| `Chessboard.pieceSelected` |
+| `GameMoveComposable._advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move)` |
 | --- |
-| `GameRuleUtility.genLegalMovesForPiece` |
-| `GameRuleUtility.toDetailedMove` |
-| `Chessboard.moveSubmitted` |
+| `MoveApplicationService.genPosition(parentPosition, [])` when the parent is the cached live position |
+| `MoveApplicationService.applyMove(renderedPosition, move)` |
+| `MoveHistoryService.addAnalysisMove(parentNode, move)` |
+| `GamePositionComposable.getPathToNode(nextNode)` |
+| `GamePositionComposable.setRenderedPath(game, path, { node: nextNode, position: renderedPosition })` |
+| `GameRecordComposable.moveCommitted(game)` |
 
-#### Flow B - Player Engine Result
+The view reaches this route from the same board and PV handlers as Flow A. `GameView.canInput` is true for any game without `livePath` or with a final result; in board edit the board emits edit events instead and `_requestMoves` refuses moves.
+
+#### Flow C - Move During Explicit In-Game Analysis
+| `GamesStore.makeMove(game, rawMove)` |
+| --- |
+| `GameStatusComposable.assertMoveAllowed(game)` (any live-analysis state, including paused) |
+| `GamePositionComposable.getRenderedNode(game)` / `getRenderedPosition(game)` |
+| `GameMoveComposable.resolveMove(parentPosition, rawMove, parentNode.move)` |
+| `GameMoveComposable.commitLiveAnalysisMove(game, parentNode, parentPosition, detailedMove)` |
+
+| `GameMoveComposable.commitLiveAnalysisMove(game, parentNode, parentPosition, move)` |
+| --- |
+| `GameMoveComposable._advanceRenderedAnalysisBranch(game, parentNode, parentPosition, move)` |
+| `GameStatusComposable.getLiveAnalysisState(liveColour, renderedColour, isPausedLiveAnalysisState(game.gameState))` |
+| `GameMoveComposable._refreshRenderedAnalysis(game)` *(background)* |
+
+- State coverage: `makeMove` dispatches exactly one route. Without ongoing actual play (`livePath` absent or result final) it uses Flow B. In `LiveAnalysisFrom*` and `PausedLiveAnalysisFrom*` it uses Flow C, where both colours may move and the actual turn, clock and held output stay independent. At the live selection outside explicit analysis it uses Flow A or the premove branch of SCN-MOVE-04. Strict history review with Takeback uses SCN-HIST-02; without Takeback it throws `Enter analysis to explore this historical position.` `BoardEdit` and ordinary paused states fail `assertMoveAllowed`.
+- Requirement verification: `Pass`. Analysis moves never touch the live path, clocks or the pending turn.
+
+### SCN-MOVE-02 - Illegal Move Attempt
+
+#### Flow A - Board Offers Only Legal Targets
+| `Chessboard._selectSquare(boardId)` |
+| --- |
+| same square: `Chessboard._clearSelection()` |
+| piece of `inputColour` (`premoveColour` or the position's side to move): select it |
+| other square with a selection: `Chessboard._commitTarget(boardId)` |
+
+| `Chessboard._commitTarget(boardId)` |
+| --- |
+| no `legalMoves` entry for the target: `Chessboard._clearSelection()`; nothing is emitted |
+
+#### Flow B - Store Rejects A Raw Move
+| `GamesStore.makeMove(game, rawMove)` |
+| --- |
+| `GameStatusComposable.assertMoveAllowed(game)` throws in paused live play and `BoardEdit` |
+| wrong actual owner without a premove seat: throw `This move does not belong to the current local turn.` |
+| `GameMoveComposable.resolveMove(parentPosition, rawMove, lastMove)` throws `Invalid move coordinates.` or `This move is not legal in the selected position.` |
+
+`GameView._run` presents the error through `_showNotice`. No rejection mutates the tree, clocks, pending turn, premove queue or analysis.
+
+#### Flow C - Stale Suggested Prefix
+| `GameView._applyMoves(game, moves)` |
+| --- |
+| any step illegal on the detached preview: throw `This suggested move is stale. Refresh analysis and try again.` before the first submission |
+
+#### Flow D - Player Engine Result
 | `EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition)` |
 | --- |
-| `GameRuleUtility.isMoveLegal` |
-| `MoveApplicationService.genPosition` *(detached sequential validation)* |
-| `GameRuleUtility.isMoveLegal` *(optional ponder move)* |
-| `GamePlayerTurnComposable.attemptPlayerMove` |
+| `EngineClient.awaitPlayerTurnMove(engine)` |
+| the move must be legal from `searchedPosition` |
+| `MoveApplicationService.genPosition(searchedPosition, [move])`; any `move.$.ponderMove` must be legal from it |
 
-- App-owned board and analysis interactions can submit only moves produced from legal move targets, so `GamesStore.makeMove` does not redundantly revalidate them.
-- The player-engine result is the external move-producing boundary. `EngineRuntimeService.awaitPlayerTurnMove` validates the best move against the captured search position and any ponder continuation against a detached position after that move. Invalid output fails the provider before `attemptPlayerMove`; the engine-agnostic handler, deferred flush, and commit path do not revalidate it.
+- Raw-move acceptance: board, promotion and PV input submit `IMoveRaw`. `GameMoveComposable.resolveMove` converts it to a fresh `IMove` against the parent node and position of the route that will commit it. **Why:** a coordinate pair is an intention, while capture, check, castling, en passant and notation are facts about one board. PV playback is delayed, and a detailed move captured from the display or an earlier board would carry facts for the wrong position. Trusting presentation-enriched `IMove` values fails exactly there. The invariant is that every accepted user move is matched against `genLegalMovesForPiece` from the same selector's node and position before any mutation, and that a rejection creates no tree, clock, autosave-count or turn change. See the [raw move submission design](../../ArchivedPlans/RawMoveSubmissionDesign.md#rule-api-use-and-acceptance-algorithm).
+- Engine moves are the external producer. `EngineRuntimeService.awaitPlayerTurnMove` is their single legality guard (`isMoveLegal`), so the engine-agnostic handler and `commitLiveMove` do not re-resolve them.
+- Requirement verification: `Pass`.
 
 ### SCN-MOVE-03 - Pawn Promotion Resolution
 
-#### Flow A - Build The Promotion Move Before Submission
-| `Chessboard.commitTarget` |
+#### Flow A - Choose The Promotion Piece
+| `Chessboard._commitTarget(boardId)` |
 | --- |
-| `Chessboard.pendingPromotionMoves` *(board-local chooser; no move submitted)* |
-| `Chessboard.choosePromotion` |
-| `Chessboard.emitMove` |
-| `GameRuleUtility.toDetailedMove` |
-| `Chessboard.moveAttempted` |
-| `GameView.makeMove` / `requestMoves` |
-| `GamesStore.makeMove` |
+| several matching `legalMoves` with `promotionPiece`: store them in `pendingPromotionMoves` |
+| `useModal().open(PromotionModal, { moves, colour: inputColour, onSelected: Chessboard._choosePromotion }, onClosed)` |
 
-#### Flow B - Cancel Promotion Before Submission
-| `PromotionModal` `Cancel` |
+| `PromotionModal._choosePromotion(move)` |
 | --- |
-| `Chessboard.clearSelection` *(clears selected square and pending choices)* |
+| ignore after the modal signal aborted or for a move not in `moves` |
+| emit `selected(move)` (handled by `Chessboard._choosePromotion`) |
+| emit `dismissed` when still open |
 
-- UI surface coverage: Chessboard mounts PromotionModal through useModal. Each choice has an accessible name identifying colour and kind; the selected raw move returns through the board event and existing GameView submission/confirmation flow. Cancel and external input invalidation close only that opening.
-- Cancellation and pending-choice boundary: no move, capture, turn or history mutation occurs before a choice. Cancel permits a different move to be selected. Position/edit-mode changes also clear local selection.
-- Settings coverage: baseline `gameplay.promotionPolicy` is `requireExplicitSelection` only, so promotion stays blocked until an explicit piece choice is received.
-- Process note: once the selected piece is merged into the move, `GamesStore.makeMove` simply follows the same context-specific commit path as `SCN-MOVE-01`. There is no pending-promotion state on the game model.
-- Requirement verification: `Pass`. Promotion remains explicit without introducing a special pending-move game state.
-- Journey verification: JRN-PROMO-01–05 cover both colours, every quiet/capture choice, gestures/orientation and promoted save/reload/takeback; see [the owned review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../ArchivedPlans/JourneyImplementation.md#promotion-verification). JRN-RULE-01–06 add castling, en passant, king-safety rejection, timed rule-resolved draws and special-move restoration; see the [Rules review](../../../journeys/definitions/rules/ScenarioReview.md).
+| `Chessboard._choosePromotion(move)` |
+| --- |
+| `pendingPromotionMoves.includes(move)` |
+| `Chessboard._emitMove(move)` |
+
+The completed raw candidate then continues at `GameView.inputActions.move` in SCN-MOVE-01, or at the premove branch of SCN-MOVE-04 when it was offered off-turn.
+
+#### Flow B - Cancel The Choice
+Cancel, the close button, the backdrop and Escape all emit `dismissed` from `PromotionModal`, which the modal provider handles.
+
+| `useModalProvider._close(owner)` |
+| --- |
+| `_detach(owner)`: abort the opening's signal and unmount it |
+| `_completeClose(owner)`: run the `onClosed` callback once |
+
+| `Chessboard._commitTarget: onClosed` |
+| --- |
+| `Chessboard._clearSelection()` when this opening is still the board's `promotion` handle |
+
+#### Flow C - Input Context Changes While Choosing
+| `Chessboard` `onBeforeUpdate` callback |
+| --- |
+| position, display position, `premoveColour`, `boardEdit` or `inputDisabled` changed |
+| `Chessboard._clearSelection()` closes the pending `PromotionModal` handle |
+
+- No move, capture, turn or history mutation happens before a choice. There is no pending-promotion state on `IGame`.
+- Settings coverage: `gameplay.promotionPolicy` is `requireExplicitSelection` only; there is no queen default.
+- Requirement verification: `Pass`. JRN-PROMO-01–05 cover both colours, every quiet and capture choice, gestures, orientation and promoted save/reload/takeback; see the [promotion review](../../../journeys/definitions/promotion/ScenarioReview.md) and [execution record](../../ArchivedPlans/JourneyImplementation.md#promotion-verification). JRN-RULE-01–06 add castling, en passant, king-safety rejection, rule-resolved draws and special-move restoration; see the [rules review](../../../journeys/definitions/rules/ScenarioReview.md).
 
 ### SCN-MOVE-04 - Premoves Through The Existing Turn Request
 
-| Caller and function | Work and result |
-| --- | --- |
-| `GameView.premoveColour` / `canInput` | Offer off-turn input only for the Local seat against an Engine, following ongoing unpaused live play outside explicit analysis |
-| `Chessboard.legalMoves` -> `genCandidateMovesForPiece(displayedPosition, from)` | Offer piece-colour geometry, blockers, future pawn diagonals and castling availability independently of actual turn/check; explicit promotion completes the offered raw candidate |
-| `_emitMove(rawMove)` -> `GameView.inputActions.move` -> `_makeMove` -> `_requestMoves` | Forward the same reference through the captured input owner; the off-turn branch bypasses canonical prefix preflight |
-| `GamesStore.makeMove` -> `GameMoveComposable.makeMove` -> `_appendPremove(game, localPlayer, rawMove)` | Classify eligible context before `_resolveMove`; initialise `{ player, moves: shallowReactive<IMoveRaw[]>([]) }`, push the supplied raw reference; reactive array drives rendering |
-| `GameView.renderedBoard` -> `GamePositionComposable.getPremoveProjection(canonical, queue, heldLocalMove)` | Copy the canonical board once; apply held local output, then the actual FIFO references. Return projected pieces and a `Set<BoardId>` of pending endpoints; canonical analysis/save/history remain unchanged |
-| `applyPremoveProjection(preview, move, redSquares?)` -> `MoveApplicationService.applyMove` | Build the temporary candidate required by application; move pieces in the caller's preview. Add king and rook endpoints for castling. No rule queries, validation, per-entry board copies or combined move arrays |
-| Existing actual output -> `attemptPlayerMove` -> `_playerMoveHandler` -> `commitLiveMove` -> `_finaliseLiveMove` | Apply the actual move, clock/increment and history through the existing mechanism; update result/state |
-| `_finaliseLiveMove` -> `_revalidatePremoves` | Before publication/successor request, simulate the whole remaining FIFO on one detached actual board using source colour and candidate geometry. Clear the whole queue if any dependency fails or actual play ended |
-| Existing `requestPlayerMoveIfNeeded` -> `_requestPlayerMove` | Register the same Deferred/handler/controller; preserve the Engine branch verbatim. For Local, call `_tryPremove` |
-| `_tryPremove` -> `genLegalMovesForPiece(actual, head.from, actualNode.move)` | Resolve exact actual legality and promotion for the head. No match clears the whole queue and leaves the same local request waiting |
-| `_tryPremove` -> `toDetailedMove` -> `moves.shift` -> `attemptPlayerMove` | Generate fresh actual facts, shift once, normalise an empty queue and immediately submit without an intervening await/publication. The original handler commits or holds the accepted output |
-| `renderedBoard` during pending Local handler | Draw canonical pieces until the shifted head commits or is stored as held output. The existing pending request identifies this microtask boundary; no new runtime field or resolver |
-| Existing `_playerMoveHandler` -> `deferredPlayerMove` while paused | Retain accepted output in the existing slot; the reactive held slot drives drawing, without reinserting the head |
-| Existing final `resumeGame` -> `flushDeferredPlayerMove` -> `requestPlayerMoveIfNeeded` | Commit held output once and request the successor normally. Enter/Exit Analyse and ordinary history selection neither flush nor suspend the FIFO |
-| Chessboard right-click, touch tap on premoved piece, or Escape after clearing unfinished input -> `premovesCancelled` -> `inputActions.cancelPremoves` -> `GamesStore.clearPremoves` | Clear the reactive whole FIFO; leave actual play/turn/history alone. Analysis/history/paused boards do not offer cancellation; board-edit right-click retains deletion |
-| `_playAnalysisLine` off-turn -> canonical prefix parity + projected candidate match -> `_requestMoves([clickedMove])` | Append only a possible local-colour final entry; never append predicted opponent replies. Own-turn input uses the first entry; explicit/free/result analysis retains full-prefix playback |
+Premoves are runtime-only input for the Local seat of a Local-versus-Engine game. `game.$.premoveQueue` is `{ player, moves: shallowReactive<IMoveRaw[]>([]) }`; it holds the supplied raw references and creates no node, state, clock change or saved data.
 
-Changed seats, Takeback, confirmed history rewrite, setup/root replacement and terminal actions clear the queue at the accepted mutation after existing cleanup. Temporary navigation preserves it; explicit tab close clears it, store disposal clears/cancels resources, and hydration creates a fresh empty runtime. These boundaries and all 25 scenario cases are specified in the [implementation plan](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#function-flow).
+#### Flow A - Offer Off-Turn Input
+| `GameView.premoveColour` computed |
+| --- |
+| `localPlayer` computed: exactly one Local seat facing an Engine seat |
+| defined only for ongoing, unpaused play outside explicit analysis and board edit, with `renderedPath === livePath`, while the engine is to move |
+
+| `Chessboard.legalMoves` computed |
+| --- |
+| with `premoveColour`: candidate geometry of the selected piece on the displayed board |
+| otherwise: legal targets on the canonical position |
+
+`GameView.canInput` accepts the live board when the side to move is Local or `premoveColour` is defined. Candidate geometry (`genCandidateMovesForPiece`) covers piece movement, blockers, pawn diagonals and castling availability while ignoring turn and check; legal targets use `genLegalMovesForPiece`. Selection uses `inputColour = premoveColour ?? position.sideToMove` on the projected display board.
+
+#### Flow B - Append A Raw Premove
+| `GameView._requestMoves([rawMove])` |
+| --- |
+| `premoveColour` defined: `GameView._run(() => GamesStore.makeMove(game, rawMove))`, bypassing `_applyMoves` preflight |
+
+| `GamesStore.makeMove(game, rawMove)` |
+| --- |
+| `GameStatusComposable.assertMoveAllowed(game)` |
+| `GamePositionComposable.getRenderedNode(game)` / `getRenderedPosition(game)` |
+| `GameStatusComposable.isOngoingLiveGame(game)` / `isAnyLiveAnalysisState(game.gameState)` |
+| `GamePlayerTurnComposable.getSideToMovePlayer(game, parentPosition.sideToMove)` is not Local |
+| `GamePremoveComposable.appendPremove(game, localPlayer, rawMove)`; return |
+
+| `GamePremoveComposable.appendPremove(game, player, rawMove)` |
+| --- |
+| `game.$.premoveQueue ??= { player, moves: shallowReactive([]) }` |
+| `queue.moves.push(rawMove)` |
+
+#### Flow C - Project The Queue For Display
+| `GameView.renderedBoard` computed |
+| --- |
+| queue shown only while following the live board outside analysis, and hidden while a Local turn is pending so a shifted head is drawn from the canonical board until it commits |
+| held Local output from `game.$.deferredPlayerMove`, when present |
+| `GamePositionComposable.getPremoveProjection(canonicalPosition, queue, heldLocalMove)` |
+
+| `GamePositionComposable.getPremoveProjection(base, queue, heldLocalMove)` |
+| --- |
+| `MoveApplicationService.genPosition(base, [])` |
+| `GamePositionComposable.applyPremoveProjection(preview, heldLocalMove, redSquares)` |
+| `GamePositionComposable.applyPremoveProjection(preview, move, redSquares)` for each queued move |
+
+| `GamePositionComposable.applyPremoveProjection(preview, move, redSquares)` |
+| --- |
+| derive the candidate kind (castle, promotion, en passant, normal) from the preview |
+| add the endpoints, and the castling rook squares, to `redSquares` |
+| `MoveApplicationService.applyMove(preview, candidate)` |
+
+`Chessboard` draws `displayPosition` and marks `premoveSquares`; analysis, saving and history keep the canonical position.
+
+#### Flow D - Revalidate After An Actual Commit
+| `GameMoveComposable._finaliseLiveMove(game, livePosition, isLivePositionRendered)` |
+| --- |
+| `GamePremoveComposable.revalidatePremoves(game)` |
+
+| `GamePremoveComposable.revalidatePremoves(game)` |
+| --- |
+| final result: `GamePremoveComposable.clearPremoves(game)` |
+| `MoveApplicationService.genPosition(livePosition, [])` |
+| each entry: source piece is the queue owner's colour and the move is in its candidate geometry on the preview, else `clearPremoves` |
+| `GamePositionComposable.applyPremoveProjection(preview, move)` |
+
+#### Flow E - Play The Head On The Local Turn
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` |
+| --- |
+| `GamePlayerTurnComposable._requestPlayerMove(game)` registers the Local turn ([player turn](#live-player-turn-request-and-engine-moves)) |
+| `GamePlayerTurnComposable._tryPremove(game)` *(background)* |
+
+| `GamePlayerTurnComposable._tryPremove(game)` |
+| --- |
+| no queue: return; the same Local turn waits for ordinary input |
+| `GamePositionComposable.getLivePosition(game)` / `getLiveNode(game)` |
+| match the head against the legal moves of its piece on the live position (with the live node's last move) on `to` and exact `promotionPiece` |
+| no match: `GamePremoveComposable.clearPremoves(game)`; return |
+| enrich the match into a fresh `IMove` for the live position |
+| `queue.moves.shift()`; clear `premoveQueue` when empty |
+| `GamePlayerTurnComposable.attemptPlayerMove(game, move)` |
+
+The shifted head then commits through SCN-MOVE-01 Flow A, or is held by the handler while paused (SCN-TIME-02 Flow B).
+
+#### Flow F - Cancel The Queue
+| `Chessboard._cancelPremoves()` |
+| --- |
+| `Chessboard._clearSelection()` |
+| emit `premovesCancelled` when `premoveSquares` is not empty |
+
+`_cancelPremoves` is reached from `Chessboard._onContextMenu` outside board edit, `Chessboard._onKeyDown` for Escape with no unfinished selection, and `Chessboard._onClick` for a completed touch tap on a premoved piece.
+
+| `GameView.inputActions.cancelPremoves()` |
+| --- |
+| `GameView._runInputAction(owner, (game) => GamesStore.clearPremoves(game))` |
+
+| `GamesStore.clearPremoves(game)` |
+| --- |
+| alias of `GamePremoveComposable.clearPremoves(game)`: `game.$.premoveQueue = undefined` |
+
+#### Flow G - Premove From An Analysis Line
+| `GameView._playAnalysisLine(moves)` |
+| --- |
+| ordinary live play with `premoveColour` defined |
+| take the final entry; its mover from prefix parity must equal `premoveColour` |
+| source piece on the displayed board is that colour and the move is in its candidate geometry |
+| `GameView._requestMoves([move])` |
+
+- Utilities: append, revalidation and analysis-line premoves use `genCandidateMovesForPiece`; `_tryPremove` resolves the head with `genLegalMovesForPiece` and `toDetailedMove`.
+- Queue boundaries: accepted actions clear the whole queue at their mutation point: `GameMoveComposable.commitHistoryMove`, `GameMoveComposable.rewind`, `GameMoveComposable.replaceWithAnalysisRoot`, `GamePlayerTurnComposable.reassignPlayer`, `GameWorkspaceComposable.startGameFromSetup`, `GameStatusComposable.finaliseResignation`, `GameStatusComposable.finaliseDrawAgreement` and `GameClockComposable._finaliseTimeout`. Closing a tab clears it through `useGameTabActions.close` -> `GamesStore.clearPremoves`, and store scope disposal clears every queue. Pause, explicit analysis, history review, tab switching and in-memory save keep it. Hydration creates an empty runtime through `GamePositionComposable.hydrateGame`.
+- Raw references: the queue stores the supplied `IMoveRaw` without copies or detail. **Why:** transition facts depend on the board at the due turn, which does not exist yet; a detailed premove would carry facts for the wrong position. See the [premove data structure](../../ArchivedPlans/PremoveDataStructure.md).
+- Whole-queue clearing: one failed dependency clears every entry. **Why:** later entries were planned on the board displaced by earlier ones, so dropping only the failed entry would leave intentions that the user never made from the resulting position.
+- Existing turn request: `_tryPremove` is the Local branch of the ordinary `_requestPlayerMove`, and it delivers through `attemptPlayerMove`. **Why:** the rejected alternative, a separate premove driver, duplicated pause holding, cancellation and successor requests. The invariant is one registered turn per game whose first settlement decides commit or hold. All work up to the shift is synchronous, so no other input can claim the same head. See the [implemented plan](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#function-flow).
+- Requirement verification: `Pass (layer exception)`. `GameView.renderedBoard` calls `GamePositionComposable.getPremoveProjection` through its own `useGamePosition()`, a pure detached query that bypasses the `useGamesStore` façade; it is recorded in the [current exceptions](../Architecture/index.md#current-exceptions). The scenario cases are recorded in the [premove implementation verification](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026).
 
 ## Engine-Controlled Turn
 
-### Live Non-Local Player Move Generation
+### Live Player Turn Request And Engine Moves
 
-#### Flow A - Successful Player Engine Turn
-| GamePlayerTurnComposable.requestPlayerMoveIfNeeded |
+#### Flow A - Arm The Turn
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` |
 | --- |
-| GamePlayerTurnComposable.requestPlayerMove |
-| create and store the shared `Deferred<IMove>` and handler promise |
-| GamePlayerTurnComposable.playerMoveHandler |
+| `GameStatusComposable.isLiveTurnReadyForMove(game)` |
+| return while `game.$.pendingPlayerTurnPromise` exists |
+| `GamePlayerTurnComposable._requestPlayerMove(game)` |
 
-| GamePlayerTurnComposable.requestEngineMove |
+| `GamePlayerTurnComposable._requestPlayerMove(game)` |
 | --- |
-| EngineRuntimeService.ensureReady |
-| EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove, signal) |
+| `GamePlayerTurnComposable.getSideToMovePlayer(game, getLivePosition(game).sideToMove)` |
+| throw when a pending turn already exists |
+| create `AbortController` and `Deferred<IMove>` |
+| start `GamePlayerTurnComposable._playerMoveHandler(deferred)` |
+| store `pendingPlayerTurnPromise`, `pendingPlayerTurnHandlePromise`, `pendingPlayerTurnAbortController` on `game.$` |
+| Engine seat: `GamePlayerTurnComposable._requestEngineMove(engine)` *(background; rejection rejects the Deferred)* |
+| Local seat: `GamePlayerTurnComposable._tryPremove(game)` *(background)* |
 
-| EngineRuntimeService.startPlayerTurn |
+`requestPlayerMoveIfNeeded` is called after creation, insertion, setup start, every finalised commit, final Resume, a return to the live node, Takeback, reassignment and the 500 ms failure retry. The pending-turn guard makes repeated calls harmless.
+
+#### Flow B - Engine Move
+| `GamePlayerTurnComposable._requestEngineMove(engine)` |
 | --- |
-| EngineClient.startPlayerTurn |
-| EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition) |
-| begin optional `EngineRuntimeService.startPondering(engine, game, engineMove, ponderMove)` |
-| GamePlayerTurnComposable.attemptPlayerMove |
-| GamePlayerTurnComposable.playerMoveHandler |
-| GameMoveComposable.commitLiveMove |
+| `EngineRuntimeService.ensureReady(engine, abortController.signal)` |
+| `EngineRuntimeService.startPlayerTurn(engine, game, callback, abortController.signal)` |
 
-#### Flow B - Unexpected Exit During Player Turn
-| `EngineRuntimeService player-turn promise` |
+| `EngineRuntimeService.startPlayerTurn(engine, game, attemptPlayerMove, signal)` |
 | --- |
-| `GamePlayerTurnComposable.requestPlayerMove error handler` |
-| `GamesStore.pauseGame` |
-| `GameView._openRuntimeErrorDialog` |
+| capture `game.$.livePosition` as the searched position |
+| `EngineClient.startPlayerTurn(engine, game)` |
+| `EngineRuntimeService.awaitPlayerTurnMove(engine, searchedPosition)` |
+| `EngineRuntimeService.startPondering(engine, game, move, ponderMove)` *(background, when available)* |
+| `callback(move)` |
 
-#### Flow C - Player Turn Completes While Paused
-| `EngineRuntimeService.startPlayerTurn` |
+| `GamePlayerTurnComposable._requestEngineMove: callback(move)` |
 | --- |
-| begin optional pondering from the guarded result |
-| `GamePlayerTurnComposable.attemptPlayerMove` |
+| return when the captured signal aborted |
+| `GamePlayerTurnComposable.attemptPlayerMove(game, move)` |
 
-| `GamePlayerTurnComposable.playerMoveHandler` |
+The handler then commits through SCN-MOVE-01 Flow A and requests the opposing turn. Protocol states, ponder hit/miss and validation are in [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md#player-turn-runtime).
+
+#### Flow C - Engine Failure
+| `GamePlayerTurnComposable._requestEngineMove(engine)` rejection |
 | --- |
-| `game.$.deferredPlayerMove = move` |
+| `deferred.reject(error)` |
 
-| `GamePlayerTurnComposable.flushDeferredPlayerMove` after resume |
+| `GamePlayerTurnComposable._playerMoveHandler(pendingPlayerMove)` |
 | --- |
-| `GameMoveComposable.commitLiveMove` |
+| `Aborted`: return |
+| other error: log it |
+| `setTimeout(() => GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game), 500)` |
 
-- Runtime distinction: analysis search keeps streaming updates over time, while a player-engine turn waits only for the final awaited move and then ends that turn-scoped search.
-- State gate: `requestPlayerMoveIfNeeded` uses existing actual readiness: an ongoing live path in unpaused ordinary-live or explicit-analysis state, with no pending turn owner. Selected-path equality is not required. Local and engine players use the same game-level deferred turn.
-- Guardrails: player-engine turn generation is blocked in non-live analysis, board edit, paused live games, and whenever `resultState` is not ongoing. A checkmating move records `CheckState.Checkmate` before the game transitions to non-live analysis.
-- Paused completion rule: if an already-started player-engine turn resolves while the game is paused, the guarded result is accepted through the same `attemptPlayerMove(...)` and recorded as deferred output. Available pondering has already begun directly from the engine result. When pause clears, `flushDeferredPlayerMove(...)` commits it without revalidation, engine lookup, or a second pondering request.
-- Completion rule: the player-engine turn completes only when `EngineRuntimeService.awaitPlayerTurnMove(...)` resolves with a valid move. The baseline defines no no-response timeout.
-- Silent-engine rule: if the engine process is still running but has not replied with a valid move, the turn remains pending and the live clock keeps running.
-- Runtime-error rule: malformed player-turn output or other unexpected runtime exceptions are logged and surfaced through the owning standard error-handling path without inventing automatic reconnect, automatic stop, or timeout behaviour.
-- Unexpected-exit rule: process termination is the only automatic disconnect trigger. The owning flow marks the affected seat unavailable or disconnected, pauses the live game immediately, and opens the standard runtime error dialog.
-- Runtime ownership detail: see [EngineRuntimeOwnership.md](EngineRuntimeOwnership.md) for the explicit runtime-service and engine-client mutation steps behind player-turn preparation, search start, awaited completion, malformed output, and unexpected exit.
+`EngineRuntimeService` has already recorded `Failed` availability and `lastError` on `engine.$`, which `PlayerPanel` shows as `engineError`. The retry passes through `ensureReady`, which respawns an exited process.
+
+#### Flow D - Output While Paused
+| `GamePlayerTurnComposable._playerMoveHandler(pendingPlayerMove)` |
+| --- |
+| `GameStatusComposable.isPausedState(game.gameState)`: `game.$.deferredPlayerMove = move` |
+
+The final Resume commits it through `GamePlayerTurnComposable.flushDeferredPlayerMove` (SCN-TIME-02 Flow B). Pondering already started from the engine result, so the flush does not revalidate or restart the engine.
+
+#### Flow E - Cancel The Turn Before An Ownership Change
+| `GameTurnRuntimeComposable.clearPlayerTurnRuntime(game)` |
+| --- |
+| clear `game.$.deferredPlayerMove` |
+| `GameTurnRuntimeComposable._clearPendingPlayerTurn(runtime)` |
+
+| `GameTurnRuntimeComposable._clearPendingPlayerTurn(runtime)` |
+| --- |
+| `abortController.abort(new Aborted())` |
+| `pendingPlayerTurnPromise.reject(signal.reason)` |
+| await `pendingPlayerTurnHandlePromise` |
+
+Callers: `GamesStore._commitHistoryRewriteMove`, `takeBack`, `resignGame`, `acceptDrawOffer`, `GamePlayerTurnComposable.reassignPlayer`, `GameWorkspaceComposable.startGameFromSetup`, `GameClockComposable._settleTimeout` and `GamesStore` scope disposal. It does not stop engine processes; callers that change the engine's position stop it explicitly.
+
+- Ownership: the turn's `Deferred`, handler promise and `AbortController` on `game.$` are its explicit owner. Replacement actions abort and drain that handler before re-arming, and the engine callback checks the signal of the work it belongs to. **Why:** this replaced comparisons of pending-promise identity and generation-style invalidation, which have to be repeated at every await and fail when one is missed. The invariant is at most one registered turn per game, settled by its first resolution or rejection, and every ownership change awaits `clearPlayerTurnRuntime` before mutating. See the [code cleanup decisions](../../ArchivedPlans/CodeCleanupPlan.md#async-ownership-decisions).
+- State gate: `isLiveTurnReadyForMove` requires `LiveWhiteTurn`/`LiveBlackTurn` or unpaused `LiveAnalysisFrom*`, an ongoing result and a `livePath`. Selection does not gate the actual turn, so engines keep replying during history review and explicit analysis.
+- Completion: an engine turn completes only through a valid `bestmove`. A silent but running engine leaves the turn pending while its clock runs; there is no response timeout.
+- Failure: malformed player-turn output and unexpected exit fail the provider, record `Failed` and `lastError`, log, and schedule the 500 ms retry. The game is not paused and no dialog opens. Open conflict: the retry repeats without a limit while the turn stays due, whereas the [engine runtime contract](../../HighLevel/engine_runtime.md) excludes automatic reconnect and backoff retry from the baseline; the two have not been reconciled.
+- Requirement verification: `Pass`.
 
 ### SCN-ENGINE-03 - Change Player Assignment During Game
 
 #### Flow
-| `PlayerPanel.playerSelectionConfirmed` |
+| `PlayerPanel._selectPlayer()` |
 | --- |
-| `useModal().open` |
-| `EnginesStore.createPlayer` |
-| `GamesStore.reassignPlayer` |
-| `GameView._refreshRuntimeAfterPlayerReassignment` |
+| `canSelect`: a game exists, no line is playing and the game is not in `BoardEdit` |
+| `useModal().open(PlayerSelectionModal, { gameId, colour })` |
 
-| `useModal().open` |
+| `PlayerSelectionModal._confirmPlayerSelection()` |
 | --- |
+| `useModalAction.run(action)` |
+| `PlayerSelectionModal._assignedPlayer(selection, colour)`: unassigned, Local, or an engine player copied from the selected profile |
+| `GamesStore.reassignPlayer(game, colour, player)` unless `Keep` is selected |
+| emit `dismissed` on success |
 
-| `EnginesStore.createPlayer` |
+| `GamesStore.reassignPlayer(game, colour, player)` |
 | --- |
+| alias of `GamePlayerTurnComposable.reassignPlayer(game, colour, player)` |
 
-| `GamesStore.reassignPlayer` |
+| `GamePlayerTurnComposable.reassignPlayer(game, colour, player)` |
 | --- |
-| `GamePlayerTurnComposable.reassignPlayer` |
-| `GamePlayerTurnComposable.reassignPlayer` |
-| `GamePlayerTurnComposable.reassignPlayer` |
+| `BoardEdit`: throw |
+| `GamePlayerTurnComposable.createPlayerSnapshot(player)` |
+| equal persisted player: return |
+| `GameTurnRuntimeComposable.clearPlayerTurnRuntime(game)` |
+| `EngineRuntimeService.stopEngine(previousPlayer.assignedEngine)` when the previous seat was an engine |
+| `GamePositionComposable.getRenderedPosition(game)` / `getLivePosition(game)` |
+| `GamePremoveComposable.clearPremoves(game)` |
+| assign the seat |
+| a seat is now empty: `TimeControlService.pauseClock`, `GamePositionComposable.setLivePath(game, undefined)`, reset offer/result/pause reasons, `getAnalysisState(selectedSide)` |
+| both seats assigned: keep the paused, live or live-analysis state family |
+| `GameRecordComposable.timestampGame(game)` |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` |
 
-| `GameView._refreshRuntimeAfterPlayerReassignment` |
+| `GamePlayerTurnComposable.createPlayerSnapshot(player)` |
 | --- |
-| `GamesStore.getGame` |
-| `GamesStore.refreshAnalysis` |
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `playerSchema.parse(player)` |
+| `GamePlayerTurnComposable._initialisePlayerRuntime(snapshot)`: `$ = { activityState: Active }`; engine: `shallowReactive(EngineRuntimeService.ensureRuntime(assignedEngine))` |
 
-- State coverage: player reassignment is valid in live states, paused live states, live-analysis states, and non-live analysis states for the baseline `PlayerType.Local` or `PlayerType.Engine` seat model. Board edit disables player-reassignment presentation and rejects reassignment at the store boundary.
-- Requirement verification: `Pass`. Player reassignment stays explicit at the store boundary, cleanly supports conversion into setup/analysis from the visible context, preserves ongoing live games when no setup transition is needed, and reuses the normal player-engine turn gate.
+- State coverage: reassignment is allowed in live, paused, live-analysis and non-live analysis states, and rejected in `BoardEdit`. Assigning nobody converts the game into free analysis (see [AnalysisAndSetup](AnalysisAndSetup.md#flow-b---convert-a-live-game-into-free-analysis)). Reassignment does not refresh analysis seats.
+- Snapshot: the engine player is a copy of the profile, so editing the profile later does not change an assigned game.
+- Requirement verification: `Pass`. Reassignment stays at the store boundary and reuses the normal turn gate.
 
 ## History And Branching
 
 ### SCN-HIST-01 - Navigate Move History Node
 
 #### Flow
-| `HistoryPanel.nodeSelected` |
-| --- |
-| `GamesStore.navigateToNode` |
-| `GameView._refreshVisibleAnalysisAfterNavigation` |
+`HistoryPanel` emits `nodeSelected(node)` from a history row, the Start position button and `HistoryPanel._selectLive()` (the Live position chip). `GameControlPanel._navigate('first' | 'previous' | 'next' | 'last')` emits the same event in free analysis, explicit analysis and finished games. Both are disabled by `GameView.isHistoryInputDisabled` during board edit, a genuine pause outside analysis, or line playback.
 
-| `GamesStore.navigateToNode` |
+| `GameView._navigateToNode(node)` |
 | --- |
-| `GamePositionComposable.setRenderedPath` |
-| `GameStatusComposable.updateGameStateAfterPosition` |
+| `OperationOwner.cancel()` (the view's `playback` owner) |
+| return when the displayed game changed |
+| `GameView._closeContinuation()` |
+| `GameView._run(() => GamesStore.navigateToNode(game, node))` |
 
-| `GameView._refreshVisibleAnalysisAfterNavigation` |
+| `GamesStore.navigateToNode(game, node)` |
 | --- |
-| `GamesStore.getGame` |
-| `GamesStore.refreshAnalysis` |
-| `GamesStore.getVisibleAnalysis` |
+| `GameMoveComposable.navigateToNode(game, node)` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` when it returned `true` |
 
-- Runtime selector coverage: `HistoryPanel.nodeSelected` carries a hydrated `IMoveNode` from the current tree. `GamesStore.navigateToNode` validates that node against the current root before deriving persisted selector bookkeeping, and ignores stale nodes by refreshing from current store state.
-- Start position selects the root through the same navigation boundary. Live position resolves the persisted live path through the current tree rather than requiring a populated runtime cache. Membership checks validate every parent-child link before deriving a path, including detached nodes whose stale parent reference remains.
-- State coverage: ordinary history review keeps the ordinary live state and actual colour. Background turns/clock continue while selected history stays independent. Explicit Analyse uses its existing analysis state family. Genuine pauses lock ordinary history; paused explicit analysis permits history/moves and preserves actual pause ownership.
-- Requirement verification: `Pass`. Board, history, and analysis bind to the selected visible node while live play remains independent.
+| `GameMoveComposable.navigateToNode(game, node)` |
+| --- |
+| `GameStatusComposable.assertExplorationAllowed(game, 'History navigation')` |
+| `GamePositionComposable.isNodeInTree(game.moveTree, node)`; stale node: return |
+| `GamePositionComposable.getPathToNode(node)` |
+| live node: return `GameMoveComposable._returnToLiveNode(game)` |
+| `GamePositionComposable.setRenderedPath(game, nextPath, { node })` |
+| state: live-analysis family kept; ordinary live and paused keep the actual colour; otherwise `updateGameStateAfterPosition` |
+| `GameMoveComposable._refreshRenderedAnalysis(game, changed)` *(background)* |
+
+| `GameMoveComposable._returnToLiveNode(game)` |
+| --- |
+| `GamePositionComposable.getLiveNode(game)` / `getLivePosition(game)` |
+| `GamePositionComposable.setRenderedPath(game, game.livePath, { node, position })` |
+| state: analysis after a result, paused when paused, otherwise live |
+| `GameMoveComposable._refreshRenderedAnalysis(game, changed)` *(background)* |
+| return `GameStatusComposable.isLiveTurnReadyForMove(game)` |
+
+- Selection: `isNodeInTree` validates every parent-child link, so a detached node with a stale parent reference is ignored. Returning to the live node aliases `renderedPath` to the `livePath` array, which is how the view and store recognise that the selection follows actual play.
+- State coverage: ordinary review keeps the live state and actual colour while turns and clocks continue. Selecting the live node exits explicit analysis. Genuine pauses block ordinary navigation; paused explicit analysis allows it.
+- Analysis: the `AnalysisPanel` reads `GamesStore.getVisibleAnalysis(game)` reactively, and `_refreshRenderedAnalysis` restarts seats only when the path changed.
+- Requirement verification: `Pass`.
 
 ### SCN-HIST-02 - Continue from Historical Node (Takeback Allowed)
 
-#### Flow
-| `Chessboard.moveSubmittedFromHistory` |
+#### Flow A - Confirm The Rewrite
+| `GameView._requestMoves(moves)` |
 | --- |
-| `GamesStore.makeMove` |
-| `TimeControlService.applyMove` |
-| `MoveHistoryService.addMainlineMove` |
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| strict history review, not in explicit analysis, ongoing, Takeback allowed |
+| `useModal().open(ConfirmationModal, { title, subtitle, confirmLabel, confirm: (signal) => GameView._confirmContinuation(pending, signal) })` |
 
-| `GamesStore.makeMove` |
+| `ConfirmationModal._confirm()` |
 | --- |
-| `GameMoveComposable.commitHistoryRewriteMove` |
-| `GamePositionComposable.getRenderedNode/getRenderedPosition` |
-| `GamePositionComposable.setLivePath` with the rendered path, node, and position references |
-| restart the selected node clock snapshot from the current timestamp |
-| `GameMoveComposable.applyLiveMove` |
-| `GameClockComposable.applyMove` |
-| `MoveHistoryService.addMainlineMove` |
-| `GamePositionComposable.appendLivePath` |
-| `GameMoveComposable.finaliseLiveMove` |
+| `useModalAction.run(() => confirm(signal))` |
+| emit `dismissed` on success |
 
-| `TimeControlService.applyMove` |
+| `GameView._confirmContinuation(pending, signal)` |
 | --- |
-| `TimeControlService._applyIncrement` |
-| `TimeControlService._switchActiveColour` |
+| signal, game, rendered node, analysis mode, result, pause and Takeback rechecks |
+| `GameView._run(() => GameView._applyMoves(pending.game, pending.moves))` |
 
-| `MoveHistoryService.addMainlineMove` |
+`_applyMoves` submits through `GamesStore.makeMove`, which routes strict history review with Takeback to the store coordinator below.
+
+| `GamesStore._commitHistoryRewriteMove(game, detailedMove)` |
 | --- |
+| capture `GamePositionComposable.getRenderedNode(game)`, `getRenderedPosition(game)` and the `renderedPath` reference |
+| `GamePlayerTurnComposable.clearPlayerTurnRuntime(game)` |
+| result, selection, analysis, pause or Takeback changed: `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)`; return |
+| `GameMoveComposable.commitHistoryMove(game, detailedMove, renderedPath, renderedNode, renderedPosition)` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` when it finalised |
 
-- Per-game coverage: `game.gameplayOptions.allowTakeback = true` routes this flow into live mainline mutation.
-- Requirement verification: `Pass`. `commitHistoryRewriteMove(game, move)` obtains the rendered node and position itself, cancels the old live turn, aliases `livePath` to `game.renderedPath`, restarts the historical clock snapshot, and directly invokes the shared application and finalisation steps before appending that shared selector once through `livePath`. It never calls `commitLiveMove` or its pruning action. Rendered and live caches share the position object mutated by the replacement move, while the old continuation remains attached as a sibling variation.
+| `GameMoveComposable.commitHistoryMove(game, move, renderedPath, renderedNode, renderedPosition)` |
+| --- |
+| `GamePremoveComposable.clearPremoves(game)` |
+| `GamePositionComposable.setLivePath(game, renderedPath, { node: renderedNode, position: renderedPosition })` |
+| `GameClockComposable.startClock(renderedNode.clockSnapshot ?? game.clockSnapshot, renderedPosition.sideToMove, moveTimestamp)` |
+| `GameStatusComposable.getLiveState(renderedPosition.sideToMove)` |
+| `GameClockComposable.reconcileTimeout(game, moveTimestamp)`; expired: return |
+| `GameMoveComposable._applyLiveMove(game, move, moveTimestamp)` |
+| `GameMoveComposable._finaliseLiveMove(game, renderedPosition, true)` |
+
+#### Flow B - Decline Or Abandon The Rewrite
+| `ConfirmationModal._dismiss()` |
+| --- |
+| emit `dismissed`; no move is submitted |
+
+Route activation, route leave, unmount, navigation and input actions call `GameView._closeContinuation()`, which closes the handle and aborts its signal.
+
+- Rewrite rule: `livePath` becomes the rendered path array, the selected node's clock snapshot restarts from the current timestamp, and `addMainlineMove` attaches the new move as the mainline child. The old continuation stays attached as a sibling variation. The rewrite never calls `commitLiveMove` and never prunes.
+- Recheck after cancellation: `clearPlayerTurnRuntime` awaits the handler, and actual play may have ended or the user may have moved the selection meanwhile. The captured selection and permissions are compared with the current ones before mutation; on a mismatch the cancelled turn is re-armed and the queue is kept.
+- Per-game coverage: only `game.gameplayOptions.allowTakeback = true` reaches this flow.
+- Requirement verification: `Pass`.
 
 ### SCN-HIST-03 - Continue from Historical Node (Takeback Not Allowed)
 
 #### Flow - Explicit Analysis Required
+| `GameView.canInput` computed |
+| --- |
+| history review without Takeback: `false`, so the board and PV targets are disabled |
 
-`GameView Analyse -> GamesStore.enterInGameAnalysis -> GameMoveComposable.enterInGameAnalysis -> detached selected canonical board`.
+| `GameView.inputActions.analyse()` |
+| --- |
+| `GameView._runInputAction(owner, (game) => GamesStore.enterInGameAnalysis(game))` |
 
-`board/PV -> GameView._requestMoves/_applyMoves -> GamesStore.makeMove -> _commitLiveAnalysisMove -> _advanceRenderedAnalysisBranch -> MoveHistoryService.addAnalysisMove`.
+Entry follows SCN-CTRL-04 Flow A from the selected move. Board and PV input then commit through SCN-MOVE-01 Flow C.
 
-- With Takeback disabled, ordinary historical input is disabled until explicit Analyse. Both existing exit-preference settings leave explicit analysis selected; only a deliberate Exit/Live selection returns to actual play.
-- With Takeback enabled, ordinary historical input keeps its existing rewrite confirmation. Explicit analysis bypasses that confirmation and does not rewrite actual play.
+- A direct `GamesStore.makeMove` call in history review without Takeback throws `Enter analysis to explore this historical position.`
+- With Takeback enabled, ordinary historical input keeps the confirmation in SCN-HIST-02. Explicit analysis bypasses that confirmation and never rewrites actual play. Only Exit or selecting the live node returns to actual play.
+- Requirement verification: `Pass`.
 
 ### SCN-HIST-04 - Automatic Pruning After Live Move From The Latest Node
 
 #### Flow
-| `Chessboard.moveSubmitted` |
+| `GameMoveComposable.commitLiveMove(game, move)` |
 | --- |
-| `GamesStore.makeMove` |
-| `MoveHistoryService.pruneFutureMoves` |
-| `TimeControlService.applyMove` |
-| `MoveHistoryService.addMainlineMove` |
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
-| `SavedGamesStore.saveGame` |
+| `GameClockComposable.reconcileTimeout(game, moveTimestamp)` |
+| `MoveHistoryService.pruneFutureMoves(liveNode)` when the live node has children and `GamePositionComposable.isPathPrefix(livePath, renderedPath)` is false |
+| `GameMoveComposable._applyLiveMove(game, move, moveTimestamp)` |
+| `GameMoveComposable._finaliseLiveMove(game, livePosition, isLivePositionRendered)` |
 
-| `GamesStore.makeMove` |
+| `MoveHistoryService.pruneFutureMoves(node)` |
 | --- |
-| `GameMoveComposable.commitLiveMove` |
-| `GameClockComposable.applyMove` |
-| `GameMoveComposable.applyLiveMove` |
-| `GamePositionComposable.appendLivePath` |
-| `GameMoveComposable.finaliseLiveMove` |
+| detach and remove every child of the existing node; clear `mainlineChildIndex` |
 
-| `MoveHistoryService.pruneFutureMoves` |
-| --- |
-
-| `SavedGamesStore.saveGame` |
-| --- |
-| `SavedGameIndexService.getAutosaveFilePath` |
-| `SerializationService.writeGameDocument` |
-
-- UI surface coverage: there is no user-facing prune action or confirmation dialog in the baseline. The pruning action is automatic and is triggered by the next real live move from the same latest node after in-game analysis exit.
-- Runtime selector coverage: `GamesStore` advances actual play independently during analysis and runs the automatic pruning action through `MoveHistoryService.pruneFutureMoves` when real play resumes from the current latest live node with exploratory descendants still attached. Pruning mutates that node in the existing authoritative tree; the following move commit attaches its child and advances the selectors without replacing the tree. The separate history-rewrite flow retains old moves that were actually played.
-- Requirement verification: `Pass`. Latest-node exploratory branches remain inspectable after analysis exit, but the automatic pruning action discards them once real play supersedes them.
+- Pruning applies to analysis continuations left below the latest live node after explicit analysis. It is skipped while the user is still viewing a node beneath that live node. **Why:** actual engine replies keep arriving during explicit analysis, and pruning the branch under the user's selection would delete what they are looking at. Leaving it means that branch remains history until a later actual move made while it is not selected. See the [background analysis plan](../../ArchivedPlans/BackgroundAnalysisPlan.md#5-protect-the-viewed-branch-and-preserve-existing-history-retention).
+- Pruning mutates the existing node in the authoritative tree; the following commit attaches its child without replacing the tree. History rewrites in SCN-HIST-02 keep previously played continuations instead.
+- There is no prune action or confirmation in the UI. The following commit counts towards the move-count autosave, where `GameRecordComposable.moveCommitted` calls `SavedGamesStore.saveGame` through the recorded [same-layer exception](../Architecture/index.md#current-exceptions).
+- Requirement verification: `Pass`.
 
 ## Time Control
 
 ### SCN-TIME-01 - Clock Ticks During Play
 
 #### Flow
-| `GameView.onClockTick` |
+| `GameView` clock interval callback (registered in `onMounted`, every 250 ms) |
 | --- |
-| `GamesStore.getGame` |
-| `GameView._buildClockReadModel` |
-| `TimeControlService.getRemainingTime` |
-| `PlayerPanel._formatRemainingTime` |
+| `now.value = Date.now()` |
+| `GameView._reconcileGameEnd()` |
 
-| `GamesStore.getGame` |
+| `GameView.remainingTime` computed |
 | --- |
+| `TimeControlService.getRemainingTime(game.clockSnapshot, new ClockTimestamp(now))` |
 
-| `TimeControlService.getRemainingTime` |
+| `PlayerPanel.clockText` computed |
 | --- |
-| `TimeControlService._applyElapsedTime` |
+| format the `remainingMs` prop; tenths below ten seconds; untimed shows a clock icon |
 
-- UI timing rule: render loops and timer callbacks are cadence only. They request authoritative remaining-time reads but do not mutate stored clock state directly.
-- Requirement verification: `Pass`. Time reads stay authoritative without moving mutation logic into the view.
+- Cadence rule: the interval only refreshes `now` and asks for an authoritative read. It never writes `clockSnapshot`; expiry is finalised by the store (SCN-TIME-04).
+- `GameView.actualTurnColour` marks the active panel from the live position, independently of the selected node.
+- Requirement verification: `Pass`.
 
 ### SCN-TIME-02 - Pause and Resume Clocks
 
 #### Flow A - Pause
 | `GameControlPanel._setPaused(true)` |
 | --- |
-| `GamesStore.pauseGame` |
-| `GameClockComposable.pauseGame` |
-| `GameClockComposable.pauseGame` |
+| `GameControlPanel._run((game) => GamesStore.pauseGame(game, PauseReason.Manual))` |
 
-| `GamesStore.pauseGame` |
+| `GamesStore.pauseGame(game, reason)` |
 | --- |
-| `GameClockComposable.pauseGame` |
-| `GameClockComposable.pauseGame` |
-| `GameClockComposable.pauseGame` |
+| alias of `GameClockComposable.pauseGame(game, reason)` |
+
+| `GameClockComposable.pauseGame(game, reason)` |
+| --- |
+| `GameClockComposable._getExpiredColour(game, nowUtc)`; expired: return `GameClockComposable.syncClock(game, nowUtc)` |
+| `GameClockComposable._canPauseForReason(game, reason)`: timed game with a running clock, or already paused |
+| already paused: add the reason; `GameRecordComposable.timestampGame(game)`; return |
+| not live/live-analysis or not ongoing: return |
+| add the reason to `game.$.pauseReasons` |
+| `TimeControlService.pauseClock(game.clockSnapshot, nowUtc)` |
+| `getPausedState(liveColour)` or `getLiveAnalysisState(anchor, renderedColour, true)` |
+| `GameRecordComposable.timestampGame(game)` |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
 
 #### Flow B - Resume
 | `GameControlPanel._setPaused(false)` |
 | --- |
-| `GamesStore.resumeGame` |
+| `GameControlPanel._run((game) => GamesStore.resumeGame(game, PauseReason.Manual))` |
 
-| `GamesStore.resumeGame` |
+| `GamesStore.resumeGame(game, reason)` |
 | --- |
-| `GameClockComposable.resumeGame` |
-| `GameClockComposable.resumeGame` |
+| return unless paused and ongoing |
+| `GameClockComposable.getExpiredColour(game, nowUtc)`; expired: return `GameClockComposable.syncClock(game, nowUtc)` |
+| `GameClockComposable.resumeClockState(game, reason, nowUtc)` |
+| ready: `GamePlayerTurnComposable.flushDeferredPlayerMove(game)` |
+| ready: `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` |
 
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
+| `GameClockComposable.resumeClockState(game, reason, nowUtc)` |
 | --- |
-| `GamePlayerTurnComposable.requestPlayerMove` |
+| remove only `reason` from `game.$.pauseReasons` |
+| another reason remains: `GameRecordComposable.timestampGame(game)`; return |
+| `TimeControlService.resumeClock(game.clockSnapshot, nowUtc)` |
+| `getLiveState(liveColour)` or `getLiveAnalysisState(anchor, renderedColour)` |
+| `GameRecordComposable.timestampGame(game)` |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
+| return `GameStatusComposable.isLiveTurnReadyForMove(game)` |
 
-- State coverage: manual and menu pause or resume are valid only for ongoing timed live-family states with an active clock. Timed `LiveWhiteTurn` and `LiveBlackTurn` pause into `PausedWhiteTurn` or `PausedBlackTurn`, while clocked live-analysis contexts pause into the matching `PausedLiveAnalysisFrom*` state. Analyse no longer acquires a pause reason, including in untimed games.
-- Paused-surface rule: actual moves, Takeback and result actions stay blocked. Explicit Analyse entry, analysis moves/history and Exit remain available alongside Resume. Final real Resume alone flushes held actual output.
-- Paused-exception rule: player reassignment and analysis-engine management remain allowed while paused because they are treated as configuration actions rather than gameplay actions.
-- Deferred-engine rule: analysis searches may finish while paused and update rendered seat results, while any guarded player-engine move that resolves during pause is held as deferred output and committed without a second validation once play returns to a playable live state.
-- Requirement verification: `Pass`. Double-pause and resume-after-finish are blocked centrally, and paused live play is interaction-locked apart from resume.
+| `GamePlayerTurnComposable.flushDeferredPlayerMove(game)` |
+| --- |
+| take and clear `game.$.deferredPlayerMove` |
+| not ready: return |
+| `GameMoveComposable.commitLiveMove(game, move)` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` when it finalised |
+
+#### Flow C - Analyse While Paused
+| `GameView` paused-mode `ControlButton` |
+| --- |
+| `GameView.inputActions.analyse()` or `GameView.inputActions.exit()` (SCN-CTRL-04) |
+
+- State coverage: Pause appears only for timed games (`timeControl.initialMs` set and not `untimed`). Timed `LiveWhiteTurn`/`LiveBlackTurn` pause into `PausedWhiteTurn`/`PausedBlackTurn`; `LiveAnalysisFrom*` pauses into the matching `PausedLiveAnalysisFrom*`.
+- Pause owners: `game.$.pauseReasons` is a set of owners (`Manual`, `Menu`); each Resume removes only its own reason and the clock restarts when none remain. **Why:** a menu interruption must not resume a game the user paused manually, and a manual Resume must not undo a pause still held by an open menu flow. A single boolean cannot tell those apart. Restored paused games get `[PauseReason.Manual]` in `GameWorkspaceComposable._hydrateAndInsertGame` so they require an explicit Resume.
+- Paused surface: board, ordinary history, Takeback, draw and resignation are blocked. Explicit analysis entry, analysis moves and history, Exit, player reassignment and analysis-engine management remain available. Only the final Resume flushes held output.
+- Held output: an engine move or shifted premove accepted while paused is stored once as `deferredPlayerMove` and committed by the flush without revalidation or a second ponder request.
+- Requirement verification: `Pass`.
 
 ### SCN-TIME-03 - Increment Applied After Move
 
 #### Flow
-| `GamesStore.makeMove` |
+| `GameMoveComposable._applyLiveMove(game, move, moveTimestamp)` |
 | --- |
-| `GameClockComposable.applyMove` |
-| `TimeControlService.applyMove` |
+| `GameClockComposable.applyMove(game, move.movingColour, moveTimestamp)` |
 
-| `TimeControlService.applyMove` |
+| `TimeControlService.applyMove(snapshot, mover, nowUtc, timeControl)` |
 | --- |
-| `TimeControlService._applyIncrement` |
-| `TimeControlService._switchActiveColour` |
+| untimed: return a copy |
+| materialise the mover's elapsed time |
+| add `timeControl.incrementMs` to the mover and stop its clock |
+| start the opponent's clock at `nowUtc` |
 
-- Requirement verification: `Pass`. Increment logic remains coupled to successful move commit rather than UI ticks.
+- Increment is applied only by actual commits. Analysis moves never touch the clock, and an expired clock is finalised by `reconcileTimeout` before increment.
+- Requirement verification: `Pass`.
 
 ### SCN-TIME-04 - Timeout Ends Game
 
-#### Flow A - Register Focus-Return Clock Reconciliation
-| `GameClockComposable.refreshRuntimeRegistrations` |
+#### Flow A - Register Focus-Return Reconciliation
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
 | --- |
-| `PlatformEventService.subscribeToAppFocusReturned` |
+| call and clear `game.$.focusReturnUnsubscribe` |
+| return unless live or unpaused live-analysis, ongoing, timed and running |
+| `PlatformEventService.subscribeToAppFocusReturned('GamesStore', () => GameClockComposable.syncClock(game, new ClockTimestamp()), 'sync-clock-<id>')` |
 
-#### Flow B - Reconcile The Clock
-| `GameView.onClockTick` |
+#### Flow B - Tick Reaches Zero
+| `GameView._reconcileGameEnd()` |
 | --- |
-| `GamesStore.syncClock` |
-| `TimeControlService.getRemainingTime` |
-| `TimeControlService.hasExpired` |
-| `SavedGamesStore.saveGame` |
-| `GameView._openTimeoutModalIfNeeded` |
+| ongoing and a remaining time is zero: `GamesStore.syncClock(game, new ClockTimestamp())` |
+| the game-end prompt follows ([Game End](#game-end)) |
 
-| `GamesStore.syncClock` |
+| `GamesStore.syncClock(game, nowUtc)` |
 | --- |
-| `GameClockComposable.syncClock` |
-| `GameClockComposable.syncClock` |
-| `GameClockComposable.syncClock` |
+| alias of `GameClockComposable.syncClock(game, nowUtc)` |
 
-| `TimeControlService.getRemainingTime` |
+| `GameClockComposable.syncClock(game, nowUtc)` |
 | --- |
+| a settlement for this game is pending: return it |
+| `GameClockComposable._getExpiredColour(game, nowUtc)` (`TimeControlService.hasExpired`, `getRemainingTime`) |
+| `GameClockComposable._settleTimeout(game, nowUtc, expiredColour)` |
 
-| `TimeControlService.hasExpired` |
+| `GameClockComposable._settleTimeout(game, nowUtc, expiredColour)` |
 | --- |
+| capture `game.clockSnapshot` |
+| `GameTurnRuntimeComposable.clearPlayerTurnRuntime(game)` |
+| same snapshot and still ongoing: `GameClockComposable._finaliseTimeout(game, nowUtc, expiredColour)` |
+| `finally`: remove the pending settlement |
 
-| `SavedGamesStore.saveGame` |
+| `GameClockComposable._finaliseTimeout(game, nowUtc, expiredColour)` |
 | --- |
-| `SavedGameIndexService.getAutosaveFilePath` |
-| `SerializationService.writeGameDocument` |
+| `GamePremoveComposable.clearPremoves(game)` |
+| `TimeControlService.pauseClock(game.clockSnapshot, nowUtc)` |
+| opponent wins with `ResultReason.Timeout`; `getAnalysisState(opponentColour)` |
+| `GameStatusComposable.flagResultNotification(game)` |
+| `GameRecordComposable.timestampGame(game)` |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
 
-| `GameView._openTimeoutModalIfNeeded` |
+#### Flow C - Expiry Found At A Commit
+| `GameMoveComposable.commitLiveMove(game, move)` or `commitHistoryMove(...)` |
 | --- |
+| `GameClockComposable.reconcileTimeout(game, moveTimestamp)` |
 
-- Timing rule: timeout finalisation is triggered from an authoritative clock read. View timer ticks and registered focus-return callbacks may request `syncClock`, but they do not decide timeout independently.
-- Registration rule: focus-return registration exists only while the session is a runnable timed live game. Untimed, paused, finished, and non-live contexts do not keep that callback active.
-- Requirement verification: `Pass`. Timeout finalisation stays in the store and cannot be duplicated by the view.
+| `GameClockComposable.reconcileTimeout(game, nowUtc)` |
+| --- |
+| `GameClockComposable._getExpiredColour(game, nowUtc)` |
+| expired: `GameClockComposable._finaliseTimeout(game, nowUtc, expiredColour)`; return `true` |
+
+`pauseGame` and `resumeGame` route an expired clock to `syncClock` instead of pausing or resuming.
+
+- Authority: views and focus callbacks only request `syncClock`; timeout is decided from `TimeControlService` and finalised once by the clock composable. A move made after the deadline is not committed and gets no increment.
+- Settlement owner: the per-game pending settlement is the owner of an in-flight timeout, so concurrent tick and focus requests join the same work instead of finalising twice. After awaiting turn cancellation, `_settleTimeout` finalises only if the clock snapshot it read is still current and the game is ongoing; a move committed during cancellation therefore wins.
+- Registration: focus-return reconciliation exists only for a runnable timed live game. Pause, result, untimed and non-live states unsubscribe.
+- Persistence: no save is issued when timeout is finalised. The result is stored on the game and included in later saves, autosaves and session restore (see the persistence note at the top).
+- Requirement verification: `Pass`.
 
 ### SCN-TIME-05 - Menu Actions Auto-Pause Timed Games
 
 #### Flow A - Leave The Board For A Menu Action
-| `GameView._handleMenuInterruptionRequested` |
-| --- |
-| `GamesStore.pauseGame` |
+`GameView` handles the `MenuBar` events `homeRequested`, `loadGameRequested`, `saveGameRequested` and `settingsRequested` with `GameView._run(() => GameView._handleMenuInterruptionRequested(action))`, where `action` is the route push; `customNewGameRequested` goes through `GameView._openCustomGame()`, whose action opens `GameCreationModal`.
 
-| `GamesStore.pauseGame` |
+| `GameView._handleMenuInterruptionRequested(action)` |
 | --- |
-| `GameClockComposable.pauseGame` |
-| `GameClockComposable.pauseGame` |
+| `OperationOwner.cancel()` (the view's `playback` owner) |
+| `settings.gameSession.autoPauseOnMenu`: `GamesStore.pauseGame(game, PauseReason.Menu)` |
+| `action()`: `router.push(...)` or `useModal().open(GameCreationModal, {}, onClosed)` |
 
-#### Flow B - Return From The Menu Action
-| `GameView._handleMenuInterruptionCompleted` |
+#### Flow B - Return Through Route Activation
+| `GameView._activateGame(id)` (from `onMounted` and `onBeforeRouteUpdate`) |
 | --- |
-| `GamesStore.resumeGame` |
+| `OperationOwner.cancel()` |
+| `GameView._closeContinuation()` |
+| `GameView._handleMenuInterruptionCompleted(selectedGame)` |
 
-| `GamesStore.resumeGame` |
+| `GameView._handleMenuInterruptionCompleted(game)` |
 | --- |
-| `GameView._resumeIfMenuOwnedPause` |
-| `GameClockComposable.resumeGame` |
+| return unless `game.$.pauseReasons` includes `Menu` |
+| `GamesStore.resumeGame(game, PauseReason.Menu)` (SCN-TIME-02 Flow B) |
 
-- Settings coverage: `gameSession.autoPauseOnMenu` controls whether timed live games are paused for save, settings, and similar interrupting flows.
-- Interruption rule: while the menu-owned pause is active, the game surface is inert and any guarded player-engine move that becomes ready remains deferred until the paired resume path commits it.
-- Requirement verification: `Pass`. Auto-pause is gated by settings, active clock state, and pause ownership.
+#### Flow C - Return From The Custom-Game Modal
+| `GameView._openCustomGame: onClosed` |
+| --- |
+| the interrupted game is still displayed: `GameView._handleMenuInterruptionCompleted(interrupted)` |
+
+- Settings coverage: `gameSession.autoPauseOnMenu` controls the Menu pause. Untimed games and games without a running clock are not paused.
+- Interruption rule: while paused by the menu, any engine move that becomes ready is held and committed by the paired Resume. Selecting another game tab navigates without a Menu pause; activation of a game completes only its own Menu pause.
+- Requirement verification: `Pass`.
 
 ## Game Controls
 
 ### SCN-CTRL-01 - Takeback Action
 
 #### Flow
-| `GameControlPanel.takeBackRequested` |
-| --- |
-| `GamesStore.takeBack` |
-| `MoveHistoryService.takeBack` |
-| `GameView._refreshVisibleAnalysisAfterCommittedMove` |
+`GameControlPanel` shows Takeback in `live`, `inGameAnalysis` and `freeAnalysis` modes and emits `takeBackRequested`, bound to `GameView.inputActions.takeBack`. The button is disabled unless `GameView.canTakeBack`.
 
-| `GamesStore.takeBack` |
+| `GameView.canTakeBack` computed |
 | --- |
-| `GameStatusComposable.assertNotPausedForAction` |
-| enforce `game.gameplayOptions.allowTakeback` for live games |
-| `GameMoveComposable.getTakeBackMoveCount`: in local-versus-engine games, include the local player's last move and any engine reply; disable until the local player has moved |
-| `GameMoveComposable.takeBack` |
-| `GamePositionComposable.getLiveNode` |
-| `GamePositionComposable.setRenderedPath` |
-| `GamePositionComposable.setLivePath` |
-| `GameClockComposable.startClock` from the retained node snapshot |
-| `GameClockComposable.refreshRuntimeRegistrations` |
-| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded` |
-| `GameAnalysisComposable.refreshAnalysisForGame` |
+| not board edit, paused or playing a line |
+| `GamesStore.getTakeBackMoveCount(game)` > 0 (alias of `GameMoveComposable.getTakeBackMoveCount`) |
+| free analysis, or `gameplayOptions.allowTakeback` |
 
-| `MoveHistoryService.takeBack` |
+| `GameView.inputActions.takeBack()` |
 | --- |
+| `GameView._runInputAction(owner, (game) => GamesStore.takeBack(game))` |
 
-- Requirement verification: `Pass`. Live-game takeback is policy-gated, rewinds from the authoritative live node to a live ancestor even while an analysis branch is rendered, and restarts that node's clock snapshot from the current timestamp.
-- State gate: all genuine pauses block actual Takeback. Unpaused explicit analysis uses the actual live node/count and game permission; Takeback returns selection to the rewound actual node without creating an Analysis pause.
-- Move ownership: local-versus-engine takeback removes the local player's last move together with any subsequent engine reply. During engine thinking it cancels the pending turn and removes only the local move. An engine's opening move alone cannot be taken back. Local/local play and standalone analysis rewind one ply; an explicit move count still selects that many plies.
+| `GamesStore.takeBack(game, moveCount = GameMoveComposable.getTakeBackMoveCount(game))` |
+| --- |
+| `GameStatusComposable.assertExplorationAllowed(game, 'Takeback')` |
+| `GameStatusComposable.assertNotPausedForAction(game, 'Takeback')` |
+| live game without `allowTakeback`: throw |
+| `moveCount <= 0`: return |
+| target: `GamePositionComposable.getLiveNode(game)` with a live path, else `getRenderedNode(game)` |
+| `GamePlayerTurnComposable.clearPlayerTurnRuntime(game)` |
+| `EngineRuntimeService.stopEngine(player.assignedEngine)` for each engine player |
+| `GameMoveComposable.rewind(game, targetNode, moveCount, hasLivePath)` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` |
+| await the analysis work returned by `rewind` |
+
+| `GameMoveComposable.rewind(game, targetNode, moveCount, hasLivePath)` |
+| --- |
+| `GamePremoveComposable.clearPremoves(game)` |
+| `MoveHistoryService.takeBack(targetNode, moveCount)` |
+| `GamePositionComposable.getPathToNode(fallbackNode)` |
+| `GamePositionComposable.setRenderedPath(game, fallbackPath, { node })` |
+| live path: `GamePositionComposable.setLivePath(game, fallbackPath, { node })` |
+| reset result and reason |
+| live path: `GameClockComposable.startClock(fallbackNode.clockSnapshot ?? game.clockSnapshot, sideToMove, now)`; `getLiveState` |
+| otherwise: `GameStatusComposable.updateGameStateAfterPosition(game, sideToMove)` |
+| `GameMoveComposable._refreshRenderedAnalysis(game, changed)` |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
+
+- Move ownership: `getTakeBackMoveCount` walks from the live node back to the Local player's last move in a Local-versus-Engine game, so the engine reply and that move are removed together; it returns 0 before the Local player has moved. Local/local play and free analysis rewind one ply.
+- Engine stop: both engine players are stopped. **Why:** a pondering or searching engine works on a position that no longer exists; stopping resets its session, and the next turn request respawns it.
+- State gate: genuine pauses block Takeback. Unpaused explicit analysis uses the actual live node and returns the selection to the rewound node. Finished games do not show Takeback.
+- Requirement verification: `Pass`.
 
 ### SCN-CTRL-02 - Resign Game
 
 #### Flow
-| `GameControlPanel._requestResignation` |
+| `GameControlPanel._requestResignation()` |
 | --- |
-| `useModal().open` |
-| `GamesStore.resignGame` |
-| `SavedGamesStore.saveGame` |
+| `GameControlPanel._turnColour(game)`: side to move on the live path |
+| `useModal().open(ConfirmationModal, { ..., danger: true, confirm: () => GamesStore.resignGame(game, colour) })` |
 
-| `useModal().open` |
+| `ConfirmationModal._confirm()` |
 | --- |
+| `useModalAction.run(() => confirm(signal))` |
+| emit `dismissed` on success |
 
-| `GamesStore.resignGame` |
+| `GamesStore.resignGame(game, colour)` |
 | --- |
-| `GameStatusComposable.resignGame` |
-| `GameStatusComposable.assertNotPausedForAction` |
+| `GameStatusComposable.assertOngoingLiveAction(game, 'Resignation')` |
+| `GamePlayerTurnComposable.clearPlayerTurnRuntime(game)` |
+| `GameStatusComposable.finaliseResignation(game, colour)` |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
 
-| `SavedGamesStore.saveGame` |
+| `GameStatusComposable.finaliseResignation(game, colour)` |
 | --- |
-| `SavedGameIndexService.getAutosaveFilePath` |
-| `SerializationService.writeGameDocument` |
+| `GamePremoveComposable.clearPremoves(game)` |
+| opponent wins; `TimeControlService.pauseClock`; `ResultReason.Resignation` |
+| `getAnalysisState(opponentColour)`; clear `drawOfferState` |
+| `GameStatusComposable.flagResultNotification(game)` |
+| `GameRecordComposable.timestampGame(game)` |
 
-- Requirement verification: `Pass`. Confirmation and final result persistence are both covered.
-- State gate: paused live play and paused live-analysis block resignation until resume restores an interactive live state.
+- State gate: Resign appears only in `live` control mode. `assertOngoingLiveAction` rejects paused, live-analysis, finished and non-live games.
+- The game-end prompt follows ([Game End](#game-end)). No save is issued here; later saves, autosaves and session restore carry the result.
+- Requirement verification: `Pass`.
 
 ### SCN-CTRL-03 - Draw Offer Flow
 
 #### Flow A - Local Versus Local Draw Offer
-| `GameControlPanel._handleDraw` |
+| `GameControlPanel._handleDraw()` |
 | --- |
-| `useModal().open` |
-| `GamesStore.offerDraw` |
-| `useModal().open` |
-| `GamesStore.acceptDrawOffer` |
-| `SavedGamesStore.saveGame` |
+| both seats Local and no pending offer |
+| `useModal().open(ConfirmationModal, { ..., confirm: (signal) => GameControlPanel._offerDraw(game, signal) })` |
 
-| `useModal().open` |
+| `GameControlPanel._offerDraw(game, signal)` |
 | --- |
+| `GamesStore.offerDraw(game)` |
+| `signal.throwIfAborted()` |
+| `useModal().open(DrawResponseModal, { gameId })` |
 
-| `GamesStore.offerDraw` |
+| `GamesStore.offerDraw(game)` |
 | --- |
-| `GameStatusComposable.offerDraw` |
-| `GameStatusComposable.assertNotPausedForAction` |
+| alias of `GameStatusComposable.offerDraw(game)` |
 
-| `GamesStore.acceptDrawOffer` |
+| `GameStatusComposable.offerDraw(game)` |
 | --- |
-| `GameStatusComposable.acceptDrawOffer` |
-| `GameStatusComposable.assertNotPausedForAction` |
+| `GameStatusComposable.assertOngoingLiveAction(game, 'Draw offer')` |
+| `GamePositionComposable.getLivePosition(game).sideToMove` offers |
+| `drawOfferState = { offeringColour, respondingColour, direction: Outgoing }` |
+| `GameRecordComposable.timestampGame(game)` |
+
+| `DrawResponseModal._respond(accept)` |
+| --- |
+| offer or game changed since mounting: `DrawResponseModal._dismissObsolete()` |
+| `useModalAction.run(() => accept ? GamesStore.acceptDrawOffer(game) : GamesStore.declineDrawOffer(game))` |
+| emit `dismissed` on success |
+
+| `GamesStore.acceptDrawOffer(game)` |
+| --- |
+| `GameStatusComposable.assertOngoingLiveAction(game, 'Draw acceptance')` |
+| no offer: return |
+| `GamePlayerTurnComposable.clearPlayerTurnRuntime(game)` |
+| `GameStatusComposable.finaliseDrawAgreement(game)` |
+| `GameClockComposable.refreshRuntimeRegistrations(game)` |
+
+| `GameStatusComposable.finaliseDrawAgreement(game)` |
+| --- |
+| `GamePremoveComposable.clearPremoves(game)` |
+| `ResultState.Drawn`; `TimeControlService.pauseClock`; `ResultReason.DrawAgreement` |
+| `getAnalysisState(renderedColour)`; clear `drawOfferState` |
+| `GameStatusComposable.flagResultNotification(game)` |
+| `GameRecordComposable.timestampGame(game)` |
+
+| `GamesStore.declineDrawOffer(game)` |
+| --- |
+| alias of `GameStatusComposable.declineDrawOffer(game)`: assert, clear `drawOfferState`, `timestampGame` |
+
+`DrawResponseModal` is not dismissible. On mount and update, `_dismissObsolete` closes it when the game no longer holds the offer it was opened for.
 
 #### Flow B - Send A Draw Offer To A Non-Local Opponent
-| `GameControlPanel._handleDraw` |
+| `GameControlPanel._handleDraw()` |
 | --- |
-| `GamesStore.offerDraw` |
-| `SavedGamesStore.saveGame` |
+| not both Local and no pending offer |
+| `GameControlPanel._run((game) => GamesStore.offerDraw(game))` |
 
-| `GamesStore.offerDraw` |
-| --- |
-| `GameStatusComposable.offerDraw` |
-| `GameStatusComposable.assertNotPausedForAction` |
-
-| `SavedGamesStore.saveGame` |
-| --- |
-| `SavedGameIndexService.getAutosaveFilePath` |
-| `SerializationService.writeGameDocument` |
+The `Draw` control lights its indicator while `drawOfferState` exists and shows `Resolve draw`.
 
 #### Flow C - Accept An Incoming Non-Local Offer
-| `GameControlPanel._handleDraw` |
+| `GameControlPanel._handleDraw()` |
 | --- |
-| `GamesStore.acceptDrawOffer` |
-| `SavedGamesStore.saveGame` |
+| `drawOfferState.direction === Incoming`: `GameControlPanel._run((game) => GamesStore.acceptDrawOffer(game))` |
 
-| `GamesStore.acceptDrawOffer` |
+`Planned`: nothing currently produces an `Incoming` offer, because the UCI engine adapter has no draw-offer callback. The control path is ready for a future adapter.
+
+#### Flow D - Withdraw An Outgoing Offer
+| `GameControlPanel._handleDraw()` |
 | --- |
-| `GameStatusComposable.acceptDrawOffer` |
-| `GameStatusComposable.assertNotPausedForAction` |
+| `drawOfferState.direction === Outgoing`: `GameControlPanel._run((game) => GamesStore.withdrawDrawOffer(game))` |
 
-| `SavedGamesStore.saveGame` |
+| `GamesStore.withdrawDrawOffer(game)` |
 | --- |
-| `SavedGameIndexService.getAutosaveFilePath` |
-| `SerializationService.writeGameDocument` |
+| alias of `GameStatusComposable.withdrawDrawOffer(game)`: assert, clear an outgoing offer, `timestampGame` |
 
-#### Flow D - Withdraw An Outgoing Non-Local Offer
-| `GameControlPanel._handleDraw` |
-| --- |
-| `GamesStore.withdrawDrawOffer` |
-| `SavedGamesStore.saveGame` |
-
-| `GamesStore.withdrawDrawOffer` |
-| --- |
-| `GameStatusComposable.withdrawDrawOffer` |
-| `GameStatusComposable.assertNotPausedForAction` |
-
-| `SavedGamesStore.saveGame` |
-| --- |
-| `SavedGameIndexService.getAutosaveFilePath` |
-| `SerializationService.writeGameDocument` |
-
-- UI surface coverage: local-local resolution uses the shared dialog shell. Non-local opponents use the LED-like pending-offer indicator on `GameControlPanel`.
-- State gate: paused live play and paused live-analysis block offer, accept, decline, and withdraw actions until resume; any pending-offer indicator is read-only while paused.
-- Requirement verification: `Pass`. The baseline keeps local-local resolution explicit while letting engine-backed non-local participation define the same indicator-based model that a future adapter can reuse.
+- State gate: the Draw control appears only in `live` control mode, and every draw action asserts an ongoing, unpaused live state.
+- `Planned`: repeat-offer throttling (`BR-CTRL-03-REPEAT-OFFER`) is not implemented.
+- Requirement verification: `Pass` for local resolution, non-local offer and withdrawal. Draw agreement raises the game-end prompt and is carried by later saves.
 
 ### SCN-CTRL-04 - Enter/Exit In-Game Analysis Mode
 
 #### Flow A - Enter In-Game Analysis
+`GameControlPanel` emits `analysisRequested` from Analyse in `live` mode; in `paused` mode `GameView` renders its own Analyse control. Both call `GameView.inputActions.analyse()`.
 
-`GameView input action -> playback.cancel -> GamesStore.enterInGameAnalysis -> GameMoveComposable.enterInGameAnalysis -> copy selected canonical position/path -> matching LiveAnalysisFrom/PausedLiveAnalysisFrom state -> _refreshRenderedAnalysis`.
+| `GameView.inputActions.analyse()` |
+| --- |
+| `GameView._runInputAction(owner, (game) => GamesStore.enterInGameAnalysis(game))` |
+
+| `GameView._runInputAction(owner, action)` |
+| --- |
+| return when `renderedBoard` is no longer `owner` |
+| `OperationOwner.cancel()` (the view's `playback` owner) |
+| recheck `owner` |
+| `GameView._closeContinuation()` |
+| `GameView._run(() => action(owner.game))` |
+
+| `GamesStore.enterInGameAnalysis(game)` |
+| --- |
+| alias of `GameMoveComposable.enterInGameAnalysis(game)` |
+
+| `GameMoveComposable.enterInGameAnalysis(game)` |
+| --- |
+| return without a live path, when already analysing, or in `BoardEdit` |
+| `GamePositionComposable.getLivePosition(game)` |
+| `MoveApplicationService.genPosition(getRenderedPosition(game), [])` |
+| `GamePositionComposable.setRenderedPath(game, [...game.renderedPath], { node: getRenderedNode(game), position })` |
+| ongoing: `getLiveAnalysisState(liveColour, renderedColour, paused)`; finished: `getAnalysisState(renderedColour)` |
+| `GameMoveComposable._refreshRenderedAnalysis(game, false)` |
 
 #### Flow B - Exit In-Game Analysis
+`GameControlPanel` emits `exitAnalysisRequested` from Exit analysis in `inGameAnalysis` mode; in `paused` mode the `GameView` control shows Exit analysis while analysing. Both call `GameView.inputActions.exit()`.
 
-`GameView input action -> playback.cancel -> GamesStore.exitInGameAnalysis -> _returnToLiveNode -> shared latest actual path/position -> paused/live/terminal state -> _refreshRenderedAnalysis`.
+| `GameView.inputActions.exit()` |
+| --- |
+| `GameView._runInputAction(owner, (game) => GamesStore.exitInGameAnalysis(game))` |
 
-- Entry starts at the selected move and preserves actual clock, pending turn, pause owners and held output. Repeated entry is a no-op. Ordinary review alone does not enable analysis input.
-- Explicit analysis permits both colours to explore, including during genuine pauses. Only actual unpaused turns advance the live node; actual result actions and Takeback keep their independent restrictions.
-- Exit/Live selection never resumes or flushes actual play. It preserves terminal results and genuine pauses. Analysis branches left behind by background progression remain history. Current-parent exploration is pruned only on the existing next actual move, unless it would delete selected descendants.
-- The existing paused panel retains Resume; GameView composes the contextual Analyse/Exit action without changing component APIs.
+| `GamesStore.exitInGameAnalysis(game)` |
+| --- |
+| `GameMoveComposable.exitInGameAnalysis(game)` |
+| `GamePlayerTurnComposable.requestPlayerMoveIfNeeded(game)` when it returned `true` |
+
+| `GameMoveComposable.exitInGameAnalysis(game)` |
+| --- |
+| return without a live path, or when not analysing an ongoing game |
+| `GameMoveComposable._returnToLiveNode(game)` (SCN-HIST-01) |
+
+- Detached selection: entry copies the path array and the selected board even when they equal the live ones. **Why:** actual commits append to `livePath` and mutate the live position in place; while aliased, an engine reply would move the analysed board. The invariant is that in `LiveAnalysisFrom*` and `PausedLiveAnalysisFrom*` states `renderedPath` is never the `livePath` array; `GamePositionComposable.hydrateGame` keeps that after restore. See the [background analysis plan](../../ArchivedPlans/BackgroundAnalysisPlan.md#1-enter-analyse-on-the-selected-move).
+- Entry preserves the actual clock, pending turn, pause owners and held output; repeated entry is a no-op. Ordinary review alone does not enable analysis input.
+- Exit or selecting the live node never resumes or flushes actual play. It preserves genuine pauses and final results. Analysis branches left behind remain history until pruned by a later actual move (SCN-HIST-04).
+- Input actions: `inputActions` closures are created per `renderedBoard` publication, and `_runInputAction` ignores a closure whose publication was replaced. **Why:** the board, history and PV controls must act on the board they were rendered for; a click delivered after the board or its permissions changed would otherwise apply to a different context. The publication is the owner; no counter is involved.
+- Requirement verification: `Pass`.
 
 ### SCN-CTRL-05 - Block Board Editing Inside In-Game Analysis Mode
 
-#### Flow A - Blocked Attempt
-| `GameControlPanel._toggleBoardEdit` |
-| --- |
-| `useModal().open(MessageModal)` |
+#### Flow A - The Action Is Not Offered
+`GameControlPanel` renders Edit board only in `freeAnalysis` mode, so in-game analysis has no board-edit control.
 
-| `useModal().open` |
+| `GameControlPanel._toggleBoardEdit()` |
 | --- |
+| `game.gameState` includes `AnalysisFrom`: `useModal().open(MessageModal, { title, subtitle, message, closeLabel })`; return |
+
+| `GameBoardEditComposable.enterBoardEdit(game)` |
+| --- |
+| `game.livePath` exists: return without change |
+
+The `MessageModal` branch is a defensive explanation; with the current templates it is unreachable because in-game analysis does not render Edit board.
 
 #### Flow B - Allowed Attempt
-| `GameControlPanel._toggleBoardEdit` |
+| `GameControlPanel._toggleBoardEdit()` |
 | --- |
-| `GamesStore.enterBoardEdit` |
+| `GameControlPanel._run(() => GamesStore.enterBoardEdit(game))` |
 
-| `GamesStore.enterBoardEdit` |
+Board-edit entry and exit are in [AnalysisAndSetup](AnalysisAndSetup.md#scn-free-analysis-02---board-editing-in-free-analysis--setup).
+
+- `Planned`: the scenario's optional shortcut to free analysis / setup (`BR-CTRL-05-GO-TO-SETUP`) is not implemented.
+- Requirement verification: `Pass`. Board editing stays limited to games without a live path, enforced in both the control template and the store.
+
+## Game End
+
+### SCN-CTRL-06 - Announce the Game Result
+
+All terminal results go through one notification and one prompt. Analysis behaviour after a result is in [AnalysisAndSetup](AnalysisAndSetup.md#analysis-after-game-end).
+
+#### Flow A - Flag The Result
+| `GameStatusComposable.flagResultNotification(game)` |
 | --- |
-| `GameBoardEditComposable.enterBoardEdit` |
+| `game.$.resultNotificationPending = true` |
 
-- UI surface coverage: the blocked action explanation uses the shared dialog shell and may offer dismiss-only handling or a future setup shortcut without mutating the live game context directly.
-- Requirement verification: `Pass`. Board editing stays isolated to non-live analysis states without leaking the rule into components.
+Callers: `GameStatusComposable.updateGameResultFromLivePosition` (checkmate, stalemate, insufficient material, reached from `_finaliseLiveMove`), `GameStatusComposable.finaliseResignation`, `GameStatusComposable.finaliseDrawAgreement` and `GameClockComposable._finaliseTimeout`.
 
+#### Flow B - Show The Prompt
+| `GameView._reconcileGameEnd()` (from the 250 ms clock interval) |
+| --- |
+| ongoing with an expired clock: `GamesStore.syncClock(game, new ClockTimestamp())`; return if the displayed game changed |
+| return unless `game.$.resultNotificationPending` |
+| `game.$.resultNotificationPending = false` |
+| `useModal().open(GameResultModal, { gameId })` |
+
+#### Flow C - Choose What To Do Next
+| `GameResultModal._exit()` |
+| --- |
+| emit `dismissed` |
+| `useGameTabActions.close(gameId)` |
+
+| `useGameTabActions.close(id)` |
+| --- |
+| `GamesStore.clearPremoves(game)` |
+| `UiStateStore.closeTab(id)` |
+| `router.push` to the next active game or `/home` |
+
+| `GameResultModal._save()` |
+| --- |
+| emit `dismissed` |
+| `router.push('/saved-games/save/' + gameId)` |
+
+| `GameResultModal._analyse()` |
+| --- |
+| `useModalAction.run(() => GamesStore.refreshAnalysis(game))` |
+| emit `dismissed` on success |
+
+#### Flow D - Review The Finished Game
+| `GameView.controlMode` computed |
+| --- |
+| `finished` when the result is not ongoing (outside board edit and pause) |
+
+In `finished` mode `GameControlPanel` shows First/Previous/Next/Last navigation and the review note, without Takeback, Pause, Draw or Resign. `GameView.canInput` accepts board and PV input, which `GamesStore.makeMove` commits as analysis branches (SCN-MOVE-01 Flow B).
+
+- One-shot notification: the flag lives on the runtime `$`, which is never saved, and the view clears it before opening the prompt. **Why:** stores do not own UI, and watchers on `resultState` are not allowed. The rejected alternatives were opening the modal from the store, which couples state to presentation, and deriving the prompt from `resultState`, which would reopen it for every restored finished game. The invariant is that each result arms exactly one prompt, raised by the view that displays that game; a result reached in a background tab prompts when that game is next displayed.
+- `GameResultModal` is not dismissible; one of its three actions closes it. Start analysis with no assigned seats has nothing to start; seats are added from the `AnalysisPanel`.
+- Requirement verification: `Pass`. Saving remains user-driven or autosave-driven.

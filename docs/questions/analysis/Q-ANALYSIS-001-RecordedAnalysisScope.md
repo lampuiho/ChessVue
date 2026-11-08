@@ -8,6 +8,7 @@
 | Raised | 15 October 2026 |
 | Scope clarified | 15 October 2026, explicit user instruction |
 | Reviewed revision | Source inspection based on `2d693f7`; no new browser run |
+| Last reviewed | 8 November 2026 against `30e9ed6`, source inspection only |
 | Related questions | [Q-ANALYSIS-002 — resolved](Q-ANALYSIS-002-VariationRetention.md), [Q-ENGINE-001](../engine/Q-ENGINE-001-ComparisonAndPersistence.md) |
 
 This is a planning review prompt, not a question currently awaiting an answer or blocking journey work. Investigate it when implementing/testing the relevant journeys; raise a concrete question only if that work reveals a real unresolved issue.
@@ -21,10 +22,12 @@ Recording applies only to actual moves played in games, not exploratory moves. T
 - The [persistence contract](../../HighLevel/persistence_contract.md) includes the game move tree and analysis seats in canonical saves.
 - [Move.ts](../../../src/contracts/Move.ts) models move nodes/branches; [Analysis.ts](../../../src/contracts/Analysis.ts) models engine seats and current-position lines. Those structures alone do not establish per-actual-move recorded-analysis content or capture timing.
 - [SCN-HIST-03/04 and SCN-CTRL-04](../../HighLevel/scenarios.md) describe exploration independently from the actual-game recording feature. Saving a current workspace is not proof that an earlier real move's analysis can be retrieved.
+- Current capture path at `30e9ed6`: [GameMoveComposable](../../../src/state/game/GameMoveComposable.ts) `_applyLiveMove` asks [GameAnalysisComposable](../../../src/state/game/GameAnalysisComposable.ts) `captureMoveAnalysis` for a record before committing an actual move and stores it as `recordedAnalysis` on the new node. A record is taken only when the selected board is the live position, and contains every seat that has at least one line; while the user reviews history or explores in Analyse, background actual moves receive no record.
+- Since 21 October 2026 (`20d6d4b`, "analysis panel update") the separate recorded-analysis panel has been removed. [SCN-HIST-01](../../HighLevel/scenarios.md#scn-hist-01---navigate-move-history-node) now shows only current-position evaluation; records remain in the move tree and saved documents but no screen presents them.
 
 ## Remaining decision to clarify
 
-Implemented baseline on 16 October 2026 during JRN-HIST-01–09: actual moves automatically snapshot available engine seats from their rendered parent at commit. The payload includes copied engine configuration, output/capture timestamps, depth, scores, principal variations and available best move. Records are stored on played nodes and shown as pre-move output separately from fresh analysis. Empty output creates no record; exploratory moves cannot overwrite one. This implementation direction does not assert a user decision about later replacement, depth thresholds or analysis produced after the move. JRN-HIST-06 covers its preservation and two-engine provenance; broader policy alternatives below remain review prompts.
+Implemented baseline on 16 October 2026 during JRN-HIST-01–09: actual moves automatically snapshot available engine seats from their rendered parent at commit. The payload includes copied engine configuration, output/capture timestamps, depth, scores, principal variations and available best move. Records are stored on played nodes. They were initially shown as pre-move output separately from fresh analysis; that panel was removed on 21 October 2026, so the records are currently stored but not displayed. Empty output creates no record; exploratory moves cannot overwrite one. This implementation direction does not assert a user decision about later replacement, depth thresholds or analysis produced after the move. JRN-HIST-06 covers its preservation and two-engine provenance; broader policy alternatives below remain review prompts.
 
 What analysis payload is recorded for each actual game move, and when is it captured: at the move, as the engine produces a useful result, or through an explicit action on that actual move? What is the minimum information the user needs when revisiting the move?
 
@@ -47,3 +50,5 @@ Independent exploration, pruning, move-tree serialisation and import-identity ch
 ## Resolution
 
 Recording scope is settled by the user. Review payload/capture behaviour during journey work, using existing contracts and normal judgement. If a concrete unresolved issue emerges, record its evidence and ask then; this prompt itself is not an acceptance gate.
+
+Review on 8 November 2026 (source inspection only): the prompt remains a review prompt. The removal of the recorded-analysis panel makes the "minimum information the user needs when revisiting the move" part of the question more pressing, because recorded content is no longer visible anywhere in the application. Raise it as an `Open` question if journey or usability work needs a revisit surface; do not infer one from this note.

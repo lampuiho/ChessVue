@@ -1,26 +1,30 @@
 # Shared dialog flows
 
-Dialogs mount through `useModal().open(Component, props, onClosed?)`. App initialises one provider. The [modal lifecycle design](../../../ArchivedPlans/ModalComponentDesign.md) records captured mounted-owner replacement and completion; the current feature boundaries are below.
+Dialogs mount through `useModal().open(Component, props, onClosed?)`. `App` initialises the single provider. [ModalComposable](Composables.md#modalcomposable) and the [modal lifecycle design](../../../ArchivedPlans/ModalComponentDesign.md) record captured-opening replacement and exactly-once completion; the [modal component docs](Components/Modals/index.md) record each component's props. The current feature boundaries are below.
 
-Each opening receives its own signal and emits `dismissed` to that owner. The provider aborts, unmounts and settles its completion once. ModalDialog owns the accessible shell and permitted dismissal/focus behaviour. `useModalAction(signal)` shares busy/error/retry and duplicate-submit handling across feature forms and ConfirmationModal; it never closes whichever modal happens to be current. Confirmation callbacks are awaited, rather than emitted to an unawaited async listener.
+Each opening receives its own `signal` and emits `dismissed` to its own opening. The provider aborts, unmounts and settles that opening's completion once. `ModalDialog` owns the accessible shell, permitted Escape/backdrop/close-button dismissal and focus scope. `useModalAction(signal)` shares busy, error, retry and duplicate-submit handling across the asynchronous modals; it never closes whichever modal happens to be current. Confirmation callbacks are awaited props rather than emitted events, because Vue does not await an asynchronous emitted listener and the modal must show busy and error feedback until the operation settles.
 
-| Flow | Owner and entry point | Inputs and actions |
+| Flow | Component and opener | Inputs and actions |
 | --- | --- | --- |
-| Custom game | GameCreationModal, Home/Game custom action | Local form, engine-readiness validation, create/open-tab/navigation. GameView retains the captured Menu-pause completion. |
-| Prepared setup | GameCreationModal, GameControlPanel setup action | Optional gameId targets the prepared game; the same local form validates and starts it. |
-| Promotion | PromotionModal, Chessboard target action | Raw legal/premove candidates and colour; selected returns to the board's exact pending gesture and then GameView input. |
-| Resignation | ConfirmationModal, GameControlPanel | Captured game and actual live colour; awaited public resignGame coordination. |
-| Local draw offer | ConfirmationModal, GameControlPanel | Await offerDraw, check the opening signal, then open DrawResponseModal. |
-| Draw response | DrawResponseModal | gameId; captures the actual offer and derives responding colour. Missing/replaced offers dismiss; submission checks identity before existing public acceptance/decline. No Escape/backdrop dismissal. |
-| Timeout | MessageModal, GameView clock reconciliation | Recorded winner and Review game label; existing per-game notification ownership. |
-| Invalid import | MessageModal, SavedGamesView | Import failure feedback without a partial-document continuation. |
-| Reset/unsaved settings | ConfirmationModal, SettingsView | Awaited reset or captured discard-and-navigate action; failed writes do not apply appearance. |
-| Blocked editing | MessageModal, GameControlPanel | Explanation before any prohibited board-edit action. |
-| Player selection | PlayerSelectionModal, PlayerPanel | gameId and colour; derive the opening's initial seat locally and preserve copied engine assignments. |
-| Analysis selection | AnalysisEngineSelectionModal, AnalysisPanel | gameId; filter canonical assignments, add the chosen engine and retry the captured seat when eligible. |
-| Save overwrite/deletion/history continuation | ConfirmationModal, owning route view | Await the captured target action; overwrite retains its dismissal lock while writing. |
-| Mobile navigation | NavigationMenuModal, NavigationFrame | Shared slot closures and the opening's lifetime; selection/dismissal closes only that owner. |
+| Custom game | `GameCreationModal`; `HomeView._openCustomGame`, `GameView._openCustomGame` | Fresh form from accepted defaults, validation, required-engine readiness, then `createGame`, open tab and navigate. `GameView` passes an `onClosed` that resumes its Menu pause only if the interrupted game is still displayed. |
+| Start from setup | `GameCreationModal` with `gameId`; `GameControlPanel` Start game | The same form, without workspace or unassigned choices, validates and calls `startGameFromSetup` on the prepared game. |
+| Promotion | `PromotionModal`; `Chessboard._commitTarget` | Exact raw legal or premove candidates and the moving colour. `selected` returns to the board's pending gesture, which checks candidate identity before emitting `moveAttempted`. |
+| Historical continuation | `ConfirmationModal`; `GameView._requestMoves` | Captures game, node and raw moves. `_confirmContinuation` rechecks the signal, selected node, ongoing result, pause, analysis mode and takeback permission before `_applyMoves`. `_closeContinuation` runs at input, navigation, route and unmount boundaries. |
+| Resignation | `ConfirmationModal`; `GameControlPanel._requestResignation` | Captured game and actual live-side colour; awaits `resignGame`. |
+| Local draw offer | `ConfirmationModal`; `GameControlPanel._handleDraw` in local-versus-local games | `_offerDraw` awaits `offerDraw`, checks the opening signal, then opens `DrawResponseModal`, replacing the confirmation. |
+| Draw response | `DrawResponseModal` | `gameId`; captures the game and its current offer and shows the responding colour. A missing or replaced offer dismisses the dialog; submission rechecks identity before `acceptDrawOffer` or `declineDrawOffer`. Not dismissible by Escape, backdrop or close button. |
+| Game result | `GameResultModal`; `GameView._reconcileGameEnd` | `gameId`; opened once per armed result notification for every result reason. Not dismissible; Exit closes the tab, Save for analysis opens the save route, Start analysis awaits `refreshAnalysis`. |
+| Blocked board editing | `MessageModal`; `GameControlPanel._toggleBoardEdit` | Explains that board editing needs a free analysis workspace. The Edit board button is shown only in free analysis, so this is a defensive guard for in-game analysis. |
+| Player selection | `PlayerSelectionModal`; `PlayerPanel._selectPlayer` | `gameId` and `colour`; captures the opening's initial seat and preserves a copied engine assignment when Keep is chosen. |
+| Analysis engine selection | `AnalysisEngineSelectionModal`; `AnalysisPanel._addEngine` | `gameId`; excludes engines already assigned to the game, adds the chosen engine and retries its captured seat outside board edit. |
+| Settings reset | `ConfirmationModal`; `SettingsView._requestResetSettings` | Awaits `resetSettings`, then emits `appearanceChanged`. |
+| Unsaved settings | `ConfirmationModal`; `SettingsView._requestDiscardChanges` from `onBeforeRouteLeave` and Back/Cancel | Captured target route; discards the draft and navigates. |
+| Save overwrite | `ConfirmationModal` with `dismissibleWhileWorking: false`; `SavedGamesView._requestOverwrite` | Captured game and save name; one write per confirmation, dismissal locked while writing. |
+| Save and game deletion | `ConfirmationModal`; `SavedGamesView._requestDelete`, `_requestDeleteGame` | Captured save or game identity; refreshes the library and falls back to `/saved-games/load` when the open group disappears. |
+| Invalid import | `MessageModal` with `error`; `SavedGamesView._run` | Import failure feedback without a partial-document continuation. |
+| Engine file removal | `ConfirmationModal` with `dismissibleWhileWorking: false`; `EnginePackageDetailsView._removePackage` | Removes an unreferenced imported package after the store rechecks references, then returns to the engines overview. |
+| Mobile navigation | `NavigationMenuModal`; `NavigationFrame._openDrawer` | Shared slot closures; any selection or dismissal closes only that drawer opening. |
 
-Player and analysis configuration stay available during genuine pauses; ordinary gameplay input remains locked. Non-local draw offer accept/withdraw stays in GameControlPanel. In-game analysis exit remains prompt-free.
+Player and analysis configuration stay available during genuine pauses; ordinary gameplay input remains locked. Non-local draw offers are sent, accepted and withdrawn directly from `GameControlPanel` without a dialog. In-game analysis exit remains prompt-free. Engine profile editing and package import are routed views, not dialogs; modals are reserved for confirmations, acknowledgements and single-choice pickers.
 
-DrawResponse's ownership check is at opening/submission time. GamesStore.acceptDrawOffer currently awaits turn cleanup without an offer-identity recheck; this component refactor makes no stronger guarantee for that existing store operation. Already-started domain mutations retain their completion semantics. Replacement/disposal suppresses late UI delivery and removes owned DOM/listeners.
+`DrawResponseModal`'s ownership check happens at opening and submission time. `GamesStore.acceptDrawOffer` awaits turn cleanup without rechecking offer identity afterwards, so the modal does not guarantee offer identity throughout that store operation; a stronger guarantee would need a separately specified store change ([component simplification plan](../../../ArchivedPlans/ComponentSimplificationPlan.md#1-remove-duplicated-modal-inputs-and-the-form-relay)). Already-started domain mutations keep their completion semantics. Replacement and disposal suppress late UI delivery and remove owned DOM and listeners.

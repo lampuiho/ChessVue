@@ -7,7 +7,8 @@
 | Classification | Open interaction policy / potential usability gap |
 | Raised | 15 October 2026 |
 | Reviewed revision | Source inspection based on `2d693f7`; no new browser run |
-| Related questions | [Q-PLAY-001](../play/Q-PLAY-001-LiveProgressDuringAnalysis.md), [Q-ANALYSIS-002](Q-ANALYSIS-002-VariationRetention.md) |
+| Last reviewed | 8 November 2026 against `30e9ed6`, source inspection only |
+| Related questions | [Q-PLAY-001](../play/Q-PLAY-001-LiveProgressDuringAnalysis.md), [Q-PLAY-002](../play/Q-PLAY-002-PremoveAnalysisConflicts.md), [Q-ANALYSIS-002](Q-ANALYSIS-002-VariationRetention.md) |
 
 This is a planning review prompt, not a question currently awaiting an answer or blocking journey work. Investigate it when implementing/testing the relevant journeys; raise a concrete question only if that work reveals a real unresolved issue.
 
@@ -18,7 +19,7 @@ Interactive analysis during play should be easy to enter and should not accident
 ## Observation and evidence
 
 - [SCN-ANALYSIS-04](../../HighLevel/scenarios.md) assigns different effects to PV clicks in live play, history review and analysis. It also applies the game's `showLiveAnalysisMoves` preference across live-game contexts.
-- In [GameView.vue](../../../src/views/GameView.vue), `showAnalysisMoves` depends on the presence of a live path and the preference. `playAnalysisLine(...)` chooses a whole selected prefix for exploration contexts, but only the first move for normal live play.
+- In [GameView.vue](../../../src/views/GameView.vue) at `30e9ed6`, `showAnalysisMoves` is true without a live path or after the result is recorded, and otherwise follows the game's `showLiveAnalysisMoves` preference. `_playAnalysisLine(...)` plays the whole selected prefix in free analysis, finished review and explicit Analyse; in normal live play it submits only the first move; and during the engine's turn in a human-versus-engine game it appends an eligible own-colour move to the premove queue. History review with takeback disabled leaves PV targets disabled until Analyse.
 - As a result, current score-only policy can hide move targets in an in-game analysis context, while an enabled target in normal live play can commit a real move. These are documented behaviours to examine, not automatically defects.
 - Existing JRN-ANALYSIS-03/04/05 describe these rules but do not establish that the distinction is understandable to a user seeking interactive exploration.
 
@@ -42,6 +43,8 @@ Continue stale-prefix rejection, one-move live submission and pause safety regre
 
 ## Resolution
 
-The 16 October 2026 Analysis tranche exercises live, in-game analysis and history with both preference values, one-move live submission, exact prefix playback in free/untimed/timed analysis, stale-prefix rejection, switching games during playback and manual-pause safety. The visible Live, Analysis mode and Study controls states and explicit Analyse/Exit analysis controls distinguish the existing contexts. [The case review](../../../journeys/definitions/analysis/ScenarioReview.md) records the assertions; [execution evidence](../../JourneyImplementation.md#analysis-verification) remains separate. No new interaction decision is needed for these specified regression cases. Broader usability assessment stays with the usability/session work rather than being inferred from deterministic passes.
+The 16 October 2026 Analysis tranche exercises live, in-game analysis and history with both preference values, one-move live submission, exact prefix playback in free/untimed/timed analysis, stale-prefix rejection, switching games during playback and manual-pause safety. The visible Live, Analysis mode and Study controls states and explicit Analyse/Exit analysis controls distinguish the existing contexts. [The case review](../../../journeys/definitions/analysis/ScenarioReview.md) records the assertions; [execution evidence](../../ArchivedPlans/JourneyImplementation.md#analysis-verification) remains separate. No new interaction decision is needed for these specified regression cases. Broader usability assessment stays with the usability/session work rather than being inferred from deterministic passes.
 
 Exercise SCN-ANALYSIS-04 and its existing preference/context rules during journey work. Ask if a concrete usability or design conflict remains; this prompt alone does not block writing those tests.
+
+Review on 8 November 2026 (source inspection only): the routing half of this prompt is now settled by later user decisions. [Q-PLAY-002](../play/Q-PLAY-002-PremoveAnalysisConflicts.md) answers 3 and 7 and conflicts C06/C11 fix that explicit Analyse makes board and PV input exploratory, that an eligible own-colour suggestion on the opponent's turn appends a premove, and that it commits on the user's own turn; [Q-PLAY-003](../play/Q-PLAY-003-PausedAnalysisEntry.md) extends exploration to paused analysis. The remaining prompt is whether a score-only live preference should still hide PV targets inside explicit Analyse; the [Settings review](../../../journeys/definitions/settings/ScenarioReview.md) records that it currently does. The status stays `Review prompt`.

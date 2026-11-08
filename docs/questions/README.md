@@ -1,12 +1,12 @@
 # Design questions found through journeys
 
-This register holds focused questions about implemented design, scenario drift and gaps found while writing journeys. The [product intent](../JourneyTestPlan.md#product-intent-and-usability-baseline) establishes ease of use, recorded analysis, interactive analysis during play and multiple engine views as the main goals. Questions clarify the details of those capabilities; they do not make the capabilities optional.
+This register holds focused questions about implemented design, scenario drift and gaps found while writing journeys. The [product intent](../ArchivedPlans/JourneyTestPlan.md#product-intent-and-usability-baseline) establishes ease of use, recorded analysis, interactive analysis during play and multiple engine views as the main goals. Questions clarify the details of those capabilities; they do not make the capabilities optional.
 
 Confirmed recording scope: analysis is recorded only for actual moves played in games. Exploratory moves are temporary and remain subject to the existing pruning policy. This is the resolved decision in Q-ANALYSIS-002; recording review prompts concern payload/capture details for actual game moves.
 
 Questions should arise while implementing and testing journeys, backed by a concrete finding from that work. They are not an upfront design questionnaire or a prerequisite to starting. The existing speculative entries below are review prompts only; consult them when their journey is reached, and raise a focused question if implementation/testing demonstrates a real unresolved issue. The user permits useful early questions, but does not require them.
 
-The scenario document is a working input, and implementation is evidence of current behaviour. Neither automatically resolves unclear design. Use the [scenario drift workflow](../JourneyTestPlan.md#scenario-drift-review-while-writing-journeys) for each affected journey.
+The scenario document is a working input, and implementation is evidence of current behaviour. Neither automatically resolves unclear design. Use the [scenario drift workflow](../ArchivedPlans/JourneyTestPlan.md#scenario-drift-review-while-writing-journeys) for each affected journey.
 
 ## Structure
 
@@ -16,11 +16,7 @@ Each question records intent, observation, uncertainty, alternatives, a provisio
 
 ## Open questions
 
-One follow-up clarification is open from design/source review of the analysis plan; it is not a finding from a new test run.
-
-| ID | Status | Concrete question and reason |
-| --- | --- | --- |
-| [Q-PLAY-003](play/Q-PLAY-003-PausedAnalysisEntry.md) | Resolved | Entry and explicit analysis moves/history are allowed while actual play stays paused. The topic records the prior conflict, user decisions and ownership hazards. |
+No question is currently `Open` or `Investigating`. The last follow-up clarification, [Q-PLAY-003](play/Q-PLAY-003-PausedAnalysisEntry.md), was resolved on 22 October 2026 and is listed below.
 
 ## Review prompts for future journey work
 
@@ -28,8 +24,8 @@ These planning hypotheses are not confirmed findings, active questions or blocke
 
 | ID | Priority | Topic | Relevant work |
 | --- | --- | --- | --- |
-| [Q-ANALYSIS-001](analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) | P0 | Recorded content and capture timing for actual game moves | Actual-move recording/save journeys |
-| [Q-ANALYSIS-003](analysis/Q-ANALYSIS-003-SuggestionInteraction.md) | P0 | Exploring an engine line versus submitting a live move | Analysis interaction journeys |
+| [Q-ANALYSIS-001](analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) | P0 | Recorded content and capture timing for actual game moves; records are captured but have had no review surface since 21 October 2026 | Actual-move recording/save journeys |
+| [Q-ANALYSIS-003](analysis/Q-ANALYSIS-003-SuggestionInteraction.md) | P0 | Whether a score-only live preference should also hide PV targets inside explicit Analyse; explore-versus-play routing is settled by Q-PLAY-002 | Analysis interaction journeys |
 | [Q-ENGINE-001](engine/Q-ENGINE-001-ComparisonAndPersistence.md) | P1 | Engine comparison records attached to actual game moves | Multi-engine and recording journeys |
 | [Q-UX-001](usability/Q-UX-001-UsabilityReference.md) | P1 | Concrete usability reference flows and review evidence | Composed sessions and usability review |
 
@@ -38,10 +34,13 @@ These planning hypotheses are not confirmed findings, active questions or blocke
 | ID | Resolved | Decision |
 | --- | --- | --- |
 | [Q-ANALYSIS-002](analysis/Q-ANALYSIS-002-VariationRetention.md) | 15 October 2026 | Record analysis only for actual game moves; exploratory moves remain temporary and the existing pruning policy is accepted |
-| [Q-PLAY-001](play/Q-PLAY-001-LiveProgressDuringAnalysis.md) | 21 October 2026 | Analyse does not itself pause actual clocks/play; selected analysis and actual progression remain independent |
-| [Q-PLAY-002](play/Q-PLAY-002-PremoveAnalysisConflicts.md) | 21 October 2026 | Premove/analysis conflicts resolved, including current-move pruning, historical retention and actual rewrite confirmation; implementation remains planned |
+| [Q-PLAY-001](play/Q-PLAY-001-LiveProgressDuringAnalysis.md) | 21 October 2026 | Analyse does not itself pause actual clocks/play; selected analysis and actual progression remain independent. Implemented with the background-analysis prerequisite on 22 October 2026 |
+| [Q-PLAY-002](play/Q-PLAY-002-PremoveAnalysisConflicts.md) | 21 October 2026 | Premove/analysis conflicts resolved, including current-move pruning, historical retention and actual rewrite confirmation. Premoves implemented on 23 October 2026 (SCN-MOVE-04) |
+| [Q-PLAY-003](play/Q-PLAY-003-PausedAnalysisEntry.md) | 22 October 2026 | Entry and explicit analysis moves/history are allowed while actual play stays paused; actual Takeback, results and Resume keep their pause guards. Implemented on 22 October 2026 |
 
 Initial implementation observations are from source inspection of the working tree based on commit `2d693f7` on 15 October 2026. They are not fresh browser test results. Provisional recommendations remain proposals; resolved decisions identify their source in the topic file. Recording these decisions has not changed runtime behaviour or the persistence schema.
+
+On 8 November 2026 every topic file was re-checked against the source at `30e9ed6` by inspection only; no new test run is claimed. Statuses, links to the moved plans under [ArchivedPlans](../ArchivedPlans/) and drifted code references were updated, and each file records that review in its `Last reviewed` row. Historical evidence keeps its original revision and is labelled as such.
 
 ## Working rules
 

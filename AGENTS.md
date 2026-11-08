@@ -18,7 +18,7 @@
 ## Async work and watchers
 - Do not use generation, epoch or sequence counters to invalidate async work, or rename the same mechanism as a version/token. Give work an explicit owner, prevent duplicate starts, and cancel/settle superseded work at its action or lifecycle boundary. Review identity guards against that ownership invariant rather than adding more stale-result checks.
 - Do not use watchers, including `watchEffect` and equivalent reactive subscriptions. Use computed values for derived state and explicit actions, component events, lifecycle hooks or router hooks for effects.
-- Follow [the code cleanup plan](docs/CodeCleanupPlan.md) for ownership decisions, event boundaries and verification.
+- Follow [the code cleanup plan](docs/ArchivedPlans/CodeCleanupPlan.md) for ownership decisions, event boundaries and verification.
 - Run `npm run check:code` after relevant changes. The build enforces the AST audit with no observer exceptions.
 
 ## Styling

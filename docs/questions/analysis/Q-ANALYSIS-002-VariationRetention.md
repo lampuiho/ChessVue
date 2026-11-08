@@ -9,6 +9,7 @@
 | Resolved | 15 October 2026 |
 | Decision source | Explicit user clarification in this conversation |
 | Implementation evidence | Source inspection based on `2d693f7`; no new browser run |
+| Last reviewed | 8 November 2026 against `30e9ed6`, source inspection only; decision unchanged |
 | Related questions | [Q-ANALYSIS-001](Q-ANALYSIS-001-RecordedAnalysisScope.md), [Q-ENGINE-001](../engine/Q-ENGINE-001-ComparisonAndPersistence.md) |
 
 ## Decision
@@ -24,7 +25,7 @@ Preserve the existing distinct handling of unrelated historical branches and pre
 The initial question incorrectly treated durable exploratory variations as a possible minimum for recording. That interpretation is superseded by the user's clarification.
 
 - [SCN-HIST-04](../../HighLevel/scenarios.md) prunes temporary exploratory descendants after the next real move from the same latest live node; SCN-CTRL-04 describes their temporary visibility after analysis exit.
-- [GameMoveComposable.ts](../../../src/state/game/GameMoveComposable.ts) calls `MoveHistoryService.pruneFutureMoves(...)` before appending a real move where the live parent has children.
+- [GameMoveComposable.ts](../../../src/state/game/GameMoveComposable.ts) `commitLiveMove` calls `MoveHistoryService.pruneFutureMoves(...)` before appending a real move where the live parent has children. Since the background-analysis change of 22 October 2026 it skips pruning while the selected board is on a branch below that live node, so an active analysis branch survives background actual moves, as [Q-PLAY-001](../play/Q-PLAY-001-LiveProgressDuringAnalysis.md) requires.
 - [MoveHistoryService.ts](../../../src/domain/MoveHistoryService.ts) owns those tree operations. The existing policy needs verification, not a redesign to preserve exploratory records.
 
 ## Journey impact

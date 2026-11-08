@@ -1,6 +1,6 @@
 # Usability scenario review
 
-Reviewed on 20 October 2026 against `e141840` plus the usability working-tree changes, following the completed journey and ownership cleanup. The acceptance scope is [JRN-UX-01–04](../../../docs/JourneyTestPlan.md#interaction-and-presentation-checks). These checks cross existing flows; they introduce no new chess rule, recording policy or reference-site parity claim.
+Reviewed on 20 October 2026 against `e141840` plus the usability working-tree changes, following the completed journey and ownership cleanup. The acceptance scope is [JRN-UX-01–04](../../../docs/ArchivedPlans/JourneyTestPlan.md#interaction-and-presentation-checks). These checks cross existing flows; they introduce no new chess rule, recording policy or reference-site parity claim.
 
 The owning [scenarios](../../../docs/HighLevel/scenarios.md), [UI layout](../../../docs/HighLevel/ui_layout.md), [state](../../../docs/HighLevel/state_model.md), [persistence](../../../docs/HighLevel/persistence_contract.md), [settings](../../../docs/HighLevel/settings_contract.md) and [engine runtime](../../../docs/HighLevel/engine_runtime.md) remain the behavioural contracts. Recording and temporary exploration retain the decisions in [Q-ANALYSIS-002](../../../docs/questions/analysis/Q-ANALYSIS-002-VariationRetention.md). [Q-UX-001](../../../docs/questions/usability/Q-UX-001-UsabilityReference.md) supplies the qualitative review direction; no uninspected external site behaviour is asserted.
 
@@ -34,4 +34,4 @@ One warm-up and twelve measured cycles each select first/live history, browse a 
 
 The test attaches `workload-baseline` with workload, viewport, counts and all action-group durations. These include browser automation and storage work; they are a reproducible initial baseline, not engine throughput or a heap-leak proof. Normal 15-second action and 180-second test deadlines detect loss of responsiveness; there is no invented performance percentile budget. The probe is test-only, observes explicit document/window event registrations and does not change production lifecycle ownership.
 
-Execution evidence and measured findings belong in [JourneyImplementation.md](../../../docs/JourneyImplementation.md#usability-verification), rather than being inferred from discovery or this review.
+Execution evidence and measured findings belong in [JourneyImplementation.md](../../../docs/ArchivedPlans/JourneyImplementation.md#usability-verification), rather than being inferred from discovery or this review.

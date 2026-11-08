@@ -7,6 +7,7 @@
 | Classification | Usability acceptance clarification |
 | Raised | 15 October 2026 |
 | Reviewed revision | User-provided reference and source review based on `2d693f7`; no reference-site comparison performed |
+| Last reviewed | 8 November 2026 against `30e9ed6`, source inspection only |
 | Related questions | [Q-ANALYSIS-003](../analysis/Q-ANALYSIS-003-SuggestionInteraction.md), [Q-PLAY-001](../play/Q-PLAY-001-LiveProgressDuringAnalysis.md) |
 
 This is a planning review prompt, not a question currently awaiting an answer or blocking journey work. Investigate it when implementing/testing the relevant journeys; raise a concrete question only if that work reveals a real unresolved issue.
@@ -18,7 +19,7 @@ The user considers chess.com the gold standard for ease of use. The confirmed ad
 ## Observation and evidence
 
 - [High-level scenarios](../../HighLevel/scenarios.md) mostly enumerate functional steps, branches and implementation touchpoints; they do not establish whether the combined play/analysis experience is easy to understand.
-- The [journey plan](../../JourneyTestPlan.md) provides composed sessions and keyboard/layout checks, but needs product-oriented review evidence beyond successful clicks and rendered panels.
+- The [journey plan](../../ArchivedPlans/JourneyTestPlan.md) provides composed sessions and keyboard/layout checks, but needs product-oriented review evidence beyond successful clicks and rendered panels.
 - No particular current behaviour of chess.com has been verified in this work. Do not infer its analysis, timing or engine policies from the user's reference alone.
 
 ## Decision to clarify
@@ -49,7 +50,7 @@ Assess the concrete tasks while implementing/running journeys, record observed f
 
 [JRN-UX-01–04](../../../journeys/definitions/usability/ScenarioReview.md) adds keyboard/dialog acceptance, the desktop layout matrix and a repeatable resource workload. The keyboard tasks exposed missing focus ownership and promotion dismissal; the 150% desktop checks exposed horizontal overflow and oversized pieces. These defects have focused fixes and executable regression assertions, without changing play/exploration/recording policy.
 
-Screenshot inspection at 800×600 shows a complete board followed by the sidebar, correctly wrapped game/snapshot names, and no page-wide horizontal overflow. The 32-snapshot library spans 2,858 CSS pixels at that size; its action footer requires substantial scrolling from the selected details. The board's 64 Tab stops and abbreviated workspace titles are further concrete friction observations. Arrow-key board navigation and a persistent library action area are possible follow-up improvements, not newly mandatory acceptance rules. The [verification record](../../JourneyImplementation.md#usability-verification) records the screenshots, measured workload and limits.
+Screenshot inspection at 800×600 shows a complete board followed by the sidebar, correctly wrapped game/snapshot names, and no page-wide horizontal overflow. The 32-snapshot library spans 2,858 CSS pixels at that size; its action footer requires substantial scrolling from the selected details. The board's 64 Tab stops and abbreviated workspace titles are further concrete friction observations. Arrow-key board navigation and a persistent library action area are possible follow-up improvements, not newly mandatory acceptance rules. The [verification record](../../ArchivedPlans/JourneyImplementation.md#usability-verification) records the screenshots, measured workload and limits.
 
 This review does not compare current reference-site behaviour or establish human ease of use, screen-reader compatibility or native-host acceptance. No product-policy decision is needed to complete the independent keyboard, focus, desktop layout and resource checks.
 
@@ -58,3 +59,7 @@ This review does not compare current reference-site behaviour or establish human
 The user's follow-up rejects document scrolling on desktop and supplies a chess.com screenshot showing a borderless player strip with its avatar aligned to the board. This is a supplied visual reference, not an assertion about the current external site's behaviour.
 
 The accepted correction uses the existing `#app` root, a flex-positioned collapsible left navigation rail on desktop, an icon-only mobile top bar with an overlay drawer, and flat board/player/sidebar/library/settings surfaces. Board size accounts for available width and height. Long lists and forms scroll internally with hidden scrollbar chrome, while player strips, game controls and route actions remain in view. This supersedes the earlier review's acceptance of vertical document scrolling and distant library actions. The 64 board Tab stops and abbreviated titles remain separate observations.
+
+## Review on 8 November 2026
+
+Source inspection only. The navigation correction is implemented by the shared [NavigationFrame](../../../src/components/NavigationFrame.vue) and its [NavigationMenuModal](../../../src/components/modals/NavigationMenuModal.vue) drawer, now described by [SCN-NAV-04](../../HighLevel/scenarios.md#scn-nav-04---use-the-navigation-rail-or-mobile-drawer). Later usability-relevant additions include the non-dismissible game-result prompt ([SCN-CTRL-06](../../HighLevel/scenarios.md#scn-ctrl-06---announce-the-game-result)), library board previews ([SCN-LOAD-01](../../HighLevel/scenarios.md#scn-load-01---load-valid-game-from-internal-save-view)) and expandable analysis lines. None has had a human usability review. The board still renders 64 focusable squares and the recorded-analysis view noted in [Q-ANALYSIS-001](../analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) is absent, which affects the proposed "revisit its recorded analysis" task. The status stays `Review prompt`.

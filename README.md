@@ -77,7 +77,7 @@ The first run automates native disk/process checks. The interactive run opens vi
 
 ## Browser engines
 
-In Settings > Engines, add an engine profile with location `stockfish.js`, then select it as an analysis engine or computer player in Custom game. Computer players use timed games. Each engine assignment gets an independent worker; stopping or restarting one does not affect the others. Other UCI worker scripts can use a URL served from the same site.
+In Settings > Engines, add an engine profile with location `stockfish.js`, then select it as an analysis engine or computer player in Custom game. In timed games a computer player searches against its clock; in untimed games it gets a fixed `BuildConfig.engine.untimedMoveTimeMs` (1000 ms) per move. Each engine assignment gets an independent worker; stopping or restarting one does not affect the others. Other UCI worker scripts can use a URL served from the same site.
 
 The engine remains `EngineClientType.Uci`. Desktop process I/O and browser worker messages share the same UCI session implementation. Vite serves the pinned Stockfish.js 19.0.1 worker and matching WASM during development and includes both in production builds. Its GPL licence and matching source links accompany the engine under `engines/stockfish/`.
 
@@ -85,7 +85,7 @@ See [upstream Stockfish.js](https://github.com/nmrugg/stockfish.js/tree/v19.0.1)
 
 ## Journeys and browser end-to-end tests
 
-The [user journey test development plan](docs/JourneyTestPlan.md) defines the scenarios to automate, failure cases, priorities and completion criteria.
+The [user journey test development plan](docs/ArchivedPlans/JourneyTestPlan.md) defines the scenarios to automate, failure cases, priorities and completion criteria.
 The [implementation record](docs/ArchivedPlans/JourneyImplementation.md) tracks the first creation/save cases and their validation; `npm run journey -- report` reports the latest run against distributed case metadata.
 
 ```sh

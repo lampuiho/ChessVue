@@ -1,7 +1,7 @@
 # Time Control Types
 
 ## Purpose
-Define the baseline time-control schema and the live timing snapshot used for drift-safe clock handling.
+Define the baseline time-control schema and the live timing snapshot used for drift-safe clock handling. Source: `contracts/TimeControl.ts`.
 
 ## Types
 - `enum TimeControlPreset`
@@ -13,7 +13,7 @@ Define the baseline time-control schema and the live timing snapshot used for dr
 
 ## Data Structures
 ```ts
-enum TimeControlPreset {
+const enum TimeControlPreset {
   Bullet = "bullet",
   Blitz = "blitz",
   Rapid = "rapid",
@@ -42,8 +42,15 @@ interface IClockSnapshot {
 }
 ```
 
+## Schemas
+- `timeControlPresets` feeds `timeControlPresetSchema`.
+- `timeControlSchema` requires integer `initialMs >= 0` when present and integer `incrementMs >= 0`.
+- `playerClockSchema` requires integer `remainingMs >= 0` when present.
+- `clockSnapshotSchema` validates both player clocks, the optional active colour, and optional `ClockTimestamp` instants.
+
 ## Rules
 - Omitted timing values represent untimed play.
+- An omitted `preset` means a custom clock: `initialMs` is between 1 and 600 minutes and `incrementMs` is a whole number of seconds up to 300. `TimeControlPreset.Untimed` carries no `initialMs` and a zero increment, and each named timed preset fixes its duration (1, 5, 10, or 30 minutes) with no increment. These combinations are enforced by `getGameClockError(...)` in the creation and settings-defaults validation, not by `timeControlSchema` itself.
 - Relative timestamps, not UI tick counters, are the source of truth for remaining time. **Why:** UI ticks are only render cadence and may be throttled in the background; deriving elapsed time from stored instants prevents missed renders from becoming lost clock time. Any replacement must remain independent of UI update frequency.
 - Published clock snapshots are stable history records. Clock transitions create replacement snapshots, including copied white and black clock records, so current timing changes cannot mutate snapshots retained on move-tree nodes. **Why:** restore and takeback require the exact clock at each historical node; one shared mutable snapshot would rewrite that history on later ticks, pauses, or moves. Immutable timestamp instances may remain shared because transitions replace rather than mutate them.
 - `gameState` on `IGame` tells consumers whether a snapshot is actively running, paused, or outside live clock consumption.

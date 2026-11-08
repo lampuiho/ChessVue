@@ -9,6 +9,7 @@
 | Discovery | Journey case, implementation/testing stage and concrete finding that raised this question |
 | Reviewed revision | Source/document revision; include relevant working-tree changes |
 | Related questions | Stable IDs and links, or none |
+| Last reviewed | Date and source revision of the latest re-check against the code, once one has been made |
 
 ## User intent
 

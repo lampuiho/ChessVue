@@ -3,10 +3,11 @@
 | Field | Value |
 | --- | --- |
 | Status | Product choices resolved; revised existing-turn implementation approved and delivered on 23 October. Current evidence and independent baseline limitations are recorded in the parent plan |
+| Last reviewed | 8 November 2026 against `30e9ed6`, source inspection only; implementation matches the decisions |
 | Raised/resolved | 21 October 2026 |
 | Decision source | User numbered answers and subsequent explicit corrections through 23 October 2026, including keeping the existing turn mechanism |
-| Parent plan | [Premove and player-turn flow](../../PreMovePlan%28ToDo%29.md) |
-| Evidence | [Raw/no-buttons scenario baseline](../../PreMovePlan%28ToDo%29.md#raw-move-scenario-baseline---23-october-2026): all 25 IDs, 409 tests, 291 pass/118 fail; type checking and code audit pass |
+| Parent plan | [Premove and player-turn flow](../../ArchivedPlans/PreMovePlan%28ToDo%29.md) |
+| Evidence | Pre-implementation [raw/no-buttons scenario baseline](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#raw-move-scenario-baseline---23-october-2026): all 25 IDs, 409 tests, 291 pass/118 fail; type checking and code audit pass. Delivered behaviour: [implementation verification](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026) |
 | Related decisions | [Background analysis](Q-PLAY-001-LiveProgressDuringAnalysis.md), [temporary exploratory branch/recording scope](../analysis/Q-ANALYSIS-002-VariationRetention.md) |
 
 ## Resolved decisions
@@ -32,7 +33,7 @@ These later instructions supersede incompatible details in older drafts. They do
 | Decision | Required plan consequence |
 | --- | --- |
 | Reuse `IMoveRaw` | Queue stores `IMoveRaw[]`; remove the custom entry interface rather than aliasing it or copying its fields. No stored expected kind; derive the piece from the projected/actual board |
-| Include the raw-submission prerequisite | Completed the [CodexFollowUp item](../../CodexFollowUp.md#raw-move-submission) as PRE-RAW with tests first: legal selection/promotion and board/view/store submission stay raw, then canonical acceptance enriches for existing detailed services/history. Its own tests must fail before the refactor and pass before queue implementation |
+| Include the raw-submission prerequisite | Completed the [CodexFollowUp item](../../ArchivedPlans/CodexFollowUp.md#raw-move-submission) as PRE-RAW with tests first: legal selection/promotion and board/view/store submission stay raw, then canonical acceptance enriches for existing detailed services/history. Its own tests must fail before the refactor and pass before queue implementation |
 | No queue anchor | Current actual live position is the base. Keep exact seated-player ownership; no duplicated node/path/FEN, including Black before its first move |
 | Chess rules remain a proper utility | Extend existing `GameRuleUtility`; no premove utility/library. Use generic `genCandidateMovesForPiece` and existing legal/detail/application APIs |
 | No count or premove buttons | No queue count/list or Undo/Clear controls in GameControlPanel. Cancel the whole queue through live-board right-click; touch tap a premoved piece. Retain Escape access and board-edit deletion |
@@ -42,7 +43,7 @@ These later instructions supersede incompatible details in older drafts. They do
 | Tests before behaviour | First migrate the data boundary with its assertions; then write/revise all raw scenario tests and record meaningful failures before gameplay/presentation development |
 | Full replan after undo | This revision edits the plan/data-design/decision documents only. No code/test changes or renewed implementation until the revised plan is approved |
 | Retain turn taking and resolution | Revert the replacement turn owner/driver. Register the existing local Deferred, validate/shift the FIFO head and immediately submit through existing `attemptPlayerMove`. Keep existing handler, pending/deferred fields, successor request, final-Resume flush and engine/provider completion |
-| Trust producer/caller contracts when appending | Board/PV input supplies possible premoves; `makeMove` selects current context/local player. `_appendPremove` initialises if absent, pushes the supplied move reference and publishes. No copy, projection, movement, seat or existing-queue checks. Rebase/due checks own actual changed-board facts |
+| Trust producer/caller contracts when appending | Board/PV input supplies possible premoves; `makeMove` selects current context/local player. `_appendPremove` (delivered as `GamePremoveComposable.appendPremove`) initialises if absent, pushes the supplied move reference and publishes. No copy, projection, movement, seat or existing-queue checks. Rebase/due checks own actual changed-board facts |
 | Trust contracts throughout the other flows | Drawing applies accepted moves without candidate/owner validation or malformed-data fallback. Post-commit revalidation owns one feasibility pass on changed board data; Local turn helper trusts it and checks only actual head legality. Structural actions clear at mutation after existing cleanup; no cloned-seat repair checks. Board owns cancellation eligibility; keep existing after-await context/abort checks, real expiry and external engine validation |
 | Avoid unnecessary copying throughout | Reuse stable move references through input/PV/confirmation/playback/FIFO. No stripping/rebuilding objects, copied queue snapshots or per-entry board clones. One board/rights copy per simulation pass; shared in-place projection application. Held output is an optional reference, not a copied combined sequence; castle shading reads endpoints without a board snapshot |
 
@@ -50,7 +51,7 @@ The chess.com reference concerns the cancellation gesture only. It does not add 
 
 On 23 October the user authorised updating the flows and writing the scenario unit tests, clarifying that "markRaw" meant the `IMoveRaw` submission refactor. This authorises the raw queue declaration/test migration after the prior documentation-only replan. It does not authorise premove gameplay development or change any resolved product choice above.
 
-After subsequently authorising implementation, the user requested its reversal and a new plan because `GamePlayerTurnComposable` changed too much. That request supersedes the implementation approval for further work: revert production behaviour, retain the raw prerequisite/data/scenario tests, and plan the minimal local-turn hook. A head is now shifted at its ordinary turn request, not after a new owner's successful-commit acknowledgement. If pause intervenes, the existing held-output slot owns the already-submitted move; no new claimed-head state is needed. Product decisions 1-9 remain unchanged. See [the retained mechanism and revised flows](../../PreMovePlan%28ToDo%29.md#turn-mechanism-retained).
+After subsequently authorising implementation, the user requested its reversal and a new plan because `GamePlayerTurnComposable` changed too much. That request supersedes the implementation approval for further work: revert production behaviour, retain the raw prerequisite/data/scenario tests, and plan the minimal local-turn hook. A head is now shifted at its ordinary turn request, not after a new owner's successful-commit acknowledgement. If pause intervenes, the existing held-output slot owns the already-submitted move; no new claimed-head state is needed. Product decisions 1-9 remain unchanged. See [the retained mechanism and revised flows](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#turn-mechanism-retained).
 
 The sequence remains game-owned through analysis, but it can be consumed or cancelled by background actual play. Reapplying on exit means recomputing the **remaining** valid queue over the latest live board; it never means rewinding actual play or restoring already-executed entries.
 
@@ -64,7 +65,7 @@ Later clarification: [Q-PLAY-003](Q-PLAY-003-PausedAnalysisEntry.md) allows expl
 
 ## Historical implementation audit before the split
 
-The following source/test observations describe 21 October, before the [analysis prerequisite](../../ArchivedPlans/BackgroundAnalysisPlan.md) was implemented and verified. They are retained as historical evidence, not current defects. The former queue declaration was added afterwards; its entry shape is superseded by the revised [raw queue design](../../PremoveDataStructure.md), whose implementation/tests remain pending approval.
+The following source/test observations describe 21 October, before the [analysis prerequisite](../../ArchivedPlans/BackgroundAnalysisPlan.md) was implemented and verified. They are retained as historical evidence, not current defects. The former queue declaration was added afterwards; its entry shape is superseded by the revised [raw queue design](../../ArchivedPlans/PremoveDataStructure.md), implemented with its tests on 23 October 2026.
 
 | Boundary | Observed implementation | Required implementation |
 | --- | --- | --- |
@@ -122,9 +123,9 @@ Full legality applies to the next due move, while the whole queue must remain pr
 
 ## Concrete scenario matrix
 
-The parent plan restores the [test-ready scenarios](../../PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests), [function flows](../../PreMovePlan%28ToDo%29.md#function-flow) and [plain-data fixture/assertion specification](../../PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification). The PRE-S01-PRE-S25 IDs below remain their product traceability record; use the parent plan for execution order and exact queue/state assertions.
+The parent plan restores the [test-ready scenarios](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#concrete-scenarios-for-unit-tests), [function flows](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#function-flow) and [plain-data fixture/assertion specification](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#data-driven-unit-test-specification). The PRE-S01-PRE-S25 IDs below remain their product traceability record; use the parent plan for execution order and exact queue/state assertions.
 
-These are required planned checks, not passing acceptance. Where implementation details were not explicitly specified by the user, the parent plan provides the recommended mechanism; expected product behaviour follows the decisions above.
+These were the required checks before implementation. On 23 October 2026 all PRE-S01-PRE-S25 IDs occurred in executed unit, mounted-view and browser tests, including the JRN-RACE-09 cases; see the [implementation verification](../../ArchivedPlans/PreMovePlan%28ToDo%29.md#implementation-verification---23-october-2026). Native NW.js premove acceptance was not claimed. Where implementation details were not explicitly specified by the user, the parent plan provides the mechanism; expected product behaviour follows the decisions above. [SCN-MOVE-04](../../HighLevel/scenarios.md#scn-move-04---queue-premoves-against-an-engine) is the current scenario.
 
 | Scenario | Actions / fixture | Required observable behaviour |
 | --- | --- | --- |

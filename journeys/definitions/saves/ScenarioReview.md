@@ -2,7 +2,7 @@
 
 Reviewed on 17–18 October 2026 against source and documents based on `21eb39c`. Read the complete SCN-SAVE-01–03, SCN-LOAD-01, SCN-NAV-03, SCN-EXPORT-01, SCN-IMPORT-01–02 and SCN-LIFECYCLE-01–02 flows and branches in [scenarios](../../../docs/HighLevel/scenarios.md), the [persistence contract](../../../docs/HighLevel/persistence_contract.md), and the owning view, stores, serialiser, index, move-recording and workspace hydration code. The baseline follows ease of use, independent engine output and actual-move recording; temporary exploration is not an archive.
 
-Each case below distinguishes source findings from expected acceptance. Named execution evidence comes from the generated Playwright report, joined through [owned metadata](cases/). [JourneyImplementation](../../../docs/JourneyImplementation.md#saves-verification) records the final run and limitations. Picker choices and changes to existing managed files belong only to the isolated journey runtime. They never mutate an in-memory game. Native dialogs, filesystem faults and application shutdown remain separate platform/storage lanes.
+Each case below distinguishes source findings from expected acceptance. Named execution evidence comes from the generated Playwright report, joined through [owned metadata](cases/). [JourneyImplementation](../../../docs/ArchivedPlans/JourneyImplementation.md#saves-verification) records the final run and limitations. Picker choices and changes to existing managed files belong only to the isolated journey runtime. They never mutate an in-memory game. Native dialogs, filesystem faults and application shutdown remain separate platform/storage lanes.
 
 ## JRN-SAVE-01
 

@@ -4,7 +4,7 @@ Reviewed on 15–16 October 2026 against the working-tree scenarios/contracts ba
 
 Sources: [scenarios](../../../docs/HighLevel/scenarios.md), [state model](../../../docs/HighLevel/state_model.md), [persistence contract](../../../docs/HighLevel/persistence_contract.md), [engine runtime](../../../docs/HighLevel/engine_runtime.md), `Chessboard.vue`, `GameView.vue`, `GameControlPanel.vue`, `ModalHost.vue`, and the game move/status/player/clock composables. Existing decisions about temporary exploration and actual-move recording remain unchanged. These cases establish play controls and current-position interaction, not historical analysis recording or native engine integration.
 
-Execution: 26 named browser variants under `e2e/journeys/play/`; [implementation record](../../../docs/JourneyImplementation.md) records verification. `npm run journey -- report` joins the exact titles to the latest run; absent variants remain unverified. Timed variants create 5+2 games through Custom and install a fixed browser Date before loading timestamp classes. Seeded game identities, positions, four-tab order and untimed behaviour are preserved.
+Execution: 26 named browser variants under `e2e/journeys/play/`; [implementation record](../../../docs/ArchivedPlans/JourneyImplementation.md) records verification. `npm run journey -- report` joins the exact titles to the latest run; absent variants remain unverified. Timed variants create 5+2 games through Custom and install a fixed browser Date before loading timestamp classes. Seeded game identities, positions, four-tab order and untimed behaviour are preserved.
 
 ## JRN-PLAY-01
 
