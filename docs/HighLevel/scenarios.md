@@ -535,7 +535,7 @@ Each scenario in this document uses the same structure:
   1. User clicks node in history tree or a navigation button.
   2. App navigates board state to selected node.
   3. Analysis panel switches to selected FEN context while live play and its clock continue independently.
-  4. The sidebar shows current-position evaluation or analysis without a separate recorded-analysis list. Actual-move records remain in saved game data. Start position selects the root; Live position returns to the actual live node even after restoring a reviewed branch. Next/Last follow the mainline child.
+  4. The sidebar shows current-position evaluation or analysis without a separate recorded-analysis list. When the selected position has a played move with recorded analysis, each seat starts from the cached lines saved at its index. Start position selects the root; Live position returns to the actual live node even after restoring a reviewed branch. Next/Last follow the mainline child.
 - **Branch Paths**:
   - `BR-HIST-01-NODE-MISSING`: Selected node is stale or missing from the current hydrated tree -> ignore it without changing the selection.
   - `BR-HIST-01-ENGINE-DATA-MISS`: No analysis for that node -> show empty/queued state.
@@ -608,7 +608,7 @@ Each scenario in this document uses the same structure:
   - `BR-HIST-04-NO-ANALYSIS-CHILDREN`: No exploratory descendants remain at the node -> commit the live move without pruning first.
 - **Postconditions**: Prompt-free analysis exit is preserved, temporary latest-node analysis continuations remain inspectable until superseded, and real play resumes on a clean live continuation after the automatic pruning action runs. Historical rewrites covered by `SCN-HIST-02` retain previously played continuations as variations.
 - **Recording boundary**: These exploratory continuations do not create recorded-analysis entries. Pruning them must preserve actual game moves and their associated analysis records; exploratory retention is not a prerequisite for the recording feature.
-- **Capture baseline**: An actual move copies available pre-move engine analysis onto its own node at commit, including engine identity, timestamp, depth, scores and principal variations, but only when the live position is the selected board. No available output means no record; analysis from another rendered position is never copied. Review and save/reload retain these independent snapshots.
+- **Capture baseline**: An actual move copies available pre-move engine analysis onto its own node at commit, including engine identity, timestamp, depth, scores and principal variations for every seat in the game's seat order, but only when the live position is the selected board. No seat with lines means no record; analysis from another rendered position is never copied. Review and save/reload retain these snapshots. They are a cache, decided on 8 November 2026 in [Q-ANALYSIS-001](../questions/analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md#decision). Revisiting the position seeds each seat from the cached seat at its index, and fresh lines at least as deep are pushed into the cache. Removing an engine removes its cached seat from every record.
 - **Implementation Touchpoints**:
   - `MoveHistoryService.pruneFutureMoves`
   - `GameMoveComposable.commitLiveMove`
@@ -732,7 +732,7 @@ Each scenario in this document uses the same structure:
   2. App starts each selected engine session.
   3. App dispatches position to all selected engines.
   4. Each engine continues searching and emits updated best lines over time.
-  5. Each assigned engine retains unrestricted runtime lines. Its game subscription replaces the seat's rendered results with the best three lines in engine rank order. Position changes clear those results and supersede the service operation; no analysis position key or visible-result filter is used.
+  5. Each assigned engine retains unrestricted runtime lines. Its game subscription replaces the seat's rendered results with the best three lines in engine rank order. Position changes clear those results, seed each seat from the cached seat at its index for the new position, and supersede the service operation. A seeded seat replaces a cached rank only with a fresh line at least as deep; no analysis position key or visible-result filter is used.
   6. Analysis panel renders one row/group per engine, always shows score/status, shows up to `3` visible lines only when the current workspace context allows rendered move targets, and updates each row independently as new output arrives.
 - **Branch Paths**:
   - `BR-ANALYSIS-02-PARTIAL-FAIL`: One engine fails, others continue with per-engine error badge.

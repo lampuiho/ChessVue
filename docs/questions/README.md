@@ -2,7 +2,7 @@
 
 This register holds focused questions about implemented design, scenario drift and gaps found while writing journeys. The [product intent](../ArchivedPlans/JourneyTestPlan.md#product-intent-and-usability-baseline) establishes ease of use, recorded analysis, interactive analysis during play and multiple engine views as the main goals. Questions clarify the details of those capabilities; they do not make the capabilities optional.
 
-Confirmed recording scope: analysis is recorded only for actual moves played in games. Exploratory moves are temporary and remain subject to the existing pruning policy. This is the resolved decision in Q-ANALYSIS-002; recording review prompts concern payload/capture details for actual game moves.
+Confirmed recording scope: analysis is recorded only for actual moves played in games. Exploratory moves are temporary and remain subject to the existing pruning policy. This is the resolved decision in Q-ANALYSIS-002. The recorded analysis is a cache: the same engine is expected to reproduce the same moves, so a cached result stands in for recomputation rather than being shown as a separate record (Q-ANALYSIS-001, resolved 8 November 2026).
 
 Questions should arise while implementing and testing journeys, backed by a concrete finding from that work. They are not an upfront design questionnaire or a prerequisite to starting. The existing speculative entries below are review prompts only; consult them when their journey is reached, and raise a focused question if implementation/testing demonstrates a real unresolved issue. The user permits useful early questions, but does not require them.
 
@@ -24,9 +24,7 @@ These planning hypotheses are not confirmed findings, active questions or blocke
 
 | ID | Priority | Topic | Relevant work |
 | --- | --- | --- | --- |
-| [Q-ANALYSIS-001](analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) | P0 | Recorded content and capture timing for actual game moves; records are captured but have had no review surface since 21 October 2026 | Actual-move recording/save journeys |
 | [Q-ANALYSIS-003](analysis/Q-ANALYSIS-003-SuggestionInteraction.md) | P0 | Whether a score-only live preference should also hide PV targets inside explicit Analyse; explore-versus-play routing is settled by Q-PLAY-002 | Analysis interaction journeys |
-| [Q-ENGINE-001](engine/Q-ENGINE-001-ComparisonAndPersistence.md) | P1 | Engine comparison records attached to actual game moves | Multi-engine and recording journeys |
 | [Q-UX-001](usability/Q-UX-001-UsabilityReference.md) | P1 | Concrete usability reference flows and review evidence | Composed sessions and usability review |
 
 ## Resolved questions
@@ -37,6 +35,8 @@ These planning hypotheses are not confirmed findings, active questions or blocke
 | [Q-PLAY-001](play/Q-PLAY-001-LiveProgressDuringAnalysis.md) | 21 October 2026 | Analyse does not itself pause actual clocks/play; selected analysis and actual progression remain independent. Implemented with the background-analysis prerequisite on 22 October 2026 |
 | [Q-PLAY-002](play/Q-PLAY-002-PremoveAnalysisConflicts.md) | 21 October 2026 | Premove/analysis conflicts resolved, including current-move pruning, historical retention and actual rewrite confirmation. Premoves implemented on 23 October 2026 (SCN-MOVE-04) |
 | [Q-PLAY-003](play/Q-PLAY-003-PausedAnalysisEntry.md) | 22 October 2026 | Entry and explicit analysis moves/history are allowed while actual play stays paused; actual Takeback, results and Resume keep their pause guards. Implemented on 22 October 2026 |
+| [Q-ANALYSIS-001](analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md) | 8 November 2026 | Recorded analysis is a cache of pre-move engine output, captured automatically at the actual move; the same engine and options are expected to reproduce it, so no separate recorded-analysis surface is needed. Revisiting a played position seeds each seat from the saved seat at its index and pushes deeper lines back; implemented on 14 November 2026 |
+| [Q-ENGINE-001](engine/Q-ENGINE-001-ComparisonAndPersistence.md) | 8 November 2026 | Every seat is cached in the game's seat order; fresh results from the same engine are not kept separately, and engine comparison stays a live current-position capability |
 
 Initial implementation observations are from source inspection of the working tree based on commit `2d693f7` on 15 October 2026. They are not fresh browser test results. Provisional recommendations remain proposals; resolved decisions identify their source in the topic file. Recording these decisions has not changed runtime behaviour or the persistence schema.
 

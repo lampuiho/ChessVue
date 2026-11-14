@@ -25,13 +25,21 @@ Callers: `GameMoveComposable._refreshRenderedAnalysis` (commits, navigation, Tak
 | `GameAnalysisComposable._startAnalysisSeat(game, seat)` |
 | --- |
 | `seat.assignedEngine.$ = shallowReactive(toRaw(EngineRuntimeService.ensureRuntime(engine)))` |
-| `GameAnalysisComposable._subscribeToAnalysis(game, seat)` |
+| `GameAnalysisComposable._getCachedSeat(game, seat)` |
+| cached seat found: `seat.lines = cachedSeat.lines` |
+| `GameAnalysisComposable._subscribeToAnalysis(game, seat, cachedSeat)` |
 | `seat.updatedAt = new AnalysisTimestamp()` |
 | `EngineRuntimeService.startAnalysis(engine, game, { multiPv: 3, searchMode: EngineAnalysisSearchMode.Infinite })` - await |
 | failure while the subscription is current, other than `Aborted`: log it |
 | `finally`, still current: `GameRecordComposable.timestampGame(game)` |
 
-| `GameAnalysisComposable._subscribeToAnalysis(game, seat)` |
+| `GameAnalysisComposable._getCachedSeat(game, seat)` |
+| --- |
+| `GamePositionComposable.getRenderedNode(game)` |
+| no `mainlineChildIndex`: no cached seat |
+| `children[mainlineChildIndex].recordedAnalysis?.seats[index of seat in game.analysis.seats]` |
+
+| `GameAnalysisComposable._subscribeToAnalysis(game, seat, cachedSeat?)` |
 | --- |
 | `_disposeAnalysisSubscription(engine)` |
 | `EngineRuntimeService.subscribeToAnalysis(engine, callback)` |
@@ -41,8 +49,15 @@ Callers: `GameMoveComposable._refreshRenderedAnalysis` (commits, navigation, Tak
 | `GameAnalysisComposable._subscribeToAnalysis: callback(update)` |
 | --- |
 | ignore when not current or in `BoardEdit` |
-| `seat.updatedAt`; `seat.bestMove = update.bestMove`; `seat.lines = update.lines.slice(0, 3)`; `seat.isComplete = update.isFinal` |
+| seeded: `_pushBetterLines(cachedSeat, update.lines)` |
+| `seat.updatedAt`; `seat.bestMove = update.bestMove`; `seat.isComplete = update.isFinal` |
+| seeded: `seat.lines = cachedSeat.lines`; otherwise `seat.lines = update.lines.slice(0, 3)` |
 | `GameRecordComposable.timestampGame(game)` |
+
+- The played move from the rendered node is its mainline child, which records the rendered position. Its saved seats are in the game's seat order, so seat `i` reads saved seat `i` with no engine matching. **Why:** the user decided that recorded analysis is a cache and that the same engine reproduces the same moves ([Q-ANALYSIS-001](../../questions/analysis/Q-ANALYSIS-001-RecordedAnalysisScope.md#decision)); capture and engine removal keep the order, so the layout is the lookup.
+- Seeding happens before the subscription is registered, so three cached lines show at once instead of the fresh search's empty, one-line and two-line steps. A seeded seat shows the saved lines themselves.
+- `_pushBetterLines` copies each fresh line that is at least as deep as the saved line at its rank into the saved seat through `analysisLineSchema.parse`, which strips line runtime, and refreshes its `updatedAt` when any rank changed. An unseeded seat takes each update as it is. **Why:** a fresh search starts at depth 1, so the saved lines stay until the engine has caught up with them, and the record keeps the best lines for the next visit.
+- The cached seat belongs to the subscription closure, and a position change disposes that subscription, so a superseded search cannot write into another position's record.
 
 | `AnalysisPanel.seats` computed |
 | --- |
@@ -453,11 +468,13 @@ Callers: `GameView._activateGame`, `onBeforeRouteLeave`, `GameView._navigateToNo
 | `_disposeAnalysisSubscription(engine)` |
 | `_stopAssignedEngine(engine)` -> `EngineRuntimeService.stopEngine(engine)` *(started)* |
 | remove the seat from the roster |
+| `_removeCachedSeat(game.moveTree.root, engineIndex)`: remove saved seat `engineIndex` from every record; drop a record left with no seats |
 | `GameRecordComposable.timestampGame(game)` |
 | await the engine stop |
 
 - Add is assignment-only; the modal then starts only the new seat through `retryAnalysis`, so other seats keep their searches and results. During board edit the new seat waits for Finish editing.
 - Remove disposes the subscription and removes the seat synchronously before awaiting process cleanup, so late output cannot reach it.
+- Remove also removes that engine's saved lines from every recorded move. **Why:** the user decided that removing an engine removes its saved lines, and it keeps every record in the game's seat order.
 - State gate: add and remove are valid in live, paused, live-analysis and non-live analysis states. Paused play blocks move targets, not roster management.
 - UI surface: the panel header owns Refresh and Add; each seat row owns Retry or Stop and Remove.
 - Requirement verification: `Pass`.
@@ -505,9 +522,9 @@ Board input and PV playback are exploration (SCN-ANALYSIS-04 Flow B) and commit 
 | `GameAnalysisComposable.captureMoveAnalysis(game)` |
 | --- |
 | return `undefined` unless the rendered path equals the live path |
-| each seat with lines, copied through `analysisSeatSchema.parse(seat)` |
-| `{ recordedAt: new AnalysisTimestamp(), seats }`, or `undefined` when no seat has lines |
+| return `undefined` when no seat has lines |
+| `{ recordedAt: new AnalysisTimestamp(), seats }`, with every seat, including empty ones, copied through `analysisSeatSchema.parse(seat)` in the game's order |
 
 - Only actual moves record analysis; exploratory and analysis-branch moves never do. Analysis of a different rendered position is never copied onto the actual move.
-- The schema parse is a deliberate copy at a persistence boundary: the recorded snapshot is immutable history, while the live seat is cleared on the next refresh.
-- Recorded analysis is saved with the game and is not shown in the sidebar.
+- The schema parse is a deliberate copy at a persistence boundary: the record is a cache that later refreshes of the same position may improve, while the live seat is cleared on the next refresh.
+- Recorded analysis is saved with the game. It has no panel of its own; it seeds the seat at the same index when its position is revisited (see [Shared Rendered Analysis Refresh](#shared-rendered-analysis-refresh)).
