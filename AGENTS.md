@@ -14,6 +14,7 @@
 - if there is only a single line insdie if statement, prefer oneliner so as to avoid code folding. use scope only if too long.
 - add semi-colon for every line of typescript
 - Prefer inferred return types for implementation functions; omit redundant `: void` and `: Promise<void>`. Keep annotations required by an interface, callback contract, deliberate public constraint or inference limitation; being exported alone is not a reason to annotate. Do not remove `void` from callable types or promise generics merely because it appears in a search result.
+- Do not use `WeakMap`. A side table keyed by an object signals badly designed OOP: keep the state on the object that owns it, such as its runtime `$` field, or in an explicit owner.
 
 ## Async work and watchers
 - Do not use generation, epoch or sequence counters to invalidate async work, or rename the same mechanism as a version/token. Give work an explicit owner, prevent duplicate starts, and cancel/settle superseded work at its action or lifecycle boundary. Review identity guards against that ownership invariant rather than adding more stale-result checks.
